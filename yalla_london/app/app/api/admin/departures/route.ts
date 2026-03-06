@@ -15,6 +15,7 @@ export const maxDuration = 60; // POST triggers cron routes that can take up to 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-middleware';
 import { getActiveSiteIds } from '@/config/sites';
+import { logManualAction } from '@/lib/action-logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -453,6 +454,8 @@ export async function POST(req: NextRequest) {
     let result: unknown;
     try { result = JSON.parse(text); } catch { result = text.slice(0, 200); }
 
+    logManualAction(req, { action: "do-now", resource: "cron", resourceId: cronPath, success: triggerRes.ok, summary: triggerRes.ok ? `Triggered ${cronPath} (${triggerRes.status})` : `Trigger ${cronPath} returned ${triggerRes.status}`, error: !triggerRes.ok ? `HTTP ${triggerRes.status}` : undefined, fix: !triggerRes.ok ? "Check cron endpoint logs and AI/DB connectivity." : undefined, details: { path: cronPath, statusCode: triggerRes.status } }).catch(() => {});
+
     return NextResponse.json({
       triggered: true,
       path: cronPath,
@@ -460,8 +463,10 @@ export async function POST(req: NextRequest) {
       result,
     });
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'Unknown error';
+    logManualAction(req, { action: "do-now", resource: "cron", resourceId: cronPath, success: false, summary: `Trigger ${cronPath} crashed`, error: errMsg, fix: "Cron endpoint may be timing out or the server is unreachable." }).catch(() => {});
     return NextResponse.json(
-      { triggered: false, error: err instanceof Error ? err.message : 'Unknown error' },
+      { triggered: false, error: errMsg },
       { status: 500 }
     );
   }

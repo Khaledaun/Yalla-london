@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 /**
  * Content Indexing Tab API
@@ -1386,6 +1387,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    logManualAction(request, { action: `indexing-${action}`, resource: "indexing", siteId, success: indexNowSuccess || gscSuccess, summary: `Submitted ${urls.length} URL(s) for indexing (IndexNow: ${indexNowSuccess ? "OK" : "failed"}, GSC: ${gscSuccess ? "OK" : "failed"})`, error: (!indexNowSuccess && !gscSuccess) ? "No submission channel succeeded" : undefined, fix: (!indexNowSuccess && !gscSuccess) ? "Check INDEXNOW_KEY env var and GSC credentials in Settings." : undefined, details: { submitted: urls.length, dbUpdated, indexNowSuccess, gscSuccess } }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       submitted: urls.length,
@@ -1395,6 +1398,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Content indexing submit error:", error);
+    logManualAction(request, { action: "indexing-submit", resource: "indexing", success: false, summary: "Indexing submission crashed", error: error instanceof Error ? error.message : String(error), fix: "Check IndexNow key and GSC config in Settings tab." }).catch(() => {});
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Submission failed" },
       { status: 500 }

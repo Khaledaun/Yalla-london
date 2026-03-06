@@ -34,6 +34,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { getActiveSiteIds, getDefaultSiteId } from "@/config/sites";
 import { interpretError } from "@/lib/error-interpreter";
+import { logManualAction } from "@/lib/action-logger";
 
 // ─────────────────────────────────────────────
 // Types
@@ -571,9 +572,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           isBlocker: !c.passed && c.severity !== "warning",
         }));
 
+        logManualAction(req, { action: "gate-check", resource: "draft", resourceId: draftId, success: true, summary: `Gate check on "${draft.keyword}": ${checks.filter((c: { pass: boolean }) => c.pass).length}/${checks.length} passed`, details: { checks } }).catch(() => {});
         return NextResponse.json({ checks });
       } catch (err) {
         console.warn("[content-matrix] gate_check failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "gate-check", resource: "draft", resourceId: draftId, success: false, summary: "Gate check crashed", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity and pre-publication gate code." }).catch(() => {});
         return NextResponse.json(
           { success: false, error: "Gate check failed" },
           { status: 500 },
@@ -597,9 +600,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             rejection_reason: null,
           },
         });
+        logManualAction(req, { action: "re-queue", resource: "draft", resourceId: draftId, success: true, summary: "Draft re-queued for processing" }).catch(() => {});
         return NextResponse.json({ success: true, message: "Draft re-queued for processing" });
       } catch (err) {
         console.warn("[content-matrix] re_queue failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "re-queue", resource: "draft", resourceId: draftId, success: false, summary: "Re-queue failed", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to re-queue draft" }, { status: 500 });
       }
     }
@@ -612,9 +617,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
       try {
         await prisma.articleDraft.delete({ where: { id: draftId } });
+        logManualAction(req, { action: "delete-draft", resource: "draft", resourceId: draftId, success: true, summary: "Draft deleted" }).catch(() => {});
         return NextResponse.json({ success: true });
       } catch (err) {
         console.warn("[content-matrix] delete_draft failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "delete-draft", resource: "draft", resourceId: draftId, success: false, summary: "Delete failed", error: err instanceof Error ? err.message : String(err), fix: "Draft may not exist or database error." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to delete draft" }, { status: 500 });
       }
     }
@@ -633,9 +640,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             published: false,
           },
         });
+        logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: true, summary: "Blog post soft-deleted" }).catch(() => {});
         return NextResponse.json({ success: true });
       } catch (err) {
         console.warn("[content-matrix] delete_post failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Delete failed", error: err instanceof Error ? err.message : String(err), fix: "Post may not exist or database error." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to delete post" }, { status: 500 });
       }
     }
@@ -651,9 +660,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           where: { id: blogPostId },
           data: { published: false },
         });
+        logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: true, summary: "Blog post unpublished" }).catch(() => {});
         return NextResponse.json({ success: true });
       } catch (err) {
         console.warn("[content-matrix] unpublish failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Unpublish failed", error: err instanceof Error ? err.message : String(err), fix: "Post may not exist or database error." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to unpublish post" }, { status: 500 });
       }
     }
@@ -669,9 +680,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           where: { id: draftId },
           data: { current_phase: "research", last_error: null },
         });
+        logManualAction(req, { action: "rewrite", resource: "draft", resourceId: draftId, success: true, summary: "Draft queued for rewrite" }).catch(() => {});
         return NextResponse.json({ success: true, message: "Draft reset to research phase — will be rewritten on next content builder run" });
       } catch (err) {
         console.warn("[content-matrix] rewrite failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "rewrite", resource: "draft", resourceId: draftId, success: false, summary: "Rewrite queue failed", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to queue rewrite" }, { status: 500 });
       }
     }
@@ -687,6 +700,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         if (!draft) return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
         const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
         const result = await enhanceReservoirDraft(draft as Record<string, unknown>);
+        logManualAction(req, { action: "enhance", resource: "draft", resourceId: draftId, success: result.success, summary: result.success ? `Expanded — score: ${result.previousScore} → ${result.newScore}` : `Expand failed: ${result.error}`, error: result.success ? undefined : result.error, fix: result.success ? undefined : "AI provider may be down. Check AI Config tab." }).catch(() => {});
         return NextResponse.json({
           success: result.success,
           message: result.success
@@ -695,6 +709,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         });
       } catch (err) {
         console.warn("[content-matrix] enhance failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "enhance", resource: "draft", resourceId: draftId, success: false, summary: "Enhance crashed", error: err instanceof Error ? err.message : String(err), fix: "Check AI provider configuration in AI Config tab." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to run expand — check AI provider configuration" }, { status: 500 });
       }
     }

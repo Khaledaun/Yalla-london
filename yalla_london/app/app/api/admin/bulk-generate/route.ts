@@ -20,6 +20,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 interface BulkArticle {
   index: number;
@@ -373,6 +374,8 @@ async function handleQueue(
       error: "No valid topics to queue. Check your input.",
     }, { status: 400 });
   }
+
+  logManualAction(null, { action: "bulk-queue", resource: "draft", siteId, success: true, summary: `Queued ${queued.length} article(s) in pipeline (${topicSource} mode, ${language})`, details: { queued: queued.length, topicSource, language, keywords: queued.map(q => q.keyword) } }).catch(() => {});
 
   return NextResponse.json({
     success: true,

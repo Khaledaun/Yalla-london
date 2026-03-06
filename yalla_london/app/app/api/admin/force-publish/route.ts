@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
+import { logManualAction } from "@/lib/action-logger";
 
 // Allow up to 5 minutes — enhancement calls Grok (~30s each), promotion ~10s each.
 // 4 articles × 40s each = 160s well within Vercel Pro limit.
@@ -66,9 +67,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       log(`[force-publish] Publishing specific draft ${specificDraftId}...`);
       const draft = await prisma.articleDraft.findUnique({ where: { id: specificDraftId } });
       if (!draft) {
+        logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: "Draft not found", error: "Draft not found", fix: "The draft may have been deleted. Check the Content Matrix.", durationMs: Date.now() - start }).catch(() => {});
         return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
       }
       if (draft.current_phase !== "reservoir") {
+        logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: `Draft is in '${draft.current_phase}' phase, not reservoir`, error: `Wrong phase: ${draft.current_phase}`, fix: "Only reservoir drafts can be force-published. Wait for pipeline to complete or re-queue the draft.", durationMs: Date.now() - start }).catch(() => {});
         return NextResponse.json({ success: false, error: `Draft is in '${draft.current_phase}' phase, not reservoir` }, { status: 400 });
       }
       const keyword = (draft.keyword as string) || "unknown";
@@ -81,6 +84,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         log(`[force-publish] Word count ${wordCount} < 1000 — enhancing...`);
         const enhResult = await enhanceReservoirDraft(draft as Record<string, unknown>);
         if (!enhResult.success) {
+          logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: `Enhancement failed for draft`, error: `Enhancement failed: ${enhResult.error}`, fix: "AI provider may be down. Check AI Config tab.", durationMs: Date.now() - start }).catch(() => {});
           return NextResponse.json({ success: false, error: `Enhancement failed: ${enhResult.error}` }, { status: 500 });
         }
         const refreshed = await prisma.articleDraft.findUnique({ where: { id: specificDraftId } });
@@ -92,12 +96,15 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true });
         if (result) {
           log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
+          logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: true, summary: `Published "${keyword}" → BlogPost ${result.blogPostId}`, durationMs: Date.now() - start, details: { blogPostId: result.blogPostId, keyword, locale: draft.locale, score } }).catch(() => {});
           return NextResponse.json({ success: true, published: [{ ...result, locale: draft.locale }], skipped: [], durationMs: Date.now() - start, logs });
         } else {
+          logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: `Slug collision or missing content for "${keyword}"`, error: "Slug collision or missing content", fix: "The article slug may already exist. Check Content Matrix for duplicates.", durationMs: Date.now() - start }).catch(() => {});
           return NextResponse.json({ success: false, error: "Slug collision or missing content — check logs" }, { status: 400 });
         }
       } catch (promoteErr) {
         const msg = promoteErr instanceof Error ? promoteErr.message : String(promoteErr);
+        logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: `Promotion error for "${keyword}"`, error: msg, fix: "Check database connectivity and article content.", durationMs: Date.now() - start }).catch(() => {});
         return NextResponse.json({ success: false, error: `Promotion error: ${msg}` }, { status: 500 });
       }
     }
@@ -179,6 +186,18 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     const durationMs = Date.now() - start;
     log(`[force-publish] Done in ${(durationMs / 1000).toFixed(1)}s — published: ${published.length}, skipped: ${skipped.length}`);
 
+    logManualAction(req, {
+      action: "force-publish-batch",
+      resource: "draft",
+      siteId,
+      success: published.length > 0,
+      summary: `Force-published ${published.length} article(s), skipped ${skipped.length}`,
+      error: published.length === 0 ? "No articles could be published" : undefined,
+      fix: published.length === 0 ? "Check reservoir for eligible drafts. Run content builder to move drafts through the pipeline." : undefined,
+      durationMs,
+      details: { locale, count, published, skipped },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       published,
@@ -189,6 +208,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[force-publish] Fatal error:", msg);
+    logManualAction(req, { action: "force-publish", resource: "draft", siteId, success: false, summary: "Force-publish crashed", error: msg, fix: "Check database and AI provider connectivity.", durationMs: Date.now() - start }).catch(() => {});
     return NextResponse.json({ success: false, error: msg, logs, durationMs: Date.now() - start }, { status: 500 });
   }
 });

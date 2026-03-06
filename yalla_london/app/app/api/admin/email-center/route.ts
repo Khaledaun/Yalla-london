@@ -84,6 +84,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     status: string;
     sentAt: string | null;
     recipientCount: number;
+    openRate: number | null;
+    clickRate: number | null;
     createdAt: string;
   }> = [];
 
@@ -98,6 +100,9 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         status: true,
         sentAt: true,
         recipientCount: true,
+        sentCount: true,
+        openCount: true,
+        clickCount: true,
         createdAt: true,
       },
     });
@@ -107,6 +112,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       status: r.status,
       sentAt: r.sentAt ? r.sentAt.toISOString() : null,
       recipientCount: r.recipientCount,
+      openRate: r.sentCount > 0 ? Math.round((r.openCount / r.sentCount) * 10000) / 100 : null,
+      clickRate: r.sentCount > 0 ? Math.round((r.clickCount / r.sentCount) * 10000) / 100 : null,
       createdAt: r.createdAt.toISOString(),
     }));
   } catch (err: unknown) {

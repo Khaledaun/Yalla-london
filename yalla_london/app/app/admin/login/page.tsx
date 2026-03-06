@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -17,8 +17,9 @@ export default function AdminLogin() {
   const [checkingSetup, setCheckingSetup] = useState(true)
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const [showResetOption, setShowResetOption] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
 
-  // Handle ?error= from NextAuth redirects (e.g. after failed signIn)
+  // Handle ?error= from NextAuth redirects
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const err = params.get('error')
@@ -28,12 +29,11 @@ export default function AdminLogin() {
       } else {
         setError(`Sign-in error: ${err}`)
       }
-      // Clean the URL so it doesn't persist on refresh
       window.history.replaceState({}, '', '/admin/login')
     }
   }, [])
 
-  // Check migration → setup → health sequentially to avoid race conditions
+  // Check migration → setup → health sequentially
   useEffect(() => {
     async function initChecks() {
       try {
@@ -71,6 +71,13 @@ export default function AdminLogin() {
     initChecks()
   }, [])
 
+  // Auto-focus email field after setup check
+  useEffect(() => {
+    if (!checkingSetup && emailRef.current) {
+      emailRef.current.focus()
+    }
+  }, [checkingSetup])
+
   const handleMigration = async () => {
     setIsMigrating(true)
     setError('')
@@ -103,11 +110,6 @@ export default function AdminLogin() {
     setSuccess('')
 
     try {
-      // Single step: POST to /api/admin/login which:
-      // 1. Verifies credentials (with specific error messages)
-      // 2. Creates a NextAuth-compatible JWT
-      // 3. Sets the session cookie in the response
-      // No NextAuth route handler involved at all.
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,7 +137,6 @@ export default function AdminLogin() {
         return
       }
 
-      // Session cookie is set. Redirect to dashboard.
       setSuccess('Signed in! Redirecting...')
       window.location.href = '/admin'
     } catch (err) {
@@ -169,7 +170,6 @@ export default function AdminLogin() {
 
       setSuccess('Admin account created! Signing you in...')
 
-      // Now login to set the session cookie
       const loginRes = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,91 +194,153 @@ export default function AdminLogin() {
     setSuccess('Enter your email and a NEW password below to reset your admin account.')
   }
 
+  // Shared input styles (neumorphic, large tap targets)
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: 'var(--neu-bg, #EDE9E1)',
+    boxShadow: 'var(--neu-inset, inset 2px 2px 5px #CAC5BC, inset -2px -2px 5px #FFFFFF)',
+    border: 'none',
+    borderRadius: 12,
+    fontSize: 15,
+    color: '#1C1917',
+    minHeight: 52,
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: '#78716C',
+    display: 'block',
+    marginBottom: 8,
+  }
+
   if (checkingSetup) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center"
+           style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)' }}>
         <div className="text-center">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-lg shadow-purple-500/30 mx-auto mb-4 animate-pulse">
-            <span className="text-white font-bold text-xl">Y</span>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse"
+               style={{
+                 backgroundColor: '#C8322B',
+                 boxShadow: '4px 4px 12px var(--neu-shadow-dark, #CAC5BC), -2px -2px 6px rgba(200,50,43,0.2)',
+               }}>
+            <span style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 22, color: '#FAF8F4' }}>Y</span>
           </div>
-          <p className="text-sm text-gray-500">Checking system status...</p>
+          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1.5 }}>
+            Checking system...
+          </p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-md">
+    <div className="min-h-screen flex flex-col justify-center px-5 py-8"
+         style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)' }}>
+      <div className="mx-auto w-full max-w-sm">
+        {/* Logo */}
         <div className="flex justify-center">
-          <div className="w-14 h-14 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <span className="text-white font-bold text-2xl sm:text-xl">Y</span>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+               style={{
+                 backgroundColor: '#C8322B',
+                 boxShadow: '5px 5px 15px var(--neu-shadow-dark, #CAC5BC), -3px -3px 8px rgba(200,50,43,0.15)',
+               }}>
+            <span style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: '#FAF8F4' }}>Y</span>
           </div>
         </div>
-        <h2 className="mt-5 text-center text-2xl sm:text-3xl font-extrabold text-gray-900">
-          {needsSetup ? 'Welcome to Yalla Admin' : 'Admin Login'}
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          {needsSetup
-            ? 'Create your admin account to get started'
-            : 'Sign in to the Yalla London dashboard'}
-        </p>
-      </div>
 
-      <div className="mt-6 sm:mt-8 mx-auto w-full max-w-md">
-        <div className="bg-white py-6 sm:py-8 px-5 sm:px-10 shadow-sm sm:shadow rounded-xl sm:rounded-lg">
+        <h1 className="mt-6 text-center" style={{
+          fontFamily: "'Anybody', sans-serif",
+          fontWeight: 800,
+          fontSize: 22,
+          color: '#1C1917',
+        }}>
+          {needsSetup ? 'Welcome' : 'Sign In'}
+        </h1>
+        <p className="mt-2 text-center" style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 11,
+          color: '#78716C',
+          letterSpacing: 0.5,
+        }}>
+          {needsSetup
+            ? 'Create your admin account'
+            : 'Yalla London Dashboard'}
+        </p>
+
+        {/* Card */}
+        <div className="mt-8 rounded-2xl p-6"
+             style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised, 6px 6px 16px #CAC5BC, -6px -6px 16px #FFFFFF)' }}>
+
+          {/* Setup banner */}
           {needsSetup && (
-            <div className="mb-5 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-start gap-3">
-              <Shield className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-5 p-4 rounded-xl flex items-start gap-3"
+                 style={{ backgroundColor: 'rgba(200,50,43,0.06)', borderLeft: '3px solid #C8322B' }}>
+              <Shield style={{ width: 18, height: 18, color: '#C8322B', flexShrink: 0, marginTop: 1 }} />
               <div>
-                <p className="text-sm font-medium text-purple-900">First-time setup</p>
-                <p className="text-xs text-purple-700 mt-0.5">
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#1C1917' }}>First-time setup</p>
+                <p style={{ fontSize: 11, color: '#78716C', marginTop: 2 }}>
                   {needsMigration
-                    ? 'Run the database migration below, then create your account.'
+                    ? 'Run the database migration, then create your account.'
                     : 'Create your admin account to access the dashboard.'}
                 </p>
               </div>
             </div>
           )}
 
+          {/* Migration banner */}
           {needsMigration && (
-            <div className="mb-5 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm font-medium text-amber-900">Database Update Required</p>
-              <p className="text-xs text-amber-700 mt-1">
-                The database is missing columns needed for authentication. Run the migration to add them.
+            <div className="mb-5 p-4 rounded-xl"
+                 style={{ backgroundColor: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #D97706' }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1C1917' }}>Database Update Required</p>
+              <p style={{ fontSize: 11, color: '#78716C', marginTop: 2 }}>
+                Missing columns needed for authentication.
               </p>
               <button
                 type="button"
                 onClick={handleMigration}
                 disabled={isMigrating}
-                className="mt-2 px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-md disabled:opacity-50"
+                className="mt-3 px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  color: '#FAF8F4',
+                  backgroundColor: '#D97706',
+                  minHeight: 44,
+                }}
               >
-                {isMigrating ? 'Updating database...' : 'Run Database Migration'}
+                {isMigrating ? 'Updating...' : 'Run Migration'}
               </button>
             </div>
           )}
 
-          <form className="space-y-5 sm:space-y-6" onSubmit={needsSetup ? handleSetup : handleLogin}>
+          <form className="space-y-5" onSubmit={needsSetup ? handleSetup : handleLogin}>
+            {/* Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm whitespace-pre-wrap">
-                {error}
+              <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(200,50,43,0.08)', borderLeft: '3px solid #C8322B' }}>
+                <p style={{ fontSize: 12, color: '#C8322B', whiteSpace: 'pre-wrap' }}>{error}</p>
               </div>
             )}
 
+            {/* Success */}
             {success && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
-                {success}
+              <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(22,163,74,0.08)', borderLeft: '3px solid #16A34A' }}>
+                <p style={{ fontSize: 12, color: '#16A34A' }}>{success}</p>
               </div>
             )}
 
+            {/* Name (setup only) */}
             {needsSetup && (
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Your name
-                </label>
+                <label htmlFor="name" style={labelStyle}>Your name</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User style={{ width: 18, height: 18, color: '#78716C' }} />
                   </div>
                   <input
                     id="name"
@@ -287,22 +349,23 @@ export default function AdminLogin() {
                     autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base sm:text-sm"
+                    className="block w-full pl-12 pr-4 py-3"
+                    style={inputStyle}
                     placeholder="Your name"
                   />
                 </div>
               </div>
             )}
 
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email address
-              </label>
+              <label htmlFor="email" style={labelStyle}>Email</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Mail style={{ width: 18, height: 18, color: '#78716C' }} />
                 </div>
                 <input
+                  ref={emailRef}
                   id="email"
                   name="email"
                   type="email"
@@ -310,19 +373,19 @@ export default function AdminLogin() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base sm:text-sm"
-                  placeholder="Enter your email"
+                  className="block w-full pl-12 pr-4 py-3"
+                  style={inputStyle}
+                  placeholder="you@example.com"
                 />
               </div>
             </div>
 
+            {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
+              <label htmlFor="password" style={labelStyle}>Password</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Lock style={{ width: 18, height: 18, color: '#78716C' }} />
                 </div>
                 <input
                   id="password"
@@ -333,80 +396,111 @@ export default function AdminLogin() {
                   minLength={needsSetup ? 8 : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full pl-10 pr-12 py-3 sm:py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base sm:text-sm"
-                  placeholder={needsSetup ? 'Choose a password (8+ characters)' : 'Enter your password'}
+                  className="block w-full pl-12 pr-14 py-3"
+                  style={inputStyle}
+                  placeholder={needsSetup ? '8+ characters' : 'Enter password'}
                 />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
                   <button
                     type="button"
-                    className="p-1 text-gray-400 hover:text-gray-500 focus:outline-none"
+                    className="p-2 rounded-lg transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
+                    style={{ color: '#78716C', minHeight: 44, minWidth: 44 }}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                    {showPassword ? <EyeOff style={{ width: 18, height: 18 }} /> : <Eye style={{ width: 18, height: 18 }} />}
                   </button>
                 </div>
               </div>
               {needsSetup && (
-                <p className="mt-1.5 text-xs text-gray-500">
+                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', marginTop: 6 }}>
                   Minimum 8 characters. This will be your admin login.
                 </p>
               )}
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading || needsMigration}
-                className="w-full flex justify-center py-3 sm:py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-base sm:text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
-              >
-                {needsMigration
-                  ? 'Run migration first'
-                  : isLoading
-                    ? (needsSetup ? 'Creating account...' : 'Signing in...')
-                    : (needsSetup ? 'Create Admin Account' : 'Sign in')}
-              </button>
-            </div>
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading || needsMigration}
+              className="w-full rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: 1.5,
+                color: '#FAF8F4',
+                backgroundColor: '#C8322B',
+                boxShadow: '4px 4px 12px var(--neu-shadow-dark, #CAC5BC), -2px -2px 6px rgba(200,50,43,0.15)',
+                minHeight: 52,
+              }}
+            >
+              {needsMigration
+                ? 'Run migration first'
+                : isLoading
+                  ? (needsSetup ? 'Creating account...' : 'Signing in...')
+                  : (needsSetup ? 'Create Admin Account' : 'Sign In')}
+            </button>
           </form>
 
-          {/* Reset admin option — shown when login fails with wrong credentials */}
+          {/* Reset option */}
           {showResetOption && !needsSetup && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(120,113,108,0.12)' }}>
               <button
                 type="button"
                 onClick={handleResetAdmin}
-                className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all"
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  color: '#C8322B',
+                  minHeight: 44,
+                }}
               >
-                <RefreshCw className="h-4 w-4" />
-                Forgot password? Reset admin account
+                <RefreshCw style={{ width: 14, height: 14 }} />
+                Reset admin account
               </button>
             </div>
           )}
         </div>
 
-        {/* System health indicator */}
+        {/* System health */}
         {systemHealth && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs font-medium text-gray-500 mb-2">System Status</p>
+          <div className="mt-5 p-4 rounded-xl"
+               style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-inset, inset 2px 2px 5px #CAC5BC, inset -2px -2px 5px #FFFFFF)' }}>
+            <p style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: 1.5,
+              color: '#78716C',
+              marginBottom: 8,
+            }}>
+              System Status
+            </p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(systemHealth).map(([key, value]) => {
                 const strVal = value as string
                 const isOk = strVal === 'SET' || strVal === 'working' || strVal === 'available' || strVal.startsWith('connected')
                 const isMissing = strVal === 'MISSING' || strVal.startsWith('error') || strVal.startsWith('import error')
+                const dotColor = isOk ? '#16A34A' : isMissing ? '#C8322B' : '#78716C'
                 return (
                   <span
                     key={key}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
-                      isOk ? 'bg-green-100 text-green-700' :
-                      isMissing ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg"
+                    style={{
+                      fontSize: 10,
+                      color: isOk ? '#16A34A' : isMissing ? '#C8322B' : '#78716C',
+                      backgroundColor: isOk ? 'rgba(22,163,74,0.08)' : isMissing ? 'rgba(200,50,43,0.08)' : 'rgba(120,113,108,0.08)',
+                    }}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOk ? 'bg-green-500' : isMissing ? 'bg-red-500' : 'bg-gray-400'}`} />
-                    {key}: {value}
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dotColor }} />
+                    {key}
                   </span>
                 )
               })}
@@ -414,7 +508,6 @@ export default function AdminLogin() {
           </div>
         )}
       </div>
-
     </div>
   )
 }

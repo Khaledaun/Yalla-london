@@ -78,7 +78,31 @@ export default function OperationsHubPage() {
   const [loading, setLoading] = useState(true)
   const [expandedSections, setExpandedSections] = useState<string[]>([])
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'engine' | 'sites' | 'mcp'>('engine')
+  const [activeTab, setActiveTab] = useState<'engine' | 'sites' | 'mcp' | 'commands'>('engine')
+  const [commandResults, setCommandResults] = useState<Record<string, { status: 'idle' | 'running' | 'success' | 'error'; output?: string }>>({})
+  const [commandHistory, setCommandHistory] = useState<Array<{ id: string; name: string; status: string; output: string; timestamp: string }>>([])
+
+  const runCommand = async (commandId: string, label: string, endpoint: string, method = 'GET') => {
+    setCommandResults(prev => ({ ...prev, [commandId]: { status: 'running' } }))
+    try {
+      const res = await fetch(endpoint, { method })
+      const text = await res.text()
+      let output: string
+      try {
+        const json = JSON.parse(text)
+        output = JSON.stringify(json, null, 2).slice(0, 2000)
+      } catch {
+        output = text.slice(0, 2000)
+      }
+      const status = res.ok ? 'success' : 'error'
+      setCommandResults(prev => ({ ...prev, [commandId]: { status: status as 'success' | 'error', output } }))
+      setCommandHistory(prev => [{ id: commandId, name: label, status, output, timestamp: new Date().toISOString() }, ...prev].slice(0, 20))
+    } catch (err) {
+      const output = err instanceof Error ? err.message : 'Request failed'
+      setCommandResults(prev => ({ ...prev, [commandId]: { status: 'error', output } }))
+      setCommandHistory(prev => [{ id: commandId, name: label, status: 'error', output, timestamp: new Date().toISOString() }, ...prev].slice(0, 20))
+    }
+  }
 
   const fetchData = () => {
     setLoading(true)
@@ -189,6 +213,7 @@ export default function OperationsHubPage() {
             { id: 'engine' as const, label: 'Engine Setup', icon: Settings, count: data ? data.summary.total - data.summary.configured : 0 },
             { id: 'sites' as const, label: 'Site Health', icon: Globe, count: data?.site_health.length || 0 },
             { id: 'mcp' as const, label: 'MCP Tools', icon: Plug, count: data?.sections.mcp.length || 0 },
+            { id: 'commands' as const, label: 'Commands', icon: Zap, count: 0 },
           ].map(tab => (
             <button
               key={tab.id}
@@ -502,6 +527,121 @@ export default function OperationsHubPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* ── COMMANDS TAB ── */}
+        {!loading && activeTab === 'commands' && (
+          <div className="space-y-4">
+            {/* Command Presets */}
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Safe Operation Presets</p>
+                <p className="text-xs text-gray-500 mb-4">One-tap commands that are safe to run anytime. No destructive operations.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[
+                    { id: 'health-check', label: 'Run Health Check', description: 'Trigger site-health-check cron', endpoint: '/api/cron/site-health-check', method: 'GET', icon: Activity },
+                    { id: 'validate-crons', label: 'Validate All Crons', description: 'HEAD request to all cron endpoints', endpoint: '/api/admin/test-connections', method: 'GET', icon: RefreshCw },
+                    { id: 'check-env', label: 'Check Env Vars', description: 'Show configured vs missing (redacted)', endpoint: '/api/admin/test-connections', method: 'GET', icon: Settings },
+                    { id: 'db-health', label: 'Database Health', description: 'Test DB connection + model count', endpoint: '/api/admin/test-connections', method: 'GET', icon: Server },
+                    { id: 'indexing-status', label: 'Indexing Status', description: 'Check URLs submitted vs indexed', endpoint: '/api/admin/content-indexing', method: 'GET', icon: Search },
+                    { id: 'pipeline-status', label: 'Pipeline Status', description: 'Content pipeline phase counts', endpoint: '/api/admin/content-generation-monitor', method: 'GET', icon: BarChart3 },
+                    { id: 'ai-costs', label: 'AI Cost Summary', description: 'Token usage and costs today', endpoint: '/api/admin/ai-costs?period=today', method: 'GET', icon: DollarSign },
+                    { id: 'run-sweeper', label: 'Run Diagnostic Sweep', description: 'Find and fix stuck drafts', endpoint: '/api/cron/diagnostic-sweep', method: 'GET', icon: Zap },
+                  ].map(cmd => {
+                    const result = commandResults[cmd.id]
+                    const isRunning = result?.status === 'running'
+                    return (
+                      <div key={cmd.id} className="border rounded-lg p-3 dark:border-slate-700">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <cmd.icon className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{cmd.label}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant={result?.status === 'success' ? 'outline' : 'default'}
+                            disabled={isRunning}
+                            onClick={() => runCommand(cmd.id, cmd.label, cmd.endpoint, cmd.method)}
+                            className="text-xs"
+                          >
+                            {isRunning ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Running</>
+                            ) : result?.status === 'success' ? (
+                              <><CheckCircle className="w-3 h-3 mr-1 text-green-500" /> Done</>
+                            ) : result?.status === 'error' ? (
+                              <><XCircle className="w-3 h-3 mr-1 text-red-500" /> Retry</>
+                            ) : (
+                              <><ArrowRight className="w-3 h-3 mr-1" /> Run</>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-500">{cmd.description}</p>
+                        {result?.output && (
+                          <pre className="mt-2 p-2 bg-gray-50 dark:bg-slate-800 rounded text-xs overflow-x-auto max-h-32 text-gray-700 dark:text-gray-300">
+                            {result.output.slice(0, 500)}
+                            {result.output.length > 500 ? '...' : ''}
+                          </pre>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Command History */}
+            {commandHistory.length > 0 && (
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-3">Recent Commands</p>
+                  <div className="space-y-2">
+                    {commandHistory.map((entry, i) => (
+                      <div key={`${entry.id}-${i}`} className="flex items-center gap-3 py-1.5 border-b border-gray-100 dark:border-slate-700 last:border-0">
+                        {entry.status === 'success'
+                          ? <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                          : <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
+                        <span className="text-xs text-gray-700 dark:text-gray-300 flex-1">{entry.name}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Copyable Terminal Commands */}
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Terminal Commands</p>
+                <p className="text-xs text-gray-500 mb-4">For operations that must run in a terminal. Copy and paste into Claude Code or SSH.</p>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Check Prisma migrations', cmd: 'npx prisma migrate status' },
+                    { label: 'Run master SEO audit', cmd: 'npm run audit:master -- --site=yalla-london --mode=quick' },
+                    { label: 'Run weekly policy monitor', cmd: 'npm run audit:weekly-policy-monitor -- --site=yalla-london' },
+                    { label: 'Run smoke tests', cmd: 'npx tsx scripts/smoke-test.ts' },
+                    { label: 'Run commerce smoke tests', cmd: 'npx tsx scripts/commerce-smoke-test.ts' },
+                    { label: 'Check TypeScript', cmd: 'npx tsc --noEmit' },
+                  ].map(item => (
+                    <div key={item.cmd} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                      <code className="flex-1 text-xs text-gray-700 dark:text-gray-300 font-mono">{item.cmd}</code>
+                      <button
+                        onClick={() => copyToClipboard(item.cmd, item.cmd)}
+                        className="flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"
+                        title={`Copy: ${item.label}`}
+                      >
+                        {copiedKey === item.cmd
+                          ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                          : <Copy className="w-3.5 h-3.5 text-gray-400" />}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

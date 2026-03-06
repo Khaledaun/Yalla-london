@@ -153,7 +153,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   else verdict = "CRITICAL";
 
   const durationMs = Date.now() - cronStart;
-  const runId = `diag-${siteId}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const runId = `diag-${siteId}-${Date.now()}-${crypto.randomUUID().substring(0, 6)}`;
 
   // Generate recommendations
   const recommendations: string[] = [];

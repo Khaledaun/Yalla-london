@@ -63,7 +63,7 @@ export default function AuditContent() {
   }, [mode])
 
   const copyText = (text: string, field: string) => {
-    navigator.clipboard.writeText(text).catch(() => {})
+    navigator.clipboard.writeText(text).catch(err => console.warn("[audit-content] Clipboard copy failed:", err instanceof Error ? err.message : err))
     setCopiedField(field)
     setTimeout(() => setCopiedField(null), 2000)
   }

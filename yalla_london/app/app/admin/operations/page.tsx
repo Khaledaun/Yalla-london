@@ -541,8 +541,8 @@ export default function OperationsHubPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
                     { id: 'health-check', label: 'Run Health Check', description: 'Trigger site-health-check cron', endpoint: '/api/cron/site-health-check', method: 'GET', icon: Activity },
-                    { id: 'validate-crons', label: 'Validate All Crons', description: 'HEAD request to all cron endpoints', endpoint: '/api/admin/operations-hub', method: 'GET', icon: RefreshCw },
-                    { id: 'check-env', label: 'Check Env Vars', description: 'Show configured vs missing (redacted)', endpoint: '/api/admin/operations-hub', method: 'GET', icon: Settings },
+                    { id: 'validate-crons', label: 'Validate All Crons', description: 'HEAD request to all cron endpoints', endpoint: '/api/admin/test-connections', method: 'GET', icon: RefreshCw },
+                    { id: 'check-env', label: 'Check Env Vars', description: 'Show configured vs missing (redacted)', endpoint: '/api/admin/test-connections', method: 'GET', icon: Settings },
                     { id: 'db-health', label: 'Database Health', description: 'Test DB connection + model count', endpoint: '/api/admin/test-connections', method: 'GET', icon: Server },
                     { id: 'indexing-status', label: 'Indexing Status', description: 'Check URLs submitted vs indexed', endpoint: '/api/admin/content-indexing', method: 'GET', icon: Search },
                     { id: 'pipeline-status', label: 'Pipeline Status', description: 'Content pipeline phase counts', endpoint: '/api/admin/content-generation-monitor', method: 'GET', icon: BarChart3 },

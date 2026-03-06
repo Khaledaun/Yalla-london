@@ -696,7 +696,7 @@ async function runAudit(siteId: string) {
       });
       let randomSample: typeof recentSample = [];
       if (totalPublishedCount > 2) {
-        const randomSkip = Math.max(0, Math.floor(Math.random() * (totalPublishedCount - 3)));
+        const randomSkip = Math.max(0, Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 0xFFFFFFFF) * (totalPublishedCount - 3)));
         randomSample = await prisma.blogPost.findMany({
           where: { siteId, published: true },
           select: { slug: true, title_en: true },

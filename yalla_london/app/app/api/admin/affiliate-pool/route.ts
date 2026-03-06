@@ -109,6 +109,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       prisma.affiliatePartner.count({ where }),
       prisma.affiliatePartner.groupBy({
         by: ["partner_type"],
+        where: { siteId },
         _count: true,
       }),
     ]);

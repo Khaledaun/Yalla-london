@@ -465,8 +465,8 @@ export const informationArticles: InformationArticle[] = [
     slug: 'complete-london-guide-arab-visitors',
     section_id: 'sec-plan-your-trip',
     category_id: 'icat-planning',
-    title_en: 'The Complete London Guide for Arab Visitors (2025)',
-    title_ar: 'الدليل الشامل للندن للزوار العرب (2025)',
+    title_en: 'The Complete London Guide for Arab Visitors (2026)',
+    title_ar: 'الدليل الشامل للندن للزوار العرب (2026)',
     excerpt_en: 'Everything you need to know before your London trip — visas, flights, best areas, halal dining, and cultural tips.',
     excerpt_ar: 'كل ما تحتاج معرفته قبل رحلتك إلى لندن — التأشيرات والرحلات وأفضل المناطق والمطاعم الحلال والنصائح الثقافية.',
     content_en: `# The Complete London Guide for Arab Visitors

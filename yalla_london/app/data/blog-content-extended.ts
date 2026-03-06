@@ -1608,7 +1608,7 @@ For more practical tips on planning your London trip, visit our [Information Hub
 
 ## Conclusion
 
-Central London's halal dining scene rivals any city in the world. From glamorous Mayfair to bustling Edgware Road, there's something for every taste and budget. Explore our [complete London guide for Arab visitors](/blog/complete-london-guide-arab-visitors) for accommodation, transport and more.`,
+Central London's halal dining scene rivals any city in the world. From glamorous Mayfair to bustling Edgware Road, there's something for every taste and budget. Explore our [complete London guide for Arab visitors](/information/complete-london-guide-arab-visitors) for accommodation, transport and more.`,
     content_ar: `# أفضل المطاعم الحلال في وسط لندن 2025
 
 يقدم وسط لندن تنوعاً مذهلاً من خيارات الطعام الحلال.

@@ -1192,7 +1192,7 @@ async function runAudit(siteId: string) {
     { id: "run-verify-indexing", label: "Verify indexing status", cron: "verify-indexing", description: "Checks which pages are actually indexed via GSC URL Inspection API", safe: true },
     { id: "run-content-selector", label: "Publish ready articles", cron: "content-selector", description: "Promotes reservoir articles that pass quality gates to published BlogPosts", safe: true },
     { id: "run-sweeper", label: "Recover stuck drafts", cron: "sweeper", description: "Finds and recovers drafts stuck in the pipeline due to errors or timeouts", safe: true },
-    { id: "auto-fix-all", label: "Auto-fix all issues", cron: "auto_fix_all", description: "Runs audit, then chains the right crons to fix all auto-fixable issues in one tap", safe: true },
+    { id: "auto-fix-all", label: "Auto-fix all", cron: "auto_fix_all", description: "Chains all relevant fix crons based on audit findings", safe: true },
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1452,26 +1452,30 @@ export async function POST(request: NextRequest) {
       if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
 
       const results: Array<{ cron: string; reason: string; success: boolean; status?: number; error?: string }> = [];
-      const FIX_BUDGET_MS = 50_000;
-      const fixStart = Date.now();
 
-      // Run sequentially to stay within budget
-      for (const item of cronQueue) {
-        if (Date.now() - fixStart > FIX_BUDGET_MS) {
-          results.push({ ...item, success: false, error: "Skipped — budget exhausted" });
-          continue;
-        }
+      // Fire all crons concurrently with fire-and-forget pattern.
+      // Crons take 15-45s each — we can't wait sequentially within a 60s Vercel limit.
+      // Each cron logs its own result to CronJobLog, so we just need to confirm they started.
+      const startPromises = cronQueue.map(async (item) => {
         try {
           const resp = await fetch(`${baseUrl}/api/cron/${item.cron}`, {
             method: "POST",
             headers,
-            signal: AbortSignal.timeout(Math.min(15_000, FIX_BUDGET_MS - (Date.now() - fixStart))),
+            // 5s is enough to confirm the cron accepted the request (started)
+            signal: AbortSignal.timeout(5_000),
           });
           results.push({ ...item, success: resp.ok, status: resp.status });
         } catch (err) {
-          results.push({ ...item, success: false, error: err instanceof Error ? err.message : "Failed" });
+          // AbortError means the cron started but we didn't wait for completion — that's OK
+          const isTimeout = err instanceof Error && err.name === "AbortError";
+          results.push({
+            ...item,
+            success: isTimeout, // timeout = cron is running, which counts as started
+            error: isTimeout ? "Started (running in background)" : (err instanceof Error ? err.message : "Failed"),
+          });
         }
-      }
+      });
+      await Promise.allSettled(startPromises);
 
       const fixesRun = results.filter((r) => r.success).length;
       logManualAction(request, { action: "auto-fix-all", resource: "seo-audit", siteId: fixSiteId, success: fixesRun > 0, summary: `Auto-fix: ran ${fixesRun}/${cronQueue.length} crons (audit score: ${auditResult.healthScore}, ${auditResult.totalFindings} findings)`, details: { auditScore: auditResult.healthScore, findings: auditResult.totalFindings, fixesRun, fixesTotal: cronQueue.length, results: results.map(r => ({ cron: r.cron, success: r.success, reason: r.reason })) } }).catch(() => {});

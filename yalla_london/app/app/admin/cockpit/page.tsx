@@ -203,6 +203,7 @@ interface AIConfigData {
   providers: ProviderInfo[];
   routes: RouteInfo[];
   providerKeyStatus: Record<string, boolean>;
+  providerWarnings?: Record<string, string>;
 }
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
@@ -2804,11 +2805,23 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
           ? { action: "auto_fix_all", siteId }
           : { action: "run_cron", cron: cronName, siteId }),
       });
-      const json = await res.json();
-      setSeoAuditActionResult((prev) => ({
-        ...prev,
-        [actionId]: json.success ? "✅ Done" : `❌ ${json.error || "Failed"}`,
-      }));
+      if (!res.ok) {
+        let errorMsg = `Server error (${res.status})`;
+        try { const err = await res.json(); errorMsg = err.error || errorMsg; } catch { /* non-JSON */ }
+        setSeoAuditActionResult((prev) => ({ ...prev, [actionId]: `❌ ${errorMsg}` }));
+        return;
+      }
+      let json;
+      try { json = await res.json(); } catch { json = { success: false, error: "Invalid response" }; }
+      if (isAutoFixAll && json.success) {
+        const msg = `✅ ${json.fixesRun}/${json.fixesTotal} fixes ran (score: ${json.auditScore})`;
+        setSeoAuditActionResult((prev) => ({ ...prev, [actionId]: msg }));
+      } else {
+        setSeoAuditActionResult((prev) => ({
+          ...prev,
+          [actionId]: json.success ? "✅ Done" : `❌ ${json.error || "Failed"}`,
+        }));
+      }
     } catch (e) {
       setSeoAuditActionResult((prev) => ({
         ...prev,
@@ -3638,6 +3651,16 @@ function AIConfigTab() {
         </div>
         {configuredProviders.length === 0 && (
           <p className="mt-2 text-xs text-red-400">No AI providers configured. Add at least one API key in Vercel environment variables.</p>
+        )}
+        {/* Provider warnings (wrong key format, missing keys for assigned tasks) */}
+        {data.providerWarnings && Object.keys(data.providerWarnings).length > 0 && (
+          <div className="mt-3 space-y-2">
+            {Object.entries(data.providerWarnings).map(([provider, warning]) => (
+              <div key={provider} className="p-2 bg-amber-950/30 border border-amber-700/50 rounded text-xs text-amber-300">
+                <span className="font-semibold">⚠️ {provider}:</span> {String(warning)}
+              </div>
+            ))}
+          </div>
         )}
       </Card>
 

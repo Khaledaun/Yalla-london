@@ -396,7 +396,11 @@ async function callGemini(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Gemini API error: ${error}`);
+    // Detect OAuth credential used instead of API key
+    if (error.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED") || error.includes("Expected OAuth 2 access token")) {
+      throw new Error(`Gemini: Wrong credential type. You need a Google AI API Key (starts with AIza...), not an OAuth token. Go to Google Cloud Console → API & Services → Credentials → Create API Key.`);
+    }
+    throw new Error(`Gemini API error (${response.status}): ${error.slice(0, 200)}`);
   }
 
   const data = await response.json();
@@ -765,9 +769,9 @@ export async function isAIAvailable(): Promise<boolean> {
  * Get status of all AI providers
  */
 export async function getProvidersStatus(): Promise<
-  Record<AIProvider, { configured: boolean; active: boolean }>
+  Record<AIProvider, { configured: boolean; active: boolean; warning?: string }>
 > {
-  const status: Record<AIProvider, { configured: boolean; active: boolean }> = {
+  const status: Record<AIProvider, { configured: boolean; active: boolean; warning?: string }> = {
     grok: { configured: false, active: false },
     claude: { configured: false, active: false },
     openai: { configured: false, active: false },
@@ -779,6 +783,18 @@ export async function getProvidersStatus(): Promise<
     const apiKey = await getApiKey(provider);
     status[provider].configured = !!apiKey;
     status[provider].active = !!apiKey;
+
+    // Validate key format for known providers
+    if (apiKey) {
+      if (provider === "gemini" && !apiKey.startsWith("AIza")) {
+        status[provider].active = false;
+        status[provider].warning = "Wrong key type — needs Google AI API Key (starts with AIza...), not OAuth token";
+      }
+      if (provider === "perplexity" && apiKey.length < 20) {
+        status[provider].active = false;
+        status[provider].warning = "API key looks too short — check PERPLEXITY_API_KEY in Vercel env vars";
+      }
+    }
   }
 
   return status;

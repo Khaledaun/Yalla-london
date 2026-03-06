@@ -158,7 +158,11 @@ export default function EventsPage() {
     fetchEvents();
   }, []);
 
-  const filteredEvents = events.filter((event) => {
+  const now = new Date();
+  const upcomingEvents = events.filter((event) => new Date(event.date) >= now);
+  const pastEvents = events.filter((event) => new Date(event.date) < now);
+
+  const filteredEvents = upcomingEvents.filter((event) => {
     const matchesCategory =
       selectedCategory === "All" || event.category === selectedCategory;
     const matchesSearch =
@@ -497,6 +501,25 @@ export default function EventsPage() {
           )}
         </div>
       </section>
+
+      {/* Past Events */}
+      {pastEvents.length > 0 && (
+        <section className="py-8 bg-cream/50">
+          <div className="max-w-6xl mx-auto px-6">
+            <h3 className="text-lg font-semibold text-stone mb-4">
+              {language === "en" ? "Past Events" : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0633\u0627\u0628\u0642\u0629"}
+            </h3>
+            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {pastEvents.slice(0, 8).map((event) => (
+                <div key={event.id} className="p-3 bg-white/60 rounded-lg border border-gray-200 opacity-70">
+                  <p className="text-sm font-medium text-charcoal truncate">{event.title[language] || event.title.en}</p>
+                  <p className="text-xs text-stone mt-1">{formatDate(event.date)} — {event.venue}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Affiliate Partners */}
       <section className="py-12 bg-white">

@@ -1466,8 +1466,9 @@ export async function POST(request: NextRequest) {
           });
           results.push({ ...item, success: resp.ok, status: resp.status });
         } catch (err) {
-          // AbortError means the cron started but we didn't wait for completion — that's OK
-          const isTimeout = err instanceof Error && err.name === "AbortError";
+          // AbortSignal.timeout() throws DOMException with name "TimeoutError" (not "AbortError").
+          // Either means the cron started but we didn't wait for completion — that's OK.
+          const isTimeout = err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
           results.push({
             ...item,
             success: isTimeout, // timeout = cron is running, which counts as started

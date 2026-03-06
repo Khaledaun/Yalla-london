@@ -51,6 +51,7 @@ interface ProviderKeyStatus {
   ANTHROPIC_API_KEY: boolean;
   OPENAI_API_KEY: boolean;
   GOOGLE_AI_API_KEY: boolean;
+  PERPLEXITY_API_KEY: boolean;
 }
 
 // Provider metadata — used for UI display

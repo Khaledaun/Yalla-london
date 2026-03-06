@@ -85,6 +85,13 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
     )
   }
 
+  // Internal pipeline tags that should never be shown to visitors
+  const INTERNAL_TAGS = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
+  const publicTags = useMemo(
+    () => (post?.tags || []).filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-")),
+    [post?.tags],
+  );
+
   // Content sanitization — hooks must be before any conditional returns
   const rawContent = post ? (language === 'en' ? post.content_en : post.content_ar) : ''
   const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
@@ -96,6 +103,10 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
     });
     return () => { cancelled = true; };
   }, [rawContent]);
+
+  // Check if content is too thin to display (empty or placeholder articles)
+  const strippedContent = rawContent.replace(/<[^>]*>/g, '').trim();
+  const isThinContent = !strippedContent || strippedContent.length < 100;
 
   // Not found state
   if (!post) {
@@ -297,15 +308,25 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                 </div>
 
                 {/* ─── Article HTML Content ─── */}
-                <div
-                  className="yalla-article-content"
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizedContent
-                  }}
-                />
+                {isThinContent ? (
+                  <div className="text-center py-12">
+                    <p className="text-stone text-lg">
+                      {language === 'en'
+                        ? 'This article is being updated. Please check back soon.'
+                        : 'هذا المقال قيد التحديث. يرجى العودة قريباً.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    className="yalla-article-content"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizedContent
+                    }}
+                  />
+                )}
 
                 {/* ─── Tags ─── */}
-                {post.tags.length > 0 && (
+                {publicTags.length > 0 && (
                   <div className="mt-12 pt-8 border-t border-sand">
                     <div className="flex items-center gap-2 mb-4">
                       <Tag className="h-4 w-4 text-stone/50" />
@@ -314,7 +335,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {post.tags.map((tag) => (
+                      {publicTags.map((tag) => (
                         <Link
                           key={tag}
                           href={`/blog?tag=${encodeURIComponent(tag)}`}
@@ -411,7 +432,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                 )}
 
                 {/* Tags */}
-                {post.tags.length > 0 && (
+                {publicTags.length > 0 && (
                   <div className="p-5 rounded-xl bg-cream border border-sand/60">
                     <div className="flex items-center gap-2 mb-3">
                       <Tag className="h-3.5 w-3.5 text-stone/50" />
@@ -420,7 +441,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {post.tags.slice(0, 8).map((tag) => (
+                      {publicTags.slice(0, 8).map((tag) => (
                         <Link
                           key={tag}
                           href={`/blog?tag=${encodeURIComponent(tag)}`}

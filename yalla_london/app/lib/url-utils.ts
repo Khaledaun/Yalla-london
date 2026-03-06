@@ -2,6 +2,23 @@ import { headers } from "next/headers";
 import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 
 /**
+ * Get a locale-aware canonical URL.
+ * Arabic pages (/ar prefix) get canonical pointing to /ar/..., English pages to /...
+ */
+export async function getLocaleAwareCanonical(basePath: string = ""): Promise<string> {
+  const baseUrl = await getBaseUrl();
+  let locale = "en";
+  try {
+    const h = await headers();
+    locale = h.get("x-locale") || "en";
+  } catch {
+    // headers() not available during build
+  }
+  const prefix = locale === "ar" ? "/ar" : "";
+  return `${baseUrl}${prefix}${basePath}`;
+}
+
+/**
  * Get the base URL for the current site context.
  * Priority: x-hostname header -> NEXT_PUBLIC_SITE_URL env -> config default
  *

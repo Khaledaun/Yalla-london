@@ -45,6 +45,10 @@ export interface SiteConfig {
   primaryKeywordsEN: string[];
   primaryKeywordsAR: string[];
   categoryName: { en: string; ar: string };
+  /** Author profiles for E-E-A-T structured data and bylines */
+  authors?: { name: string; role: string; url: string }[];
+  /** Social media profile links for Organization schema sameAs */
+  socialLinks?: { instagram?: string; twitter?: string; tiktok?: string };
   // WordPress integration (optional — set type: "wordpress" to enable WP REST API management)
   type?: "native" | "wordpress";
   wpApiUrl?: string; // e.g. "https://example.com/wp-json/wp/v2"
@@ -314,6 +318,14 @@ Always respond with valid JSON.`,
       "لندن للعائلات العربية",
     ],
     categoryName: { en: "London Guide", ar: "دليل لندن" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Yalla London Editorial", role: "Editorial Team", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/yalla.london",
+      twitter: "https://x.com/yallalondon",
+    },
   },
 
   arabaldives: {
@@ -564,6 +576,14 @@ Always respond with valid JSON.`,
       "عطلة عائلية المالديف",
     ],
     categoryName: { en: "Maldives Guide", ar: "دليل المالديف" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Arabaldives Editorial", role: "Editorial Team", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/arabaldives",
+      twitter: "https://x.com/arabaldives",
+    },
   },
 
   "french-riviera": {
@@ -821,6 +841,14 @@ Always respond with valid JSON.`,
       "الريفييرا الفرنسية للمسافرين العرب",
     ],
     categoryName: { en: "Riviera Guide", ar: "دليل الريفييرا" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Yalla Riviera Editorial", role: "Editorial Team", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/yallariviera",
+      twitter: "https://x.com/yallariviera",
+    },
   },
 
   istanbul: {
@@ -1071,6 +1099,14 @@ Always respond with valid JSON.`,
       "إسطنبول للمسافرين العرب",
     ],
     categoryName: { en: "Istanbul Guide", ar: "دليل إسطنبول" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Yalla Istanbul Editorial", role: "Editorial Team", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/yallaistanbul",
+      twitter: "https://x.com/yallaistanbul",
+    },
   },
 
   thailand: {
@@ -1321,6 +1357,14 @@ Always respond with valid JSON.`,
       "تايلاند للعائلات العربية",
     ],
     categoryName: { en: "Thailand Guide", ar: "دليل تايلاند" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Yalla Thailand Editorial", role: "Editorial Team", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/yallathailand",
+      twitter: "https://x.com/yallathailand",
+    },
   },
 
   "zenitha-yachts-med": {
@@ -1545,6 +1589,14 @@ Always respond with valid JSON.`,
       "تأجير يخوت حلال",
     ],
     categoryName: { en: "Yacht Charter Guide", ar: "دليل تأجير اليخوت" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Zenitha Yachts Editorial", role: "Editorial Team", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/zenithayachts",
+      twitter: "https://x.com/zenithayachts",
+    },
   },
 };
 

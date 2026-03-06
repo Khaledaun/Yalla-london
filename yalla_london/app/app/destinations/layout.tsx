@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Zenitha Yachts";
   const siteSlug = siteConfig?.slug || "zenitha-yachts";
   const siteDomain = getSiteDomain(siteId);
-  const canonicalUrl = `${baseUrl}/destinations`;
+  const canonicalUrl = await getLocaleAwareCanonical("/destinations");
 
   return {
     title: `Yacht Charter Destinations | ${siteName}`,

@@ -723,6 +723,14 @@ Structure Requirements:
 - Include 3+ internal links to other ${site.name} pages using descriptive anchor text (link to /blog/*, /hotels, /experiences, /restaurants, etc.)
 - Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, HalalBooking where relevant) with natural anchor text — never "click here"
 - End with a "Key Takeaways" section (3–5 bullet points) and a clear call-to-action
+
+CRITICAL FACTUAL ACCURACY RULE:
+- NEVER invent or fabricate venue names, restaurant names, hotel names, or business names
+- Only mention real, verifiable businesses that actually exist at the time of writing
+- If unsure whether a venue exists, DO NOT mention it — use general descriptions instead
+- Every restaurant, hotel, attraction, or business named must be a real establishment
+- For lists (hotels, restaurants, spas): include the real address or website URL for each venue
+- Violation of this rule makes the entire article unusable and harmful to site trust
 ${topic.questions?.length ? `\nAnswer these questions within the article (use as H2 or H3 headings):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
 Return JSON with these exact fields:
@@ -757,6 +765,13 @@ Return JSON with these exact fields:
 - أضف 3+ روابط داخلية لصفحات ${site.name} الأخرى بنص وصفي
 - أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، HalalBooking حيث يناسب) بنص طبيعي
 - اختم بقسم "النقاط الرئيسية" (3–5 نقاط) ودعوة واضحة للعمل
+
+قاعدة الدقة الواقعية (حرجة):
+- لا تخترع أو تختلق أسماء أماكن أو مطاعم أو فنادق أو أعمال تجارية
+- اذكر فقط الأماكن الحقيقية القابلة للتحقق والموجودة فعلياً وقت الكتابة
+- إذا لم تكن متأكداً من وجود مكان ما، لا تذكره — استخدم أوصافاً عامة بدلاً من ذلك
+- لكل فندق أو مطعم أو منتجع مذكور: أضف العنوان الحقيقي أو رابط الموقع الإلكتروني
+- مخالفة هذه القاعدة تجعل المقال بأكمله غير صالح للاستخدام وضار بمصداقية الموقع
 ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقال (استخدمها كعناوين H2 أو H3):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
 أرجع JSON بهذه الحقول:

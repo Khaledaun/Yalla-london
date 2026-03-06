@@ -57,7 +57,7 @@ function getContent(siteId?: string) {
       'Affiliate commissions never affect the price you pay. You pay the same price whether you arrive at a partner site through our link or directly. In some cases, our partnerships may give you access to exclusive offers or discounts',
       'Our editorial recommendations are completely independent of our affiliate relationships. We select venues, experiences, and services to feature based on quality, personal experience, and editorial merit. We will never recommend a venue or experience solely because it offers higher commission',
       'Pages that contain affiliate links include a disclosure notice. Affiliate links within our content may be identified through standard URL parameters. We encourage you to be aware that clicking outbound links in our recommendations and event listings may be affiliate links',
-      'Affiliate revenue is essential to sustaining ${s.name} as a free resource. It funds our editorial team, venue research, photography, content production, and the bilingual infrastructure that makes our service unique',
+      `Affiliate revenue is essential to sustaining ${s.name} as a free resource. It funds our editorial team, venue research, photography, content production, and the bilingual infrastructure that makes our service unique`,
     ],
 
     accuracyTitle: 'Content Accuracy',
@@ -75,7 +75,7 @@ function getContent(siteId?: string) {
     userItems: [
       'Use our Website lawfully and in accordance with these Terms of Use. Do not use our Website for any purpose that is illegal under the laws of England and Wales or any applicable jurisdiction',
       'Do not scrape, crawl, or use automated tools to extract content from our Website. Our articles, guides, recommendations, and images are protected by copyright and intended for individual personal use only',
-      'Do not reproduce, redistribute, republish, or commercially exploit our content without prior written permission from ${s.name}. This includes copying articles, guides, or images to other websites, social media accounts, or publications',
+      `Do not reproduce, redistribute, republish, or commercially exploit our content without prior written permission from ${s.name}. This includes copying articles, guides, or images to other websites, social media accounts, or publications`,
       'Provide truthful and accurate information when submitting contact forms, signing up for our newsletter, or otherwise communicating with us. Do not impersonate another person or entity',
       'Do not attempt to interfere with, disrupt, or compromise the security or functionality of our Website, including its servers, databases, or connected networks',
       'Respect the experience of other users. Do not transmit spam, malicious code, phishing attempts, or any content intended to deceive or harm through any communication channel we provide',
@@ -83,17 +83,17 @@ function getContent(siteId?: string) {
 
     ipTitle: 'Intellectual Property',
     ipOurContentTitle: 'Our Content and Brand',
-    ipOurContentIntro: 'All intellectual property on this Website belongs to ${s.name} unless otherwise stated:',
+    ipOurContentIntro: `All intellectual property on this Website belongs to ${s.name} unless otherwise stated:`,
     ipOurContentItems: [
-      'All written content, including articles, guides, recommendations, descriptions, and reviews, is original work created by the ${s.name} editorial team and protected by copyright. Unauthorised reproduction is prohibited',
-      'The YALLA [LDN] brand, including the name "${s.name}", all logos, wordmarks, and visual brand elements, is the proprietary property of ${s.name}. You may not use our brand assets without written permission',
+      `All written content, including articles, guides, recommendations, descriptions, and reviews, is original work created by the ${s.name} editorial team and protected by copyright. Unauthorised reproduction is prohibited`,
+      `The YALLA [LDN] brand, including the name "${s.name}", all logos, wordmarks, and visual brand elements, is the proprietary property of ${s.name}. You may not use our brand assets without written permission`,
       'Our v2 brand system is proprietary, including the specific use of Anybody, Source Serif 4, and IBM Plex Mono typography; the tri-colour bar design element; the boarding pass visual motif; and the overall visual identity. These elements may not be replicated or adapted',
-      'Photographs and images on our Website are either owned by ${s.name}, licensed for our use, or used with attribution. They may not be downloaded, reproduced, or used elsewhere without permission',
+      `Photographs and images on our Website are either owned by ${s.name}, licensed for our use, or used with attribution. They may not be downloaded, reproduced, or used elsewhere without permission`,
       'The bilingual (English/Arabic) content, translations, and the structural approach to our dual-language experience represent significant editorial investment and are protected as original works',
     ],
     ipUserContentTitle: 'User-Submitted Content',
     ipUserContentItems: [
-      'Any content you submit to us through contact forms, emails, or other communication channels (feedback, suggestions, questions) may be used by ${s.name} to improve our services without restriction or compensation',
+      `Any content you submit to us through contact forms, emails, or other communication channels (feedback, suggestions, questions) may be used by ${s.name} to improve our services without restriction or compensation`,
       'You warrant that any content you submit is your own original work or that you have the right to share it, and that it does not infringe on any third party\'s intellectual property rights',
       'We reserve the right not to respond to or act upon any user-submitted content at our discretion',
     ],
@@ -101,7 +101,7 @@ function getContent(siteId?: string) {
     digitalTitle: 'Digital Products and E-Documents',
     digitalIntro: 'Our shop offers digital travel documents and e-documents. The following terms apply to all digital product purchases:',
     digitalItems: [
-      'Digital products purchased from ${s.name} are for personal, non-commercial use only. You may not resell, redistribute, share publicly, or commercially exploit any digital product purchased from us',
+      `Digital products purchased from ${s.name} are for personal, non-commercial use only. You may not resell, redistribute, share publicly, or commercially exploit any digital product purchased from us`,
       'All digital product sales are final. Due to the nature of digital goods, we do not offer refunds once a product has been delivered. By completing your purchase, you acknowledge and accept this no-refund policy',
       'Digital products are delivered instantly via email to the address you provide at checkout. It is your responsibility to ensure you provide a valid and accessible email address. Check your spam/junk folder if you do not receive your product',
       `${s.name} retains all intellectual property rights in digital products. Your purchase grants you a personal licence to use the product, not ownership of the underlying content or design`,
@@ -114,14 +114,14 @@ function getContent(siteId?: string) {
       `${s.name} provides informational and editorial content only. We are not a travel agency, tour operator, booking platform, or concierge service. We do not arrange, manage, or guarantee any bookings, reservations, or travel arrangements`,
       'We are not liable for your experiences at any venue, hotel, restaurant, attraction, or event that we recommend or link to. Our recommendations are editorial opinions based on personal experience and research, not guarantees of quality or satisfaction',
       `We are not responsible for the products, services, content, or practices of our affiliate partners (${s.isYacht ? 'Boatbookings, Click&Boat, CharterWorld, Burgess, Yacht Charter Fleet, Booking.com' : 'Booking.com, Expedia, HalalBooking, GetYourGuide, Viator, StubHub, Ticketmaster, Klook, Skyscanner, Blacklane, Allianz Travel Insurance'}, or any other linked platform). Your use of third-party platforms is governed by their own terms and conditions`,
-      'To the fullest extent permitted by applicable law, Zenitha.Luxury LLC (operating as ${s.name}) shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our Website, reliance on our content, or interaction with our affiliate partners',
+      `To the fullest extent permitted by applicable law, Zenitha.Luxury LLC (operating as ${s.name}) shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our Website, reliance on our content, or interaction with our affiliate partners`,
       'Our Website is provided on an "as is" and "as available" basis without warranties of any kind, either express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement',
     ],
 
     newsletterTitle: 'Newsletter',
     newsletterIntro: 'Our newsletter keeps you updated with curated London content. By subscribing, you agree to the following:',
     newsletterItems: [
-      'By entering your email address and subscribing, you consent to receiving periodic emails from ${s.name}. These may include curated London recommendations, new article announcements, event highlights, seasonal guides, exclusive content, and occasional promotional messages',
+      `By entering your email address and subscribing, you consent to receiving periodic emails from ${s.name}. These may include curated London recommendations, new article announcements, event highlights, seasonal guides, exclusive content, and occasional promotional messages`,
       'We send newsletters no more than twice per week. We respect your inbox and aim to deliver only content that adds value to your London experience',
       `You may unsubscribe at any time by clicking the "unsubscribe" link at the bottom of any newsletter email, or by contacting us at ${s.email}. Your email address will be removed from our mailing list within 7 days of your request`,
       'We do not sell, rent, or share your email address with third parties for their marketing purposes. Your email is shared only with our email service provider for the sole purpose of delivering the newsletters you subscribed to',
@@ -180,7 +180,7 @@ function getContent(siteId?: string) {
     ],
 
     affiliateTitle: 'علاقات الإحالة',
-    affiliateIntro: 'تحقق ${s.nameAr} إيرادات من خلال شراكات الإحالة. نؤمن بالشفافية الكاملة حول كيفية عمل ذلك:',
+    affiliateIntro: `تحقق ${s.nameAr} إيرادات من خلال شراكات الإحالة. نؤمن بالشفافية الكاملة حول كيفية عمل ذلك:`,
     affiliateItems: [
       s.isYacht
         ? 'نشارك في برامج إحالة مع Boatbookings و Click&Boat و CharterWorld و Burgess و Yacht Charter Fleet و Booking.com ومنصات تأجير يخوت وسفر فاخر مختارة. عندما تنقر على رابط إحالة على موقعنا وتكمل عملية شراء أو حجز على منصة الشريك، نكسب عمولة من ذلك الشريك'
@@ -188,7 +188,7 @@ function getContent(siteId?: string) {
       'عمولات الإحالة لا تؤثر أبداً على السعر الذي تدفعه. تدفع نفس السعر سواء وصلت إلى موقع الشريك من خلال رابطنا أو مباشرة. في بعض الحالات، قد تمنحك شراكاتنا وصولاً إلى عروض أو خصومات حصرية',
       'توصياتنا التحريرية مستقلة تماماً عن علاقات الإحالة. نختار الأماكن والتجارب والخدمات للعرض بناءً على الجودة والتجربة الشخصية والجدارة التحريرية. لن نوصي أبداً بمكان أو تجربة فقط لأنها تقدم عمولة أعلى',
       'الصفحات التي تحتوي على روابط إحالة تتضمن إشعار إفصاح. قد يتم تحديد روابط الإحالة ضمن محتوانا من خلال معلمات URL القياسية. نشجعك على الانتباه إلى أن النقر على الروابط الصادرة في توصياتنا وقوائم الفعاليات قد يكون روابط إحالة',
-      'إيرادات الإحالة ضرورية للحفاظ على ${s.nameAr} كمورد مجاني. تمول فريقنا التحريري وأبحاث الأماكن والتصوير وإنتاج المحتوى والبنية التحتية ثنائية اللغة التي تجعل خدمتنا فريدة',
+      `إيرادات الإحالة ضرورية للحفاظ على ${s.nameAr} كمورد مجاني. تمول فريقنا التحريري وأبحاث الأماكن والتصوير وإنتاج المحتوى والبنية التحتية ثنائية اللغة التي تجعل خدمتنا فريدة`,
     ],
 
     accuracyTitle: 'دقة المحتوى',
@@ -206,7 +206,7 @@ function getContent(siteId?: string) {
     userItems: [
       'استخدم موقعنا بشكل قانوني ووفقاً لشروط الاستخدام هذه. لا تستخدم موقعنا لأي غرض غير قانوني بموجب قوانين إنجلترا وويلز أو أي ولاية قضائية معمول بها',
       'لا تقم بكشط أو زحف أو استخدام أدوات آلية لاستخراج المحتوى من موقعنا. مقالاتنا وأدلتنا وتوصياتنا وصورنا محمية بحقوق الطبع والنشر ومخصصة للاستخدام الشخصي الفردي فقط',
-      'لا تقم بإعادة إنتاج أو إعادة توزيع أو إعادة نشر أو استغلال محتوانا تجارياً دون إذن كتابي مسبق من ${s.nameAr}. يشمل ذلك نسخ المقالات أو الأدلة أو الصور إلى مواقع أخرى أو حسابات وسائل التواصل الاجتماعي أو المنشورات',
+      `لا تقم بإعادة إنتاج أو إعادة توزيع أو إعادة نشر أو استغلال محتوانا تجارياً دون إذن كتابي مسبق من ${s.nameAr}. يشمل ذلك نسخ المقالات أو الأدلة أو الصور إلى مواقع أخرى أو حسابات وسائل التواصل الاجتماعي أو المنشورات`,
       'قدم معلومات صادقة ودقيقة عند تقديم نماذج الاتصال أو التسجيل في نشرتنا الإخبارية أو التواصل معنا بأي طريقة أخرى. لا تنتحل شخصية شخص آخر أو كيان آخر',
       'لا تحاول التدخل في أو تعطيل أو المساس بأمان أو وظائف موقعنا، بما في ذلك خوادمه وقواعد بياناته أو الشبكات المتصلة',
       'احترم تجربة المستخدمين الآخرين. لا تنقل رسائل غير مرغوب فيها أو تعليمات برمجية ضارة أو محاولات تصيد أو أي محتوى يهدف إلى الخداع أو الإضرار عبر أي قناة اتصال نوفرها',
@@ -214,17 +214,17 @@ function getContent(siteId?: string) {
 
     ipTitle: 'الملكية الفكرية',
     ipOurContentTitle: 'محتوانا وعلامتنا التجارية',
-    ipOurContentIntro: 'جميع حقوق الملكية الفكرية على هذا الموقع ملك ل${s.nameAr} ما لم يُذكر خلاف ذلك:',
+    ipOurContentIntro: `جميع حقوق الملكية الفكرية على هذا الموقع ملك ل${s.nameAr} ما لم يُذكر خلاف ذلك:`,
     ipOurContentItems: [
-      'جميع المحتوى المكتوب، بما في ذلك المقالات والأدلة والتوصيات والأوصاف والمراجعات، هو عمل أصلي أنشأه فريق ${s.nameAr} التحريري ومحمي بحقوق الطبع والنشر. يُحظر إعادة الإنتاج غير المصرح بها',
-      'علامة YALLA [LDN] التجارية، بما في ذلك اسم "${s.nameAr}" وجميع الشعارات والعلامات النصية والعناصر البصرية للعلامة التجارية، هي ملكية خاصة ل${s.nameAr}. لا يجوز لك استخدام أصول علامتنا التجارية دون إذن كتابي',
+      `جميع المحتوى المكتوب، بما في ذلك المقالات والأدلة والتوصيات والأوصاف والمراجعات، هو عمل أصلي أنشأه فريق ${s.nameAr} التحريري ومحمي بحقوق الطبع والنشر. يُحظر إعادة الإنتاج غير المصرح بها`,
+      `علامة YALLA [LDN] التجارية، بما في ذلك اسم "${s.nameAr}" وجميع الشعارات والعلامات النصية والعناصر البصرية للعلامة التجارية، هي ملكية خاصة ل${s.nameAr}. لا يجوز لك استخدام أصول علامتنا التجارية دون إذن كتابي`,
       'نظام علامتنا التجارية v2 مملوك، بما في ذلك الاستخدام المحدد لخطوط Anybody و Source Serif 4 و IBM Plex Mono؛ وعنصر تصميم الشريط ثلاثي الألوان؛ والنمط البصري لبطاقة الصعود؛ والهوية البصرية الشاملة. لا يجوز تكرار أو تكييف هذه العناصر',
-      'الصور الفوتوغرافية والصور على موقعنا إما مملوكة ل${s.nameAr} أو مرخصة لاستخدامنا أو مستخدمة مع الإسناد. لا يجوز تحميلها أو إعادة إنتاجها أو استخدامها في مكان آخر دون إذن',
+      `الصور الفوتوغرافية والصور على موقعنا إما مملوكة ل${s.nameAr} أو مرخصة لاستخدامنا أو مستخدمة مع الإسناد. لا يجوز تحميلها أو إعادة إنتاجها أو استخدامها في مكان آخر دون إذن`,
       'المحتوى ثنائي اللغة (إنجليزي/عربي) والترجمات والنهج الهيكلي لتجربتنا ثنائية اللغة يمثل استثماراً تحريرياً كبيراً ومحمي كأعمال أصلية',
     ],
     ipUserContentTitle: 'المحتوى المقدم من المستخدم',
     ipUserContentItems: [
-      'أي محتوى تقدمه لنا من خلال نماذج الاتصال أو البريد الإلكتروني أو قنوات الاتصال الأخرى (ملاحظات، اقتراحات، أسئلة) قد يُستخدم من قبل ${s.nameAr} لتحسين خدماتنا دون قيود أو تعويض',
+      `أي محتوى تقدمه لنا من خلال نماذج الاتصال أو البريد الإلكتروني أو قنوات الاتصال الأخرى (ملاحظات، اقتراحات، أسئلة) قد يُستخدم من قبل ${s.nameAr} لتحسين خدماتنا دون قيود أو تعويض`,
       'تضمن أن أي محتوى تقدمه هو عملك الأصلي أو أن لديك الحق في مشاركته، وأنه لا ينتهك حقوق الملكية الفكرية لأي طرف ثالث',
       'نحتفظ بالحق في عدم الرد على أي محتوى مقدم من المستخدم أو التصرف بناءً عليه وفقاً لتقديرنا',
     ],
@@ -232,27 +232,27 @@ function getContent(siteId?: string) {
     digitalTitle: 'المنتجات الرقمية والوثائق الإلكترونية',
     digitalIntro: 'يقدم متجرنا مستندات سفر رقمية ووثائق إلكترونية. تنطبق الشروط التالية على جميع مشتريات المنتجات الرقمية:',
     digitalItems: [
-      'المنتجات الرقمية المشتراة من ${s.nameAr} مخصصة للاستخدام الشخصي غير التجاري فقط. لا يجوز لك إعادة بيع أو إعادة توزيع أو مشاركة علنياً أو استغلال تجارياً أي منتج رقمي تم شراؤه منا',
+      `المنتجات الرقمية المشتراة من ${s.nameAr} مخصصة للاستخدام الشخصي غير التجاري فقط. لا يجوز لك إعادة بيع أو إعادة توزيع أو مشاركة علنياً أو استغلال تجارياً أي منتج رقمي تم شراؤه منا`,
       'جميع مبيعات المنتجات الرقمية نهائية. بسبب طبيعة السلع الرقمية، لا نقدم استرداد الأموال بمجرد تسليم المنتج. بإكمال عملية الشراء، تقر وتقبل سياسة عدم الاسترداد هذه',
       'يتم تسليم المنتجات الرقمية فوراً عبر البريد الإلكتروني إلى العنوان الذي تقدمه عند الدفع. تقع على عاتقك مسؤولية التأكد من تقديم عنوان بريد إلكتروني صالح ويمكن الوصول إليه. تحقق من مجلد البريد غير المرغوب فيه إذا لم تستلم منتجك',
-      'تحتفظ ${s.nameAr} بجميع حقوق الملكية الفكرية في المنتجات الرقمية. يمنحك شراؤك ترخيصاً شخصياً لاستخدام المنتج، وليس ملكية المحتوى أو التصميم الأساسي',
+      `تحتفظ ${s.nameAr} بجميع حقوق الملكية الفكرية في المنتجات الرقمية. يمنحك شراؤك ترخيصاً شخصياً لاستخدام المنتج، وليس ملكية المحتوى أو التصميم الأساسي`,
       'نحتفظ بالحق في تحديث المنتجات الرقمية بعد الشراء. قد تُتاح الإصدارات المحدثة للمشترين السابقين وفقاً لتقديرنا، لكننا غير ملزمين بذلك',
     ],
 
     liabilityTitle: 'تحديد المسؤولية',
     liabilityIntro: 'يرجى فهم نطاق وحدود خدمتنا:',
     liabilityItems: [
-      'يقدم ${s.nameAr} محتوى معلوماتي وتحريري فقط. نحن لسنا وكالة سفر أو منظم رحلات أو منصة حجز أو خدمة كونسيرج. لا نرتب أو ندير أو نضمن أي حجوزات أو ترتيبات سفر',
+      `يقدم ${s.nameAr} محتوى معلوماتي وتحريري فقط. نحن لسنا وكالة سفر أو منظم رحلات أو منصة حجز أو خدمة كونسيرج. لا نرتب أو ندير أو نضمن أي حجوزات أو ترتيبات سفر`,
       'لسنا مسؤولين عن تجاربك في أي مكان أو فندق أو مطعم أو معلم أو فعالية نوصي بها أو نربط إليها. توصياتنا هي آراء تحريرية مبنية على تجربة شخصية وأبحاث، وليست ضمانات للجودة أو الرضا',
       `لسنا مسؤولين عن منتجات أو خدمات أو محتوى أو ممارسات شركاء الإحالة لدينا (${s.isYacht ? 'Boatbookings و Click&Boat و CharterWorld و Burgess و Yacht Charter Fleet و Booking.com' : 'Booking.com و Expedia و HalalBooking و GetYourGuide و Viator و StubHub و Ticketmaster و Klook و Skyscanner و Blacklane و Allianz Travel Insurance'} أو أي منصة مرتبطة أخرى). يخضع استخدامك لمنصات الطرف الثالث لشروطهم وأحكامهم الخاصة`,
-      'إلى أقصى حد يسمح به القانون المعمول به، لن تكون شركة Zenitha.Luxury LLC (التي تعمل باسم ${s.nameAr}) مسؤولة عن أي أضرار غير مباشرة أو عرضية أو خاصة أو تبعية أو عقابية ناتجة عن استخدامك لموقعنا أو اعتمادك على محتوانا أو تفاعلك مع شركاء الإحالة لدينا',
+      `إلى أقصى حد يسمح به القانون المعمول به، لن تكون شركة Zenitha.Luxury LLC (التي تعمل باسم ${s.nameAr}) مسؤولة عن أي أضرار غير مباشرة أو عرضية أو خاصة أو تبعية أو عقابية ناتجة عن استخدامك لموقعنا أو اعتمادك على محتوانا أو تفاعلك مع شركاء الإحالة لدينا`,
       'يُقدم موقعنا على أساس "كما هو" و"كما هو متاح" دون أي ضمانات من أي نوع، سواء صريحة أو ضمنية، بما في ذلك على سبيل المثال لا الحصر ضمانات القابلية للتسويق أو الملاءمة لغرض معين أو عدم الانتهاك',
     ],
 
     newsletterTitle: 'النشرة الإخبارية',
     newsletterIntro: 'تبقيك نشرتنا الإخبارية على اطلاع بمحتوى لندن المختار. بالاشتراك، توافق على ما يلي:',
     newsletterItems: [
-      'بإدخال عنوان بريدك الإلكتروني والاشتراك، فإنك توافق على تلقي رسائل بريد إلكتروني دورية من ${s.nameAr}. قد تشمل هذه توصيات لندن المختارة وإعلانات المقالات الجديدة وأبرز الفعاليات والأدلة الموسمية والمحتوى الحصري ورسائل ترويجية عرضية',
+      `بإدخال عنوان بريدك الإلكتروني والاشتراك، فإنك توافق على تلقي رسائل بريد إلكتروني دورية من ${s.nameAr}. قد تشمل هذه توصيات لندن المختارة وإعلانات المقالات الجديدة وأبرز الفعاليات والأدلة الموسمية والمحتوى الحصري ورسائل ترويجية عرضية`,
       'نرسل النشرات الإخبارية مرتين في الأسبوع كحد أقصى. نحترم بريدك الوارد ونهدف لتقديم محتوى يضيف قيمة لتجربتك في لندن فقط',
       `يمكنك إلغاء الاشتراك في أي وقت بالنقر على رابط "إلغاء الاشتراك" في أسفل أي بريد إلكتروني للنشرة، أو بالاتصال بنا على ${s.email}. ستتم إزالة عنوان بريدك الإلكتروني من قائمتنا البريدية خلال 7 أيام من طلبك`,
       'لا نبيع أو نؤجر أو نشارك عنوان بريدك الإلكتروني مع أطراف ثالثة لأغراضهم التسويقية. يُشارك بريدك الإلكتروني فقط مع مزود خدمة البريد الإلكتروني لدينا لغرض وحيد هو تسليم النشرات الإخبارية التي اشتركت فيها',

@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { BLOG_REDIRECTS } from "@/lib/seo/redirect-map";
 
 // Static domain to site mapping
 const DOMAIN_TO_SITE: Record<
@@ -186,6 +187,27 @@ export function middleware(request: NextRequest) {
   // are correctly excluded (the /ar/ prefix is stripped before matching).
   if (EXCLUDED_PATHS.some((path) => effectivePathname.startsWith(path))) {
     return NextResponse.next();
+  }
+
+  // ── Legacy path redirects (301) ──────────────────────────────────
+  const LEGACY_REDIRECTS: Record<string, string> = {
+    "/privacy-policy": "/privacy",
+  };
+  const legacyTarget = LEGACY_REDIRECTS[effectivePathname];
+  if (legacyTarget) {
+    const url = request.nextUrl.clone();
+    url.pathname = isArabicRoute ? `/ar${legacyTarget}` : legacyTarget;
+    return NextResponse.redirect(url, 301);
+  }
+
+  // ── Blog duplicate 301 redirects ────────────────────────────────
+  // Consolidate duplicate article clusters (hash-suffix variants, date variants)
+  // to their canonical URL, preserving link equity.
+  const blogRedirect = BLOG_REDIRECTS[effectivePathname];
+  if (blogRedirect) {
+    const url = request.nextUrl.clone();
+    url.pathname = isArabicRoute ? `/ar${blogRedirect}` : blogRedirect;
+    return NextResponse.redirect(url, 301);
   }
 
   // Block internal-only pages from public access → redirect to admin login

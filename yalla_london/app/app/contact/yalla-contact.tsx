@@ -137,7 +137,7 @@ export default function YallaContactPage() {
     <div className={`container mx-auto px-6 py-12 max-w-6xl ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="text-center mb-12">
         <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
-          {t('contactUs') || 'Contact Us'}
+          Contact Us
         </h1>
         <p className="text-stone text-lg">
           Get in touch with the Yalla London team. We&apos;d love to hear from you!

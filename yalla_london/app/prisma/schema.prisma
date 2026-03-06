@@ -4230,3 +4230,29 @@ model AuditIssue {
   @@index([siteId, severity])
   @@map("audit_issues")
 }
+
+/// SeoAuditAction — Action items from Perplexity-powered public SEO audits
+model SeoAuditAction {
+  id            String   @id @default(cuid())
+  auditId       String
+  siteId        String
+  actionItemId  String
+  severity      String   // critical, high, medium, low
+  category      String   // content, schema, technical, etc
+  title         String
+  description   String   @db.Text
+  status        String   @default("pending") // pending, in_progress, completed, failed, skipped
+  autoFixable   Boolean  @default(false)
+  fixType       String   // code, content, config, manual
+  affectedUrls  String[] @default([])
+  executionLog  Json?    // Array of { timestamp, phase, message, result }
+  startedAt     DateTime?
+  completedAt   DateTime?
+  error         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([siteId, status])
+  @@index([auditId])
+  @@map("seo_audit_actions")
+}

@@ -369,6 +369,14 @@ WRITING REQUIREMENTS (mandatory):
 - Structure with short paragraphs (2–4 sentences each) and use <ul>/<li> for tips or lists
 - NO phrases like "look no further", "in this section we will", "in conclusion", or "whether you're a"
 
+CRITICAL FACTUAL ACCURACY RULE:
+- NEVER invent or fabricate venue names, restaurant names, hotel names, or business names
+- Only mention real, verifiable businesses that actually exist at the time of writing
+- If unsure whether a venue exists, DO NOT mention it — use general descriptions instead
+- Every restaurant, hotel, attraction, or business named must be a real establishment
+- For lists (hotels, restaurants, spas): include the real address or website URL for each venue
+- Violation of this rule makes the entire article unusable and harmful to site trust
+
 Return JSON:
 {
   "heading": "${section.heading}",
@@ -560,6 +568,14 @@ Tasks:
 7. Add a proper introduction (minimum 80 words) if missing
 8. Add a conclusion with CTA (minimum 80 words) if missing
 9. Add an "Insider Tips" or "Practical Information" section if total word count is still under 1,500
+
+CRITICAL FACTUAL ACCURACY RULE:
+- NEVER invent or fabricate venue names, restaurant names, hotel names, or business names
+- Only mention real, verifiable businesses that actually exist at the time of writing
+- If unsure whether a venue exists, DO NOT mention it — use general descriptions instead
+- Every restaurant, hotel, attraction, or business named must be a real establishment
+- For lists (hotels, restaurants, spas): include the real address or website URL for each venue
+- Violation of this rule makes the entire article unusable and harmful to site trust
 ${isArabic(draft.locale) ? '10. Wrap the entire article in <article dir="rtl" lang="ar">...</article>\n11. Ensure all Arabic punctuation is correct (، ؛ ؟)' : ""}
 
 Internal link targets: ${JSON.stringify(internalLinkPlan).substring(0, 500)}

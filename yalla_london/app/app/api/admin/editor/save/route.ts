@@ -136,7 +136,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       action: "editor-save-article",
       resource: "blogpost",
       success: false,
-      summary: `Failed to save article "${body?.title || "unknown"}"`,
+      summary: `Failed to save article`,
       error: error instanceof Error ? error.message : "Unknown error",
       fix: "Check Prisma schema alignment, required fields, and database connectivity."
     }).catch(() => {});

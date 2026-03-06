@@ -14,6 +14,19 @@ import { motion } from 'framer-motion'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
 
+interface AuthorData {
+  name_en: string;
+  name_ar: string;
+  title_en: string;
+  bio_en: string;
+  bio_ar: string;
+  slug: string;
+  avatar_url: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  instagram_url: string | null;
+}
+
 interface BlogPostData {
   id: string;
   title_en: string;
@@ -34,6 +47,7 @@ interface BlogPostData {
     name_ar: string;
     slug: string;
   } | null;
+  author: AuthorData | null;
 }
 
 interface BlogPostClientProps {
@@ -247,11 +261,13 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
               <div className="flex flex-wrap items-center gap-4 text-white/60 text-sm">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-full bg-london-600 flex items-center justify-center text-white font-bold text-sm">
-                    YL
+                    {post.author?.name_en ? post.author.name_en.split(' ').map(w => w[0]).join('').slice(0, 2) : 'YL'}
                   </div>
                   <div>
                     <span className="text-white/90 font-medium block text-sm leading-tight">
-                      {language === 'en' ? 'Yalla London Editorial' : 'تحرير يلا لندن'}
+                      {language === 'en'
+                        ? (post.author?.name_en || 'Yalla London Editorial')
+                        : (post.author?.name_ar || 'تحرير يلا لندن')}
                     </span>
                     <span className="text-white/50 text-xs">
                       {formatDate(post.created_at)}
@@ -352,17 +368,43 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                 <div className="mt-10 p-6 md:p-8 rounded-xl bg-cream border border-sand/60">
                   <div className="flex items-start gap-4">
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-london-600 to-london-800 flex items-center justify-center text-white font-display font-bold text-lg shrink-0">
-                      YL
+                      {post.author?.name_en ? post.author.name_en.split(' ').map(w => w[0]).join('').slice(0, 2) : 'YL'}
                     </div>
                     <div className="flex-1">
                       <h4 className={`font-bold text-charcoal mb-1 ${isRTL ? 'font-arabic' : 'font-display'}`}>
-                        {language === 'en' ? 'Yalla London Editorial' : 'فريق تحرير يلا لندن'}
+                        {language === 'en'
+                          ? (post.author?.name_en || 'Yalla London Editorial')
+                          : (post.author?.name_ar || 'فريق تحرير يلا لندن')}
                       </h4>
+                      {post.author?.title_en && (
+                        <p className={`text-xs text-stone/70 mb-1.5 ${isRTL ? 'font-arabic' : 'font-sans'}`}>
+                          {post.author.title_en}
+                        </p>
+                      )}
                       <p className={`text-sm text-stone leading-relaxed ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
                         {language === 'en'
-                          ? 'Curating the best of London for Arab travellers — luxury hotels, halal dining, hidden gems, and insider tips from our editorial team.'
-                          : 'نقدم أفضل ما في لندن للمسافرين العرب — فنادق فاخرة، مطاعم حلال، أماكن مخفية، ونصائح من فريقنا التحريري.'}
+                          ? (post.author?.bio_en || 'Curating the best of London for Arab travellers — luxury hotels, halal dining, hidden gems, and insider tips from our editorial team.')
+                          : (post.author?.bio_ar || 'نقدم أفضل ما في لندن للمسافرين العرب — فنادق فاخرة، مطاعم حلال، أماكن مخفية، ونصائح من فريقنا التحريري.')}
                       </p>
+                      {post.author && (post.author.linkedin_url || post.author.twitter_url || post.author.instagram_url) && (
+                        <div className="flex gap-3 mt-3">
+                          {post.author.linkedin_url && (
+                            <a href={post.author.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-stone/50 hover:text-london-600 transition-colors text-xs font-medium">
+                              LinkedIn
+                            </a>
+                          )}
+                          {post.author.twitter_url && (
+                            <a href={post.author.twitter_url} target="_blank" rel="noopener noreferrer" className="text-stone/50 hover:text-london-600 transition-colors text-xs font-medium">
+                              X/Twitter
+                            </a>
+                          )}
+                          {post.author.instagram_url && (
+                            <a href={post.author.instagram_url} target="_blank" rel="noopener noreferrer" className="text-stone/50 hover:text-london-600 transition-colors text-xs font-medium">
+                              Instagram
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

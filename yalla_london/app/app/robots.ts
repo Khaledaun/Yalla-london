@@ -10,26 +10,33 @@ import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
  * - Block admin/API routes from indexing
  * - Include sitemap reference
  *
- * IMPORTANT: Every rule MUST have explicit `disallow` — even if empty [].
- * Next.js generates `Disallow: /` for user-agent blocks without an explicit
- * disallow field, which blocks ALL crawling for that agent.
+ * IMPORTANT: Every rule MUST have explicit `disallow` — even if empty string "".
+ * Next.js omits the Disallow line entirely for empty arrays [], which can cause
+ * ambiguous interpretation. Using "" generates `Disallow: ` (explicit allow-all).
  */
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const headersList = await headers();
-  const hostname = headersList.get("x-hostname") || getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
+  // Middleware sets x-hostname for most routes but skips /robots.txt (EXCLUDED_PATHS).
+  // Fall back to x-forwarded-host (set by Vercel) → host header → config default.
+  const hostname =
+    headersList.get("x-hostname") ||
+    headersList.get("x-forwarded-host") ||
+    headersList.get("host") ||
+    getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, "");
   const baseUrl =
     hostname === "localhost:3000"
       ? "http://localhost:3000"
       : `https://${hostname}`;
 
   // Common disallow rules for bots that should skip admin/API
-  const standardDisallow = ["/admin/", "/api/"];
-  // Explicit empty array — prevents Next.js from generating "Disallow: /"
-  const noDisallow: string[] = [];
+  const standardDisallow = ["/admin/", "/api/", "/_next/"];
+  // Empty string generates explicit `Disallow: ` line (= allow all).
+  // Do NOT use [] — Next.js omits the Disallow line entirely for empty arrays.
+  const allowAll = "";
 
   return {
     rules: [
-      // Default: allow everything except admin/api
+      // Default: allow everything except admin/api/_next
       {
         userAgent: "*",
         allow: "/",
@@ -45,7 +52,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: "Google-Extended",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       // OpenAI GPTBot (ChatGPT, AI search)
       {
@@ -57,24 +64,24 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: "ChatGPT-User",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       // Anthropic Claude
       {
         userAgent: "ClaudeBot",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       {
         userAgent: "anthropic-ai",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       // Perplexity AI search
       {
         userAgent: "PerplexityBot",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       // Bing/Microsoft (Copilot, AI search)
       {
@@ -86,19 +93,19 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: "FacebookBot",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       // Apple (Siri, Apple Intelligence)
       {
         userAgent: "Applebot",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
       // Cohere AI
       {
         userAgent: "cohere-ai",
         allow: "/",
-        disallow: noDisallow,
+        disallow: allowAll,
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

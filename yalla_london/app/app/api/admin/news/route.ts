@@ -160,16 +160,23 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       }
 
       case "publish": {
-        // Pre-check
+        // 1. Pre-check
         const publishTarget = await prisma.newsItem.findUnique({ where: { id }, select: { id: true, headline_en: true, status: true } });
         if (!publishTarget) {
           logManualAction(request, { action: "publish-news", resource: "newsItem", resourceId: id, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
           return NextResponse.json({ error: "News item not found" }, { status: 404 });
         }
+        // 2. Execute
         await prisma.newsItem.update({
           where: { id },
           data: { status: "published", published_at: new Date() },
         });
+        // 3. Post-verify
+        const publishedRecord = await prisma.newsItem.findUnique({ where: { id }, select: { id: true, status: true } });
+        if (!publishedRecord || publishedRecord.status !== "published") {
+          logManualAction(request, { action: "publish-news", resource: "newsItem", resourceId: id, success: false, summary: "Publish verification failed", error: "Status not updated to published" }).catch(() => {});
+          return NextResponse.json({ error: "Publish failed — status not updated" }, { status: 500 });
+        }
         logManualAction(request, { action: "publish-news", resource: "newsItem", resourceId: id, success: true, summary: `Published "${publishTarget.headline_en}"` }).catch(() => {});
         return NextResponse.json({ success: true, action: "published" });
       }

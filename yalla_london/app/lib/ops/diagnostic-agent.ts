@@ -101,13 +101,13 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
       let category: DiagnosisCategory = "unknown";
       let details = "";
 
-      if (lastError.includes("timeout") || lastError.includes("aborted") || lastError.includes("budget too low")) {
+      if (lastError.includes("timeout") || lastError.includes("aborted") || lastError.includes("budget too low") || lastError.includes("timed out") || lastError.includes("deadline") || lastError.includes("etimedout") || lastError.includes("signal")) {
         category = "timeout";
         details = `Phase "${draft.current_phase}" timing out after ${draft.phase_attempts} attempts. Last error: ${draft.last_error}`;
-      } else if (lastError.includes("api error") || lastError.includes("no api key") || lastError.includes("429") || lastError.includes("503")) {
+      } else if (lastError.includes("api error") || lastError.includes("no api key") || lastError.includes("429") || lastError.includes("503") || lastError.includes("401") || lastError.includes("rate limit") || lastError.includes("quota") || lastError.includes("unauthenticated") || lastError.includes("insufficient")) {
         category = "provider_down";
         details = `AI provider errors for "${draft.current_phase}". Last error: ${draft.last_error}`;
-      } else if (lastError.includes("json") || lastError.includes("parse") || lastError.includes("unexpected token")) {
+      } else if (lastError.includes("json") || lastError.includes("parse") || lastError.includes("unexpected token") || lastError.includes("syntaxerror") || lastError.includes("not valid")) {
         category = "bad_data";
         details = `Malformed data in phase "${draft.current_phase}". Last error: ${draft.last_error}`;
       } else if ((draft.phase_attempts || 0) >= 5) {
@@ -191,18 +191,140 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
 
 // ─── Phase 2: FIX ───────────────────────────────────────────────────────────
 
+/**
+ * Fix cron failures by addressing their downstream effects:
+ * - Unlock drafts stuck because a cron failed mid-processing
+ * - Reset phase_started_at locks left behind by crashed crons
+ * - Clear stale "running" CronJobLog entries from crashed runs
+ */
+async function applyCronFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
+  const { prisma } = await import("@/lib/db");
+  const cronName = diagnosis.details.match(/Cron "([^"]+)"/)?.[1] || "";
+  const before: Record<string, unknown> = { cronName, category: diagnosis.category };
+
+  try {
+    // 1. Content-builder / content-auto-fix failures → unlock stuck drafts
+    if (["content-builder", "content-auto-fix", "daily-content-generate"].includes(cronName)) {
+      // Find drafts with stale phase_started_at locks (>30 min old = crashed mid-processing)
+      const stuckByLock = await prisma.articleDraft.updateMany({
+        where: {
+          current_phase: { notIn: ["reservoir", "rejected", "published"] },
+          phase_started_at: { lt: new Date(Date.now() - 30 * 60 * 1000) },
+        },
+        data: {
+          phase_started_at: null,
+          last_error: `[diagnostic-agent] Unlocked after ${cronName} crash — lock was stale >30min`,
+          updated_at: new Date(),
+        },
+      });
+      if (stuckByLock.count > 0) {
+        return {
+          diagnosis,
+          fixApplied: `unlocked_${stuckByLock.count}_stale_drafts`,
+          success: true,
+          before,
+          after: { unlockedDrafts: stuckByLock.count },
+        };
+      }
+    }
+
+    // 2. SEO agent / google-indexing failures → mark stale "submitted" URLs for retry
+    if (["seo-agent", "google-indexing"].includes(cronName)) {
+      const staleSubmissions = await prisma.uRLIndexingStatus.updateMany({
+        where: {
+          status: "submitted",
+          last_inspected_at: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
+        data: {
+          status: "pending",
+          last_error: `[diagnostic-agent] Re-queued after ${cronName} failure — was stuck in submitted >7d`,
+        },
+      });
+      if (staleSubmissions.count > 0) {
+        return {
+          diagnosis,
+          fixApplied: `requeued_${staleSubmissions.count}_stale_indexing_urls`,
+          success: true,
+          before,
+          after: { requeuedUrls: staleSubmissions.count },
+        };
+      }
+    }
+
+    // 3. Sweeper failures → clear "running" status from stale CronJobLog entries
+    if (["sweeper", "sweeper-agent"].includes(cronName)) {
+      const staleLogs = await prisma.cronJobLog.updateMany({
+        where: {
+          status: "running",
+          started_at: { lt: new Date(Date.now() - 10 * 60 * 1000) },
+        },
+        data: {
+          status: "failed",
+          error_message: `[diagnostic-agent] Marked failed — was stuck in "running" >10min`,
+          completed_at: new Date(),
+        },
+      });
+      if (staleLogs.count > 0) {
+        return {
+          diagnosis,
+          fixApplied: `cleared_${staleLogs.count}_stale_running_crons`,
+          success: true,
+          before,
+          after: { clearedStaleRuns: staleLogs.count },
+        };
+      }
+    }
+
+    // 4. For any cron: clean up stale "running" CronJobLog entries from this specific cron
+    const staleSelfLogs = await prisma.cronJobLog.updateMany({
+      where: {
+        job_name: cronName,
+        status: "running",
+        started_at: { lt: new Date(Date.now() - 15 * 60 * 1000) },
+      },
+      data: {
+        status: "failed",
+        error_message: `[diagnostic-agent] Marked failed — ${cronName} was stuck in "running" >15min`,
+        completed_at: new Date(),
+      },
+    });
+
+    if (staleSelfLogs.count > 0) {
+      return {
+        diagnosis,
+        fixApplied: `cleared_${staleSelfLogs.count}_stale_${cronName}_runs`,
+        success: true,
+        before,
+        after: { clearedRuns: staleSelfLogs.count },
+      };
+    }
+
+    // No downstream damage found — log for visibility
+    return {
+      diagnosis,
+      fixApplied: "no_downstream_damage",
+      success: true,
+      before,
+      after: { note: `${cronName} failed but no stuck resources found` },
+    };
+  } catch (err) {
+    return {
+      diagnosis,
+      fixApplied: "cron_fix_error",
+      success: false,
+      before,
+      after: {},
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
 export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
   const { prisma } = await import("@/lib/db");
 
   if (diagnosis.targetType !== "draft") {
-    // Cron failures are informational — log but don't auto-fix
-    return {
-      diagnosis,
-      fixApplied: "logged_only",
-      success: true,
-      before: {},
-      after: {},
-    };
+    // Cron failures: attempt targeted remediation based on error category
+    return applyCronFix(diagnosis);
   }
 
   try {
@@ -430,7 +552,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
 // ─── Phase 3: VERIFY ────────────────────────────────────────────────────────
 
 export async function verifyFix(fix: DiagnosticFix): Promise<DiagnosticVerification> {
-  if (!fix.success || fix.fixApplied === "logged_only" || fix.fixApplied === "none") {
+  if (!fix.success || fix.fixApplied === "logged_only" || fix.fixApplied === "none" || fix.fixApplied === "no_downstream_damage" || fix.fixApplied === "cron_fix_error") {
     return { fix, verified: true, verificationDetails: "No verification needed" };
   }
 

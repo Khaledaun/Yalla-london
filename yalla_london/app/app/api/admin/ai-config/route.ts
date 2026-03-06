@@ -195,7 +195,22 @@ export const GET = withAdminOrCronAuth(async (_req: NextRequest) => {
       }
     }
 
-    return NextResponse.json({ providers, routes, providerKeyStatus });
+    // ── Provider warnings (key format validation) ───────────
+    const providerWarnings: Record<string, string> = {};
+    // Gemini: must start with AIza
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_API_KEY || "";
+    if (geminiKey && !geminiKey.startsWith("AIza")) {
+      providerWarnings.gemini = "Wrong key type — needs Google AI API Key (starts with AIza...), not OAuth token. Go to Google Cloud Console → Credentials → Create API Key.";
+    }
+    // Perplexity: check if configured but assigned to tasks
+    if (!providerKeyStatus.PERPLEXITY_API_KEY) {
+      const perplexityRoutes = routes.filter(r => r.primary === "perplexity" || r.fallback === "perplexity");
+      if (perplexityRoutes.length > 0) {
+        providerWarnings.perplexity = `No PERPLEXITY_API_KEY configured, but Perplexity is assigned to: ${perplexityRoutes.map(r => r.label).join(", ")}. These tasks will fall back to other providers.`;
+      }
+    }
+
+    return NextResponse.json({ providers, routes, providerKeyStatus, providerWarnings });
   } catch (err) {
     console.warn("[ai-config] GET handler error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Failed to load AI config" }, { status: 500 });

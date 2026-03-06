@@ -81,13 +81,16 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Unknown AI action" }, { status: 400 });
       }
 
-      const result = await generateCompletion(prompt, {
-        taskType: 'legal-page-ai',
-        calledFrom: 'api/admin/legal',
-        siteId: body.siteId || getDefaultSiteId(),
-      });
+      const result = await generateCompletion(
+        [{ role: 'user', content: prompt }],
+        {
+          taskType: 'legal-page-ai',
+          calledFrom: 'api/admin/legal',
+          siteId: body.siteId || getDefaultSiteId(),
+        }
+      );
 
-      return NextResponse.json({ content: result, action: aiAction });
+      return NextResponse.json({ content: result.content, action: aiAction });
     }
 
     // Create new page

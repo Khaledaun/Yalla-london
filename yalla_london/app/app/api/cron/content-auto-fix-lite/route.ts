@@ -148,10 +148,10 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 3. META DESCRIPTION TRIM — BlogPosts EN ───────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
-      const longMetaPosts = await prisma.$queryRawUnsafe<Array<{ id: string; meta_description_en: string }>>(
+      const longMetaPosts = (await prisma.$queryRawUnsafe(
         `SELECT id, meta_description_en FROM "BlogPost" WHERE "siteId" = ANY($1::text[]) AND "deletedAt" IS NULL AND "meta_description_en" IS NOT NULL AND LENGTH("meta_description_en") > 160 LIMIT 20`,
         activeSiteIds,
-      );
+      )) as Array<{ id: string; meta_description_en: string }>;
 
       for (const post of longMetaPosts) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
@@ -177,10 +177,10 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 4. META DESCRIPTION TRIM — BlogPosts AR ───────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
-      const longMetaPostsAr = await prisma.$queryRawUnsafe<Array<{ id: string; meta_description_ar: string }>>(
+      const longMetaPostsAr = (await prisma.$queryRawUnsafe(
         `SELECT id, meta_description_ar FROM "BlogPost" WHERE "siteId" = ANY($1::text[]) AND "deletedAt" IS NULL AND "meta_description_ar" IS NOT NULL AND LENGTH("meta_description_ar") > 160 LIMIT 20`,
         activeSiteIds,
-      );
+      )) as Array<{ id: string; meta_description_ar: string }>;
 
       for (const post of longMetaPostsAr) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;

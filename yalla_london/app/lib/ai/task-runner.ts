@@ -123,12 +123,16 @@ export async function runTask(input: TaskInput): Promise<TaskOutput> {
         ? `${task.systemPrefix}\n\n---\n\nUser request:\n${input.prompt}`
         : input.prompt
 
-      const result = await generateCompletion(fullPrompt, {
-        taskType: `task-runner-${input.taskId}`,
-        calledFrom: 'lib/ai/task-runner',
-        siteId,
-        timeoutMs: task?.timeoutMs || 30000,
-      })
+      const aiResult = await generateCompletion(
+        [{ role: 'user', content: fullPrompt }],
+        {
+          taskType: `task-runner-${input.taskId}`,
+          calledFrom: 'lib/ai/task-runner',
+          siteId,
+          timeoutMs: task?.timeoutMs || 30000,
+        }
+      )
+      const result = aiResult.content || ''
 
       const completed = new Date()
 
@@ -207,10 +211,14 @@ ${output.error ? `Error: ${output.error}` : ''}
 ${output.structuredOutput ? `Result: ${JSON.stringify(output.structuredOutput, null, 2)}` : `Result: ${output.result?.substring(0, 2000)}`}
 Duration: ${output.timestamps.durationMs}ms`
 
-  return generateCompletion(prompt, {
-    taskType: 'task-runner-explain',
-    calledFrom: 'lib/ai/task-runner',
-    siteId: output.input.siteId || getDefaultSiteId(),
-    timeoutMs: 15000,
-  })
+  const res = await generateCompletion(
+    [{ role: 'user', content: prompt }],
+    {
+      taskType: 'task-runner-explain',
+      calledFrom: 'lib/ai/task-runner',
+      siteId: output.input.siteId || getDefaultSiteId(),
+      timeoutMs: 15000,
+    }
+  )
+  return res.content || ''
 }

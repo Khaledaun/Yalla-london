@@ -124,16 +124,14 @@ export async function auditPage(
   const queryUrl = `${PSI_API_URL}?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${apiKey ? `&key=${apiKey}` : ""}`;
 
   try {
-    // Retry up to 3 times on 429 (rate limit) with exponential backoff
+    // Single attempt with 12s timeout — retries waste cron budget.
+    // PSI typically responds in 5-10s; if it doesn't, move on.
     let res: Response | null = null;
-    const backoffs = [0, 5000, 10000]; // 0s, 5s, 10s
-    for (let attempt = 0; attempt < backoffs.length; attempt++) {
-      if (backoffs[attempt] > 0) await new Promise((r) => setTimeout(r, backoffs[attempt]));
-      res = await fetch(queryUrl, {
-        signal: AbortSignal.timeout(30_000), // 30s timeout per page
-      });
-      if (res.status !== 429) break;
-      console.warn(`[site-auditor] Rate limited (429) on ${url} — attempt ${attempt + 1}/${backoffs.length}`);
+    res = await fetch(queryUrl, {
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (res.status === 429) {
+      console.warn(`[site-auditor] Rate limited (429) on ${url} — skipping`);
     }
 
     if (!res || !res.ok) {
@@ -286,29 +284,36 @@ export async function runSiteAudit(
   const hasApiKey = !!(process.env.PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY || process.env.PSI_API_KEY);
   let urls = await getAuditUrls(siteId, baseUrl);
 
-  // Without an API key, Google's free tier rate-limits aggressively.
-  // Limit to 5 most important pages and use longer delays to avoid 429s.
-  if (!hasApiKey && urls.length > 5) {
-    console.warn(`[site-auditor] No PAGESPEED_API_KEY — limiting audit to 5 pages (was ${urls.length})`);
-    urls = urls.slice(0, 5);
+  // Cap at 5 pages to stay within Vercel's 60s limit.
+  // PSI takes 5-12s per page — 5 pages × 12s = 60s max.
+  // Without API key, further limit to 3 pages (rate-limited).
+  const maxPages = hasApiKey ? 5 : 3;
+  if (urls.length > maxPages) {
+    console.log(`[site-auditor] Limiting audit to ${maxPages} pages (was ${urls.length}), hasApiKey=${hasApiKey}`);
+    urls = urls.slice(0, maxPages);
   }
 
-  // With API key: 1.5s delay. Without: 5s delay to stay under free-tier rate limit.
-  const interPageDelayMs = hasApiKey ? 1500 : 5000;
+  // With API key: 1s delay. Without: 3s delay to stay under free-tier rate limit.
+  const interPageDelayMs = hasApiKey ? 1000 : 3000;
   const pages: PageAuditResult[] = [];
   const start = Date.now();
 
   // Audit pages sequentially (PSI rate limits concurrent requests)
+  // Each page needs ~12s (timeout) + delay — check BEFORE starting next page
+  const perPageEstimateMs = 12_000 + interPageDelayMs + 2_000; // 12s timeout + delay + buffer
   for (const url of urls) {
-    if (Date.now() - start > budgetMs) {
-      console.warn(`[site-auditor] Budget exhausted after ${pages.length}/${urls.length} pages`);
+    const remaining = budgetMs - (Date.now() - start);
+    if (remaining < perPageEstimateMs) {
+      console.warn(`[site-auditor] Budget too low for next page (${Math.round(remaining / 1000)}s left, need ${Math.round(perPageEstimateMs / 1000)}s) — stopping after ${pages.length}/${urls.length} pages`);
       break;
     }
 
     const result = await auditPage(url, strategy);
     pages.push(result);
 
-    await new Promise((r) => setTimeout(r, interPageDelayMs));
+    if (pages.length < urls.length) {
+      await new Promise((r) => setTimeout(r, interPageDelayMs));
+    }
   }
 
   // Calculate summary

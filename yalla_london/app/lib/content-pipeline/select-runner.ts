@@ -501,7 +501,8 @@ export async function promoteToBlogPost(
         orderBy: { created_at: "desc" },
         take: 50,
       });
-      // Replace /blog/TOPIC_SLUG or any slug-like placeholder with a real published slug
+      // Replace /blog/TOPIC_SLUG or any slug-like placeholder with a real published slug.
+      // If no match found, replace with a random related article instead of creating a broken link.
       enHtml = enHtml.replace(
         /href="\/blog\/([A-Z_]+)"/gi,
         (_match, placeholder) => {
@@ -511,7 +512,10 @@ export async function promoteToBlogPost(
             const titleWords = (p.title_en || "").toLowerCase();
             return titleWords.includes(topic) || p.slug.includes(topic.replace(/\s+/g, "-"));
           });
-          return match ? `href="/blog/${match.slug}"` : `href="/blog/${placeholder.toLowerCase().replace(/_/g, "-")}"`;
+          if (match) return `href="/blog/${match.slug}"`;
+          // No match — pick a random published article instead of creating a broken link
+          const fallback = recentPosts[Math.floor(Math.random() * recentPosts.length)];
+          return fallback ? `href="/blog/${fallback.slug}"` : `href="/blog"`;
         }
       );
     } catch (linkErr) {

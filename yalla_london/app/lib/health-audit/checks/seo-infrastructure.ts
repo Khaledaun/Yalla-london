@@ -232,7 +232,9 @@ async function structuredData(config: AuditConfig): Promise<CheckResult> {
         continue;
       }
 
-      // Check first valid JSON-LD block for required fields
+      // Check ALL JSON-LD blocks and pick the one with the most required fields.
+      // Pages have multiple blocks (BreadcrumbList, Organization, Article) —
+      // we need the Article block specifically, not the first one with @type.
       let foundFields: string[] = [];
       for (const block of jsonLdBlocks) {
         try {
@@ -240,8 +242,12 @@ async function structuredData(config: AuditConfig): Promise<CheckResult> {
           const obj = Array.isArray(parsed) ? parsed[0] : parsed;
           if (!obj) continue;
           const keys = Object.keys(obj);
-          foundFields = REQUIRED_FIELDS.filter((f) => keys.includes(f));
-          if (foundFields.length > 0) break;
+          const matched = REQUIRED_FIELDS.filter((f) => keys.includes(f));
+          if (matched.length > foundFields.length) {
+            foundFields = matched;
+          }
+          // If we found all required fields, no need to check more blocks
+          if (foundFields.length === REQUIRED_FIELDS.length) break;
         } catch {
           // Malformed JSON-LD, try next block
         }

@@ -199,6 +199,62 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 7. PLACEHOLDER LINK CLEANUP — fix /blog/TOPIC_SLUG broken links in published content ──
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const placeholderPattern = /href="\/blog\/[A-Z_]{3,}"/i;
+      const postsWithPlaceholders = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, content_en: true, siteId: true },
+        take: 30,
+        orderBy: { created_at: "desc" },
+      });
+
+      const realPosts = await prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null },
+        select: { slug: true, title_en: true },
+        orderBy: { created_at: "desc" },
+        take: 50,
+      });
+
+      let placeholderFixed = 0;
+      for (const post of postsWithPlaceholders) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (!placeholderPattern.test(post.content_en || "")) continue;
+
+        let fixed = (post.content_en || "").replace(
+          /href="\/blog\/([A-Z_]{3,})"/gi,
+          (_m, placeholder) => {
+            const topic = placeholder.toLowerCase().replace(/_/g, " ");
+            const match = realPosts.find(p => (p.title_en || "").toLowerCase().includes(topic) || p.slug.includes(topic.replace(/\s+/g, "-")));
+            if (match) return `href="/blog/${match.slug}"`;
+            const fallback = realPosts[Math.floor(Math.random() * realPosts.length)];
+            return fallback ? `href="/blog/${fallback.slug}"` : `href="/blog"`;
+          }
+        );
+
+        if (fixed !== post.content_en) {
+          await prisma.blogPost.update({ where: { id: post.id }, data: { content_en: fixed } });
+          placeholderFixed++;
+        }
+        if (placeholderFixed >= 10) break;
+      }
+      if (placeholderFixed > 0) {
+        console.log(`[content-auto-fix] Fixed placeholder links in ${placeholderFixed} articles`);
+      }
+      (results as any).placeholderLinksFixed = placeholderFixed;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`placeholder-links: ${msg}`);
+      console.warn("[content-auto-fix] Placeholder link cleanup failed:", msg);
+    }
+  }
+
   // ── 8. AFFILIATE LINK INJECTION — published articles missing affiliate links
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {

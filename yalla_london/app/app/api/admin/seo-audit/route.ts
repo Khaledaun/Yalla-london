@@ -100,7 +100,11 @@ async function runAudit(siteId: string) {
   // Fall back to totalTracked only if publishedArticles is unavailable.
   const effectiveTotal = publishedArticles > 0 ? publishedArticles : totalTracked;
 
-  const indexRate = effectiveTotal > 0 ? Math.round((effectiveIndexed / effectiveTotal) * 100) : 0;
+  // Cap indexed at total — effectiveIndexed can exceed publishedArticles because it
+  // includes /ar/ variants and static pages confirmed indexed by GSC.
+  const indexRate = effectiveTotal > 0 ? Math.min(100, Math.round((effectiveIndexed / effectiveTotal) * 100)) : 0;
+  // For display: don't show "58/27" — cap at total
+  const displayIndexed = Math.min(effectiveIndexed, effectiveTotal);
 
   if (indexRate < 30) {
     findings.push({
@@ -108,7 +112,7 @@ async function runAudit(siteId: string) {
       severity: "critical",
       category: "Indexing",
       title: `Only ${indexRate}% of your published articles are indexed by Google`,
-      description: `${effectiveIndexed} out of ${effectiveTotal} published articles are confirmed indexed. ${totalTracked} total URLs tracked (including /ar/ variants and static pages). Google can't rank what it hasn't indexed.`,
+      description: `${displayIndexed} out of ${effectiveTotal} published articles are confirmed indexed. ${totalTracked} total URLs tracked (including /ar/ variants and static pages). Google can't rank what it hasn't indexed.`,
       impact: "Pages not indexed = zero organic traffic from those pages",
       fix: "Check the Indexing tab in Content Hub. Submit missing pages via IndexNow. Ensure sitemap.xml includes all published URLs.",
       affected: [],
@@ -119,8 +123,8 @@ async function runAudit(siteId: string) {
       id: "idx-rate-high",
       severity: "high",
       category: "Indexing",
-      title: `${indexRate}% indexing rate — ${effectiveTotal - effectiveIndexed} published articles not yet indexed`,
-      description: `${effectiveIndexed} of ${effectiveTotal} published articles indexed. ${discoveredCount} discovered but not indexed, ${submittedCount} submitted awaiting crawl. ${totalTracked} total URLs tracked.`,
+      title: `${indexRate}% indexing rate — ${Math.max(0, effectiveTotal - displayIndexed)} published articles not yet indexed`,
+      description: `${displayIndexed} of ${effectiveTotal} published articles indexed. ${discoveredCount} discovered but not indexed, ${submittedCount} submitted awaiting crawl. ${totalTracked} total URLs tracked.`,
       impact: "Every unindexed page is lost potential traffic and revenue",
       fix: "Run the google-indexing cron from Crons tab to resubmit. Check if thin content is causing Google to skip pages.",
       affected: [],
@@ -1264,7 +1268,7 @@ async function runAudit(siteId: string) {
   if (trends.weeklyClicks.change !== 0) {
     summaryParts.push(`Clicks ${trends.weeklyClicks.change >= 0 ? "up" : "down"} ${Math.abs(trends.weeklyClicks.change)}% week-over-week`);
   }
-  summaryParts.push(`${indexRate}% indexing rate (${effectiveIndexed}/${effectiveTotal} published articles)`);
+  summaryParts.push(`${indexRate}% indexing rate (${displayIndexed}/${effectiveTotal} published articles)`);
   const summary = summaryParts.join(". ") + ".";
 
   return {

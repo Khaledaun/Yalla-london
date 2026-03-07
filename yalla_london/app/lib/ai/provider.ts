@@ -125,8 +125,9 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then Claude, OpenAI, Gemini, Perplexity
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'claude', 'openai', 'gemini', 'perplexity'];
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Perplexity.
+// Gemini removed from active rotation (inactive as of March 2026).
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'perplexity'];
 
 /**
  * Get API key for a provider from the database

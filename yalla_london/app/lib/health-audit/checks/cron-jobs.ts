@@ -140,7 +140,7 @@ async function cronErrorRate(config: AuditConfig): Promise<CheckResult> {
     prisma.cronJobLog.count({ where: { started_at: { gte: sevenDaysAgo } } }),
     prisma.cronJobLog.count({ where: { started_at: { gte: sevenDaysAgo }, status: "completed" } }),
     prisma.cronJobLog.count({ where: { started_at: { gte: sevenDaysAgo }, status: "failed" } }),
-    prisma.cronJobLog.count({ where: { started_at: { gte: sevenDaysAgo }, status: "timeout" } }),
+    prisma.cronJobLog.count({ where: { started_at: { gte: sevenDaysAgo }, status: "timed_out" } }),
   ]);
 
   const errorCount = failed + timedOut;
@@ -150,7 +150,7 @@ async function cronErrorRate(config: AuditConfig): Promise<CheckResult> {
   const recentErrors = await prisma.cronJobLog.findMany({
     where: {
       started_at: { gte: sevenDaysAgo },
-      status: { in: ["failed", "timeout"] },
+      status: { in: ["failed", "timed_out"] },
     },
     orderBy: { started_at: "desc" },
     select: { job_name: true, status: true, error_message: true, started_at: true },

@@ -2543,7 +2543,7 @@ model CronJobLog {
   job_type      String   @default("scheduled") // scheduled, manual, triggered
 
   // Execution
-  status        String   @default("running") // running, completed, failed, timeout, partial
+  status        String   @default("running") // running, completed, failed, timed_out, partial
   started_at    DateTime @default(now())
   completed_at  DateTime?
   duration_ms   Int?

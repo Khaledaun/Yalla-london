@@ -118,7 +118,7 @@ async function submissionHistory(config: AuditConfig): Promise<CheckResult> {
   // Check for days with published articles but no submissions
   const recentPosts = await prisma.blogPost.findMany({
     where: {
-      site_id: config.siteId,
+      siteId: config.siteId,
       published: true,
       deletedAt: null,
       created_at: { gte: sevenDaysAgo },

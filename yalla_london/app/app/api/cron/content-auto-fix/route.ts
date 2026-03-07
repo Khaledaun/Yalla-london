@@ -47,6 +47,9 @@ async function handleAutoFix(request: NextRequest) {
     affiliateLinksInjected: 0,
     duplicateMetasFixed: 0,
     arabicMetaGenerated: 0,
+    brokenLinksFixed: 0,
+    thinUnpublished: 0,
+    duplicatesFlagged: 0,
     errors: [] as string[],
   };
 
@@ -199,6 +202,86 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 7. BROKEN INTERNAL LINK CLEANUP — fix ALL broken /blog/ links in published content ──
+  // Catches both TOPIC_SLUG (uppercase) AND AI-hallucinated slugs (lowercase fake slugs
+  // like "top-halal-restaurants-in-central-london" that point to non-existent articles).
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      // Build a Set of all real published slugs for O(1) lookup
+      const realPosts = await prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null },
+        select: { slug: true, title_en: true },
+        orderBy: { created_at: "desc" },
+        take: 200,
+      });
+      const validSlugs = new Set(realPosts.map(p => p.slug));
+
+      const postsToCheck = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, content_en: true, siteId: true, slug: true },
+        take: 30,
+        orderBy: { created_at: "desc" },
+      });
+
+      let brokenLinksFixed = 0;
+      for (const post of postsToCheck) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+
+        const content = post.content_en || "";
+        // Match all /blog/slug links (but not /blog itself or /blog?query)
+        const blogLinkRegex = /href="\/blog\/([a-zA-Z0-9_-]+)"/gi;
+        let hasBroken = false;
+        let m;
+        const testContent = content;
+        while ((m = blogLinkRegex.exec(testContent)) !== null) {
+          if (!validSlugs.has(m[1]) && !validSlugs.has(m[1].toLowerCase())) {
+            hasBroken = true;
+            break;
+          }
+        }
+        if (!hasBroken) continue;
+
+        // Replace broken links with best-effort match or remove the link wrapper entirely
+        const fixed = content.replace(
+          /<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
+          (fullMatch, pre, slug, post2, anchor) => {
+            // If slug exists, keep the link as-is
+            if (validSlugs.has(slug) || validSlugs.has(slug.toLowerCase())) return fullMatch;
+            // Try to find a matching article by topic words
+            const topic = slug.toLowerCase().replace(/[-_]/g, " ");
+            const topicWords = topic.split(" ").filter(w => w.length > 3);
+            const match = realPosts.find(p => {
+              const title = (p.title_en || "").toLowerCase();
+              return topicWords.filter(w => title.includes(w)).length >= 2;
+            });
+            if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
+            // No match — unwrap the link, keep the anchor text as plain text
+            return anchor;
+          }
+        );
+
+        if (fixed !== content) {
+          await prisma.blogPost.update({ where: { id: post.id }, data: { content_en: fixed } });
+          brokenLinksFixed++;
+        }
+        if (brokenLinksFixed >= 10) break;
+      }
+      if (brokenLinksFixed > 0) {
+        console.log(`[content-auto-fix] Fixed broken internal links in ${brokenLinksFixed} articles`);
+      }
+      results.brokenLinksFixed = brokenLinksFixed;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`broken-links: ${msg}`);
+      console.warn("[content-auto-fix] Broken link cleanup failed:", msg);
+    }
+  }
+
   // ── 8. AFFILIATE LINK INJECTION — published articles missing affiliate links
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
@@ -281,9 +364,110 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 11. THIN CONTENT AUTO-UNPUBLISH — published articles below 500 words ──
+  // Articles that somehow bypassed the quality gate (e.g., 102-word article).
+  // Unpublishes them so they don't hurt site quality. Threshold is 500w (well below
+  // the 1000w gate) to catch only egregiously thin content.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const allPublished = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, slug: true, title_en: true, content_en: true },
+        orderBy: { created_at: "asc" },
+        take: 50,
+      });
+
+      let thinUnpublished = 0;
+      for (const post of allPublished) {
+        const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const wordCount = text.split(" ").filter(Boolean).length;
+        if (wordCount < 500) {
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: {
+              published: false,
+              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w thin content] ${(post.title_en || "").slice(0, 100)}`,
+            },
+          });
+          thinUnpublished++;
+          console.log(`[content-auto-fix] Unpublished thin article: "${post.slug}" (${wordCount}w)`);
+          if (thinUnpublished >= 5) break;
+        }
+      }
+      results.thinUnpublished = thinUnpublished;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`thin-content: ${msg}`);
+      console.warn("[content-auto-fix] Thin content unpublish failed:", msg);
+    }
+  }
+
+  // ── 12. DUPLICATE CONTENT DETECTION — flag near-duplicate published articles ──
+  // Compares title similarity between all published articles per site.
+  // If two articles have > 80% word overlap in title, the newer one is flagged.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      let duplicatesFlagged = 0;
+      for (const siteId of activeSiteIds) {
+        if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
+        const sitePosts = await prisma.blogPost.findMany({
+          where: {
+            siteId,
+            published: true,
+            deletedAt: null,
+          },
+          select: { id: true, slug: true, title_en: true, created_at: true, meta_description_en: true },
+          orderBy: { created_at: "asc" },
+          take: 100,
+        });
+
+        // Compare each pair for title similarity using word overlap (Jaccard)
+        for (let i = 0; i < sitePosts.length; i++) {
+          for (let j = i + 1; j < sitePosts.length; j++) {
+            const wordsA = new Set((sitePosts[i].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
+            const wordsB = new Set((sitePosts[j].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
+            if (wordsA.size < 3 || wordsB.size < 3) continue;
+            let intersection = 0;
+            for (const w of wordsA) { if (wordsB.has(w)) intersection++; }
+            const union = new Set([...wordsA, ...wordsB]).size;
+            const jaccard = union > 0 ? intersection / union : 0;
+
+            if (jaccard > 0.8) {
+              // Flag the newer article (j) — unpublish it to stop cannibalization
+              const newer = sitePosts[j];
+              // Skip if already flagged
+              if ((newer.meta_description_en || "").includes("[DUPLICATE-FLAGGED]")) continue;
+              await prisma.blogPost.update({
+                where: { id: newer.id },
+                data: {
+                  published: false,
+                  meta_description_en: `[DUPLICATE-FLAGGED: overlaps with "${sitePosts[i].slug}"] ${(newer.meta_description_en || "").replace(/\[DUPLICATE-FLAGGED[^\]]*\]\s*/, "").slice(0, 100)}`,
+                },
+              });
+              duplicatesFlagged++;
+              console.log(`[content-auto-fix] Flagged duplicate: "${newer.slug}" overlaps with "${sitePosts[i].slug}" (jaccard=${jaccard.toFixed(2)})`);
+              if (duplicatesFlagged >= 3) break;
+            }
+          }
+          if (duplicatesFlagged >= 3) break;
+        }
+      }
+      results.duplicatesFlagged = duplicatesFlagged;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`duplicate-content: ${msg}`);
+      console.warn("[content-auto-fix] Duplicate content detection failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.thinUnpublished + results.duplicatesFlagged;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -305,7 +489,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, links +${results.internalLinksInjected}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, Arabic meta ${results.arabicMetaGenerated}`,
+    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, links +${results.internalLinksInjected}, broken links fixed ${results.brokenLinksFixed}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, Arabic meta ${results.arabicMetaGenerated}, thin unpublished ${results.thinUnpublished}, duplicates flagged ${results.duplicatesFlagged}`,
   });
 }
 

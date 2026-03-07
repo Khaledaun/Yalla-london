@@ -81,7 +81,7 @@ const PROVIDERS: Record<string, ProviderDef> = {
     name: "Grok (xAI)",
     envVar: "XAI_API_KEY",
     url: "https://api.x.ai/v1/chat/completions",
-    model: "grok-2-latest",
+    model: "grok-4-1-fast",
     buildBody: (model) => ({
       model,
       messages: [{ role: "user", content: "Say OK" }],

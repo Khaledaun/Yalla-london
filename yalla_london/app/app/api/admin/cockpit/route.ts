@@ -338,6 +338,23 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     sites,
   });
 
+  // Surface SEO standards staleness as a warning alert
+  try {
+    const { checkStandardsStaleness } = await import("@/lib/seo/standards");
+    const staleness = checkStandardsStaleness();
+    if (staleness.stale) {
+      alerts.push({
+        severity: "warning",
+        code: "SEO_STANDARDS_STALE",
+        message: `SEO standards are ${staleness.daysSinceUpdate} days old`,
+        detail: staleness.message,
+        fix: "Ask Claude to update lib/seo/standards.ts by checking Google Search Central changelog.",
+      });
+    }
+  } catch {
+    // Non-fatal — standards module may not exist
+  }
+
   // Surface builder errors as a critical alert so Khaled sees them on his phone
   if (builderErrors.length > 0) {
     alerts.unshift({

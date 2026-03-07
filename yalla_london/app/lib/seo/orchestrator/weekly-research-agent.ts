@@ -218,7 +218,7 @@ export async function runWeeklyResearch(
   // Reference: lib/seo/standards.ts contains the canonical thresholds.
   // This phase logs the current standards version and checks for staleness.
   try {
-    const { STANDARDS_VERSION, SCHEMA_TYPES, CORE_WEB_VITALS, CONTENT_QUALITY } =
+    const { STANDARDS_VERSION, SCHEMA_TYPES, CORE_WEB_VITALS, CONTENT_QUALITY, checkStandardsStaleness } =
       await import("@/lib/seo/standards");
 
     // Record a "standards audit" finding so the dashboard shows the last verified date
@@ -245,9 +245,8 @@ export async function runWeeklyResearch(
     });
 
     // If standards are >30 days old, flag for manual review
-    const standardsAge = Date.now() - new Date(STANDARDS_VERSION).getTime();
-    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-    if (standardsAge > thirtyDays) {
+    const staleness = checkStandardsStaleness();
+    if (staleness.stale) {
       findings.push({
         id: `standards-stale-${Date.now()}`,
         source: "internal",

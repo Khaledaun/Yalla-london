@@ -90,6 +90,13 @@ async function ga4DataConnectivity(config: AuditConfig): Promise<CheckResult> {
 /* 3. GA4 tracking tag — verify gtag.js on public pages                */
 /* ------------------------------------------------------------------ */
 async function ga4TrackingTag(config: AuditConfig): Promise<CheckResult> {
+  // Skip on localhost/staging — GA4 tags are not present in dev environments
+  if (config.siteUrl.includes("localhost") || config.siteUrl.includes("127.0.0.1")) {
+    return makeResult("skip", { reason: "Skipped for localhost — GA4 tracking only present in production" }, {
+      action: "GA4 tracking tag check is skipped for local development environments.",
+    }) as CheckResult;
+  }
+
   const measurementId =
     process.env.GA4_MEASUREMENT_ID ||
     process.env.GA_MEASUREMENT_ID ||

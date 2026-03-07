@@ -97,8 +97,8 @@ async function submissionHistory(config: AuditConfig): Promise<CheckResult> {
   const statusCounts = await prisma.uRLIndexingStatus.groupBy({
     by: ["status"],
     where: {
-      siteId: config.siteId,
-      submitted_at: { gte: sevenDaysAgo },
+      site_id: config.siteId,
+      last_submitted_at: { gte: sevenDaysAgo },
     },
     _count: { id: true },
   });
@@ -118,7 +118,7 @@ async function submissionHistory(config: AuditConfig): Promise<CheckResult> {
   // Check for days with published articles but no submissions
   const recentPosts = await prisma.blogPost.findMany({
     where: {
-      siteId: config.siteId,
+      site_id: config.siteId,
       published: true,
       deletedAt: null,
       created_at: { gte: sevenDaysAgo },
@@ -133,7 +133,7 @@ async function submissionHistory(config: AuditConfig): Promise<CheckResult> {
   if (recentSlugs.length > 0) {
     const trackedUrls = await prisma.uRLIndexingStatus.findMany({
       where: {
-        siteId: config.siteId,
+        site_id: config.siteId,
         url: {
           in: recentSlugs.map((s) => `${config.siteUrl}/blog/${s}`),
         },
@@ -228,10 +228,10 @@ async function indexingCoverage(config: AuditConfig): Promise<CheckResult> {
       where: { siteId: config.siteId, published: true, deletedAt: null },
     }),
     prisma.uRLIndexingStatus.count({
-      where: { siteId: config.siteId, status: "indexed" },
+      where: { site_id: config.siteId, status: "indexed" },
     }),
     prisma.uRLIndexingStatus.count({
-      where: { siteId: config.siteId },
+      where: { site_id: config.siteId },
     }),
   ]);
 

@@ -107,24 +107,26 @@ async function topicQueueHealth(config: AuditConfig): Promise<CheckResult> {
     total += t._count.id;
   }
 
-  const pendingCount = byStatus["pending"] ?? 0;
+  const readyCount = byStatus["ready"] ?? 0;
+  const queuedCount = byStatus["queued"] ?? 0;
   const approvedCount = byStatus["approved"] ?? 0;
-  const readyTopics = pendingCount + approvedCount;
+  const readyTopics = readyCount + queuedCount + approvedCount;
 
-  // Find duplicate keywords among pending/approved
+  // Find duplicate keywords among ready/queued/approved
   const duplicates = (await prisma.$queryRaw`
-    SELECT keyword, count(*) as cnt
+    SELECT primary_keyword, count(*) as cnt
     FROM "TopicProposal"
     WHERE site_id = ${config.siteId}
-      AND status IN ('pending', 'approved')
-    GROUP BY keyword
+      AND status IN ('ready', 'queued', 'approved')
+    GROUP BY primary_keyword
     HAVING count(*) > 1
     LIMIT 20
-  `) as { keyword: string; cnt: bigint }[];
+  `) as { primary_keyword: string; cnt: bigint }[];
 
   const dupeCount = duplicates.length;
 
   const status =
+    total === 0 ? "skip" :
     readyTopics === 0 ? "fail" :
     dupeCount > 0 ? "warn" :
     "pass";
@@ -134,10 +136,11 @@ async function topicQueueHealth(config: AuditConfig): Promise<CheckResult> {
     byStatus,
     readyTopics,
     duplicateKeywords: dupeCount,
-    duplicates: duplicates.map(d => ({ keyword: d.keyword, count: Number(d.cnt) })),
+    duplicates: duplicates.map(d => ({ keyword: d.primary_keyword, count: Number(d.cnt) })),
   }, {
-    ...(readyTopics === 0 && {
-      error: "No pending or approved topics in queue",
+    ...(status === "skip" && { action: "No topics found for this site. Run weekly-topics cron or use Topic Research in cockpit." }),
+    ...(total > 0 && readyTopics === 0 && {
+      error: "No ready/queued/approved topics in queue",
       action: "Run weekly-topics cron or use Topic Research in cockpit to seed new topics.",
     }),
     ...(readyTopics > 0 && dupeCount > 0 && {
@@ -175,9 +178,18 @@ async function cannibalizationCheck(config: AuditConfig): Promise<CheckResult> {
     let kw: string[] = [];
     try {
       if (p.keywords_json) {
-        const parsed = typeof p.keywords_json === "string" ? JSON.parse(p.keywords_json) : p.keywords_json;
+        // Prisma Json type returns already-parsed objects, but handle string edge case too
+        const parsed = typeof p.keywords_json === "string"
+          ? JSON.parse(p.keywords_json)
+          : p.keywords_json;
         if (Array.isArray(parsed)) {
           kw = parsed.map((k: unknown) => String(k).toLowerCase().trim()).filter(Boolean);
+        } else if (parsed && typeof parsed === "object") {
+          // Handle {keywords: [...]} shape
+          const arr = (parsed as Record<string, unknown>).keywords;
+          if (Array.isArray(arr)) {
+            kw = arr.map((k: unknown) => String(k).toLowerCase().trim()).filter(Boolean);
+          }
         }
       }
     } catch {

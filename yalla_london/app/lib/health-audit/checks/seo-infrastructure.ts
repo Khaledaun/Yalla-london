@@ -98,16 +98,24 @@ async function sitemapAccessibility(config: AuditConfig): Promise<CheckResult> {
     where: { siteId: config.siteId, published: true, deletedAt: null },
   });
 
-  const missing = Math.max(0, publishedCount - sitemapUrlCount);
   const hasLastmod = lastmodCount > 0;
 
+  // Sitemap includes static pages + blog posts + /ar/ variants, so it should
+  // always have MORE URLs than just published blog posts. If sitemap has FEWER
+  // than published, blog posts are likely missing.
+  const blogUrlsMissing = sitemapUrlCount < publishedCount
+    ? publishedCount - sitemapUrlCount
+    : 0;
+
   let status: "pass" | "warn" | "fail";
-  if (missing === 0) {
-    status = "pass";
-  } else if (missing <= 5) {
+  if (sitemapUrlCount === 0) {
+    status = "fail";
+  } else if (blogUrlsMissing > 5) {
+    status = "fail";
+  } else if (blogUrlsMissing > 0 || !hasLastmod) {
     status = "warn";
   } else {
-    status = "fail";
+    status = "pass";
   }
 
   return makeResult(status, {
@@ -117,10 +125,12 @@ async function sitemapAccessibility(config: AuditConfig): Promise<CheckResult> {
     lastmodCount,
     hasLastmod,
     publishedBlogPosts: publishedCount,
-    missingFromSitemap: missing,
+    possibleMissing: blogUrlsMissing,
+    note: "Sitemap includes static + blog + /ar/ pages; URL count should exceed blog post count.",
   }, {
-    ...(status === "warn" && { action: `${missing} published article(s) not found in sitemap. Check sitemap.ts query filters.` }),
-    ...(status === "fail" && { error: `${missing} published articles missing from sitemap`, action: "Sitemap query is not returning all published posts. Check siteId filter and deletedAt exclusion." }),
+    ...(sitemapUrlCount === 0 && { error: "Sitemap is empty", action: "Verify sitemap.ts query returns URLs." }),
+    ...(blogUrlsMissing > 0 && { action: `Sitemap has fewer URLs (${sitemapUrlCount}) than published posts (${publishedCount}). ${blogUrlsMissing} blog post(s) may be missing.` }),
+    ...(!hasLastmod && blogUrlsMissing === 0 && { action: "Sitemap is missing <lastmod> dates. Add them for better crawl prioritization." }),
   }) as CheckResult;
 }
 

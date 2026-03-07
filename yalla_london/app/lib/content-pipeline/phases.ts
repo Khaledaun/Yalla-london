@@ -396,12 +396,18 @@ CRITICAL JSON RULES:
 
     // Per-section retry: if JSON parse fails on first try, retry once.
     // This handles transient AI output issues (especially Arabic with dir attributes).
-    const maxSectionRetries = 2;
+    // No retries for drafting sections — a timeout retry with less budget just
+    // times out again, wasting the entire remaining budget. Better to save partial
+    // progress and let the next cron run continue from where we left off.
+    const maxSectionRetries = 1;
     let sectionSuccess = false;
 
     for (let retry = 0; retry < maxSectionRetries; retry++) {
       try {
-        const sectionTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
+        // Cap individual section timeout at 20s — leaves budget for subsequent sections
+        // and prevents one section from consuming the entire remaining budget.
+        const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
+        const sectionTimeout = Math.min(rawTimeout, 20_000);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: isArabic(draft.locale) ? 3500 : 2000,

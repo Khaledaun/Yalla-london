@@ -186,7 +186,7 @@ async function runAudit(siteId: string) {
         seo_score: true,
         featured_image: true,
       },
-      take: 200,
+      take: 100,
     });
 
     // Meta title issues
@@ -406,10 +406,12 @@ async function runAudit(siteId: string) {
         prisma.gscPagePerformance.findMany({
           where: { site_id: siteId, date: { gte: sevenDaysAgo } },
           select: { url: true, clicks: true, impressions: true, ctr: true, position: true },
+          take: 500,
         }),
         prisma.gscPagePerformance.findMany({
           where: { site_id: siteId, date: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
           select: { url: true, clicks: true, impressions: true, ctr: true, position: true },
+          take: 500,
         }),
       ]);
 
@@ -730,7 +732,7 @@ async function runAudit(siteId: string) {
       const seenSlugs = new Set(recentSample.map((p) => p.slug));
       const samplePosts = [...recentSample];
       for (const p of randomSample) {
-        if (!seenSlugs.has(p.slug) && samplePosts.length < 5) {
+        if (!seenSlugs.has(p.slug) && samplePosts.length < 3) {
           samplePosts.push(p);
           seenSlugs.add(p.slug);
         }
@@ -742,7 +744,7 @@ async function runAudit(siteId: string) {
         const pageUrl = `${siteDomain}/blog/${post.slug}`;
         try {
           const resp = await fetch(pageUrl, {
-            signal: AbortSignal.timeout(5_000),
+            signal: AbortSignal.timeout(3_000),
             headers: { "User-Agent": "YallaLondon-SEOAudit/1.0" },
           });
           const issues: string[] = [];
@@ -972,7 +974,7 @@ async function runAudit(siteId: string) {
       // Check sitemap
       const sitemapUrl = `${siteDomain}/sitemap.xml`;
       try {
-        const sitemapResp = await fetch(sitemapUrl, { signal: AbortSignal.timeout(5_000) });
+        const sitemapResp = await fetch(sitemapUrl, { signal: AbortSignal.timeout(3_000) });
         if (sitemapResp.status !== 200) {
           findings.push({
             id: "sitemap-missing",
@@ -1146,10 +1148,12 @@ async function runAudit(siteId: string) {
         prisma.gscPagePerformance.findMany({
           where: { site_id: siteId, date: { gte: sevenDaysAgo } },
           select: { url: true, clicks: true, impressions: true },
+          take: 500,
         }),
         prisma.gscPagePerformance.findMany({
           where: { site_id: siteId, date: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
           select: { url: true, clicks: true, impressions: true },
+          take: 500,
         }),
       ]);
 

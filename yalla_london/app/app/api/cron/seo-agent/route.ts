@@ -178,106 +178,15 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     ? await autoFixSEOIssues(prisma, issues, fixes, siteId)
     : { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
 
-  // ====================================================
-  // 8-13. ANALYTICS & INTELLIGENCE (budget-gated)
-  // These are the most expensive steps — skip if budget is low
-  // ====================================================
-  if (!hasBudget(10_000)) {
-    console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping steps 8-13 (analytics/intelligence)`);
-    report.searchPerformance = { status: "budget_exhausted" };
-    report.trafficAnalysis = { status: "budget_exhausted" };
-    report.contentStrategy = { status: "budget_exhausted" };
-  } else try {
-    const { withTimeout } = await import("@/lib/resilience");
-    const {
-      analyzeSearchPerformance,
-      analyzeTrafficPatterns,
-      autoOptimizeLowCTRMeta,
-      flagContentForStrengthening,
-    } = await import("@/lib/seo/seo-intelligence");
+  // NOTE: Steps 8-11 (GSC analysis, AI meta optimization, content strengthening,
+  // GA4 analysis) moved to seo-agent-intelligence (runs 1x/day with full budget).
+  // This agent now focuses on fast DB audit + fix work only.
+  report.searchPerformance = { status: "delegated_to_seo-agent-intelligence" };
+  report.trafficAnalysis = { status: "delegated_to_seo-agent-intelligence" };
+  report.contentStrategy = { status: "delegated_to_seo-agent-intelligence" };
 
-    const searchData = await withTimeout(
-      analyzeSearchPerformance(28, siteId), 10_000, "GSC analyzeSearchPerformance"
-    ).catch((e) => { console.warn(`[${siteId}] GSC analysis timed out:`, e.message); return null; });
-    if (searchData) {
-      report.searchPerformance = {
-        totals: searchData.totals,
-        lowCTRPages: searchData.lowCTRPages.length,
-        almostPage1: searchData.almostPage1.length,
-        zeroClickQueries: searchData.zeroClickBrandQueries.length,
-        page1NoClicks: searchData.page1NoClicks.length,
-        contentGapKeywords: searchData.contentGapKeywords.length,
-      };
-      issues.push(...searchData.issues);
-
-      // 9. AUTO-OPTIMIZE LOW-CTR META TITLES/DESCRIPTIONS (AI-powered)
-      if (!hasBudget(15_000)) {
-        console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping AI meta optimization`);
-        report.metaOptimizations = [];
-      } else {
-        try {
-          report.metaOptimizations = await withTimeout(
-            autoOptimizeLowCTRMeta(prisma, searchData, issues, fixes),
-            Math.min(15_000, budgetLeft() - 5_000),
-            "autoOptimizeLowCTRMeta"
-          );
-        } catch (metaOptError) {
-          console.warn(`[seo-agent:${siteId}] AI meta optimization skipped (non-fatal):`, metaOptError instanceof Error ? metaOptError.message : metaOptError);
-          report.metaOptimizations = [];
-        }
-      }
-
-      // 10. FLAG ALMOST-PAGE-1 CONTENT FOR STRENGTHENING
-      if (!hasBudget(10_000)) {
-        console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping content strengthening`);
-        report.contentStrengthening = { expanded: 0, flagged: 0, posts: [] };
-      } else {
-        try {
-          report.contentStrengthening = await withTimeout(
-            flagContentForStrengthening(prisma, searchData, fixes),
-            Math.min(12_000, budgetLeft() - 5_000),
-            "flagContentForStrengthening"
-          );
-        } catch (strengthenError) {
-          console.warn(`[seo-agent:${siteId}] Content strengthening skipped (non-fatal):`, strengthenError instanceof Error ? strengthenError.message : strengthenError);
-          report.contentStrengthening = { expanded: 0, flagged: 0, posts: [] };
-        }
-      }
-    } else {
-      report.searchPerformance = { status: "no_data" };
-    }
-
-    // 11. ANALYZE GA4 TRAFFIC PATTERNS (budget-gated)
-    const trafficData = hasBudget(8_000) ? await withTimeout(
-      analyzeTrafficPatterns(28, siteId), 10_000, "GA4 analyzeTrafficPatterns"
-    ).catch((e) => { console.warn(`[${siteId}] GA4 analysis timed out:`, e.message); return null; }) : null;
-    if (trafficData) {
-      report.trafficAnalysis = {
-        sessions: trafficData.sessions,
-        organicShare: trafficData.organicShare,
-        bounceRate: trafficData.bounceRate,
-        engagementRate: trafficData.engagementRate,
-        lowEngagementPages: trafficData.lowEngagementPages.length,
-      };
-      issues.push(...trafficData.issues);
-    } else {
-      report.trafficAnalysis = { status: "no_data" };
-    }
-
-    // 11b. FEEDBACK LOOP: Auto-queue rewrites for underperforming content
-    if (hasBudget(5_000)) {
-      try {
-        report.contentRewrites = await queueContentRewrites(
-          prisma, searchData, trafficData, siteId, fixes
-        );
-      } catch (rewriteError) {
-        console.warn("Content rewrite queue error (non-fatal):", rewriteError);
-        report.contentRewrites = { status: "error" };
-      }
-    }
-
-    // 12. INDEXING STATUS CHECK (discovery only — submission handled by google-indexing cron)
-    if (hasBudget(3_000)) {
+  // 12. INDEXING STATUS CHECK (discovery only — submission handled by google-indexing cron)
+  if (hasBudget(3_000)) {
       try {
         const unindexed = await prisma.uRLIndexingStatus.count({
           where: { site_id: siteId, status: { notIn: ["indexed"] } },
@@ -455,77 +364,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       }
     }
 
-    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS (budget-gated)
-    if (!hasBudget(5_000)) {
-      console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping content strategy`);
-      report.contentStrategy = { status: "budget_exhausted" };
-    } else try {
-      const {
-        generateContentProposals,
-        saveContentProposals,
-        analyzeContentDiversity,
-        applyDiversityQuotas,
-      } = await import("@/lib/seo/content-strategy");
-
-      // Analyze current content mix for diversity balance
-      const diversity = await analyzeContentDiversity(prisma);
-      report.contentDiversity = {
-        mix: diversity.currentMix,
-        totalPublished: diversity.totalPublished,
-        underrepresented: diversity.underrepresented,
-        overrepresented: diversity.overrepresented,
-        upcomingSeasons: diversity.upcomingSeasons,
-        weeklyVolume: `${diversity.weeklyActual}/${diversity.weeklyTarget}`,
-        adjustments: diversity.adjustments,
-      };
-
-      if (diversity.adjustments.length > 0) {
-        issues.push(
-          `Content diversity: ${diversity.adjustments.length} adjustments needed (${diversity.underrepresented.join(", ")} underrepresented)`
-        );
-      }
-
-      // Generate proposals from GSC data (if available) then apply diversity quotas
-      if (searchData) {
-        const existingPosts = await prisma.blogPost.findMany({
-          where: { published: true, ...siteFilter },
-          select: { slug: true },
-        });
-        const existingSlugs = existingPosts.map((p: any) => p.slug);
-
-        let proposals = generateContentProposals(searchData, existingSlugs);
-        proposals = applyDiversityQuotas(proposals, diversity);
-
-        const saved = await saveContentProposals(prisma, proposals, fixes, siteId);
-
-        report.contentStrategy = {
-          proposalsGenerated: proposals.length,
-          proposalsCreated: saved.created,
-          proposalsSkipped: saved.skipped,
-          diversityAdjusted: true,
-          types: proposals.reduce(
-            (acc: Record<string, number>, p) => {
-              acc[p.contentType] = (acc[p.contentType] || 0) + 1;
-              return acc;
-            },
-            {} as Record<string, number>
-          ),
-        };
-      }
-    } catch (strategyError) {
-      console.warn("Content strategy error (non-fatal):", strategyError);
-      report.contentStrategy = { status: "error" };
-    }
-  } catch (intelligenceError) {
-    console.warn(
-      "SEO Intelligence module error (non-fatal):",
-      intelligenceError
-    );
-    report.searchPerformance = {
-      status: "error",
-      error: (intelligenceError as Error).message,
-    };
-  }
+    // NOTE: Step 13 (content strategy + diversity) moved to seo-agent-intelligence
 
   // 13. STORE AGENT RUN REPORT
   report.summary = {

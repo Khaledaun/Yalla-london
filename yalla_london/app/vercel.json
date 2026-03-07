@@ -118,6 +118,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/content-builder-create",
+      "schedule": "7,37 * * * *"
+    },
+    {
       "path": "/api/cron/content-selector",
       "schedule": "0 9,13,17,21 * * *"
     },
@@ -132,6 +136,10 @@
     {
       "path": "/api/cron/seo-agent",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent-intelligence",
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/cron/scheduled-publish",
@@ -168,6 +176,10 @@
     {
       "path": "/api/cron/fact-verification",
       "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/content-auto-fix-lite",
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/cron/content-auto-fix",

@@ -2,35 +2,29 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Content Auto-Fix Cron
+ * Content Auto-Fix HEAVY — AI-Powered Content Enhancement
  *
- * Runs twice daily (11am + 6pm UTC) and fixes three categories of issues:
+ * Runs twice daily (11am + 6pm UTC). Handles ONLY expensive AI operations:
  *
- * 1. WORD COUNT — Finds reservoir drafts with < 1,000 words and calls
- *    enhanceReservoirDraft() to expand them. Each expansion takes ~20s
- *    so we process up to 2 drafts per run within the 53s budget.
+ * 1. WORD COUNT FIX — AI expansion for short reservoir drafts (~20s each)
+ * 2. LOW QUALITY FIX — AI enhancement for low-score drafts (~20s each)
+ * 3. INTERNAL LINK INJECTION — Auto-remediate engine
+ * 4. AFFILIATE LINK INJECTION — Auto-remediate engine
+ * 5. DUPLICATE META REWRITE — AI-powered uniqueness fix
+ * 6. ARABIC META GENERATION — AI translation
  *
- * 2. LOW QUALITY SCORE — Finds reservoir drafts with adequate word count
- *    (>= 1,000) but quality_score < 70. These articles were previously stuck
- *    forever: content-selector wouldn't promote them and word-count fix
- *    wouldn't find them. Now they get enhanced to boost their score.
- *
- * 3. META DESCRIPTION — Finds BlogPosts where meta_description_en is
- *    > 160 chars and auto-trims to 155 chars (safe max). Also trims
- *    ArticleDraft seo_meta.metaDescription if over-length.
- *
- * This is a self-healing cron: it never fails a publish cycle — it just
- * silently expands articles so the content-selector can promote them.
+ * Lightweight DB-only fixes (stuck recovery, heading fix, meta trims)
+ * are handled by content-auto-fix-lite (runs every 4 hours).
+ * This split prevents connection pool exhaustion from 300+ DB ops.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 
 const BUDGET_MS = 53_000;
-const META_MAX_CHARS = 155;
 const MIN_WORD_COUNT = 1000;
-const MAX_WORD_COUNT_ENHANCES = 1; // 1 word-count fix (~20s), leaves room for 1 low-score fix
-const MAX_LOW_SCORE_ENHANCES = 1;  // 1 low-score fix (~20s), independent of word-count results
+const MAX_WORD_COUNT_ENHANCES = 1;
+const MAX_LOW_SCORE_ENHANCES = 1;
 
 async function handleAutoFix(request: NextRequest) {
   const cronStart = Date.now();
@@ -49,11 +43,6 @@ async function handleAutoFix(request: NextRequest) {
     enhanced: 0,
     enhancedLowScore: 0,
     enhanceFailed: 0,
-    metaTrimmedPosts: 0,
-    metaTrimmedDrafts: 0,
-    stuckUnstuck: 0,
-    stuckRejected: 0,
-    headingsFixed: 0,
     internalLinksInjected: 0,
     affiliateLinksInjected: 0,
     duplicateMetasFixed: 0,
@@ -61,168 +50,9 @@ async function handleAutoFix(request: NextRequest) {
     errors: [] as string[],
   };
 
-  // ── 1. STUCK DRAFT RECOVERY (runs FIRST — lightweight, critical) ─────────
-  // Drafts stuck in active phases for 1+ hour indicate the content-builder
-  // crashed mid-phase or an AI call hung. Reset phase_started_at so the
-  // builder picks them up again. If they've already failed 3+ times, reject
-  // them — they won't succeed.
-  //
-  // Previously this was section 5 (after expensive AI enhancement calls)
-  // which meant budget exhaustion could prevent it from ever running,
-  // leaving 33+ drafts stuck indefinitely.
-  try {
-    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
-    const stuckDrafts = await prisma.articleDraft.findMany({
-      where: {
-        site_id: { in: activeSiteIds },
-        current_phase: {
-          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
-        },
-        updated_at: { lt: oneHourAgo },
-      },
-      select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
-      take: 50,
-    });
+  // NOTE: Sections 1 (stuck recovery), 2 (heading fix) moved to content-auto-fix-lite
 
-    let unstuck = 0;
-    let rejected = 0;
-    for (const draft of stuckDrafts) {
-      if (Date.now() - cronStart > BUDGET_MS - 5_000) break; // budget guard per iteration
-      const attempts = draft.phase_attempts || 0;
-      const maxAttempts = draft.current_phase === "drafting" ? 5 : 3;
-
-      if (attempts >= maxAttempts) {
-        // Too many failed attempts — reject it so it doesn't block the pipeline forever
-        await prisma.articleDraft.update({
-          where: { id: draft.id },
-          data: {
-            current_phase: "rejected",
-            rejection_reason: `Stuck in "${draft.current_phase}" for 1+ hours after ${attempts} attempts — auto-rejected by content-auto-fix`,
-            completed_at: new Date(),
-            updated_at: new Date(),
-          },
-        });
-        rejected++;
-        console.log(`[content-auto-fix] Rejected stuck draft ${draft.id} ("${draft.keyword}") — ${attempts} attempts in "${draft.current_phase}"`);
-      } else {
-        // Reset the soft-lock so the builder can re-pick it
-        await prisma.articleDraft.update({
-          where: { id: draft.id },
-          data: {
-            phase_started_at: null, // clears the soft-lock
-            updated_at: new Date(),
-          },
-        });
-        unstuck++;
-        console.log(`[content-auto-fix] Unstuck draft ${draft.id} ("${draft.keyword}") in "${draft.current_phase}" — ${attempts} prior attempts`);
-      }
-    }
-
-    results.stuckUnstuck = unstuck;
-    results.stuckRejected = rejected;
-
-    if (unstuck > 0 || rejected > 0) {
-      console.log(`[content-auto-fix] Stuck draft recovery: ${unstuck} unstuck, ${rejected} rejected`);
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    results.errors.push(`stuck-recovery: ${msg}`);
-    console.warn("[content-auto-fix] Stuck draft recovery failed:", msg);
-  }
-
-  // ── 2. HEADING HIERARCHY FIX ─────────────────────────────────────────────
-  // Published articles with multiple H1 tags hurt SEO. Lightweight DB reads.
-  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
-    try {
-      // Retry once on transient Prisma errors (cold start / connection pool issues)
-      let recentPosts: Array<{ id: string; slug: string; content_en: string | null }> = [];
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          recentPosts = await prisma.blogPost.findMany({
-            where: {
-              siteId: { in: activeSiteIds },
-              published: true,
-              deletedAt: null,
-            },
-            select: { id: true, slug: true, content_en: true },
-            take: 20,
-            orderBy: { created_at: "desc" },
-          });
-          break; // success
-        } catch (retryErr) {
-          if (attempt === 0) {
-            console.warn("[content-auto-fix] heading-fix query failed, retrying:", retryErr instanceof Error ? retryErr.message.substring(0, 200) : String(retryErr));
-            await new Promise(r => setTimeout(r, 500));
-          } else {
-            throw retryErr; // second attempt failed — rethrow
-          }
-        }
-      }
-
-      let headingsFixed = 0;
-      for (const post of recentPosts) {
-        if (!post.content_en || post.content_en.trim().length === 0) continue;
-        let html = post.content_en;
-        let modified = false;
-
-        // Count H1 tags
-        const h1Matches = html.match(/<h1[\s>]/gi) || [];
-        if (h1Matches.length > 1) {
-          // Keep the first H1, demote the rest to H2
-          let h1Count = 0;
-          html = html.replace(/<h1([\s>])/gi, (match: string, after: string) => {
-            h1Count++;
-            if (h1Count > 1) return `<h2${after}`;
-            return match;
-          });
-          // Fix closing tags: count from start, demote matching closes
-          let closeCount = 0;
-          html = html.replace(/<\/h1>/gi, () => {
-            closeCount++;
-            if (closeCount > 1) return "</h2>";
-            return "</h1>";
-          });
-          modified = true;
-        }
-
-        // Check H2 count — if 0, the article has no subsections (bad for SEO)
-        const h2Count = (html.match(/<h2[\s>]/gi) || []).length;
-        if (h2Count === 0 && html.length > 2000) {
-          console.warn(`[content-auto-fix] Article ${post.slug} has 0 H2 headings — needs manual review`);
-        }
-
-        if (modified) {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { content_en: html },
-          });
-          headingsFixed++;
-          console.log(`[content-auto-fix] Fixed heading hierarchy for "${post.slug}" (${h1Matches.length} H1s → 1 H1)`);
-        }
-      }
-
-      results.headingsFixed = headingsFixed;
-    } catch (err) {
-      // Prisma validation errors dump the full query before the actual error reason.
-      // Extract the actionable part: everything after the last newline block (the reason),
-      // falling back to the last 200 chars if no clear separator is found.
-      const fullMsg = err instanceof Error ? err.message : String(err);
-      let msg: string;
-      // Prisma errors end with the actual reason after a blank line
-      const lastDoubleNewline = fullMsg.lastIndexOf("\n\n");
-      if (lastDoubleNewline > 0 && lastDoubleNewline < fullMsg.length - 5) {
-        msg = fullMsg.substring(lastDoubleNewline + 2).trim();
-      } else if (fullMsg.length > 300) {
-        msg = fullMsg.substring(fullMsg.length - 200);
-      } else {
-        msg = fullMsg;
-      }
-      results.errors.push(`heading-fix: ${msg}`);
-      console.warn("[content-auto-fix] Heading hierarchy fix failed:", msg);
-    }
-  }
-
-  // ── 3. WORD COUNT FIX (expensive — runs after lightweight fixes) ─────────
+  // ── 1. WORD COUNT FIX (AI-powered, ~20s per draft) ───────────────────────
   // Find reservoir drafts with word_count < MIN_WORD_COUNT, oldest first
   if (Date.now() - cronStart < BUDGET_MS - 25_000) {
     try {
@@ -335,122 +165,9 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 5. META DESCRIPTION TRIM — BlogPosts ──────────────────────────────────
-  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
-    try {
-      const longMetaPosts = await prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          deletedAt: null,
-          meta_description_en: { not: null },
-        },
-        select: { id: true, meta_description_en: true },
-        take: 100,
-      });
+  // NOTE: Sections 5, 5b, 6 (meta trims) moved to content-auto-fix-lite
 
-      for (const post of longMetaPosts) {
-        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
-        const desc = post.meta_description_en || "";
-        if (desc.length > 160) {
-          // Trim at last word boundary before META_MAX_CHARS
-          let trimmed = desc.substring(0, META_MAX_CHARS);
-          const lastSpace = trimmed.lastIndexOf(" ");
-          if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
-          trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
-
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { meta_description_en: trimmed },
-          });
-          results.metaTrimmedPosts++;
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      results.errors.push(`meta-trim-posts: ${msg}`);
-      console.warn("[content-auto-fix] Meta trim (BlogPost) failed:", msg);
-    }
-  }
-
-  // ── 5b. META DESCRIPTION TRIM — BlogPosts (Arabic) ──────────────────────
-  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
-    try {
-      const longMetaPostsAr = await prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          deletedAt: null,
-          meta_description_ar: { not: null },
-        },
-        select: { id: true, meta_description_ar: true },
-        take: 100,
-      });
-
-      for (const post of longMetaPostsAr) {
-        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
-        const desc = post.meta_description_ar || "";
-        if (desc.length > 160) {
-          let trimmed = desc.substring(0, META_MAX_CHARS);
-          const lastSpace = trimmed.lastIndexOf(" ");
-          if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
-          trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
-
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { meta_description_ar: trimmed },
-          });
-          results.metaTrimmedPosts++;
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      results.errors.push(`meta-trim-posts-ar: ${msg}`);
-      console.warn("[content-auto-fix] Meta trim AR (BlogPost) failed:", msg);
-    }
-  }
-
-  // ── 6. META DESCRIPTION TRIM — ArticleDrafts ──────────────────────────────
-  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
-    try {
-      const draftsWithMeta = await prisma.articleDraft.findMany({
-        where: {
-          site_id: { in: activeSiteIds },
-          current_phase: { in: ["reservoir", "published"] },
-          seo_meta: { not: null },
-        },
-        select: { id: true, seo_meta: true },
-        take: 100,
-      });
-
-      for (const draft of draftsWithMeta) {
-        if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
-        const meta = draft.seo_meta as Record<string, unknown> | null;
-        if (!meta) continue;
-
-        const desc = (meta.metaDescription as string) || "";
-        if (desc.length > 160) {
-          let trimmed = desc.substring(0, META_MAX_CHARS);
-          const lastSpace = trimmed.lastIndexOf(" ");
-          if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
-          trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
-
-          await prisma.articleDraft.update({
-            where: { id: draft.id },
-            data: {
-              seo_meta: { ...meta, metaDescription: trimmed },
-              updated_at: new Date(),
-            },
-          });
-          results.metaTrimmedDrafts++;
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      results.errors.push(`meta-trim-drafts: ${msg}`);
-      console.warn("[content-auto-fix] Meta trim (ArticleDraft) failed:", msg);
-    }
-  }
-
-  // ── 7. INTERNAL LINK INJECTION — articles missing internal links ──────────
+  // ── 3. INTERNAL LINK INJECTION — articles missing internal links ──────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
       const postsNoLinks = await prisma.blogPost.findMany({
@@ -566,7 +283,7 @@ async function handleAutoFix(request: NextRequest) {
 
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts + (results.stuckUnstuck || 0) + (results.stuckRejected || 0) + (results.headingsFixed || 0) + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -588,7 +305,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} metas, unstuck ${results.stuckUnstuck} drafts, rejected ${results.stuckRejected} stuck, headings ${results.headingsFixed}, links +${results.internalLinksInjected}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, Arabic meta ${results.arabicMetaGenerated}`,
+    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, links +${results.internalLinksInjected}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, Arabic meta ${results.arabicMetaGenerated}`,
   });
 }
 

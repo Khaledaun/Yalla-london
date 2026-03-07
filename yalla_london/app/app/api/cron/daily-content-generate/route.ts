@@ -405,6 +405,8 @@ async function generateArticle(
       locale: primaryLanguage,
       tags: content.tags,
       seo_score: content.seoScore,
+      keywords_json: content.keywords || [],
+      siteId: site.id,
     }, siteUrl);
 
     if (!gateResult.allowed) {
@@ -443,12 +445,13 @@ async function generateArticle(
     }
   }
 
+  const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
   const blogPost = await prisma.blogPost.create({
     data: {
-      title_en:
+      title_en: sanitizeTitle(
         primaryLanguage === "en"
           ? content.title
-          : content.titleTranslation || content.title,
+          : content.titleTranslation || content.title),
       title_ar:
         primaryLanguage === "ar"
           ? content.title
@@ -466,18 +469,18 @@ async function generateArticle(
         primaryLanguage === "en" ? content.body : content.bodyTranslation || "",
       content_ar:
         primaryLanguage === "ar" ? content.body : content.bodyTranslation || "",
-      meta_title_en:
+      meta_title_en: sanitizeTitle(
         primaryLanguage === "en"
           ? content.metaTitle
-          : content.metaTitleTranslation || "",
+          : content.metaTitleTranslation || ""),
       meta_title_ar:
         primaryLanguage === "ar"
           ? content.metaTitle
           : content.metaTitleTranslation || "",
-      meta_description_en:
+      meta_description_en: sanitizeMetaDescription(
         primaryLanguage === "en"
           ? content.metaDescription
-          : content.metaDescriptionTranslation || "",
+          : content.metaDescriptionTranslation || ""),
       meta_description_ar:
         primaryLanguage === "ar"
           ? content.metaDescription

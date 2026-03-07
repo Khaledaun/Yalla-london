@@ -72,19 +72,21 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       .filter(Boolean)
       .map((url: string) => ({ url, title: "", sourceDomain: "" }));
 
-    const computedSlug = slug || title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
+    const cleanedTitle = sanitizeTitle(title);
+    const computedSlug = slug || cleanedTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
 
     const newArticle = await prisma.blogPost.create({
       data: {
-        title_en: title,
-        title_ar: titleAr || title,
+        title_en: cleanedTitle,
+        title_ar: titleAr || cleanedTitle,
         slug: computedSlug,
         content_en: content,
         content_ar: content, // Same content until Arabic version is created
         excerpt_en: excerpt || content.substring(0, 157) + '...',
         excerpt_ar: excerpt || content.substring(0, 157) + '...',
-        meta_title_en: title,
-        meta_description_en: excerpt || content.substring(0, 157) + '...',
+        meta_title_en: sanitizeTitle(title),
+        meta_description_en: sanitizeMetaDescription(excerpt || content.substring(0, 157) + '...'),
         tags: tags ? tags.split(',').map((tag: string) => tag.trim()) : [],
         published: false,
         featured_image: ogImage || null,

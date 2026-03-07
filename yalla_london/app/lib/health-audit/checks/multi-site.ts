@@ -135,7 +135,7 @@ async function crossSiteConfig(
     }
 
     for (const field of requiredFields) {
-      const value = (siteConfig as Record<string, unknown>)[field];
+      const value = (siteConfig as unknown as Record<string, unknown>)[field];
       if (!value || (typeof value === "string" && value.trim().length === 0)) {
         missingConfig.push(field);
       }

@@ -418,11 +418,11 @@ CRITICAL JSON RULES:
     for (let retry = 0; retry < maxSectionRetries; retry++) {
       try {
         // Drafting generates the most tokens (3500 for Arabic) and needs adequate time.
-        // Previous 20s cap caused 100% timeout failures: 4 providers each got ~5s,
-        // but even a single provider needs 25-35s for 3500 tokens.
-        // Now: 35s cap, and provider.ts gives first provider 60% of budget.
-        const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 35_000;
-        const sectionTimeout = Math.min(rawTimeout, 35_000);
+        // Arabic at ~100 tok/s needs 35s+ for 3500 tokens. Previous 35s cap left only
+        // ~20s per provider after 60/40 split — too tight. Now 48s cap so first provider
+        // gets 65% = ~30s, enough for a full Arabic section.
+        const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 3_000, 10_000) : 45_000;
+        const sectionTimeout = Math.min(rawTimeout, 48_000);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 3500 : 2000),

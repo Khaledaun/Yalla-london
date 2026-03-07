@@ -205,66 +205,17 @@ export async function runContentSelector(
       }
     }
 
-    // Trigger enhancement for low-quality articles (non-blocking if budget is tight)
-    // Cap at 2 enhancements per run to stay within the 53s budget
-    const enhancementQueue = needsEnhancement.slice(0, 2);
-    const enhancedToPublish: Array<Record<string, unknown>> = [];
+    // ── PRIORITY: Promote publish-ready articles FIRST ──
+    // Enhancement is expensive (30-45s AI call per article) and was consuming the
+    // entire budget before any articles got promoted. Now: promote first, enhance
+    // only if budget remains. This ensures publishReady articles actually publish.
 
-    for (const candidate of enhancementQueue) {
-      const remainingMs = (options.timeoutMs || DEFAULT_TIMEOUT_MS) - (Date.now() - cronStart);
-      if (remainingMs < 38_000) {
-        console.log("[content-selector] Budget < 38s — skipping enhancement, will retry next run");
-        break;
-      }
-      try {
-        console.log(`[content-selector] Enhancing draft ${candidate.id} (score: ${candidate.quality_score}, keyword: "${candidate.keyword}")`);
-        const enhResult = await enhanceReservoirDraft(candidate);
-        if (enhResult.success && (enhResult.newScore || 0) >= PUBLISH_THRESHOLD) {
-          // Refresh the candidate record from DB so promoteToBlogPost reads new content
-          const { prisma: prismaDynamic } = await import("@/lib/db");
-          const refreshed = await prismaDynamic.articleDraft.findUnique({ where: { id: candidate.id as string } });
-          if (refreshed) {
-            enhancedToPublish.push(refreshed as unknown as Record<string, unknown>);
-            console.log(`[content-selector] Enhanced draft ${candidate.id} now scores ${enhResult.newScore} — queued for promotion`);
-          }
-        } else {
-          console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"} — needs another pass, saved to DB`);
-          // Count this as an attempt so we don't retry forever.
-          // Use atomic { increment: 1 } to prevent race conditions.
-          await prisma.articleDraft.update({
-            where: { id: candidate.id as string },
-            data: {
-              phase_attempts: { increment: 1 },
-              updated_at: new Date(),
-            },
-          }).catch(dbErr => console.warn("[content-selector] Failed to update attempt count:", dbErr instanceof Error ? dbErr.message : dbErr));
-        }
-      } catch (enhErr) {
-        const enhErrMsg = enhErr instanceof Error ? enhErr.message : String(enhErr);
-        console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}: ${enhErrMsg}`);
-        // Track failed attempt so articles don't get stuck in an infinite retry loop.
-        // Use atomic { increment: 1 } to prevent race conditions.
-        const attemptNum = ((candidate.phase_attempts as number) || 0) + 1;
-        await prisma.articleDraft.update({
-          where: { id: candidate.id as string },
-          data: {
-            phase_attempts: { increment: 1 },
-            last_error: `Enhancement attempt ${attemptNum}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
-            updated_at: new Date(),
-          },
-        }).catch(dbErr => console.warn("[content-selector] Failed to update enhancement attempt:", dbErr instanceof Error ? dbErr.message : dbErr));
-      }
-    }
-
-    // Combine publish-ready and successfully-enhanced articles
-    const allCandidates = [...publishReady, ...enhancedToPublish];
-
-    // Apply keyword diversity filter across combined list
+    // Apply keyword diversity filter to publish-ready candidates first
     const selectedKeywords = new Set<string>();
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
 
-    for (const candidate of allCandidates) {
+    for (const candidate of publishReady) {
       if (selected.length >= MAX_ARTICLES_PER_RUN) break;
 
       const candidateId = candidate.id as string;
@@ -338,6 +289,44 @@ export async function runContentSelector(
       }
     }
 
+    // ── Enhancement phase: only if budget remains after promoting publish-ready articles ──
+    // Each enhancement costs 30-45s (Grok search + content expansion). Cap at 1 per run.
+    let enhancedCount = 0;
+    const enhancementQueue = needsEnhancement.slice(0, 1); // Max 1 per run
+
+    for (const candidate of enhancementQueue) {
+      const remainingMs = timeoutMs - (Date.now() - cronStart);
+      if (remainingMs < 38_000) {
+        console.log(`[content-selector] Budget < 38s (${Math.round(remainingMs / 1000)}s remaining) — skipping enhancement, will retry next run`);
+        break;
+      }
+      try {
+        console.log(`[content-selector] Enhancing draft ${candidate.id} (score: ${candidate.quality_score}, keyword: "${candidate.keyword}")`);
+        const enhResult = await enhanceReservoirDraft(candidate);
+        if (enhResult.success) {
+          enhancedCount++;
+          console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"}`);
+        }
+        // Count this as an attempt regardless of outcome
+        await prisma.articleDraft.update({
+          where: { id: candidate.id as string },
+          data: { phase_attempts: { increment: 1 }, updated_at: new Date() },
+        }).catch(dbErr => console.warn("[content-selector] Failed to update attempt count:", dbErr instanceof Error ? dbErr.message : dbErr));
+      } catch (enhErr) {
+        const enhErrMsg = enhErr instanceof Error ? enhErr.message : String(enhErr);
+        console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}: ${enhErrMsg}`);
+        const attemptNum = ((candidate.phase_attempts as number) || 0) + 1;
+        await prisma.articleDraft.update({
+          where: { id: candidate.id as string },
+          data: {
+            phase_attempts: { increment: 1 },
+            last_error: `Enhancement attempt ${attemptNum}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
+            updated_at: new Date(),
+          },
+        }).catch(dbErr => console.warn("[content-selector] Failed to update enhancement attempt:", dbErr instanceof Error ? dbErr.message : dbErr));
+      }
+    }
+
     const durationMs = Date.now() - cronStart;
 
     await logCronExecution("content-selector", "completed", {
@@ -347,7 +336,7 @@ export async function runContentSelector(
         reservoirCandidates: candidates.length,
         publishReady: publishReady.length,
         needsEnhancement: needsEnhancement.length,
-        enhancedAndPromoted: enhancedToPublish.length,
+        enhancedCount,
         selected: selected.length,
         published: published.length,
         articles: published,

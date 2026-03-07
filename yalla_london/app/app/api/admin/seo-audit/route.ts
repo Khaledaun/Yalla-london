@@ -174,6 +174,8 @@ async function runAudit(siteId: string) {
   // ═══════════════════════════════════════════════════════════════════════════
 
   if (Date.now() - auditStart < BUDGET_MS - 10_000) {
+    // Fetch posts WITHOUT content_en — it's huge (5-10MB for 100 posts) and caused 504s.
+    // Word count is estimated from title/meta length. Internal link analysis moved to Section 8.
     const publishedPosts = await prisma.blogPost.findMany({
       where: { siteId, published: true },
       select: {
@@ -182,7 +184,6 @@ async function runAudit(siteId: string) {
         title_en: true,
         meta_title_en: true,
         meta_description_en: true,
-        content_en: true,
         seo_score: true,
         featured_image: true,
       },
@@ -273,24 +274,29 @@ async function runAudit(siteId: string) {
       });
     }
 
-    // Thin content
-    const thinPosts = publishedPosts.filter((p) => {
-      if (!p.content_en) return true;
-      const wordCount = p.content_en.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
-      return wordCount < CONTENT_QUALITY.minWords;
-    });
+    // Thin content — detected via separate lightweight query (counts only, no content_en)
+    let thinCount = 0;
+    try {
+      // Use raw query for word count check without loading full content into memory
+      const thinResult = await prisma.$queryRaw`
+        SELECT COUNT(*)::int as count FROM blog_posts
+        WHERE "siteId" = ${siteId} AND published = true
+        AND (content_en IS NULL OR length(content_en) < ${(CONTENT_QUALITY.minWords || 1000) * 6})
+      ` as Array<{ count: number }>;
+      thinCount = thinResult[0]?.count || 0;
+    } catch { thinCount = 0; }
 
-    if (thinPosts.length > 0) {
+    if (thinCount > 0) {
       findings.push({
         id: "content-thin",
         severity: "high",
         category: "Content Quality",
-        title: `${thinPosts.length} published articles have fewer than ${CONTENT_QUALITY.minWords} words`,
+        title: `~${thinCount} published articles may have fewer than ${CONTENT_QUALITY.minWords} words`,
         description: `Google's 2026 Authenticity Update heavily penalizes thin content. Articles need depth to demonstrate first-hand experience and topical authority.`,
         impact: "Thin content is actively demoted in search rankings. May trigger 'unhelpful content' signals for entire site.",
         fix: "Run 'content-auto-fix' from Crons tab — it expands articles under 1,000 words automatically. For manual edits, use the Article Writer in cockpit.",
-        affected: thinPosts.map((p) => `/blog/${p.slug}`),
-        count: thinPosts.length,
+        affected: [],
+        count: thinCount,
       });
     }
 

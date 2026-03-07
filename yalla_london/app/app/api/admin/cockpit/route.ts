@@ -747,6 +747,16 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
       const published = articleAgg._count.id;
 
+      // Calculate indexing rate from URLIndexingStatus table
+      let indexRate = 0;
+      try {
+        const [totalTracked, indexedCount] = await Promise.all([
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
+        ]);
+        indexRate = totalTracked > 0 ? Math.round((indexedCount / totalTracked) * 100) : 0;
+      } catch { indexRate = 0; }
+
       results.push({
         id: siteId,
         name: siteConfig.name,
@@ -757,7 +767,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         inPipeline: inPipelineCount,
         avgSeoScore: Math.round(articleAgg._avg.seo_score ?? 0),
         topicsQueued,
-        indexRate: 0,
+        indexRate,
         lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
         lastCronAt: null,
         isActive: siteConfig.status === "active",

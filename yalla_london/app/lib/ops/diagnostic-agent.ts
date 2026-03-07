@@ -522,6 +522,29 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         };
       }
 
+      case "schema_mismatch": {
+        // Schema mismatches indicate code bugs (wrong field names, missing required fields).
+        // These can't be auto-fixed by resetting attempts — the same code will crash again.
+        // Log a critical alert and reject the draft to prevent infinite retry loops.
+        console.error(`[diagnostic-agent] SCHEMA MISMATCH detected for draft ${draft.id} in phase "${draft.current_phase}": ${diagnosis.details}`);
+        await prisma.articleDraft.update({
+          where: { id: draft.id },
+          data: {
+            current_phase: "rejected",
+            rejection_reason: `[diagnostic-agent] Schema mismatch — requires code fix: ${diagnosis.details}`,
+            completed_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+        return {
+          diagnosis,
+          fixApplied: "rejected_schema_mismatch",
+          success: true,
+          before,
+          after: { phase: "rejected" },
+        };
+      }
+
       default: {
         // Unknown — reset attempts as a generic fix
         await prisma.articleDraft.update({
@@ -651,9 +674,13 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
   const fixedCount = verifications.filter((v) => v.verified && v.fix.success).length;
   const failedCount = verifications.filter((v) => !v.verified || !v.fix.success).length;
 
-  // ─── Phase 4: DUPLICATE TITLE CHECK ─────────────────────────────────
-  // Scan published articles for near-duplicate titles (normalized comparison)
+  // ─── Phase 4: DUPLICATE TITLE CHECK + AUTO-UNPUBLISH ─────────────────
+  // Scan published articles for near-duplicate titles. When found, unpublish
+  // the worse copy (lower SEO score, shorter content, newer).
+  // Previously this only counted duplicates but never fixed them — the sweep
+  // reported "Duplicate titles found: 5" every 2 hours with no remediation.
   let duplicateCount = 0;
+  let duplicatesFixed = 0;
   try {
     const { prisma } = await import("@/lib/db");
     const { getActiveSiteIds } = await import("@/config/sites");
@@ -665,20 +692,40 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
 
     for (const sid of getActiveSiteIds()) {
       const published = await prisma.blogPost.findMany({
-        where: { siteId: sid, published: true },
-        select: { id: true, slug: true, title_en: true },
+        where: { siteId: sid, published: true, deletedAt: null },
+        select: { id: true, slug: true, title_en: true, seo_score: true, content_en: true, created_at: true },
       });
 
-      const seen = new Map<string, string>();
+      // Group by normalized title
+      const groups = new Map<string, typeof published>();
       for (const post of published) {
         const normalized = normalizeTitle(post.title_en);
         if (normalized.length < 10) continue;
-        const existing = seen.get(normalized);
-        if (existing) {
-          console.warn(`[diagnostic] Duplicate title detected: "${post.slug}" ≈ "${existing}" (site: ${sid})`);
-          duplicateCount++;
-        } else {
-          seen.set(normalized, post.slug);
+        if (!groups.has(normalized)) groups.set(normalized, []);
+        groups.get(normalized)!.push(post);
+      }
+
+      for (const [, group] of groups) {
+        if (group.length < 2) continue;
+        duplicateCount += group.length - 1;
+
+        // Pick the best version: highest SEO score → longest content → oldest (first created)
+        const sorted = [...group].sort((a, b) => {
+          if ((a.seo_score || 0) !== (b.seo_score || 0)) return (b.seo_score || 0) - (a.seo_score || 0);
+          const aw = a.content_en.replace(/<[^>]*>/g, '').split(/\s+/).length;
+          const bw = b.content_en.replace(/<[^>]*>/g, '').split(/\s+/).length;
+          if (aw !== bw) return bw - aw;
+          return a.created_at.getTime() - b.created_at.getTime();
+        });
+
+        // Unpublish all except best
+        for (let d = 1; d < sorted.length; d++) {
+          console.warn(`[diagnostic] Unpublishing duplicate: "${sorted[d].slug}" (duplicate of "${sorted[0].slug}", site: ${sid})`);
+          await prisma.blogPost.update({
+            where: { id: sorted[d].id },
+            data: { published: false },
+          });
+          duplicatesFixed++;
         }
       }
     }
@@ -688,7 +735,7 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
 
   const summary = allDiagnoses.length === 0 && duplicateCount === 0
     ? "All clear — no stuck drafts, failed crons, or duplicate titles"
-    : `Diagnosed ${allDiagnoses.length} issues (${draftDiagnoses.length} drafts, ${cronDiagnoses.length} crons). Fixed: ${fixedCount}, Failed: ${failedCount}. Duplicate titles found: ${duplicateCount}`;
+    : `Diagnosed ${allDiagnoses.length} issues (${draftDiagnoses.length} drafts, ${cronDiagnoses.length} crons). Fixed: ${fixedCount}, Failed: ${failedCount}. Duplicate titles: ${duplicateCount} found, ${duplicatesFixed} unpublished`;
 
   return {
     timestamp: new Date().toISOString(),

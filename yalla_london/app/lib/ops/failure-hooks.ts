@@ -409,16 +409,20 @@ async function wasRecentlyRecovered(draftId: string): Promise<boolean> {
     // so a 2h window meant drafts stayed dead for 8+ builder runs)
     const cooldownAgo = new Date(Date.now() - 30 * 60 * 1000);
 
-    const recentRecovery = await prisma.cronJobLog.findFirst({
+    // Can't use Prisma JSON path filtering on the Json type reliably across
+    // all Postgres/PgBouncer configurations. Fetch recent logs and filter in JS.
+    const recentLogs = await prisma.cronJobLog.findMany({
       where: {
         job_name: { in: ["failure-hook", "sweeper-agent"] },
         status: "completed",
         started_at: { gte: cooldownAgo },
-        result_summary: {
-          path: ["target"],
-          equals: draftId,
-        },
       },
+      select: { result_summary: true },
+      take: 50,
+    });
+    const recentRecovery = recentLogs.find(log => {
+      const summary = log.result_summary as Record<string, unknown> | null;
+      return summary?.target === draftId;
     });
 
     return !!recentRecovery;

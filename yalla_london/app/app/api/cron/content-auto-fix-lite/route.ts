@@ -12,6 +12,7 @@ export const maxDuration = 60;
  * 3. Meta description trim — BlogPost EN
  * 4. Meta description trim — BlogPost AR
  * 5. Meta description trim — ArticleDraft seo_meta
+ * 6. Title & meta artifact cleanup (strip AI-generated artifacts from DB)
  *
  * Runs every 4 hours. Completes in 5-15 seconds.
  * The HEAVY version (content-auto-fix) handles AI enhancement,
@@ -43,6 +44,7 @@ async function handleAutoFixLite(request: NextRequest) {
     headingsFixed: 0,
     metaTrimmedPosts: 0,
     metaTrimmedDrafts: 0,
+    titleArtifactsCleaned: 0,
     errors: [] as string[],
   };
 
@@ -244,9 +246,74 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── 6. TITLE & META ARTIFACT CLEANUP ──────────────────────────────────
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } = await import("@/lib/content-pipeline/title-sanitizer");
+
+      // Scan recent posts for title artifacts
+      const postsToCheck = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          title_en: true,
+          meta_title_en: true,
+          meta_description_en: true,
+        },
+        take: 50,
+        orderBy: { updated_at: "desc" },
+      });
+
+      for (const post of postsToCheck) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+
+        const updates: Record<string, string> = {};
+
+        // Check title_en for artifacts
+        if (hasTitleArtifacts(post.title_en)) {
+          const cleaned = sanitizeTitle(post.title_en);
+          if (cleaned && cleaned !== post.title_en) {
+            updates.title_en = cleaned;
+          }
+        }
+
+        // Check meta_title_en for artifacts
+        if (post.meta_title_en && hasTitleArtifacts(post.meta_title_en)) {
+          const cleaned = sanitizeTitle(post.meta_title_en);
+          if (cleaned && cleaned !== post.meta_title_en) {
+            updates.meta_title_en = cleaned;
+          }
+        }
+
+        // Check meta_description_en for artifacts (not just overlength — also AI echoes)
+        if (post.meta_description_en && hasTitleArtifacts(post.meta_description_en)) {
+          const cleaned = sanitizeMetaDescription(post.meta_description_en);
+          if (cleaned && cleaned !== post.meta_description_en) {
+            updates.meta_description_en = cleaned;
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: updates,
+          });
+          results.titleArtifactsCleaned++;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`title-artifact-cleanup: ${msg}`);
+      console.warn("[auto-fix-lite] Title artifact cleanup failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts;
+  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {

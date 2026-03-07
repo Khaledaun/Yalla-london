@@ -45,6 +45,7 @@ export async function runPrePublicationGate(
     author_id?: string;
     keywords_json?: unknown;
     page_type?: string;
+    siteId?: string;
   },
   siteUrl?: string,
   options?: {
@@ -461,11 +462,56 @@ export async function runPrePublicationGate(
   // ── 14. AIO Readiness (AI Overview citation eligibility) ──────────
   // Applied to all content types — even short news items benefit from
   // answer-first structure for AI Overview citation. Skip Arabic-only.
+  // Upgraded from info to warning severity per Perplexity audit (March 2026).
   if (contentBody && !isArabicOnly) {
     const { check: aioCheck } = checkAIOReadiness(contentBody);
+    // Upgrade severity from info to warning — AIO readiness is now critical
+    // since 60%+ of searches show AI Overviews
+    if (!aioCheck.passed && aioCheck.severity === "info") {
+      aioCheck.severity = "warning";
+    }
     checks.push(aioCheck);
     if (!aioCheck.passed) {
       warnings.push(aioCheck.message);
+    }
+  }
+
+  // ── 15. Keyword Cannibalization (warning only) ───────────────────
+  // Check if this article's keywords significantly overlap with existing
+  // published articles. Warns but doesn't block — the select-runner has
+  // a harder block for high overlap (>60%).
+  if (content.keywords_json) {
+    try {
+      let keywords: string[] = [];
+      if (typeof content.keywords_json === "string") {
+        keywords = JSON.parse(content.keywords_json);
+      } else if (Array.isArray(content.keywords_json)) {
+        keywords = content.keywords_json.map(String);
+      }
+      if (keywords.length > 0) {
+        const siteId = content.siteId || "yalla-london";
+        const { checkCannibalization } = await import("@/lib/seo/cannibalization-checker");
+        const result = await checkCannibalization(keywords, siteId);
+        if (result.cannibalizes && result.overlappingArticle) {
+          const overlap = result.overlappingArticle;
+          checks.push({
+            name: "Keyword Cannibalization",
+            passed: false,
+            message: `${overlap.overlapScore}% keyword overlap with existing article "${overlap.title}" (/blog/${overlap.slug}). Consider merging or differentiating content angle. Shared: ${overlap.sharedKeywords.slice(0, 3).join(", ")}`,
+            severity: "warning",
+          });
+          warnings.push(`Keyword cannibalization: ${overlap.overlapScore}% overlap with /blog/${overlap.slug}`);
+        } else {
+          checks.push({
+            name: "Keyword Cannibalization",
+            passed: true,
+            message: "No significant keyword overlap with existing articles.",
+            severity: "info",
+          });
+        }
+      }
+    } catch (cannibErr) {
+      console.warn("[pre-pub-gate] Cannibalization check failed (non-fatal):", cannibErr instanceof Error ? cannibErr.message : cannibErr);
     }
   }
 

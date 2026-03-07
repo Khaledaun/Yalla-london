@@ -175,7 +175,7 @@ export async function enhanceReservoirDraft(
     try {
       const { searchWeb } = await import("@/lib/ai/grok-live-search");
       const searchResult = await searchWeb(
-        `${keyword} ${destination} 2025 2026 travel tips insider guide`,
+        `${keyword} ${destination} ${new Date().getFullYear()} travel tips insider guide`,
         {
           model: "grok-4-1-fast",
           timeoutMs: 12_000,

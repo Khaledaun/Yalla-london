@@ -182,6 +182,10 @@
       "schedule": "0 */4 * * *"
     },
     {
+      "path": "/api/cron/content-freshness",
+      "schedule": "0 10 * * 0"
+    },
+    {
       "path": "/api/cron/content-auto-fix",
       "schedule": "0 11,18 * * *"
     },

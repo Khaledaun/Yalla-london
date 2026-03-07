@@ -233,7 +233,7 @@ Research: ${JSON.stringify(research).substring(0, 2000)}
 
 Return JSON:
 {
-  "title": "${isArabic(draft.locale) ? "عنوان المقال المحسّن لمحركات البحث (أقل من 60 حرف)" : "SEO-optimized article title (under 60 chars)"}",
+  "title": "${isArabic(draft.locale) ? "عنوان المقال هنا" : "Your article title here"}",
   "sections": [
     {
       "heading": "${isArabic(draft.locale) ? "عنوان القسم H2" : "H2 heading text"}",
@@ -267,7 +267,7 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
   try {
     const outlineTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const outline = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. CRITICAL: Never include years in article titles. Keep titles timeless and evergreen. Each H2 section MUST begin with a 40-60 word direct answer before any lists or detailed explanations — this is essential for AI search engine citations. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
@@ -889,8 +889,8 @@ ${featured ? `Featured image URL: ${featured.url}` : ""}
 
 Return JSON:
 {
-  "metaTitle": "${isArabic(draft.locale) ? "عنوان SEO أقل من 60 حرف يتضمن الكلمة المفتاحية" : "SEO title under 60 chars including keyword"}",
-  "metaDescription": "${isArabic(draft.locale) ? "وصف ميتا 120-160 حرف مع الكلمة المفتاحية ودعوة للعمل" : "Meta description 120-160 chars with keyword and CTA"}",
+  "metaTitle": "${isArabic(draft.locale) ? "عنوان الصفحة للبحث" : "Page title for search results"}",
+  "metaDescription": "${isArabic(draft.locale) ? "وصف مختصر وجذاب للصفحة" : "Compelling page summary for search results"}",
   "slug": "url-friendly-slug-with-keyword",
   "keywords": ["primary", "secondary1", "secondary2", "longtail1", "longtail2"],
   "schema": {

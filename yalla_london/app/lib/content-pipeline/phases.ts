@@ -347,9 +347,18 @@ export async function phaseDrafting(
 
     const writeLang = isArabic(draft.locale) ? "Arabic" : "English";
 
-    const minWordsPerSection = Math.max(section.targetWords || 0, 250);
+    // Circuit breaker: after 3+ failed attempts, use a minimal prompt with lower
+    // token count. This finishes faster and prevents infinite timeout loops.
+    const attempts = draft.phase_attempts || 0;
+    const useMinimalPrompt = attempts >= 3;
 
-    const prompt = `You are a luxury travel content writer for "${site.name}" (${site.destination}).
+    const minWordsPerSection = useMinimalPrompt ? 150 : Math.max(section.targetWords || 0, 250);
+
+    const prompt = useMinimalPrompt
+      ? `Write a ${writeLang} section about "${section.heading}" for an article on "${draft.keyword}".
+${minWordsPerSection}+ words. Use HTML tags (p, ul, li, strong). ${isArabic(draft.locale) ? "Use Arabic punctuation." : ""}
+Return JSON: {"heading":"${section.heading}","content":"<p>...</p>","wordCount":${minWordsPerSection},"keywords_used":[]}`
+      : `You are a luxury travel content writer for "${site.name}" (${site.destination}).
 
 Write section ${sectionIdx + 1} of ${sections.length} for a ${writeLang} article about "${draft.keyword}".
 
@@ -394,6 +403,10 @@ CRITICAL JSON RULES:
 - All double quotes inside string values MUST be escaped as \\"
 - Do NOT use actual line breaks inside JSON string values.`;
 
+    if (useMinimalPrompt) {
+      console.log(`[drafting] Circuit breaker active for draft ${draft.id} section ${sectionIdx + 1} (attempt ${attempts}) — using minimal prompt`);
+    }
+
     // Per-section retry: if JSON parse fails on first try, retry once.
     // This handles transient AI output issues (especially Arabic with dir attributes).
     // No retries for drafting sections — a timeout retry with less budget just
@@ -404,18 +417,20 @@ CRITICAL JSON RULES:
 
     for (let retry = 0; retry < maxSectionRetries; retry++) {
       try {
-        // Cap individual section timeout at 20s — leaves budget for subsequent sections
-        // and prevents one section from consuming the entire remaining budget.
-        const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
-        const sectionTimeout = Math.min(rawTimeout, 20_000);
+        // Drafting generates the most tokens (3500 for Arabic) and needs adequate time.
+        // Previous 20s cap caused 100% timeout failures: 4 providers each got ~5s,
+        // but even a single provider needs 25-35s for 3500 tokens.
+        // Now: 35s cap, and provider.ts gives first provider 60% of budget.
+        const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 35_000;
+        const sectionTimeout = Math.min(rawTimeout, 35_000);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: isArabic(draft.locale) ? 3500 : 2000,
+          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 3500 : 2000),
           temperature: 0.7,
           timeoutMs: sectionTimeout,
           siteId: draft.site_id,
           taskType: `content_drafting_s${i + 1}`,
-          calledFrom: "phases/drafting",
+          calledFrom: useMinimalPrompt ? "phases/drafting-minimal" : "phases/drafting",
         });
 
         existingSections = [...existingSections, {

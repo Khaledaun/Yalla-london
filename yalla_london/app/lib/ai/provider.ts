@@ -551,18 +551,17 @@ export async function generateCompletion(
     }
 
     try {
-      // Split remaining budget evenly among remaining providers.
-      // Previous approach: first provider got 30-35%, subtracted 5s buffers per hop.
-      // Problem: with 25s budget and 5 providers, providers 4-5 always got skipped
-      // because the 5s inter-provider buffer consumed more than the actual AI calls.
-      //
-      // New approach: divide remaining time by remaining providers, cap at 15s per provider.
-      // This gives each provider a fair shot while respecting the total budget.
-      const MAX_PER_PROVIDER_MS = 15_000;
+      // Budget allocation strategy:
+      // First provider gets 60% of total budget (needs enough time for full generation).
+      // Remaining providers split the rest evenly. This prevents the old bug where
+      // 4 providers each got ~5s from a 20s budget — none could finish 3500-token Arabic.
+      const MAX_PER_PROVIDER_MS = 25_000;
       const remainingProviders = availableProviders.length - i;
-      // Each provider gets an equal share of remaining time, minus a 2s buffer for overhead
-      const fairShare = Math.floor((remaining - 2_000) / remainingProviders);
-      const providerTimeout = Math.max(Math.min(fairShare, MAX_PER_PROVIDER_MS), 3_000);
+      const isFirstProvider = i === 0;
+      const firstProviderShare = Math.floor((remaining - 2_000) * 0.6);
+      const fallbackShare = Math.floor((remaining - 2_000 - firstProviderShare) / Math.max(remainingProviders - 1, 1));
+      const rawShare = isFirstProvider ? firstProviderShare : fallbackShare;
+      const providerTimeout = Math.max(Math.min(rawShare, MAX_PER_PROVIDER_MS), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,

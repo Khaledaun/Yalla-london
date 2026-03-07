@@ -15,6 +15,26 @@
 // ─── Last verified against Google docs ──────────────────────────────────────
 export const STANDARDS_VERSION = "2026-03-03";
 export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + December 2025 Core Update + January 2026 Core Update (Authenticity)";
+const STALENESS_THRESHOLD_DAYS = 30;
+
+/**
+ * Check if SEO standards are stale (>30 days since last verification).
+ * Call this in weekly cron jobs or admin health checks to surface a warning.
+ * Returns { stale: boolean, daysSinceUpdate: number, message: string }.
+ */
+export function checkStandardsStaleness() {
+  const lastVerified = new Date(STANDARDS_VERSION);
+  const now = new Date();
+  const daysSinceUpdate = Math.floor((now.getTime() - lastVerified.getTime()) / (1000 * 60 * 60 * 24));
+  const stale = daysSinceUpdate > STALENESS_THRESHOLD_DAYS;
+  return {
+    stale,
+    daysSinceUpdate,
+    message: stale
+      ? `SEO standards are ${daysSinceUpdate} days old (last verified: ${STANDARDS_VERSION}). Review Google Search Central changelog and update STANDARDS_VERSION.`
+      : `SEO standards are current (verified ${daysSinceUpdate} days ago).`,
+  };
+}
 
 // ─── Algorithm Context ──────────────────────────────────────────────────────
 export const ALGORITHM_CONTEXT = {

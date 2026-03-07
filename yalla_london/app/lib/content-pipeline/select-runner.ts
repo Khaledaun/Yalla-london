@@ -453,7 +453,8 @@ export async function promoteToBlogPost(
   getSiteDomain: (siteId: string) => string,
   options?: { skipGate?: boolean },
 ): Promise<{ draftId: string; blogPostId: string; keyword: string; score: number } | null> {
-  const siteId = draft.site_id as string;
+  const { getDefaultSiteId } = await import("@/config/sites");
+  const siteId = (draft.site_id as string) || getDefaultSiteId();
   const site = SITES[siteId];
   if (!site) {
     console.warn(`[content-selector] No site config for ${siteId}`);
@@ -822,12 +823,12 @@ export async function promoteToBlogPost(
       blogPost = await prisma.blogPost.create({
         data: {
           title_en: cleanedEnTitle,
-          title_ar: cleanedArTitle || "",
+          title_ar: cleanedArTitle || cleanedEnTitle || "",
           slug,
           excerpt_en: enMetaDesc,
-          excerpt_ar: arMetaDesc,
+          excerpt_ar: arMetaDesc || enMetaDesc || "",
           content_en: enHtml,
-          content_ar: arHtml,
+          content_ar: arHtml || enHtml || "",
           meta_title_en: enMetaTitle,
           meta_title_ar: arMetaTitle,
           meta_description_en: enMetaDesc,

@@ -115,7 +115,7 @@ async function runIntelligence(prisma: any, siteId: string, siteUrl?: string) {
       if (hasBudget(15_000)) {
         try {
           report.metaOptimizations = await withTimeout(
-            autoOptimizeLowCTRMeta(prisma, searchData, issues, fixes),
+            autoOptimizeLowCTRMeta(prisma, searchData, issues, fixes, siteId),
             Math.min(15_000, budgetLeft() - 5_000),
             "autoOptimizeLowCTRMeta"
           );
@@ -129,7 +129,7 @@ async function runIntelligence(prisma: any, siteId: string, siteUrl?: string) {
       if (hasBudget(10_000)) {
         try {
           report.contentStrengthening = await withTimeout(
-            flagContentForStrengthening(prisma, searchData, fixes),
+            flagContentForStrengthening(prisma, searchData, fixes, siteId),
             Math.min(12_000, budgetLeft() - 5_000),
             "flagContentForStrengthening"
           );

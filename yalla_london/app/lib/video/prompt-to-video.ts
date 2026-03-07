@@ -58,7 +58,10 @@ const EXTENDED_DIMENSIONS: Record<string, { width: number; height: number }> = {
 };
 
 function getDimensions(format: string): { width: number; height: number } {
-  return EXTENDED_DIMENSIONS[format] ?? FORMAT_DIMENSIONS[format as VideoFormat] ?? { width: 1080, height: 1920 };
+  const dims = Object.prototype.hasOwnProperty.call(EXTENDED_DIMENSIONS, format)
+    ? EXTENDED_DIMENSIONS[format as keyof typeof EXTENDED_DIMENSIONS]
+    : FORMAT_DIMENSIONS[format as VideoFormat];
+  return dims ?? { width: 1080, height: 1920 };
 }
 
 // ─── Style Descriptions ─────────────────────────────────────────
@@ -238,7 +241,7 @@ function parseAIResponse(
 ): GeneratedVideo {
   // Extract code block
   let code = raw;
-  const codeBlockMatch = raw.match(/```(?:tsx?|jsx?|javascript|typescript)?\s*\n([\s\S]*?)```/);
+  const codeBlockMatch = raw.match(/```[a-z]*\s*\n([\s\S]*?)```/);
   if (codeBlockMatch) {
     code = codeBlockMatch[1].trim();
   }

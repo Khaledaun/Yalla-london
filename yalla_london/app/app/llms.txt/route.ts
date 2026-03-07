@@ -7,6 +7,17 @@ export const dynamic = "force-dynamic";
  * Dynamic llms.txt route — serves per-site AI & LLM information.
  * AI systems (ChatGPT, Claude, Perplexity, Gemini) use this file
  * to understand site content, authority, and citation guidelines.
+ *
+ * NOTE: Domain URLs in LLMS_DATA are intentionally hardcoded as static strings
+ * rather than generated from config/sites.ts. This is because:
+ * 1. llms.txt content is prose-heavy and rarely changes — dynamic generation
+ *    would add per-request overhead for no practical benefit.
+ * 2. Each site's description, topics, and citation guidelines are unique
+ *    and must be hand-authored for quality.
+ * 3. All 6 domains have been verified against config/sites.ts domain mappings.
+ *
+ * When adding a new site: add its siteId key to LLMS_DATA with hardcoded domain,
+ * then verify it matches the domain in config/sites.ts.
  */
 
 const LLMS_DATA: Record<string, string> = {

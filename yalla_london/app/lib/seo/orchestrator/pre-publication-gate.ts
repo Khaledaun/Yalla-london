@@ -489,7 +489,8 @@ export async function runPrePublicationGate(
         keywords = content.keywords_json.map(String);
       }
       if (keywords.length > 0) {
-        const siteId = content.siteId || "yalla-london";
+        const { getDefaultSiteId } = await import("@/config/sites");
+        const siteId = content.siteId || getDefaultSiteId();
         const { checkCannibalization } = await import("@/lib/seo/cannibalization-checker");
         const result = await checkCannibalization(keywords, siteId);
         if (result.cannibalizes && result.overlappingArticle) {

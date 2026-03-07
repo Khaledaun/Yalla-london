@@ -125,9 +125,10 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Perplexity.
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude.
 // Gemini removed from active rotation (inactive as of March 2026).
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'perplexity'];
+// Perplexity removed: quota exhausted, billing issue — re-add when resolved.
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude'];
 
 /**
  * Get API key for a provider from the database
@@ -551,18 +552,17 @@ export async function generateCompletion(
     }
 
     try {
-      // Split remaining budget evenly among remaining providers.
-      // Previous approach: first provider got 30-35%, subtracted 5s buffers per hop.
-      // Problem: with 25s budget and 5 providers, providers 4-5 always got skipped
-      // because the 5s inter-provider buffer consumed more than the actual AI calls.
-      //
-      // New approach: divide remaining time by remaining providers, cap at 15s per provider.
-      // This gives each provider a fair shot while respecting the total budget.
-      const MAX_PER_PROVIDER_MS = 15_000;
+      // Budget allocation strategy:
+      // First provider gets 60% of total budget (needs enough time for full generation).
+      // Remaining providers split the rest evenly. This prevents the old bug where
+      // 4 providers each got ~5s from a 20s budget — none could finish 3500-token Arabic.
+      const MAX_PER_PROVIDER_MS = 25_000;
       const remainingProviders = availableProviders.length - i;
-      // Each provider gets an equal share of remaining time, minus a 2s buffer for overhead
-      const fairShare = Math.floor((remaining - 2_000) / remainingProviders);
-      const providerTimeout = Math.max(Math.min(fairShare, MAX_PER_PROVIDER_MS), 3_000);
+      const isFirstProvider = i === 0;
+      const firstProviderShare = Math.floor((remaining - 2_000) * 0.6);
+      const fallbackShare = Math.floor((remaining - 2_000 - firstProviderShare) / Math.max(remainingProviders - 1, 1));
+      const rawShare = isFirstProvider ? firstProviderShare : fallbackShare;
+      const providerTimeout = Math.max(Math.min(rawShare, MAX_PER_PROVIDER_MS), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,
@@ -812,6 +812,12 @@ export async function getProvidersStatus(): Promise<
         status[provider].warning = "API key looks too short — check PERPLEXITY_API_KEY in Vercel env vars";
       }
     }
+  }
+
+  // Perplexity is deactivated — quota exhausted (401). Re-enable after billing is resolved.
+  status.perplexity.active = false;
+  if (!status.perplexity.warning) {
+    status.perplexity.warning = "Deactivated — API quota exhausted. Check billing at perplexity.ai dashboard.";
   }
 
   return status;

@@ -86,11 +86,13 @@ export async function runContentBuilder(
 
       draft = allDrafts[0] || null;
 
-      // PHASE-AWARE BUDGET: Assembly is a "heavy" phase that needs the full cron budget.
-      // If the selected draft is in assembly, skip creating new drafts and give it the
-      // entire remaining budget. This prevents assembly from being starved by earlier work.
-      if (draft && (draft.current_phase as string) === "assembly") {
-        console.log(`[content-builder] Assembly phase detected for draft ${draft.id} — dedicating full budget`);
+      // PHASE-AWARE BUDGET: Assembly and drafting are "heavy" phases that need the full
+      // cron budget. If the selected draft is in one of these, skip creating new drafts
+      // and give it the entire remaining budget. Drafting generates 3500 tokens (Arabic)
+      // and needs 25-35s per section — can't share budget with topic creation.
+      const heavyPhases = ["assembly", "drafting"];
+      if (draft && heavyPhases.includes(draft.current_phase as string)) {
+        console.log(`[content-builder] Heavy phase "${draft.current_phase}" detected for draft ${draft.id} — dedicating full budget`);
         // Skip Step 2 entirely — go straight to Step 3
       }
     } catch (e) {

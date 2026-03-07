@@ -48,6 +48,7 @@ async function handleAutoFix(request: NextRequest) {
     duplicateMetasFixed: 0,
     arabicMetaGenerated: 0,
     brokenLinksFixed: 0,
+    orphansFixed: 0,
     thinUnpublished: 0,
     duplicatesFlagged: 0,
     errors: [] as string[],
@@ -364,7 +365,84 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 11. THIN CONTENT AUTO-UNPUBLISH — published articles below 500 words ──
+  // ── 11. ORPHAN PAGE RESOLUTION — inject links TO orphan articles ───────────
+  // Finds published articles with NO inbound internal links, then edits
+  // related articles to add a contextual link to the orphan. This solves
+  // crawl isolation (19 orphans detected in audit).
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const allPosts = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, slug: true, title_en: true, content_en: true, siteId: true },
+        orderBy: { created_at: "desc" },
+        take: 100,
+      });
+
+      // Build inbound link map: slug → number of articles linking to it
+      const inboundCount = new Map<string, number>();
+      for (const p of allPosts) inboundCount.set(p.slug, 0);
+      for (const p of allPosts) {
+        const links = (p.content_en || "").match(/href="\/blog\/([a-zA-Z0-9_-]+)"/gi) || [];
+        for (const link of links) {
+          const m = link.match(/href="\/blog\/([a-zA-Z0-9_-]+)"/i);
+          if (m && inboundCount.has(m[1])) {
+            inboundCount.set(m[1], (inboundCount.get(m[1]) || 0) + 1);
+          }
+        }
+      }
+
+      // Find orphans (0 inbound links)
+      const orphans = allPosts.filter(p => (inboundCount.get(p.slug) || 0) === 0);
+      let orphansFixed = 0;
+
+      for (const orphan of orphans) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (orphansFixed >= 5) break;
+
+        // Find best host article: same site, has content, doesn't already link to orphan
+        const orphanWords = (orphan.title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        if (orphanWords.length < 2) continue;
+
+        let bestHost: typeof allPosts[0] | null = null;
+        let bestScore = 0;
+        for (const candidate of allPosts) {
+          if (candidate.id === orphan.id) continue;
+          if (candidate.siteId !== orphan.siteId) continue;
+          if ((candidate.content_en || "").includes(`/blog/${orphan.slug}`)) continue;
+          // Score by title word overlap
+          const candidateTitle = (candidate.title_en || "").toLowerCase();
+          const score = orphanWords.filter(w => candidateTitle.includes(w)).length;
+          if (score > bestScore) {
+            bestScore = score;
+            bestHost = candidate;
+          }
+        }
+
+        if (!bestHost || bestScore < 1) continue;
+
+        // Append a "Related reading" link at the end of the host article
+        const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
+        await prisma.blogPost.update({
+          where: { id: bestHost.id },
+          data: { content_en: (bestHost.content_en || "") + linkHtml },
+        });
+        orphansFixed++;
+        console.log(`[content-auto-fix] Fixed orphan: "${orphan.slug}" — linked from "${bestHost.slug}"`);
+      }
+      results.orphansFixed = orphansFixed;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`orphan-resolution: ${msg}`);
+      console.warn("[content-auto-fix] Orphan page resolution failed:", msg);
+    }
+  }
+
+  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published articles below 500 words ──
   // Articles that somehow bypassed the quality gate (e.g., 102-word article).
   // Unpublishes them so they don't hurt site quality. Threshold is 500w (well below
   // the 1000w gate) to catch only egregiously thin content.
@@ -467,7 +545,7 @@ async function handleAutoFix(request: NextRequest) {
 
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.thinUnpublished + results.duplicatesFlagged;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -489,7 +567,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, links +${results.internalLinksInjected}, broken links fixed ${results.brokenLinksFixed}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, Arabic meta ${results.arabicMetaGenerated}, thin unpublished ${results.thinUnpublished}, duplicates flagged ${results.duplicatesFlagged}`,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}`,
   });
 }
 

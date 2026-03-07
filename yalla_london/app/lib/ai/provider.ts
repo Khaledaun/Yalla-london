@@ -553,15 +553,16 @@ export async function generateCompletion(
 
     try {
       // Budget allocation strategy:
-      // First provider gets 60% of total budget (needs enough time for full generation).
-      // Remaining providers split the rest evenly. This prevents the old bug where
-      // 4 providers each got ~5s from a 20s budget — none could finish 3500-token Arabic.
-      const MAX_PER_PROVIDER_MS = 25_000;
+      // First provider gets 65% of total budget. Fallback providers split the
+      // remaining time equally. Arabic drafting needs 30-40s for 3500 tokens —
+      // the first provider must get enough time to actually finish.
+      const MAX_PER_PROVIDER_MS = 40_000;
       const remainingProviders = availableProviders.length - i;
       const isFirstProvider = i === 0;
-      const firstProviderShare = Math.floor((remaining - 2_000) * 0.6);
-      const fallbackShare = Math.floor((remaining - 2_000 - firstProviderShare) / Math.max(remainingProviders - 1, 1));
-      const rawShare = isFirstProvider ? firstProviderShare : fallbackShare;
+      // Simple split: first provider gets 65%, fallbacks split remaining equally
+      const rawShare = isFirstProvider
+        ? Math.floor((remaining - 1_000) * 0.65)
+        : Math.floor((remaining - 1_000) / remainingProviders);
       const providerTimeout = Math.max(Math.min(rawShare, MAX_PER_PROVIDER_MS), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,

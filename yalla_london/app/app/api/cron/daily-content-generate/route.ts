@@ -446,6 +446,11 @@ async function generateArticle(
   }
 
   const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
+  // Demote <h1> to <h2> in body content — the blog page template already provides
+  // the H1 via the article title. Multiple H1s cause SEO audit failures.
+  const demoteH1 = (html: string) => html.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
+  const bodyEn = demoteH1(primaryLanguage === "en" ? content.body : content.bodyTranslation || "");
+  const bodyAr = demoteH1(primaryLanguage === "ar" ? content.body : content.bodyTranslation || "");
   const blogPost = await prisma.blogPost.create({
     data: {
       title_en: sanitizeTitle(
@@ -465,10 +470,8 @@ async function generateArticle(
         primaryLanguage === "ar"
           ? content.excerpt
           : content.excerptTranslation || "",
-      content_en:
-        primaryLanguage === "en" ? content.body : content.bodyTranslation || "",
-      content_ar:
-        primaryLanguage === "ar" ? content.body : content.bodyTranslation || "",
+      content_en: bodyEn,
+      content_ar: bodyAr,
       meta_title_en: sanitizeTitle(
         primaryLanguage === "en"
           ? content.metaTitle

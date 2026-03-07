@@ -107,7 +107,13 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
   );
 
   // Content sanitization — hooks must be before any conditional returns
-  const rawContent = post ? (language === 'en' ? post.content_en : post.content_ar) : ''
+  // Demote <h1> to <h2> at render time — the page template already provides
+  // the H1 via the article title. This is a safety net for articles not yet
+  // cleaned by the content-auto-fix-lite cron.
+  const rawContentPreH1 = post ? (language === 'en' ? post.content_en : post.content_ar) : ''
+  const rawContent = rawContentPreH1
+    .replace(/<h1(\s[^>]*)?>|<h1>/gi, '<h2$1>')
+    .replace(/<\/h1>/gi, '</h2>')
   const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
   useEffect(() => {
     if (!rawContent) return undefined;

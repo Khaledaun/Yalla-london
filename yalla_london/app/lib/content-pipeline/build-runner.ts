@@ -147,7 +147,7 @@ export async function runContentBuilder(
           const candidate = await prisma.topicProposal.findFirst({
             where: {
               status: { in: ["ready", "queued", "planned", "proposed"] },
-              OR: [{ site_id: siteId }, { site_id: null }],
+              site_id: siteId,
             },
             orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
           });

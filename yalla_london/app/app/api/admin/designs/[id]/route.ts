@@ -13,13 +13,13 @@ import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const design = await prisma.design.findUnique({
       where: { id },
@@ -34,7 +34,7 @@ export async function GET(
 
     return NextResponse.json({ design });
   } catch (error) {
-    console.error(`[designs-api] Failed to fetch design ${params.id}:`, error);
+    console.error(`[designs-api] Failed to fetch design:`, error);
     return NextResponse.json(
       { error: "Failed to fetch design" },
       { status: 500 },
@@ -44,13 +44,13 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     // Build update data from allowed fields only
@@ -104,7 +104,7 @@ export async function PATCH(
         { status: 404 },
       );
     }
-    console.error(`[designs-api] Failed to update design ${params.id}:`, error);
+    console.error(`[designs-api] Failed to update design:`, error);
     return NextResponse.json(
       { error: "Failed to update design" },
       { status: 500 },
@@ -114,13 +114,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
-    const { id } = params;
+    const { id } = await params;
 
     await prisma.design.delete({
       where: { id },
@@ -139,7 +139,7 @@ export async function DELETE(
         { status: 404 },
       );
     }
-    console.error(`[designs-api] Failed to delete design ${params.id}:`, error);
+    console.error(`[designs-api] Failed to delete design:`, error);
     return NextResponse.json(
       { error: "Failed to delete design" },
       { status: 500 },

@@ -54,9 +54,8 @@ export async function runContentSelector(
     }
 
     // Find reservoir articles with sufficient quality.
-    // Exclude articles that have failed enhancement 3+ times — they need manual review,
-    // not another timeout loop. This prevents the same broken articles from eating the
-    // budget every single cron run.
+    // Articles with 3+ failed enhancement attempts are still included — they may
+    // pass the pre-pub gate as-is and should be published rather than zombified.
     const MAX_ENHANCEMENT_ATTEMPTS = 3;
     let candidates: Array<Record<string, unknown>> = [];
     try {
@@ -65,7 +64,6 @@ export async function runContentSelector(
           site_id: { in: activeSites },
           current_phase: "reservoir",
           quality_score: { gte: MIN_QUALITY_SCORE },
-          phase_attempts: { lt: MAX_ENHANCEMENT_ATTEMPTS },
         },
         orderBy: [
           { quality_score: "desc" },
@@ -101,7 +99,7 @@ export async function runContentSelector(
       const reason = totalReservoir === 0
         ? "Reservoir is empty — no articles have reached the reservoir phase"
         : frozenCount > 0
-        ? `${totalReservoir} reservoir articles, but ${frozenCount} frozen (3+ failed enhancements) and ${lowScoreCount} below quality threshold (${MIN_QUALITY_SCORE}). Run sweeper to unfreeze.`
+        ? `${totalReservoir} reservoir articles, but ${frozenCount} have exhausted enhancement (3+ attempts) and ${lowScoreCount} below quality threshold (${MIN_QUALITY_SCORE}). Exhausted articles will attempt direct publish if they meet minimum quality.`
         : `${totalReservoir} reservoir articles, but all are below quality threshold (${MIN_QUALITY_SCORE}) or have other issues`;
 
       console.log(`[content-selector] No publishable candidates: ${reason}`);
@@ -189,15 +187,25 @@ export async function runContentSelector(
         const html = (candidate.assembled_html as string) || "";
         const wordCount = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
         const wouldFailWordCount = wordCount < MIN_WORD_COUNT;
+        const attempts = (candidate.phase_attempts as number) || 0;
+        const exhaustedEnhancement = attempts >= MAX_ENHANCEMENT_ATTEMPTS;
 
         if (score >= PUBLISH_THRESHOLD && !wouldFailWordCount) {
           publishReady.push(candidate);
-        } else {
+        } else if (exhaustedEnhancement && !wouldFailWordCount && score >= MIN_QUALITY_SCORE) {
+          // Enhancement failed 3+ times but article meets minimum quality and word count.
+          // Let the pre-pub gate make the final call instead of leaving it zombified.
+          console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): enhancement exhausted (${attempts} attempts, score ${score}) — attempting direct publish via pre-pub gate`);
+          publishReady.push(candidate);
+        } else if (!exhaustedEnhancement) {
           const reason = wouldFailWordCount
             ? `word count too low (${wordCount}/${MIN_WORD_COUNT})`
             : `score too low (${score}/${PUBLISH_THRESHOLD})`;
           console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): needs enhancement — ${reason}`);
           needsEnhancement.push(candidate);
+        } else {
+          // Exhausted enhancement AND fails word count or minimum score — truly stuck
+          console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): exhausted enhancement and still below minimum (score ${score}, words ${wordCount}) — skipping`);
         }
       } catch (sortErr) {
         console.warn(`[content-selector] Error sorting draft ${candidate.id}: ${sortErr instanceof Error ? sortErr.message : sortErr}`);

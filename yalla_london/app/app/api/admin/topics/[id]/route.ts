@@ -31,12 +31,13 @@ const UpdateTopicSchema = z.object({
 // GET - Get specific topic
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     // Feature flag check
     // Feature flag check removed
     if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
@@ -53,7 +54,7 @@ export async function GET(
     }
 
     const topic = await prisma.topicProposal.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         scheduled_content: {
           select: {
@@ -94,12 +95,13 @@ export async function GET(
 // PATCH - Update specific topic
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     // Feature flag check
     // Feature flag check removed
     if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
@@ -133,7 +135,7 @@ export async function PATCH(
 
     // Check if topic exists
     const existingTopic = await prisma.topicProposal.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!existingTopic) {
@@ -145,7 +147,7 @@ export async function PATCH(
 
     // Update topic
     const updatedTopic = await prisma.topicProposal.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...updateData,
         updated_at: new Date()
@@ -167,7 +169,7 @@ export async function PATCH(
         userId: permissionCheck.user.id,
         action: 'update',
         resource: 'topic_proposal',
-        resourceId: params.id,
+        resourceId: id,
         details: {
           changes: updateData,
           old_status: existingTopic.status,
@@ -197,12 +199,13 @@ export async function PATCH(
 // DELETE - Delete specific topic
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     // Feature flag check
     // Feature flag check removed
     if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
@@ -220,7 +223,7 @@ export async function DELETE(
 
     // Check if topic exists and has no associated content
     const topic = await prisma.topicProposal.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         scheduled_content: true
       }
@@ -246,7 +249,7 @@ export async function DELETE(
 
     // Delete topic
     await prisma.topicProposal.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     // Log the deletion
@@ -255,7 +258,7 @@ export async function DELETE(
         userId: permissionCheck.user.id,
         action: 'delete',
         resource: 'topic_proposal',
-        resourceId: params.id,
+        resourceId: id,
         details: {
           deleted_topic: {
             primary_keyword: topic.primary_keyword,

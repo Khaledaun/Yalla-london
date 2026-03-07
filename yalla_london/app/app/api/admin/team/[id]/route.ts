@@ -14,7 +14,7 @@ import type { UpdateTeamMemberInput } from '@/lib/domains/team';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -22,9 +22,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'view_analytics');
 
-    const member = await TeamService.getMemberById(params.id);
+    const member = await TeamService.getMemberById(id);
 
     if (!member) {
       return NextResponse.json(
@@ -51,6 +52,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_users');
 
     const body = await request.json();
@@ -78,7 +80,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.is_featured !== undefined) data.is_featured = body.is_featured;
     if (body.display_order !== undefined) data.display_order = body.display_order;
 
-    const member = await TeamService.updateMember(params.id, data);
+    const member = await TeamService.updateMember(id, data);
 
     return NextResponse.json({
       success: true,
@@ -113,9 +115,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_users');
 
-    await TeamService.deleteMember(params.id);
+    await TeamService.deleteMember(id);
 
     return NextResponse.json({
       success: true,

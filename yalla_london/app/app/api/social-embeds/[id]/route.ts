@@ -7,11 +7,12 @@ import { prisma } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const embed = await prisma.socialEmbed.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!embed) {
@@ -33,14 +34,15 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json()
     const { title, author, status } = body
 
     const embed = await prisma.socialEmbed.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title,
         author,
@@ -61,11 +63,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.socialEmbed.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ success: true })

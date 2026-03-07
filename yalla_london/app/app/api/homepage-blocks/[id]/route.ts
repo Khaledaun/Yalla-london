@@ -7,11 +7,12 @@ import { requireAdmin } from '@/lib/admin-middleware'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const block = await prisma.homepageBlock.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         media: true
       }
@@ -36,9 +37,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json()
     const {
       titleEn,
@@ -52,7 +54,7 @@ export async function PATCH(
     } = body
 
     const block = await prisma.homepageBlock.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         title_en: titleEn,
         title_ar: titleAr,
@@ -78,14 +80,15 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdmin(request);
   if (auth) return auth;
 
   try {
+    const { id } = await params;
     await prisma.homepageBlock.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ success: true })

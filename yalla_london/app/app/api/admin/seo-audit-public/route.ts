@@ -145,13 +145,13 @@ export async function POST(request: NextRequest) {
                   affectedUrls: finding.affectedUrls,
                   status: "pending",
                 },
-              }).catch(() => {
-                // SeoAuditAction model may not exist yet — that's OK
+              }).catch((err) => {
+                console.warn("[seo-audit-public] Failed to persist finding:", err instanceof Error ? err.message : err);
               });
             }
           }
-        } catch {
-          // DB persistence is best-effort
+        } catch (dbErr) {
+          console.warn("[seo-audit-public] DB persistence failed (best-effort):", dbErr instanceof Error ? dbErr.message : dbErr);
         }
 
         return NextResponse.json({
@@ -185,7 +185,8 @@ export async function POST(request: NextRequest) {
           data: { status: "skipped", error: reason || "Skipped by admin" },
         });
         return NextResponse.json({ success: true });
-      } catch {
+      } catch (err) {
+        console.warn("[seo-audit-public] Failed to update action:", err instanceof Error ? err.message : err);
         return NextResponse.json({ error: "Failed to update action" }, { status: 500 });
       }
     }

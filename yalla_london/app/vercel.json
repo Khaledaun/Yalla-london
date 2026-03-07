@@ -204,10 +204,6 @@
     {
       "path": "/api/cron/seo-audit-runner",
       "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/admin/seo-audit-public",
-      "schedule": "0 2 1 * *"
     }
   ]
 }

@@ -125,9 +125,10 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Perplexity.
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude.
 // Gemini removed from active rotation (inactive as of March 2026).
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'perplexity'];
+// Perplexity removed: quota exhausted, billing issue — re-add when resolved.
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude'];
 
 /**
  * Get API key for a provider from the database
@@ -811,6 +812,12 @@ export async function getProvidersStatus(): Promise<
         status[provider].warning = "API key looks too short — check PERPLEXITY_API_KEY in Vercel env vars";
       }
     }
+  }
+
+  // Perplexity is deactivated — quota exhausted (401). Re-enable after billing is resolved.
+  status.perplexity.active = false;
+  if (!status.perplexity.warning) {
+    status.perplexity.warning = "Deactivated — API quota exhausted. Check billing at perplexity.ai dashboard.";
   }
 
   return status;

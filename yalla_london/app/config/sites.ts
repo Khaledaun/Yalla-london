@@ -81,10 +81,11 @@ export const SITES: Record<string, SiteConfig> = {
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Use "Best Luxury Hotels in London" not "Best Luxury Hotels London 2026". Years in titles cause automatic staleness. Use years only in body text for current facts (e.g., "As of 2026, rates start at £450/night").
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
 - Include 3+ internal links to other Yalla London pages (e.g., /blog/*, /hotels, /experiences, /restaurants).
 - Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, HalalBooking where relevant) with descriptive anchor text — never "click here".
-- Meta title: 50–60 characters with focus keyword near the start.
+- Meta title: 50–60 characters with focus keyword near the start. Never include years in meta titles.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
@@ -346,6 +347,7 @@ Always respond with valid JSON.`,
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Arabaldives pages (e.g., /blog/*, /resorts, /activities).
 - Include 2+ affiliate/booking links (HalalBooking, Booking.com, Agoda) with descriptive anchor text.
@@ -604,6 +606,7 @@ Always respond with valid JSON.`,
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Yalla Riviera pages (e.g., /blog/*, /hotels, /yachts, /dining).
 - Include 2+ affiliate/booking links (Booking.com, Boatbookings, GetYourGuide, TheFork) with descriptive anchor text.
@@ -869,6 +872,7 @@ Always respond with valid JSON.`,
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Yalla Istanbul pages (e.g., /blog/*, /hotels, /experiences, /dining).
 - Include 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator) with descriptive anchor text.
@@ -1127,6 +1131,7 @@ Always respond with valid JSON.`,
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Yalla Thailand pages (e.g., /blog/*, /resorts, /islands, /experiences).
 - Include 2+ affiliate/booking links (HalalBooking, Booking.com, Agoda, Klook) with descriptive anchor text.
@@ -1385,6 +1390,7 @@ Always respond with valid JSON.`,
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
 - Include 3+ internal links to other Zenitha Yachts pages (e.g., /blog/*, /yachts, /destinations, /itineraries, /charter-planner).
 - Include 2+ affiliate/booking links (Boatbookings, Click&Boat, GetYourGuide, Booking.com for pre/post-charter hotels) with descriptive anchor text — never "click here".

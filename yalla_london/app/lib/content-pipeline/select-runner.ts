@@ -13,6 +13,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
+import { sanitizeTitle, sanitizeMetaDescription } from "@/lib/content-pipeline/title-sanitizer";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 2;
@@ -485,8 +486,37 @@ export async function promoteToBlogPost(
   // Demote any <h1> in body content to <h2> — the page template already provides the H1
   // via the article title. Multiple H1s cause SEO issues (detected by audit as "Multiple H1 tags").
   const stripH1 = (html: string) => html.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
-  const enHtml = stripH1((enDraft?.assembled_html as string) || "");
+  let enHtml = stripH1((enDraft?.assembled_html as string) || "");
   const arHtml = stripH1((arDraft?.assembled_html as string) || "");
+
+  // ── Internal link injection: replace generic TOPIC_SLUG placeholders with real URLs ──
+  // Assembly phase generates: <a href="/blog/TOPIC_SLUG" class="internal-link">anchor</a>
+  // Replace with actual published article slugs that match the topic.
+  if (enHtml) {
+    try {
+      const recentPosts = await prisma.blogPost.findMany({
+        where: { siteId, published: true, deletedAt: null },
+        select: { slug: true, title_en: true, keywords_json: true },
+        orderBy: { created_at: "desc" },
+        take: 50,
+      });
+      // Replace /blog/TOPIC_SLUG or any slug-like placeholder with a real published slug
+      enHtml = enHtml.replace(
+        /href="\/blog\/([A-Z_]+)"/gi,
+        (_match, placeholder) => {
+          // Find a published article that could match this placeholder topic
+          const topic = placeholder.toLowerCase().replace(/_/g, " ");
+          const match = recentPosts.find(p => {
+            const titleWords = (p.title_en || "").toLowerCase();
+            return titleWords.includes(topic) || p.slug.includes(topic.replace(/\s+/g, "-"));
+          });
+          return match ? `href="/blog/${match.slug}"` : `href="/blog/${placeholder.toLowerCase().replace(/_/g, "-")}"`;
+        }
+      );
+    } catch (linkErr) {
+      console.warn("[content-selector] Internal link injection failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
+    }
+  }
   const enTitle = (enDraft?.topic_title as string) || keyword;
   const arTitle = (arDraft?.topic_title as string) || "";
   const enSeoMeta = ((enDraft?.seo_meta || {}) as Record<string, unknown>);
@@ -598,6 +628,32 @@ export async function promoteToBlogPost(
     }
   }
 
+  // ── Keyword cannibalization check ─────────────────────────────────────────
+  // Beyond title dedup, check keyword-level overlap with published articles.
+  // If the candidate targets >60% of the same keywords as an existing article,
+  // they'll compete for the same SERP position — skip this draft.
+  try {
+    const { checkCannibalization } = await import("@/lib/seo/cannibalization-checker");
+    const enKeywords = (enSeoMeta.keywords as string[]) || [];
+    if (enKeywords.length > 0) {
+      const cannibResult = await checkCannibalization(enKeywords, siteId, draft.id as string);
+      if (cannibResult.cannibalizes && cannibResult.overlappingArticle) {
+        const overlap = cannibResult.overlappingArticle;
+        console.warn(`[content-selector] SKIPPED draft ${draft.id}: keyword cannibalization (${overlap.overlapScore}% overlap) with existing "/blog/${overlap.slug}" — shared: ${overlap.sharedKeywords.join(", ")}`);
+        await prisma.articleDraft.update({
+          where: { id: draft.id as string },
+          data: {
+            last_error: `Keyword cannibalization: ${overlap.overlapScore}% overlap with "/blog/${overlap.slug}" (${overlap.sharedKeywords.slice(0, 5).join(", ")})`,
+            updated_at: new Date(),
+          },
+        }).catch(() => {});
+        return null;
+      }
+    }
+  } catch (cannibErr) {
+    console.warn("[content-selector] Cannibalization check failed (non-fatal):", cannibErr instanceof Error ? cannibErr.message : cannibErr);
+  }
+
   // ── Slug artifact rejection ──────────────────────────────────────────────
   // Reject slugs that contain hash/hex artifacts (e.g. "-a1b2c3d4") or
   // malformed suffixes like "-155-chars". These are symptoms of upstream bugs
@@ -661,10 +717,10 @@ export async function promoteToBlogPost(
       .join(" ");
   };
 
-  // Extract meta fields
-  const enMetaTitle = cleanTitle((enSeoMeta.metaTitle as string) || enTitle);
+  // Extract meta fields — sanitize to strip AI artifacts like "(under 60 chars)"
+  const enMetaTitle = sanitizeTitle(cleanTitle((enSeoMeta.metaTitle as string) || enTitle));
   const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
-  const enMetaDesc = (enSeoMeta.metaDescription as string) || "";
+  const enMetaDesc = sanitizeMetaDescription((enSeoMeta.metaDescription as string) || "");
   const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
   const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
   const schemaType = (outline.schemaType as string) || "";
@@ -678,7 +734,7 @@ export async function promoteToBlogPost(
     || ((arImages.featured as Record<string, unknown>)?.url as string)
     || null;
 
-  const cleanedEnTitle = cleanTitle(enTitle || keyword);
+  const cleanedEnTitle = sanitizeTitle(cleanTitle(enTitle || keyword));
   const cleanedArTitle = arTitle; // Arabic doesn't use title case
 
   // Create the bilingual BlogPost

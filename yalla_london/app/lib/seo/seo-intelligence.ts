@@ -456,7 +456,8 @@ export async function autoOptimizeLowCTRMeta(
   prisma: any,
   searchData: SearchPerformanceAnalysis,
   issues: string[],
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<MetaOptimization[]> {
   const optimizations: MetaOptimization[] = [];
 
@@ -498,7 +499,7 @@ export async function autoOptimizeLowCTRMeta(
       where: {
         slug: page.slug,
         published: true,
-        
+        ...(siteId ? { siteId } : {}),
       },
       select: {
         id: true,
@@ -690,7 +691,8 @@ export async function submitUnindexedPages(
 export async function flagContentForStrengthening(
   prisma: any,
   searchData: SearchPerformanceAnalysis,
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<{ expanded: number; flagged: number; posts: string[] }> {
   const expandedPosts: string[] = [];
   const flaggedPosts: string[] = [];
@@ -704,7 +706,7 @@ export async function flagContentForStrengthening(
         where: {
           slug: page.slug,
           published: true,
-          
+          ...(siteId ? { siteId } : {}),
         },
         select: {
           id: true,

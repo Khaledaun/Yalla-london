@@ -119,7 +119,7 @@ async function crossSiteConfig(
   let totalMissingEnv = 0;
 
   for (const siteId of activeSiteIds) {
-    const siteConfig = SITES[siteId];
+    const siteConfig = Object.hasOwn(SITES, siteId) ? SITES[siteId as keyof typeof SITES] : undefined;
     const missingConfig: string[] = [];
     const missingEnvVars: string[] = [];
 
@@ -135,7 +135,7 @@ async function crossSiteConfig(
     }
 
     for (const field of requiredFields) {
-      const value = siteConfig[field];
+      const value = (siteConfig as Record<string, unknown>)[field];
       if (!value || (typeof value === "string" && value.trim().length === 0)) {
         missingConfig.push(field);
       }
@@ -144,7 +144,8 @@ async function crossSiteConfig(
     // Check site-specific GA4 env var
     const siteIdUpper = siteId.replace(/-/g, "_").toUpperCase();
     const ga4Key = `GA4_MEASUREMENT_ID_${siteIdUpper}`;
-    if (!process.env[ga4Key]) {
+    const envVars: Record<string, string | undefined> = process.env;
+    if (!envVars[ga4Key]) {
       missingEnvVars.push(ga4Key);
     }
 

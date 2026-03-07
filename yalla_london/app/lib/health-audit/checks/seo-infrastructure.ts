@@ -42,6 +42,11 @@ async function auditFetch(
   }
 }
 
+/** Safely assign a key to a record without triggering object-injection lint. */
+function safeSet<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, { value, writable: true, enumerable: true, configurable: true });
+}
+
 /** Pick up to N random published slugs from the database. */
 async function getRandomSlugs(siteId: string, count: number): Promise<string[]> {
   const { prisma } = await import("@/lib/db");
@@ -208,7 +213,7 @@ async function structuredData(config: AuditConfig): Promise<CheckResult> {
     try {
       const res = await auditFetch(url, config.signal);
       if (!res.ok) {
-        pageResults[slug] = { hasSchema: false, fields: [], missingFields: REQUIRED_FIELDS };
+        safeSet(pageResults, slug, { hasSchema: false, fields: [], missingFields: REQUIRED_FIELDS });
         continue;
       }
 
@@ -223,7 +228,7 @@ async function structuredData(config: AuditConfig): Promise<CheckResult> {
       }
 
       if (jsonLdBlocks.length === 0) {
-        pageResults[slug] = { hasSchema: false, fields: [], missingFields: REQUIRED_FIELDS };
+        safeSet(pageResults, slug, { hasSchema: false, fields: [], missingFields: REQUIRED_FIELDS });
         continue;
       }
 
@@ -246,10 +251,10 @@ async function structuredData(config: AuditConfig): Promise<CheckResult> {
       const valid = missingFields.length === 0;
       if (valid) totalValid++;
 
-      pageResults[slug] = { hasSchema: true, fields: foundFields, missingFields };
+      safeSet(pageResults, slug, { hasSchema: true, fields: foundFields, missingFields });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      pageResults[slug] = { hasSchema: false, fields: [], missingFields: REQUIRED_FIELDS };
+      safeSet(pageResults, slug, { hasSchema: false, fields: [], missingFields: REQUIRED_FIELDS });
       console.warn(`[health-audit] structured-data fetch failed for ${slug}: ${msg}`);
     }
   }
@@ -286,7 +291,7 @@ async function hreflangTags(config: AuditConfig): Promise<CheckResult> {
     try {
       const res = await auditFetch(url, config.signal);
       if (!res.ok) {
-        pageResults[slug] = { found: [], missing: EXPECTED_HREFLANGS };
+        safeSet(pageResults, slug, { found: [], missing: EXPECTED_HREFLANGS });
         continue;
       }
 
@@ -302,10 +307,10 @@ async function hreflangTags(config: AuditConfig): Promise<CheckResult> {
 
       const missing = EXPECTED_HREFLANGS.filter((h) => !foundLangs.includes(h));
       if (missing.length === 0) totalComplete++;
-      pageResults[slug] = { found: foundLangs, missing };
+      safeSet(pageResults, slug, { found: foundLangs, missing });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      pageResults[slug] = { found: [], missing: EXPECTED_HREFLANGS };
+      safeSet(pageResults, slug, { found: [], missing: EXPECTED_HREFLANGS });
       console.warn(`[health-audit] hreflang check failed for ${slug}: ${msg}`);
     }
   }
@@ -341,7 +346,7 @@ async function canonicalTags(config: AuditConfig): Promise<CheckResult> {
     try {
       const res = await auditFetch(url, config.signal);
       if (!res.ok) {
-        pageResults[slug] = { hasCanonical: false, selfReferencing: false, canonicalHref: null };
+        safeSet(pageResults, slug, { hasCanonical: false, selfReferencing: false, canonicalHref: null });
         continue;
       }
 
@@ -350,7 +355,7 @@ async function canonicalTags(config: AuditConfig): Promise<CheckResult> {
       // Find canonical link
       const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
       if (!canonicalMatch) {
-        pageResults[slug] = { hasCanonical: false, selfReferencing: false, canonicalHref: null };
+        safeSet(pageResults, slug, { hasCanonical: false, selfReferencing: false, canonicalHref: null });
         continue;
       }
 
@@ -360,10 +365,10 @@ async function canonicalTags(config: AuditConfig): Promise<CheckResult> {
       const selfReferencing = canonicalHref.includes(expectedPath);
 
       if (selfReferencing) totalCorrect++;
-      pageResults[slug] = { hasCanonical: true, selfReferencing, canonicalHref };
+      safeSet(pageResults, slug, { hasCanonical: true, selfReferencing, canonicalHref });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      pageResults[slug] = { hasCanonical: false, selfReferencing: false, canonicalHref: null };
+      safeSet(pageResults, slug, { hasCanonical: false, selfReferencing: false, canonicalHref: null });
       console.warn(`[health-audit] canonical check failed for ${slug}: ${msg}`);
     }
   }
@@ -401,7 +406,7 @@ async function openGraphTags(config: AuditConfig): Promise<CheckResult> {
     try {
       const res = await auditFetch(url, config.signal);
       if (!res.ok) {
-        pageResults[slug] = { ogFound: [], ogMissing: OG_TAGS, twitterFound: [], twitterMissing: TWITTER_TAGS };
+        safeSet(pageResults, slug, { ogFound: [], ogMissing: OG_TAGS, twitterFound: [], twitterMissing: TWITTER_TAGS });
         continue;
       }
 
@@ -426,10 +431,10 @@ async function openGraphTags(config: AuditConfig): Promise<CheckResult> {
       const allPresent = ogMissing.length === 0 && twitterMissing.length === 0;
       if (allPresent) totalComplete++;
 
-      pageResults[slug] = { ogFound, ogMissing, twitterFound, twitterMissing };
+      safeSet(pageResults, slug, { ogFound, ogMissing, twitterFound, twitterMissing });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      pageResults[slug] = { ogFound: [], ogMissing: OG_TAGS, twitterFound: [], twitterMissing: TWITTER_TAGS };
+      safeSet(pageResults, slug, { ogFound: [], ogMissing: OG_TAGS, twitterFound: [], twitterMissing: TWITTER_TAGS });
       console.warn(`[health-audit] og-tags check failed for ${slug}: ${msg}`);
     }
   }

@@ -364,6 +364,82 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       }
     }
 
+    // 12d. ORPHAN PAGE RESCUE — find pages with zero inbound links and add links to them
+    // from existing well-linked articles. Orphan pages can't be discovered by crawlers.
+    if (hasBudget(5_000)) {
+      let orphansRescued = 0;
+      try {
+        const allPublished = await prisma.blogPost.findMany({
+          where: { published: true, ...siteFilter, deletedAt: null },
+          select: { id: true, slug: true, title_en: true, content_en: true },
+          take: 200,
+        });
+
+        // Build a set of slugs that are linked TO by at least one other article
+        const linkedSlugs = new Set<string>();
+        for (const post of allPublished) {
+          const links = (post.content_en || "").match(/href="\/blog\/([a-zA-Z0-9_-]+)"/gi) || [];
+          for (const link of links) {
+            const match = link.match(/href="\/blog\/([a-zA-Z0-9_-]+)"/i);
+            if (match) linkedSlugs.add(match[1]);
+          }
+        }
+
+        // Orphans = published articles that no other article links to
+        const orphans = allPublished.filter(p => p.slug && !linkedSlugs.has(p.slug));
+
+        if (orphans.length > 0) {
+          // Find well-linked articles (articles that already have related-articles sections)
+          // and add orphan page links to their content
+          const hostsWithLinks = allPublished.filter(p =>
+            p.content_en && p.content_en.length > 500 && p.slug &&
+            !orphans.some(o => o.id === p.id)
+          );
+
+          for (const orphan of orphans.slice(0, 10)) {
+            if (!hasBudget(2_000)) break;
+            if (!orphan.slug || !orphan.title_en) continue;
+
+            // Find a host article to add the orphan link to (round-robin by orphan index)
+            const host = hostsWithLinks[orphansRescued % hostsWithLinks.length];
+            if (!host || !host.content_en) continue;
+
+            // Check if host already links to this orphan
+            if (host.content_en.includes(`/blog/${orphan.slug}`)) continue;
+
+            // Inject a contextual link near the end of the article (before closing tags)
+            const linkHtml = `<p>You may also enjoy: <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
+
+            // Add before the last </section> or </article> or at the end
+            let updatedContent = host.content_en;
+            const insertPoint = updatedContent.lastIndexOf("</section>");
+            if (insertPoint > 0) {
+              updatedContent = updatedContent.slice(0, insertPoint) + linkHtml + updatedContent.slice(insertPoint);
+            } else {
+              updatedContent += linkHtml;
+            }
+
+            try {
+              await prisma.blogPost.update({
+                where: { id: host.id },
+                data: { content_en: updatedContent },
+              });
+              orphansRescued++;
+            } catch (e) {
+              console.warn(`[seo-agent] Orphan rescue failed for ${orphan.slug}:`, e instanceof Error ? e.message : e);
+            }
+          }
+        }
+
+        if (orphansRescued > 0) {
+          fixes.push(`Rescued ${orphansRescued} orphan pages by adding inbound links from existing articles`);
+        }
+        report.orphanPageRescue = { totalOrphans: orphans.length, rescued: orphansRescued };
+      } catch (orphanErr) {
+        console.warn("[seo-agent] Orphan page rescue failed (non-fatal):", orphanErr instanceof Error ? orphanErr.message : orphanErr);
+      }
+    }
+
     // NOTE: Step 13 (content strategy + diversity) moved to seo-agent-intelligence
 
   // 13. STORE AGENT RUN REPORT
@@ -802,7 +878,7 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
     if (newlyTracked.length > 0) {
       try {
         const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-        await submitToIndexNow(newlyTracked);
+        await submitToIndexNow(newlyTracked, siteUrl);
         indexNowSubmitted = newlyTracked.length;
         // Mark as submitted in DB
         await prisma.uRLIndexingStatus.updateMany({

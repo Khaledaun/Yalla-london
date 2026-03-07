@@ -81,7 +81,11 @@ export async function runContentBuilder(
       allDrafts.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         const orderA = phaseOrder[a.current_phase as string] || 0;
         const orderB = phaseOrder[b.current_phase as string] || 0;
-        return orderB - orderA;
+        // Deprioritize drafts that have failed 3+ times with budget errors —
+        // they need a full-budget run, not another shared-budget attempt
+        const aStuck = ((a.phase_attempts as number) || 0) >= 3 && ((a.last_error as string) || "").includes("Budget too low") ? -10 : 0;
+        const bStuck = ((b.phase_attempts as number) || 0) >= 3 && ((b.last_error as string) || "").includes("Budget too low") ? -10 : 0;
+        return (orderB + bStuck) - (orderA + aStuck);
       });
 
       draft = allDrafts[0] || null;

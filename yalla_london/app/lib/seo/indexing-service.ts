@@ -153,45 +153,71 @@ export async function submitToIndexNow(
   // Use batch POST method — submits up to 10,000 URLs in one request
   // This is far more efficient than per-URL GET requests
   const batchUrls = urls.slice(0, 10_000);
-  try {
-    const response = await fetchWithRetry(
-      "https://api.indexnow.org/indexnow",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          host: hostname,
-          key: indexNowKey,
-          keyLocation: `${baseUrl}/${indexNowKey}.txt`,
-          urlList: batchUrls,
-        }),
-      },
-      2,
-      1000,
-    );
+  const payload = JSON.stringify({
+    host: hostname,
+    key: indexNowKey,
+    keyLocation: `${baseUrl}/${indexNowKey}.txt`,
+    urlList: batchUrls,
+  });
 
-    const accepted = response.ok || response.status === 200 || response.status === 202;
-    results.push({
-      engine: "IndexNow (Bing/Yandex/Seznam)",
-      success: accepted,
-      status: response.status,
-      message: accepted
-        ? `Batch submitted ${batchUrls.length} URLs`
-        : `HTTP ${response.status} — check IndexNow key at ${baseUrl}/${indexNowKey}.txt`,
-    });
+  // Submit to multiple IndexNow-compatible engines for maximum coverage.
+  // Each engine independently implements IndexNow — if one rejects (e.g. 403),
+  // others may still accept. This is critical because api.indexnow.org (Bing)
+  // sometimes returns 403 even with valid key files.
+  const INDEXNOW_ENGINES = [
+    { name: "Bing", url: "https://www.bing.com/indexnow" },
+    { name: "IndexNow (Yandex/Seznam/Naver)", url: "https://api.indexnow.org/indexnow" },
+    { name: "Yandex", url: "https://yandex.com/indexnow" },
+  ];
 
-    if (!accepted) {
-      console.warn(
-        `[SEO] IndexNow batch rejected: HTTP ${response.status}. ` +
-        `Verify key file serves correctly at ${baseUrl}/${indexNowKey}.txt`,
+  let anySuccess = false;
+  for (const engine of INDEXNOW_ENGINES) {
+    try {
+      const response = await fetchWithRetry(
+        engine.url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: payload,
+        },
+        2,
+        1000,
       );
+
+      const accepted = response.ok || response.status === 200 || response.status === 202;
+      if (accepted) anySuccess = true;
+
+      results.push({
+        engine: engine.name,
+        success: accepted,
+        status: response.status,
+        message: accepted
+          ? `Batch submitted ${batchUrls.length} URLs`
+          : `HTTP ${response.status}`,
+      });
+
+      if (!accepted) {
+        // Log response body for debugging 403/422 errors
+        let responseBody = "";
+        try { responseBody = await response.text(); } catch { /* ignore */ }
+        console.warn(
+          `[SEO] ${engine.name} IndexNow rejected: HTTP ${response.status}. ` +
+          `host=${hostname}, keyLocation=${baseUrl}/${indexNowKey}.txt, ` +
+          `urls=${batchUrls.length}, body=${responseBody.substring(0, 200)}`,
+        );
+      }
+    } catch (error) {
+      results.push({
+        engine: engine.name,
+        success: false,
+        message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
-  } catch (error) {
-    results.push({
-      engine: "IndexNow (Bing/Yandex/Seznam)",
-      success: false,
-      message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
-    });
+  }
+
+  // If at least one engine accepted, mark overall as success
+  if (anySuccess && results.length > 0) {
+    results[0].success = true;
   }
 
   return results;

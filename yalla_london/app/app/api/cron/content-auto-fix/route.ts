@@ -213,7 +213,7 @@ async function handleAutoFix(request: NextRequest) {
         where: { published: true, deletedAt: null },
         select: { slug: true, title_en: true },
         orderBy: { created_at: "desc" },
-        take: 200,
+        take: 500,
       });
       const validSlugs = new Set(realPosts.map(p => p.slug));
 
@@ -224,53 +224,55 @@ async function handleAutoFix(request: NextRequest) {
           deletedAt: null,
           content_en: { not: "" },
         },
-        select: { id: true, content_en: true, siteId: true, slug: true },
-        take: 30,
+        select: { id: true, content_en: true, content_ar: true, siteId: true, slug: true },
+        take: 50,
         orderBy: { created_at: "desc" },
       });
+
+      // Helper: fix broken links in a content string
+      const fixBrokenLinks = (content: string): string => {
+        // Phase 1: Strip TOPIC_SLUG placeholders immediately (no fuzzy matching needed)
+        let fixed = content.replace(
+          /<a\s+[^>]*href="\/blog\/TOPIC_SLUG"[^>]*>(.*?)<\/a>/gi,
+          (_match, anchor) => anchor,
+        );
+        // Phase 2: Fix remaining broken links (hallucinated slugs)
+        fixed = fixed.replace(
+          /<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
+          (fullMatch, pre, slug, post2, anchor) => {
+            if (validSlugs.has(slug) || validSlugs.has(slug.toLowerCase())) return fullMatch;
+            const topic = slug.toLowerCase().replace(/[-_]/g, " ");
+            const topicWords = topic.split(" ").filter((w: string) => w.length > 3);
+            const match = realPosts.find(p => {
+              const title = (p.title_en || "").toLowerCase();
+              return topicWords.filter((w: string) => title.includes(w)).length >= 2;
+            });
+            if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
+            return anchor;
+          }
+        );
+        return fixed;
+      };
 
       let brokenLinksFixed = 0;
       for (const post of postsToCheck) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
 
-        const content = post.content_en || "";
-        // Match all /blog/slug links (but not /blog itself or /blog?query)
-        const blogLinkRegex = /href="\/blog\/([a-zA-Z0-9_-]+)"/gi;
-        let hasBroken = false;
-        let m;
-        const testContent = content;
-        while ((m = blogLinkRegex.exec(testContent)) !== null) {
-          if (!validSlugs.has(m[1]) && !validSlugs.has(m[1].toLowerCase())) {
-            hasBroken = true;
-            break;
-          }
-        }
-        if (!hasBroken) continue;
+        const contentEn = post.content_en || "";
+        const contentAr = post.content_ar || "";
+        const fixedEn = fixBrokenLinks(contentEn);
+        const fixedAr = fixBrokenLinks(contentAr);
+        const enChanged = fixedEn !== contentEn;
+        const arChanged = fixedAr !== contentAr;
 
-        // Replace broken links with best-effort match or remove the link wrapper entirely
-        const fixed = content.replace(
-          /<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
-          (fullMatch, pre, slug, post2, anchor) => {
-            // If slug exists, keep the link as-is
-            if (validSlugs.has(slug) || validSlugs.has(slug.toLowerCase())) return fullMatch;
-            // Try to find a matching article by topic words
-            const topic = slug.toLowerCase().replace(/[-_]/g, " ");
-            const topicWords = topic.split(" ").filter(w => w.length > 3);
-            const match = realPosts.find(p => {
-              const title = (p.title_en || "").toLowerCase();
-              return topicWords.filter(w => title.includes(w)).length >= 2;
-            });
-            if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
-            // No match — unwrap the link, keep the anchor text as plain text
-            return anchor;
-          }
-        );
-
-        if (fixed !== content) {
-          await prisma.blogPost.update({ where: { id: post.id }, data: { content_en: fixed } });
+        if (enChanged || arChanged) {
+          const updateData: Record<string, string> = {};
+          if (enChanged) updateData.content_en = fixedEn;
+          if (arChanged) updateData.content_ar = fixedAr;
+          await prisma.blogPost.update({ where: { id: post.id }, data: updateData });
           brokenLinksFixed++;
         }
-        if (brokenLinksFixed >= 10) break;
+        if (brokenLinksFixed >= 30) break;
       }
       if (brokenLinksFixed > 0) {
         console.log(`[content-auto-fix] Fixed broken internal links in ${brokenLinksFixed} articles`);

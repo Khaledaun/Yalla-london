@@ -587,7 +587,7 @@ Tasks:
 1. Add smooth transitions between sections
 2. Remove any repetition across sections
 3. Ensure consistent tone (luxury, authoritative, helpful)
-4. Add 3+ internal link placeholders as: <a href="/blog/TOPIC_SLUG" class="internal-link">anchor text</a>
+4. Add 3+ internal links using ONLY the real slugs provided in "Internal link targets" below. Format: <a href="/blog/ACTUAL-SLUG-HERE" class="internal-link">descriptive anchor text</a>. NEVER use placeholder text like "TOPIC_SLUG" — every href must contain a real slug from the list below. If no internal link targets are provided, skip internal links entirely (they will be injected later).
 5. Add ${affiliatePlacements.length || 2} affiliate placeholders as: <div class="affiliate-placeholder" data-type="TYPE">Affiliate recommendation block</div>
 6. MANDATORY: Final word count MUST be at least 1,500 words — expand sections if needed
 7. Add a proper introduction (minimum 80 words) if missing

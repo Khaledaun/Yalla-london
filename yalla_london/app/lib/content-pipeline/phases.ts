@@ -171,6 +171,7 @@ Return JSON:
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,
+      phaseBudgetHint: 'light',
       siteId: draft.site_id,
       taskType: "content_research",
       calledFrom: "phases/research",
@@ -271,6 +272,7 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
+      phaseBudgetHint: 'medium',
       siteId: draft.site_id,
       taskType: "content_outline",
       calledFrom: "phases/outline",
@@ -431,6 +433,7 @@ CRITICAL JSON RULES:
           maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2500 : 1500),
           temperature: 0.7,
           timeoutMs: sectionTimeout,
+          phaseBudgetHint: 'heavy',
           siteId: draft.site_id,
           taskType: `content_drafting_s${i + 1}`,
           calledFrom: useMinimalPrompt ? "phases/drafting-minimal" : "phases/drafting",
@@ -538,8 +541,10 @@ export async function phaseAssembly(
   // because they require large prompts (6000+ chars of HTML) and large responses (1500+ tokens).
   // After a single failure, retrying with the same budget/provider will almost certainly fail again.
   // Raw fallback produces complete articles instantly — the auto-fix cron polishes them later.
+  // Smart skip: Assembly AI needs 25-35s. If budget < 25s, the AI call will timeout and waste
+  // the cron cycle. Go straight to raw fallback (instant, always succeeds).
   const attempts = draft.phase_attempts || 0;
-  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) || attempts >= 1;
+  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) || attempts >= 1;
 
   if (useFallback) {
     console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);
@@ -561,9 +566,9 @@ export async function phaseAssembly(
     };
   }
 
-  // Budget guard: need at least 12s for AI call + DB save
-  if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
-    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining, need 12s) — will retry next run` };
+  // Budget guard: need at least 25s for AI assembly call + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) {
+    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining, need 25s) — will retry next run` };
   }
   const { generateJSON } = await import("@/lib/ai/provider");
 
@@ -572,7 +577,8 @@ export async function phaseAssembly(
 
   const writeLang = isArabic(draft.locale) ? "Arabic" : "English";
   // Arabic prompts are ~2.5x more token-dense — truncate harder to fit within timeout
-  const rawHtmlLimit = isArabic(draft.locale) ? 4000 : 6000;
+  // Reduced from 6000/4000 to 4000/3000 — assembly is a polish pass, not generation
+  const rawHtmlLimit = isArabic(draft.locale) ? 3000 : 4000;
 
   const prompt = `You are a senior editor for "${site.name}" (${site.destination} luxury travel).
 
@@ -622,9 +628,10 @@ Return JSON:
     const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - bufferMs, 10_000) : 30_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: isArabic(draft.locale) ? 2500 : 1500,
+      maxTokens: isArabic(draft.locale) ? 2000 : 1200,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
+      phaseBudgetHint: 'heavy',
       siteId: draft.site_id,
       taskType: "content_assembly",
       calledFrom: "phases/assembly",
@@ -941,6 +948,7 @@ Return JSON:
       maxTokens: isArabic(draft.locale) ? 1800 : 1200,
       temperature: 0.3,
       timeoutMs: seoTimeout,
+      phaseBudgetHint: 'light',
       siteId: draft.site_id,
       taskType: "content_seo",
       calledFrom: "phases/seo",

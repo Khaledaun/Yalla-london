@@ -122,6 +122,16 @@ export async function runSweeper(): Promise<SweeperResult> {
         continue;
       }
 
+      // Skip if diagnostic-agent already handled this draft within the last hour
+      if (reason.includes("[diagnostic-agent-reset]")) {
+        const updatedAt = draft.updated_at ? new Date(draft.updated_at as string).getTime() : 0;
+        if (Date.now() - updatedAt < 3_600_000) {
+          console.log(`[sweeper] Skipping draft ${draftId} — diagnostic-agent reset within last hour`);
+          skipped++;
+          continue;
+        }
+      }
+
       // PERMANENT FAILURE CAP: If phase_attempts >= 10, this draft has been
       // recovered too many times. Mark as permanently_failed and stop wasting compute.
       if (currentAttempts >= 10) {
@@ -281,6 +291,16 @@ export async function runSweeper(): Promise<SweeperResult> {
       if (!diagnosis.retryable) {
         skipped++;
         continue;
+      }
+
+      // Skip if diagnostic-agent already handled this draft within the last hour
+      if (lastError.includes("[diagnostic-agent-reset]")) {
+        const updatedAt = draft.updated_at ? new Date(draft.updated_at as string).getTime() : 0;
+        if (Date.now() - updatedAt < 3_600_000) {
+          console.log(`[sweeper] Skipping failing draft ${draftId} — diagnostic-agent reset within last hour`);
+          skipped++;
+          continue;
+        }
       }
 
       // ASSEMBLY TIMEOUT: Do NOT reset — the raw fallback (attempts >= 1) handles it.

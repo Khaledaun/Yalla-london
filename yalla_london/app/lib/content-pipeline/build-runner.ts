@@ -81,7 +81,11 @@ export async function runContentBuilder(
       allDrafts.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         const orderA = phaseOrder[a.current_phase as string] || 0;
         const orderB = phaseOrder[b.current_phase as string] || 0;
-        return orderB - orderA;
+        // Deprioritize drafts that have failed 3+ times with budget errors —
+        // they need a full-budget run, not another shared-budget attempt
+        const aStuck = ((a.phase_attempts as number) || 0) >= 3 && ((a.last_error as string) || "").includes("Budget too low") ? -10 : 0;
+        const bStuck = ((b.phase_attempts as number) || 0) >= 3 && ((b.last_error as string) || "").includes("Budget too low") ? -10 : 0;
+        return (orderB + bStuck) - (orderA + aStuck);
       });
 
       draft = allDrafts[0] || null;
@@ -107,197 +111,17 @@ export async function runContentBuilder(
       throw e;
     }
 
-    // Step 2: If no in-progress draft, create new ones from topic queue
-    // Iterate ALL active sites (not just the first) so sites 2-5 get drafts too.
-    // Creates at most 1 bilingual pair per site per run, checking budget between sites.
+    // Step 2: No in-progress draft — defer creation to content-builder-create cron.
+    // Draft creation is handled by /api/cron/content-builder-create (runs every 30min).
+    // Keeping build-runner focused on phase advancement maximizes AI budget (53s).
+    // Safety net: if content-builder-create hasn't run in 2+ hours, we still skip — the
+    // departures board and cron log will surface the issue for Khaled.
     if (!draft) {
-      const skippedSites: string[] = [];
-      const fullReservoirs: string[] = [];
-
-      for (const siteId of activeSites) {
-        // Budget guard: stop creating drafts if time is running out
-        if (deadline.isExpired()) {
-          console.log(`[content-builder] Budget expired during draft creation — processed ${activeSites.indexOf(siteId)} of ${activeSites.length} sites`);
-          break;
-        }
-
-        const site = SITES[siteId];
-        if (!site) {
-          skippedSites.push(siteId);
-          continue;
-        }
-
-        const reservoirCount = await prisma.articleDraft.count({
-          where: { site_id: siteId, current_phase: "reservoir" },
-        });
-
-        if (reservoirCount >= 10) {
-          fullReservoirs.push(siteId + "(" + reservoirCount + ")");
-          continue;
-        }
-
-        let keyword = "";
-        let topicProposalId: string | null = null;
-        let strategy = "template_cycle";
-        let locale = "en";
-        let claimedCandidate: { id: string; primary_keyword: string; locale: string | null; longtails: string[]; questions: string[] } | null = null;
-
-        try {
-          // Find a candidate topic
-          const candidate = await prisma.topicProposal.findFirst({
-            where: {
-              status: { in: ["ready", "queued", "planned", "proposed"] },
-              site_id: siteId,
-            },
-            orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
-          });
-
-          if (candidate) {
-            // Atomically claim it — only succeeds if status hasn't changed
-            // This prevents race conditions where multiple pipelines grab the same topic
-            const claimed = await prisma.topicProposal.updateMany({
-              where: {
-                id: candidate.id,
-                status: { in: ["ready", "queued", "planned", "proposed"] },
-              },
-              data: {
-                status: "generating",
-                updated_at: new Date(),
-              },
-            });
-
-            if (claimed.count === 0) {
-              // Another process already claimed this topic — skip it
-              console.log(`[content-builder] Topic ${candidate.id} already claimed by another process, skipping`);
-            } else {
-              keyword = candidate.primary_keyword;
-              topicProposalId = candidate.id;
-              locale = candidate.locale || "en";
-              strategy = "topic_db";
-              claimedCandidate = {
-                id: candidate.id,
-                primary_keyword: candidate.primary_keyword,
-                locale: candidate.locale,
-                longtails: candidate.longtails || [],
-                questions: candidate.questions || [],
-              };
-            }
-          }
-        } catch (topicErr) {
-          console.warn(`[build-runner] TopicProposal query failed for ${siteId} — falling through to template:`, topicErr instanceof Error ? topicErr.message : topicErr);
-        }
-
-        if (!keyword) {
-          const topics = site.topicsEN;
-          if (!topics || topics.length === 0) {
-            skippedSites.push(siteId);
-            continue;
-          }
-          const dayOfYear = Math.floor(
-            (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000,
-          );
-          const topic = topics[dayOfYear % topics.length];
-          keyword = topic.keyword;
-          locale = "en";
-          strategy = "template_cycle";
-        }
-
-        // Pre-populate research_data from TopicProposal metadata (if available)
-        // This allows the research phase to skip the AI call, saving ~15s per article.
-        let prePopulatedResearch: Record<string, unknown> | undefined;
-        if (topicProposalId && claimedCandidate) {
-          const hasLongtails = Array.isArray(claimedCandidate.longtails) && claimedCandidate.longtails.length > 0;
-          const hasQuestions = Array.isArray(claimedCandidate.questions) && claimedCandidate.questions.length > 0;
-          if (hasLongtails || hasQuestions) {
-            prePopulatedResearch = {
-              keywordData: {
-                primary: keyword,
-                secondary: (claimedCandidate.longtails || []).slice(0, 3),
-                longTail: claimedCandidate.longtails || [],
-                questions: claimedCandidate.questions || [],
-              },
-              contentStrategy: {
-                recommendedWordCount: 1800,
-                recommendedHeadings: 8,
-                toneGuidance: "luxury, authoritative, helpful for Arab travelers",
-                uniqueAngle: "",
-                affiliateOpportunities: [],
-              },
-              _prePopulated: true,
-              _source: "topic_proposal",
-            };
-          }
-        }
-
-        const enDraft = await prisma.articleDraft.create({
-          data: {
-            site_id: siteId,
-            keyword,
-            locale: "en",
-            current_phase: "research",
-            topic_proposal_id: topicProposalId,
-            generation_strategy: strategy,
-            phase_started_at: new Date(),
-            research_data: prePopulatedResearch,
-          },
-        });
-
-        const arDraft = await prisma.articleDraft.create({
-          data: {
-            site_id: siteId,
-            keyword,
-            locale: "ar",
-            current_phase: "research",
-            topic_proposal_id: topicProposalId,
-            generation_strategy: strategy + "_ar",
-            phase_started_at: new Date(),
-            paired_draft_id: enDraft.id,
-          },
-        });
-
-        await prisma.articleDraft.update({
-          where: { id: enDraft.id },
-          data: { paired_draft_id: arDraft.id },
-        });
-
-        // Transition topic from "generating" to "generated" now that drafts are created
-        if (topicProposalId) {
-          await prisma.topicProposal.update({
-            where: { id: topicProposalId },
-            data: { status: "generated" },
-          }).catch((err: unknown) => {
-            console.warn(`[content-builder] Failed to mark topic ${topicProposalId} as generated:`, err instanceof Error ? err.message : err);
-          });
-        }
-
-        // Use the first created draft for phase execution in Step 3
-        if (!draft) {
-          draft = enDraft;
-        }
-
-        console.log(
-          `[content-builder] Created bilingual pair for site "${siteId}": EN=${enDraft.id}, AR=${arDraft.id} for keyword "${keyword}" (${strategy})`,
-        );
-      }
-
-      if (skippedSites.length > 0) {
-        console.log(`[content-builder] Skipped sites (no config or no topics): ${skippedSites.join(", ")}`);
-      }
-      if (fullReservoirs.length > 0) {
-        console.log(`[content-builder] Full reservoirs: ${fullReservoirs.join(", ")}`);
-      }
-
-      // If no draft was created for any site, return informational message
-      if (!draft) {
-        const reasons: string[] = [];
-        if (skippedSites.length > 0) reasons.push("no config/topics: " + skippedSites.join(", "));
-        if (fullReservoirs.length > 0) reasons.push("reservoir full: " + fullReservoirs.join(", "));
-        return {
-          success: true,
-          message: "No drafts created across " + activeSites.length + " active sites. " + (reasons.length > 0 ? reasons.join("; ") : "No pending topics found."),
-          durationMs: Date.now() - cronStart,
-        };
-      }
+      return {
+        success: true,
+        message: "No drafts to advance — content-builder-create handles new draft creation",
+        durationMs: Date.now() - cronStart,
+      };
     }
 
     // Step 3: Run the current phase

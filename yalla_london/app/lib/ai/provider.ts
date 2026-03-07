@@ -35,6 +35,10 @@ export interface AICompletionOptions {
   /** Override the default 25s timeout per AI call (milliseconds). Use for dedicated
    *  API routes where each call gets its own 60s Vercel function execution. */
   timeoutMs?: number;
+  /** Budget hint from the content pipeline phase. Controls first-provider vs fallback
+   *  budget split. 'heavy' phases (drafting, assembly) use adaptive fallback that gives
+   *  the next provider 80% of remaining budget on fast failures (<5s). */
+  phaseBudgetHint?: 'light' | 'medium' | 'heavy';
 }
 
 // ---------------------------------------------------------------------------
@@ -125,10 +129,59 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude.
-// Gemini removed from active rotation (inactive as of March 2026).
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Gemini.
 // Perplexity removed: quota exhausted, billing issue — re-add when resolved.
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude'];
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'gemini'];
+
+// ---------------------------------------------------------------------------
+// Circuit Breaker — prevents wasting 15-28s retrying a dead provider.
+// After 3 consecutive failures, the provider is "open" (skipped) for 60s.
+// After 60s, one probe request is allowed ("half-open"). If it succeeds,
+// the circuit closes. Module-scope state resets on Vercel cold start (fine).
+// ---------------------------------------------------------------------------
+interface CircuitState {
+  failures: number;
+  lastFailure: number;
+  state: 'closed' | 'open' | 'half-open';
+}
+
+const circuitBreakers = new Map<AIProvider, CircuitState>();
+
+function getCircuitState(provider: AIProvider): CircuitState {
+  if (!circuitBreakers.has(provider)) {
+    circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed' });
+  }
+  return circuitBreakers.get(provider)!;
+}
+
+function recordProviderSuccess(provider: AIProvider): void {
+  circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed' });
+}
+
+function recordProviderFailure(provider: AIProvider): void {
+  const state = getCircuitState(provider);
+  state.failures++;
+  state.lastFailure = Date.now();
+  if (state.failures >= 3) {
+    state.state = 'open';
+    console.warn(`[ai/provider] Circuit OPEN for ${provider} — ${state.failures} consecutive failures`);
+  }
+}
+
+function isProviderAvailable(provider: AIProvider): boolean {
+  const state = getCircuitState(provider);
+  if (state.state === 'closed') return true;
+  if (state.state === 'open') {
+    // After 60s in open state, allow one probe request
+    if (Date.now() - state.lastFailure > 60_000) {
+      state.state = 'half-open';
+      return true;
+    }
+    return false;
+  }
+  // half-open: allow one attempt (probe)
+  return true;
+}
 
 /**
  * Get API key for a provider from the database
@@ -525,54 +578,103 @@ export async function generateCompletion(
     }
   }
 
-  // Try providers in priority order: grok → claude → openai → gemini
+  // Try providers in priority order: grok → openai → claude → gemini
   // Use the per-call timeout as a total budget for the fallback chain.
   // This prevents cascading timeouts (4 providers × 25s = 100s > Vercel 60s).
   const fallbackStart = Date.now();
   const totalBudgetMs = options.timeoutMs || 25_000;
   const errors: string[] = [];
 
-  // Pre-scan which providers have API keys so we can split budget fairly.
-  // This avoids the old problem where each provider reserved a 5s buffer
-  // for "the next fallback," which cascaded and starved providers 4-5.
+  // Task-type routing: if taskType is set, check DB for a configured provider route.
+  // This allows the admin UI to route e.g. Arabic writing to Claude, scoring to gpt-4o-mini.
+  // Falls back to PROVIDER_PRIORITY if no DB route is configured.
+  let routedPriority: AIProvider[] = [...PROVIDER_PRIORITY];
+  if (options.taskType) {
+    try {
+      const { getProviderForTask } = await import('@/lib/ai/provider-config');
+      const route = await getProviderForTask(options.taskType as import('@/lib/ai/provider-config').TaskType, options.siteId);
+      if (route.provider && PROVIDER_PRIORITY.includes(route.provider as AIProvider)) {
+        // Build custom priority: routed provider first, then its fallback, then rest
+        const routedProvider = route.provider as AIProvider;
+        routedPriority = [routedProvider];
+        if (route.fallback && PROVIDER_PRIORITY.includes(route.fallback as AIProvider)) {
+          routedPriority.push(route.fallback as AIProvider);
+        }
+        // Fill remaining from PROVIDER_PRIORITY (skip already-added)
+        for (const p of PROVIDER_PRIORITY) {
+          if (!routedPriority.includes(p)) routedPriority.push(p);
+        }
+      }
+    } catch (routeErr) {
+      // DB or import failure — fall through to default PROVIDER_PRIORITY
+      console.warn('[ai/provider] Task routing lookup failed (non-fatal):', routeErr instanceof Error ? routeErr.message : routeErr);
+    }
+  }
+
+  // Pre-scan which providers have API keys AND are not circuit-broken.
   const availableProviders: Array<{ provider: AIProvider; apiKey: string }> = [];
-  for (const p of PROVIDER_PRIORITY) {
+  for (const p of routedPriority) {
+    if (!isProviderAvailable(p)) {
+      errors.push(`${p}: skipped — circuit open`);
+      continue;
+    }
     const k = await getApiKey(p);
     if (k) availableProviders.push({ provider: p, apiKey: k });
   }
+
+  // Phase-aware budget split ratios
+  const hint = options.phaseBudgetHint;
+  const firstSharePct = hint === 'light' ? 0.50
+    : hint === 'medium' ? 0.55
+    : hint === 'heavy' ? 0.55
+    : 0.65; // default (backwards compatible)
+  const maxPerProviderMs = hint === 'light' ? 15_000
+    : hint === 'medium' ? 20_000
+    : 40_000;
+
+  let lastFailWasFast = false; // Track fast failures for adaptive fallback
 
   for (let i = 0; i < availableProviders.length; i++) {
     const { provider, apiKey } = availableProviders[i];
     const elapsed = Date.now() - fallbackStart;
     const remaining = totalBudgetMs - elapsed;
-    // Need at least 3s for a meaningful attempt (was 5s — too aggressive, starved later providers)
     if (remaining < 3_000) {
       errors.push(`${provider}: skipped — only ${Math.max(0, Math.round(remaining / 1000))}s remaining in budget`);
       continue;
     }
 
+    const remainingProviders = availableProviders.length - i;
+    const isFirstProvider = i === 0;
+    let rawShare: number;
+
+    if (isFirstProvider) {
+      rawShare = Math.floor((remaining - 1_000) * firstSharePct);
+    } else if (hint === 'heavy' && lastFailWasFast) {
+      // Adaptive fallback: fast failure (<5s) means provider is down, not slow.
+      // Give the next provider 80% of remaining budget instead of equal split.
+      rawShare = Math.floor((remaining - 1_000) * 0.80);
+      lastFailWasFast = false; // Reset after one adaptive allocation
+    } else {
+      rawShare = Math.floor((remaining - 1_000) / remainingProviders);
+    }
+
+    const providerTimeout = Math.max(Math.min(rawShare, maxPerProviderMs), 5_000);
+    const attemptStart = Date.now();
     try {
-      // Budget allocation strategy:
-      // First provider gets 65% of total budget. Fallback providers split the
-      // remaining time equally. Arabic drafting needs 30-40s for 3500 tokens —
-      // the first provider must get enough time to actually finish.
-      const MAX_PER_PROVIDER_MS = 40_000;
-      const remainingProviders = availableProviders.length - i;
-      const isFirstProvider = i === 0;
-      // Simple split: first provider gets 65%, fallbacks split remaining equally
-      const rawShare = isFirstProvider
-        ? Math.floor((remaining - 1_000) * 0.65)
-        : Math.floor((remaining - 1_000) / remainingProviders);
-      const providerTimeout = Math.max(Math.min(rawShare, MAX_PER_PROVIDER_MS), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,
       });
+      recordProviderSuccess(provider);
       logUsage(result, options);
       return result;
     } catch (error) {
+      const attemptDurationMs = Date.now() - attemptStart;
       const msg = `${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`;
       errors.push(msg);
+      recordProviderFailure(provider);
+      // Detect fast failures (<5s) for adaptive fallback on heavy phases
+      lastFailWasFast = attemptDurationMs < 5_000;
       continue;
     }
   }

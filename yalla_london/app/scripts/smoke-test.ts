@@ -168,8 +168,8 @@ test("Pipeline", "pre-publication-gate.ts exists", () => {
 
 // ==================== CATEGORY 3: Atomic Topic Claiming ====================
 
-test("Pipeline", "build-runner uses atomic claiming (updateMany)", () => {
-  return fileContains("lib/content-pipeline/build-runner.ts", "updateMany")
+test("Pipeline", "content-builder-create uses atomic claiming (updateMany)", () => {
+  return fileContains("app/api/cron/content-builder-create/route.ts", "updateMany")
     ? { status: PASS, details: "Uses updateMany for atomic claiming" }
     : { status: FAIL, details: "Missing atomic claiming" };
 });
@@ -186,8 +186,8 @@ test("Pipeline", "full-pipeline-runner uses atomic claiming", () => {
     : { status: FAIL, details: "Missing atomic claiming" };
 });
 
-test("Pipeline", "build-runner uses 'generating' status", () => {
-  return fileContains("lib/content-pipeline/build-runner.ts", '"generating"')
+test("Pipeline", "content-builder-create uses 'generating' status", () => {
+  return fileContains("app/api/cron/content-builder-create/route.ts", '"generating"')
     ? { status: PASS, details: "Uses generating status" }
     : { status: FAIL, details: "Missing generating status" };
 });

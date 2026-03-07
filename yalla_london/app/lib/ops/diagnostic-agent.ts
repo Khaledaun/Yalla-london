@@ -379,22 +379,26 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // Non-assembly phases: Reset attempts and unlock for retry with fresh budget.
+        // Non-assembly phases: Reduce attempts by 2 (not reset to 0) and unlock.
+        // Resetting to 0 caused infinite recovery loops — the sweeper would re-increment,
+        // diagnostic-agent would reset to 0 again, forever bypassing the permanent cap (10).
+        // Reducing by 2 gives the draft 2 more chances while preserving lifetime history.
+        const reducedAttempts = Math.max((draft.phase_attempts || 0) - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
-            phase_attempts: 0,
+            phase_attempts: reducedAttempts,
             phase_started_at: null,
-            last_error: `[diagnostic-agent] Reset from ${diagnosis.category} — was stuck ${diagnosis.attempts} attempts`,
+            last_error: `[diagnostic-agent-reset] Reduced from ${diagnosis.category} — was ${diagnosis.attempts} attempts, now ${reducedAttempts}`,
             updated_at: new Date(),
           },
         });
         return {
           diagnosis,
-          fixApplied: "reset_attempts_and_unlock",
+          fixApplied: "reduce_attempts_and_unlock",
           success: true,
           before,
-          after: { phase: draft.current_phase, attempts: 0, phase_started_at: null },
+          after: { phase: draft.current_phase, attempts: reducedAttempts, phase_started_at: null },
         };
       }
 
@@ -451,17 +455,23 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // Otherwise, reset for retry
+        // Otherwise, reduce attempts by 2 for retry (not reset to 0 — prevents infinite loops)
+        const loopReducedAttempts = Math.max((draft.phase_attempts || 0) - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: 0, phase_started_at: null, updated_at: new Date() },
+          data: {
+            phase_attempts: loopReducedAttempts,
+            phase_started_at: null,
+            last_error: `[diagnostic-agent-reset] Reduced stuck_loop from ${draft.phase_attempts} to ${loopReducedAttempts}`,
+            updated_at: new Date(),
+          },
         });
         return {
           diagnosis,
-          fixApplied: "reset_attempts",
+          fixApplied: "reduce_attempts",
           success: true,
           before,
-          after: { phase: draft.current_phase, attempts: 0 },
+          after: { phase: draft.current_phase, attempts: loopReducedAttempts },
         };
       }
 

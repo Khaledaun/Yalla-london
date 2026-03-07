@@ -639,7 +639,10 @@ async function logSweeperEvent(entry: SweeperLogEntry): Promise<void> {
       data: {
         job_name: "failure-hook",
         job_type: "reactive",
-        status: entry.outcome === "recovered" ? "completed" : "failed",
+        // The failure-hook ITSELF always succeeds (it detected and logged the failure).
+        // Log as "completed" so it doesn't inflate the cron failure count.
+        // The draft failure details are in error_message for visibility.
+        status: "completed",
         started_at: new Date(entry.detectedAt),
         completed_at: new Date(),
         duration_ms: Math.max(0, Date.now() - new Date(entry.detectedAt).getTime()),

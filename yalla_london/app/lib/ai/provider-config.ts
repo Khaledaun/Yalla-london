@@ -53,7 +53,8 @@ const DEFAULT_MODELS: Record<string, string> = {
   grok: 'grok-4-1-fast',
   claude: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
-  gemini: 'gemini-pro',
+  gemini: 'gemini-2.0-flash',
+  perplexity: 'sonar-pro',
 };
 
 // Provider priority — same order as PROVIDER_PRIORITY in lib/ai/provider.ts

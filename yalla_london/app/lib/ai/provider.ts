@@ -125,8 +125,9 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then Claude, OpenAI, Gemini, Perplexity
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'claude', 'openai', 'gemini', 'perplexity'];
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Perplexity.
+// Gemini removed from active rotation (inactive as of March 2026).
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'perplexity'];
 
 /**
  * Get API key for a provider from the database
@@ -530,33 +531,38 @@ export async function generateCompletion(
   const totalBudgetMs = options.timeoutMs || 25_000;
   const errors: string[] = [];
 
-  for (const provider of PROVIDER_PRIORITY) {
+  // Pre-scan which providers have API keys so we can split budget fairly.
+  // This avoids the old problem where each provider reserved a 5s buffer
+  // for "the next fallback," which cascaded and starved providers 4-5.
+  const availableProviders: Array<{ provider: AIProvider; apiKey: string }> = [];
+  for (const p of PROVIDER_PRIORITY) {
+    const k = await getApiKey(p);
+    if (k) availableProviders.push({ provider: p, apiKey: k });
+  }
+
+  for (let i = 0; i < availableProviders.length; i++) {
+    const { provider, apiKey } = availableProviders[i];
     const elapsed = Date.now() - fallbackStart;
     const remaining = totalBudgetMs - elapsed;
-    // Need at least 5s for a meaningful attempt
-    if (remaining < 5_000) {
+    // Need at least 3s for a meaningful attempt (was 5s — too aggressive, starved later providers)
+    if (remaining < 3_000) {
       errors.push(`${provider}: skipped — only ${Math.max(0, Math.round(remaining / 1000))}s remaining in budget`);
       continue;
     }
 
-    const apiKey = await getApiKey(provider);
-    if (!apiKey) continue;
-
     try {
-      // Give this provider a share of the remaining budget, leaving room for fallbacks.
-      // Hard cap of 18s per individual provider prevents one slow provider from
-      // consuming the entire budget and starving all fallbacks.
-      // For larger budgets (>30s), first provider gets 45% (was 70%).
-      // For smaller budgets (<30s), first provider gets 40% (was 50%).
+      // Split remaining budget evenly among remaining providers.
+      // Previous approach: first provider got 30-35%, subtracted 5s buffers per hop.
+      // Problem: with 25s budget and 5 providers, providers 4-5 always got skipped
+      // because the 5s inter-provider buffer consumed more than the actual AI calls.
+      //
+      // New approach: divide remaining time by remaining providers, cap at 15s per provider.
+      // This gives each provider a fair shot while respecting the total budget.
       const MAX_PER_PROVIDER_MS = 15_000;
-      const isFirstAttempt = errors.length === 0;
-      // First provider gets 35% max — leaves 65% for 4 fallback providers.
-      // Previous 40-45% meant Grok consumed too much and Gemini/Perplexity got skipped.
-      const firstProviderShare = totalBudgetMs > 30_000 ? 0.35 : 0.30;
-      const providerCap = isFirstAttempt
-        ? Math.min(Math.floor(totalBudgetMs * firstProviderShare), remaining - 10_000, MAX_PER_PROVIDER_MS)
-        : Math.min(remaining - 5_000, MAX_PER_PROVIDER_MS);  // Leave 5s for next fallback (was 3s)
-      const providerTimeout = Math.max(Math.min(remaining - 5_000, providerCap), 5_000);
+      const remainingProviders = availableProviders.length - i;
+      // Each provider gets an equal share of remaining time, minus a 2s buffer for overhead
+      const fairShare = Math.floor((remaining - 2_000) / remainingProviders);
+      const providerTimeout = Math.max(Math.min(fairShare, MAX_PER_PROVIDER_MS), 3_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,

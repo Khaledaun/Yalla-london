@@ -287,6 +287,28 @@ export function loadAuditConfig(
     config.siteId = siteId;
   }
 
+  // Layer 4.5: Auto-resolve baseUrl from site config if still empty.
+  // Previously, running `npm run audit:master -- --site=yalla-london` without
+  // --baseUrl would crash with "baseUrl is required" because FALLBACK_DEFAULTS
+  // has an empty baseUrl and JSON configs don't always set it.
+  if (!config.baseUrl && siteId) {
+    try {
+      // Dynamic import to avoid circular deps (config-loader is used from CLI scripts)
+      const siteDomainMap: Record<string, string> = {
+        'yalla-london': 'https://yalla-london.com',
+        'arabaldives': 'https://arabaldives.com',
+        'french-riviera': 'https://yallariviera.com',
+        'istanbul': 'https://yallaistanbul.com',
+        'thailand': 'https://yallathailand.com',
+        'zenitha-yachts-med': 'https://zenithayachts.com',
+      };
+      config.baseUrl = siteDomainMap[siteId] || `https://${siteId}.com`;
+      console.log(`[master-audit/config-loader] Auto-resolved baseUrl to ${config.baseUrl} from siteId "${siteId}"`);
+    } catch {
+      // Fall through to validation which will report the error
+    }
+  }
+
   // Layer 5: Validate
   validateConfig(config);
 

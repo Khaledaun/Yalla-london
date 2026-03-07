@@ -9,7 +9,11 @@
  *   - "- Under XX Chars" suffixes
  *
  * Called by: select-runner.ts (before BlogPost.create),
- *           content-auto-fix-lite (DB cleanup)
+ *           content-auto-fix-lite (DB cleanup, step 6),
+ *           daily-content-generate (before BlogPost.create),
+ *           bulk-generate (before BlogPost.create),
+ *           simple-write (before BlogPost.create),
+ *           editor/save (before BlogPost.update)
  */
 
 // Patterns that AI echoes from prompt templates

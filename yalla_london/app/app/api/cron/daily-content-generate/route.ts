@@ -802,11 +802,16 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
     const aiTimeoutMs = deadline
       ? Math.max(10_000, Math.min(20_000, deadline.remainingMs() - 5_000))
       : 20_000;
+    // Pass timeoutMs INTO generateJSON so the provider fallback chain respects
+    // the per-call budget. Previously only the outer Promise.race had the timeout,
+    // but the inner provider chain used its default 25s budget — meaning grok alone
+    // could consume 7.5s even when we only had 10s total, leaving no time for fallbacks.
     const aiResult = await Promise.race([
       generateJSON<any>(prompt, {
         systemPrompt,
         maxTokens: 6000,
         temperature: 0.7,
+        timeoutMs: aiTimeoutMs,
         taskType: "content_generation",
         calledFrom: "daily-content-generate",
       }),

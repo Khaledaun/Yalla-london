@@ -490,36 +490,39 @@ export async function promoteToBlogPost(
   let enHtml = stripH1((enDraft?.assembled_html as string) || "");
   const arHtml = stripH1((arDraft?.assembled_html as string) || "");
 
-  // ── Internal link injection: replace generic TOPIC_SLUG placeholders with real URLs ──
-  // Assembly phase generates: <a href="/blog/TOPIC_SLUG" class="internal-link">anchor</a>
-  // Replace with actual published article slugs that match the topic.
+  // ── Internal link validation: replace broken /blog/ links with real published slugs ──
+  // Assembly phase may generate: (a) /blog/TOPIC_SLUG placeholders, or (b) AI-hallucinated
+  // slugs that look real but don't exist. Validate ALL /blog/ links against published articles.
   if (enHtml) {
     try {
       const recentPosts = await prisma.blogPost.findMany({
         where: { siteId, published: true, deletedAt: null },
         select: { slug: true, title_en: true, keywords_json: true },
         orderBy: { created_at: "desc" },
-        take: 50,
+        take: 100,
       });
-      // Replace /blog/TOPIC_SLUG or any slug-like placeholder with a real published slug.
-      // If no match found, replace with a random related article instead of creating a broken link.
+      const validSlugs = new Set(recentPosts.map(p => p.slug));
+
+      // Replace ALL broken /blog/ links — both TOPIC_SLUG and hallucinated slugs
       enHtml = enHtml.replace(
-        /href="\/blog\/([A-Z_]+)"/gi,
-        (_match, placeholder) => {
-          // Find a published article that could match this placeholder topic
-          const topic = placeholder.toLowerCase().replace(/_/g, " ");
+        /<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
+        (fullMatch, pre, slug, post2, anchor) => {
+          // If slug is valid, keep as-is
+          if (validSlugs.has(slug)) return fullMatch;
+          // Try topic-based matching
+          const topic = slug.toLowerCase().replace(/[-_]/g, " ");
+          const topicWords = topic.split(" ").filter((w: string) => w.length > 3);
           const match = recentPosts.find(p => {
-            const titleWords = (p.title_en || "").toLowerCase();
-            return titleWords.includes(topic) || p.slug.includes(topic.replace(/\s+/g, "-"));
+            const title = (p.title_en || "").toLowerCase();
+            return topicWords.length >= 2 && topicWords.filter((w: string) => title.includes(w)).length >= 2;
           });
-          if (match) return `href="/blog/${match.slug}"`;
-          // No match — pick a random published article instead of creating a broken link
-          const fallback = recentPosts[Math.floor(Math.random() * recentPosts.length)];
-          return fallback ? `href="/blog/${fallback.slug}"` : `href="/blog"`;
+          if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
+          // No match — unwrap the link, keep the anchor text as plain text
+          return anchor;
         }
       );
     } catch (linkErr) {
-      console.warn("[content-selector] Internal link injection failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
+      console.warn("[content-selector] Internal link validation failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
     }
   }
   const enTitle = (enDraft?.topic_title as string) || keyword;

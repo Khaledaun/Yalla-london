@@ -119,7 +119,7 @@ async function crossSiteConfig(
   let totalMissingEnv = 0;
 
   for (const siteId of activeSiteIds) {
-    const siteConfig = Object.hasOwn(SITES, siteId) ? SITES[siteId as keyof typeof SITES] : undefined;
+    const siteConfig = Object.prototype.hasOwnProperty.call(SITES, siteId) ? SITES[siteId as keyof typeof SITES] : undefined;
     const missingConfig: string[] = [];
     const missingEnvVars: string[] = [];
 

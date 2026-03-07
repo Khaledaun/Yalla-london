@@ -655,6 +655,25 @@ export async function generateJSON<T>(
     }
   }
 
+  // Attempt 4: Regex field extraction fallback — handles Arabic content where embedded
+  // quotes/HTML break JSON parsing but the AI actually returned the right structure.
+  // This only works for the {heading, content, wordCount, keywords_used} schema used
+  // by the drafting phase, but that's the main failure point.
+  try {
+    const headingMatch = jsonStr.match(/"heading"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const contentMatch = jsonStr.match(/"content"\s*:\s*"([\s\S]*?)"\s*,\s*"wordCount"/);
+    if (headingMatch && contentMatch) {
+      const heading = headingMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+      const content = contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+      const wcMatch = jsonStr.match(/"wordCount"\s*:\s*(\d+)/);
+      const wordCount = wcMatch ? parseInt(wcMatch[1], 10) : content.split(/\s+/).length;
+      console.warn(`[generateJSON] Used regex fallback to extract fields from unparseable JSON (${jsonStr.length} chars)`);
+      return { heading, content, wordCount, keywords_used: [] } as unknown as T;
+    }
+  } catch {
+    // Fall through to error
+  }
+
   throw new Error(`Invalid JSON from AI (length: ${jsonStr.length}). First 200 chars: ${jsonStr.substring(0, 200)}`);
 }
 

@@ -72,8 +72,7 @@ export async function runSystemHealthAudit(
 
     try {
       const mod = await section.runner();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fn = (mod as any)[section.fnName] as SectionRunner | undefined;
+      const fn = (mod as Record<string, unknown>)[section.fnName] as SectionRunner | undefined;
       if (!fn) {
         console.warn(`[health-audit] Section "${section.key}" has no export "${section.fnName}"`);
         sections[section.key] = { status: "skip", score: 0, checks: {} };

@@ -4185,6 +4185,80 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   } | null>(null);
   const [migrationError, setMigrationError] = useState<string | null>(null);
 
+  // System Health Audit state
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<string | null>(null);
+  const [auditReport, setAuditReport] = useState<{
+    overallScore: number;
+    overallStatus: "healthy" | "degraded" | "unhealthy";
+    durationMs: number;
+    summary: { totalChecks: number; passed: number; warnings: number; failed: number; skipped: number };
+    sections: Record<string, {
+      status: "pass" | "warn" | "fail" | "skip";
+      score: number;
+      checks: Record<string, {
+        status: "pass" | "warn" | "fail" | "skip";
+        score: number;
+        durationMs: number;
+        details: Record<string, unknown>;
+        error?: string;
+        action?: string;
+      }>;
+    }>;
+  } | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  const runSystemAudit = async () => {
+    setAuditRunning(true);
+    setAuditError(null);
+    setAuditReport(null);
+    setAuditProgress("Starting audit…");
+    setExpandedSections(new Set());
+    try {
+      const res = await fetch("/api/admin/system-health-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      const report = await res.json();
+      setAuditReport(report);
+      setAuditProgress(null);
+      // Auto-expand failed sections
+      const failedSections = new Set<string>();
+      for (const [key, section] of Object.entries(report.sections || {})) {
+        const s = section as { status: string };
+        if (s.status === "fail") failedSections.add(key);
+      }
+      setExpandedSections(failedSections);
+    } catch (e) {
+      setAuditError(e instanceof Error ? e.message : String(e));
+      setAuditProgress(null);
+    } finally {
+      setAuditRunning(false);
+    }
+  };
+
+  const toggleSection = (key: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const copyAuditJson = () => {
+    if (!auditReport) return;
+    navigator.clipboard.writeText(JSON.stringify(auditReport, null, 2))
+      .then(() => alert("Copied to clipboard"))
+      .catch(() => alert("Failed to copy"));
+  };
+
   useEffect(() => {
     fetch("/api/admin/feature-flags")
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -4368,6 +4442,129 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             {testResult}
           </p>
         )}
+
+        {/* System Health Audit */}
+        <div className="mt-3 border-t border-zinc-800 pt-3">
+          <div className="flex items-center gap-2 mb-2">
+            <ActionButton
+              onClick={runSystemAudit}
+              loading={auditRunning}
+              variant="success"
+              className="flex-1"
+            >
+              🩺 System Health Audit
+            </ActionButton>
+            {auditReport && (
+              <ActionButton onClick={copyAuditJson}>
+                📋 Copy JSON
+              </ActionButton>
+            )}
+          </div>
+
+          {/* Progress */}
+          {auditProgress && (
+            <div className="flex items-center gap-2 text-xs text-blue-300 bg-blue-950/30 px-3 py-2 rounded-lg mb-2">
+              <span className="animate-spin">⏳</span>
+              <span>{auditProgress}</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {auditError && (
+            <div className="text-xs text-red-300 bg-red-950/30 px-3 py-2 rounded-lg mb-2">
+              ❌ Audit failed: {auditError}
+            </div>
+          )}
+
+          {/* Results */}
+          {auditReport && (
+            <div className="space-y-2">
+              {/* Overall Score */}
+              <div className={`rounded-lg p-3 border ${
+                auditReport.overallStatus === "healthy" ? "bg-emerald-950/30 border-emerald-800" :
+                auditReport.overallStatus === "degraded" ? "bg-amber-950/30 border-amber-800" :
+                "bg-red-950/30 border-red-800"
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className={`text-2xl font-bold ${
+                      auditReport.overallStatus === "healthy" ? "text-emerald-300" :
+                      auditReport.overallStatus === "degraded" ? "text-amber-300" :
+                      "text-red-300"
+                    }`}>{auditReport.overallScore}/100</span>
+                    <span className={`ml-2 text-xs font-medium uppercase ${
+                      auditReport.overallStatus === "healthy" ? "text-emerald-400" :
+                      auditReport.overallStatus === "degraded" ? "text-amber-400" :
+                      "text-red-400"
+                    }`}>{auditReport.overallStatus}</span>
+                  </div>
+                  <span className="text-xs text-zinc-500">{formatDuration(auditReport.durationMs)}</span>
+                </div>
+                <div className="flex gap-3 mt-2 text-xs">
+                  <span className="text-emerald-400">✅ {auditReport.summary.passed}</span>
+                  <span className="text-amber-400">⚠️ {auditReport.summary.warnings}</span>
+                  <span className="text-red-400">❌ {auditReport.summary.failed}</span>
+                  <span className="text-zinc-500">⏭️ {auditReport.summary.skipped}</span>
+                </div>
+              </div>
+
+              {/* Sections */}
+              {Object.entries(auditReport.sections).map(([sectionKey, section]) => {
+                const isExpanded = expandedSections.has(sectionKey);
+                const sectionLabel = sectionKey.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim();
+                const statusIcon = section.status === "pass" ? "✅" : section.status === "warn" ? "⚠️" : section.status === "fail" ? "❌" : "⏭️";
+                const borderColor = section.status === "pass" ? "border-emerald-800/50" : section.status === "warn" ? "border-amber-800/50" : section.status === "fail" ? "border-red-800/50" : "border-zinc-800";
+                const bgColor = section.status === "fail" ? "bg-red-950/20" : section.status === "warn" ? "bg-amber-950/10" : "bg-zinc-900/50";
+
+                return (
+                  <div key={sectionKey} className={`rounded-lg border ${borderColor} ${bgColor} overflow-hidden`}>
+                    <button
+                      onClick={() => toggleSection(sectionKey)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-zinc-800/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm">{statusIcon}</span>
+                        <span className="text-xs font-medium text-zinc-200 truncate">{sectionLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-xs font-mono ${scoreColor(section.score)}`}>{section.score}</span>
+                        <ChevronDown className={`w-3 h-3 text-zinc-500 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-3 pb-2 space-y-1 border-t border-zinc-800/50">
+                        {Object.entries(section.checks).map(([checkKey, check]) => {
+                          const checkIcon = check.status === "pass" ? "✅" : check.status === "warn" ? "⚠️" : check.status === "fail" ? "❌" : "⏭️";
+                          const checkLabel = checkKey.replace(/([A-Z])/g, " $1").replace(/_/g, " ").replace(/^./, s => s.toUpperCase()).trim();
+                          return (
+                            <div key={checkKey} className="pt-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-1.5 min-w-0">
+                                  <span className="text-xs mt-0.5">{checkIcon}</span>
+                                  <div className="min-w-0">
+                                    <span className="text-xs text-zinc-300 block">{checkLabel}</span>
+                                    {check.error && (
+                                      <span className="text-[10px] text-red-400 block mt-0.5 break-all">{check.error}</span>
+                                    )}
+                                    {check.action && (
+                                      <span className="text-[10px] text-amber-400 block mt-0.5">{check.action}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="text-[10px] text-zinc-500 shrink-0">{formatDuration(check.durationMs)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="mt-3 border-t border-zinc-800 pt-3 flex flex-wrap gap-2">
           <ActionButton onClick={() => setShowActionLogs(true)}>

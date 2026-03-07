@@ -86,6 +86,22 @@ function classifyError(errorText: string): SweeperLogEntry["errorCategory"] {
 
 const RETRYABLE_CATEGORIES = new Set<SweeperLogEntry["errorCategory"]>(["json_parse", "timeout", "rate_limit", "network", "unknown"]);
 
+// ─── Timeout helper ─────────────────────────────────────────────────────
+// Wraps any promise with a timeout. Returns the fallback value on timeout
+// instead of throwing — this prevents the failure-hook from crashing.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+// Fire-and-forget log with timeout — never throws, never blocks the caller
+function logSweeperEventSafe(entry: SweeperLogEntry, timeoutMs = 3000): void {
+  withTimeout(logSweeperEvent(entry), timeoutMs, undefined)
+    .catch(err => console.warn("[failure-hook] logSweeperEventSafe failed:", err instanceof Error ? err.message : err));
+}
+
 // ─── Pipeline Failure Hook ──────────────────────────────────────────────
 
 export async function onPipelineFailure(
@@ -95,30 +111,47 @@ export async function onPipelineFailure(
   try {
     const category = classifyError(ctx.error);
     const detectedAt = new Date().toISOString();
+    const budgetMs = options?.deadlineMs ?? 10_000;
 
-    // If budget is nearly exhausted, skip recovery and just log
-    if (options?.deadlineMs !== undefined && options.deadlineMs < 3000) {
-      console.log(`[failure-hook] Budget too low (${options.deadlineMs}ms) — logging only for draft ${ctx.draftId}`);
-      await logSweeperEvent({
+    // ── BUDGET-AWARE EXECUTION ──────────────────────────────────────────
+    // The failure-hook is called AFTER AI generation consumed most of the
+    // cron budget. We must be extremely lean with DB calls.
+    //
+    // Budget tiers:
+    //   < 2s  → console.log only (no DB at all — Vercel will kill us)
+    //   < 5s  → single fire-and-forget log (1 DB write, no reads)
+    //   >= 5s → full recovery logic (reads + writes + log)
+
+    if (budgetMs < 2000) {
+      console.log(`[failure-hook] <2s budget (${budgetMs}ms) — console-only for draft ${ctx.draftId} phase=${ctx.phase} cat=${category}`);
+      return;
+    }
+
+    if (budgetMs < 5000) {
+      console.log(`[failure-hook] Low budget (${budgetMs}ms) — log-only for draft ${ctx.draftId} phase=${ctx.phase} cat=${category}`);
+      // Single fire-and-forget DB write with 2s timeout
+      logSweeperEventSafe({
         eventType: "pipeline_failure",
         source: "content-builder",
         target: ctx.draftId,
-        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" — no budget for recovery`,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" — low budget`,
         detectedAt,
-        diagnosis: `Error category: ${category}. Skipped recovery — only ${options.deadlineMs}ms remaining.`,
+        diagnosis: `Error category: ${category}. Budget ${budgetMs}ms — diagnostic-sweep will handle recovery.`,
         errorCategory: category,
         fixApplied: null,
         reactivatedAt: null,
         outcome: "will_retry",
-        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), budgetMs: options.deadlineMs },
-      }).catch(err => console.warn("[failure-hooks] logSweeperEvent failed:", err instanceof Error ? err.message : err));
+        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 200), budgetMs },
+      }, 2000);
       return;
     }
+
+    // ── FULL RECOVERY (5s+ budget) ──────────────────────────────────────
 
     // Auth errors can't be auto-fixed
     if (category === "auth") {
       console.error(`[failure-hook] AUTH ERROR for draft ${ctx.draftId} — needs manual API key fix`);
-      await logSweeperEvent({
+      await logSweeperEventSafe({
         eventType: "pipeline_failure",
         source: "content-builder",
         target: ctx.draftId,
@@ -130,39 +163,36 @@ export async function onPipelineFailure(
         reactivatedAt: null,
         outcome: "not_recoverable",
         context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
-      });
+      }, 3000);
       return;
     }
 
-    // If the draft was just rejected (3rd attempt), try immediate recovery
+    // If the draft was just rejected, try immediate recovery
     if (ctx.wasRejected && RETRYABLE_CATEGORIES.has(category)) {
       // ASSEMBLY TIMEOUT SAFETY NET: Do NOT reset assembly drafts that timed out.
-      // The assembly phase has a raw fallback (concatenate sections without AI) that fires
-      // at phase_attempts >= 1. Resetting attempts here would defeat that protection and
-      // create an infinite timeout→reset→timeout loop. Let the raw fallback handle it.
       if (ctx.phase === "assembly" && category === "timeout") {
         console.log(`[failure-hook] Draft ${ctx.draftId} rejected at assembly due to timeout — NOT resetting (raw fallback will handle on next run)`);
-        await logSweeperEvent({
+        await logSweeperEventSafe({
           eventType: "pipeline_failure",
           source: "content-builder",
           target: ctx.draftId,
           failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected at assembly due to timeout — raw fallback will handle`,
           detectedAt,
-          diagnosis: `Assembly timeout. NOT resetting — the assembly phase raw fallback (attempts >= 1) will use direct HTML concatenation on the next run.`,
+          diagnosis: `Assembly timeout. NOT resetting — raw fallback (attempts >= 1) will use direct HTML concatenation.`,
           errorCategory: category,
           fixApplied: "No reset — raw assembly fallback will fire on next builder run",
           reactivatedAt: null,
           outcome: "will_retry",
           context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), reason: "assembly_timeout_raw_fallback" },
-        });
+        }, 3000);
         return;
       }
 
       // Check if this draft was already recovered recently (prevent loops)
-      const alreadyRecovered = await wasRecentlyRecovered(ctx.draftId);
+      const alreadyRecovered = await withTimeout(wasRecentlyRecovered(ctx.draftId), 2000, true);
       if (alreadyRecovered) {
         console.log(`[failure-hook] Draft ${ctx.draftId} was already recovered recently — skipping to prevent loop`);
-        await logSweeperEvent({
+        await logSweeperEventSafe({
           eventType: "pipeline_failure",
           source: "content-builder",
           target: ctx.draftId,
@@ -174,19 +204,19 @@ export async function onPipelineFailure(
           reactivatedAt: null,
           outcome: "logged",
           context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), reason: "already_recovered_recently" },
-        });
+        }, 2000);
         return;
       }
 
       console.log(`[failure-hook] Draft ${ctx.draftId} rejected — attempting immediate recovery`);
       const strategy = category === "json_parse" ? "json_repair" : "retry";
-      const recovered = await recoverDraft(ctx.draftId, ctx.phase, strategy);
+      const recovered = await withTimeout(recoverDraft(ctx.draftId, ctx.phase, strategy), 3000, false);
 
-      await logSweeperEvent({
+      await logSweeperEventSafe({
         eventType: "auto_recovery",
         source: "content-builder",
         target: ctx.draftId,
-        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected at "${ctx.phase}" after 3 attempts`,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected at "${ctx.phase}" after max attempts`,
         detectedAt,
         diagnosis: `Error category: ${category}. ${strategy === "json_repair" ? "AI returned malformed JSON — retrying with JSON repair logic" : "Transient error — retrying with fresh attempts"}`,
         errorCategory: category,
@@ -194,33 +224,34 @@ export async function onPipelineFailure(
         reactivatedAt: recovered ? new Date().toISOString() : null,
         outcome: recovered ? "recovered" : "logged",
         context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), strategy },
-      });
+      }, 2000);
       return;
     }
 
-    // For non-rejected failures (1st or 2nd attempt), log for visibility but don't intervene
-    if ((ctx.attemptNumber || 0) < 3) {
-      console.log(`[failure-hook] Draft ${ctx.draftId} failed at "${ctx.phase}" (attempt ${ctx.attemptNumber || "?"}/3) — will auto-retry`);
-      await logSweeperEvent({
+    // For non-rejected failures (early attempts), log for visibility but don't intervene
+    const maxAttempts = ctx.phase === "drafting" ? 5 : 3;
+    if ((ctx.attemptNumber || 0) < maxAttempts) {
+      console.log(`[failure-hook] Draft ${ctx.draftId} failed at "${ctx.phase}" (attempt ${ctx.attemptNumber || "?"}/${maxAttempts}) — will auto-retry`);
+      await logSweeperEventSafe({
         eventType: "pipeline_failure",
         source: "content-builder",
         target: ctx.draftId,
-        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" (attempt ${ctx.attemptNumber}/3)`,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" (attempt ${ctx.attemptNumber}/${maxAttempts})`,
         detectedAt,
-        diagnosis: `Error category: ${category}. Attempt ${ctx.attemptNumber}/3 — content-builder will auto-retry on next run.`,
+        diagnosis: `Error category: ${category}. Attempt ${ctx.attemptNumber}/${maxAttempts} — content-builder will auto-retry on next run.`,
         errorCategory: category,
         fixApplied: "No intervention — auto-retry on next builder run",
         reactivatedAt: null,
         outcome: "will_retry",
         context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, attemptNumber: ctx.attemptNumber, error: ctx.error.substring(0, 300) },
-      });
+      }, 2000);
       return;
     }
 
     // Catch-all: attempt recovery for unknown errors that caused rejection
     if (ctx.wasRejected) {
-      const recovered = await recoverDraft(ctx.draftId, ctx.phase, "retry");
-      await logSweeperEvent({
+      const recovered = await withTimeout(recoverDraft(ctx.draftId, ctx.phase, "retry"), 3000, false);
+      await logSweeperEventSafe({
         eventType: "auto_recovery",
         source: "content-builder",
         target: ctx.draftId,
@@ -232,31 +263,11 @@ export async function onPipelineFailure(
         reactivatedAt: recovered ? new Date().toISOString() : null,
         outcome: recovered ? "recovered" : "logged",
         context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
-      });
+      }, 2000);
     }
   } catch (hookError) {
-    console.error("[failure-hook] Pipeline hook error (non-fatal):", hookError);
-    // Persist hook errors to CronJobLog so they're visible on the dashboard
-    try {
-      const { prisma } = await import("@/lib/db");
-      await prisma.cronJobLog.create({
-        data: {
-          job_name: "failure-hook-error",
-          job_type: "reactive",
-          status: "failed",
-          started_at: new Date(),
-          completed_at: new Date(),
-          duration_ms: 0,
-          items_processed: 0,
-          items_succeeded: 0,
-          items_failed: 1,
-          error_message: `Pipeline hook crashed for draft ${ctx.draftId}: ${hookError instanceof Error ? hookError.message : String(hookError)}`,
-          result_summary: { draftId: ctx.draftId, phase: ctx.phase, siteId: ctx.siteId },
-        },
-      });
-    } catch {
-      // Last resort — if even logging fails, we've already written to console.error
-    }
+    // Non-fatal — console only. Do NOT attempt DB writes here (budget exhausted).
+    console.warn(`[failure-hook] Pipeline hook error (non-fatal) for draft ${ctx.draftId}:`, hookError instanceof Error ? hookError.message : String(hookError));
   }
 }
 
@@ -267,23 +278,23 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
     const errorMsg = ctx.error instanceof Error ? ctx.error.message : String(ctx.error || "Unknown");
     const category = classifyError(errorMsg);
     const detectedAt = new Date().toISOString();
-    console.error(`[failure-hook] Cron "${ctx.jobName}" failed: ${errorMsg}`);
+    console.warn(`[failure-hook] Cron "${ctx.jobName}" failed (${category}): ${errorMsg.substring(0, 150)}`);
 
-    // Content pipeline crons — run targeted sweeper
+    // Content pipeline crons — attempt targeted sweep with timeout guard
     const contentCrons = ["content-builder", "daily-content-generate", "content-selector", "content-publish"];
     if (contentCrons.some(name => ctx.jobName.includes(name))) {
       console.log(`[failure-hook] Content cron "${ctx.jobName}" failed — running targeted sweeper`);
-      const sweepResult = await runTargetedSweep(ctx.siteId);
+      const sweepResult = await withTimeout(runTargetedSweep(ctx.siteId), 5000, 0);
 
-      await logSweeperEvent({
+      logSweeperEventSafe({
         eventType: "cron_failure",
         source: ctx.jobName,
         target: ctx.jobName,
-        failureDescription: `Cron job "${ctx.jobName}" crashed with error: ${errorMsg.substring(0, 200)}`,
+        failureDescription: `Cron job "${ctx.jobName}" crashed: ${errorMsg.substring(0, 200)}`,
         detectedAt,
-        diagnosis: `Content pipeline cron failed (${category}). Ran targeted sweep to recover any stuck drafts.`,
+        diagnosis: `Content pipeline cron failed (${category}). ${sweepResult > 0 ? `Recovered ${sweepResult} draft(s).` : "No recoverable drafts."}`,
         errorCategory: category,
-        fixApplied: sweepResult > 0 ? `Targeted sweep recovered ${sweepResult} draft(s)` : "Targeted sweep found no recoverable drafts",
+        fixApplied: sweepResult > 0 ? `Targeted sweep recovered ${sweepResult} draft(s)` : "No recoverable drafts found",
         reactivatedAt: sweepResult > 0 ? new Date().toISOString() : null,
         outcome: sweepResult > 0 ? "recovered" : "logged",
         context: { jobName: ctx.jobName, siteId: ctx.siteId, error: errorMsg.substring(0, 300), draftsRecovered: sweepResult },
@@ -291,18 +302,18 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
       return;
     }
 
-    // SEO crons — log
+    // SEO crons — log only
     const seoCrons = ["seo-agent", "seo-cron", "seo-orchestrator"];
     if (seoCrons.some(name => ctx.jobName.includes(name))) {
-      await logSweeperEvent({
+      logSweeperEventSafe({
         eventType: "cron_failure",
         source: ctx.jobName,
         target: ctx.jobName,
         failureDescription: `SEO cron "${ctx.jobName}" failed: ${errorMsg.substring(0, 200)}`,
         detectedAt,
-        diagnosis: `SEO failure (${category}). SEO cron failures are non-critical — will retry on next scheduled run.`,
+        diagnosis: `SEO failure (${category}). Will retry on next scheduled run.`,
         errorCategory: category,
-        fixApplied: "No intervention — SEO runs 3x daily and will retry automatically",
+        fixApplied: "No intervention — SEO runs 3x daily",
         reactivatedAt: null,
         outcome: "will_retry",
         context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300) },
@@ -310,14 +321,14 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
       return;
     }
 
-    // Topic generation — check backlog
+    // Topic generation — check backlog with timeout
     if (ctx.jobName.includes("weekly-topics") || ctx.jobName.includes("topic")) {
-      await handleTopicGenerationFailure(errorMsg, detectedAt, category);
+      await withTimeout(handleTopicGenerationFailure(errorMsg, detectedAt, category), 4000, undefined);
       return;
     }
 
-    // Generic cron failure
-    await logSweeperEvent({
+    // Generic cron failure — fire-and-forget log
+    logSweeperEventSafe({
       eventType: "cron_failure",
       source: ctx.jobName,
       target: ctx.jobName,
@@ -331,7 +342,8 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
       context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300), ...(ctx.details || {}) },
     });
   } catch (hookError) {
-    console.error("[onCronFailure] Cron hook error (non-fatal):", hookError);
+    // Non-fatal — console only
+    console.warn("[onCronFailure] Cron hook error (non-fatal):", hookError instanceof Error ? hookError.message : String(hookError));
   }
 }
 

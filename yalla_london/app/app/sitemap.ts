@@ -55,6 +55,23 @@ async function getLatestDbTimestamp(
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  try {
+    return await generateSitemap();
+  } catch (err) {
+    // CRITICAL SAFETY NET: If sitemap generation crashes for any reason,
+    // return a minimal static sitemap so Google never sees a 500.
+    // A degraded sitemap is infinitely better than no sitemap.
+    console.error("[sitemap] FATAL — returning minimal fallback:", err instanceof Error ? err.message : String(err));
+    const fallbackDomain = getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
+    const fallbackUrl = `https://${fallbackDomain}`;
+    return [
+      { url: fallbackUrl, lastModified: new Date().toISOString(), changeFrequency: "daily", priority: 1 },
+      { url: `${fallbackUrl}/blog`, lastModified: new Date().toISOString(), changeFrequency: "daily", priority: 0.9 },
+    ];
+  }
+}
+
+async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
   // Overall timeout guard — return whatever we have after 45s to avoid Vercel 60s kill.
   const sitemapStart = Date.now();
   const SITEMAP_BUDGET_MS = 45_000;
@@ -74,6 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch REAL lastmod timestamps for listing pages from the database.
   // Using new Date() would mislead Google into thinking listings change on every
   // request, causing them to eventually ignore lastmod entirely (Gemini audit Q9).
+  // Each call has its own try/catch — a single model failure won't kill the whole sitemap.
   const [latestBlog, latestEvent, latestNews, latestYacht, latestDest, latestItin, latestProduct] = await Promise.all([
     getLatestDbTimestamp("blogPost", siteId, staticDate),
     getLatestDbTimestamp("event", siteId, staticDate),

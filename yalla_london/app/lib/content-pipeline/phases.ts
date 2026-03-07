@@ -347,10 +347,13 @@ export async function phaseDrafting(
 
     const writeLang = isArabic(draft.locale) ? "Arabic" : "English";
 
-    // Circuit breaker: after 3+ failed attempts, use a minimal prompt with lower
-    // token count. This finishes faster and prevents infinite timeout loops.
+    // Circuit breaker: after 1+ failed attempts, use a minimal prompt with lower
+    // token count. The full prompt consistently times out even with 30s per provider
+    // (too many instructions + 2000-3500 maxTokens). Minimal prompt succeeds reliably
+    // in ~10s. Better to get 150-word sections that can be expanded later than to
+    // loop indefinitely on timeouts.
     const attempts = draft.phase_attempts || 0;
-    const useMinimalPrompt = attempts >= 3;
+    const useMinimalPrompt = attempts >= 1;
 
     const minWordsPerSection = useMinimalPrompt ? 150 : Math.max(section.targetWords || 0, 250);
 
@@ -425,7 +428,7 @@ CRITICAL JSON RULES:
         const sectionTimeout = Math.min(rawTimeout, 48_000);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 3500 : 2000),
+          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2500 : 1500),
           temperature: 0.7,
           timeoutMs: sectionTimeout,
           siteId: draft.site_id,

@@ -186,6 +186,18 @@ export function middleware(request: NextRequest) {
   // Skip excluded paths — use effectivePathname so /ar/_next, /ar/api etc.
   // are correctly excluded (the /ar/ prefix is stripped before matching).
   if (EXCLUDED_PATHS.some((path) => effectivePathname.startsWith(path))) {
+    // SEO-critical paths (/sitemap.xml, /robots.txt) need tenant context
+    // headers so they generate correct per-site content. All other excluded
+    // paths (static assets, _next, etc.) pass through without headers.
+    const SEO_PATHS = ["/sitemap.xml", "/robots.txt"];
+    if (SEO_PATHS.includes(effectivePathname)) {
+      const hostname = request.headers.get("host") || "localhost:3000";
+      const tenant = DOMAIN_TO_SITE[hostname] || DEFAULT_SITE;
+      const response = NextResponse.next();
+      response.headers.set("x-site-id", tenant.siteId);
+      response.headers.set("x-hostname", hostname);
+      return response;
+    }
     return NextResponse.next();
   }
 

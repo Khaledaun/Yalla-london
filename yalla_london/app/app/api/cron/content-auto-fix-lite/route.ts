@@ -105,37 +105,39 @@ async function handleAutoFixLite(request: NextRequest) {
           published: true,
           deletedAt: null,
         },
-        select: { id: true, slug: true, content_en: true },
-        take: 20,
+        select: { id: true, slug: true, content_en: true, content_ar: true },
+        take: 50,
         orderBy: { created_at: "desc" },
       });
 
       for (const post of recentPosts) {
         if (!post.content_en || post.content_en.trim().length === 0) continue;
-        let html = post.content_en;
+        let htmlEn = post.content_en;
+        let htmlAr = post.content_ar || "";
         let modified = false;
 
-        const h1Matches = html.match(/<h1[\s>]/gi) || [];
-        if (h1Matches.length > 1) {
-          let h1Count = 0;
-          html = html.replace(/<h1([\s>])/gi, (match: string, after: string) => {
-            h1Count++;
-            if (h1Count > 1) return `<h2${after}`;
-            return match;
-          });
-          let closeCount = 0;
-          html = html.replace(/<\/h1>/gi, () => {
-            closeCount++;
-            if (closeCount > 1) return "</h2>";
-            return "</h1>";
-          });
+        // Demote ALL <h1> to <h2> in content body — the blog page template already
+        // provides the H1 via the article title. Even a single <h1> in body content
+        // causes "Multiple H1 headings" in SEO audits.
+        const h1InEn = /<h1[\s>]/i.test(htmlEn);
+        const h1InAr = /<h1[\s>]/i.test(htmlAr);
+
+        if (h1InEn) {
+          htmlEn = htmlEn.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
+          modified = true;
+        }
+        if (h1InAr) {
+          htmlAr = htmlAr.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
           modified = true;
         }
 
         if (modified) {
+          const updateData: Record<string, string> = {};
+          if (h1InEn) updateData.content_en = htmlEn;
+          if (h1InAr) updateData.content_ar = htmlAr;
           await prisma.blogPost.update({
             where: { id: post.id },
-            data: { content_en: html },
+            data: updateData,
           });
           results.headingsFixed++;
         }

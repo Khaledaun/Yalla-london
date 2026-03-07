@@ -762,7 +762,7 @@ async function runAudit(siteId: string) {
           if (!html.includes("<title>")) issues.push("Missing <title> tag");
           if (!html.includes('rel="canonical"')) issues.push("Missing canonical tag");
           if (!html.includes("application/ld+json")) issues.push("No JSON-LD structured data");
-          if (!html.includes('hreflang')) issues.push("Missing hreflang tags (bilingual site needs these)");
+          if (!html.toLowerCase().includes('hreflang')) issues.push("Missing hreflang tags (bilingual site needs these)");
           if (!html.includes('meta name="description"') && !html.includes('name="description"')) issues.push("Missing meta description in HTML");
 
           // Check heading hierarchy

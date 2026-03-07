@@ -10,7 +10,7 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -18,8 +18,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     const domain = await prisma.domain.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!domain) {
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (verified) {
       const updatedDomain = await prisma.domain.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           verified: true,
           verified_at: new Date(),

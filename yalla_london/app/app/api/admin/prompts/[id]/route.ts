@@ -28,13 +28,13 @@ const UpdatePromptTemplateSchema = z.object({
 // Get a specific prompt template
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
-    const id = params.id;
+    const { id } = await params;
 
     // Check if it's a PageTypeRecipe (system template)
     const recipe = await prisma.pageTypeRecipe.findUnique({
@@ -115,13 +115,13 @@ export async function GET(
 // Update a prompt template
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
 
     const validation = UpdatePromptTemplateSchema.safeParse(body);
@@ -219,13 +219,13 @@ export async function PUT(
 // Delete a prompt template
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
-    const id = params.id;
+    const { id } = await params;
 
     // Check if it's a system template
     const recipe = await prisma.pageTypeRecipe.findUnique({

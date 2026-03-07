@@ -15,14 +15,15 @@ const execAsync = promisify(exec)
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     const backup = await prisma.databaseBackup.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!backup) {

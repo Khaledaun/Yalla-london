@@ -21,7 +21,7 @@ enum Proficiency {
 }
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_users');
 
     const body = await request.json();
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const member = await ExpertiseService.assignSkill({
-      team_member_id: params.id,
+      team_member_id: id,
       skill_id: body.skill_id,
       proficiency: body.proficiency || 'EXPERT',
       years_experience: body.years_experience || null,
@@ -85,6 +86,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_users');
 
     const body = await request.json();
@@ -92,7 +94,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Bulk assign skills
     if (body.skills && Array.isArray(body.skills)) {
       const member = await ExpertiseService.bulkAssignSkills(
-        params.id,
+        id,
         body.skills.map((s: any) => ({
           skillId: s.skill_id,
           proficiency: s.proficiency,
@@ -108,9 +110,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Set primary skills
     if (body.primary_skill_ids && Array.isArray(body.primary_skill_ids)) {
-      await ExpertiseService.setPrimarySkills(params.id, body.primary_skill_ids);
+      await ExpertiseService.setPrimarySkills(id, body.primary_skill_ids);
 
-      const member = await TeamService.getMemberById(params.id);
+      const member = await TeamService.getMemberById(id);
 
       return NextResponse.json({
         success: true,
@@ -120,7 +122,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Update single expertise
     if (body.skill_id) {
-      await ExpertiseService.updateExpertise(params.id, body.skill_id, {
+      await ExpertiseService.updateExpertise(id, body.skill_id, {
         proficiency: body.proficiency,
         years_experience: body.years_experience,
         description_en: body.description_en,
@@ -129,7 +131,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         display_order: body.display_order,
       });
 
-      const member = await TeamService.getMemberById(params.id);
+      const member = await TeamService.getMemberById(id);
 
       return NextResponse.json({
         success: true,
@@ -163,6 +165,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (authError) return authError;
 
   try {
+    const { id } = await params;
     await requirePermission(request, 'manage_users');
 
     const { searchParams } = new URL(request.url);
@@ -175,7 +178,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    await ExpertiseService.removeSkill(params.id, skillId);
+    await ExpertiseService.removeSkill(id, skillId);
 
     return NextResponse.json({
       success: true,

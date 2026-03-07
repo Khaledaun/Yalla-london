@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,10 +121,13 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         <div className="flex">
           <Link href={articleUrl} className="w-64 h-40 relative block flex-shrink-0">
-            <img
+            <Image
               src={article.image}
               alt={article.title}
+              width={256}
+              height={160}
               className="w-full h-full object-cover"
+              unoptimized
             />
             <Badge className="absolute top-2 left-2 bg-blue-500">
               {article.category}
@@ -170,10 +174,15 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <Link href={articleUrl} className="relative block">
-        <img
+        <Image
           src={article.image}
           alt={article.title}
+          width={0}
+          height={0}
+          sizes="100vw"
           className="w-full h-48 object-cover"
+          style={{ width: '100%', height: '12rem' }}
+          unoptimized
         />
         <Badge className="absolute top-3 left-3 bg-blue-500">
           {article.category}

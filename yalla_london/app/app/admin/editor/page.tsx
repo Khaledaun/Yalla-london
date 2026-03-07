@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { 
   Edit3, 
   Eye, 
@@ -54,6 +55,31 @@ export default function PastePreviewEditor() {
   const [ogVideo, setOgVideo] = useState('')
   const [isRewriting, setIsRewriting] = useState(false)
   const [seoScore, setSeoScore] = useState(0)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const applyFormat = (prefix: string, suffix: string = prefix) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = content.substring(start, end) || 'text';
+    const newContent = content.substring(0, start) + prefix + selected + suffix + content.substring(end);
+    setContent(newContent);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    }, 0);
+  };
+
+  const applyLineFormat = (linePrefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = content.lastIndexOf('\n', start - 1) + 1;
+    const newContent = content.substring(0, lineStart) + linePrefix + content.substring(lineStart);
+    setContent(newContent);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(start + linePrefix.length, start + linePrefix.length); }, 0);
+  };
 
   const handlePasteFromWord = () => {
     // Simulate pasting from Word
@@ -104,51 +130,35 @@ These luxury hotels in Mayfair offer unparalleled service, exquisite dining, and
   }
 
   const handleRewriteWithAI = async () => {
+    if (!content.trim()) {
+      alert('Please add some content first, then click Rewrite with AI to improve it.')
+      return
+    }
     setIsRewriting(true)
-    // Simulate AI rewriting
-    setTimeout(() => {
-      const rewrittenContent = `
-# The Ultimate Guide to Mayfair's Most Luxurious Hotels
-
-Mayfair stands as London's crown jewel of sophistication, where history meets contemporary luxury in perfect harmony. This prestigious district is home to some of the world's most celebrated hotels, each offering an unparalleled experience of British elegance and world-class service.
-
-## The Ritz London: A Timeless Icon
-
-Since its grand opening in 1906, The Ritz London has epitomized luxury hospitality. This magnificent hotel on Piccadilly continues to set the standard for opulent accommodation with:
-
-- **136 Exquisite Rooms and Suites**: Each space is a masterpiece of Edwardian elegance, featuring original architectural details and modern amenities
-- **Michelin-Starred Culinary Excellence**: The Ritz Restaurant offers an unforgettable dining experience with innovative British cuisine
-- **World-Famous Afternoon Tea**: The Palm Court's legendary tea service is a quintessential London experience
-- **Luxury Wellness**: A state-of-the-art spa and fitness center for complete relaxation
-
-## The Connaught: Sophisticated Elegance
-
-The Connaught represents the perfect fusion of traditional British charm and contemporary luxury. This distinguished hotel offers:
-
-- **121 Individually Crafted Suites**: Each room tells a unique story of refined taste and comfort
-- **Triple Michelin-Starred Dining**: Three exceptional restaurants showcase the finest in culinary artistry
-- **Award-Winning Cocktails**: The Connaught Bar is globally recognized as one of the world's premier cocktail destinations
-- **Holistic Wellness**: A comprehensive spa offering treatments that restore both body and soul
-
-## The Berkeley: Modern Luxury Redefined
-
-The Berkeley brings a fresh perspective to luxury hospitality with its contemporary approach:
-
-- **190 Stylish Rooms and Suites**: Modern design meets timeless comfort in every space
-- **Rooftop Oasis**: A stunning pool area offering panoramic views of London's skyline
-- **Culinary Innovation**: Marcus restaurant delivers Michelin-starred dining with a modern twist
-- **Trendsetting Bar Scene**: The Blue Bar sets the standard for sophisticated nightlife
-
-## Your Perfect Mayfair Experience Awaits
-
-These exceptional hotels in Mayfair don't just provide accommodation—they offer gateways to London's most exclusive experiences. Whether you're seeking a romantic getaway, a business retreat, or a cultural adventure, these luxury establishments provide the perfect foundation for an unforgettable London stay.
-
-Each hotel's unique character and world-class amenities ensure that your visit to Mayfair will be nothing short of extraordinary.
-      `
-      setContent(rewrittenContent)
-      setSeoScore(92)
+    try {
+      const resp = await fetch('/api/admin/editor/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          keyword: primaryKeyword || title,
+          locale,
+          pageType,
+        }),
+      })
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        throw new Error(errData.error || `Server returned ${resp.status}`)
+      }
+      const data = await resp.json()
+      if (data.content) setContent(data.content)
+      if (data.seoScore) setSeoScore(data.seoScore)
+      if (data.metaDescription && !excerpt) setExcerpt(data.metaDescription)
+    } catch (err) {
+      alert('AI rewrite failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
       setIsRewriting(false)
-    }, 3000)
+    }
   }
 
   const handleSave = async () => {
@@ -266,9 +276,8 @@ Each hotel's unique character and world-class amenities ensure that your visit t
         setExcerpt(generatedExcerpt)
       }
       
-      // Auto-generate SEO score
-      const seoScore = Math.floor(Math.random() * 30) + 70 // 70-100
-      setSeoScore(seoScore)
+      // TODO: connect to real SEO scoring API
+      setSeoScore(0)
       
       alert('AI Review completed! All fields have been auto-generated based on your content.')
     } catch (error) {
@@ -607,43 +616,43 @@ Each hotel's unique character and world-class amenities ensure that your visit t
           {(activeView === 'edit' || activeView === 'split') && (
             <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
               <div className="flex items-center gap-2">
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Bold" onClick={() => applyFormat('**')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Bold className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Italic" onClick={() => applyFormat('*')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Italic className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Underline" onClick={() => applyFormat('<u>', '</u>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Underline className="h-4 w-4" />
                 </button>
                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Align Left" onClick={() => applyFormat('<div style="text-align:left">', '</div>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <AlignLeft className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Align Center" onClick={() => applyFormat('<div style="text-align:center">', '</div>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <AlignCenter className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Align Right" onClick={() => applyFormat('<div style="text-align:right">', '</div>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <AlignRight className="h-4 w-4" />
                 </button>
                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Bullet List" onClick={() => applyLineFormat('- ')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <List className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Ordered List" onClick={() => applyLineFormat('1. ')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <ListOrdered className="h-4 w-4" />
                 </button>
                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Link" onClick={() => { const url = prompt('Link URL:'); if (url) applyFormat('[', `](${url})`); }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Link className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Image" onClick={() => { const url = prompt('Image URL:'); if (url) applyFormat('![', `](${url})`); }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Image className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Video" onClick={() => { const url = prompt('Video URL:'); if (url) { setContent(c => c + `\n<video src="${url}" controls></video>\n`); } }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Video className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Location" onClick={() => applyFormat('📍 **', '**')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <MapPin className="h-4 w-4" />
                 </button>
               </div>
@@ -657,6 +666,7 @@ Each hotel's unique character and world-class amenities ensure that your visit t
               <div className={`${activeView === 'split' ? 'w-1/2' : 'w-full'} flex flex-col`}>
                 <div className="flex-1 p-4">
                   <textarea
+                    ref={textareaRef}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     className="w-full h-full border border-gray-300 rounded-md p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
@@ -680,10 +690,11 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">SEO Score:</span>
                       <span className={`text-sm font-medium ${
-                        seoScore >= 90 ? 'text-green-600' : 
+                        seoScore === 0 ? 'text-gray-400' :
+                        seoScore >= 90 ? 'text-green-600' :
                         seoScore >= 70 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {seoScore}%
+                        {seoScore === 0 ? 'Not scored' : `${seoScore}%`}
                       </span>
                     </div>
                   </div>
@@ -693,15 +704,15 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                   <div className={`${deviceView === 'mobile' ? 'max-w-sm mx-auto' : 'max-w-4xl mx-auto'}`}>
                     {content ? (
                       <div className="prose prose-lg max-w-none">
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: content
+                        <div dangerouslySetInnerHTML={{
+                          __html: sanitizeHtml(content
                             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
                             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
                             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
                             .replace(/^\* (.*$)/gim, '<li>$1</li>')
                             .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
                             .replace(/\*(.*)\*/gim, '<em>$1</em>')
-                            .replace(/\n/gim, '<br>')
+                            .replace(/\n/gim, '<br>'))
                         }} />
                       </div>
                     ) : (

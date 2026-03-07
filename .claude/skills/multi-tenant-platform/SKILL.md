@@ -689,3 +689,39 @@ Three new Prisma models support full automation visibility:
 - **URLIndexingStatus** — Per-URL indexing state (discovered → submitted → indexed). Tracks IndexNow, Google API, and sitemap submission separately. Stores full GSC inspection results.
 - **CronJobLog** — Every cron execution logged with status, duration, items processed/succeeded/failed, multi-site tracking (which sites were processed vs. skipped due to timeout).
 - **SiteHealthCheck** — Periodic aggregated health snapshots per site: SEO score, indexing rate, GSC metrics, GA4 traffic, content counts, automation status, PageSpeed scores.
+
+---
+
+## Orchestration & Skill Network
+
+This skill is the **foundation layer** for the entire orchestration system. All other skills and agents depend on the multi-tenant architecture, bilingual patterns, and infrastructure defined here.
+
+### Agent Hierarchy
+```
+workflow-orchestrator (master coordinator)
+├── seo-growth-agent          → 8 SEO skills
+├── content-pipeline-agent    → 7 content + 5 research skills
+├── analytics-intelligence-agent → 3 analytics skills
+├── frontend-optimization-agent  → 9 frontend skills
+├── conversion-optimization-agent → 3 CRO skills
+├── research-intelligence-agent   → 5 research skills
+├── growth-marketing-agent        → 6 marketing skills
+└── multi-tenant-platform (this) → Platform foundation for all
+```
+
+### Workflow Commands
+- `/full-seo-audit` — Technical SEO audit across all sites
+- `/content-pipeline` — End-to-end content creation
+- `/performance-audit` — Frontend performance audit
+- `/analytics-review` — Analytics deep dive
+- `/conversion-audit` — CRO analysis
+- `/competitive-research` — Competitor intelligence
+
+### Cross-Skill Dependencies
+Every skill in the system must respect these platform rules:
+1. **Multi-tenant context** — Always check `x-site-id`, `x-site-locale`, `x-direction` headers
+2. **Bilingual content** — All text has `_en` and `_ar` variants
+3. **Brand voice** — Each site has unique system prompts in `config/sites.ts`
+4. **Timeout guards** — All operations fit within Vercel Pro 60s limit
+5. **Audit trails** — All agent actions logged in CronJobLog or AuditLog
+6. **Quality gates** — SEO score >= 70, Lighthouse >= 80, WCAG a11y >= 90

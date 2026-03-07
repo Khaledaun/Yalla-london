@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -277,8 +278,8 @@ export function ContentAutomationPanel() {
                       <Label>Content Preview</Label>
                       <div 
                         className="text-sm bg-gray-50 p-2 rounded max-h-32 overflow-y-auto"
-                        dangerouslySetInnerHTML={{ 
-                          __html: selectedContent.content.substring(0, 300) + '...' 
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeHtml((selectedContent.content || '').substring(0, 300) + '...')
                         }}
                       />
                     </div>

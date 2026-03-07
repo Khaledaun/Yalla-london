@@ -85,7 +85,18 @@ export default function TransactionsPage() {
               Track all purchases and payment activity
             </p>
           </div>
-          <Button variant="outline">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const csv = ['ID,Customer,Email,Product,Amount,Status,Date', ...transactions.map(t =>
+                `"${t.id}","${t.customer}","${t.email}","${t.product}","${t.amount}","${t.status}","${t.date}"`
+              )].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = 'transactions.csv'; a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
             <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>
         </div>
@@ -154,8 +165,11 @@ export default function TransactionsPage() {
                   className="pl-10"
                 />
               </div>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 mr-2" /> Filter
+              <Button
+                variant="outline"
+                onClick={() => setSearchQuery(searchQuery === '' ? 'completed' : '')}
+              >
+                <Filter className="w-4 h-4 mr-2" /> {searchQuery === 'completed' ? 'Show All' : 'Completed'}
               </Button>
             </div>
           </CardContent>

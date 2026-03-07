@@ -4,8 +4,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { contentType, contentId, paths } = await request.json();
 
@@ -88,9 +92,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Cache invalidation error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to invalidate cache',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        error: 'Failed to invalidate cache'
       },
       { status: 500 }
     );

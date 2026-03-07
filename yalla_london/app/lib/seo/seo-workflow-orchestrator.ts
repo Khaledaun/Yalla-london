@@ -31,8 +31,10 @@ import { seoResearchSkill, ResearchOutput } from "./skills/seo-research-skill";
 import { blogPosts } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+
 const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 
 // Combine all blog posts
 const allPosts = [...blogPosts, ...extendedBlogPosts];

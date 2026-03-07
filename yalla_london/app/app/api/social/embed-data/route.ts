@@ -5,6 +5,33 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 
 
+// Allowed hostnames for embed data fetching (SSRF protection)
+const ALLOWED_EMBED_HOSTS = [
+  'youtube.com', 'www.youtube.com', 'youtu.be',
+  'instagram.com', 'www.instagram.com',
+  'tiktok.com', 'www.tiktok.com',
+  'facebook.com', 'www.facebook.com',
+  'vimeo.com', 'www.vimeo.com',
+  'twitter.com', 'www.twitter.com', 'x.com',
+];
+
+function isAllowedUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Block private/internal IPs and non-HTTPS
+    if (parsed.protocol !== 'https:') return false;
+    const hostname = parsed.hostname.toLowerCase();
+    // Block internal hostnames
+    if (hostname === 'localhost' || hostname.startsWith('127.') ||
+        hostname.startsWith('10.') || hostname.startsWith('192.168.') ||
+        hostname.startsWith('172.') || hostname.endsWith('.internal') ||
+        hostname.endsWith('.local')) return false;
+    return ALLOWED_EMBED_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
 // Get embed data for social media URLs
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +40,14 @@ export async function POST(request: NextRequest) {
     if (!url || !type) {
       return NextResponse.json(
         { error: 'URL and type are required' },
+        { status: 400 }
+      );
+    }
+
+    // SSRF protection: only allow known social media hosts
+    if (!isAllowedUrl(url)) {
+      return NextResponse.json(
+        { error: 'URL must be from a supported social media platform (YouTube, Instagram, TikTok, Facebook)' },
         { status: 400 }
       );
     }

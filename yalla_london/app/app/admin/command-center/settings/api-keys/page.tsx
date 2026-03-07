@@ -3,7 +3,7 @@
 /**
  * AI API Keys Management
  *
- * Manage API keys for Claude, GPT, and Gemini.
+ * Manage API keys for Grok (xAI), Claude, GPT, and Gemini.
  * Shows real configuration status from environment variables.
  */
 
@@ -35,7 +35,7 @@ import {
 
 interface ApiKeyConfig {
   id: string;
-  provider: 'claude' | 'openai' | 'gemini' | 'serpapi';
+  provider: 'grok' | 'claude' | 'openai' | 'gemini' | 'serpapi';
   name: string;
   key: string;
   status: 'active' | 'invalid' | 'expired' | 'unconfigured';
@@ -59,13 +59,25 @@ interface Integrations {
 
 const PROVIDERS = [
   {
+    id: 'grok',
+    name: 'Grok (xAI)',
+    icon: TrendingUp,
+    color: 'from-gray-900 to-gray-700',
+    bgColor: 'bg-gray-50',
+    textColor: 'text-gray-800',
+    description: 'Priority #1 — EN content, trending topics (X), live news search',
+    models: ['grok-4-1-fast', 'grok-4-latest'],
+    docsUrl: 'https://console.x.ai/',
+    features: ['Content generation', 'Web search', 'X/Twitter search', 'Trending topics', 'Live news'],
+  },
+  {
     id: 'claude',
     name: 'Claude (Anthropic)',
     icon: Brain,
     color: 'from-orange-500 to-amber-500',
     bgColor: 'bg-orange-50',
     textColor: 'text-orange-600',
-    description: 'Primary AI for content generation and analysis',
+    description: 'Priority #2 — content generation fallback',
     models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'],
     docsUrl: 'https://console.anthropic.com/',
   },
@@ -76,7 +88,7 @@ const PROVIDERS = [
     color: 'from-green-500 to-emerald-500',
     bgColor: 'bg-green-50',
     textColor: 'text-green-600',
-    description: 'Backup AI and specialized tasks',
+    description: 'Priority #3 — additional AI fallback',
     models: ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
     docsUrl: 'https://platform.openai.com/',
   },
@@ -87,7 +99,7 @@ const PROVIDERS = [
     color: 'from-blue-500 to-indigo-500',
     bgColor: 'bg-blue-50',
     textColor: 'text-blue-600',
-    description: 'Alternative AI for specific use cases',
+    description: 'Priority #4 — alternative AI for specific use cases',
     models: ['gemini-pro', 'gemini-pro-vision'],
     docsUrl: 'https://makersuite.google.com/',
   },
@@ -232,7 +244,7 @@ export default function ApiKeysPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -520,6 +532,27 @@ export default function ApiKeysPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Grok-specific features list */}
+                  {'features' in provider && (provider as any).features && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Enabled Features</span>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {((provider as any).features as string[]).map((feature: string) => (
+                          <span
+                            key={feature}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-full text-xs text-gray-700"
+                          >
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Used by: daily-content-generate, weekly-topics, trends-monitor, london-news
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -613,11 +646,11 @@ export default function ApiKeysPage() {
         <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="font-semibold mb-4">AI Provider Priority</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Set the order in which AI providers will be used. If the primary provider fails,
-            the system will automatically fall back to the next one.
+            Providers are tried in priority order. Grok is preferred for EN content due to
+            cost efficiency ($0.20/$0.50 per 1M tokens) and real-time web + X search.
           </p>
           <div className="space-y-2">
-            {['claude', 'openai', 'gemini'].map((providerId, index) => {
+            {['grok', 'claude', 'openai', 'gemini'].map((providerId, index) => {
               const provider = PROVIDERS.find((p) => p.id === providerId);
               if (!provider) return null;
 
@@ -626,7 +659,9 @@ export default function ApiKeysPage() {
                   key={providerId}
                   className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg"
                 >
-                  <span className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center font-medium text-gray-600">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center font-medium ${
+                    index === 0 ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'
+                  }`}>
                     {index + 1}
                   </span>
                   <div
@@ -634,7 +669,14 @@ export default function ApiKeysPage() {
                   >
                     <provider.icon className="h-4 w-4 text-white" />
                   </div>
-                  <span className="font-medium">{provider.name}</span>
+                  <div>
+                    <span className="font-medium">{provider.name}</span>
+                    {providerId === 'grok' && (
+                      <span className="ml-2 text-xs bg-black text-white px-2 py-0.5 rounded-full">
+                        Preferred
+                      </span>
+                    )}
+                  </div>
                   <span
                     className={`ml-auto text-sm ${
                       keys.find((k) => k.provider === providerId)?.status === 'active'

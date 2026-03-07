@@ -49,18 +49,19 @@ export function CookieConsentBanner() {
   const applyCookieSettings = (prefs: CookiePreferences) => {
     // Apply analytics cookies
     if (prefs.analytics && typeof window !== 'undefined') {
-      // Enable Google Analytics
-      if (process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID) {
+      // Enable Google Analytics — use same env var as layout.tsx, with .trim() to strip newlines
+      const gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '').trim()
+      if (gaId) {
         const script = document.createElement('script')
-        script.src = `https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}`
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`
         document.head.appendChild(script)
-        
+
         const script2 = document.createElement('script')
         script2.innerHTML = `
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}', {
+          gtag('config', '${gaId}', {
             anonymize_ip: true,
             cookie_flags: 'secure;samesite=strict'
           });
@@ -119,16 +120,20 @@ export function CookieConsentBanner() {
     setPreferences(prev => ({ ...prev, [key]: value }))
   }
 
+  const isAr = language === 'ar'
+
   if (!isVisible) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-black bg-opacity-50">
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-black bg-opacity-50" dir={isAr ? 'rtl' : 'ltr'}>
       <Card className="max-w-4xl mx-auto">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cookie className="h-5 w-5" />
-              <CardTitle className="text-lg">Cookie Preferences</CardTitle>
+              <CardTitle className="text-lg">
+                {isAr ? 'تفضيلات ملفات تعريف الارتباط' : 'Cookie Preferences'}
+              </CardTitle>
             </div>
             {!showSettings && (
               <Button
@@ -141,38 +146,39 @@ export function CookieConsentBanner() {
             )}
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {!showSettings ? (
             <div>
-              <p className="text-sm text-gray-600 mb-4">
-                We use cookies to enhance your experience, analyze site usage, and provide personalized content. 
-                You can choose which cookies to accept below. Essential cookies are always active.
+              <p className="text-sm text-stone mb-4">
+                {isAr
+                  ? 'نستخدم ملفات تعريف الارتباط لتحسين تجربتك وتحليل استخدام الموقع وتقديم محتوى مخصص. يمكنك اختيار ملفات تعريف الارتباط التي تقبلها أدناه. ملفات تعريف الارتباط الأساسية نشطة دائمًا.'
+                  : 'We use cookies to enhance your experience, analyze site usage, and provide personalized content. You can choose which cookies to accept below. Essential cookies are always active.'}
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button 
+                <Button
                   onClick={handleAcceptAll}
                   className="flex-1"
                 >
-                  Accept All
+                  {isAr ? 'قبول الكل' : 'Accept All'}
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="outline"
                   onClick={() => setShowSettings(true)}
                   className="flex-1"
                 >
-                  <Settings className="mr-2 h-4 w-4" />
-                  Customize
+                  <Settings className={`h-4 w-4 ${isAr ? 'ml-2' : 'mr-2'}`} />
+                  {isAr ? 'تخصيص' : 'Customize'}
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="outline"
                   onClick={handleRejectAll}
                   className="flex-1"
                 >
-                  Reject Non-Essential
+                  {isAr ? 'رفض غير الأساسية' : 'Reject Non-Essential'}
                 </Button>
               </div>
             </div>
@@ -182,9 +188,13 @@ export function CookieConsentBanner() {
                 {/* Necessary Cookies */}
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
-                    <h4 className="font-medium">Necessary Cookies</h4>
-                    <p className="text-sm text-gray-600">
-                      Essential for website functionality, security, and basic features.
+                    <h4 className="font-medium">
+                      {isAr ? 'ملفات تعريف الارتباط الضرورية' : 'Necessary Cookies'}
+                    </h4>
+                    <p className="text-sm text-stone">
+                      {isAr
+                        ? 'أساسية لعمل الموقع والأمان والميزات الأساسية.'
+                        : 'Essential for website functionality, security, and basic features.'}
                     </p>
                   </div>
                   <Switch checked={true} disabled />
@@ -193,12 +203,16 @@ export function CookieConsentBanner() {
                 {/* Analytics Cookies */}
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
-                    <h4 className="font-medium">Analytics Cookies</h4>
-                    <p className="text-sm text-gray-600">
-                      Help us understand how visitors interact with our website.
+                    <h4 className="font-medium">
+                      {isAr ? 'ملفات تعريف الارتباط التحليلية' : 'Analytics Cookies'}
+                    </h4>
+                    <p className="text-sm text-stone">
+                      {isAr
+                        ? 'تساعدنا على فهم كيفية تفاعل الزوار مع موقعنا.'
+                        : 'Help us understand how visitors interact with our website.'}
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={preferences.analytics}
                     onCheckedChange={(checked) => handlePreferenceChange('analytics', checked)}
                   />
@@ -207,12 +221,16 @@ export function CookieConsentBanner() {
                 {/* Functional Cookies */}
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
-                    <h4 className="font-medium">Functional Cookies</h4>
-                    <p className="text-sm text-gray-600">
-                      Remember your preferences and enhance functionality.
+                    <h4 className="font-medium">
+                      {isAr ? 'ملفات تعريف الارتباط الوظيفية' : 'Functional Cookies'}
+                    </h4>
+                    <p className="text-sm text-stone">
+                      {isAr
+                        ? 'تتذكر تفضيلاتك وتحسن الوظائف.'
+                        : 'Remember your preferences and enhance functionality.'}
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={preferences.functional}
                     onCheckedChange={(checked) => handlePreferenceChange('functional', checked)}
                   />
@@ -221,12 +239,16 @@ export function CookieConsentBanner() {
                 {/* Marketing Cookies */}
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
-                    <h4 className="font-medium">Marketing Cookies</h4>
-                    <p className="text-sm text-gray-600">
-                      Used to show relevant advertisements and measure campaign effectiveness.
+                    <h4 className="font-medium">
+                      {isAr ? 'ملفات تعريف الارتباط التسويقية' : 'Marketing Cookies'}
+                    </h4>
+                    <p className="text-sm text-stone">
+                      {isAr
+                        ? 'تُستخدم لعرض إعلانات ذات صلة وقياس فعالية الحملات.'
+                        : 'Used to show relevant advertisements and measure campaign effectiveness.'}
                     </p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={preferences.marketing}
                     onCheckedChange={(checked) => handlePreferenceChange('marketing', checked)}
                   />
@@ -235,23 +257,33 @@ export function CookieConsentBanner() {
 
               <div className="flex gap-2 pt-4">
                 <Button onClick={handleAcceptSelected} className="flex-1">
-                  Save Preferences
+                  {isAr ? 'حفظ التفضيلات' : 'Save Preferences'}
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setShowSettings(false)}
                   className="flex-1"
                 >
-                  Back
+                  {isAr ? 'رجوع' : 'Back'}
                 </Button>
               </div>
             </div>
           )}
-          
-          <p className="text-xs text-gray-500 mt-4">
-            By continuing to use our website, you agree to our{' '}
-            <Link href="/privacy" className="underline hover:text-gray-700">Privacy Policy</Link> and{' '}
-            <Link href="/terms" className="underline hover:text-gray-700">Terms of Use</Link>.
+
+          <p className="text-xs text-stone mt-4">
+            {isAr ? (
+              <>
+                باستمرارك في استخدام موقعنا، فإنك توافق على{' '}
+                <Link href="/privacy" className="underline hover:text-charcoal">سياسة الخصوصية</Link> و{' '}
+                <Link href="/terms" className="underline hover:text-charcoal">شروط الاستخدام</Link>.
+              </>
+            ) : (
+              <>
+                By continuing to use our website, you agree to our{' '}
+                <Link href="/privacy" className="underline hover:text-charcoal">Privacy Policy</Link> and{' '}
+                <Link href="/terms" className="underline hover:text-charcoal">Terms of Use</Link>.
+              </>
+            )}
           </p>
         </CardContent>
       </Card>

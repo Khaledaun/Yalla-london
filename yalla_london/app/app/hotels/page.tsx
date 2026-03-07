@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import Image from 'next/image'
-import { Star, MapPin, Wifi, Car, Coffee, Waves, Search, Filter, ChevronRight } from 'lucide-react'
+import { Star, MapPin, Search } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
 
 const hotels = {
@@ -11,180 +10,284 @@ const hotels = {
     {
       id: '1',
       name: 'The Dorchester',
-      location: 'Mayfair, London',
-      rating: 5,
-      reviews: 1234,
+      location: 'Mayfair',
+      area: 'Mayfair',
+      rating: 4.9,
+      reviews: 3412,
       price: 650,
       image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80',
-      badge: 'Luxury',
-      amenities: ['Spa', 'Pool', 'Gym', 'Restaurant']
+      badge: 'Palace Hotel',
+      description: 'Overlooking Hyde Park since 1931, The Dorchester is one of London\'s most iconic luxury hotels. Home to three-Michelin-starred Alain Ducasse, a world-class spa, and legendary afternoon tea.',
+      amenities: ['Spa', 'Michelin Dining', 'Hyde Park Views', 'Butler Service'],
+      website: 'https://www.dorchestercollection.com/london/the-dorchester'
     },
     {
       id: '2',
       name: 'The Ritz London',
-      location: 'Piccadilly, London',
-      rating: 5,
-      reviews: 2156,
+      location: 'Piccadilly',
+      area: 'Piccadilly',
+      rating: 4.8,
+      reviews: 4256,
       price: 750,
       image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80',
       badge: '5 Star',
-      amenities: ['Spa', 'Restaurant', 'Bar', 'Concierge']
+      description: 'The epitome of English grandeur on Piccadilly. Famous for its opulent Louis XVI interiors, legendary afternoon tea in the Palm Court, and the Ritz Restaurant with its gilded ceiling.',
+      amenities: ['Palm Court Tea', 'Fine Dining', 'Casino', 'Concierge'],
+      website: 'https://www.theritzlondon.com'
     },
     {
       id: '3',
-      name: 'Claridges',
-      location: 'Mayfair, London',
-      rating: 5,
-      reviews: 987,
+      name: "Claridge's",
+      location: 'Mayfair',
+      area: 'Mayfair',
+      rating: 4.9,
+      reviews: 2187,
       price: 580,
       image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&q=80',
-      badge: 'Historic',
-      amenities: ['Spa', 'Restaurant', 'Bar', 'Butler']
+      badge: 'Art Deco Icon',
+      description: 'The quintessential Mayfair hotel. Claridge\'s Art Deco masterpiece has hosted royalty and heads of state since the 1850s. Home to Gordon Ramsay\'s restaurant and the iconic foyer.',
+      amenities: ['Art Deco Design', 'Gordon Ramsay', 'Fumoir Bar', 'Butler Service'],
+      website: 'https://www.claridges.co.uk'
     },
     {
       id: '4',
       name: 'The Savoy',
-      location: 'Strand, London',
-      rating: 5,
-      reviews: 1876,
-      price: 620,
+      location: 'Strand',
+      area: 'Westminster',
+      rating: 4.8,
+      reviews: 3876,
+      price: 520,
       image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=600&q=80',
-      badge: 'Iconic',
-      amenities: ['Pool', 'Spa', 'Restaurant', 'Theater']
+      badge: 'Historic Landmark',
+      description: 'London\'s first luxury hotel, opened in 1889 on the banks of the Thames. The Savoy blends Edwardian and Art Deco styles with Thames-view suites, the American Bar, and Kaspar\'s seafood bar.',
+      amenities: ['Thames Views', 'American Bar', 'Pool & Spa', 'River Restaurant'],
+      website: 'https://www.thesavoylondon.com'
     },
     {
       id: '5',
-      name: 'The Langham',
-      location: 'Marylebone, London',
-      rating: 5,
-      reviews: 1432,
+      name: 'The Langham, London',
+      location: 'Marylebone',
+      area: 'Marylebone',
+      rating: 4.7,
+      reviews: 2432,
       price: 480,
       image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=600&q=80',
-      badge: 'Boutique',
-      amenities: ['Spa', 'Pool', 'Restaurant', 'Gym']
+      badge: 'Heritage',
+      description: 'Europe\'s first grand hotel, established in 1865 near Regent Street. Features the award-winning Chuan Body + Soul spa, Roux at The Landau restaurant, and the atmospheric Artesian cocktail bar.',
+      amenities: ['Chuan Spa', 'Roux Restaurant', 'Artesian Bar', 'Gym'],
+      website: 'https://www.langhamhotels.com/london'
     },
     {
       id: '6',
-      name: 'Four Seasons Park Lane',
-      location: 'Park Lane, London',
-      rating: 5,
-      reviews: 2345,
+      name: 'Four Seasons Hotel London at Park Lane',
+      location: 'Park Lane',
+      area: 'Mayfair',
+      rating: 4.8,
+      reviews: 2845,
       price: 720,
       image: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600&q=80',
       badge: 'Premium',
-      amenities: ['Spa', 'Pool', 'Restaurant', 'Lounge']
+      description: 'Commanding Park Lane with views over Hyde Park. Features a rooftop spa with panoramic London views, Amaranto Italian restaurant, and spacious rooms with floor-to-ceiling windows.',
+      amenities: ['Rooftop Spa', 'Park Views', 'Italian Dining', 'Lounge Bar'],
+      website: 'https://www.fourseasons.com/london'
     },
     {
       id: '7',
       name: 'Corinthia London',
-      location: 'Westminster, London',
-      rating: 5,
-      reviews: 1567,
+      location: 'Whitehall Place',
+      area: 'Westminster',
+      rating: 4.8,
+      reviews: 2567,
       price: 550,
       image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80',
-      badge: 'Modern',
-      amenities: ['Spa', 'Pool', 'Restaurant', 'Rooftop']
+      badge: 'Modern Grand',
+      description: 'A Victorian grande dame reimagined for modern luxury near Embankment. Houses the ESPA Life spa (one of London\'s largest), Kerridge\'s Bar & Grill by Tom Kerridge, and penthouse suites with Big Ben views.',
+      amenities: ['ESPA Life Spa', 'Tom Kerridge', 'Penthouse Suites', 'Fitness'],
+      website: 'https://www.corinthia.com/london'
     },
     {
       id: '8',
       name: 'The Connaught',
-      location: 'Mayfair, London',
-      rating: 5,
-      reviews: 876,
+      location: 'Mayfair',
+      area: 'Mayfair',
+      rating: 4.9,
+      reviews: 1876,
       price: 690,
       image: 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=600&q=80',
       badge: 'Exclusive',
-      amenities: ['Spa', 'Restaurant', 'Bar', 'Butler']
+      description: 'Understated elegance in the heart of Mayfair. The Connaught features Hélène Darroze\'s two-Michelin-starred restaurant, the legendary Connaught Bar (World\'s Best Bar), and an Aman Spa.',
+      amenities: ['Aman Spa', 'Connaught Bar', 'Michelin Dining', 'Butler Service'],
+      website: 'https://www.the-connaught.co.uk'
+    },
+    {
+      id: '9',
+      name: 'Shangri-La The Shard, London',
+      location: 'London Bridge',
+      area: 'Southwark',
+      rating: 4.7,
+      reviews: 3124,
+      price: 450,
+      image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80',
+      badge: 'Sky High',
+      description: 'Occupying floors 34-52 of The Shard, Western Europe\'s tallest building. Every room offers floor-to-ceiling views across London. Features an infinity pool on the 52nd floor and TING restaurant.',
+      amenities: ['Infinity Pool', 'Shard Views', 'TING Restaurant', 'Sky Bar'],
+      website: 'https://www.shangri-la.com/london/shangrila'
+    },
+    {
+      id: '10',
+      name: 'Bulgari Hotel London',
+      location: 'Knightsbridge',
+      area: 'Knightsbridge',
+      rating: 4.8,
+      reviews: 1654,
+      price: 780,
+      image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=600&q=80',
+      badge: 'Ultra Luxury',
+      description: 'Italian craftsmanship meets British heritage steps from Harrods. Features a 25-metre pool, Bulgari Spa, Il Ristorante by Niko Romito, and a private cinema and ballroom.',
+      amenities: ['Bulgari Spa', '25m Pool', 'Italian Dining', 'Private Cinema'],
+      website: 'https://www.bulgarihotels.com/london'
     },
   ],
   ar: [
     {
       id: '1',
       name: 'دورتشستر',
-      location: 'مايفير، لندن',
-      rating: 5,
-      reviews: 1234,
+      location: 'مايفير',
+      area: 'Mayfair',
+      rating: 4.9,
+      reviews: 3412,
       price: 650,
       image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80',
-      badge: 'فاخر',
-      amenities: ['سبا', 'مسبح', 'صالة رياضية', 'مطعم']
+      badge: 'فندق قصر',
+      description: 'يطل على هايد بارك منذ عام 1931، دورتشستر هو أحد أشهر الفنادق الفاخرة في لندن. يضم مطعم آلان دوكاس الحائز على ثلاث نجوم ميشلان، وسبا عالمي المستوى، وشاي بعد الظهر الأسطوري.',
+      amenities: ['سبا', 'مطعم ميشلان', 'إطلالة هايد بارك', 'خدمة الخادم الشخصي'],
+      website: 'https://www.dorchestercollection.com/london/the-dorchester'
     },
     {
       id: '2',
       name: 'ريتز لندن',
-      location: 'بيكاديلي، لندن',
-      rating: 5,
-      reviews: 2156,
+      location: 'بيكاديلي',
+      area: 'Piccadilly',
+      rating: 4.8,
+      reviews: 4256,
       price: 750,
       image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80',
       badge: '5 نجوم',
-      amenities: ['سبا', 'مطعم', 'بار', 'خدمة كونسيرج']
+      description: 'قمة الفخامة الإنجليزية على شارع بيكاديلي. يشتهر بديكوراته الفخمة على طراز لويس السادس عشر، وشاي بعد الظهر الأسطوري في بالم كورت.',
+      amenities: ['شاي بالم كورت', 'مطعم فاخر', 'كازينو', 'كونسيرج'],
+      website: 'https://www.theritzlondon.com'
     },
     {
       id: '3',
       name: 'كلاريدجز',
-      location: 'مايفير، لندن',
-      rating: 5,
-      reviews: 987,
+      location: 'مايفير',
+      area: 'Mayfair',
+      rating: 4.9,
+      reviews: 2187,
       price: 580,
       image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&q=80',
-      badge: 'تاريخي',
-      amenities: ['سبا', 'مطعم', 'بار', 'خادم شخصي']
+      badge: 'أيقونة آرت ديكو',
+      description: 'فندق مايفير المثالي. تحفة آرت ديكو استضافت الملوك ورؤساء الدول منذ خمسينيات القرن التاسع عشر. يضم مطعم غوردون رامزي والبهو الأيقوني.',
+      amenities: ['تصميم آرت ديكو', 'غوردون رامزي', 'بار فومور', 'خادم شخصي'],
+      website: 'https://www.claridges.co.uk'
     },
     {
       id: '4',
       name: 'سافوي',
-      location: 'ستراند، لندن',
-      rating: 5,
-      reviews: 1876,
-      price: 620,
+      location: 'ستراند',
+      area: 'Westminster',
+      rating: 4.8,
+      reviews: 3876,
+      price: 520,
       image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=600&q=80',
-      badge: 'أيقوني',
-      amenities: ['مسبح', 'سبا', 'مطعم', 'مسرح']
+      badge: 'معلم تاريخي',
+      description: 'أول فندق فاخر في لندن، افتتح عام 1889 على ضفاف نهر التايمز. يمزج بين الطراز الإدواردي وآرت ديكو مع أجنحة تطل على النهر والبار الأمريكي.',
+      amenities: ['إطلالة التايمز', 'البار الأمريكي', 'مسبح وسبا', 'مطعم النهر'],
+      website: 'https://www.thesavoylondon.com'
     },
     {
       id: '5',
-      name: 'لانغهام',
-      location: 'ماريليبون، لندن',
-      rating: 5,
-      reviews: 1432,
+      name: 'لانغهام لندن',
+      location: 'ماريليبون',
+      area: 'Marylebone',
+      rating: 4.7,
+      reviews: 2432,
       price: 480,
       image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=600&q=80',
-      badge: 'بوتيك',
-      amenities: ['سبا', 'مسبح', 'مطعم', 'صالة رياضية']
+      badge: 'تراثي',
+      description: 'أول فندق كبير في أوروبا، تأسس عام 1865 بالقرب من شارع ريجنت. يضم سبا شوان الحائز على جوائز ومطعم رو وبار أرتيزان.',
+      amenities: ['سبا شوان', 'مطعم رو', 'بار أرتيزان', 'صالة رياضية'],
+      website: 'https://www.langhamhotels.com/london'
     },
     {
       id: '6',
       name: 'فور سيزونز بارك لين',
-      location: 'بارك لين، لندن',
-      rating: 5,
-      reviews: 2345,
+      location: 'بارك لين',
+      area: 'Mayfair',
+      rating: 4.8,
+      reviews: 2845,
       price: 720,
       image: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600&q=80',
       badge: 'مميز',
-      amenities: ['سبا', 'مسبح', 'مطعم', 'صالة']
+      description: 'يسيطر على بارك لين مع إطلالات على هايد بارك. يضم سبا على السطح مع إطلالات بانورامية ومطعم أمارانتو الإيطالي وغرف واسعة.',
+      amenities: ['سبا على السطح', 'إطلالة البارك', 'مطعم إيطالي', 'بار'],
+      website: 'https://www.fourseasons.com/london'
     },
     {
       id: '7',
       name: 'كورينثيا لندن',
-      location: 'ويستمنستر، لندن',
-      rating: 5,
-      reviews: 1567,
+      location: 'وايتهول',
+      area: 'Westminster',
+      rating: 4.8,
+      reviews: 2567,
       price: 550,
       image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80',
-      badge: 'عصري',
-      amenities: ['سبا', 'مسبح', 'مطعم', 'سطح']
+      badge: 'فخامة عصرية',
+      description: 'فندق فيكتوري أعيد تصميمه للفخامة الحديثة بالقرب من إمبانكمنت. يضم سبا ESPA Life وبار ومشوى كيريدج من توم كيريدج وأجنحة بنتهاوس.',
+      amenities: ['سبا ESPA', 'توم كيريدج', 'أجنحة بنتهاوس', 'صالة رياضية'],
+      website: 'https://www.corinthia.com/london'
     },
     {
       id: '8',
       name: 'كونوت',
-      location: 'مايفير، لندن',
-      rating: 5,
-      reviews: 876,
+      location: 'مايفير',
+      area: 'Mayfair',
+      rating: 4.9,
+      reviews: 1876,
       price: 690,
       image: 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=600&q=80',
       badge: 'حصري',
-      amenities: ['سبا', 'مطعم', 'بار', 'خادم شخصي']
+      description: 'أناقة هادئة في قلب مايفير. يضم مطعم هيلين داروز الحائز على نجمتي ميشلان وبار كونوت الأسطوري (أفضل بار في العالم) وسبا آمان.',
+      amenities: ['سبا آمان', 'بار كونوت', 'مطعم ميشلان', 'خادم شخصي'],
+      website: 'https://www.the-connaught.co.uk'
+    },
+    {
+      id: '9',
+      name: 'شانغريلا ذا شارد',
+      location: 'لندن بريدج',
+      area: 'Southwark',
+      rating: 4.7,
+      reviews: 3124,
+      price: 450,
+      image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80',
+      badge: 'في السماء',
+      description: 'يحتل الطوابق 34-52 من ذا شارد، أطول مبنى في أوروبا الغربية. كل غرفة توفر إطلالات بانورامية على لندن مع مسبح إنفينيتي في الطابق 52.',
+      amenities: ['مسبح إنفينيتي', 'إطلالة الشارد', 'مطعم TING', 'بار السماء'],
+      website: 'https://www.shangri-la.com/london/shangrila'
+    },
+    {
+      id: '10',
+      name: 'بولغاري لندن',
+      location: 'نايتسبريدج',
+      area: 'Knightsbridge',
+      rating: 4.8,
+      reviews: 1654,
+      price: 780,
+      image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=600&q=80',
+      badge: 'فخامة مطلقة',
+      description: 'الحرفية الإيطالية تلتقي بالتراث البريطاني على بعد خطوات من هارودز. يضم مسبح 25 متر وسبا بولغاري ومطعم إيطالي وسينما خاصة.',
+      amenities: ['سبا بولغاري', 'مسبح 25م', 'مطعم إيطالي', 'سينما خاصة'],
+      website: 'https://www.bulgarihotels.com/london'
     },
   ]
 }
@@ -192,24 +295,35 @@ const hotels = {
 const text = {
   en: {
     title: 'Luxury Hotels in London',
-    subtitle: 'Discover the finest accommodations for Arab travelers',
+    subtitle: 'Handpicked 5-star hotels perfect for Arab travellers visiting London',
     search: 'Search hotels...',
-    filter: 'Filter',
     reviews: 'reviews',
     perNight: '/night',
     viewDetails: 'View Details',
-    areas: ['All Areas', 'Mayfair', 'Piccadilly', 'Westminster', 'Kensington']
+    bookNow: 'Book Now',
+    areas: ['All Areas', 'Mayfair', 'Westminster', 'Piccadilly', 'Knightsbridge', 'Southwark', 'Marylebone'],
+    metaNote: 'Prices shown are approximate starting rates and may vary by season.'
   },
   ar: {
     title: 'فنادق فاخرة في لندن',
-    subtitle: 'اكتشف أفضل أماكن الإقامة للمسافرين العرب',
+    subtitle: 'فنادق 5 نجوم مختارة بعناية مثالية للمسافرين العرب الذين يزورون لندن',
     search: 'ابحث في الفنادق...',
-    filter: 'تصفية',
     reviews: 'تقييم',
     perNight: '/ليلة',
     viewDetails: 'عرض التفاصيل',
-    areas: ['جميع المناطق', 'مايفير', 'بيكاديلي', 'ويستمنستر', 'كنسينغتون']
+    bookNow: 'احجز الآن',
+    areas: ['جميع المناطق', 'مايفير', 'ويستمنستر', 'بيكاديلي', 'نايتسبريدج', 'ساوثوارك', 'ماريليبون'],
+    metaNote: 'الأسعار المعروضة هي أسعار تقريبية وقد تختلف حسب الموسم.'
   }
+}
+
+const areaMap: Record<string, string> = {
+  'Mayfair': 'Mayfair',
+  'Westminster': 'Westminster',
+  'Piccadilly': 'Piccadilly',
+  'Knightsbridge': 'Knightsbridge',
+  'Southwark': 'Southwark',
+  'Marylebone': 'Marylebone',
 }
 
 export default function HotelsPage() {
@@ -221,49 +335,39 @@ export default function HotelsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedArea, setSelectedArea] = useState('All Areas')
 
-  return (
-    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
-      {/* Navbar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
-        <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1A1F36] rounded-lg flex items-center justify-center relative">
-              <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#E8634B] rounded-full"></span>
-            </div>
-            <span className="text-xl font-bold text-[#1A1F36]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
-          </Link>
-          <div className="hidden md:flex items-center gap-4">
-            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Home</Link>
-            <Link href="/experiences" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Experiences</Link>
-            <Link href="/hotels" className="text-sm font-medium text-[#1A1F36]">Hotels</Link>
-            <Link href="/shop" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Shop</Link>
-          </div>
-        </nav>
-      </div>
+  const areaKeys = Object.keys(areaMap)
+  const selectedAreaKey = t.areas.indexOf(selectedArea) > 0 ? areaKeys[t.areas.indexOf(selectedArea) - 1] : null
 
+  const filteredHotels = hotels[locale].filter(hotel => {
+    const matchesSearch = !searchQuery || hotel.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesArea = !selectedAreaKey || hotel.area === selectedAreaKey
+    return matchesSearch && matchesArea
+  })
+
+  return (
+    <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1A1F36] to-[#2d3452]">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-gray-300 mb-8">{t.subtitle}</p>
+      <div className="pb-12 bg-gradient-to-b from-charcoal to-charcoal-light">
+        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">{t.title}</h1>
+          <p className="text-xl text-cream-300 mb-8">{t.subtitle}</p>
 
           {/* Search Bar */}
           <div className="max-w-xl mx-auto relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-stone`} />
             <input
               type="text"
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-[#E8634B]"
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-london-600`}
             />
           </div>
         </div>
       </div>
 
       {/* Area Filter */}
-      <div className="bg-white border-b py-4 sticky top-20 z-40">
+      <div className="bg-white border-b border-sand py-4 sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center gap-3 overflow-x-auto pb-2">
             {t.areas.map((area) => (
@@ -272,8 +376,8 @@ export default function HotelsPage() {
                 onClick={() => setSelectedArea(area)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedArea === area
-                    ? 'bg-[#1A1F36] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-charcoal text-white'
+                    : 'bg-cream-100 text-stone hover:bg-cream-200'
                 }`}
               >
                 {area}
@@ -286,67 +390,65 @@ export default function HotelsPage() {
       {/* Hotels Grid */}
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {hotels[locale].map((hotel) => (
-            <div key={hotel.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group">
+          {filteredHotels.map((hotel) => (
+            <div key={hotel.id} className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all group border border-sand/50">
               <div className="relative h-56">
-                <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                <span className="absolute top-3 left-3 px-3 py-1 bg-[#1A1F36] text-white text-xs font-semibold rounded-full">
+                <Image src={hotel.image} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-3 py-1 bg-charcoal text-white text-xs font-semibold rounded-full`}>
                   {hotel.badge}
                 </span>
               </div>
               <div className="p-6">
                 {/* Rating */}
                 <div className="flex items-center gap-1 mb-2">
-                  {Array.from({ length: hotel.rating }).map((_, i) => (
+                  {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
                   ))}
-                  <span className="text-sm text-gray-500 ml-2">({hotel.reviews} {t.reviews})</span>
+                  <span className="text-sm text-stone ml-2">{hotel.rating} ({hotel.reviews.toLocaleString()} {t.reviews})</span>
                 </div>
 
                 {/* Name & Location */}
-                <h3 className="text-xl font-bold text-[#1A1F36] mb-1">{hotel.name}</h3>
-                <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
+                <h3 className="text-xl font-semibold text-charcoal mb-1 line-clamp-1">{hotel.name}</h3>
+                <p className="text-sm text-stone flex items-center gap-1 mb-3">
                   <MapPin className="w-4 h-4" /> {hotel.location}
                 </p>
 
+                {/* Description */}
+                <p className="text-sm text-stone mb-4 line-clamp-3">{hotel.description}</p>
+
                 {/* Amenities */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {hotel.amenities.slice(0, 3).map((amenity) => (
-                    <span key={amenity} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
+                  {hotel.amenities.map((amenity) => (
+                    <span key={amenity} className="px-2 py-1 bg-cream-100 text-xs text-stone rounded">
                       {amenity}
                     </span>
                   ))}
                 </div>
 
                 {/* Price & CTA */}
-                <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center justify-between pt-4 border-t border-sand">
                   <div>
-                    <span className="text-2xl font-bold text-[#1A1F36]">£{hotel.price}</span>
-                    <span className="text-sm text-gray-500">{t.perNight}</span>
+                    <span className="text-xs text-stone">{locale === 'en' ? 'From' : 'من'} </span>
+                    <span className="text-2xl font-bold text-charcoal">£{hotel.price}</span>
+                    <span className="text-sm text-stone">{t.perNight}</span>
                   </div>
-                  <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors">
-                    {t.viewDetails}
-                  </button>
+                  <a
+                    href={hotel.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors"
+                  >
+                    {t.bookNow}
+                  </a>
                 </div>
               </div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Footer */}
-      <footer className="bg-[#1A1F36] text-white py-12">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center relative">
-              <span className="text-[#1A1F36] font-bold text-lg">Y</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#E8634B] rounded-full"></span>
-            </div>
-            <span className="text-2xl font-bold">Yalla<span className="font-normal text-gray-400">London</span></span>
-          </div>
-          <p className="text-gray-400">© 2026 Yalla London. All rights reserved.</p>
-        </div>
-      </footer>
+        {/* Price disclaimer */}
+        <p className="text-xs text-stone text-center mt-8">{t.metaNote}</p>
+      </div>
     </div>
   )
 }

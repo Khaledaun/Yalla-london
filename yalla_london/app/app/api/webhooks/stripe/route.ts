@@ -33,9 +33,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { isStripeConfigured, getStripe, handleStripeWebhook } = await import(
-      "@/lib/billing/stripe"
-    );
+    const {
+      isStripeConfigured,
+      getStripe,
+      handleStripeWebhook,
+      handleDigitalProductPurchase,
+    } = await import("@/lib/billing/stripe");
 
     if (!isStripeConfigured()) {
       return NextResponse.json(
@@ -47,8 +50,29 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe();
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
 
-    // Handle billing/subscription events
-    const result = await handleStripeWebhook(event);
+    let result: { action: string; details: Record<string, unknown> };
+
+    // Route checkout.session.completed based on metadata
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as unknown as {
+        id: string;
+        payment_intent?: string | null;
+        metadata?: Record<string, string> | null;
+        subscription?: string;
+      };
+
+      if (session.metadata?.purchase_type === "digital_product") {
+        // Digital product one-time purchase
+        result = await handleDigitalProductPurchase(session);
+      } else {
+        // Subscription checkout
+        result = await handleStripeWebhook(event);
+      }
+    } else {
+      // All other events (subscription updates, invoices, etc.)
+      result = await handleStripeWebhook(event);
+    }
+
     console.log(`[Stripe Webhook] ${event.type} → ${result.action}`);
 
     // Handle legacy booking payment events

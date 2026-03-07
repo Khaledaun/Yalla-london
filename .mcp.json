@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "google-analytics-search-console": {
+      "command": "npx",
+      "args": ["tsx", "yalla_london/app/scripts/mcp-google-server.ts"],
+      "env": {}
+    }
+  }
+}

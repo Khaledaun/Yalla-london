@@ -1,7 +1,7 @@
 
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Language } from '@/lib/types'
 
 interface LanguageContextType {
@@ -12,17 +12,27 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | null>(null)
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en')
+interface LanguageProviderProps {
+  children: React.ReactNode
+  /** Server-provided locale from middleware (e.g. /ar/ routes set this to 'ar') */
+  initialLocale?: Language
+}
+
+export function LanguageProvider({ children, initialLocale }: LanguageProviderProps) {
+  const [language, setLanguage] = useState<Language>(initialLocale || 'en')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('language') as Language
-    if (saved && (saved === 'en' || saved === 'ar')) {
-      setLanguage(saved)
+    // When a URL-based locale is provided (e.g. /ar/ routes), always use it.
+    // Otherwise fall back to the user's localStorage preference.
+    if (!initialLocale) {
+      const saved = localStorage.getItem('language') as Language
+      if (saved && (saved === 'en' || saved === 'ar')) {
+        setLanguage(saved)
+      }
     }
     setMounted(true)
-  }, [])
+  }, [initialLocale])
 
   useEffect(() => {
     if (mounted) {
@@ -34,10 +44,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const isRTL = language === 'ar'
 
-  if (!mounted) {
-    return null
-  }
-
+  // Always render children — returning null blocks SSR and makes crawlers see an empty page
   return (
     <LanguageContext.Provider value={{ language, setLanguage, isRTL }}>
       {children}

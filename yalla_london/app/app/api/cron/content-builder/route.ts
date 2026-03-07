@@ -1,0 +1,172 @@
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+/**
+ * Content Builder — Incremental Phase Processor
+ *
+ * Thin cron route wrapper. Core logic lives in @/lib/content-pipeline/build-runner.
+ *
+ * Runs every 15 minutes. Each invocation:
+ * 1. Finds the oldest in-progress ArticleDraft and advances it one phase
+ * 2. If no in-progress drafts, creates TWO new ones (EN + AR) from TopicProposal queue
+ * 3. Each phase completes within 53s budget (7s safety buffer)
+ *
+ * Pipeline: research → outline → drafting → assembly → images → seo → scoring → reservoir
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { logCronExecution } from "@/lib/cron-logger";
+
+async function handleContentBuilder(request: NextRequest) {
+  const cronStart = Date.now();
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Healthcheck mode
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const counts = await prisma.$queryRawUnsafe(
+        `SELECT current_phase, COUNT(*) as count FROM article_drafts GROUP BY current_phase`,
+      ).catch(() => []) as Array<{ current_phase: string; count: bigint }>;
+      const phaseCounts: Record<string, number> = {};
+      for (const row of counts) {
+        phaseCounts[row.current_phase] = Number(row.count);
+      }
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "content-builder",
+        phaseCounts,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // Return 200 degraded, not 503 — DB pool exhaustion during concurrent health checks
+      // should not appear as a hard failure. Cron runs on schedule regardless.
+      return NextResponse.json(
+        { status: "degraded", endpoint: "content-builder", note: "DB temporarily unavailable for healthcheck — cron runs on schedule." },
+        { status: 200 },
+      );
+    }
+  }
+
+  try {
+    // Dedup guard: skip if another content-builder started within the last 90 seconds.
+    // Prevents duplicate runs from overlapping Vercel cron + manual dashboard triggers.
+    //
+    // CRITICAL FIX: Previously checked for completed logs (written at END of run),
+    // so two simultaneous runs both saw nothing and both proceeded. Now we write a
+    // "started" marker IMMEDIATELY after passing the dedup check, so the second
+    // invocation sees it within milliseconds.
+    const { prisma } = await import("@/lib/db");
+    try {
+      const recentRun = await prisma.cronJobLog.findFirst({
+        where: { job_name: "content-builder", started_at: { gte: new Date(Date.now() - 90_000) } },
+        orderBy: { started_at: "desc" },
+      });
+      if (recentRun) {
+        return NextResponse.json({ skipped: true, reason: "dedup", message: "Another content-builder ran within the last 90s", lastRunAt: recentRun.started_at });
+      }
+
+      // Write "started" marker IMMEDIATELY so a concurrent invocation sees it.
+      await prisma.cronJobLog.create({
+        data: {
+          job_name: "content-builder",
+          job_type: "scheduled",
+          status: "running",
+          started_at: new Date(),
+          duration_ms: 0,
+          items_processed: 0,
+          items_succeeded: 0,
+          items_failed: 0,
+          result_summary: { phase: "started", dedup_marker: true },
+        },
+      });
+
+      // ACT-THEN-CHECK: Two invocations can both pass the initial check and both write
+      // markers before either sees the other's. Re-check after writing: if 2+ markers
+      // exist in the window, this invocation is the duplicate — abort.
+      const markerCount = await prisma.cronJobLog.count({
+        where: {
+          job_name: "content-builder",
+          status: "running",
+          started_at: { gte: new Date(Date.now() - 90_000) },
+        },
+      });
+      if (markerCount > 1) {
+        console.log(`[content-builder] Race condition detected: ${markerCount} markers in window — aborting duplicate`);
+        return NextResponse.json({ skipped: true, reason: "dedup-race", message: `${markerCount} concurrent content-builders detected — this one yielding` });
+      }
+    } catch (dedupErr) {
+      // If dedup check fails (e.g., DB pool exhausted), proceed anyway — better to double-run than skip
+      console.warn("[content-builder] Dedup check failed (non-fatal):", dedupErr instanceof Error ? dedupErr.message : dedupErr);
+    }
+
+    // Run the builder
+    const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");
+    const result = await runContentBuilder({ timeoutMs: 53_000 });
+
+    const durationMs = Date.now() - cronStart;
+
+    const resultAny = result as unknown as Record<string, unknown>;
+
+    // Fire failure hook if the builder returned a failure
+    if (!result.success && result.message) {
+      const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+      onCronFailure({ jobName: "content-builder", error: result.message }).catch(err => console.warn("[content-builder] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+
+      // Wrap in try-catch: DB pool exhaustion should not prevent the route from returning
+      await logCronExecution("content-builder", "failed", {
+        durationMs,
+        errorMessage: result.message,
+        resultSummary: { phase: resultAny.phase, draftsProcessed: resultAny.draftsProcessed },
+      }).catch((logErr: unknown) => {
+        console.warn("[content-builder] logCronExecution (failed) error:", logErr instanceof Error ? logErr.message : logErr);
+      });
+    } else {
+      await logCronExecution("content-builder", "completed", {
+        durationMs,
+        itemsProcessed: (resultAny.draftsProcessed as number) || 0,
+        itemsSucceeded: (resultAny.draftsProcessed as number) || 0,
+        resultSummary: { message: result.message, phase: resultAny.phase },
+      }).catch((logErr: unknown) => {
+        console.warn("[content-builder] logCronExecution (completed) error:", logErr instanceof Error ? logErr.message : logErr);
+      });
+    }
+
+    return NextResponse.json(
+      { ...result, timestamp: new Date().toISOString() },
+      { status: result.success ? 200 : 500 },
+    );
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const durationMs = Date.now() - cronStart;
+
+    // Wrap in try-catch: log failure should not mask the original error response
+    await logCronExecution("content-builder", "failed", {
+      durationMs,
+      errorMessage: errMsg,
+    }).catch((logErr: unknown) => {
+      console.warn("[content-builder] logCronExecution (catch) error:", logErr instanceof Error ? logErr.message : logErr);
+    });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "content-builder", error: errMsg }).catch(err => console.warn("[content-builder] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+
+    return NextResponse.json(
+      { success: false, error: errMsg, timestamp: new Date().toISOString() },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  return handleContentBuilder(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleContentBuilder(request);
+}

@@ -81,7 +81,7 @@ export interface DesignPage {
 
 // ─── Brand Profile ────────────────────────────────────────────────
 
-export interface BrandProfile {
+export interface DesignBrandProfile {
   siteId: string;
   siteName: string;
   destination: string;
@@ -112,7 +112,7 @@ export interface BrandProfile {
 /**
  * Get complete brand profile for a site
  */
-export function getBrandProfile(siteId: string): BrandProfile {
+export function getBrandProfile(siteId: string): DesignBrandProfile {
   const site = SITES[siteId];
   if (!site) {
     return getDefaultBrandProfile(siteId);
@@ -131,10 +131,10 @@ export function getBrandProfile(siteId: string): BrandProfile {
       textLight: "#6B7280",
     },
     fonts: {
-      heading: "Plus Jakarta Sans",
-      headingAr: "Cairo",
-      body: "Inter",
-      bodyAr: "Cairo",
+      heading: "Anybody",
+      headingAr: "IBM Plex Sans Arabic",
+      body: "Source Serif 4",
+      bodyAr: "IBM Plex Sans Arabic",
     },
     logoSvg: generateLogoSvg(site),
     patterns: {
@@ -145,24 +145,24 @@ export function getBrandProfile(siteId: string): BrandProfile {
   };
 }
 
-function getDefaultBrandProfile(siteId: string): BrandProfile {
+function getDefaultBrandProfile(siteId: string): DesignBrandProfile {
   return {
     siteId,
     siteName: "Yalla",
     destination: "Destination",
     colors: {
-      primary: "#1A1F36",
-      secondary: "#E8634B",
+      primary: "#1C1917",
+      secondary: "#C8322B",
       accent: "#F0816D",
       background: "#F9FAFB",
       text: "#111827",
       textLight: "#6B7280",
     },
     fonts: {
-      heading: "Plus Jakarta Sans",
-      headingAr: "Cairo",
-      body: "Inter",
-      bodyAr: "Cairo",
+      heading: "Anybody",
+      headingAr: "IBM Plex Sans Arabic",
+      body: "Source Serif 4",
+      bodyAr: "IBM Plex Sans Arabic",
     },
     logoSvg: "",
     patterns: {
@@ -218,7 +218,7 @@ export function getAvailableTemplates(siteId: string): { category: string; name:
 
 // ─── Template Generators ──────────────────────────────────────────
 
-function travelGuideTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function travelGuideTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   const align = isRTL ? "right" : "left";
   return {
     id: `travel-guide-${brand.siteId}`,
@@ -291,7 +291,7 @@ function travelGuideTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplat
   };
 }
 
-function socialPostTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function socialPostTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return {
     id: `social-${brand.siteId}`,
     name: "Social Media Post",
@@ -325,7 +325,7 @@ function socialPostTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate
   };
 }
 
-function flyerTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function flyerTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   const align = isRTL ? "right" : "left";
   return {
     id: `flyer-${brand.siteId}`,
@@ -367,28 +367,28 @@ function flyerTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
   };
 }
 
-function menuTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function menuTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "menu", "Menu", "قائمة مطعم", "A4");
 }
 
-function itineraryTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function itineraryTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "itinerary", "Trip Itinerary", "برنامج رحلة", "A4");
 }
 
-function infographicTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function infographicTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "infographic", "Infographic", "إنفوجرافيك", "A4");
 }
 
-function posterTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function posterTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "poster", "Event Poster", "بوستر فعالية", "A4");
 }
 
-function brochureTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function brochureTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "brochure", "Brochure", "بروشور", "landscape");
 }
 
 function generateSimpleTemplate(
-  brand: BrandProfile,
+  brand: DesignBrandProfile,
   isRTL: boolean,
   category: DesignTemplate["category"],
   name: string,
@@ -589,7 +589,7 @@ export function renderDesignToHTML(template: DesignTemplate, locale: "en" | "ar"
 <html lang="${locale}" dir="${isRTL ? "rtl" : "ltr"}">
 <head>
   <meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { size: ${dims.width} ${dims.height}; margin: 0; }

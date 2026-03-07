@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
+  const BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel Pro 60s limit
   const startTime = Date.now();
+  const remainingBudget = () => BUDGET_MS - (Date.now() - startTime);
   const range = request.nextUrl.searchParams.get("range") || "30d";
 
   // Map range to GA4 date strings
@@ -81,28 +83,18 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 2. GSC Data
+  // 2. GSC Data — run all 4 analytics queries in parallel
   const endDate = new Date().toISOString().split("T")[0];
   const startDate = new Date(Date.now() - dateConfig.days * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
 
   try {
-    // Fetch queries
-    const queryData = await gscApi.getSearchAnalytics(startDate, endDate, [
-      "query",
-    ]);
-    // Fetch pages
-    const pageData = await gscApi.getSearchAnalytics(startDate, endDate, [
-      "page",
-    ]);
-    // Fetch countries
-    const countryData = await gscApi.getSearchAnalytics(startDate, endDate, [
-      "country",
-    ]);
-    // Fetch devices
-    const deviceData = await gscApi.getSearchAnalytics(startDate, endDate, [
-      "device",
+    const [queryData, pageData, countryData, deviceData] = await Promise.all([
+      gscApi.getSearchAnalytics(startDate, endDate, ["query"]).catch(() => null),
+      gscApi.getSearchAnalytics(startDate, endDate, ["page"]).catch(() => null),
+      gscApi.getSearchAnalytics(startDate, endDate, ["country"]).catch(() => null),
+      gscApi.getSearchAnalytics(startDate, endDate, ["device"]).catch(() => null),
     ]);
 
     if (queryData?.rows || pageData?.rows) {
@@ -237,48 +229,50 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  // 3. Indexing Status
-  try {
-    const allUrls = await getAllIndexableUrls();
-    // Sample check - inspect up to 5 URLs to get a picture
-    const sampleUrls = allUrls.slice(0, 5);
-    const indexingResults = [];
+  // 3. Indexing Status — parallel checks with budget guard
+  if (remainingBudget() > 10_000) {
+    try {
+      const allUrls = await getAllIndexableUrls();
+      const sampleUrls = allUrls.slice(0, 5);
 
-    for (const url of sampleUrls) {
-      const status = await gscApi.checkIndexingStatus(url);
-      if (status) {
-        indexingResults.push(status);
+      // Run all indexing checks in parallel instead of sequentially
+      const indexingResults = (
+        await Promise.all(
+          sampleUrls.map((url) =>
+            gscApi.checkIndexingStatus(url).catch(() => null),
+          ),
+        )
+      ).filter(Boolean);
+
+      const indexed = indexingResults.filter(
+        (r) => r!.coverageState === "Submitted and indexed",
+      ).length;
+      const notIndexed = indexingResults.length - indexed;
+
+      report.indexing = {
+        status: "checked",
+        totalUrls: allUrls.length,
+        sampled: sampleUrls.length,
+        indexedCount: indexed,
+        notIndexedCount: notIndexed,
+        results: indexingResults,
+      };
+
+      if (notIndexed > 0) {
+        report.issues.push({
+          severity: "medium",
+          category: "indexing",
+          title: `${notIndexed} of ${sampleUrls.length} sampled URLs not indexed`,
+          description:
+            "Some URLs are not yet indexed by Google. The cron job will auto-submit them.",
+          autoFixable: true,
+        });
       }
+    } catch {
+      report.indexing = { status: "skipped", reason: "GSC not available" };
     }
-
-    const indexed = indexingResults.filter(
-      (r) => r.coverageState === "Submitted and indexed",
-    ).length;
-    const notIndexed = indexingResults.filter(
-      (r) => r.coverageState !== "Submitted and indexed",
-    ).length;
-
-    report.indexing = {
-      status: "checked",
-      totalUrls: allUrls.length,
-      sampled: sampleUrls.length,
-      indexedCount: indexed,
-      notIndexedCount: notIndexed,
-      results: indexingResults,
-    };
-
-    if (notIndexed > 0) {
-      report.issues.push({
-        severity: "medium",
-        category: "indexing",
-        title: `${notIndexed} of ${sampleUrls.length} sampled URLs not indexed`,
-        description:
-          "Some URLs are not yet indexed by Google. The cron job will auto-submit them.",
-        autoFixable: true,
-      });
-    }
-  } catch {
-    report.indexing = { status: "skipped", reason: "GSC not available" };
+  } else {
+    report.indexing = { status: "skipped", reason: "Budget exceeded, skipped indexing checks" };
   }
 
   // 4. General Recommendations

@@ -29,6 +29,9 @@ import {
   Edit
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
+
+const _defaultCfg = getSiteConfig(getDefaultSiteId())
 
 interface AIPrompt {
   id: string
@@ -70,7 +73,7 @@ export default function AIPromptStudio() {
       id: '2',
       name: 'Article Writing - Professional',
       type: 'article_writing',
-      prompt: 'Write a comprehensive, engaging article about {topic} for Yalla London. Requirements: 1) 1500-2000 words, 2) SEO-optimized with natural keyword integration, 3) Include practical tips and actionable advice, 4) Use a friendly, professional tone, 5) Include relevant subheadings (H2, H3), 6) End with a compelling call-to-action, 7) Include local London references and insights. Structure: Introduction, Main content with subheadings, Conclusion with CTA.',
+      prompt: `Write a comprehensive, engaging article about {topic} for ${_defaultCfg?.name || 'our site'}. Requirements: 1) 1500-2000 words, 2) SEO-optimized with natural keyword integration, 3) Include practical tips and actionable advice, 4) Use a friendly, professional tone, 5) Include relevant subheadings (H2, H3), 6) End with a compelling call-to-action, 7) Include local ${_defaultCfg?.destination || ''} references and insights. Structure: Introduction, Main content with subheadings, Conclusion with CTA.`,
       model: 'claude-3',
       temperature: 0.6,
       maxTokens: 2000,

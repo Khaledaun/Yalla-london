@@ -12,6 +12,9 @@ yalla_london/app/.healthcheck-logs/
 yalla_london/app/coverage/
 yalla_london/app/rbac-test-results.json
 
+# Master audit run outputs (ephemeral, regenerated per run)
+yalla_london/app/docs/master-audit/yalla-london-*/
+
 # Development and build artifacts (comprehensive)
 *.log
 *.tmp
@@ -60,7 +63,8 @@ npm-debug.log*
 .prisma-generation-attempt
 
 # IDE configuration directories (comprehensive)
-.vscode/
+.vscode/*
+!.vscode/workflows/
 .idea/
 .vs/
 *.iml

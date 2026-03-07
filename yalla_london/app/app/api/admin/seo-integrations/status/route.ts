@@ -433,8 +433,9 @@ async function testIndexNow(url: string): Promise<boolean> {
   if (!indexNowKey) return false;
 
   try {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
     const host = siteUrl.replace(/^https?:\/\//, "");
 
     const response = await fetch("https://api.indexnow.org/indexnow", {
@@ -458,8 +459,9 @@ async function pingSearchEngines(): Promise<{
   indexNow: boolean;
   bing: boolean;
 }> {
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
   const indexNowKey = process.env.INDEXNOW_KEY;
 
   const results = { indexNow: false, bing: false };

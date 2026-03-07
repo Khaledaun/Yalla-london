@@ -4,10 +4,6 @@ const path = require('path');
 const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
   output: process.env.NEXT_OUTPUT_MODE,
-  eslint: {
-    // SECURITY: Run ESLint during builds to catch security issues
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -18,16 +14,6 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    domains: [
-      'localhost',
-      'yalla-london.com',
-      'yallalondon.com',
-      'www.yalla-london.com',
-      'vercel.app',
-      'supabase.co',
-      'images.unsplash.com',
-      'cdn.yalla-london.com'
-    ],
     remotePatterns: [
       {
         protocol: 'https',
@@ -46,22 +32,81 @@ const nextConfig = {
         hostname: '**.cloudflare.com',
         port: '',
         pathname: '/**',
-      }
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
+      },
+      // All configured site domains (multi-site support)
+      {
+        protocol: 'https',
+        hostname: '*.yalla-london.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallalondon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.arabaldives.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallariviera.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallaistanbul.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallathailand.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.zenithayachts.com',
+      },
     ]
   },
+  // Turbopack workspace root — resolves the "couldn't find next/package.json" error
+  // when multiple lockfiles exist in the repo
+  turbopack: {
+    root: __dirname,
+  },
+  // Moved from experimental.serverComponentsExternalPackages (deprecated in Next 16)
+  serverExternalPackages: ['@prisma/client', 'prisma'],
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
     optimizeCss: true,
   },
+  // No trailing slashes — prevents /ar/ vs /ar duplicate indexing
+  trailingSlash: false,
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
+  async redirects() {
+    return [
+      // ── Duplicate content cleanup (GSC audit Feb 2026) ──
+      // Blog duplicates with date+hash suffixes
+      { source: '/blog/london-transport-guide-tourists-2026-tube-bus-taxi-2026-02-17-c592', destination: '/blog/london-transport-guide-tourists-2026-tube-bus-taxi', permanent: true },
+      // News duplicates — weather warning
+      { source: '/news/london-weather-warning-what-visitors-need-to-know-2026-02-22', destination: '/news/london-weather-warning-what-visitors-need-to-know-2026-02-19', permanent: true },
+      // News duplicates — tube strike (3 URLs → 1 canonical)
+      { source: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-22', destination: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-21', permanent: true },
+      { source: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-23', destination: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-21', permanent: true },
+      // Trailing slash normalization for Arabic root
+      { source: '/ar/', destination: '/ar', permanent: true },
+    ];
+  },
   async headers() {
     // SECURITY: Only allow specific origins, not wildcard
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yallalondon.com,https://www.yallalondon.com,https://yalla-london.com').split(',').map(o => o.trim())
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yalla-london.com,https://www.yalla-london.com,https://arabaldives.com,https://www.arabaldives.com,https://yallariviera.com,https://www.yallariviera.com,https://yallaistanbul.com,https://www.yallaistanbul.com,https://yallathailand.com,https://www.yallathailand.com,https://zenithayachts.com,https://www.zenithayachts.com').split(',').map(o => o.trim())
     const corsOrigin = process.env.NODE_ENV === 'development'
       ? 'http://localhost:3000'
       : allowedOrigins[0]
@@ -90,11 +135,11 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Public pages - CDN edge caching for Cloudflare (s-maxage)
+      // Public pages - browser + CDN caching for blog articles
       {
         source: '/blog/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=600, stale-while-revalidate=3600' },
+          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=600, stale-while-revalidate=3600' },
           { key: 'CDN-Cache-Control', value: 'max-age=600' },
           { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
         ],
@@ -161,19 +206,20 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
         ],
       },
-      // Sitemap & robots - hourly edge cache
+      // Sitemap - hourly edge cache (content changes infrequently)
       {
         source: '/sitemap.xml',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=3600' },
           { key: 'CDN-Cache-Control', value: 'max-age=3600' },
         ],
       },
+      // robots.txt - short cache, refreshes quickly after deploy
       {
         source: '/robots.txt',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },
-          { key: 'CDN-Cache-Control', value: 'max-age=3600' },
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=60, stale-while-revalidate=60' },
+          { key: 'CDN-Cache-Control', value: 'max-age=60' },
         ],
       },
       // SECURITY: Comprehensive security headers on all pages

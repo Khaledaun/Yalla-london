@@ -307,6 +307,176 @@ function ActionButton({
   );
 }
 
+// ─── Content Cleanup Card ─────────────────────────────────────────────────────
+
+interface CleanupScanResult {
+  totalArticles: number;
+  artifacts: { count: number; items: Array<{ slug: string; field: string; before: string; after: string }> };
+  duplicates: { clusters: number; totalDuplicates: number; publishedDuplicates: number; items: Array<{ keep: { slug: string; title: string; wordCount: number; seoScore: number | null }; duplicates: Array<{ slug: string; title: string; reason: string; published: boolean; wordCount: number }> }> };
+}
+
+function ContentCleanupCard({ siteId }: { siteId: string }) {
+  const [scanResult, setScanResult] = useState<CleanupScanResult | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [fixing, setFixing] = useState<string | null>(null);
+  const [fixResult, setFixResult] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const scan = async () => {
+    setScanning(true);
+    setFixResult(null);
+    try {
+      const res = await fetch(`/api/admin/content-cleanup?siteId=${encodeURIComponent(siteId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setScanResult(data);
+    } catch (err) {
+      setFixResult(`❌ Scan failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const fix = async (action: "fix_artifacts" | "fix_duplicates" | "fix_all") => {
+    setFixing(action);
+    setFixResult(null);
+    try {
+      const res = await fetch("/api/admin/content-cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, siteId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        setFixResult(`✅ Fixed ${data.artifactsFixed || 0} artifacts, unpublished ${data.duplicatesUnpublished || 0} duplicates`);
+        // Re-scan to update numbers
+        scan();
+      } else {
+        setFixResult(`❌ ${data.errors?.join(", ") || "Fix failed"}`);
+      }
+    } catch (err) {
+      setFixResult(`❌ ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setFixing(null);
+    }
+  };
+
+  const hasIssues = scanResult && (scanResult.artifacts.count > 0 || scanResult.duplicates.totalDuplicates > 0);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <SectionTitle>Content Cleanup</SectionTitle>
+        <ActionButton onClick={scan} loading={scanning}>
+          {scanResult ? "🔄 Re-scan" : "🔍 Scan for Issues"}
+        </ActionButton>
+      </div>
+
+      {!scanResult && !scanning && (
+        <p className="text-xs text-zinc-500">Tap Scan to check for title artifacts, overlength meta descriptions, and duplicate articles.</p>
+      )}
+
+      {scanResult && (
+        <div className="space-y-3">
+          {/* Summary badges */}
+          <div className="flex flex-wrap gap-2">
+            <span className={`px-2 py-1 rounded text-xs font-medium ${scanResult.artifacts.count > 0 ? "bg-amber-900/40 text-amber-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+              {scanResult.artifacts.count} artifact{scanResult.artifacts.count !== 1 ? "s" : ""}
+            </span>
+            <span className={`px-2 py-1 rounded text-xs font-medium ${scanResult.duplicates.totalDuplicates > 0 ? "bg-red-900/40 text-red-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+              {scanResult.duplicates.totalDuplicates} duplicate{scanResult.duplicates.totalDuplicates !== 1 ? "s" : ""} in {scanResult.duplicates.clusters} cluster{scanResult.duplicates.clusters !== 1 ? "s" : ""}
+            </span>
+            {scanResult.duplicates.publishedDuplicates > 0 && (
+              <span className="px-2 py-1 rounded text-xs font-medium bg-red-900/60 text-red-200">
+                {scanResult.duplicates.publishedDuplicates} published dups!
+              </span>
+            )}
+            <span className="px-2 py-1 rounded text-xs font-medium bg-zinc-800 text-zinc-400">
+              {scanResult.totalArticles} total
+            </span>
+          </div>
+
+          {/* Fix buttons */}
+          {hasIssues && (
+            <div className="grid grid-cols-3 gap-2">
+              {scanResult.artifacts.count > 0 && (
+                <ActionButton onClick={() => fix("fix_artifacts")} loading={fixing === "fix_artifacts"} variant="amber">
+                  Fix Artifacts
+                </ActionButton>
+              )}
+              {scanResult.duplicates.publishedDuplicates > 0 && (
+                <ActionButton onClick={() => fix("fix_duplicates")} loading={fixing === "fix_duplicates"} variant="danger">
+                  Dedup
+                </ActionButton>
+              )}
+              <ActionButton onClick={() => fix("fix_all")} loading={fixing === "fix_all"} variant="success">
+                Fix All
+              </ActionButton>
+            </div>
+          )}
+
+          {/* Expandable details */}
+          {hasIssues && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+              {expanded ? "Hide details" : "Show details"}
+            </button>
+          )}
+
+          {expanded && scanResult.artifacts.count > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-amber-400">Artifacts Found:</p>
+              {scanResult.artifacts.items.slice(0, 10).map((a, i) => (
+                <div key={i} className="text-xs bg-zinc-900 rounded p-2 space-y-0.5">
+                  <div className="text-zinc-400 truncate">{a.slug}</div>
+                  <div className="text-red-400 truncate">
+                    <span className="text-zinc-500">{a.field}:</span> {a.before}
+                  </div>
+                  <div className="text-emerald-400 truncate">→ {a.after}</div>
+                </div>
+              ))}
+              {scanResult.artifacts.items.length > 10 && (
+                <p className="text-xs text-zinc-500">...and {scanResult.artifacts.items.length - 10} more</p>
+              )}
+            </div>
+          )}
+
+          {expanded && scanResult.duplicates.items.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-red-400">Duplicate Clusters:</p>
+              {scanResult.duplicates.items.slice(0, 5).map((cluster, i) => (
+                <div key={i} className="text-xs bg-zinc-900 rounded p-2 space-y-1">
+                  <div className="text-emerald-400 truncate">
+                    KEEP: {cluster.keep.title} ({cluster.keep.wordCount}w, SEO:{cluster.keep.seoScore ?? "?"})
+                  </div>
+                  {cluster.duplicates.map((d, j) => (
+                    <div key={j} className="text-red-400 truncate pl-2">
+                      DUP: {d.title} ({d.wordCount}w) — {d.reason} {d.published ? "⚠️ PUBLISHED" : ""}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {scanResult.duplicates.items.length > 5 && (
+                <p className="text-xs text-zinc-500">...and {scanResult.duplicates.items.length - 5} more clusters</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {fixResult && (
+        <p className={`mt-2 text-xs p-2 rounded ${fixResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+          {fixResult}
+        </p>
+      )}
+    </Card>
+  );
+}
+
 // ─── Indexing Status Panel ────────────────────────────────────────────────────
 
 interface IndexingArticleInfo {
@@ -1266,6 +1436,12 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/gsc-sync", {}, "GSC Sync")} loading={actionLoading === "GSC Sync"}>
             📡 Sync GSC Data
+          </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/cron/content-auto-fix-lite", {}, "Auto-Fix")} loading={actionLoading === "Auto-Fix"}>
+            🧹 Auto-Fix Lite
+          </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/admin/content-cleanup", { action: "fix_all" }, "Cleanup")} loading={actionLoading === "Cleanup"} variant="amber">
+            🔧 Clean Artifacts + Dedup
           </ActionButton>
           <Link href="/admin/cockpit/validator" className="col-span-2 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-center block">
             🩺 System Validator
@@ -2259,6 +2435,9 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
           </p>
         )}
       </Card>
+
+      {/* Content Cleanup */}
+      <ContentCleanupCard siteId={activeSiteId} />
 
       {/* Active drafts */}
       {drafts.length > 0 && (

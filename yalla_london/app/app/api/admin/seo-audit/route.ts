@@ -87,12 +87,18 @@ async function runAudit(siteId: string) {
   // Use the higher of tracking-confirmed vs GSC-confirmed as true indexed count
   const effectiveIndexed = Math.max(indexedCount, gscConfirmedIndexed);
 
-  // Use published articles as denominator instead of tracking records
-  // (tracking includes static pages and /ar/ variants which inflate the total)
+  // Count published blog posts (the revenue-generating pages).
+  // URLIndexingStatus tracks ALL URLs: blog posts, /ar/ variants, static pages.
+  // Using totalTracked as denominator inflates the total and makes the rate look
+  // worse than it is (e.g., 44/153=29% when most blog posts ARE indexed).
+  // Use published articles as primary denominator — those are what matter for revenue.
   const publishedArticles = await prisma.blogPost.count({
     where: { siteId: siteId, published: true, deletedAt: null },
-  }).catch(() => totalTracked);
-  const effectiveTotal = Math.max(totalTracked, publishedArticles);
+  }).catch(() => 0);
+
+  // If we have published article count, use it as denominator (blog posts = revenue pages).
+  // Fall back to totalTracked only if publishedArticles is unavailable.
+  const effectiveTotal = publishedArticles > 0 ? publishedArticles : totalTracked;
 
   const indexRate = effectiveTotal > 0 ? Math.round((effectiveIndexed / effectiveTotal) * 100) : 0;
 
@@ -101,8 +107,8 @@ async function runAudit(siteId: string) {
       id: "idx-rate-critical",
       severity: "critical",
       category: "Indexing",
-      title: `Only ${indexRate}% of your pages are indexed by Google`,
-      description: `${indexedCount} out of ${totalTracked} tracked pages are indexed. Google can't rank what it hasn't indexed.`,
+      title: `Only ${indexRate}% of your published articles are indexed by Google`,
+      description: `${effectiveIndexed} out of ${effectiveTotal} published articles are confirmed indexed. ${totalTracked} total URLs tracked (including /ar/ variants and static pages). Google can't rank what it hasn't indexed.`,
       impact: "Pages not indexed = zero organic traffic from those pages",
       fix: "Check the Indexing tab in Content Hub. Submit missing pages via IndexNow. Ensure sitemap.xml includes all published URLs.",
       affected: [],
@@ -113,8 +119,8 @@ async function runAudit(siteId: string) {
       id: "idx-rate-high",
       severity: "high",
       category: "Indexing",
-      title: `${indexRate}% indexing rate — ${totalTracked - indexedCount} pages not indexed`,
-      description: `${discoveredCount} pages discovered but not indexed, ${submittedCount} submitted awaiting crawl.`,
+      title: `${indexRate}% indexing rate — ${effectiveTotal - effectiveIndexed} published articles not yet indexed`,
+      description: `${effectiveIndexed} of ${effectiveTotal} published articles indexed. ${discoveredCount} discovered but not indexed, ${submittedCount} submitted awaiting crawl. ${totalTracked} total URLs tracked.`,
       impact: "Every unindexed page is lost potential traffic and revenue",
       fix: "Run the google-indexing cron from Crons tab to resubmit. Check if thin content is causing Google to skip pages.",
       affected: [],
@@ -1258,7 +1264,7 @@ async function runAudit(siteId: string) {
   if (trends.weeklyClicks.change !== 0) {
     summaryParts.push(`Clicks ${trends.weeklyClicks.change >= 0 ? "up" : "down"} ${Math.abs(trends.weeklyClicks.change)}% week-over-week`);
   }
-  summaryParts.push(`${indexRate}% indexing rate (${indexedCount}/${totalTracked} pages)`);
+  summaryParts.push(`${indexRate}% indexing rate (${effectiveIndexed}/${effectiveTotal} published articles)`);
   const summary = summaryParts.join(". ") + ".";
 
   return {

@@ -570,10 +570,10 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       where: { siteId: targetSiteId, published: true, deletedAt: null },
     }).catch(() => 0);
 
-    // The total should reflect published articles, not just tracking records.
-    // Tracking records can include static pages, /ar/ variants, etc. which inflates the total.
-    // Use the larger of published count and tracking count so we never undercount.
-    indexing.total = Math.max(total, publishedCount);
+    // Use published articles as the denominator — these are the revenue pages.
+    // Tracking records include static pages, /ar/ variants, etc. which inflate the total
+    // and make the rate look worse than it is (e.g., 44/153=29% vs 44/23=100%).
+    indexing.total = publishedCount > 0 ? publishedCount : total;
 
     // Recalculate neverSubmitted = published articles without any tracking record
     const trackedCount = total;
@@ -581,7 +581,7 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       indexing.neverSubmitted = publishedCount - trackedCount;
     }
 
-    indexing.rate = indexing.total > 0 ? Math.round((indexing.indexed / indexing.total) * 100) : 0;
+    indexing.rate = indexing.total > 0 ? Math.min(100, Math.round((indexing.indexed / indexing.total) * 100)) : 0;
 
     // Quick velocity check — indexed in last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -747,14 +747,17 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
       const published = articleAgg._count.id;
 
-      // Calculate indexing rate from URLIndexingStatus table
+      // Calculate indexing rate: indexed pages / published articles
+      // Use published articles as denominator (revenue pages), not totalTracked
+      // (which includes /ar/ variants and static pages, inflating the total).
       let indexRate = 0;
       try {
-        const [totalTracked, indexedCount] = await Promise.all([
-          prisma.uRLIndexingStatus.count({ where: { site_id: siteId } }),
-          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
-        ]);
-        indexRate = totalTracked > 0 ? Math.round((indexedCount / totalTracked) * 100) : 0;
+        const indexedCount = await prisma.uRLIndexingStatus.count({
+          where: { site_id: siteId, status: "indexed" },
+        });
+        // Use published article count as denominator (already have it from articleAgg)
+        const denominator = published > 0 ? published : 1;
+        indexRate = Math.min(100, Math.round((indexedCount / denominator) * 100));
       } catch { indexRate = 0; }
 
       results.push({

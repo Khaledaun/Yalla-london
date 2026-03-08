@@ -69,15 +69,15 @@ async function handleContentBuilder(request: NextRequest) {
     const { prisma } = await import("@/lib/db");
     try {
       const recentRun = await prisma.cronJobLog.findFirst({
-        where: { job_name: "content-builder", started_at: { gte: new Date(Date.now() - 90_000) } },
+        where: { job_name: "content-builder", status: { not: "skipped" }, started_at: { gte: new Date(Date.now() - 60_000) } },
         orderBy: { started_at: "desc" },
       });
       if (recentRun) {
-        return NextResponse.json({ skipped: true, reason: "dedup", message: "Another content-builder ran within the last 90s", lastRunAt: recentRun.started_at });
+        return NextResponse.json({ skipped: true, reason: "dedup", message: "Another content-builder ran within the last 60s", lastRunAt: recentRun.started_at });
       }
 
       // Write "started" marker IMMEDIATELY so a concurrent invocation sees it.
-      await prisma.cronJobLog.create({
+      const dedupMarker = await prisma.cronJobLog.create({
         data: {
           job_name: "content-builder",
           job_type: "scheduled",
@@ -98,11 +98,22 @@ async function handleContentBuilder(request: NextRequest) {
         where: {
           job_name: "content-builder",
           status: "running",
-          started_at: { gte: new Date(Date.now() - 90_000) },
+          started_at: { gte: new Date(Date.now() - 60_000) },
         },
       });
       if (markerCount > 1) {
-        console.log(`[content-builder] Race condition detected: ${markerCount} markers in window — aborting duplicate`);
+        // Clean up OUR marker so it doesn't orphan as "running" and get flagged
+        // as a false failure by the diagnostic-agent 15 minutes later.
+        await prisma.cronJobLog.update({
+          where: { id: dedupMarker.id },
+          data: {
+            status: "skipped",
+            completed_at: new Date(),
+            error_message: "Dedup race — another invocation is already processing",
+            result_summary: { phase: "skipped", dedup_marker: true, reason: "dedup-race" },
+          },
+        }).catch(err => console.warn("[content-builder] Failed to clean up dedup marker:", err instanceof Error ? err.message : err));
+        console.log(`[content-builder] Race condition detected: ${markerCount} markers in window — cleaned up marker and yielding`);
         return NextResponse.json({ skipped: true, reason: "dedup-race", message: `${markerCount} concurrent content-builders detected — this one yielding` });
       }
     } catch (dedupErr) {

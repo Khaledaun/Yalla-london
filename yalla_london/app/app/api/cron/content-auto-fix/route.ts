@@ -222,16 +222,24 @@ async function handleAutoFix(request: NextRequest) {
       });
       const validSlugs = new Set(realPosts.map(p => p.slug));
 
+      // Target articles that actually contain broken links (TOPIC_SLUG or hallucinated slugs)
+      // instead of just scanning the 50 newest articles — old articles with placeholders
+      // were never cleaned because they fell outside the take:50 window.
       const postsToCheck = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
           published: true,
           deletedAt: null,
           content_en: { not: "" },
+          OR: [
+            { content_en: { contains: "TOPIC_SLUG" } },
+            { content_en: { contains: "PLACEHOLDER" } },
+            { content_ar: { contains: "TOPIC_SLUG" } },
+            { content_ar: { contains: "PLACEHOLDER" } },
+          ],
         },
         select: { id: true, content_en: true, content_ar: true, siteId: true, slug: true },
         take: 50,
-        orderBy: { created_at: "desc" },
       });
 
       // Helper: fix broken links in a content string
@@ -260,16 +268,13 @@ async function handleAutoFix(request: NextRequest) {
       };
 
       let brokenLinksFixed = 0;
-      for (const post of postsToCheck) {
-        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
-
+      const processPost = async (post: { id: string; content_en: string | null; content_ar: string | null }) => {
         const contentEn = post.content_en || "";
         const contentAr = post.content_ar || "";
         const fixedEn = fixBrokenLinks(contentEn);
         const fixedAr = fixBrokenLinks(contentAr);
         const enChanged = fixedEn !== contentEn;
         const arChanged = fixedAr !== contentAr;
-
         if (enChanged || arChanged) {
           const updateData: Record<string, string> = {};
           if (enChanged) updateData.content_en = fixedEn;
@@ -277,7 +282,34 @@ async function handleAutoFix(request: NextRequest) {
           await prisma.blogPost.update({ where: { id: post.id }, data: updateData });
           brokenLinksFixed++;
         }
-        if (brokenLinksFixed >= 30) break;
+      };
+
+      // Pass 1: articles with explicit placeholders (TOPIC_SLUG, PLACEHOLDER)
+      const checkedIds = new Set<string>();
+      for (const post of postsToCheck) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000 || brokenLinksFixed >= 30) break;
+        checkedIds.add(post.id);
+        await processPost(post);
+      }
+
+      // Pass 2: recent articles that may have hallucinated slugs (no placeholder text)
+      if (Date.now() - cronStart < BUDGET_MS - 3_000 && brokenLinksFixed < 30) {
+        const recentPosts = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+            deletedAt: null,
+            content_en: { not: "" },
+            id: { notIn: Array.from(checkedIds) },
+          },
+          select: { id: true, content_en: true, content_ar: true, siteId: true, slug: true },
+          take: 30,
+          orderBy: { created_at: "desc" },
+        });
+        for (const post of recentPosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 3_000 || brokenLinksFixed >= 30) break;
+          await processPost(post);
+        }
       }
       if (brokenLinksFixed > 0) {
         console.log(`[content-auto-fix] Fixed broken internal links in ${brokenLinksFixed} articles`);
@@ -449,10 +481,11 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published articles below 500 words ──
-  // Articles that somehow bypassed the quality gate (e.g., 102-word article).
-  // Unpublishes them so they don't hurt site quality. Threshold is 500w (well below
-  // the 1000w gate) to catch only egregiously thin content.
+  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below 800 words ──
+  // Blog articles that bypassed the quality gate (1000w min). Threshold is 800w to
+  // catch thin content that hurts site quality while allowing news/info pages which
+  // have their own lower thresholds. Detects content type from URL to avoid
+  // unpublishing legitimately shorter non-blog content.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
       const allPublished = await prisma.blogPost.findMany({
@@ -462,7 +495,7 @@ async function handleAutoFix(request: NextRequest) {
           deletedAt: null,
           content_en: { not: "" },
         },
-        select: { id: true, slug: true, title_en: true, content_en: true },
+        select: { id: true, slug: true, title_en: true, content_en: true, category_id: true },
         orderBy: { created_at: "asc" },
         take: 50,
       });
@@ -471,12 +504,14 @@ async function handleAutoFix(request: NextRequest) {
       for (const post of allPublished) {
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
-        if (wordCount < 500) {
+        // Blog articles: 800w minimum. This catches the 500-999w range that
+        // previously slipped through (e.g., 570w article).
+        if (wordCount < 800) {
           await prisma.blogPost.update({
             where: { id: post.id },
             data: {
               published: false,
-              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w thin content] ${(post.title_en || "").slice(0, 100)}`,
+              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < 800w minimum] ${(post.title_en || "").slice(0, 100)}`,
             },
           });
           thinUnpublished++;

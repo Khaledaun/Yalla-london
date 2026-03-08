@@ -40,6 +40,7 @@ const FALLBACK_DEFAULTS: AuditConfig = {
       links: true,
       metadata: true,
       robots: true,
+      crawlFreshness: true,
     },
     titleLength: { min: 30, max: 60 },
     descriptionLength: { min: 120, max: 160 },

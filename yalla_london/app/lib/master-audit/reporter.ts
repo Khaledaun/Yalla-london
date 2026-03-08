@@ -174,6 +174,73 @@ export function generateExecSummary(result: AuditRunResult): string {
     lines.push('');
   }
 
+  // Crawl Freshness section
+  if (result.crawlFreshness) {
+    const cf = result.crawlFreshness;
+    lines.push('---');
+    lines.push('');
+    lines.push('## Google Crawl Freshness');
+    lines.push('');
+
+    // Sitemap status
+    const sm = cf.sitemapCheck;
+    if (sm.reachable) {
+      lines.push(`**Sitemap:** Reachable (${sm.responseTimeMs}ms, ${sm.urlCount} URLs)`);
+    } else {
+      lines.push(`**Sitemap:** UNREACHABLE — ${sm.error}`);
+    }
+    lines.push('');
+
+    // Crawl summary
+    const s = cf.summary;
+    if (s.totalTracked > 0) {
+      lines.push(`| Metric | Value |`);
+      lines.push(`|--------|-------|`);
+      lines.push(`| Pages tracked | ${s.totalTracked} |`);
+      lines.push(`| Crawled within 7 days | ${s.crawledWithin7d} |`);
+      lines.push(`| Crawled within 14 days | ${s.crawledWithin14d} |`);
+      lines.push(`| Crawled within 30 days | ${s.crawledWithin30d} |`);
+      lines.push(`| Never crawled | ${s.neverCrawled} |`);
+      lines.push(`| Avg days since crawl | ${s.averageDaysSinceCrawl ?? 'N/A'} |`);
+      lines.push(`| Oldest crawl | ${s.oldestCrawlDate ? new Date(s.oldestCrawlDate).toISOString().slice(0, 10) : 'N/A'} |`);
+      lines.push(`| Newest crawl | ${s.newestCrawlDate ? new Date(s.newestCrawlDate).toISOString().slice(0, 10) : 'N/A'} |`);
+      lines.push('');
+
+      // Stale pages list (top 10)
+      const stalePages = cf.pages
+        .filter((p) => p.daysSinceLastCrawl !== null && p.daysSinceLastCrawl >= 14)
+        .sort((a, b) => (b.daysSinceLastCrawl ?? 0) - (a.daysSinceLastCrawl ?? 0));
+      if (stalePages.length > 0) {
+        lines.push(`### Stale Pages (>14 days since last crawl)`);
+        lines.push('');
+        for (const page of stalePages.slice(0, 10)) {
+          lines.push(`- **${page.daysSinceLastCrawl}d** — ${page.url} (${page.indexingState || 'unknown'})`);
+        }
+        if (stalePages.length > 10) {
+          lines.push(`- ... and ${stalePages.length - 10} more`);
+        }
+        lines.push('');
+      }
+
+      // Never crawled list (top 10)
+      const neverCrawled = cf.pages.filter((p) => p.daysSinceLastCrawl === null);
+      if (neverCrawled.length > 0) {
+        lines.push(`### Never Crawled`);
+        lines.push('');
+        for (const page of neverCrawled.slice(0, 10)) {
+          lines.push(`- ${page.url} (${page.indexingState || 'no inspection data'})`);
+        }
+        if (neverCrawled.length > 10) {
+          lines.push(`- ... and ${neverCrawled.length - 10} more`);
+        }
+        lines.push('');
+      }
+    } else {
+      lines.push('*No crawl data available. Ensure verify-indexing cron is running and GSC credentials are configured.*');
+      lines.push('');
+    }
+  }
+
   // Top issues (P0 and P1)
   const topIssues = result.issues
     .filter((i) => i.severity === 'P0' || i.severity === 'P1')

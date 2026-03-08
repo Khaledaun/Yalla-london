@@ -24,7 +24,8 @@ export type IssueCategory =
   | 'security'
   | 'content'
   | 'accessibility'
-  | 'risk';
+  | 'risk'
+  | 'crawl';
 
 export type AuditMode = 'full' | 'quick' | 'resume' | 'preview' | 'prod';
 
@@ -64,6 +65,7 @@ export interface ValidatorConfig {
     links: boolean;
     metadata: boolean;
     robots: boolean;
+    crawlFreshness: boolean;
   };
   /** Meta title length bounds */
   titleLength: { min: number; max: number };
@@ -301,6 +303,39 @@ export interface UrlInventoryEntry {
 // Final Audit Run Result
 // ---------------------------------------------------------------------------
 
+/** Crawl freshness data collected from GSC URL Inspection results stored in DB */
+export interface CrawlFreshnessData {
+  /** When the sitemap was last fetched and its response time (ms) */
+  sitemapCheck: {
+    reachable: boolean;
+    responseTimeMs: number;
+    statusCode: number;
+    urlCount: number;
+    checkedAt: string;
+    error?: string;
+  };
+  /** Per-URL crawl data from URLIndexingStatus table */
+  pages: Array<{
+    url: string;
+    lastCrawledAt: string | null;
+    lastInspectedAt: string | null;
+    indexingState: string | null;
+    coverageState: string | null;
+    daysSinceLastCrawl: number | null;
+  }>;
+  /** Summary statistics */
+  summary: {
+    totalTracked: number;
+    crawledWithin7d: number;
+    crawledWithin14d: number;
+    crawledWithin30d: number;
+    neverCrawled: number;
+    oldestCrawlDate: string | null;
+    newestCrawlDate: string | null;
+    averageDaysSinceCrawl: number | null;
+  };
+}
+
 export interface AuditRunResult {
   runId: string;
   siteId: string;
@@ -312,4 +347,5 @@ export interface AuditRunResult {
   hardGates: HardGateResult[];
   softGates: SoftGateResult[];
   urlInventory: UrlInventoryEntry[];
+  crawlFreshness?: CrawlFreshnessData;
 }

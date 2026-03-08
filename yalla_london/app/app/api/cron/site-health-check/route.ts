@@ -69,6 +69,11 @@ interface ScoreInputs {
 // ---------------------------------------------------------------------------
 
 const handler = withCronLog("site-health-check", async (log) => {
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SITE_HEALTH_CHECK=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("site-health-check");
+  if (flagResponse) return { skipped: true, message: "Disabled via feature flag" };
+
   const { prisma } = await import("@/lib/db");
   // Only check live sites
   const siteIds = getActiveSiteIds();

@@ -356,6 +356,11 @@ async function handleAffiliateInjection(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_AFFILIATE_INJECTION=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("affiliate-injection");
+  if (flagResponse) return flagResponse;
+
   try {
     const { prisma } = await import("@/lib/db");
 

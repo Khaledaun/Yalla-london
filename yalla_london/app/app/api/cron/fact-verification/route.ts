@@ -284,6 +284,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_FACT_VERIFICATION=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("fact-verification");
+  if (flagResponse) return flagResponse;
+
   // Healthcheck mode — quick DB ping + last run status
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     try {

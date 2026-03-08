@@ -564,6 +564,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_LONDON_NEWS=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("london-news");
+  if (flagResponse) return flagResponse;
+
   const { prisma, disconnectDatabase } = await import("@/lib/db");
 
   // Healthcheck mode

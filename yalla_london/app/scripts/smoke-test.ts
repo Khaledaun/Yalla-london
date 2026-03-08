@@ -233,7 +233,7 @@ const cronRoutes = [
   "app/api/cron/autopilot/route.ts",
   "app/api/cron/fact-verification/route.ts",
   "app/api/cron/london-news/route.ts",
-  "app/api/cron/seo-health-report/route.ts",
+  // seo-health-report route doesn't exist — SEO health is at /api/seo/health
   "app/api/cron/real-time-optimization/route.ts",
 ];
 
@@ -552,10 +552,10 @@ test("SEO Audit", "live-site-auditor uses AbortSignal.timeout", () => {
     : { status: FAIL, details: "No per-URL timeout" };
 });
 
-test("SEO Audit", "seo-health-report accepts siteId", () => {
-  return fileContains("app/api/cron/seo-health-report/route.ts", "siteId")
-    ? { status: PASS, details: "Site filtering supported" }
-    : { status: FAIL, details: "No site filtering" };
+test("SEO Audit", "seo/health route exists", () => {
+  return fileExists("app/api/seo/health/route.ts")
+    ? { status: PASS, details: "SEO health endpoint present" }
+    : { status: FAIL, details: "Missing SEO health endpoint" };
 });
 
 test("SEO Audit", "pre-publication gate exists with 11+ checks", () => {

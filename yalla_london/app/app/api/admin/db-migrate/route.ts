@@ -1274,6 +1274,20 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`,
   },
+  {
+    table: "site_settings",
+    model: "SiteSettings",
+    sql: `CREATE TABLE IF NOT EXISTS "site_settings" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "siteId" TEXT NOT NULL,
+  "category" TEXT NOT NULL,
+  "config" JSONB NOT NULL DEFAULT '{}',
+  "enabled" BOOLEAN NOT NULL DEFAULT true,
+  "updatedBy" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -1559,6 +1573,7 @@ const UNIQUE_CONSTRAINTS: string[] = [
   'CREATE UNIQUE INDEX IF NOT EXISTS "url_indexing_status_site_id_url_key" ON "url_indexing_status"("site_id", "url")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "feature_flags_name_siteId_key" ON "feature_flags"("name", "siteId")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "subscribers_site_id_email_key" ON "subscribers"("site_id", "email")',
+  'CREATE UNIQUE INDEX IF NOT EXISTS "site_settings_siteId_category_key" ON "site_settings"("siteId", "category")',
 ];
 
 // ─── Foreign Keys ────────────────────────────────────────────────────────────

@@ -23,6 +23,65 @@ type AffiliateRule = {
   affiliates: Array<{ name: string; url: string; param: string; category: string }>;
 };
 
+// Try loading affiliate config from SiteSettings DB (cockpit-configurable)
+async function getAffiliateRulesFromDB(siteId: string): Promise<AffiliateRule[] | null> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const settings = await prisma.siteSettings.findUnique({
+      where: { siteId_category: { siteId, category: "affiliates" } },
+    });
+    if (!settings || !settings.enabled) return null;
+    const config = settings.config as Record<string, unknown>;
+    if (config.injectionMode === "disabled") return null;
+    const partners = config.partners as Array<{
+      name: string; category: string; enabled: boolean;
+      affiliateId: string; baseUrl: string; paramTemplate: string;
+    }> | undefined;
+    if (!partners || partners.length === 0) return null;
+
+    // Only use DB config if at least one partner has an affiliateId set
+    const activePartners = partners.filter(p => p.enabled && p.affiliateId);
+    if (activePartners.length === 0) return null;
+
+    // Group by category into AffiliateRules
+    const byCategory = new Map<string, typeof activePartners>();
+    for (const p of activePartners) {
+      const existing = byCategory.get(p.category) || [];
+      existing.push(p);
+      byCategory.set(p.category, existing);
+    }
+
+    // Map category to keywords
+    const CATEGORY_KEYWORDS: Record<string, string[]> = {
+      hotel: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "فندق", "فنادق"],
+      activity: ["tour", "tours", "experience", "activity", "visit", "attraction", "جولة", "تجربة"],
+      restaurant: ["restaurant", "dining", "food", "halal", "cuisine", "eat", "مطعم", "طعام", "حلال"],
+      tickets: ["ticket", "event", "match", "concert", "show", "theatre", "تذكرة", "فعالية"],
+      shopping: ["shopping", "shop", "buy", "luxury", "brand", "fashion", "تسوق"],
+      transport: ["transfer", "airport", "taxi", "car", "transport", "نقل", "مطار"],
+      insurance: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+      yacht: ["yacht", "charter", "boat", "sailing", "يخت", "إيجار"],
+    };
+
+    const rules: AffiliateRule[] = [];
+    for (const [cat, catPartners] of byCategory) {
+      rules.push({
+        keywords: CATEGORY_KEYWORDS[cat] || [cat],
+        affiliates: catPartners.map(p => ({
+          name: p.name,
+          url: p.baseUrl,
+          param: p.paramTemplate.replace("{id}", p.affiliateId),
+          category: cat,
+        })),
+      });
+    }
+    return rules;
+  } catch (err) {
+    console.warn(`[affiliate-injection] DB settings load failed for ${siteId}:`, (err as Error).message);
+    return null;
+  }
+}
+
 function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
   const utmSource = siteId.replace(/-/g, "");
 
@@ -274,9 +333,9 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function findMatches(content: string, siteId: string, limit = 4) {
+function findMatches(content: string, siteId: string, limit = 4, dbRules?: AffiliateRule[] | null) {
   const lower = content.toLowerCase();
-  const rules = getAffiliateRulesForSite(siteId);
+  const rules = dbRules || getAffiliateRulesForSite(siteId);
   const matches: Array<{ keyword: string; name: string; url: string; param: string; category: string; score: number }> = [];
 
   for (const rule of rules) {
@@ -295,8 +354,8 @@ function findMatches(content: string, siteId: string, limit = 4) {
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-function injectAffiliates(html: string, siteId: string): { content: string; count: number; partners: string[] } {
-  const matches = findMatches(html, siteId, 4);
+function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[] | null): { content: string; count: number; partners: string[] } {
+  const matches = findMatches(html, siteId, 4, dbRules);
   if (matches.length === 0) return { content: html, count: 0, partners: [] };
 
   let result = html;
@@ -397,12 +456,22 @@ async function handleAffiliateInjection(request: NextRequest) {
     let injected = 0;
     const results: Array<{ slug: string; partners: string[] }> = [];
 
+    // Cache DB rules per site to avoid repeated queries
+    const dbRulesCache = new Map<string, AffiliateRule[] | null>();
+
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
       const postSiteId = post.siteId || getDefaultSiteId();
-      const enResult = injectAffiliates(post.content_en || "", postSiteId);
-      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId) : { content: post.content_ar || "", count: 0, partners: [] };
+
+      // Load DB-configured affiliate rules (cached per site)
+      if (!dbRulesCache.has(postSiteId)) {
+        dbRulesCache.set(postSiteId, await getAffiliateRulesFromDB(postSiteId));
+      }
+      const dbRules = dbRulesCache.get(postSiteId) ?? null;
+
+      const enResult = injectAffiliates(post.content_en || "", postSiteId, dbRules);
+      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, dbRules) : { content: post.content_ar || "", count: 0, partners: [] };
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({

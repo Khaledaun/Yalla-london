@@ -189,7 +189,8 @@ export async function getAuthorForPost(blogPostId: string): Promise<AuthorProfil
       instagramUrl: m.instagram_url,
       websiteUrl: m.website_url,
     };
-  } catch {
+  } catch (err) {
+    console.warn("[author-rotation] mentor transform failed:", err instanceof Error ? err.message : err);
     return null;
   }
 }

@@ -373,8 +373,8 @@ export async function runFullPipeline(
             strategy = "full_pipeline_topic_db";
           }
         }
-      } catch {
-        // TopicProposal table may not exist — fall through to template
+      } catch (tpErr) {
+        console.warn("[full-pipeline] TopicProposal query failed:", tpErr instanceof Error ? tpErr.message : tpErr);
       }
 
       // Fallback to template topics
@@ -707,8 +707,8 @@ export async function runFullPipeline(
               blogPostSlug = blogPost.slug as string;
               blogPostUrl = `${getSiteDomain(siteId)}/blog/${blogPostSlug}`;
             }
-          } catch {
-            // Non-fatal
+          } catch (lookupErr) {
+            console.warn("[full-pipeline] BlogPost lookup after publish failed:", lookupErr instanceof Error ? lookupErr.message : lookupErr);
           }
 
           steps.push({
@@ -766,8 +766,8 @@ export async function runFullPipeline(
                 last_submitted_at: new Date(),
               },
             });
-          } catch {
-            // Non-fatal
+          } catch (idxErr) {
+            console.warn("[full-pipeline] URL indexing status update failed:", idxErr instanceof Error ? idxErr.message : idxErr);
           }
 
           steps.push({

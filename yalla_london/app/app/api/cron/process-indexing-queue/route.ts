@@ -32,6 +32,11 @@ async function handleProcessQueue(request: NextRequest) {
   const BUDGET_MS = 53_000;
 
   try {
+    // Feature flag guard
+    const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+    const flagResponse = await checkCronEnabled("process-indexing-queue");
+    if (flagResponse) return flagResponse;
+
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 

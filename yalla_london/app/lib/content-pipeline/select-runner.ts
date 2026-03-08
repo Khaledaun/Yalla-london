@@ -94,7 +94,7 @@ export async function runContentSelector(
           prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, phase_attempts: { gte: MAX_ENHANCEMENT_ATTEMPTS } } }),
           prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, quality_score: { lt: MIN_QUALITY_SCORE } } }),
         ]);
-      } catch { /* non-fatal */ }
+      } catch (countErr) { console.warn("[select-runner] reservoir count failed:", countErr instanceof Error ? countErr.message : countErr); }
 
       const reason = totalReservoir === 0
         ? "Reservoir is empty — no articles have reached the reservoir phase"

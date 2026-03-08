@@ -322,6 +322,26 @@ export async function phaseDrafting(
     };
   }
 
+  // Load per-site workflow directives from SiteSettings (cockpit-configurable)
+  let workflowDirective = "";
+  try {
+    const { prisma } = await import("@/lib/db");
+    const wfSettings = await prisma.siteSettings.findUnique({
+      where: { siteId_category: { siteId: draft.site_id, category: "workflow" } },
+    });
+    if (wfSettings?.enabled) {
+      const wf = wfSettings.config as Record<string, unknown>;
+      const parts: string[] = [];
+      if (wf.contentTone) parts.push(`Tone: ${wf.contentTone}`);
+      if (wf.targetAudience) parts.push(`Audience: ${wf.targetAudience}`);
+      if (wf.brandVoiceNotes) parts.push(`Voice: ${wf.brandVoiceNotes}`);
+      if (wf.instructions) parts.push(String(wf.instructions));
+      if (parts.length > 0) workflowDirective = " " + parts.join(". ") + ".";
+    }
+  } catch (wfErr) {
+    console.warn("[phases/drafting] Workflow settings load failed:", wfErr instanceof Error ? wfErr.message : wfErr);
+  }
+
   // Cap to 1 section per invocation — each AI call takes ~30s,
   // and the cron has a 53s budget. 3 sections × 30s = 90s > 60s Vercel limit.
   // Build-runner picks up the draft again on next run for the next section.
@@ -429,7 +449,7 @@ CRITICAL JSON RULES:
         const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 3_000, 10_000) : 45_000;
         const sectionTimeout = Math.min(rawTimeout, 48_000);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
-          systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
+          systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2500 : 1500),
           temperature: 0.7,
           timeoutMs: sectionTimeout,
@@ -803,8 +823,8 @@ export async function phaseImages(
           matched = [...matched, ...unsplashPhotos];
           unsplashUsed = true;
         }
-      } catch {
-        // Unsplash failed — not fatal, use library photos only
+      } catch (imgErr) {
+        console.warn("[phases/images] Unsplash fetch failed:", imgErr instanceof Error ? imgErr.message : imgErr);
       }
     }
 

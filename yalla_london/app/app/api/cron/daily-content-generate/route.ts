@@ -687,6 +687,28 @@ async function generateWithAI(
       language === "en" ? site.systemPromptEN : site.systemPromptAR;
     const writingStyle = pickWritingStyle();
 
+    // Load per-site workflow instructions from SiteSettings (cockpit-configurable)
+    let workflowInstructions = "";
+    try {
+      const { prisma } = await import("@/lib/db");
+      const workflowSettings = await prisma.siteSettings.findUnique({
+        where: { siteId_category: { siteId: site.id, category: "workflow" } },
+      });
+      if (workflowSettings?.enabled) {
+        const wfConfig = workflowSettings.config as Record<string, unknown>;
+        const parts: string[] = [];
+        if (wfConfig.contentTone) parts.push(`Content tone: ${wfConfig.contentTone}`);
+        if (wfConfig.targetAudience) parts.push(`Target audience: ${wfConfig.targetAudience}`);
+        if (wfConfig.brandVoiceNotes) parts.push(`Brand voice: ${wfConfig.brandVoiceNotes}`);
+        if (wfConfig.instructions) parts.push(`\n${wfConfig.instructions}`);
+        if (parts.length > 0) {
+          workflowInstructions = "\n\nSITE-SPECIFIC WORKFLOW DIRECTIVES:\n" + parts.join("\n");
+        }
+      }
+    } catch (wfErr) {
+      console.warn(`[daily-content-generate] Workflow settings load failed:`, wfErr instanceof Error ? wfErr.message : wfErr);
+    }
+
     // Inject Arabic copywriting directives for AR content
     let arabicDirectives = "";
     if (language === "ar") {
@@ -706,7 +728,7 @@ async function generateWithAI(
 
     const systemPrompt = `${baseSystemPrompt}
 
-${getHumanizationDirectives(writingStyle, site)}${arabicDirectives}`;
+${getHumanizationDirectives(writingStyle, site)}${workflowInstructions}${arabicDirectives}`;
 
     // Determine content type from topic metadata
     const contentType = topic.authorityLinks?.contentType || "guide";

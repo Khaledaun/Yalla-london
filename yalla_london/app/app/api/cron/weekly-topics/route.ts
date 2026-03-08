@@ -12,6 +12,11 @@ import { onCronFailure } from "@/lib/ops/failure-hooks";
  * Generates 30 topics weekly + triggers on low backlog
  */
 export async function POST(request: NextRequest) {
+  // Feature flag guard
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("weekly-topics");
+  if (flagResponse) return flagResponse;
+
   // Verify cron secret for security (optional — Vercel sends it when CRON_SECRET is set)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;

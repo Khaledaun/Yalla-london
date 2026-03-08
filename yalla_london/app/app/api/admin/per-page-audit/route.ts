@@ -123,7 +123,11 @@ export async function GET(request: NextRequest) {
         updated_at: true,
       },
     });
-    const indexingBySlug = new Map(indexingRows.map((r) => [r.slug, r]));
+    type IndexingRow = (typeof indexingRows)[number];
+    const indexingBySlug = new Map<string, IndexingRow>();
+    for (const r of indexingRows) {
+      if (r.slug) indexingBySlug.set(r.slug, r);
+    }
 
     // 3. Get GSC performance data (last 7 days aggregated)
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

@@ -545,7 +545,8 @@ async function callProvider(
     case 'openai':
       return callOpenAI(messages, apiKey, options);
     case 'gemini':
-      return callGemini(messages, apiKey, options);
+      // Account frozen — skip until reactivated. Throw so fallback chain continues.
+      throw new Error('Gemini provider is disabled (account frozen)');
     case 'perplexity':
       return callPerplexity(messages, apiKey, options);
   }

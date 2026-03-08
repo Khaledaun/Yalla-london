@@ -2,7 +2,7 @@
  * Latest Published Content API
  *
  * Returns the 15 most recently published articles with:
- * - Indexing status (from URLIndexingStatus)
+ * - Indexing status (from URLIndexingStatus — matched by URL, not slug)
  * - GSC metrics: impressions, clicks, CTR, position (from GscPagePerformance)
  * - Publication and indexing verification timestamps
  *
@@ -45,21 +45,23 @@ async function handler(request: NextRequest) {
       return NextResponse.json({ articles: [], siteId, domain });
     }
 
-    // 2. Build URLs for each article
-    const slugs = articles.map((a) => a.slug);
-    const urlMap: Record<string, string> = {};
+    // 2. Build canonical URLs for each article
+    const articleUrls: string[] = [];
+    const urlToSlug: Record<string, string> = {};
     for (const a of articles) {
-      urlMap[a.slug] = `https://${domain}/blog/${a.slug}`;
+      const url = `https://${domain}/blog/${a.slug}`;
+      articleUrls.push(url);
+      urlToSlug[url] = a.slug;
     }
 
-    // 3. Fetch indexing status for these slugs
+    // 3. Fetch indexing status by URL (not slug — slug format is inconsistent across creation points)
     const indexingRows = await prisma.uRLIndexingStatus.findMany({
       where: {
         site_id: siteId,
-        slug: { in: slugs },
+        url: { in: articleUrls },
       },
       select: {
-        slug: true,
+        url: true,
         status: true,
         coverage_state: true,
         submitted_indexnow: true,
@@ -72,16 +74,15 @@ async function handler(request: NextRequest) {
         created_at: true,
       },
     });
-    const indexBySlug: Record<string, (typeof indexingRows)[0]> = {};
+    const indexByUrl: Record<string, (typeof indexingRows)[0]> = {};
     for (const row of indexingRows) {
-      if (row.slug) indexBySlug[row.slug] = row;
+      indexByUrl[row.url] = row;
     }
 
     // 4. Fetch GSC performance metrics (last 30 days aggregated)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const articleUrls = articles.map((a) => urlMap[a.slug]);
     const gscRows = await prisma.gscPagePerformance.findMany({
       where: {
         site_id: siteId,
@@ -97,36 +98,36 @@ async function handler(request: NextRequest) {
       },
     });
 
-    // Aggregate GSC data per URL
+    // Aggregate GSC data per URL with impression-weighted CTR and position
     const gscByUrl: Record<
       string,
-      { clicks: number; impressions: number; ctr: number; position: number; days: number }
+      { clicks: number; impressions: number; weightedCtr: number; weightedPos: number }
     > = {};
     for (const row of gscRows) {
       if (!gscByUrl[row.url]) {
-        gscByUrl[row.url] = { clicks: 0, impressions: 0, ctr: 0, position: 0, days: 0 };
+        gscByUrl[row.url] = { clicks: 0, impressions: 0, weightedCtr: 0, weightedPos: 0 };
       }
       const agg = gscByUrl[row.url];
       agg.clicks += row.clicks;
       agg.impressions += row.impressions;
-      agg.ctr += row.ctr;
-      agg.position += row.position;
-      agg.days++;
-    }
-    // Average CTR and position
-    for (const url of Object.keys(gscByUrl)) {
-      const agg = gscByUrl[url];
-      if (agg.days > 0) {
-        agg.ctr = Math.round((agg.ctr / agg.days) * 1000) / 1000;
-        agg.position = Math.round((agg.position / agg.days) * 10) / 10;
-      }
+      // Weight CTR and position by impressions for accurate averaging
+      agg.weightedCtr += row.ctr * row.impressions;
+      agg.weightedPos += row.position * row.impressions;
     }
 
     // 5. Build response
     const result = articles.map((a) => {
-      const url = urlMap[a.slug];
-      const idx = indexBySlug[a.slug] || null;
+      const url = `https://${domain}/blog/${a.slug}`;
+      const idx = indexByUrl[url] || null;
       const gsc = gscByUrl[url] || null;
+
+      // Compute impression-weighted averages
+      let ctr = 0;
+      let avgPosition = 0;
+      if (gsc && gsc.impressions > 0) {
+        ctr = Math.round((gsc.weightedCtr / gsc.impressions) * 1000) / 1000;
+        avgPosition = Math.round((gsc.weightedPos / gsc.impressions) * 10) / 10;
+      }
 
       return {
         id: a.id,
@@ -135,10 +136,12 @@ async function handler(request: NextRequest) {
         url,
         pageType: a.page_type || "blog",
         seoScore: a.seo_score,
+        // created_at is used as publish date — BlogPost has no published_at field.
+        // For articles promoted from reservoir, created_at is the promotion timestamp.
         publishedAt: a.created_at,
         updatedAt: a.updated_at,
-        // Indexing
-        indexingStatus: idx?.status || "unknown",
+        // Indexing — matched by full URL for accuracy
+        indexingStatus: idx?.status || "not_tracked",
         coverageState: idx?.coverage_state || null,
         submittedIndexNow: idx?.submitted_indexnow || false,
         submittedGoogleApi: idx?.submitted_google_api || false,
@@ -148,11 +151,11 @@ async function handler(request: NextRequest) {
         lastCrawledAt: idx?.last_crawled_at || null,
         indexingError: idx?.last_error || null,
         indexingTrackedSince: idx?.created_at || null,
-        // GSC Metrics (last 30 days)
+        // GSC Metrics (last 30 days, impression-weighted averages)
         clicks: gsc?.clicks || 0,
         impressions: gsc?.impressions || 0,
-        ctr: gsc?.ctr || 0,
-        avgPosition: gsc?.position || 0,
+        ctr,
+        avgPosition,
       };
     });
 

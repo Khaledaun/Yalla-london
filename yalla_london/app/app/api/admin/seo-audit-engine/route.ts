@@ -97,7 +97,7 @@ async function runLightweightAudit(siteId: string, _baseUrl: string, limit: numb
 
     // Check published posts for SEO issues
     const posts = await prisma.blogPost.findMany({
-      where: { siteId, status: "published" },
+      where: { siteId, published: true, deletedAt: null },
       select: {
         id: true,
         slug: true,
@@ -108,7 +108,7 @@ async function runLightweightAudit(siteId: string, _baseUrl: string, limit: numb
         seo_score: true,
       },
       take: limit,
-      orderBy: { published_at: "desc" },
+      orderBy: { created_at: "desc" },
     });
 
     for (const post of posts) {
@@ -178,7 +178,7 @@ async function runLightweightAudit(siteId: string, _baseUrl: string, limit: numb
 
     // Check indexing status
     const notIndexed = await prisma.uRLIndexingStatus.count({
-      where: { siteId, indexingStatus: { not: "indexed" } },
+      where: { site_id: siteId, status: { not: "indexed" } },
     });
 
     if (notIndexed > 0) {

@@ -131,15 +131,15 @@ export async function scanSiteDiscovery(
   try {
     const settings = await prisma.siteSettings.findFirst({
       where: { siteId, category: "sitemap-cache" },
-      select: { value: true },
+      select: { config: true },
     });
-    if (settings?.value) {
-      const parsed = typeof settings.value === "string" ? JSON.parse(settings.value) : settings.value;
-      if (Array.isArray(parsed)) {
-        for (const entry of parsed) {
-          const m = (entry.url || "").match(/\/blog\/([^/?#]+)/);
-          if (m) sitemapSlugs.add(m[1]);
-        }
+    if (settings?.config) {
+      const data = settings.config as Record<string, unknown>;
+      const entries = Array.isArray(data.entries) ? data.entries : (Array.isArray(data) ? data : []);
+      for (const entry of entries) {
+        const url = typeof entry === "object" && entry !== null ? (entry as Record<string, string>).url || "" : "";
+        const m = url.match(/\/blog\/([^/?#]+)/);
+        if (m) sitemapSlugs.add(m[1]);
       }
     }
   } catch {

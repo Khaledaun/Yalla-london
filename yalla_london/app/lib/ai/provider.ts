@@ -129,9 +129,10 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Gemini.
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude.
+// Gemini removed: account frozen by owner — re-add when billing is reactivated.
 // Perplexity removed: quota exhausted, billing issue — re-add when resolved.
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'gemini'];
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude'];
 
 // ---------------------------------------------------------------------------
 // Circuit Breaker — prevents wasting 15-28s retrying a dead provider.

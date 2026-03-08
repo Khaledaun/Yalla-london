@@ -311,6 +311,10 @@ export async function runPerplexityAudit(
   let totalTokens = 0;
   let totalCost = 0;
 
+  // Budget guard: 53s budget with 7s buffer for Vercel Pro 60s limit
+  const BUDGET_MS = 53_000;
+  const startTime = Date.now();
+
   // Filter sections based on depth
   const sectionsToRun =
     config.depth === "quick"
@@ -322,8 +326,37 @@ Provide detailed, actionable findings with specific URLs and evidence.
 Always return valid JSON matching the requested format.
 Be specific and cite real data — do not make generic suggestions.`;
 
+  let skippedSections: string[] = [];
+
   for (const sectionDef of sectionsToRun) {
-    console.log(`[perplexity-audit] Running section: ${sectionDef.title}`);
+    // Check budget before each section — need at least 8s for a meaningful API call
+    const elapsed = Date.now() - startTime;
+    const remaining = BUDGET_MS - elapsed;
+    if (remaining < 8_000) {
+      console.warn(
+        `[perplexity-audit] Budget exhausted (${Math.round(elapsed / 1000)}s used). Skipping remaining sections.`
+      );
+      // Record skipped sections
+      const remainingSections = sectionsToRun.slice(
+        sectionsToRun.indexOf(sectionDef)
+      );
+      skippedSections = remainingSections.map((s) => s.title);
+      for (const skipped of remainingSections) {
+        sections.push({
+          id: skipped.id,
+          title: skipped.title,
+          score: -1, // -1 = not run (excluded from average)
+          findings: [],
+          citations: [],
+          rawResponse: "Skipped — budget exhausted. Run again for remaining sections.",
+        });
+      }
+      break;
+    }
+
+    console.log(
+      `[perplexity-audit] Running section: ${sectionDef.title} (${Math.round(remaining / 1000)}s remaining)`
+    );
 
     try {
       const userPrompt = sectionDef.buildPrompt(ctx, config.domain);
@@ -385,11 +418,13 @@ Be specific and cite real data — do not make generic suggestions.`;
     }
   }
 
-  // Calculate overall score
+  // Calculate overall score (exclude skipped sections with score = -1)
+  const completedSections = sections.filter((s) => s.score >= 0);
   const overallScore =
-    sections.length > 0
+    completedSections.length > 0
       ? Math.round(
-          sections.reduce((sum, s) => sum + s.score, 0) / sections.length
+          completedSections.reduce((sum, s) => sum + s.score, 0) /
+            completedSections.length
         )
       : 0;
 
@@ -401,7 +436,12 @@ Be specific and cite real data — do not make generic suggestions.`;
     s.findings.filter((f) => f.severity === "high")
   );
 
-  const executiveSummary = `SEO Audit for ${config.domain} completed with an overall score of ${overallScore}/100. Found ${criticalFindings.length} critical and ${highFindings.length} high-severity issues across ${sections.length} audit sections. ${criticalFindings.length > 0 ? `Critical issues require immediate attention: ${criticalFindings.slice(0, 3).map((f) => f.title).join("; ")}.` : "No critical issues found."} ${highFindings.length > 0 ? `High-priority fixes: ${highFindings.slice(0, 3).map((f) => f.title).join("; ")}.` : ""}`;
+  const skippedNote =
+    skippedSections.length > 0
+      ? ` ${skippedSections.length} sections skipped due to time budget (${skippedSections.join(", ")}). Run Quick mode for faster results.`
+      : "";
+
+  const executiveSummary = `SEO Audit for ${config.domain} completed with an overall score of ${overallScore}/100. Analyzed ${completedSections.length}/${sectionsToRun.length} sections. Found ${criticalFindings.length} critical and ${highFindings.length} high-severity issues.${skippedNote} ${criticalFindings.length > 0 ? `Critical issues require immediate attention: ${criticalFindings.slice(0, 3).map((f) => f.title).join("; ")}.` : "No critical issues found."} ${highFindings.length > 0 ? `High-priority fixes: ${highFindings.slice(0, 3).map((f) => f.title).join("; ")}.` : ""}`;
 
   const report: AuditReport = {
     id: `audit-${config.siteId}-${Date.now()}`,

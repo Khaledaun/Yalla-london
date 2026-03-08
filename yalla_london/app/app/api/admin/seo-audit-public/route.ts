@@ -126,33 +126,36 @@ export async function POST(request: NextRequest) {
         auditReports.set(report.id, report);
         auditProgress.set(auditId, { status: "completed", section: "Done", percent: 100 });
 
-        // Store in DB if SeoAuditAction model exists
-        try {
-          const { prisma } = await import("@/lib/db");
-          for (const section of report.sections) {
-            for (const finding of section.findings) {
-              await prisma.seoAuditAction.create({
-                data: {
-                  auditId: report.id,
-                  siteId,
-                  actionItemId: `${section.id}-${finding.title.slice(0, 50).replace(/\s+/g, "-").toLowerCase()}`,
-                  severity: finding.severity,
-                  category: section.id,
-                  title: finding.title,
-                  description: finding.description,
-                  autoFixable: finding.autoFixable,
-                  fixType: finding.fixType,
-                  affectedUrls: finding.affectedUrls,
-                  status: "pending",
-                },
-              }).catch((err) => {
-                console.warn("[seo-audit-public] Failed to persist finding:", err instanceof Error ? err.message : err);
-              });
-            }
-          }
-        } catch (dbErr) {
-          console.warn("[seo-audit-public] DB persistence failed (best-effort):", dbErr instanceof Error ? dbErr.message : dbErr);
-        }
+        // Fire-and-forget DB persistence (don't block response)
+        import("@/lib/db").then(({ prisma }) => {
+          const findings = report.sections.flatMap((section) =>
+            section.findings.map((finding) => ({
+              auditId: report.id,
+              siteId,
+              actionItemId: `${section.id}-${finding.title.slice(0, 50).replace(/\s+/g, "-").toLowerCase()}`,
+              severity: finding.severity,
+              category: section.id,
+              title: finding.title,
+              description: finding.description,
+              autoFixable: finding.autoFixable,
+              fixType: finding.fixType,
+              affectedUrls: finding.affectedUrls,
+              status: "pending",
+            }))
+          );
+          // Batch create all findings at once
+          Promise.all(
+            findings.map((data) =>
+              prisma.seoAuditAction.create({ data }).catch((err: Error) => {
+                console.warn("[seo-audit-public] Failed to persist finding:", err.message);
+              })
+            )
+          ).catch((err: Error) => {
+            console.warn("[seo-audit-public] DB persistence failed:", err.message);
+          });
+        }).catch((err: Error) => {
+          console.warn("[seo-audit-public] DB import failed:", err.message);
+        });
 
         return NextResponse.json({
           success: true,

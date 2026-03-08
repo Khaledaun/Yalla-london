@@ -252,11 +252,15 @@ async function applyCronFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
     }
 
     // 3. Sweeper failures → clear "running" status from stale CronJobLog entries
+    //    Skip dedup markers to avoid false failures on content-builder
     if (["sweeper", "sweeper-agent"].includes(cronName)) {
       const staleLogs = await prisma.cronJobLog.updateMany({
         where: {
           status: "running",
           started_at: { lt: new Date(Date.now() - 10 * 60 * 1000) },
+          NOT: {
+            result_summary: { path: ["dedup_marker"], equals: true },
+          },
         },
         data: {
           status: "failed",
@@ -276,11 +280,17 @@ async function applyCronFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
     }
 
     // 4. For any cron: clean up stale "running" CronJobLog entries from this specific cron
+    //    Skip dedup markers (result_summary contains dedup_marker: true) — they are
+    //    informational entries, not actual stuck jobs. Previously this caused false
+    //    failures on content-builder every 15 minutes.
     const staleSelfLogs = await prisma.cronJobLog.updateMany({
       where: {
         job_name: cronName,
         status: "running",
         started_at: { lt: new Date(Date.now() - 15 * 60 * 1000) },
+        NOT: {
+          result_summary: { path: ["dedup_marker"], equals: true },
+        },
       },
       data: {
         status: "failed",

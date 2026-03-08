@@ -366,8 +366,12 @@ async function canonicalTags(config: AuditConfig): Promise<CheckResult> {
       }
 
       const canonicalHref = canonicalMatch[1];
-      // Check self-referencing: canonical should end with /blog/{slug} (path match)
-      const expectedPath = `/blog/${slug}`;
+      // Check self-referencing: canonical should match the FINAL URL after redirects.
+      // If the original slug redirects (e.g., dedup redirect to canonical article),
+      // the canonical should match the redirected slug, not the original.
+      const finalUrl = res.url || url;
+      const finalSlug = finalUrl.match(/\/blog\/([^/?#]+)/)?.[1] || slug;
+      const expectedPath = `/blog/${finalSlug}`;
       const selfReferencing = canonicalHref.includes(expectedPath);
 
       if (selfReferencing) totalCorrect++;

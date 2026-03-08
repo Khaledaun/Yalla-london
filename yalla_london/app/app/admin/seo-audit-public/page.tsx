@@ -137,6 +137,7 @@ export default function SeoAuditPublicPage() {
   }
 
   const scoreColor = (score: number) => {
+    if (score < 0) return 'text-gray-400' // skipped section
     if (score >= 80) return 'text-green-600'
     if (score >= 60) return 'text-yellow-600'
     if (score >= 40) return 'text-orange-600'
@@ -329,7 +330,7 @@ export default function SeoAuditPublicPage() {
                         <CardTitle className="text-sm">{section.title}</CardTitle>
                         <div className="flex items-center gap-2">
                           <span className={`text-lg font-bold ${scoreColor(section.score)}`}>
-                            {section.score}
+                            {section.score < 0 ? 'Skipped' : section.score}
                           </span>
                           {expandedSections.has(section.id)
                             ? <ChevronUp className="h-4 w-4" />

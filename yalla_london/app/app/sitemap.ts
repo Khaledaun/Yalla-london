@@ -56,20 +56,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       console.error("[sitemap] Background regeneration failed:", err instanceof Error ? err.message : String(err)),
     );
 
-    return buildMinimalSitemap(baseUrl);
+    return buildFallbackSitemap(baseUrl, siteId);
   } catch (err) {
     console.error("[sitemap] FATAL:", err instanceof Error ? err.message : String(err));
-    const fallbackDomain = getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, "");
-    return buildMinimalSitemap(`https://${fallbackDomain}`);
+    const fallbackSiteId = getDefaultSiteId();
+    const fallbackDomain = getSiteDomain(fallbackSiteId).replace(/^https?:\/\//, "");
+    return buildFallbackSitemap(`https://${fallbackDomain}`, fallbackSiteId);
   }
 }
 
 /**
- * Minimal sitemap returned when cache is empty.
- * Covers the highest-priority pages so Google at least discovers them.
- * Next cron run will populate the full cache.
+ * Fallback sitemap when cache is empty.
+ * Includes static pages + live blog post query (single fast query)
+ * so Google always sees published articles even if cache is stale.
  */
-function buildMinimalSitemap(baseUrl: string): MetadataRoute.Sitemap {
+async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
   const pages = [
     { path: "", priority: 1 },
@@ -83,7 +84,7 @@ function buildMinimalSitemap(baseUrl: string): MetadataRoute.Sitemap {
     { path: "/contact", priority: 0.6 },
   ];
 
-  return pages.map(({ path, priority }) => ({
+  const entries: MetadataRoute.Sitemap = pages.map(({ path, priority }) => ({
     url: path ? `${baseUrl}${path}` : baseUrl,
     lastModified: now,
     changeFrequency: "daily" as const,
@@ -96,4 +97,34 @@ function buildMinimalSitemap(baseUrl: string): MetadataRoute.Sitemap {
       },
     },
   }));
+
+  // Live query for published blog posts — single fast query, no cache needed
+  try {
+    const { prisma } = await import("@/lib/db");
+    const posts = await prisma.blogPost.findMany({
+      where: { published: true, deletedAt: null, siteId },
+      select: { slug: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 500,
+    });
+    for (const post of posts) {
+      entries.push({
+        url: `${baseUrl}/blog/${post.slug}`,
+        lastModified: post.updated_at?.toISOString() || now,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+        alternates: {
+          languages: {
+            "en-GB": `${baseUrl}/blog/${post.slug}`,
+            "ar-SA": `${baseUrl}/ar/blog/${post.slug}`,
+            "x-default": `${baseUrl}/blog/${post.slug}`,
+          },
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("[sitemap] Fallback blog query failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  return entries;
 }

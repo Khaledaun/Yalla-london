@@ -143,6 +143,8 @@ const ENUM_STATEMENTS: { name: string; values: string[] }[] = [
   { name: "DestinationRegion", values: ["MEDITERRANEAN", "ARABIAN_GULF", "RED_SEA", "INDIAN_OCEAN", "CARIBBEAN", "SOUTHEAST_ASIA"] },
   { name: "SyncStatus", values: ["RUNNING", "COMPLETED", "FAILED"] },
   { name: "ItineraryDifficulty", values: ["EASY", "MODERATE", "ADVANCED"] },
+  { name: "ConversionStatus", values: ["PENDING", "BOOKED", "COMPLETED", "CANCELLED", "PAID"] },
+  { name: "SubscriberStatus", values: ["PENDING", "CONFIRMED", "UNSUBSCRIBED", "BOUNCED", "COMPLAINED"] },
 ];
 
 // Full CREATE TABLE statements for tables that might be entirely missing
@@ -915,6 +917,363 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   CONSTRAINT "audit_issues_pkey" PRIMARY KEY ("id")
 )`,
   },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CONTENT PIPELINE CORE MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "article_drafts",
+    model: "ArticleDraft",
+    sql: `CREATE TABLE IF NOT EXISTS "article_drafts" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT NOT NULL,
+  "keyword" TEXT NOT NULL,
+  "locale" TEXT NOT NULL DEFAULT 'en',
+  "topic_title" TEXT,
+  "current_phase" TEXT NOT NULL DEFAULT 'research',
+  "phase_attempts" INTEGER NOT NULL DEFAULT 0,
+  "last_error" TEXT,
+  "sections_completed" INTEGER NOT NULL DEFAULT 0,
+  "sections_total" INTEGER NOT NULL DEFAULT 0,
+  "research_data" JSONB,
+  "outline_data" JSONB,
+  "sections_data" JSONB,
+  "assembled_html" TEXT,
+  "assembled_html_alt" TEXT,
+  "seo_meta" JSONB,
+  "images_data" JSONB,
+  "quality_score" DOUBLE PRECISION,
+  "seo_score" DOUBLE PRECISION,
+  "word_count" INTEGER,
+  "readability_score" DOUBLE PRECISION,
+  "content_depth_score" DOUBLE PRECISION,
+  "topic_proposal_id" TEXT,
+  "ai_model_used" TEXT,
+  "generation_strategy" TEXT,
+  "paired_draft_id" TEXT,
+  "blog_post_id" TEXT,
+  "published_at" TIMESTAMP(3),
+  "rejection_reason" TEXT,
+  "needs_review" BOOLEAN NOT NULL DEFAULT true,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "phase_started_at" TIMESTAMP(3),
+  "completed_at" TIMESTAMP(3)
+)`,
+  },
+  {
+    table: "topic_proposals",
+    model: "TopicProposal",
+    sql: `CREATE TABLE IF NOT EXISTS "topic_proposals" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT,
+  "title" TEXT NOT NULL,
+  "locale" TEXT NOT NULL,
+  "primary_keyword" TEXT NOT NULL,
+  "longtails" TEXT[] NOT NULL DEFAULT '{}',
+  "featured_longtails" TEXT[] NOT NULL DEFAULT '{}',
+  "questions" TEXT[] NOT NULL DEFAULT '{}',
+  "authority_links_json" JSONB NOT NULL DEFAULT '{}',
+  "intent" TEXT NOT NULL,
+  "suggested_page_type" TEXT NOT NULL,
+  "suggested_window_start" TIMESTAMP(3),
+  "suggested_window_end" TIMESTAMP(3),
+  "source_weights_json" JSONB NOT NULL DEFAULT '{}',
+  "status" TEXT NOT NULL DEFAULT 'planned',
+  "confidence_score" DOUBLE PRECISION,
+  "planned_at" TIMESTAMP(3),
+  "evergreen" BOOLEAN NOT NULL DEFAULT true,
+  "season" TEXT,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // MONITORING & OPERATIONS MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "url_indexing_status",
+    model: "URLIndexingStatus",
+    sql: `CREATE TABLE IF NOT EXISTS "url_indexing_status" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT NOT NULL,
+  "url" TEXT NOT NULL,
+  "slug" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'discovered',
+  "coverage_state" TEXT,
+  "indexing_state" TEXT,
+  "submitted_indexnow" BOOLEAN NOT NULL DEFAULT false,
+  "submitted_google_api" BOOLEAN NOT NULL DEFAULT false,
+  "submitted_sitemap" BOOLEAN NOT NULL DEFAULT false,
+  "last_submitted_at" TIMESTAMP(3),
+  "last_inspected_at" TIMESTAMP(3),
+  "last_crawled_at" TIMESTAMP(3),
+  "inspection_result" JSONB,
+  "submission_attempts" INTEGER NOT NULL DEFAULT 0,
+  "last_error" TEXT,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cron_job_logs",
+    model: "CronJobLog",
+    sql: `CREATE TABLE IF NOT EXISTS "cron_job_logs" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT,
+  "job_name" TEXT NOT NULL,
+  "job_type" TEXT NOT NULL DEFAULT 'scheduled',
+  "status" TEXT NOT NULL DEFAULT 'running',
+  "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "completed_at" TIMESTAMP(3),
+  "duration_ms" INTEGER,
+  "result_summary" JSONB,
+  "items_processed" INTEGER NOT NULL DEFAULT 0,
+  "items_succeeded" INTEGER NOT NULL DEFAULT 0,
+  "items_failed" INTEGER NOT NULL DEFAULT 0,
+  "error_message" TEXT,
+  "error_stack" TEXT,
+  "sites_processed" TEXT[] NOT NULL DEFAULT '{}',
+  "sites_skipped" TEXT[] NOT NULL DEFAULT '{}',
+  "timed_out" BOOLEAN NOT NULL DEFAULT false,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "site_health_checks",
+    model: "SiteHealthCheck",
+    sql: `CREATE TABLE IF NOT EXISTS "site_health_checks" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT NOT NULL,
+  "health_score" INTEGER,
+  "indexed_pages" INTEGER,
+  "total_pages" INTEGER,
+  "indexing_rate" DOUBLE PRECISION,
+  "gsc_clicks" INTEGER,
+  "gsc_impressions" INTEGER,
+  "gsc_ctr" DOUBLE PRECISION,
+  "gsc_avg_position" DOUBLE PRECISION,
+  "ga4_sessions" INTEGER,
+  "ga4_bounce_rate" DOUBLE PRECISION,
+  "ga4_engagement_rate" DOUBLE PRECISION,
+  "ga4_organic_share" DOUBLE PRECISION,
+  "total_posts" INTEGER,
+  "posts_published" INTEGER,
+  "posts_pending" INTEGER,
+  "avg_seo_score" DOUBLE PRECISION,
+  "last_agent_run" TIMESTAMP(3),
+  "last_content_gen" TIMESTAMP(3),
+  "pending_proposals" INTEGER,
+  "rewrite_queue" INTEGER,
+  "pagespeed_mobile" INTEGER,
+  "pagespeed_desktop" INTEGER,
+  "snapshot_data" JSONB,
+  "checked_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // AI CONFIGURATION MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "model_providers",
+    model: "ModelProvider",
+    sql: `CREATE TABLE IF NOT EXISTS "model_providers" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT,
+  "name" TEXT NOT NULL,
+  "display_name" TEXT NOT NULL,
+  "provider_type" TEXT NOT NULL,
+  "api_endpoint" TEXT,
+  "api_key_encrypted" TEXT,
+  "api_version" TEXT,
+  "rate_limits_json" JSONB,
+  "cost_per_token" DOUBLE PRECISION,
+  "capabilities" TEXT[] NOT NULL DEFAULT '{}',
+  "model_config_json" JSONB,
+  "is_active" BOOLEAN NOT NULL DEFAULT true,
+  "last_tested_at" TIMESTAMP(3),
+  "test_status" TEXT,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "model_routes",
+    model: "ModelRoute",
+    sql: `CREATE TABLE IF NOT EXISTS "model_routes" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT,
+  "route_name" TEXT NOT NULL,
+  "primary_provider_id" TEXT NOT NULL,
+  "fallback_provider_id" TEXT,
+  "routing_rules_json" JSONB NOT NULL DEFAULT '{}',
+  "cost_optimization" BOOLEAN NOT NULL DEFAULT false,
+  "quality_threshold" DOUBLE PRECISION,
+  "max_retries" INTEGER NOT NULL DEFAULT 3,
+  "timeout_seconds" INTEGER NOT NULL DEFAULT 30,
+  "is_active" BOOLEAN NOT NULL DEFAULT true,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "feature_flags",
+    model: "FeatureFlag",
+    sql: `CREATE TABLE IF NOT EXISTS "feature_flags" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "name" TEXT NOT NULL,
+  "description" TEXT,
+  "enabled" BOOLEAN NOT NULL DEFAULT false,
+  "siteId" TEXT,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // AFFILIATE & REVENUE TRACKING MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "affiliate_clicks",
+    model: "AffiliateClick",
+    sql: `CREATE TABLE IF NOT EXISTS "affiliate_clicks" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT NOT NULL,
+  "partner_id" TEXT NOT NULL,
+  "resort_id" TEXT,
+  "product_id" TEXT,
+  "article_id" TEXT,
+  "link_type" TEXT,
+  "session_id" TEXT NOT NULL,
+  "visitor_id" TEXT,
+  "utm_source" TEXT,
+  "utm_medium" TEXT,
+  "utm_campaign" TEXT,
+  "utm_content" TEXT,
+  "utm_term" TEXT,
+  "referrer" TEXT,
+  "landing_page" TEXT,
+  "user_agent" TEXT,
+  "device_type" TEXT,
+  "country_code" TEXT,
+  "clicked_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "conversions",
+    model: "Conversion",
+    sql: `CREATE TABLE IF NOT EXISTS "conversions" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT NOT NULL,
+  "click_id" TEXT NOT NULL UNIQUE,
+  "partner_id" TEXT NOT NULL,
+  "booking_ref" TEXT,
+  "booking_value" INTEGER NOT NULL,
+  "commission" INTEGER NOT NULL,
+  "currency" TEXT NOT NULL DEFAULT 'USD',
+  "status" "ConversionStatus" NOT NULL DEFAULT 'PENDING',
+  "check_in" TIMESTAMP(3),
+  "check_out" TIMESTAMP(3),
+  "converted_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "confirmed_at" TIMESTAMP(3),
+  "paid_at" TIMESTAMP(3)
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SUBSCRIBER & EMAIL MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "subscribers",
+    model: "Subscriber",
+    sql: `CREATE TABLE IF NOT EXISTS "subscribers" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT,
+  "email" TEXT NOT NULL,
+  "status" "SubscriberStatus" NOT NULL DEFAULT 'PENDING',
+  "source" TEXT,
+  "preferences_json" JSONB,
+  "metadata_json" JSONB,
+  "double_optin_token" TEXT UNIQUE,
+  "double_optin_sent_at" TIMESTAMP(3),
+  "confirmed_at" TIMESTAMP(3),
+  "unsubscribed_at" TIMESTAMP(3),
+  "unsubscribe_reason" TEXT,
+  "last_campaign_sent" TIMESTAMP(3),
+  "engagement_score" DOUBLE PRECISION,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SEO AUDIT ACTIONS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "seo_audit_actions",
+    model: "SeoAuditAction",
+    sql: `CREATE TABLE IF NOT EXISTS "seo_audit_actions" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "auditId" TEXT NOT NULL,
+  "siteId" TEXT NOT NULL,
+  "actionItemId" TEXT NOT NULL,
+  "severity" TEXT NOT NULL,
+  "category" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "description" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "autoFixable" BOOLEAN NOT NULL DEFAULT false,
+  "fixType" TEXT NOT NULL,
+  "affectedUrls" TEXT[] NOT NULL DEFAULT '{}',
+  "executionLog" JSONB,
+  "startedAt" TIMESTAMP(3),
+  "completedAt" TIMESTAMP(3),
+  "error" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TEAM & AUTHOR MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "team_members",
+    model: "TeamMember",
+    sql: `CREATE TABLE IF NOT EXISTS "team_members" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "site_id" TEXT,
+  "user_id" TEXT,
+  "name_en" TEXT NOT NULL,
+  "name_ar" TEXT,
+  "slug" TEXT NOT NULL UNIQUE,
+  "title_en" TEXT NOT NULL,
+  "title_ar" TEXT,
+  "bio_en" TEXT NOT NULL,
+  "bio_ar" TEXT,
+  "avatar_url" TEXT,
+  "cover_image_url" TEXT,
+  "email_public" TEXT,
+  "linkedin_url" TEXT,
+  "twitter_url" TEXT,
+  "instagram_url" TEXT,
+  "website_url" TEXT,
+  "is_active" BOOLEAN NOT NULL DEFAULT true,
+  "is_featured" BOOLEAN NOT NULL DEFAULT false,
+  "display_order" INTEGER NOT NULL DEFAULT 0,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -1103,6 +1462,89 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "audit_issues_siteId_category_idx" ON "audit_issues"("siteId", "category")',
     'CREATE INDEX IF NOT EXISTS "audit_issues_siteId_severity_idx" ON "audit_issues"("siteId", "severity")',
   ],
+
+  // ── Content Pipeline Core Indexes ──────────────────────────
+  article_drafts: [
+    'CREATE INDEX IF NOT EXISTS "article_drafts_current_phase_site_id_idx" ON "article_drafts"("current_phase", "site_id")',
+    'CREATE INDEX IF NOT EXISTS "article_drafts_current_phase_created_at_idx" ON "article_drafts"("current_phase", "created_at")',
+    'CREATE INDEX IF NOT EXISTS "article_drafts_quality_score_idx" ON "article_drafts"("quality_score")',
+    'CREATE INDEX IF NOT EXISTS "article_drafts_site_id_current_phase_idx" ON "article_drafts"("site_id", "current_phase")',
+    'CREATE INDEX IF NOT EXISTS "article_drafts_created_at_idx" ON "article_drafts"("created_at")',
+    'CREATE INDEX IF NOT EXISTS "article_drafts_paired_draft_id_idx" ON "article_drafts"("paired_draft_id")',
+  ],
+  topic_proposals: [
+    'CREATE INDEX IF NOT EXISTS "topic_proposals_site_id_idx" ON "topic_proposals"("site_id")',
+    'CREATE INDEX IF NOT EXISTS "topic_proposals_site_id_status_idx" ON "topic_proposals"("site_id", "status")',
+    'CREATE INDEX IF NOT EXISTS "topic_proposals_site_id_locale_status_idx" ON "topic_proposals"("site_id", "locale", "status")',
+    'CREATE INDEX IF NOT EXISTS "topic_proposals_locale_status_idx" ON "topic_proposals"("locale", "status")',
+    'CREATE INDEX IF NOT EXISTS "topic_proposals_status_confidence_score_idx" ON "topic_proposals"("status", "confidence_score")',
+    'CREATE INDEX IF NOT EXISTS "topic_proposals_planned_at_idx" ON "topic_proposals"("planned_at")',
+  ],
+
+  // ── Monitoring Indexes ─────────────────────────────────────
+  url_indexing_status: [
+    'CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_status_idx" ON "url_indexing_status"("site_id", "status")',
+    'CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_slug_idx" ON "url_indexing_status"("site_id", "slug")',
+    'CREATE INDEX IF NOT EXISTS "url_indexing_status_status_idx" ON "url_indexing_status"("status")',
+    'CREATE INDEX IF NOT EXISTS "url_indexing_status_last_submitted_at_idx" ON "url_indexing_status"("last_submitted_at")',
+  ],
+  cron_job_logs: [
+    'CREATE INDEX IF NOT EXISTS "cron_job_logs_job_name_started_at_idx" ON "cron_job_logs"("job_name", "started_at")',
+    'CREATE INDEX IF NOT EXISTS "cron_job_logs_site_id_job_name_idx" ON "cron_job_logs"("site_id", "job_name")',
+    'CREATE INDEX IF NOT EXISTS "cron_job_logs_status_idx" ON "cron_job_logs"("status")',
+    'CREATE INDEX IF NOT EXISTS "cron_job_logs_started_at_idx" ON "cron_job_logs"("started_at")',
+  ],
+  site_health_checks: [
+    'CREATE INDEX IF NOT EXISTS "site_health_checks_site_id_checked_at_idx" ON "site_health_checks"("site_id", "checked_at")',
+    'CREATE INDEX IF NOT EXISTS "site_health_checks_site_id_idx" ON "site_health_checks"("site_id")',
+    'CREATE INDEX IF NOT EXISTS "site_health_checks_checked_at_idx" ON "site_health_checks"("checked_at")',
+  ],
+
+  // ── AI Config Indexes ──────────────────────────────────────
+  model_providers: [
+    'CREATE INDEX IF NOT EXISTS "model_providers_site_id_idx" ON "model_providers"("site_id")',
+    'CREATE INDEX IF NOT EXISTS "model_providers_provider_type_idx" ON "model_providers"("provider_type")',
+    'CREATE INDEX IF NOT EXISTS "model_providers_is_active_idx" ON "model_providers"("is_active")',
+  ],
+  model_routes: [
+    'CREATE INDEX IF NOT EXISTS "model_routes_site_id_idx" ON "model_routes"("site_id")',
+    'CREATE INDEX IF NOT EXISTS "model_routes_route_name_idx" ON "model_routes"("route_name")',
+    'CREATE INDEX IF NOT EXISTS "model_routes_is_active_idx" ON "model_routes"("is_active")',
+  ],
+  feature_flags: [
+    'CREATE INDEX IF NOT EXISTS "feature_flags_siteId_idx" ON "feature_flags"("siteId")',
+  ],
+
+  // ── Affiliate & Revenue Indexes ────────────────────────────
+  affiliate_clicks: [
+    'CREATE INDEX IF NOT EXISTS "affiliate_clicks_site_id_clicked_at_idx" ON "affiliate_clicks"("site_id", "clicked_at")',
+    'CREATE INDEX IF NOT EXISTS "affiliate_clicks_partner_id_idx" ON "affiliate_clicks"("partner_id")',
+    'CREATE INDEX IF NOT EXISTS "affiliate_clicks_session_id_idx" ON "affiliate_clicks"("session_id")',
+  ],
+  conversions: [
+    'CREATE INDEX IF NOT EXISTS "conversions_site_id_converted_at_idx" ON "conversions"("site_id", "converted_at")',
+    'CREATE INDEX IF NOT EXISTS "conversions_status_idx" ON "conversions"("status")',
+  ],
+
+  // ── Subscriber Indexes ─────────────────────────────────────
+  subscribers: [
+    'CREATE INDEX IF NOT EXISTS "subscribers_site_id_idx" ON "subscribers"("site_id")',
+    'CREATE INDEX IF NOT EXISTS "subscribers_status_idx" ON "subscribers"("status")',
+    'CREATE INDEX IF NOT EXISTS "subscribers_source_idx" ON "subscribers"("source")',
+    'CREATE INDEX IF NOT EXISTS "subscribers_created_at_idx" ON "subscribers"("created_at")',
+  ],
+
+  // ── SEO Audit Actions Indexes ──────────────────────────────
+  seo_audit_actions: [
+    'CREATE INDEX IF NOT EXISTS "seo_audit_actions_siteId_status_idx" ON "seo_audit_actions"("siteId", "status")',
+    'CREATE INDEX IF NOT EXISTS "seo_audit_actions_auditId_idx" ON "seo_audit_actions"("auditId")',
+  ],
+
+  // ── Team Members Indexes ───────────────────────────────────
+  team_members: [
+    'CREATE INDEX IF NOT EXISTS "team_members_site_id_is_active_idx" ON "team_members"("site_id", "is_active")',
+    'CREATE INDEX IF NOT EXISTS "team_members_is_featured_idx" ON "team_members"("is_featured")',
+  ],
 };
 
 // ─── Unique Constraints ──────────────────────────────────────────────────────
@@ -1113,6 +1555,10 @@ const UNIQUE_CONSTRAINTS: string[] = [
   'CREATE UNIQUE INDEX IF NOT EXISTS "charter_inquiries_referenceNumber_key" ON "charter_inquiries"("referenceNumber")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "charter_itineraries_slug_siteId_key" ON "charter_itineraries"("slug", "siteId")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "pdf_guides_slug_key" ON "pdf_guides"("slug")',
+  // Content pipeline + monitoring
+  'CREATE UNIQUE INDEX IF NOT EXISTS "url_indexing_status_site_id_url_key" ON "url_indexing_status"("site_id", "url")',
+  'CREATE UNIQUE INDEX IF NOT EXISTS "feature_flags_name_siteId_key" ON "feature_flags"("name", "siteId")',
+  'CREATE UNIQUE INDEX IF NOT EXISTS "subscribers_site_id_email_key" ON "subscribers"("site_id", "email")',
 ];
 
 // ─── Foreign Keys ────────────────────────────────────────────────────────────
@@ -1130,6 +1576,8 @@ const FOREIGN_KEYS: { name: string; sql: string }[] = [
   { name: "content_performance_pipelineId_fkey", sql: 'ALTER TABLE "content_performance" ADD CONSTRAINT "content_performance_pipelineId_fkey" FOREIGN KEY ("pipelineId") REFERENCES "content_pipelines"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
   // Audit Engine FKs
   { name: "audit_issues_auditRunId_fkey", sql: 'ALTER TABLE "audit_issues" ADD CONSTRAINT "audit_issues_auditRunId_fkey" FOREIGN KEY ("auditRunId") REFERENCES "audit_runs"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
+  // Model Route FK
+  { name: "model_routes_primary_provider_id_fkey", sql: 'ALTER TABLE "model_routes" ADD CONSTRAINT "model_routes_primary_provider_id_fkey" FOREIGN KEY ("primary_provider_id") REFERENCES "model_providers"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

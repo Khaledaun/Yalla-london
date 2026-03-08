@@ -108,11 +108,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Site not found: ${siteId}` }, { status: 400 });
       }
 
+      // Perplexity is preferred but not required — audit falls back to Grok/OpenAI/Claude
       if (!process.env.PERPLEXITY_API_KEY) {
-        return NextResponse.json(
-          { error: "PERPLEXITY_API_KEY not configured. Add it to your environment variables." },
-          { status: 400 }
-        );
+        console.warn("[seo-audit-public] PERPLEXITY_API_KEY not set — using fallback AI providers");
       }
 
       const auditId = `audit-${siteId}-${Date.now()}`;

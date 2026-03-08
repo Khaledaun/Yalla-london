@@ -332,7 +332,7 @@ Write ${wordsNeeded}+ additional words that:
 5. Maintain the existing article's voice and topic
 
 Return ONLY the additional HTML content (H2 sections with paragraphs). No wrapper tags.`),
-    { maxTokens: 3000, temperature: 0.7, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 30000 }
+    { maxTokens: 3000, temperature: 0.7, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 45000 }
   );
 
   const expansion = result.content.trim();
@@ -440,7 +440,7 @@ Return HTML format:
 
 <h2>[Question 2]?</h2>
 <p>[Definitive 2-3 sentence answer with specific data]</p>`),
-    { maxTokens: 1500, temperature: 0.7, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 25000 }
+    { maxTokens: 1500, temperature: 0.7, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 40000 }
   );
 
   const aioContent = result.content.trim();
@@ -598,7 +598,7 @@ Format each as a standalone <p> tag with class="experience-note":
 <p class="experience-note"><strong>Insider tip:</strong> [experience detail]</p>
 
 Return 3-4 inserts, each on its own line. These will be distributed throughout the article.`),
-    { maxTokens: 800, temperature: 0.8, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId }
+    { maxTokens: 800, temperature: 0.8, taskType: "content-generation", calledFrom: "discovery-fix-engine", siteId, timeoutMs: 45000 }
   );
 
   const inserts = result.content.match(/<p class="experience-note">[\s\S]*?<\/p>/gi) || [];

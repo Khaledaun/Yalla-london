@@ -10,6 +10,7 @@ import {
   logPerplexityUsage,
   type PerplexityResponse,
 } from "@/lib/ai/perplexity";
+import { generateCompletion } from "@/lib/ai/provider";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -360,14 +361,48 @@ Be specific and cite real data — do not make generic suggestions.`;
 
     try {
       const userPrompt = sectionDef.buildPrompt(ctx, config.domain);
-      const response: PerplexityResponse = await queryPerplexity(
-        systemPrompt,
-        userPrompt,
-        { model: config.depth === "deep" ? "sonar-pro" : "sonar" }
-      );
+      let responseContent = "";
+      let citations: { url: string }[] = [];
+
+      // Try Perplexity first (has citations), fall back to general AI providers
+      const hasPerplexity = !!process.env.PERPLEXITY_API_KEY;
+      if (hasPerplexity) {
+        try {
+          const response: PerplexityResponse = await queryPerplexity(
+            systemPrompt,
+            userPrompt,
+            { model: config.depth === "deep" ? "sonar-pro" : "sonar" }
+          );
+          responseContent = response.content;
+          citations = response.citations;
+          totalTokens += response.usage.totalTokens;
+          const inputCost = (response.usage.promptTokens / 1_000_000) * 3;
+          const outputCost = (response.usage.completionTokens / 1_000_000) * 15;
+          totalCost += inputCost + outputCost;
+          await logPerplexityUsage(
+            response.usage, config.siteId,
+            `seo-audit-${sectionDef.id}`, "perplexity-audit", true
+          );
+        } catch (perplexityErr) {
+          console.warn(`[perplexity-audit] Perplexity failed for ${sectionDef.id}, falling back to general AI:`, perplexityErr instanceof Error ? perplexityErr.message : perplexityErr);
+          // Fall through to general AI below
+        }
+      }
+
+      // Fallback: use general AI providers (Grok/OpenAI/Claude)
+      if (!responseContent) {
+        const result = await generateCompletion(
+          [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          { maxTokens: 2000, temperature: 0.4, taskType: "seo-optimization", calledFrom: "perplexity-audit-fallback", siteId: config.siteId, timeoutMs: 40000 }
+        );
+        responseContent = result.content;
+      }
 
       const { score, findings } = parseAuditResponse(
-        response.content,
+        responseContent,
         sectionDef.id
       );
 
@@ -376,21 +411,8 @@ Be specific and cite real data — do not make generic suggestions.`;
         title: sectionDef.title,
         score,
         findings,
-        citations: response.citations,
+        citations,
       });
-
-      totalTokens += response.usage.totalTokens;
-      const inputCost = (response.usage.promptTokens / 1_000_000) * 3;
-      const outputCost = (response.usage.completionTokens / 1_000_000) * 15;
-      totalCost += inputCost + outputCost;
-
-      await logPerplexityUsage(
-        response.usage,
-        config.siteId,
-        `seo-audit-${sectionDef.id}`,
-        "perplexity-audit",
-        true
-      );
     } catch (error) {
       console.error(
         `[perplexity-audit] Section ${sectionDef.id} failed:`,

@@ -3306,6 +3306,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 Diagnose
               </ActionButton>
               <button
+                onClick={() => window.location.href = `/admin/cockpit/health?siteId=${encodeURIComponent(site.id)}`}
+                className="px-2 py-1 rounded text-xs bg-gradient-to-r from-violet-900/50 to-blue-900/50 hover:from-violet-800/50 hover:to-blue-800/50 text-violet-300 border border-violet-700/50 font-medium"
+              >
+                Health Report
+              </button>
+              <button
                 onClick={() => {
                   if (seoAuditHistoryOpen === site.id) {
                     setSeoAuditHistoryOpen(null);

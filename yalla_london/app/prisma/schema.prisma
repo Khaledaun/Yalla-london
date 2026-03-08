@@ -1811,6 +1811,22 @@ model FeatureFlag {
   @@map(name: "feature_flags")
 }
 
+// Per-site configuration for affiliates, email, social, and workflow instructions
+model SiteSettings {
+  id        String   @id @default(cuid())
+  siteId    String
+  category  String   // "affiliates" | "email" | "social" | "workflow" | "general"
+  config    Json     @default("{}")
+  enabled   Boolean  @default(true)
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([siteId, category])
+  @@index([siteId])
+  @@map(name: "site_settings")
+}
+
 // Encrypted Credentials for API & Security
 model Credential {
   id                String   @id @default(cuid())

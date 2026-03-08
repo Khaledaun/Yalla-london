@@ -4337,6 +4337,497 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Website Config Panel (Affiliates, Email, Social, Workflow) ─────────────
+
+interface SiteCategorySettings {
+  config: Record<string, unknown>;
+  enabled: boolean;
+  updatedAt: string | null;
+}
+
+interface AffiliatePartner {
+  name: string;
+  category: string;
+  enabled: boolean;
+  affiliateId: string;
+  baseUrl: string;
+  paramTemplate: string;
+  commissionRate: string;
+}
+
+function WebsiteConfigPanel() {
+  const [siteId, setSiteId] = useState("yalla-london");
+  const [settings, setSettings] = useState<Record<string, SiteCategorySettings> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saveResult, setSaveResult] = useState<{ category: string; ok: boolean; msg: string } | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [sites, setSites] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Load available sites
+  useEffect(() => {
+    import("@/config/sites").then((mod) => {
+      const all = mod.getActiveSiteIds().map((id: string) => ({
+        id,
+        name: mod.getSiteConfig(id)?.name || id,
+      }));
+      setSites(all);
+    }).catch(() => {
+      setSites([{ id: "yalla-london", name: "Yalla London" }]);
+    });
+  }, []);
+
+  // Load settings for selected site
+  useEffect(() => {
+    setLoading(true);
+    setSettings(null);
+    fetch(`/api/admin/site-settings?siteId=${encodeURIComponent(siteId)}`)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((j) => setSettings(j.settings || {}))
+      .catch((e) => console.warn("[cockpit] site-settings load failed:", e instanceof Error ? e.message : e))
+      .finally(() => setLoading(false));
+  }, [siteId]);
+
+  const saveCategory = async (category: string, config: Record<string, unknown>, enabled: boolean) => {
+    setSaving(category);
+    setSaveResult(null);
+    try {
+      const res = await fetch("/api/admin/site-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, category, config, enabled }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSaveResult({ category, ok: true, msg: "Saved" });
+      // Update local state
+      setSettings((prev) => prev ? { ...prev, [category]: { config, enabled, updatedAt: new Date().toISOString() } } : prev);
+    } catch (e) {
+      setSaveResult({ category, ok: false, msg: e instanceof Error ? e.message : "Save failed" });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const toggleCategory = (category: string) => {
+    if (!settings?.[category]) return;
+    const current = settings[category];
+    saveCategory(category, current.config, !current.enabled);
+  };
+
+  const updateConfig = (category: string, key: string, value: unknown) => {
+    setSettings((prev) => {
+      if (!prev?.[category]) return prev;
+      return {
+        ...prev,
+        [category]: {
+          ...prev[category],
+          config: { ...prev[category].config, [key]: value },
+        },
+      };
+    });
+  };
+
+  const CATEGORIES = [
+    { key: "affiliates", label: "Affiliates", icon: "💰", desc: "Partner links, commission tracking, injection rules" },
+    { key: "email", label: "Email", icon: "📧", desc: "Provider config, campaigns, subscriber emails" },
+    { key: "social", label: "Social Media", icon: "📱", desc: "Platform connections, auto-posting rules" },
+    { key: "workflow", label: "Workflow", icon: "⚙️", desc: "Content tone, publishing rules, AI instructions" },
+    { key: "general", label: "General", icon: "🌐", desc: "Site activation, indexing, maintenance mode" },
+  ];
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <SectionTitle>Website Config</SectionTitle>
+        <select
+          value={siteId}
+          onChange={(e) => setSiteId(e.target.value)}
+          className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700"
+        >
+          {sites.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <p className="text-zinc-500 text-xs animate-pulse">Loading settings…</p>
+      ) : !settings ? (
+        <p className="text-zinc-500 text-xs">Failed to load settings. The site_settings table may need migration.</p>
+      ) : (
+        <div className="space-y-2">
+          {CATEGORIES.map(({ key, label, icon, desc }) => {
+            const cat = settings[key];
+            const isExpanded = expandedCategory === key;
+            if (!cat) return null;
+            return (
+              <div key={key} className={`rounded-lg border ${cat.enabled ? "border-zinc-700 bg-zinc-800/40" : "border-zinc-800 bg-zinc-900/40 opacity-70"}`}>
+                {/* Header row */}
+                <div className="flex items-center gap-2 p-2.5 cursor-pointer" onClick={() => setExpandedCategory(isExpanded ? null : key)}>
+                  <span className="text-base">{icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-200 text-xs font-medium">{label}</span>
+                      {cat.updatedAt && (
+                        <span className="text-zinc-600 text-[10px]">updated {new Date(cat.updatedAt).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    <p className="text-zinc-500 text-[11px] truncate">{desc}</p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleCategory(key); }}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${cat.enabled ? "bg-emerald-600" : "bg-zinc-700"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${cat.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
+                  </button>
+                  <span className={`text-zinc-500 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                </div>
+
+                {/* Expanded panel */}
+                {isExpanded && (
+                  <div className="border-t border-zinc-700/50 p-3 space-y-3">
+                    {key === "affiliates" && <AffiliatesEditor config={cat.config} onChange={(k, v) => updateConfig("affiliates", k, v)} />}
+                    {key === "email" && <EmailEditor config={cat.config} onChange={(k, v) => updateConfig("email", k, v)} />}
+                    {key === "social" && <SocialEditor config={cat.config} onChange={(k, v) => updateConfig("social", k, v)} />}
+                    {key === "workflow" && <WorkflowEditor config={cat.config} onChange={(k, v) => updateConfig("workflow", k, v)} />}
+                    {key === "general" && <GeneralEditor config={cat.config} onChange={(k, v) => updateConfig("general", k, v)} />}
+
+                    {/* Instructions textarea (shared across all categories) */}
+                    {cat.config.instructions !== undefined && (
+                      <div>
+                        <label className="text-zinc-400 text-[11px] font-medium block mb-1">AI Instructions</label>
+                        <textarea
+                          value={(cat.config.instructions as string) || ""}
+                          onChange={(e) => updateConfig(key, "instructions", e.target.value)}
+                          rows={3}
+                          className="w-full bg-zinc-900 text-zinc-300 text-xs rounded px-2 py-1.5 border border-zinc-700 resize-y"
+                          placeholder="Instructions for AI when handling this category…"
+                        />
+                      </div>
+                    )}
+
+                    {/* Save button */}
+                    <div className="flex items-center gap-2">
+                      <ActionButton
+                        onClick={() => saveCategory(key, cat.config, cat.enabled)}
+                        loading={saving === key}
+                        variant="success"
+                      >
+                        Save {label}
+                      </ActionButton>
+                      {saveResult?.category === key && (
+                        <span className={`text-xs ${saveResult.ok ? "text-emerald-400" : "text-red-400"}`}>
+                          {saveResult.ok ? "✅" : "❌"} {saveResult.msg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── Category Editors ───────────────────────────────────────────────────────
+
+function AffiliatesEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (k: string, v: unknown) => void }) {
+  const partners = (config.partners || []) as AffiliatePartner[];
+  const togglePartner = (idx: number) => {
+    const updated = [...partners];
+    updated[idx] = { ...updated[idx], enabled: !updated[idx].enabled };
+    onChange("partners", updated);
+  };
+  const updatePartnerField = (idx: number, field: string, value: string) => {
+    const updated = [...partners];
+    updated[idx] = { ...updated[idx], [field]: value };
+    onChange("partners", updated);
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 text-xs">
+        <label className="text-zinc-400">Injection Mode:</label>
+        <select
+          value={(config.injectionMode as string) || "auto"}
+          onChange={(e) => onChange("injectionMode", e.target.value)}
+          className="bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+        >
+          <option value="auto">Auto (cron injects into articles)</option>
+          <option value="manual">Manual (AI includes during generation)</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
+      <div className="flex items-center gap-3 text-xs">
+        <label className="text-zinc-400">Max links/article:</label>
+        <input
+          type="number"
+          value={(config.maxLinksPerArticle as number) || 5}
+          onChange={(e) => onChange("maxLinksPerArticle", parseInt(e.target.value) || 5)}
+          className="bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs w-16"
+          min={1}
+          max={20}
+        />
+      </div>
+      <label className="text-zinc-400 text-[11px] font-medium block">Active Partners</label>
+      <div className="space-y-1.5">
+        {partners.map((p, i) => (
+          <div key={i} className={`rounded-md border p-2 ${p.enabled ? "border-zinc-700 bg-zinc-800/30" : "border-zinc-800 bg-zinc-900/30 opacity-60"}`}>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => togglePartner(i)}
+                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${p.enabled ? "bg-emerald-600" : "bg-zinc-700"}`}
+              >
+                <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${p.enabled ? "translate-x-3.5" : "translate-x-0.5"}`} />
+              </button>
+              <span className="text-zinc-200 text-xs font-medium">{p.name}</span>
+              <span className="text-zinc-600 text-[10px]">{p.category}</span>
+              <span className="text-emerald-500 text-[10px] ml-auto">{p.commissionRate}</span>
+            </div>
+            {p.enabled && (
+              <div className="mt-1.5 grid grid-cols-1 gap-1">
+                <input
+                  value={p.affiliateId}
+                  onChange={(e) => updatePartnerField(i, "affiliateId", e.target.value)}
+                  placeholder="Affiliate ID (from partner dashboard)"
+                  className="bg-zinc-900 text-zinc-300 text-[11px] rounded px-2 py-1 border border-zinc-700"
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmailEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (k: string, v: unknown) => void }) {
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">Provider</label>
+          <select
+            value={(config.provider as string) || "auto"}
+            onChange={(e) => onChange("provider", e.target.value)}
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          >
+            <option value="auto">Auto-detect</option>
+            <option value="resend">Resend</option>
+            <option value="sendgrid">SendGrid</option>
+            <option value="smtp">SMTP</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">Digest Frequency</label>
+          <select
+            value={(config.digestFrequency as string) || "weekly"}
+            onChange={(e) => onChange("digestFrequency", e.target.value)}
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly">Bi-weekly</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">From Name</label>
+          <input
+            value={(config.fromName as string) || ""}
+            onChange={(e) => onChange("fromName", e.target.value)}
+            placeholder="e.g. Yalla London"
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          />
+        </div>
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">From Email</label>
+          <input
+            value={(config.fromEmail as string) || ""}
+            onChange={(e) => onChange("fromEmail", e.target.value)}
+            placeholder="e.g. hello@yalla-london.com"
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="text-zinc-400 text-[11px] block mb-0.5">Reply-To</label>
+        <input
+          value={(config.replyTo as string) || ""}
+          onChange={(e) => onChange("replyTo", e.target.value)}
+          placeholder="e.g. support@yalla-london.com"
+          className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+        />
+      </div>
+      <div className="flex gap-4">
+        <label className="flex items-center gap-1.5 text-zinc-300">
+          <input type="checkbox" checked={!!config.welcomeEmailEnabled} onChange={(e) => onChange("welcomeEmailEnabled", e.target.checked)} className="rounded" />
+          Welcome email
+        </label>
+        <label className="flex items-center gap-1.5 text-zinc-300">
+          <input type="checkbox" checked={!!config.digestEmailEnabled} onChange={(e) => onChange("digestEmailEnabled", e.target.checked)} className="rounded" />
+          Digest email
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function SocialEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (k: string, v: unknown) => void }) {
+  const platforms = (config.platforms || {}) as Record<string, { connected: boolean; handle?: string; pageId?: string }>;
+  const updatePlatform = (platform: string, field: string, value: unknown) => {
+    onChange("platforms", {
+      ...platforms,
+      [platform]: { ...platforms[platform], [field]: value },
+    });
+  };
+  const PLATFORMS = [
+    { key: "instagram", label: "Instagram", field: "handle", placeholder: "@yallalondon" },
+    { key: "twitter", label: "Twitter / X", field: "handle", placeholder: "@yallalondon" },
+    { key: "tiktok", label: "TikTok", field: "handle", placeholder: "@yallalondon" },
+    { key: "facebook", label: "Facebook", field: "pageId", placeholder: "Page ID" },
+  ];
+  return (
+    <div className="space-y-2 text-xs">
+      {PLATFORMS.map((p) => (
+        <div key={p.key} className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-zinc-300 w-24 shrink-0">
+            <input
+              type="checkbox"
+              checked={!!platforms[p.key]?.connected}
+              onChange={(e) => updatePlatform(p.key, "connected", e.target.checked)}
+              className="rounded"
+            />
+            {p.label}
+          </label>
+          <input
+            value={(platforms[p.key]?.[p.field as keyof typeof platforms[string]] as string) || ""}
+            onChange={(e) => updatePlatform(p.key, p.field, e.target.value)}
+            placeholder={p.placeholder}
+            className="flex-1 bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            disabled={!platforms[p.key]?.connected}
+          />
+        </div>
+      ))}
+      <label className="flex items-center gap-1.5 text-zinc-300 text-xs mt-2">
+        <input type="checkbox" checked={!!config.autoPostOnPublish} onChange={(e) => onChange("autoPostOnPublish", e.target.checked)} className="rounded" />
+        Auto-post when article is published
+      </label>
+    </div>
+  );
+}
+
+function WorkflowEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (k: string, v: unknown) => void }) {
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">Content Tone</label>
+          <select
+            value={(config.contentTone as string) || "luxury-editorial"}
+            onChange={(e) => onChange("contentTone", e.target.value)}
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          >
+            <option value="luxury-editorial">Luxury Editorial</option>
+            <option value="casual-friendly">Casual & Friendly</option>
+            <option value="expert-authority">Expert Authority</option>
+            <option value="adventure-inspiring">Adventure Inspiring</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">Publishing Frequency</label>
+          <select
+            value={(config.publishingFrequency as string) || "2/day"}
+            onChange={(e) => onChange("publishingFrequency", e.target.value)}
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          >
+            <option value="1/day">1 per day</option>
+            <option value="2/day">2 per day</option>
+            <option value="3/day">3 per day</option>
+            <option value="1/week">1 per week</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="text-zinc-400 text-[11px] block mb-0.5">Target Audience</label>
+        <input
+          value={(config.targetAudience as string) || ""}
+          onChange={(e) => onChange("targetAudience", e.target.value)}
+          className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          placeholder="e.g. Arab travellers seeking luxury experiences"
+        />
+      </div>
+      <div>
+        <label className="text-zinc-400 text-[11px] block mb-0.5">Brand Voice Notes</label>
+        <textarea
+          value={(config.brandVoiceNotes as string) || ""}
+          onChange={(e) => onChange("brandVoiceNotes", e.target.value)}
+          rows={2}
+          className="w-full bg-zinc-900 text-zinc-300 text-xs rounded px-2 py-1.5 border border-zinc-700 resize-y"
+          placeholder="Special notes about brand voice, phrases to use/avoid…"
+        />
+      </div>
+    </div>
+  );
+}
+
+function GeneralEditor({ config, onChange }: { config: Record<string, unknown>; onChange: (k: string, v: unknown) => void }) {
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="flex flex-wrap gap-4">
+        {[
+          { key: "siteActive", label: "Site Active" },
+          { key: "indexingEnabled", label: "Google Indexing" },
+          { key: "cronJobsEnabled", label: "Cron Jobs" },
+          { key: "maintenanceMode", label: "Maintenance Mode" },
+        ].map(({ key, label }) => (
+          <label key={key} className="flex items-center gap-1.5 text-zinc-300">
+            <input
+              type="checkbox"
+              checked={key === "maintenanceMode" ? !!config[key] : config[key] !== false}
+              onChange={(e) => onChange(key, e.target.checked)}
+              className="rounded"
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">Custom Domain</label>
+          <input
+            value={(config.customDomain as string) || ""}
+            onChange={(e) => onChange("customDomain", e.target.value)}
+            placeholder="e.g. yalla-london.com"
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          />
+        </div>
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">Google Verification Code</label>
+          <input
+            value={(config.googleVerification as string) || ""}
+            onChange={(e) => onChange("googleVerification", e.target.value)}
+            placeholder="google-site-verification=…"
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          />
+        </div>
+        <div>
+          <label className="text-zinc-400 text-[11px] block mb-0.5">GA4 Measurement ID</label>
+          <input
+            value={(config.analyticsId as string) || ""}
+            onChange={(e) => onChange("analyticsId", e.target.value)}
+            placeholder="G-XXXXXXXXXX"
+            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab({ system }: { system: SystemStatus | null }) {
   const [flags, setFlags] = useState<Array<{ id: string; key: string; enabled: boolean; description: string }>>([]);
   const [flagsLoading, setFlagsLoading] = useState(true);
@@ -4876,6 +5367,9 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           </div>
         )}
       </Card>
+
+      {/* Per-Site Website Config */}
+      <WebsiteConfigPanel />
 
       {/* Feature flags */}
       <Card>

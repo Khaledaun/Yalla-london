@@ -83,11 +83,13 @@ export default function SeoAuditPublicPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'run_audit', siteId, depth }),
       })
-      const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Audit failed')
+        let msg = 'Audit failed'
+        try { const d = await res.json(); msg = d.error || msg } catch { /* non-JSON response */ }
+        setError(msg)
         return
       }
+      const data = await res.json()
       // Load the new report
       await fetchReports()
       if (data.reportId) {

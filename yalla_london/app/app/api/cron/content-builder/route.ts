@@ -58,15 +58,21 @@ async function handleContentBuilder(request: NextRequest) {
     }
   }
 
+  // Hoisted so we can update the marker on completion/failure
+  let dedupMarkerId: string | null = null;
+  const { prisma } = await import("@/lib/db");
+
+  // Helper to close the dedup marker so diagnostic-agent doesn't falsely flag it
+  const closeDedupMarker = async (status: "completed" | "failed", summary: Record<string, unknown>) => {
+    if (!dedupMarkerId) return;
+    await prisma.cronJobLog.update({
+      where: { id: dedupMarkerId },
+      data: { status, completed_at: new Date(), result_summary: { dedup_marker: true, ...summary } },
+    }).catch(err => console.warn("[content-builder] Failed to close dedup marker:", err instanceof Error ? err.message : err));
+  };
+
   try {
     // Dedup guard: skip if another content-builder started within the last 90 seconds.
-    // Prevents duplicate runs from overlapping Vercel cron + manual dashboard triggers.
-    //
-    // CRITICAL FIX: Previously checked for completed logs (written at END of run),
-    // so two simultaneous runs both saw nothing and both proceeded. Now we write a
-    // "started" marker IMMEDIATELY after passing the dedup check, so the second
-    // invocation sees it within milliseconds.
-    const { prisma } = await import("@/lib/db");
     try {
       const recentRun = await prisma.cronJobLog.findFirst({
         where: { job_name: "content-builder", status: { not: "skipped" }, started_at: { gte: new Date(Date.now() - 60_000) } },
@@ -90,10 +96,9 @@ async function handleContentBuilder(request: NextRequest) {
           result_summary: { phase: "started", dedup_marker: true },
         },
       });
+      dedupMarkerId = dedupMarker.id;
 
-      // ACT-THEN-CHECK: Two invocations can both pass the initial check and both write
-      // markers before either sees the other's. Re-check after writing: if 2+ markers
-      // exist in the window, this invocation is the duplicate — abort.
+      // ACT-THEN-CHECK: if 2+ markers exist, this is the duplicate — abort.
       const markerCount = await prisma.cronJobLog.count({
         where: {
           job_name: "content-builder",
@@ -102,8 +107,6 @@ async function handleContentBuilder(request: NextRequest) {
         },
       });
       if (markerCount > 1) {
-        // Clean up OUR marker so it doesn't orphan as "running" and get flagged
-        // as a false failure by the diagnostic-agent 15 minutes later.
         await prisma.cronJobLog.update({
           where: { id: dedupMarker.id },
           data: {
@@ -113,11 +116,10 @@ async function handleContentBuilder(request: NextRequest) {
             result_summary: { phase: "skipped", dedup_marker: true, reason: "dedup-race" },
           },
         }).catch(err => console.warn("[content-builder] Failed to clean up dedup marker:", err instanceof Error ? err.message : err));
-        console.log(`[content-builder] Race condition detected: ${markerCount} markers in window — cleaned up marker and yielding`);
+        dedupMarkerId = null; // Already cleaned up
         return NextResponse.json({ skipped: true, reason: "dedup-race", message: `${markerCount} concurrent content-builders detected — this one yielding` });
       }
     } catch (dedupErr) {
-      // If dedup check fails (e.g., DB pool exhausted), proceed anyway — better to double-run than skip
       console.warn("[content-builder] Dedup check failed (non-fatal):", dedupErr instanceof Error ? dedupErr.message : dedupErr);
     }
 
@@ -127,14 +129,17 @@ async function handleContentBuilder(request: NextRequest) {
 
     const durationMs = Date.now() - cronStart;
 
-    const resultAny = result as unknown as Record<string, unknown>;
+    // Close the dedup marker so diagnostic-agent doesn't falsely flag it as stuck
+    await closeDedupMarker(
+      result.success ? "completed" : "failed",
+      { phase: result.previousPhase, nextPhase: result.nextPhase, keyword: result.keyword },
+    );
 
     // Fire failure hook if the builder returned a failure
     if (!result.success && result.message) {
       const { onCronFailure } = await import("@/lib/ops/failure-hooks");
       onCronFailure({ jobName: "content-builder", error: result.message }).catch(err => console.warn("[content-builder] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
-      // Wrap in try-catch: DB pool exhaustion should not prevent the route from returning
       await logCronExecution("content-builder", "failed", {
         durationMs,
         errorMessage: result.message,
@@ -143,10 +148,7 @@ async function handleContentBuilder(request: NextRequest) {
         console.warn("[content-builder] logCronExecution (failed) error:", logErr instanceof Error ? logErr.message : logErr);
       });
     } else {
-      // Use actual BuildRunnerResult fields — draftsProcessed doesn't exist on the interface.
-      // A draft was processed if draftId exists (even if it stayed in the same phase for multi-section drafting).
       const didProcessDraft = result.draftId ? 1 : 0;
-      // A draft "advanced" if it moved to a different phase
       const didAdvance = (result.previousPhase && result.nextPhase && result.previousPhase !== result.nextPhase) ? 1 : 0;
 
       await logCronExecution("content-builder", "completed", {
@@ -174,7 +176,9 @@ async function handleContentBuilder(request: NextRequest) {
     const errMsg = error instanceof Error ? error.message : String(error);
     const durationMs = Date.now() - cronStart;
 
-    // Wrap in try-catch: log failure should not mask the original error response
+    // Close the dedup marker so diagnostic-agent doesn't double-count
+    await closeDedupMarker("failed", { error: errMsg });
+
     await logCronExecution("content-builder", "failed", {
       durationMs,
       errorMessage: errMsg,

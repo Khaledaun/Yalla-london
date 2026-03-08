@@ -1851,7 +1851,212 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | Login Security | No rate limiting on admin login endpoint | MEDIUM |
 | Orphan Models | 16+ Prisma models never referenced in code | LOW |
 
-### Critical Rules Learned (March 4-5 Sessions)
+### Session: March 5-6, 2026 — SEO/AEO Critical Fixes & Production Stability (PRs #413-#425)
+
+**Title Sanitization & Cannibalization Detection (PR #422):**
+- `cleanTitle()` function strips slug-style titles, AI artifacts ("Title:", quotes), and normalizes casing
+- Cannibalization check: before publishing, searches existing BlogPosts for >80% Jaccard word overlap — blocks duplicate
+- Enforced on ALL BlogPost creation paths (content-selector, daily-content-generate, scheduled-publish)
+- DB artifact scan script (`scripts/consolidate-duplicates.ts`) + cockpit "Content Cleanup" buttons
+
+**Content-Auto-Fix Sections 11-13 (PR #425):**
+- **Section 11: Orphan Page Resolution** — finds published articles with ZERO inbound internal links, appends "Related:" link from best-matching article (5/run)
+- **Section 12: Thin Content Auto-Unpublish** — unpublishes articles <500 words with reason in meta_description (5/run)
+- **Section 13: Duplicate Content Detection** — Jaccard similarity >80% title overlap → unpublishes newer article (3/run)
+- **Broken Link Cleanup** — strips `TOPIC_SLUG` placeholders, fixes hallucinated slugs by matching to real articles (50 articles/run, 30 links/run)
+
+**IndexNow Multi-Engine Submission (PR #429):**
+- Now submits to 3 engines: Bing (`bing.com/indexnow`), IndexNow Registry (`api.indexnow.org/indexnow`), Yandex (`yandex.com/indexnow`)
+- Batch POST (up to 10,000 URLs), independent per-engine (one failure doesn't block others)
+- Exponential backoff on 429/5xx responses
+
+**AI Reliability Overhaul — Circuit Breaker (PR #430):**
+- **Circuit breaker**: tracks consecutive failures per provider, opens after 3 failures with 5-minute cooldown
+- **Phase-aware budget**: light/medium/heavy hints control first-provider share (50-65%)
+- **Assembly smart skip**: raw HTML fallback triggers when budget <25s (instant, no AI call)
+- **Task-type routing**: `generateCompletion()` checks `ModelRoute` DB table for per-task provider config
+- **Provider chain**: Grok → OpenAI → Claude → Perplexity (Gemini frozen — account billing issue)
+
+**Last-Defense Fallback / Zero-Blocker AI (PR #432):**
+- `lib/ai/last-defense.ts` — final safety net when normal pipeline fails 2+ times
+- Probes ALL providers (including disabled) for any working one
+- Phase-specific defense: combined research+outline, condensed single-prompt drafting, raw HTML assembly (always succeeds)
+- Philosophy: a published 800-word article > a perfect pipeline producing nothing
+
+**Production SEO Compliance (PR #413 — 26 audit issues across 11 phases):**
+- Multiple H1 fix: demote `<h1>` in AI-generated body to `<h2>` (page template provides H1)
+- hreflang false positive fix: reciprocal check handles redirect chains
+- SEO audit 504 timeout: 45s budget guard + bounded queries (`take:200/100`)
+- Indexing rate capped at 100% in display
+- BlogPost Prisma crashes: `title` → `title_en`, `quality_score` → `seo_score`
+- Dynamic llms.txt per site created
+
+**Named Author Profiles for E-E-A-T (PR #424):**
+- `lib/content-pipeline/author-rotation.ts` — replaces generic "Editorial" bylines
+- 2-3 `TeamMember` profiles per site with real names (EN+AR), bios, avatars, social links
+- `getNextAuthor()` load-balances by fewest recent ContentCredits
+- Addresses Jan 2026 Authenticity Update demoting anonymous bylines
+
+**Other Critical Fixes (PRs #413-#425):**
+- Arabic content JSON parsing crash fixed (two-pass approach for HTML attributes in JSON strings)
+- AI provider timeout cascade: first provider capped at 50% budget (was consuming 100%)
+- Perplexity deactivated (quota exhausted), Gemini removed (account frozen)
+- Cross-site topic contamination prevention in content builder
+- Zombie articles (stuck after 3 failed enhancements) resolved
+- Next.js 15 async params fixed across blog pages
+- Content-builder false failure rate: dedup marker now closed on both success AND failure paths
+
+### Session: March 6, 2026 — Cron Resilience Overhaul & Per-Site Activation (PRs #426-#429)
+
+**Cron Resilience Overhaul (PR #433):**
+- **Feature flag guards**: `checkCronEnabled(jobName)` on all 24 cron jobs — reads FeatureFlag DB table, can disable without code changes
+- **Cron failure alerting**: email on failure with error interpretation, 4h dedup cooldown
+- **Rate limiting middleware** (4 tiers): auth 10/min, heavy 2/min, mutation 20/min, read 100/min
+- **New crons**: `schedule-executor` (every 2h — processes ContentScheduleRule), `subscriber-emails` (daily 10:00)
+- **7 orphan crons deleted**: auto-generate, autopilot, commerce-trends, daily-publish, etsy-sync, real-time-optimization, seo-health-report
+
+**Per-Site Activation Controller (PR #433):**
+- `/api/admin/site-settings` — database-backed settings for 5 categories per site
+- Categories: `affiliates` (partners, injection mode, max links), `email` (provider, from/reply, welcome/digest), `social` (platforms, auto-post), `workflow` (tone, audience, frequency, quality override), `general` (active, indexing, crons, maintenance)
+- Content pipeline checks settings before processing (skip affiliate injection if disabled, etc.)
+- Seeds default configs per site on first access
+
+**Cycle Health Analyzer (PR #432):**
+- `/api/admin/cycle-health` + `/admin/cockpit/health` — evidence-based diagnostics
+- Analyzes last 12-24h: CronJobLog, ArticleDraft throughput, BlogPost velocity, indexing health, AI costs, auto-fixes
+- 7 issue categories (pipeline, cron, indexing, quality, ai, content, seo) with severity + plain-English descriptions
+- "Fix Now" buttons execute auto-remediation per issue; "Fix All" for batch
+- Overall grade A-F computed from severity + metrics
+
+### Session: March 7, 2026 — Admin Refactor Phases 1-11 (PRs #410-#411, #416-#421)
+
+**Phase 1: Admin Sidebar Simplification:**
+- Reduced from ~100 items to ~35 items across 8 sections
+- Collapsible menu groups: Cockpit, Content, Sites, Automation, Commerce, Design & Media, AI Tools, System
+- Mobile bottom navigation: 5 primary buttons (HQ, Content, New, Crons, More) + floating "New Article" FAB
+- Dynamic per-site branding: tri-color bar, SiteSelector dropdown
+
+**Phase 3: Tab Consolidation:**
+- 5 duplicate admin pages merged into canonical pages with content components
+- Affiliates, SEO, Departures, Design, Topics — each split into `page.tsx` + `*-content.tsx`
+
+**Phase 4: Mobile/ADHD UX Components (5 new):**
+- `status-summary.tsx` — "Now / Next / Attention" triptych with color-coded cards
+- `responsive-table.tsx` — cards on mobile (<768px), table on desktop
+- `bottom-sheet.tsx` — slide-up drawer for actions on iPhone
+- `sticky-action-bar.tsx` — floating action footer (never scrolls off)
+- `tab-container.tsx` — swipeable tabs on mobile
+
+**Phase 5: Test-Connections Expansion:**
+- `public/test-connections.html` — 7 validation panels: Database, Content Pipeline, SEO, Indexing, AI Providers, Email/Social, Analytics
+- Live endpoint testing with response times, severity coloring, expandable JSON responses
+
+**Phase 6: Legal Pages Manager:**
+- `/admin/legal` — CRUD for 7 legal page types with per-site, per-locale versioning
+- AI legal review button, Tiptap rich text editor, preview modal, bulk generation
+
+**Phase 7: AI Task Runner:**
+- `lib/ai/task-runner.ts` — 7 predefined tasks (content-suggest, seo-diagnose, meta-generate, affiliate-suggest, product-description, content-expand, legal-review)
+- Structured JSON output parsing with retry logic
+
+**Phase 8: Embedded Coding Assistant:**
+- `/admin/ai-assistant` — chat interface for Khaled to ask AI to fix bugs, explain code, suggest improvements
+- Conversation history, streaming responses, code patch display, markdown rendering
+
+**Phases 9-11: E-Commerce Hub, SEO Audit Integration, Operations Console:**
+- `/admin/cockpit/commerce` — affiliate partner management, e-commerce settings
+- `/api/admin/seo-audit-engine` — per-page audit results with sortable findings
+- `/admin/operations` — system status, env var validation, emergency commands
+
+**Action Logging System:**
+- `/api/admin/action-logs` — logs every manual action (Publish, Delete, Re-queue, etc.) with user, timestamp, IP, success/failure
+- Dashboard shows last 50 entries with action type filtering
+
+**System Health Audit (PR #423):**
+- `/admin/cockpit` health panel — 47 checks across 12 sections
+- DB schema health, content pipeline, SEO, AI providers, cron jobs, security, env vars
+- Cockpit alert banner for critical findings
+
+### Session: March 7-8, 2026 — Indexing Infrastructure & Per-Page Audit (PRs #430-#434)
+
+**Unified Indexing Status Resolution (PR #434):**
+- `lib/seo/indexing-summary.ts` — single source of truth for all indexing status consumers
+- `resolveStatus()` cross-checks both `status` AND `indexing_state` fields (prevents double-counting)
+- Returns: total, indexed, submitted, discovered, neverSubmitted, errors, deindexed, chronicFailures, rate %, staleCount, velocity7d, channel breakdown, blockers, avgTimeToIndexDays
+
+**Crawl Freshness Validator (PR #434):**
+- `lib/master-audit/validators/crawl-freshness.ts` — detects stale crawls (>14d warn, >30d critical), submission failures, chronic failures (5+ attempts not indexed)
+- Sitemap reachability check with response time measurement
+- GSC performance merge: 7-day + 30-day aggregation with week-over-week trend
+- Hreflang reciprocity validation: flags EN indexed but /ar/ not (or vice versa)
+
+**Cache-First Sitemap (PR #434):**
+- `lib/sitemap-cache.ts` — pre-builds sitemap in SiteSettings table, served instantly (<200ms vs 5-10s live generation)
+- Refreshed by: `content-auto-fix-lite` cron (every 4h), post-publish events, manual dashboard action
+- 24h max age with automatic fallback to live generation if stale
+
+**Per-Page Audit (PR #434):**
+- `/api/admin/per-page-audit` + `/admin/cockpit/per-page-audit` — sortable, paginated list of all published pages
+- Per-page: indexing status, GSC clicks/impressions/CTR/position, SEO score, word count, issue list
+- Issue detection: never submitted (critical), error/deindexed (critical), low SEO score, thin content, missing affiliates, high impressions but low CTR
+- Sort by: publishedAt, title, clicks, impressions, ctr, position, seoScore, wordCount, indexingStatus, issues
+
+**Content-Builder False Failure Fix (PR #431):**
+- Root cause: dedup marker never closed after run completed, staying "running" forever → diagnostic-agent falsely marked as "failed"
+- Fix: close marker on BOTH success AND failure paths, tighten dedup window to 60s
+
+**Editor SEO Scoring + Email Campaign Creation (PR #434):**
+- Article editor: real-time SEO score calculation based on word count, headings, meta tags, internal links
+- Email campaign creation wired to `/api/admin/email-campaigns`
+
+**14 Critical Missing Models Added to db-migrate Fix Database Button (PR #434):**
+- Added CREATE TABLE statements for: Design, PdfGuide, PdfDownload, EmailTemplate, EmailCampaign, VideoProject, ContentPipeline, ContentPerformance, ModelRoute, ModelProvider, ApiUsageLog, AutoFixLog, SiteSettings, TeamMember
+
+**Safari Crash Fix on SEO Audit (PR #434):**
+- Added `res.ok` check before `res.json()` in SEO audit page (Safari throws on non-JSON responses)
+
+### Current Platform Status (March 8, 2026)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow multi-engine (Bing + Yandex + api.indexnow.org), schema injection, meta optimization, internal link injection ✅
+- 14-check pre-publication gate ✅
+- Per-content-type quality gates (blog 1000w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Circuit breaker + last-defense fallback for AI reliability ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- Per-page audit with sortable indexing + GSC data ✅
+- Cycle Health Analyzer with evidence-based diagnostics + Fix Now buttons ✅
+- System Health Audit (47 checks across 12 sections) ✅
+- Cache-first sitemap (<200ms vs 5-10s) ✅
+- Unified indexing status resolution (single source of truth) ✅
+- Crawl freshness validator (stale crawl detection) ✅
+- Per-site activation controller (affiliates, email, social, workflow settings) ✅
+- Cron resilience (feature flags, alerting, rate limiting) ✅
+- Named author profiles for E-E-A-T ✅
+- Title sanitization + cannibalization detection ✅
+- Content-auto-fix: orphan resolution, thin content unpublish, duplicate detection, broken link cleanup ✅
+- Admin sidebar simplified (~100 → ~35 items), mobile-first with bottom nav ✅
+- AI Task Runner (7 structured tasks), Embedded Coding Assistant, Legal Pages Manager ✅
+- Action logging on all dashboard endpoints ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity |
+|------|-------|----------|
+| GA4 Dashboard | Traffic metrics on dashboard still return 0s (MCP works, API integration pending) | MEDIUM |
+| Social APIs | Engagement stats require platform API integration | LOW |
+| Feature Flags | DB-backed, cron guards wired, but not wired to all runtime behavior | LOW |
+| Brand Templates | Only Yalla London template exists for other sites | MEDIUM |
+| OG Images | Per-site OG image files don't exist yet (code references `{slug}-og.jpg`) | MEDIUM |
+| Orphan Models | 16+ Prisma models never referenced in code | LOW |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW |
+
+### Critical Rules Learned (March 4-8 Sessions)
 
 1. **BlogPost has no `title` field** — always use `title_en`/`title_ar`. Never `select: { title: true }` on BlogPost.
 2. **BlogPost has no `quality_score` field** — use `seo_score`. `quality_score` is on ArticleDraft only.
@@ -1865,3 +2070,9 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 10. **The canonical auth import is `@/lib/admin-middleware`** — never use `@/lib/auth/admin` (doesn't exist).
 11. **The correct PageSpeed env var is `GOOGLE_PAGESPEED_API_KEY`** — always include alongside `PAGESPEED_API_KEY` and `PSI_API_KEY`.
 12. **Safari requires `res.ok` check before `res.json()`** — Safari throws "string did not match expected pattern" on non-JSON responses.
+13. **Circuit breaker opens after 3 consecutive failures** — 5-minute cooldown, half-open probe. Don't retry dead providers.
+14. **Content-builder dedup marker must close on BOTH success AND failure** — unclosed markers cause false failure rate inflation.
+15. **Cron feature flag guard is `checkCronEnabled(jobName)`** — reads FeatureFlag DB table. Allows disabling crons without code deploy.
+16. **IndexNow submits to 3 engines independently** — Bing, Yandex, api.indexnow.org. One failure doesn't block others.
+17. **`cleanTitle()` must run on ALL BlogPost creation paths** — prevents slug-style titles ("best-halal-restaurants-london") from reaching production.
+18. **Map constructor from Prisma queries with nullable keys infers `unknown` values** — explicitly type the Map or filter null keys first.

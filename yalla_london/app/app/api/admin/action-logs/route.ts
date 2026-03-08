@@ -129,9 +129,12 @@ function summarizeOutcome(jobName: string, result: Record<string, unknown> | nul
     return `Checked ${itemsProcessed} URL(s) against Google index. ${itemsSucceeded} confirmed indexed.`;
   }
 
-  // Content builder
+  // Content builder — itemsProcessed=1 means a draft was worked on,
+  // itemsSucceeded=1 means it moved to a new phase (vs staying in multi-section drafting)
   if (jobName === "content-builder") {
-    return `Advanced ${itemsSucceeded} draft(s) through pipeline phases.`;
+    if (itemsProcessed === 0) return "No drafts to process.";
+    if (itemsSucceeded > 0) return `Advanced ${itemsSucceeded} draft(s) to next pipeline phase.`;
+    return `Processed ${itemsProcessed} draft(s) (still in multi-section drafting).`;
   }
 
   // Content selector

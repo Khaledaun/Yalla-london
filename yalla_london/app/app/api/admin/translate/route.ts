@@ -31,15 +31,18 @@ ${excerpt ? `Excerpt: ${excerpt}` : ""}
 
 Return format: {"title_ar": "...", "excerpt_ar": "..."}`;
 
-    const result = await generateCompletion(prompt, {
-      maxTokens: 500,
-      temperature: 0.3,
-      taskType: "arabic_translation",
-      calledFrom: "admin-translate-api",
-    });
+    const result = await generateCompletion(
+      [{ role: "user", content: prompt }],
+      {
+        maxTokens: 500,
+        temperature: 0.3,
+        taskType: "arabic_translation",
+        calledFrom: "admin-translate-api",
+      }
+    );
 
     // Parse the AI response
-    const text = result.text || result.content || "";
+    const text = result.content || "";
     const jsonMatch = text.match(/\{[\s\S]*?\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);

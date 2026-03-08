@@ -1210,6 +1210,14 @@ Trustworthiness:
 - Add a brief "About ${site.name}" line: "This guide was researched and written by the ${site.name} editorial team, who regularly visit and review these locations"
 - Never claim to have visited a place without providing specific details that prove it
 
+MULTI-ENGINE DISCOVERY REQUIREMENTS (articles that fail these are blocked from publishing):
+- DIRECT ANSWER: The first 80 words MUST directly answer the implied question of the title. No preamble, no "In this guide we will explore...". Start with a definitive statement. This is extracted by Google AI Overviews, ChatGPT, and Perplexity for citation.
+- QUESTION H2s: At least 2 of your H2 headings MUST be phrased as questions (e.g., "What are the best halal restaurants in Mayfair?", "How much does afternoon tea cost in London?"). AI engines extract these as Q&A pairs.
+- CITABLE DATA: Include at least 5 specific, citable data points: prices (£45 per person), dates (open since March 2024), ratings (4.8/5 on Google), distances (5-minute walk from Green Park station), capacities (seats 120 guests). AI engines cite articles with specific data over vague descriptions.
+- KEY TAKEAWAYS: Include a "Key Takeaways" or "Quick Answer" section within the first 300 words — a 3-5 bullet summary of the article's main points. This is the primary extraction target for AI Overviews.
+- STRUCTURED LISTS: Use at least 1 numbered list OR comparison table. AI engines strongly prefer structured, scannable content they can extract and display.
+- NO PREAMBLE: Never start with "Are you looking for...", "If you've ever wondered...", "Planning a trip to...". These waste the critical first-80-word window.
+
 Humanization & Anti-AI-Detection (CRITICAL):
 - Vary sentence length dramatically: 5-word sentences mixed with 25-word sentences
 - Use occasional colloquial expressions naturally (e.g., "trust me on this one", "here's the thing", "honestly")

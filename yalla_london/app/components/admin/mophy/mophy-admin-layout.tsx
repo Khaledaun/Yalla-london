@@ -37,6 +37,7 @@ const navigation = [
       { label: 'Write Article',     href: '/admin/cockpit/write' },
       { label: 'Bulk Generator',    href: '/admin/cockpit/bulk-generate' },
       { label: 'Departures Board',  href: '/admin/departures' },
+      { label: 'Discovery Monitor', href: '/admin/discovery' },
     ],
   },
   {

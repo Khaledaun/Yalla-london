@@ -233,6 +233,22 @@ export default function SeoAuditPublicPage() {
             </CardContent>
           </Card>
 
+          {/* Per-Page Audit Link */}
+          <Card>
+            <CardContent className="pt-4">
+              <a
+                href={`/admin/cockpit/per-page-audit?siteId=${encodeURIComponent(siteId)}`}
+                className="flex items-center justify-between p-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Per-Page Audit</p>
+                  <p className="text-xs text-blue-600">View every page with indexing status, GSC data, issues, and crawl timestamps</p>
+                </div>
+                <span className="text-blue-400 text-lg">→</span>
+              </a>
+            </CardContent>
+          </Card>
+
           {/* Past Audits */}
           <Card>
             <CardHeader>

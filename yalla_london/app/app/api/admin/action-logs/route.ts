@@ -359,12 +359,29 @@ export async function GET(request: NextRequest) {
             summary: true,
             triggeredBy: true,
             createdAt: true,
+            report: true,
           },
           orderBy: { createdAt: "desc" },
           take: Math.min(limit, 50),
         });
 
         for (const log of auditLogs) {
+          // Extract specific finding titles from the saved report for actionable log entries
+          const reportData = log.report as Record<string, unknown> | null;
+          const findings = (reportData?.findings || []) as Array<{ severity: string; id: string; title: string; fix: string }>;
+          const criticalFindings = findings.filter(f => f.severity === "critical");
+          const highFindings = findings.filter(f => f.severity === "high");
+          const topIssues = [...criticalFindings, ...highFindings].slice(0, 6).map(f => ({
+            id: f.id, severity: f.severity, title: f.title, fix: f.fix,
+          }));
+
+          // Build a plain-language error summary with specific issue names
+          const issueNames = topIssues.map(i => `[${i.severity.toUpperCase()}] ${i.title}`);
+          const errorDetail = issueNames.length > 0 ? issueNames.join("; ") : null;
+          const fixDetail = topIssues.length > 0
+            ? topIssues.map(i => `• ${i.title}: ${i.fix}`).join("\n")
+            : null;
+
           logs.push({
             id: log.id,
             timestamp: log.createdAt.toISOString(),
@@ -375,8 +392,8 @@ export async function GET(request: NextRequest) {
             durationMs: null,
             summary: log.summary || `Health score: ${log.healthScore}/100, ${log.totalFindings} findings`,
             outcome: `Health: ${log.healthScore}/100 | ${log.criticalCount} critical, ${log.highCount} high`,
-            error: log.criticalCount > 0 ? `${log.criticalCount} critical issue(s) found` : null,
-            fix: log.criticalCount > 0 ? "Open the audit report from Sites tab → Reports to see details and fix actions." : null,
+            error: errorDetail || (log.criticalCount > 0 ? `${log.criticalCount} critical issue(s) found` : null),
+            fix: fixDetail || (log.criticalCount > 0 ? "Open the audit report from Sites tab → Reports to see details and fix actions." : null),
             details: {
               healthScore: log.healthScore,
               totalFindings: log.totalFindings,
@@ -384,6 +401,7 @@ export async function GET(request: NextRequest) {
               highCount: log.highCount,
               triggeredBy: log.triggeredBy,
               reportUrl: `/admin/cockpit?tab=sites`,
+              topIssues,
             },
           });
         }

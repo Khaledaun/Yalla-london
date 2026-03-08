@@ -83,11 +83,13 @@ export default function SeoAuditPublicPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'run_audit', siteId, depth }),
       })
-      const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Audit failed')
+        let msg = 'Audit failed'
+        try { const d = await res.json(); msg = d.error || msg } catch { /* non-JSON response */ }
+        setError(msg)
         return
       }
+      const data = await res.json()
       // Load the new report
       await fetchReports()
       if (data.reportId) {
@@ -228,6 +230,22 @@ export default function SeoAuditPublicPage() {
                   Do not close this page.
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Per-Page Audit Link */}
+          <Card>
+            <CardContent className="pt-4">
+              <a
+                href={`/admin/cockpit/per-page-audit?siteId=${encodeURIComponent(siteId)}`}
+                className="flex items-center justify-between p-3 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Per-Page Audit</p>
+                  <p className="text-xs text-blue-600">View every page with indexing status, GSC data, issues, and crawl timestamps</p>
+                </div>
+                <span className="text-blue-400 text-lg">→</span>
+              </a>
             </CardContent>
           </Card>
 

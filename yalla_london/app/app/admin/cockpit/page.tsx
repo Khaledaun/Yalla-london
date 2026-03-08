@@ -3387,6 +3387,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 Reports
               </button>
               <button
+                onClick={() => window.location.href = `/admin/cockpit/per-page-audit?siteId=${encodeURIComponent(site.id)}`}
+                className="px-2 py-1 rounded text-xs bg-gradient-to-r from-blue-900/50 to-violet-900/50 hover:from-blue-800/50 hover:to-violet-800/50 text-blue-300 border border-blue-700/50 font-medium"
+              >
+                Per-Page Audit
+              </button>
+              <button
                 onClick={() => loadLatestPublished(site.id)}
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   latestPubSiteId === site.id

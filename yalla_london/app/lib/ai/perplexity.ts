@@ -6,7 +6,7 @@
  */
 
 const PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions";
-const RATE_LIMIT_DELAY_MS = 12_000; // 5 req/min → 12s between calls
+const RATE_LIMIT_DELAY_MS = 2_000; // Courtesy delay; 429 retry handles actual rate limits
 const MAX_RETRIES = 3;
 
 interface PerplexityMessage {

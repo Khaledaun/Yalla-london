@@ -173,8 +173,9 @@ function isProviderAvailable(provider: AIProvider): boolean {
   const state = getCircuitState(provider);
   if (state.state === 'closed') return true;
   if (state.state === 'open') {
-    // After 60s in open state, allow one probe request
-    if (Date.now() - state.lastFailure > 60_000) {
+    // After 30s in open state, allow one probe request (reduced from 60s
+    // to prevent long lockouts during generation bursts)
+    if (Date.now() - state.lastFailure > 30_000) {
       state.state = 'half-open';
       return true;
     }
@@ -561,23 +562,30 @@ export async function generateCompletion(
   messages: AIMessage[],
   options: AICompletionOptions = {}
 ): Promise<AICompletionResult> {
-  // If a specific provider is requested, try only that one
+  // If a specific provider is requested, try that one first.
+  // CRITICAL CHANGE: If it fails, fall through to the standard fallback chain
+  // instead of throwing. This ensures no single provider failure blocks generation.
   if (options.provider) {
     const apiKey = await getApiKey(options.provider);
-    if (!apiKey) {
-      const err = `No API key configured for ${options.provider}`;
-      logUsage(null, { ...options, provider: options.provider }, err);
-      throw new Error(err);
+    if (apiKey) {
+      try {
+        const result = await callProvider(options.provider, messages, apiKey, {
+          ...options,
+          timeoutMs: options.timeoutMs || 25_000,
+        });
+        logUsage(result, options);
+        return result;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[ai/provider] Requested provider ${options.provider} failed, falling through to chain: ${msg}`);
+        recordProviderFailure(options.provider);
+        // Fall through to standard fallback chain below
+      }
+    } else {
+      console.warn(`[ai/provider] No API key for requested provider ${options.provider}, falling through to chain`);
     }
-    try {
-      const result = await callProvider(options.provider, messages, apiKey, options);
-      logUsage(result, options);
-      return result;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logUsage(null, options, msg);
-      throw error;
-    }
+    // Clear the explicit provider so the fallback chain runs normally
+    options = { ...options, provider: undefined };
   }
 
   // Try providers in priority order: grok → openai → claude → gemini
@@ -640,7 +648,7 @@ export async function generateCompletion(
     const { provider, apiKey } = availableProviders[i];
     const elapsed = Date.now() - fallbackStart;
     const remaining = totalBudgetMs - elapsed;
-    if (remaining < 3_000) {
+    if (remaining < 2_000) {
       errors.push(`${provider}: skipped — only ${Math.max(0, Math.round(remaining / 1000))}s remaining in budget`);
       continue;
     }

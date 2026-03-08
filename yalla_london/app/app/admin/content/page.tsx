@@ -12,12 +12,10 @@ import {
   Upload,
   Eye,
   Edit,
-  Share,
   Download,
   Image,
   Video,
   Globe,
-  Calendar,
   TrendingUp,
   CheckCircle,
   Clock,
@@ -112,6 +110,456 @@ const ContentIndexingTab = dynamic(
   () => import("@/components/admin/ContentIndexingTab"),
   { ssr: false },
 );
+
+// ─── Ready Articles Tab — published + reservoir with rich indicators ──────
+
+interface ReadyArticle {
+  id: string;
+  type: "published" | "draft";
+  title: string;
+  titleAr: string | null;
+  slug: string | null;
+  status: string;
+  generatedAt: string;
+  publishedAt: string | null;
+  seoScore: number | null;
+  qualityScore: number | null;
+  wordCount: number;
+  internalLinksCount: number;
+  indexingStatus: string | null;
+  coverageState: string | null;
+  lastSubmittedAt: string | null;
+  lastCrawledAt: string | null;
+  gscClicks: number | null;
+  gscImpressions: number | null;
+  url: string | null;
+  metaTitleEn: string | null;
+  metaDescriptionEn: string | null;
+}
+
+function ReadyArticlesTab() {
+  const [articles, setArticles] = useState<ReadyArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "published" | "ready">("all");
+  const [publishLoading, setPublishLoading] = useState<string | null>(null);
+  const [publishResult, setPublishResult] = useState<Record<string, string>>({});
+  const [submitLoading, setSubmitLoading] = useState<string | null>(null);
+
+  useEffect(() => { loadReady(); }, []);
+
+  const loadReady = async () => {
+    setLoading(true);
+    try {
+      // Load from content-matrix with reservoir + published filter
+      const [matrixRes, latestRes] = await Promise.all([
+        fetch("/api/admin/content-matrix?statusFilter=all&limit=100"),
+        fetch("/api/admin/latest-published"),
+      ]);
+
+      const matrixData = matrixRes.ok ? await matrixRes.json() : { articles: [] };
+      const latestData = latestRes.ok ? await latestRes.json() : { articles: [] };
+
+      // Build GSC lookup by slug
+      const gscLookup = new Map<string, { clicks: number; impressions: number; ctr: number; avgPosition: number }>();
+      for (const a of (latestData.articles || [])) {
+        if (a.slug) gscLookup.set(a.slug, { clicks: a.clicks || 0, impressions: a.impressions || 0, ctr: a.ctr || 0, avgPosition: a.avgPosition || 0 });
+      }
+
+      // Filter to only ready articles (published + reservoir)
+      const readyArticles: ReadyArticle[] = (matrixData.articles || [])
+        .filter((a: Record<string, unknown>) => a.status === "published" || a.status === "reservoir" || a.status === "unpublished")
+        .map((a: Record<string, unknown>) => {
+          const gsc = gscLookup.get(a.slug as string);
+          return {
+            id: a.id as string,
+            type: a.type as "published" | "draft",
+            title: (a.title as string) || "(Untitled)",
+            titleAr: (a.titleAr as string) || null,
+            slug: (a.slug as string) || null,
+            status: a.status as string,
+            generatedAt: a.generatedAt as string,
+            publishedAt: a.publishedAt as string | null,
+            seoScore: (a.seoScore as number) ?? null,
+            qualityScore: (a.qualityScore as number) ?? null,
+            wordCount: (a.wordCount as number) || 0,
+            internalLinksCount: (a.internalLinksCount as number) || 0,
+            indexingStatus: (a.indexingStatus as string) || null,
+            coverageState: (a.coverageState as string) || null,
+            lastSubmittedAt: (a.lastSubmittedAt as string) || null,
+            lastCrawledAt: (a.lastCrawledAt as string) || null,
+            gscClicks: gsc?.clicks ?? (a.gscClicks as number) ?? null,
+            gscImpressions: gsc?.impressions ?? (a.gscImpressions as number) ?? null,
+            url: (a.url as string) || null,
+            metaTitleEn: (a.metaTitleEn as string) || null,
+            metaDescriptionEn: (a.metaDescriptionEn as string) || null,
+          };
+        });
+
+      setArticles(readyArticles);
+    } catch (e) {
+      console.error("[ready-tab] Load failed:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const publishNow = async (article: ReadyArticle) => {
+    setPublishLoading(article.id);
+    try {
+      const res = await fetch("/api/admin/force-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId: article.id, locale: "both", count: 1 }),
+      });
+      const data = await res.json();
+      setPublishResult((prev) => ({
+        ...prev,
+        [article.id]: data.success
+          ? `Published ${data.published?.length || 1} article(s)`
+          : data.error || "Failed to publish",
+      }));
+      if (data.success) setTimeout(loadReady, 2000);
+    } catch (e) {
+      setPublishResult((prev) => ({ ...prev, [article.id]: `Error: ${e instanceof Error ? e.message : "Network error"}` }));
+    } finally {
+      setPublishLoading(null);
+    }
+  };
+
+  const submitToGoogle = async (slug: string) => {
+    setSubmitLoading(slug);
+    try {
+      await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submit", slug }),
+      });
+    } catch { /* best effort */ }
+    setSubmitLoading(null);
+  };
+
+  const filtered = articles.filter((a) => {
+    if (filter === "published") return a.status === "published";
+    if (filter === "ready") return a.status === "reservoir";
+    return true;
+  });
+
+  const publishedCount = articles.filter((a) => a.status === "published").length;
+  const reservoirCount = articles.filter((a) => a.status === "reservoir").length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading articles…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <button
+          onClick={() => setFilter("all")}
+          className={`p-3 rounded-lg border text-center transition-colors ${filter === "all" ? "bg-blue-50 border-blue-300" : "bg-white border-gray-200 hover:bg-gray-50"}`}
+        >
+          <div className="text-2xl font-bold text-gray-800">{articles.length}</div>
+          <div className="text-xs text-gray-500">Total Ready</div>
+        </button>
+        <button
+          onClick={() => setFilter("published")}
+          className={`p-3 rounded-lg border text-center transition-colors ${filter === "published" ? "bg-green-50 border-green-300" : "bg-white border-gray-200 hover:bg-gray-50"}`}
+        >
+          <div className="text-2xl font-bold text-green-600">{publishedCount}</div>
+          <div className="text-xs text-gray-500">Published</div>
+        </button>
+        <button
+          onClick={() => setFilter("ready")}
+          className={`p-3 rounded-lg border text-center transition-colors ${filter === "ready" ? "bg-amber-50 border-amber-300" : "bg-white border-gray-200 hover:bg-gray-50"}`}
+        >
+          <div className="text-2xl font-bold text-amber-600">{reservoirCount}</div>
+          <div className="text-xs text-gray-500">Ready to Publish</div>
+        </button>
+      </div>
+
+      {/* Article Cards */}
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+            <CheckCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">No articles match this filter</p>
+          </div>
+        )}
+
+        {filtered.map((article) => {
+          const isPublished = article.status === "published";
+          const isReservoir = article.status === "reservoir";
+
+          return (
+            <div key={article.id} className="bg-white border border-gray-200 rounded-lg p-4">
+              {/* Title + Status */}
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-gray-900 truncate">{article.title}</h3>
+                  {article.titleAr && (
+                    <p className="text-xs text-gray-400 truncate mt-0.5" dir="rtl">{article.titleAr}</p>
+                  )}
+                </div>
+                <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${
+                  isPublished ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                }`}>
+                  {isPublished ? "Published" : "Ready to Publish"}
+                </span>
+              </div>
+
+              {/* Timestamps */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
+                <span>Created: {article.generatedAt ? new Date(article.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+                {isPublished && article.publishedAt && (
+                  <span className="text-green-600 font-medium">
+                    Published: {new Date(article.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-3">
+                <div className="bg-gray-50 rounded p-1.5 text-center">
+                  <div className={`text-sm font-bold ${article.wordCount >= 1000 ? "text-green-600" : article.wordCount > 0 ? "text-red-600" : "text-gray-400"}`}>
+                    {article.wordCount > 0 ? `${(article.wordCount / 1000).toFixed(1)}k` : "—"}
+                  </div>
+                  <div className="text-[10px] text-gray-400">Words</div>
+                </div>
+                <div className="bg-gray-50 rounded p-1.5 text-center">
+                  <div className={`text-sm font-bold ${(article.seoScore || 0) >= 70 ? "text-green-600" : (article.seoScore || 0) >= 50 ? "text-amber-600" : "text-gray-400"}`}>
+                    {article.seoScore ?? "—"}
+                  </div>
+                  <div className="text-[10px] text-gray-400">SEO</div>
+                </div>
+                <div className="bg-gray-50 rounded p-1.5 text-center">
+                  <div className="text-sm font-bold text-gray-600">{article.internalLinksCount}</div>
+                  <div className="text-[10px] text-gray-400">Links</div>
+                </div>
+                {/* GSC Metrics — only for published */}
+                <div className="bg-gray-50 rounded p-1.5 text-center">
+                  <div className={`text-sm font-bold ${(article.gscClicks || 0) > 0 ? "text-blue-600" : "text-gray-400"}`}>
+                    {article.gscClicks ?? "—"}
+                  </div>
+                  <div className="text-[10px] text-gray-400">Clicks</div>
+                </div>
+                <div className="hidden sm:block bg-gray-50 rounded p-1.5 text-center">
+                  <div className={`text-sm font-bold ${(article.gscImpressions || 0) > 0 ? "text-purple-600" : "text-gray-400"}`}>
+                    {article.gscImpressions ?? "—"}
+                  </div>
+                  <div className="text-[10px] text-gray-400">Impressions</div>
+                </div>
+                <div className="hidden sm:block bg-gray-50 rounded p-1.5 text-center">
+                  <div className={`text-sm font-bold ${article.gscImpressions && article.gscClicks ? "text-teal-600" : "text-gray-400"}`}>
+                    {article.gscImpressions && article.gscClicks
+                      ? `${((article.gscClicks / article.gscImpressions) * 100).toFixed(1)}%`
+                      : "—"}
+                  </div>
+                  <div className="text-[10px] text-gray-400">CTR</div>
+                </div>
+              </div>
+
+              {/* Indexing Status */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-gray-500">Indexing:</span>
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  article.indexingStatus === "indexed" ? "bg-green-100 text-green-700" :
+                  article.indexingStatus === "submitted" ? "bg-blue-100 text-blue-700" :
+                  article.indexingStatus === "error" ? "bg-red-100 text-red-700" :
+                  "bg-gray-100 text-gray-600"
+                }`}>
+                  {article.indexingStatus === "indexed" ? "Indexed by Google"
+                    : article.indexingStatus === "submitted" ? "Submitted (pending)"
+                    : article.indexingStatus === "error" ? "Indexing error"
+                    : "Not yet submitted"}
+                </span>
+                {article.lastSubmittedAt && (
+                  <span className="text-[10px] text-gray-400">
+                    submitted {new Date(article.lastSubmittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </span>
+                )}
+                {article.lastCrawledAt && (
+                  <span className="text-[10px] text-gray-400">
+                    crawled {new Date(article.lastCrawledAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </span>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2">
+                {isReservoir && (
+                  <button
+                    onClick={() => publishNow(article)}
+                    disabled={publishLoading === article.id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500 hover:bg-green-600 text-white disabled:opacity-50 transition-colors"
+                  >
+                    {publishLoading === article.id ? (
+                      <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Publishing…</span>
+                    ) : "Publish Now"}
+                  </button>
+                )}
+                {isPublished && article.slug && article.indexingStatus !== "indexed" && (
+                  <button
+                    onClick={() => submitToGoogle(article.slug!)}
+                    disabled={submitLoading === article.slug}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 transition-colors"
+                  >
+                    {submitLoading === article.slug ? "Submitting…" : "Submit to Google"}
+                  </button>
+                )}
+                {article.url && (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                  >
+                    View Live
+                  </a>
+                )}
+                {article.slug && (
+                  <Link
+                    href={`/admin/editor?slug=${article.slug}`}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                  >
+                    Edit
+                  </Link>
+                )}
+              </div>
+
+              {/* Publish result message */}
+              {publishResult[article.id] && (
+                <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[article.id].startsWith("Published") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                  {publishResult[article.id]}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+        <span>Showing {filtered.length} of {articles.length} ready articles</span>
+        <button onClick={loadReady} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700">
+          <RefreshCw className="h-3 w-3" /> Refresh
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Pipeline Tab — in-progress drafts with phase indicators ──────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function PipelineTab() {
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadPipeline(); }, []);
+
+  const loadPipeline = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/content-matrix?statusFilter=all&limit=100");
+      if (res.ok) {
+        const data = await res.json();
+        // Filter to only in-progress drafts (not reservoir, published, or rejected)
+        const inProgress = (data.articles || [])
+          .filter((a: Record<string, unknown>) => {
+            const phase = a.phase as string;
+            return phase && !["reservoir", "published", "rejected"].includes(a.status as string);
+          });
+        setDrafts(inProgress);
+      }
+    } catch { /* */ }
+    setLoading(false);
+  };
+
+  const PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" />
+      </div>
+    );
+  }
+
+  if (drafts.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+        <Activity className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500 text-sm">No drafts currently in the pipeline</p>
+        <p className="text-gray-400 text-xs mt-1">Run Gen Topics + Build from the cockpit to start</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Phase distribution */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Pipeline Phases</h3>
+        <div className="flex gap-1">
+          {PHASES.map((phase) => {
+            const count = drafts.filter((d) => d.phase === phase).length;
+            return (
+              <div key={phase} className="flex-1 text-center">
+                <div className={`text-sm font-bold ${count > 0 ? "text-blue-600" : "text-gray-300"}`}>{count}</div>
+                <div className="text-[9px] text-gray-500 capitalize truncate">{phase}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Draft list */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
+        {drafts.map((d) => {
+          const phaseIdx = PHASES.indexOf(d.phase as string);
+          const progress = phaseIdx >= 0 ? Math.round(((phaseIdx + 1) / PHASES.length) * 100) : 0;
+          const hoursInPhase = d.hoursInPhase as number || 0;
+
+          return (
+            <div key={d.id as string} className="p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-gray-900 truncate">{(d.title as string) || (d.topicTitle as string) || "(Untitled)"}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  hoursInPhase > 6 ? "bg-red-100 text-red-700" : hoursInPhase > 2 ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                }`}>
+                  {d.phase as string} {hoursInPhase > 1 ? `(${Math.round(hoursInPhase)}h)` : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="text-xs text-gray-400">{phaseIdx + 1}/{PHASES.length}</span>
+              </div>
+              {d.lastError && (
+                <p className="text-[10px] text-red-500 mt-1 truncate">⚠ {d.plainError as string || d.lastError as string}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 text-right">
+        <button onClick={loadPipeline} className="text-xs text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
+          <RefreshCw className="h-3 w-3" /> Refresh
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface Article {
   id: string;
@@ -246,11 +694,11 @@ export default function ContentHub() {
 
   const tabs = [
     { id: "articles", name: "Articles", icon: FileText },
+    { id: "ready", name: "Ready", icon: CheckCircle },
+    { id: "pipeline", name: "Pipeline", icon: Activity },
     { id: "indexing", name: "Indexing", icon: SearchCheck },
     { id: "generation", name: "Generation Monitor", icon: Activity },
     { id: "media", name: "Media", icon: Image },
-    { id: "preview", name: "Social Preview", icon: Share },
-    { id: "upload", name: "Upload Content", icon: Upload },
   ];
 
   const PHASE_ORDER = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
@@ -652,6 +1100,10 @@ export default function ContentHub() {
         </div>
       )}
 
+      {activeTab === "ready" && <ReadyArticlesTab />}
+
+      {activeTab === "pipeline" && <PipelineTab />}
+
       {activeTab === "indexing" && <ContentIndexingTab />}
 
       {activeTab === "generation" && <ContentGenerationMonitor />}
@@ -753,36 +1205,7 @@ export default function ContentHub() {
         </div>
       )}
 
-      {activeTab === "preview" && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Social Media Preview
-          </h2>
-          <p className="text-gray-600">
-            Social media preview functionality will be implemented here.
-          </p>
-        </div>
-      )}
-
-      {activeTab === "upload" && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Upload Content
-          </h2>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Upload Files
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Drag and drop files here, or click to select files
-            </p>
-            <button className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
-              Choose Files
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Removed placeholder tabs (preview, upload) — replaced by Ready + Pipeline */}
     </div>
   );
 }

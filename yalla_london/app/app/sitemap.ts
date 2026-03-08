@@ -18,17 +18,27 @@ const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 // Combine all information hub articles
 const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
+// Race a promise against a timeout — returns fallback if the query takes too long.
+// Prevents a single slow DB query from killing the entire sitemap.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 // Helper: fetch the most recent updated_at timestamp from a DB table for a listing page.
 // Returns the ISO string of the newest record, or the fallback date if no records exist.
 // This ensures listing page lastmod reflects ACTUAL content changes, not request time.
 // Google uses accurate lastmod to allocate crawl budget (see: Gemini audit Q9).
+// Each query has a 3s timeout — better to use fallback date than block the sitemap.
 async function getLatestDbTimestamp(
   model: "blogPost" | "event" | "newsItem" | "yacht" | "yachtDestination" | "charterItinerary" | "digitalProduct",
   siteId: string,
   fallback: string,
 ): Promise<string> {
   try {
-    const record = await (prisma as any)[model].findFirst({
+    const record = await withTimeout((prisma as any)[model].findFirst({
       where: model === "blogPost"
         ? { published: true, deletedAt: null, siteId }
         : model === "newsItem"
@@ -44,7 +54,7 @@ async function getLatestDbTimestamp(
       select: model === "blogPost" || model === "newsItem" || model === "digitalProduct"
         ? { updated_at: true }
         : { updatedAt: true },
-    });
+    }), 3_000, null);
     if (!record) return fallback;
     const ts = record.updated_at || record.updatedAt;
     return ts ? new Date(ts).toISOString() : fallback;
@@ -344,7 +354,7 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
   const staticSlugs = new Set(allStaticPosts.map((p) => p.slug));
   let dbBlogPages: MetadataRoute.Sitemap = [];
   try {
-    const dbPosts = hasBudget() ? await prisma.blogPost.findMany({
+    const dbPosts = hasBudget() ? await withTimeout(prisma.blogPost.findMany({
       where: {
         published: true,
         deletedAt: null,
@@ -353,7 +363,7 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 500,
-    }) : [];
+    }), 8_000, []) : [];
     const dbSevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
     dbBlogPages = dbPosts
       .filter((post) => !staticSlugs.has(post.slug))
@@ -377,7 +387,7 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
   // prevent cross-site contamination in multi-tenant sitemaps)
   let eventPages: MetadataRoute.Sitemap = [];
   try {
-    const events = await prisma.event.findMany({
+    const events = await withTimeout(prisma.event.findMany({
       where: {
         published: true,
         siteId,
@@ -385,7 +395,7 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
       select: { id: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 200,
-    });
+    }), 5_000, []);
     eventPages = events.map((event) => ({
       url: `${baseUrl}/events/${event.id}`,
       lastModified: event.updated_at?.toISOString() || staticDate,
@@ -451,12 +461,12 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
   // News pages
   let newsPages: MetadataRoute.Sitemap = [];
   try {
-    const publishedNews = await prisma.newsItem.findMany({
+    const publishedNews = await withTimeout(prisma.newsItem.findMany({
       where: { status: "published", siteId },
       select: { slug: true, updated_at: true },
       orderBy: { published_at: "desc" },
       take: 100,
-    });
+    }), 5_000, []);
     newsPages = publishedNews.map((item) => ({
       url: `${baseUrl}/news/${item.slug}`,
       lastModified: item.updated_at?.toISOString() || staticDate,
@@ -503,7 +513,7 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
   // Shop product pages from database
   let shopProductPages: MetadataRoute.Sitemap = [];
   try {
-    const products = await prisma.digitalProduct.findMany({
+    const products = await withTimeout(prisma.digitalProduct.findMany({
       where: {
         is_active: true,
         OR: [{ site_id: siteId }, { site_id: null }],
@@ -511,7 +521,7 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 100,
-    });
+    }), 5_000, []);
     shopProductPages = products.map((product) => ({
       url: `${baseUrl}/shop/${product.slug}`,
       lastModified: product.updated_at?.toISOString() || staticDate,
@@ -531,11 +541,11 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
   if (isYachtSite) {
     // Individual yacht pages
     try {
-      const yachts = await prisma.yacht.findMany({
+      const yachts = await withTimeout(prisma.yacht.findMany({
         where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
         take: 500,
-      });
+      }), 5_000, []);
       yachtPages = yachts.map((yacht) => ({
         url: `${baseUrl}/yachts/${yacht.slug}`,
         lastModified: yacht.updatedAt?.toISOString() || staticDate,
@@ -549,11 +559,11 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Destination pages
     try {
-      const destinations = await prisma.yachtDestination.findMany({
+      const destinations = await withTimeout(prisma.yachtDestination.findMany({
         where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
         take: 200,
-      });
+      }), 5_000, []);
       destinationPages = destinations.map((dest) => ({
         url: `${baseUrl}/destinations/${dest.slug}`,
         lastModified: dest.updatedAt?.toISOString() || staticDate,
@@ -567,11 +577,11 @@ async function generateSitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Itinerary pages
     try {
-      const itineraries = await prisma.charterItinerary.findMany({
+      const itineraries = await withTimeout(prisma.charterItinerary.findMany({
         where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
         take: 200,
-      });
+      }), 5_000, []);
       itineraryPages = itineraries.map((itin) => ({
         url: `${baseUrl}/itineraries/${itin.slug}`,
         lastModified: itin.updatedAt?.toISOString() || staticDate,

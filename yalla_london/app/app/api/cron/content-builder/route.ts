@@ -127,16 +127,29 @@ async function handleContentBuilder(request: NextRequest) {
       await logCronExecution("content-builder", "failed", {
         durationMs,
         errorMessage: result.message,
-        resultSummary: { phase: resultAny.phase, draftsProcessed: resultAny.draftsProcessed },
+        resultSummary: { phase: result.previousPhase, draftId: result.draftId, keyword: result.keyword },
       }).catch((logErr: unknown) => {
         console.warn("[content-builder] logCronExecution (failed) error:", logErr instanceof Error ? logErr.message : logErr);
       });
     } else {
+      // Use actual BuildRunnerResult fields — draftsProcessed doesn't exist on the interface.
+      // A draft was processed if draftId exists (even if it stayed in the same phase for multi-section drafting).
+      const didProcessDraft = result.draftId ? 1 : 0;
+      // A draft "advanced" if it moved to a different phase
+      const didAdvance = (result.previousPhase && result.nextPhase && result.previousPhase !== result.nextPhase) ? 1 : 0;
+
       await logCronExecution("content-builder", "completed", {
         durationMs,
-        itemsProcessed: (resultAny.draftsProcessed as number) || 0,
-        itemsSucceeded: (resultAny.draftsProcessed as number) || 0,
-        resultSummary: { message: result.message, phase: resultAny.phase },
+        itemsProcessed: didProcessDraft,
+        itemsSucceeded: didAdvance,
+        resultSummary: {
+          message: result.message,
+          phase: result.previousPhase,
+          nextPhase: result.nextPhase,
+          draftId: result.draftId,
+          keyword: result.keyword,
+          success: result.phaseSuccess,
+        },
       }).catch((logErr: unknown) => {
         console.warn("[content-builder] logCronExecution (completed) error:", logErr instanceof Error ? logErr.message : logErr);
       });

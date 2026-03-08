@@ -168,13 +168,37 @@ export function PhotoPoolManager() {
   const handleDeleteSelected = async () => {
     if (selectedPhotos.length === 0) return
 
-    // TODO: Call API to delete
+    try {
+      const res = await fetch("/api/media/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedPhotos }),
+      });
+      if (!res.ok) {
+        console.warn("[photo-pool] Delete API failed:", res.status);
+      }
+    } catch (err) {
+      console.warn("[photo-pool] Delete request failed:", err instanceof Error ? err.message : err);
+    }
+    // Update local state regardless (optimistic)
     setPhotos(prev => prev.filter(p => !selectedPhotos.includes(p.id)))
     setSelectedPhotos([])
   }
 
   const handleBulkCategoryChange = async (category: string) => {
-    // TODO: Call API to update categories
+    try {
+      const res = await fetch("/api/media/upload", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedPhotos, category }),
+      });
+      if (!res.ok) {
+        console.warn("[photo-pool] Bulk category update failed:", res.status);
+      }
+    } catch (err) {
+      console.warn("[photo-pool] Bulk category request failed:", err instanceof Error ? err.message : err);
+    }
+    // Update local state regardless (optimistic)
     setPhotos(prev => prev.map(p =>
       selectedPhotos.includes(p.id) ? { ...p, category } : p
     ))

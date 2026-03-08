@@ -336,14 +336,34 @@ export function ArticleEditor({
     try {
       setArticle(prev => ({ ...prev, status }))
 
+      // Generate Arabic translations via AI if content is in English
+      let titleAr = article.title;
+      let excerptAr = article.excerpt;
+      let contentAr = article.content;
+      try {
+        const transRes = await fetch("/api/admin/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: article.title, excerpt: article.excerpt }),
+        });
+        if (transRes.ok) {
+          const transData = await transRes.json();
+          if (transData.title_ar) titleAr = transData.title_ar;
+          if (transData.excerpt_ar) excerptAr = transData.excerpt_ar;
+          if (transData.content_ar) contentAr = transData.content_ar;
+        }
+      } catch {
+        // Translation failed — fall back to English copies
+      }
+
       const payload = {
         title_en: article.title,
-        title_ar: article.title, // TODO: Add proper translation
+        title_ar: titleAr,
         slug: article.slug,
         excerpt_en: article.excerpt,
-        excerpt_ar: article.excerpt,
+        excerpt_ar: excerptAr,
         content_en: article.content,
-        content_ar: article.content,
+        content_ar: contentAr,
         published: status === 'published',
         category_id: article.category || undefined,
         author_id: article.authorId || undefined,

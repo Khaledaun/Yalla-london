@@ -10,11 +10,92 @@ import bcrypt from 'bcryptjs'
  * Verifies credentials directly, creates a NextAuth-compatible JWT,
  * and sets the session cookie.
  *
- * Each step has its own error handling so failures are diagnosable.
+ * Rate limiting: max 5 attempts per IP per 15 minutes.
+ * In-memory (resets on deploy) — acceptable for admin-only endpoint.
  */
+
+// ── Rate Limiter ──────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+interface RateLimitEntry {
+  attempts: number;
+  firstAttempt: number;
+  lockedUntil: number;
+}
+
+const rateLimitMap = new Map<string, RateLimitEntry>();
+
+// Periodic cleanup to prevent memory leak (every 30 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now - entry.firstAttempt > RATE_LIMIT_WINDOW_MS && now > entry.lockedUntil) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 30 * 60 * 1000);
+
+function getClientIp(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')
+    || 'unknown';
+}
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry) return { allowed: true };
+
+  // Check lockout
+  if (entry.lockedUntil > now) {
+    return { allowed: false, retryAfterSeconds: Math.ceil((entry.lockedUntil - now) / 1000) };
+  }
+
+  // Reset if window expired
+  if (now - entry.firstAttempt > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.delete(ip);
+    return { allowed: true };
+  }
+
+  // Check attempts
+  if (entry.attempts >= RATE_LIMIT_MAX_ATTEMPTS) {
+    // Lock out for remaining window time
+    const lockDuration = RATE_LIMIT_WINDOW_MS - (now - entry.firstAttempt);
+    entry.lockedUntil = now + lockDuration;
+    return { allowed: false, retryAfterSeconds: Math.ceil(lockDuration / 1000) };
+  }
+
+  return { allowed: true };
+}
+
+function recordFailedAttempt(ip: string): void {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (entry) {
+    entry.attempts++;
+  } else {
+    rateLimitMap.set(ip, { attempts: 1, firstAttempt: now, lockedUntil: 0 });
+  }
+}
+
+function clearRateLimit(ip: string): void {
+  rateLimitMap.delete(ip);
+}
 
 export async function POST(request: NextRequest) {
   let step = 'parse-body'
+
+  // Rate limit check
+  const clientIp = getClientIp(request);
+  const rateCheck = checkRateLimit(clientIp);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: `Too many login attempts. Try again in ${rateCheck.retryAfterSeconds} seconds.` },
+      { status: 429, headers: { 'Retry-After': String(rateCheck.retryAfterSeconds) } }
+    );
+  }
 
   try {
     const body = await request.json()
@@ -54,23 +135,25 @@ export async function POST(request: NextRequest) {
         take: 1,
       })
       if (users.length === 0) {
+        recordFailedAttempt(clientIp);
         return NextResponse.json(
           { error: 'Invalid email or password' },
           { status: 401 }
         )
       }
       // Use the found user
-      return await processLogin(users[0], password, secret, request)
+      return await processLogin(users[0], password, secret, request, clientIp)
     }
 
     if (!user.isActive) {
+      recordFailedAttempt(clientIp);
       return NextResponse.json(
         { error: 'Account is inactive' },
         { status: 401 }
       )
     }
 
-    return await processLogin(user, password, secret, request)
+    return await processLogin(user, password, secret, request, clientIp)
 
   } catch (error: any) {
     console.error(`Login error at step [${step}]:`, error)
@@ -87,7 +170,8 @@ async function processLogin(
   user: any,
   password: string,
   secret: string,
-  request: NextRequest
+  request: NextRequest,
+  clientIp: string
 ) {
   const isProduction = process.env.NODE_ENV === 'production'
 
@@ -111,11 +195,15 @@ async function processLogin(
   }
 
   if (!isValid) {
+    recordFailedAttempt(clientIp);
     return NextResponse.json(
       { error: 'Invalid email or password' },
       { status: 401 }
     )
   }
+
+  // Successful login — clear rate limit for this IP
+  clearRateLimit(clientIp);
 
   // Step 6: Create JWT token
   let token: string

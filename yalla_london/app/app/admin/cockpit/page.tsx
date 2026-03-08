@@ -171,6 +171,31 @@ interface ResearchedTopic {
   questions: string[];
 }
 
+interface LatestPublishedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  url: string;
+  pageType: string;
+  seoScore: number | null;
+  publishedAt: string;
+  updatedAt: string;
+  indexingStatus: string;
+  coverageState: string | null;
+  submittedIndexNow: boolean;
+  submittedGoogleApi: boolean;
+  submittedSitemap: boolean;
+  lastSubmittedAt: string | null;
+  lastInspectedAt: string | null;
+  lastCrawledAt: string | null;
+  indexingError: string | null;
+  indexingTrackedSince: string | null;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  avgPosition: number;
+}
+
 interface BulkQueueResult {
   success: boolean;
   mode?: string;
@@ -2875,6 +2900,28 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const [diagnosticLoading, setDiagnosticLoading] = useState<string | null>(null);
   const [diagnosticResult, setDiagnosticResult] = useState<Record<string, string>>({});
 
+  // ── Latest Published Content state ──
+  const [latestPubSiteId, setLatestPubSiteId] = useState<string | null>(null);
+  const [latestPubLoading, setLatestPubLoading] = useState<string | null>(null);
+  const [latestPubData, setLatestPubData] = useState<Record<string, LatestPublishedArticle[]>>({});
+
+  const loadLatestPublished = async (siteId: string) => {
+    if (latestPubSiteId === siteId) { setLatestPubSiteId(null); return; }
+    setLatestPubSiteId(siteId);
+    setLatestPubLoading(siteId);
+    try {
+      const res = await fetch(`/api/admin/latest-published?siteId=${encodeURIComponent(siteId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setLatestPubData((prev) => ({ ...prev, [siteId]: json.articles ?? [] }));
+    } catch (e) {
+      console.warn("[cockpit] latest-published load failed:", e instanceof Error ? e.message : e);
+      setLatestPubData((prev) => ({ ...prev, [siteId]: [] }));
+    } finally {
+      setLatestPubLoading(null);
+    }
+  };
+
   const exportAuditJson = async (siteId: string) => {
     setExportLoading(siteId);
     try {
@@ -3270,6 +3317,16 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-violet-400 border border-zinc-700"
               >
                 Reports
+              </button>
+              <button
+                onClick={() => loadLatestPublished(site.id)}
+                className={`px-2 py-1 rounded text-xs border transition-colors ${
+                  latestPubSiteId === site.id
+                    ? "bg-cyan-900/50 text-cyan-300 border-cyan-700"
+                    : "bg-zinc-800 hover:bg-zinc-700 text-cyan-400 border-zinc-700"
+                }`}
+              >
+                {latestPubLoading === site.id ? "Loading…" : "Latest Published"}
               </button>
               <button
                 onClick={() => setExpandedSite(isExpanded ? null : site.id)}
@@ -3727,6 +3784,119 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 </div>
               );
             })()}
+
+            {/* ══════ Latest Published Content Panel ══════ */}
+            {latestPubSiteId === site.id && (
+              <div className="mt-3 border-t border-cyan-800/50 pt-3">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-cyan-400">Latest Published Content</p>
+                  <button onClick={() => setLatestPubSiteId(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                </div>
+                {latestPubLoading === site.id ? (
+                  <p className="text-xs text-zinc-500 animate-pulse">Loading latest articles…</p>
+                ) : !latestPubData[site.id] || latestPubData[site.id].length === 0 ? (
+                  <p className="text-xs text-zinc-500">No published articles yet.</p>
+                ) : (
+                  <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                    {/* Summary row */}
+                    {(() => {
+                      const arts = latestPubData[site.id];
+                      const indexed = arts.filter((a) => a.indexingStatus === "indexed").length;
+                      const totalClicks = arts.reduce((s, a) => s + a.clicks, 0);
+                      const totalImpressions = arts.reduce((s, a) => s + a.impressions, 0);
+                      return (
+                        <div className="grid grid-cols-4 gap-1.5 text-xs text-center mb-2">
+                          <div className="bg-zinc-800/50 rounded p-1.5">
+                            <div className="font-bold text-cyan-400">{arts.length}</div>
+                            <div className="text-zinc-500 text-[10px]">Articles</div>
+                          </div>
+                          <div className="bg-zinc-800/50 rounded p-1.5">
+                            <div className={`font-bold ${indexed === arts.length ? "text-emerald-400" : indexed > 0 ? "text-amber-400" : "text-red-400"}`}>{indexed}/{arts.length}</div>
+                            <div className="text-zinc-500 text-[10px]">Indexed</div>
+                          </div>
+                          <div className="bg-zinc-800/50 rounded p-1.5">
+                            <div className="font-bold text-blue-400">{totalClicks}</div>
+                            <div className="text-zinc-500 text-[10px]">Clicks</div>
+                          </div>
+                          <div className="bg-zinc-800/50 rounded p-1.5">
+                            <div className="font-bold text-zinc-300">{totalImpressions}</div>
+                            <div className="text-zinc-500 text-[10px]">Impressions</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* Per-article rows */}
+                    {latestPubData[site.id].map((article) => {
+                      const idxColor =
+                        article.indexingStatus === "indexed" ? "text-emerald-400 bg-emerald-950/30" :
+                        article.indexingStatus === "submitted" ? "text-blue-400 bg-blue-950/30" :
+                        article.indexingStatus === "error" ? "text-red-400 bg-red-950/30" :
+                        "text-amber-400 bg-amber-950/30";
+                      return (
+                        <div key={article.id} className="bg-zinc-800/40 rounded-lg px-3 py-2">
+                          {/* Title row */}
+                          <div className="flex items-start gap-2 mb-1.5">
+                            <div className="flex-1 min-w-0">
+                              <a
+                                href={article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-medium text-zinc-200 hover:text-cyan-300 line-clamp-2 transition-colors"
+                              >
+                                {article.title}
+                              </a>
+                              <div className="text-[10px] text-zinc-600 mt-0.5 truncate">/blog/{article.slug}</div>
+                            </div>
+                            <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${idxColor}`}>
+                              {article.indexingStatus}
+                            </span>
+                          </div>
+                          {/* Metrics row */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                            <span className="text-zinc-500">Clicks: <span className="text-blue-400 font-medium">{article.clicks}</span></span>
+                            <span className="text-zinc-500">Impressions: <span className="text-zinc-300 font-medium">{article.impressions}</span></span>
+                            {article.avgPosition > 0 && (
+                              <span className="text-zinc-500">Pos: <span className={`font-medium ${article.avgPosition <= 10 ? "text-emerald-400" : article.avgPosition <= 30 ? "text-amber-400" : "text-red-400"}`}>{article.avgPosition}</span></span>
+                            )}
+                            {article.ctr > 0 && (
+                              <span className="text-zinc-500">CTR: <span className="text-zinc-300 font-medium">{(article.ctr * 100).toFixed(1)}%</span></span>
+                            )}
+                            {article.seoScore != null && (
+                              <span className="text-zinc-500">SEO: <span className={`font-medium ${article.seoScore >= 70 ? "text-emerald-400" : article.seoScore >= 50 ? "text-amber-400" : "text-red-400"}`}>{article.seoScore}</span></span>
+                            )}
+                          </div>
+                          {/* Timestamps row */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-zinc-600">
+                            <span>Published: {new Date(article.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            {article.lastInspectedAt && (
+                              <span>Verified: {new Date(article.lastInspectedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            )}
+                            {article.lastCrawledAt && (
+                              <span>Crawled: {new Date(article.lastCrawledAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            )}
+                            {article.lastSubmittedAt && (
+                              <span>Submitted: {new Date(article.lastSubmittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                            )}
+                          </div>
+                          {/* Submission channels */}
+                          <div className="flex gap-1.5 mt-1.5">
+                            {article.submittedIndexNow && <span className="px-1 py-0.5 rounded bg-zinc-700/50 text-[9px] text-zinc-400">IndexNow</span>}
+                            {article.submittedSitemap && <span className="px-1 py-0.5 rounded bg-zinc-700/50 text-[9px] text-zinc-400">Sitemap</span>}
+                            {article.submittedGoogleApi && <span className="px-1 py-0.5 rounded bg-zinc-700/50 text-[9px] text-zinc-400">GSC API</span>}
+                          </div>
+                          {/* Error if any */}
+                          {article.indexingError && (
+                            <div className="mt-1.5 text-[10px] text-red-400 bg-red-950/20 rounded px-2 py-1 line-clamp-2">
+                              {article.indexingError}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
           </Card>
         );

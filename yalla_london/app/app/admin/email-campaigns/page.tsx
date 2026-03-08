@@ -108,6 +108,9 @@ export default function EmailCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({ name: "", subject: "", htmlContent: "<p>Your email content here</p>" });
 
   const loadData = useCallback(async () => {
     try {
@@ -176,6 +179,42 @@ export default function EmailCampaignsPage() {
     await loadData();
     setIsRefreshing(false);
     toast.success("Email data refreshed");
+  };
+
+  const handleCreateCampaign = async () => {
+    if (!newCampaign.name.trim() || !newCampaign.subject.trim()) {
+      toast.error("Name and subject are required");
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london";
+      const res = await fetch("/api/admin/email-campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCampaign.name.trim(),
+          subject: newCampaign.subject.trim(),
+          htmlContent: newCampaign.htmlContent,
+          site: siteId,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Campaign created successfully");
+        setShowCreateModal(false);
+        setNewCampaign({ name: "", subject: "", htmlContent: "<p>Your email content here</p>" });
+        await loadData();
+        setActiveTab("campaigns");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Failed to create campaign");
+      }
+    } catch (err) {
+      console.warn("[email-campaigns] Create failed:", err);
+      toast.error("Network error creating campaign");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   // Filtered campaign lists
@@ -376,7 +415,7 @@ export default function EmailCampaignsPage() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Active Campaigns
               </h2>
-              <Button size="sm" onClick={() => toast.info("Campaign creation coming soon")}>
+              <Button size="sm" onClick={() => setShowCreateModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Campaign
               </Button>
@@ -395,7 +434,7 @@ export default function EmailCampaignsPage() {
                   <p className="text-gray-500 dark:text-gray-400 mb-4">
                     Create a campaign to send emails to your subscribers.
                   </p>
-                  <Button onClick={() => toast.info("Campaign creation coming soon")}>
+                  <Button onClick={() => setShowCreateModal(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Campaign
                   </Button>
@@ -441,6 +480,58 @@ export default function EmailCampaignsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Create Campaign Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Create Campaign</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Campaign Name</label>
+                <input
+                  type="text"
+                  value={newCampaign.name}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+                  placeholder="e.g. March Newsletter"
+                  className="w-full px-3 py-2 text-sm border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject Line</label>
+                <input
+                  type="text"
+                  value={newCampaign.subject}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, subject: e.target.value })}
+                  placeholder="e.g. Discover London this Spring"
+                  className="w-full px-3 py-2 text-sm border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content (HTML)</label>
+                <textarea
+                  value={newCampaign.htmlContent}
+                  onChange={(e) => setNewCampaign({ ...newCampaign, htmlContent: e.target.value })}
+                  rows={4}
+                  className="w-full px-3 py-2 text-sm border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" size="sm" onClick={() => setShowCreateModal(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleCreateCampaign} disabled={isCreating}>
+                {isCreating ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
+                ) : (
+                  <><Plus className="h-4 w-4 mr-2" /> Create Campaign</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

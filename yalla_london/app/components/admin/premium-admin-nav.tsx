@@ -395,7 +395,23 @@ export function PremiumAdminNav({
             </div>
             <button
               className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-              onClick={() => {/* TODO: Implement site switcher */}}
+              onClick={() => {
+                const currentSiteId = typeof window !== "undefined" ? localStorage.getItem("admin_site_id") || "" : "";
+                fetch("/api/admin/sites")
+                  .then(r => r.ok ? r.json() : null)
+                  .then(data => {
+                    const sites: Array<{ id: string; name: string }> = data?.sites || [];
+                    if (sites.length < 2) return;
+                    const currentIdx = sites.findIndex((s: { id: string }) => s.id === currentSiteId);
+                    const nextSite = sites[(currentIdx + 1) % sites.length];
+                    if (nextSite) {
+                      localStorage.setItem("admin_site_id", nextSite.id);
+                      document.cookie = `x-site-id=${nextSite.id};path=/;max-age=31536000`;
+                      window.location.reload();
+                    }
+                  })
+                  .catch(() => {});
+              }}
             >
               Switch
             </button>

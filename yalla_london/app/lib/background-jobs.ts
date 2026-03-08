@@ -3,7 +3,7 @@
  * Centralized job management and execution
  */
 import { prisma } from '@/lib/db';
-import { isFeatureEnabled } from '@/lib/feature-flags';
+import { isFeatureFlagEnabled } from '@/lib/feature-flags';
 import cron from 'node-cron';
 
 export interface JobDefinition {
@@ -132,11 +132,11 @@ export class BackgroundJobService {
   /**
    * Register default Phase 4C jobs
    */
-  private registerDefaultJobs(): void {
-    // Feature flags handled by isFeatureEnabled
+  private async registerDefaultJobs(): Promise<void> {
+    // Feature flags use async DB+env lookup via isFeatureFlagEnabled
 
     // Backlink Inspector Job
-    if (isFeatureEnabled("FEATURE_BACKLINK_INSPECTOR")) {
+    if (await isFeatureFlagEnabled("FEATURE_BACKLINK_INSPECTOR")) {
       this.registerJob({
         name: 'backlink_inspector',
         type: 'triggered',
@@ -147,7 +147,7 @@ export class BackgroundJobService {
     }
 
     // Topic Balancer Job
-    if (isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
+    if (await isFeatureFlagEnabled("FEATURE_TOPIC_POLICY")) {
       this.registerJob({
         name: 'topic_balancer',
         type: 'scheduled',

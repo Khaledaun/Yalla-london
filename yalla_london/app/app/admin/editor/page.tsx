@@ -55,6 +55,10 @@ export default function PastePreviewEditor() {
   const [ogVideo, setOgVideo] = useState('')
   const [isRewriting, setIsRewriting] = useState(false)
   const [seoScore, setSeoScore] = useState(0)
+  const [seoChecks, setSeoChecks] = useState<Array<{ name: string; passed: boolean; message: string; severity: string }>>([])
+  const [seoBlockers, setSeoBlockers] = useState<string[]>([])
+  const [seoWarnings, setSeoWarnings] = useState<string[]>([])
+  const [isCheckingSeo, setIsCheckingSeo] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const applyFormat = (prefix: string, suffix: string = prefix) => {
@@ -276,15 +280,87 @@ These luxury hotels in Mayfair offer unparalleled service, exquisite dining, and
         setExcerpt(generatedExcerpt)
       }
       
-      // TODO: connect to real SEO scoring API
-      setSeoScore(0)
-      
-      alert('AI Review completed! All fields have been auto-generated based on your content.')
+      // Run real SEO check via pre-publication gate
+      try {
+        const seoRes = await fetch('/api/admin/editor/seo-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title || content.split('\n')[0].replace(/^#+\s*/, '').substring(0, 60),
+            titleAr,
+            slug,
+            content,
+            excerpt,
+            locale,
+            pageType,
+            primaryKeyword,
+            tags,
+            authorityLink1,
+            authorityLink2,
+            authorityLink3,
+            authorityLink4,
+          }),
+        })
+        if (seoRes.ok) {
+          const seoData = await seoRes.json()
+          setSeoScore(seoData.seoScore || 0)
+          setSeoChecks(seoData.checks || [])
+          setSeoBlockers(seoData.blockers || [])
+          setSeoWarnings(seoData.warnings || [])
+        }
+      } catch (seoErr) {
+        console.warn('[editor] SEO check failed:', seoErr)
+      }
+
+      alert('AI Review completed! Fields auto-generated and SEO score updated.')
     } catch (error) {
       console.error('AI review failed:', error)
       alert('AI review failed. Please try again.')
     } finally {
       setIsRewriting(false)
+    }
+  }
+
+  const handleSeoCheck = async () => {
+    if (!content) {
+      alert('Please paste some content first')
+      return
+    }
+    setIsCheckingSeo(true)
+    try {
+      const seoRes = await fetch('/api/admin/editor/seo-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          titleAr,
+          slug,
+          content,
+          excerpt,
+          locale,
+          pageType,
+          primaryKeyword,
+          tags,
+          authorityLink1,
+          authorityLink2,
+          authorityLink3,
+          authorityLink4,
+        }),
+      })
+      if (seoRes.ok) {
+        const seoData = await seoRes.json()
+        setSeoScore(seoData.seoScore || 0)
+        setSeoChecks(seoData.checks || [])
+        setSeoBlockers(seoData.blockers || [])
+        setSeoWarnings(seoData.warnings || [])
+      } else {
+        alert('SEO check failed — server error')
+      }
+    } catch (err) {
+      console.error('[editor] SEO check error:', err)
+      alert('SEO check failed — network error')
+    } finally {
+      setIsCheckingSeo(false)
     }
   }
 
@@ -384,7 +460,16 @@ These luxury hotels in Mayfair offer unparalleled service, exquisite dining, and
               <CheckCircle className="h-4 w-4" />
               {isRewriting ? 'Analyzing...' : 'AI Review'}
             </button>
-            
+
+            <button
+              onClick={handleSeoCheck}
+              disabled={isCheckingSeo}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors disabled:opacity-50"
+            >
+              <Globe className="h-4 w-4" />
+              {isCheckingSeo ? 'Checking...' : 'SEO Check'}
+            </button>
+
             <button
               onClick={handleSave}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
@@ -699,7 +784,44 @@ These luxury hotels in Mayfair offer unparalleled service, exquisite dining, and
                     </div>
                   </div>
                 </div>
-                
+
+                {/* SEO Check Results Panel */}
+                {seoChecks.length > 0 && (
+                  <div className="bg-white border-b border-gray-200 px-4 py-3 max-h-60 overflow-y-auto">
+                    {seoBlockers.length > 0 && (
+                      <div className="mb-2">
+                        <span className="text-xs font-semibold text-red-600">Blockers:</span>
+                        {seoBlockers.map((b, i) => (
+                          <p key={i} className="text-xs text-red-600 ml-2">{b}</p>
+                        ))}
+                      </div>
+                    )}
+                    {seoWarnings.length > 0 && (
+                      <div className="mb-2">
+                        <span className="text-xs font-semibold text-amber-600">Warnings:</span>
+                        {seoWarnings.map((w, i) => (
+                          <p key={i} className="text-xs text-amber-600 ml-2">{w}</p>
+                        ))}
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      {seoChecks.map((check, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <span className={check.passed ? 'text-green-500' : check.severity === 'blocker' ? 'text-red-500' : 'text-amber-500'}>
+                            {check.passed ? '\u2713' : '\u2717'}
+                          </span>
+                          <span className={check.passed ? 'text-gray-600' : 'text-gray-900 font-medium'}>
+                            {check.name}
+                          </span>
+                          {!check.passed && (
+                            <span className="text-gray-400 truncate">{check.message}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex-1 p-4 overflow-y-auto">
                   <div className={`${deviceView === 'mobile' ? 'max-w-sm mx-auto' : 'max-w-4xl mx-auto'}`}>
                     {content ? (

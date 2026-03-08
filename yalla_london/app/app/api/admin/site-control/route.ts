@@ -8,6 +8,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'homepage'
+    const { getDefaultSiteId } = await import('@/config/sites')
+    const siteId = searchParams.get('siteId') || request.headers.get('x-site-id') || getDefaultSiteId()
     
     switch (type) {
       case 'homepage':
@@ -143,7 +145,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
               primaryColor: '#8B5CF6',
               secondaryColor: '#F59E0B',
               fontFamily: 'Inter',
-              logoUrl: '/images/yalla-london-logo.svg',
+              logoUrl: `/branding/${siteId || 'yalla-london'}/brand-kit/01-logos-svg/yalla-primary-dark.svg`,
               faviconUrl: '/images/favicon.ico'
             },
             seo_config: {

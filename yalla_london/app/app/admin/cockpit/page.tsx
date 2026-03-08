@@ -526,6 +526,21 @@ interface IndexingArticleInfo {
   gscImpressions: number | null;
   gscCtr: number | null;
   gscPosition: number | null;
+  inspection?: {
+    verdict: string | null;
+    robotsTxtState: string | null;
+    indexingAllowed: string | null;
+    crawlAllowed: string | null;
+    pageFetchState: string | null;
+    crawledAs: string | null;
+    userCanonical: string | null;
+    googleCanonical: string | null;
+    canonicalMismatch: boolean;
+    mobileUsabilityVerdict: string | null;
+    richResultsVerdict: string | null;
+    referringUrlCount: number;
+    sitemapCount: number;
+  };
 }
 
 interface IndexingPanelData {
@@ -971,6 +986,53 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                               <span>Sitemap: {article.submittedSitemap ? "✅" : "❌"}</span>
                               <span>Attempts: {article.submissionAttempts}</span>
                             </div>
+                            {/* GSC Inspection Details */}
+                            {article.inspection && (
+                              <div className="mt-2 pt-2 border-t border-zinc-800/50">
+                                <p className="text-[10px] font-medium text-zinc-400 mb-1">GSC Inspection</p>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px]">
+                                  {article.inspection.verdict && (
+                                    <span className={article.inspection.verdict === "PASS" ? "text-emerald-400" : "text-red-400"}>
+                                      Verdict: {article.inspection.verdict}
+                                    </span>
+                                  )}
+                                  {article.inspection.pageFetchState && (
+                                    <span className={article.inspection.pageFetchState === "SUCCESSFUL" ? "text-emerald-400" : "text-amber-400"}>
+                                      Fetch: {article.inspection.pageFetchState}
+                                    </span>
+                                  )}
+                                  {article.inspection.robotsTxtState && (
+                                    <span className={article.inspection.robotsTxtState === "ALLOWED" ? "text-zinc-500" : "text-red-400"}>
+                                      Robots: {article.inspection.robotsTxtState}
+                                    </span>
+                                  )}
+                                  {article.inspection.indexingAllowed && (
+                                    <span className={article.inspection.indexingAllowed.includes("ALLOWED") ? "text-zinc-500" : "text-red-400"}>
+                                      Indexing: {article.inspection.indexingAllowed}
+                                    </span>
+                                  )}
+                                  {article.inspection.crawledAs && (
+                                    <span className="text-zinc-500">Crawler: {article.inspection.crawledAs}</span>
+                                  )}
+                                  {article.inspection.mobileUsabilityVerdict && (
+                                    <span className={article.inspection.mobileUsabilityVerdict === "PASS" ? "text-zinc-500" : "text-amber-400"}>
+                                      Mobile: {article.inspection.mobileUsabilityVerdict}
+                                    </span>
+                                  )}
+                                  {article.inspection.referringUrlCount > 0 && (
+                                    <span className="text-zinc-500">Referring URLs: {article.inspection.referringUrlCount}</span>
+                                  )}
+                                  {article.inspection.sitemapCount > 0 && (
+                                    <span className="text-zinc-500">Sitemaps: {article.inspection.sitemapCount}</span>
+                                  )}
+                                </div>
+                                {article.inspection.canonicalMismatch && (
+                                  <p className="text-[10px] text-red-400 mt-1">
+                                    ⚠️ Canonical mismatch — yours: {article.inspection.userCanonical} | Google: {article.inspection.googleCanonical}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

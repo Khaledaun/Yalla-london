@@ -508,6 +508,9 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 // getIndexingSummary() runs 23+ DB operations and routinely times out (15s+).
 // The cockpit only needs aggregate counts, so we query URLIndexingStatus directly
 // with a single groupBy — ~200ms instead of 15s.
+//
+// Status mapping uses resolveStatus() from indexing-summary.ts (single source of truth)
+// applied to each group's status value, ensuring cockpit and content-indexing agree.
 // ─────────────────────────────────────────────
 
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
@@ -517,6 +520,8 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
   if (!targetSiteId) return indexing;
 
   try {
+    const { resolveStatus } = await import("@/lib/seo/indexing-summary");
+
     // Single groupBy query — replaces 23+ queries in getIndexingSummary()
     const statusGroups = await prisma.uRLIndexingStatus.groupBy({
       by: ["status"],
@@ -528,14 +533,16 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
     for (const group of statusGroups) {
       const count = group._count.id;
       total += count;
-      const status = (group.status || "").toLowerCase();
-      if (status === "indexed" || status === "verified") indexing.indexed += count;
-      else if (status === "submitted" || status === "pending") indexing.submitted += count;
-      else if (status === "discovered") indexing.discovered += count;
-      else if (status === "error" || status === "failed") indexing.errors += count;
-      else if (status === "deindexed") indexing.deindexedCount += count;
-      else if (status === "chronic_failure") { indexing.chronicFailures += count; indexing.errors += count; }
-      else indexing.neverSubmitted += count;
+      // Use shared resolveStatus() — same logic as indexing-summary and content-indexing
+      const resolved = resolveStatus({ status: group.status || "", indexing_state: null });
+      if (resolved === "indexed") indexing.indexed += count;
+      else if (resolved === "submitted") indexing.submitted += count;
+      else if (resolved === "discovered") indexing.discovered += count;
+      else if (resolved === "error") indexing.errors += count;
+      else if (resolved === "deindexed") indexing.deindexedCount += count;
+      else if (resolved === "chronic_failure") { indexing.chronicFailures += count; indexing.errors += count; }
+      else if (resolved === "never_submitted") indexing.neverSubmitted += count;
+      else indexing.discovered += count; // fallback matches resolveStatus() default
     }
 
     // ── GSC reconciliation: promote URLs confirmed indexed by Google ──

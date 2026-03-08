@@ -318,6 +318,23 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── 7. SITEMAP CACHE REGENERATION ─────────────────────────────────────
+  // Pre-build sitemap data so /sitemap.xml serves instantly from cache.
+  // This replaces the old design of 10+ live DB queries per request,
+  // which caused timeouts and broke Google's ability to crawl the site.
+  let sitemapUrlCount = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 10_000) {
+    try {
+      const { regenerateAllSitemapCaches } = await import("@/lib/sitemap-cache");
+      const sitemapResult = await regenerateAllSitemapCaches();
+      sitemapUrlCount = sitemapResult.sites.reduce((sum, s) => sum + s.urlCount, 0);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`sitemap-cache: ${msg}`);
+      console.warn("[auto-fix-lite] Sitemap cache regeneration failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
   const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned;
@@ -335,7 +352,7 @@ async function handleAutoFixLite(request: NextRequest) {
     resultSummary: results,
   }).catch(err => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
 
-  return NextResponse.json({ success: true, durationMs, ...results });
+  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, ...results });
 }
 
 export async function GET(request: NextRequest) {

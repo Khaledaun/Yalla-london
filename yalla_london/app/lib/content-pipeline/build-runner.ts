@@ -164,18 +164,31 @@ export async function runContentBuilder(
 
     if (shouldActivateLastDefense(draftRecord)) {
       console.log(`[content-builder] ⚡ LAST DEFENSE activated for draft ${draftRecord.id} (phase: ${currentPhase}, attempts: ${draftRecord.phase_attempts})`);
-      const defenseResult = await lastDefenseGenerate(draftRecord as any, site, deadline.remainingMs());
-
-      // Convert LastDefenseResult to PhaseResult format
-      result = {
-        success: defenseResult.success,
-        nextPhase: defenseResult.nextPhase,
-        data: defenseResult.data,
-        error: defenseResult.error,
-        aiModelUsed: defenseResult.aiModelUsed,
-      };
+      try {
+        const defenseResult = await lastDefenseGenerate(draftRecord as any, site, deadline.remainingMs());
+        result = {
+          success: defenseResult.success,
+          nextPhase: defenseResult.nextPhase,
+          data: defenseResult.data,
+          error: defenseResult.error,
+          aiModelUsed: defenseResult.aiModelUsed,
+        };
+      } catch (defenseErr) {
+        const msg = defenseErr instanceof Error ? defenseErr.message : String(defenseErr);
+        console.error(`[content-builder] Last defense threw:`, msg);
+        result = { success: false, nextPhase: currentPhase, data: {}, error: `Last defense failed: ${msg}` };
+      }
     } else {
-      result = await runPhase(draftRecord as any, site, deadline.remainingMs());
+      // Wrap runPhase in try/catch — a thrown exception should NOT crash the
+      // entire cron. Convert it to a { success: false } result so the draft
+      // gets properly incremented and logged instead of silently disappearing.
+      try {
+        result = await runPhase(draftRecord as any, site, deadline.remainingMs());
+      } catch (phaseErr) {
+        const msg = phaseErr instanceof Error ? phaseErr.message : String(phaseErr);
+        console.error(`[content-builder] Phase "${currentPhase}" threw (not returned):`, msg);
+        result = { success: false, nextPhase: currentPhase, data: {}, error: `Phase threw: ${msg}` };
+      }
     }
 
     // Step 4: Save phase result to DB

@@ -558,8 +558,7 @@ async function callProvider(
     case 'openai':
       return callOpenAI(messages, apiKey, options);
     case 'gemini':
-      // Account frozen — skip until reactivated. Throw so fallback chain continues.
-      throw new Error('Gemini provider is disabled (account frozen)');
+      return callGemini(messages, apiKey, options);
     case 'perplexity':
       return callPerplexity(messages, apiKey, options);
   }
@@ -675,7 +674,7 @@ export async function generateCompletion(
   for (let i = 0; i < availableProviders.length; i++) {
     const { provider, apiKey } = availableProviders[i];
     const elapsed = Date.now() - fallbackStart;
-    const remaining = totalBudgetMs - elapsed;
+    const remaining = Math.max(0, totalBudgetMs - elapsed);
     if (remaining < 2_000) {
       errors.push(`${provider}: skipped — only ${Math.max(0, Math.round(remaining / 1000))}s remaining in budget`);
       continue;

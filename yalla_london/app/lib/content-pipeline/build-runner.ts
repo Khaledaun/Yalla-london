@@ -149,16 +149,47 @@ export async function runContentBuilder(
     );
 
     // ── Claim the draft BEFORE processing ─────────────────────────────────
-    // Previously phase_started_at was only set AFTER processing completed.
-    // If processing took >5 minutes (common for drafting/assembly phases),
-    // the 5-minute soft-lock expired and another runner would re-pick the
-    // same draft, causing duplicate work and stuck drafts.
     await prisma.articleDraft.update({
       where: { id: draftRecord.id as string },
       data: { phase_started_at: new Date() },
     });
 
-    const result = await runPhase(draftRecord as any, site, deadline.remainingMs());
+    // ── LAST DEFENSE CHECK ────────────────────────────────────────────────
+    // If this draft has failed 2+ times with a systemic error (timeout,
+    // provider down, budget exhaustion, JSON parse), activate the last-defense
+    // fallback instead of the normal pipeline. This guarantees forward progress
+    // even when only one provider is active or all providers are struggling.
+    const { shouldActivateLastDefense, lastDefenseGenerate } = await import("@/lib/ai/last-defense");
+    let result;
+
+    if (shouldActivateLastDefense(draftRecord)) {
+      console.log(`[content-builder] ⚡ LAST DEFENSE activated for draft ${draftRecord.id} (phase: ${currentPhase}, attempts: ${draftRecord.phase_attempts})`);
+      try {
+        const defenseResult = await lastDefenseGenerate(draftRecord as any, site, deadline.remainingMs());
+        result = {
+          success: defenseResult.success,
+          nextPhase: defenseResult.nextPhase,
+          data: defenseResult.data,
+          error: defenseResult.error,
+          aiModelUsed: defenseResult.aiModelUsed,
+        };
+      } catch (defenseErr) {
+        const msg = defenseErr instanceof Error ? defenseErr.message : String(defenseErr);
+        console.error(`[content-builder] Last defense threw:`, msg);
+        result = { success: false, nextPhase: currentPhase, data: {}, error: `Last defense failed: ${msg}` };
+      }
+    } else {
+      // Wrap runPhase in try/catch — a thrown exception should NOT crash the
+      // entire cron. Convert it to a { success: false } result so the draft
+      // gets properly incremented and logged instead of silently disappearing.
+      try {
+        result = await runPhase(draftRecord as any, site, deadline.remainingMs());
+      } catch (phaseErr) {
+        const msg = phaseErr instanceof Error ? phaseErr.message : String(phaseErr);
+        console.error(`[content-builder] Phase "${currentPhase}" threw (not returned):`, msg);
+        result = { success: false, nextPhase: currentPhase, data: {}, error: `Phase threw: ${msg}` };
+      }
+    }
 
     // Step 4: Save phase result to DB
     const updateData: Record<string, unknown> = { updated_at: new Date() };

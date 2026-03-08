@@ -25,6 +25,11 @@ async function handleSocialCron(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SOCIAL=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("social");
+  if (flagResponse) return flagResponse;
+
   const { prisma } = await import('@/lib/db');
 
   // Healthcheck mode — quick status without processing

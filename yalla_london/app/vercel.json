@@ -204,6 +204,14 @@
     {
       "path": "/api/cron/seo-audit-runner",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/schedule-executor",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/subscriber-emails",
+      "schedule": "0 10 * * *"
     }
   ]
 }

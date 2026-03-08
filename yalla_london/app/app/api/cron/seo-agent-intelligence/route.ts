@@ -30,6 +30,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SEO_AGENT_INTELLIGENCE=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("seo-agent-intelligence");
+  if (flagResponse) return flagResponse;
+
   const cronStart = Date.now();
 
   try {

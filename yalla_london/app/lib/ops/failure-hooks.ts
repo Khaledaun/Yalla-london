@@ -123,7 +123,7 @@ export async function onPipelineFailure(
     //   >= 5s → full recovery logic (reads + writes + log)
 
     if (budgetMs < 2000) {
-      console.log(`[failure-hook] <2s budget (${budgetMs}ms) — console-only for draft ${ctx.draftId} phase=${ctx.phase} cat=${category}`);
+      console.warn(`[failure-hook] <2s budget (${budgetMs}ms) — console-only for draft ${ctx.draftId} phase=${ctx.phase} error=${ctx.error.substring(0, 100)} cat=${category}`);
       return;
     }
 
@@ -439,9 +439,13 @@ async function wasRecentlyRecovered(draftId: string): Promise<boolean> {
 
     return !!recentRecovery;
   } catch (err) {
-    // If we can't check, assume already recovered (safe side — prevents double-recovery loops)
-    console.warn(`[failure-hook] Could not check recent recovery for draft ${draftId} — assuming recovered (safe side):`, err instanceof Error ? err.message : err);
-    return true;
+    // If we can't check, assume NOT recovered — allow recovery to proceed.
+    // Previous logic returned true (assumed recovered) which caused silent mass
+    // failure: any DB hiccup would prevent ALL drafts from being recovered.
+    // Better to risk a double-recovery (harmless — just increments attempts)
+    // than to silently block all recovery during DB outages.
+    console.warn(`[failure-hook] Could not check recent recovery for draft ${draftId} — allowing recovery (safe side):`, err instanceof Error ? err.message : err);
+    return false;
   }
 }
 

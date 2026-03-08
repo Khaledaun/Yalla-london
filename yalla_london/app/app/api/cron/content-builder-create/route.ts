@@ -28,6 +28,11 @@ async function handleCreate(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_CONTENT_BUILDER_CREATE=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("content-builder-create");
+  if (flagResponse) return flagResponse;
+
   try {
     const { prisma } = await import("@/lib/db");
     const { getActiveSiteIds, SITES } = await import("@/config/sites");

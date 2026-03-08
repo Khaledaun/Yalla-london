@@ -88,20 +88,41 @@ export async function PUT(request: NextRequest) {
         
         // Create the actual blog post
         if (content.type.includes('blog_post')) {
+          // Find or create default category and system user
+          const { getDefaultSiteId } = await import("@/config/sites");
+          const defaultSiteId = getDefaultSiteId();
+          let category = await prisma.category.findFirst({ where: { site_id: defaultSiteId } });
+          if (!category) {
+            category = await prisma.category.create({
+              data: { name: "General", slug: "general", site_id: defaultSiteId },
+            });
+          }
+          let systemUser = await prisma.user.findFirst({
+            where: { email: { startsWith: "system@" } },
+          });
+          if (!systemUser) {
+            systemUser = await prisma.user.findFirst();
+          }
+          if (!systemUser) {
+            throw new Error("No users found in database. Create an admin user first.");
+          }
+
           await prisma.blogPost.create({
             data: {
               title_en: contentData.title,
-              title_ar: contentData.title, // TODO: Add translation
+              title_ar: contentData.title_ar || contentData.title,
               content_en: contentData.content,
-              content_ar: contentData.content, // TODO: Add translation
-              slug: contentData.slug,
-              excerpt_en: contentData.metaDescription,
-              meta_title_en: contentData.metaTitle,
+              content_ar: contentData.content_ar || contentData.content,
+              slug: contentData.slug || contentData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 100),
+              excerpt_en: contentData.metaDescription || contentData.content?.substring(0, 155),
+              excerpt_ar: contentData.metaDescription || contentData.content?.substring(0, 155),
+              meta_title_en: contentData.metaTitle || contentData.title?.substring(0, 60),
               meta_description_en: contentData.metaDescription,
               tags: contentData.tags || [],
               published: true,
-              category_id: 'default-category-id', // TODO: Map to actual category
-              author_id: 'system-user-id' // TODO: Map to actual user
+              siteId: defaultSiteId,
+              category_id: category.id,
+              author_id: systemUser.id,
             }
           });
 

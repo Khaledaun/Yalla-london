@@ -33,6 +33,7 @@ const navigation = [
     href: '/admin/cockpit',
     items: [
       { label: 'Mission Control',   href: '/admin/cockpit' },
+      { label: 'Health Report',     href: '/admin/cockpit/health' },
       { label: 'Write Article',     href: '/admin/cockpit/write' },
       { label: 'Bulk Generator',    href: '/admin/cockpit/bulk-generate' },
       { label: 'Departures Board',  href: '/admin/departures' },

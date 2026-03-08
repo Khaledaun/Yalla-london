@@ -25,6 +25,11 @@ async function handleSweeper(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SWEEPER=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("sweeper");
+  if (flagResponse) return flagResponse;
+
   try {
     const { runSweeper } = await import("@/lib/content-pipeline/sweeper");
     const result = await runSweeper();

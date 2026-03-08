@@ -14,6 +14,11 @@ import { getSiteDomain, getDefaultSiteId, getActiveSiteIds } from "@/config/site
  * columns) so we check via the ScheduledContent table which has scheduling info.
  */
 export const GET = withCronLog("scheduled-publish", async (log) => {
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SCHEDULED_PUBLISH=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("scheduled-publish");
+  if (flagResponse) return { skipped: true, message: "Disabled via feature flag" };
+
   const { prisma } = await import("@/lib/db");
   const now = new Date();
 

@@ -465,6 +465,7 @@ async function createBlogPostFromScheduledContent(content: any): Promise<any> {
       meta_description_ar: metadata.metaDescription,
       tags: content.tags || [],
       published: true,
+      siteId: content.siteId || (await import("@/config/sites")).getDefaultSiteId(),
       category_id: category.id,
       author_id: systemUser.id,
       page_type: content.page_type,

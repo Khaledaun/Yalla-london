@@ -22,6 +22,11 @@ const NIGHTLY_HOUR = 2;
 const NIGHTLY_MAX_MINUTE = 30;
 
 const handler = withCronLog("seo-audit-runner", async (log) => {
+  // Feature flag guard — can be disabled via DB flag or env var CRON_SEO_AUDIT_RUNNER=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("seo-audit-runner");
+  if (flagResponse) return { skipped: true, message: "Disabled via feature flag" };
+
   const { advanceAuditStep } = await import("@/lib/audit-system/step-runner");
   const {
     getActiveAuditRun,

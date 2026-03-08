@@ -28,6 +28,11 @@ async function handleIndexing(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Feature flag guard — can be disabled via DB flag or env var CRON_GOOGLE_INDEXING=false
+    const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+    const flagResponse = await checkCronEnabled("google-indexing");
+    if (flagResponse) return flagResponse;
+
     // Healthcheck mode
     if (request.nextUrl.searchParams.get("healthcheck") === "true") {
       return NextResponse.json({

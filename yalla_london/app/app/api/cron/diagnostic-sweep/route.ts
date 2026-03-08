@@ -32,6 +32,11 @@ async function handleDiagnosticSweep(request: NextRequest) {
     }
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_DIAGNOSTIC_SWEEP=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("diagnostic-sweep");
+  if (flagResponse) return flagResponse;
+
   // Healthcheck mode
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     return NextResponse.json({
@@ -43,6 +48,15 @@ async function handleDiagnosticSweep(request: NextRequest) {
 
   try {
     const { runDiagnosticSweep } = await import("@/lib/ops/diagnostic-agent");
+
+    // Check for cron failures and send alert emails
+    try {
+      const { checkAndAlertCronFailures } = await import("@/lib/ops/cron-alerting");
+      const alertResult = await checkAndAlertCronFailures();
+      console.log(`[diagnostic-sweep] Alert check: ${alertResult.message}`);
+    } catch (alertErr) {
+      console.warn("[diagnostic-sweep] Alert check failed:", (alertErr as Error).message);
+    }
 
     const result = await runDiagnosticSweep();
 

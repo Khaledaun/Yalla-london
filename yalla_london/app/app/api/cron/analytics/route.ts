@@ -42,6 +42,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_ANALYTICS=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("analytics");
+  if (flagResponse) return flagResponse;
+
   const _cronStart = Date.now();
   console.log(`[ANALYTICS-CRON] Starting at ${new Date().toISOString()}`);
 

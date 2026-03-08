@@ -33,6 +33,11 @@ async function handleVerifyIndexing(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Feature flag guard — can be disabled via DB flag or env var CRON_VERIFY_INDEXING=false
+    const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+    const flagResponse = await checkCronEnabled("verify-indexing");
+    if (flagResponse) return flagResponse;
+
     // Healthcheck mode
     if (request.nextUrl.searchParams.get("healthcheck") === "true") {
       const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");

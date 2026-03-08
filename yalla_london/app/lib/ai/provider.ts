@@ -129,9 +129,14 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude, Gemini.
+// Provider priority — Grok first (cheapest, fastest, 2M context), then OpenAI, Claude.
+// Gemini removed: account frozen by owner — re-add when billing is reactivated.
 // Perplexity removed: quota exhausted, billing issue — re-add when resolved.
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude', 'gemini'];
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'openai', 'claude'];
+
+// ALL providers that COULD work (checked for API keys at runtime).
+// Used by last-defense and probe to find ANY working provider beyond the priority list.
+const ALL_PROVIDERS: AIProvider[] = ['grok', 'openai', 'claude', 'gemini', 'perplexity'];
 
 // ---------------------------------------------------------------------------
 // Circuit Breaker — prevents wasting 15-28s retrying a dead provider.
@@ -168,12 +173,21 @@ function recordProviderFailure(provider: AIProvider): void {
   }
 }
 
-function isProviderAvailable(provider: AIProvider): boolean {
+function isProviderAvailable(provider: AIProvider, isLastProvider = false): boolean {
   const state = getCircuitState(provider);
   if (state.state === 'closed') return true;
   if (state.state === 'open') {
-    // After 60s in open state, allow one probe request
-    if (Date.now() - state.lastFailure > 60_000) {
+    // SINGLE-PROVIDER SAFETY: Never circuit-break the LAST available provider.
+    // Better to try and fail than to return "no providers available" — at least
+    // the failure gets logged and the draft stays in queue for next run.
+    if (isLastProvider) {
+      console.warn(`[ai/provider] Circuit open for ${provider} but it's the LAST provider — forcing half-open`);
+      state.state = 'half-open';
+      return true;
+    }
+    // After 30s in open state, allow one probe request (reduced from 60s
+    // to prevent long lockouts during generation bursts)
+    if (Date.now() - state.lastFailure > 30_000) {
       state.state = 'half-open';
       return true;
     }
@@ -559,23 +573,30 @@ export async function generateCompletion(
   messages: AIMessage[],
   options: AICompletionOptions = {}
 ): Promise<AICompletionResult> {
-  // If a specific provider is requested, try only that one
+  // If a specific provider is requested, try that one first.
+  // CRITICAL CHANGE: If it fails, fall through to the standard fallback chain
+  // instead of throwing. This ensures no single provider failure blocks generation.
   if (options.provider) {
     const apiKey = await getApiKey(options.provider);
-    if (!apiKey) {
-      const err = `No API key configured for ${options.provider}`;
-      logUsage(null, { ...options, provider: options.provider }, err);
-      throw new Error(err);
+    if (apiKey) {
+      try {
+        const result = await callProvider(options.provider, messages, apiKey, {
+          ...options,
+          timeoutMs: options.timeoutMs || 25_000,
+        });
+        logUsage(result, options);
+        return result;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[ai/provider] Requested provider ${options.provider} failed, falling through to chain: ${msg}`);
+        recordProviderFailure(options.provider);
+        // Fall through to standard fallback chain below
+      }
+    } else {
+      console.warn(`[ai/provider] No API key for requested provider ${options.provider}, falling through to chain`);
     }
-    try {
-      const result = await callProvider(options.provider, messages, apiKey, options);
-      logUsage(result, options);
-      return result;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logUsage(null, options, msg);
-      throw error;
-    }
+    // Clear the explicit provider so the fallback chain runs normally
+    options = { ...options, provider: undefined };
   }
 
   // Try providers in priority order: grok → openai → claude → gemini
@@ -612,33 +633,49 @@ export async function generateCompletion(
   }
 
   // Pre-scan which providers have API keys AND are not circuit-broken.
-  const availableProviders: Array<{ provider: AIProvider; apiKey: string }> = [];
+  // First pass: find all providers with valid keys
+  const keyedProviders: Array<{ provider: AIProvider; apiKey: string }> = [];
   for (const p of routedPriority) {
-    if (!isProviderAvailable(p)) {
+    const k = await getApiKey(p);
+    if (k) keyedProviders.push({ provider: p, apiKey: k });
+  }
+
+  // Second pass: filter by circuit breaker, but never lock out the last keyed provider
+  const availableProviders: Array<{ provider: AIProvider; apiKey: string }> = [];
+  for (let idx = 0; idx < keyedProviders.length; idx++) {
+    const { provider: p, apiKey } = keyedProviders[idx];
+    const isLast = keyedProviders.length === 1 || (idx === keyedProviders.length - 1 && availableProviders.length === 0);
+    if (!isProviderAvailable(p, isLast)) {
       errors.push(`${p}: skipped — circuit open`);
       continue;
     }
-    const k = await getApiKey(p);
-    if (k) availableProviders.push({ provider: p, apiKey: k });
+    availableProviders.push({ provider: p, apiKey });
   }
 
   // Phase-aware budget split ratios
   const hint = options.phaseBudgetHint;
-  const firstSharePct = hint === 'light' ? 0.50
+  const isSingleProvider = availableProviders.length === 1;
+  const firstSharePct = isSingleProvider ? 0.95 // Single provider: give it almost everything
+    : hint === 'light' ? 0.50
     : hint === 'medium' ? 0.55
     : hint === 'heavy' ? 0.55
     : 0.65; // default (backwards compatible)
-  const maxPerProviderMs = hint === 'light' ? 15_000
+  const maxPerProviderMs = isSingleProvider ? 50_000 // Single provider: no cap
+    : hint === 'light' ? 15_000
     : hint === 'medium' ? 20_000
     : 40_000;
+
+  if (isSingleProvider) {
+    console.log(`[ai/provider] Single-provider mode: ${availableProviders[0].provider} gets 95% budget (${Math.round(totalBudgetMs / 1000)}s total)`);
+  }
 
   let lastFailWasFast = false; // Track fast failures for adaptive fallback
 
   for (let i = 0; i < availableProviders.length; i++) {
     const { provider, apiKey } = availableProviders[i];
     const elapsed = Date.now() - fallbackStart;
-    const remaining = totalBudgetMs - elapsed;
-    if (remaining < 3_000) {
+    const remaining = Math.max(0, totalBudgetMs - elapsed);
+    if (remaining < 2_000) {
       errors.push(`${provider}: skipped — only ${Math.max(0, Math.round(remaining / 1000))}s remaining in budget`);
       continue;
     }
@@ -647,7 +684,10 @@ export async function generateCompletion(
     const isFirstProvider = i === 0;
     let rawShare: number;
 
-    if (isFirstProvider) {
+    if (isSingleProvider) {
+      // SINGLE PROVIDER: give it the full remaining budget minus a small buffer
+      rawShare = remaining - 1_000;
+    } else if (isFirstProvider) {
       rawShare = Math.floor((remaining - 1_000) * firstSharePct);
     } else if (hint === 'heavy' && lastFailWasFast) {
       // Adaptive fallback: fast failure (<5s) means provider is down, not slow.
@@ -903,6 +943,44 @@ export async function isAIAvailable(): Promise<boolean> {
   const available = await getAvailableProvider();
   return available !== null;
 }
+
+/**
+ * Probe all providers to find which ones are ACTUALLY responding right now.
+ * Sends a tiny "say OK" request with a 4s timeout per provider.
+ * Returns providers sorted by response time (fastest first).
+ * Used by last-defense fallback to find a working provider.
+ */
+export async function probeActiveProviders(): Promise<Array<{
+  provider: AIProvider;
+  apiKey: string;
+  responseMs: number;
+}>> {
+  const results: Array<{ provider: AIProvider; apiKey: string; responseMs: number }> = [];
+  const probePromises = ALL_PROVIDERS.map(async (p) => {
+    const apiKey = await getApiKey(p);
+    if (!apiKey) return null;
+    const start = Date.now();
+    try {
+      await callProvider(p, [{ role: 'user', content: 'Say OK' }], apiKey, {
+        maxTokens: 5,
+        timeoutMs: 4_000,
+      });
+      return { provider: p, apiKey, responseMs: Date.now() - start };
+    } catch {
+      return null;
+    }
+  });
+
+  const probed = await Promise.allSettled(probePromises);
+  for (const r of probed) {
+    if (r.status === 'fulfilled' && r.value) results.push(r.value);
+  }
+  results.sort((a, b) => a.responseMs - b.responseMs);
+  return results;
+}
+
+/** Expose getApiKey for external modules (last-defense, diagnostics) */
+export { getApiKey, callProvider, ALL_PROVIDERS, DEFAULT_MODELS };
 
 /**
  * Get status of all AI providers

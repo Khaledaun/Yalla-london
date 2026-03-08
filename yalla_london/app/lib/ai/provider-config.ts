@@ -58,7 +58,8 @@ const DEFAULT_MODELS: Record<string, string> = {
 };
 
 // Provider priority — same order as PROVIDER_PRIORITY in lib/ai/provider.ts
-const PROVIDER_PRIORITY_NAMES = ['grok', 'claude', 'openai', 'gemini'] as const;
+// Gemini removed: account frozen by owner — re-add when billing is reactivated.
+const PROVIDER_PRIORITY_NAMES = ['grok', 'claude', 'openai'] as const;
 
 // Env-var names that signal a provider key is configured
 const PROVIDER_ENV_KEYS: Record<string, string[]> = {

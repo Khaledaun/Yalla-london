@@ -57,6 +57,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Feature flag guard — can be disabled via DB flag or env var CRON_TRENDS_MONITOR=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("trends-monitor");
+  if (flagResponse) return flagResponse;
+
   // Healthcheck mode — quick DB ping + last run status
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     try {

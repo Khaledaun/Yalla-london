@@ -169,6 +169,10 @@ const ALLOWED_ORIGINS = new Set([
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// In-memory rate limit store (resets on cold start — acceptable for serverless)
+const rateLimitStore: Record<string, { count: number; resetTime: number }> = {};
+let rateLimitCheckCount = 0;
+
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
@@ -243,9 +247,81 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // HTTP method — used by both rate limiting and CSRF protection below.
+  const method = request.method.toUpperCase();
+
+  // ── Rate limiting for public API endpoints ─────────────────────────
+  // In-memory per-IP rate limiting. Resets on cold start (fine for serverless).
+  // Only applies to non-admin, non-cron API paths.
+  if (effectivePathname.startsWith("/api/") &&
+      !effectivePathname.startsWith("/api/admin/") &&
+      !effectivePathname.startsWith("/api/cron/") &&
+      !effectivePathname.startsWith("/api/webhooks/") &&
+      !effectivePathname.startsWith("/api/internal/")) {
+    const ip =
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+
+    // Determine rate limit tier based on path and method
+    const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+    const isHeavy = effectivePathname.includes("/recommend") ||
+                    effectivePathname.includes("/generate") ||
+                    effectivePathname.includes("/auto-generate") ||
+                    effectivePathname.includes("/optimize");
+    const isAuth = effectivePathname === "/api/admin/login" ||
+                   effectivePathname === "/api/admin/setup" ||
+                   effectivePathname === "/api/signup";
+
+    let windowMs: number;
+    let maxRequests: number;
+
+    if (isAuth) {
+      windowMs = 15 * 60 * 1000; maxRequests = 5;    // 5 per 15min (login)
+    } else if (isHeavy) {
+      windowMs = 60 * 1000; maxRequests = 3;          // 3 per minute (AI-heavy)
+    } else if (isMutation) {
+      windowMs = 60 * 1000; maxRequests = 20;         // 20 per minute (writes)
+    } else {
+      windowMs = 60 * 1000; maxRequests = 60;         // 60 per minute (reads)
+    }
+
+    const rateKey = `rl:${ip}:${isAuth ? "auth" : isHeavy ? "heavy" : isMutation ? "mut" : "read"}`;
+    const now = Date.now();
+    let entry = rateLimitStore[rateKey];
+
+    if (!entry || entry.resetTime < now) {
+      entry = rateLimitStore[rateKey] = { count: 0, resetTime: now + windowMs };
+    }
+    entry.count++;
+
+    // Cleanup every 200 requests to prevent memory leak
+    rateLimitCheckCount++;
+    if (rateLimitCheckCount % 200 === 0) {
+      for (const key of Object.keys(rateLimitStore)) {
+        if (rateLimitStore[key].resetTime < now) delete rateLimitStore[key];
+      }
+    }
+
+    if (entry.count > maxRequests) {
+      const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+      return NextResponse.json(
+        { error: "Too many requests", retryAfter },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": retryAfter.toString(),
+            "X-RateLimit-Limit": maxRequests.toString(),
+            "X-RateLimit-Remaining": "0",
+          },
+        }
+      );
+    }
+  }
+
   // SECURITY: CSRF protection for mutating requests
   // Use effectivePathname so /ar/api/* requests are also protected.
-  const method = request.method.toUpperCase();
   if (
     ["POST", "PUT", "DELETE", "PATCH"].includes(method) &&
     effectivePathname.startsWith("/api/")

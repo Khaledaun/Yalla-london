@@ -683,8 +683,7 @@ async function logLastDefenseActivation(
  * - Last error indicates a systemic issue (not data quality)
  * - Phase is NOT already using raw fallback (assembly with attempts >= 1)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function shouldActivateLastDefense(draft: any): boolean {
+export function shouldActivateLastDefense(draft: Record<string, unknown>): boolean {
   const attempts = (draft.phase_attempts as number) || 0;
   const phase = draft.current_phase as string;
   const lastError = ((draft.last_error as string) || "").toLowerCase();

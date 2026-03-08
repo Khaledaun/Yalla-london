@@ -458,7 +458,6 @@ function ReadyArticlesTab() {
 
 // ─── Pipeline Tab — in-progress drafts with phase indicators ──────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PipelineTab() {
   const [drafts, setDrafts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1112,6 +1111,7 @@ export default function ContentHub() {
         <div>
           {mediaAssets.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No Media Assets

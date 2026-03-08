@@ -310,6 +310,7 @@ export default function SocialMediaPage() {
                             key={i}
                             className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center"
                           >
+                            {/* eslint-disable-next-line jsx-a11y/alt-text */}
                             <Image className="h-6 w-6 text-gray-400" />
                           </div>
                         ))}
@@ -536,6 +537,7 @@ export default function SocialMediaPage() {
                     Media
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
                     <Image className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                     <p className="text-gray-500 text-sm">
                       Drop images here or click to upload

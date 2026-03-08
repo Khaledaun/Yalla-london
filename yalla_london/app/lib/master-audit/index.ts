@@ -604,10 +604,12 @@ export async function runMasterAudit(
       const crawlResult = await validateCrawlFreshness(options.siteId, baseUrl, config);
       allIssues.push(...crawlResult.issues);
       crawlFreshnessData = crawlResult.data;
+      const ih = crawlResult.data.indexingHealth;
       console.log(
         `[master-audit]   Crawl Freshness: ${allIssues.length - beforeCount} new issues | ` +
         `Sitemap: ${crawlResult.data.sitemapCheck.reachable ? `OK (${crawlResult.data.sitemapCheck.responseTimeMs}ms)` : 'UNREACHABLE'} | ` +
-        `Pages tracked: ${crawlResult.data.summary.totalTracked}, never crawled: ${crawlResult.data.summary.neverCrawled}`
+        `Pages tracked: ${crawlResult.data.summary.totalTracked}, indexed: ${crawlResult.data.summary.indexed}, never crawled: ${crawlResult.data.summary.neverCrawled}` +
+        (ih ? ` | Rate: ${ih.indexingRate}%, stale: ${ih.staleSubmissions}, chronic: ${ih.chronicFailures}` : '')
       );
     } catch (err) {
       console.warn('[master-audit]   Crawl Freshness: validator failed:', err instanceof Error ? err.message : String(err));
@@ -747,7 +749,9 @@ export async function runMasterAudit(
     `- **Hard Gates:** ${hardGates.filter((g) => g.passed).length}/${hardGates.length} passed`,
     `- **Verdict:** ${hardGates.every((g) => g.passed) ? 'PASS' : 'FAIL'}`,
     crawlFreshnessData ? `- **Sitemap:** ${crawlFreshnessData.sitemapCheck.reachable ? `Reachable (${crawlFreshnessData.sitemapCheck.responseTimeMs}ms, ${crawlFreshnessData.sitemapCheck.urlCount} URLs)` : `UNREACHABLE — ${crawlFreshnessData.sitemapCheck.error}`}` : '',
-    crawlFreshnessData ? `- **Crawl Freshness:** ${crawlFreshnessData.summary.totalTracked} pages tracked, ${crawlFreshnessData.summary.neverCrawled} never crawled, avg ${crawlFreshnessData.summary.averageDaysSinceCrawl ?? 'N/A'} days since last crawl` : '',
+    crawlFreshnessData ? `- **Indexing:** ${crawlFreshnessData.summary.indexed}/${crawlFreshnessData.summary.totalTracked} indexed (${crawlFreshnessData.indexingHealth?.indexingRate ?? 0}%)` : '',
+    crawlFreshnessData ? `- **Crawl Freshness:** ${crawlFreshnessData.summary.neverCrawled} never crawled, avg ${crawlFreshnessData.summary.averageDaysSinceCrawl ?? 'N/A'} days since last crawl` : '',
+    crawlFreshnessData?.summary.totalClicks7d ? `- **GSC Performance (7d):** ${crawlFreshnessData.summary.totalClicks7d} clicks, ${crawlFreshnessData.summary.totalImpressions7d} impressions` : '',
     '',
   ];
   writeOutput(config.outputDir, state.runId, 'CHANGELOG.md', changelogLines.join('\n'));

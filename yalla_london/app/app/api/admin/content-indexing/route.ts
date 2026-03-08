@@ -7,6 +7,7 @@ import { logManualAction } from "@/lib/action-logger";
 import {
   resolvePageStatus,
   computeNotIndexedReasons,
+  extractInspectionDetails,
   type PageIndexingStatus,
 } from "@/lib/seo/indexing-summary";
 
@@ -46,11 +47,27 @@ interface ArticleIndexingInfo {
   notIndexedReasons: string[];
   // Suggested fix
   fixAction: string | null;
-  // GSC performance (from inspection_result JSON if available)
+  // GSC performance (from GscPagePerformance table)
   gscClicks: number | null;
   gscImpressions: number | null;
   gscCtr: number | null;
   gscPosition: number | null;
+  // GSC Inspection details — uses shared InspectionDetails from indexing-summary.ts
+  inspection?: {
+    verdict: string | null;
+    robotsTxtState: string | null;
+    indexingAllowed: string | null;
+    crawlAllowed: string | null;
+    pageFetchState: string | null;
+    crawledAs: string | null;
+    userCanonical: string | null;
+    googleCanonical: string | null;
+    canonicalMismatch: boolean;
+    mobileUsabilityVerdict: string | null;
+    richResultsVerdict: string | null;
+    referringUrlCount: number;
+    sitemapCount: number;
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -245,7 +262,6 @@ export async function GET(request: NextRequest) {
 
       // Build reasons — uses shared computeNotIndexedReasons() + endpoint-specific deep inspection
       const reasons: string[] = computeNotIndexedReasons(indexingStatus, record, { hasIndexNowKey, hasGscCredentials });
-      const fixAction: string | null = null;
 
       if (indexingStatus === "not_indexed") {
         // Inspection-level issues — extract from stored inspection_result JSON
@@ -342,13 +358,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Extract GSC performance data from inspection_result JSON if available
-      const inspection = record?.inspection_result as unknown as Record<string, any> | null;
-      const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
-      const gscClicks = typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null;
-      const gscImpressions = typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null;
-      const gscCtr = typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null;
-      const gscPosition = typeof perfMetrics?.position === "number" ? perfMetrics.position : null;
+      // GSC performance data is enriched later in section 4d from GscPagePerformance table.
+      // inspection_result does NOT contain clicks/impressions — those come from Search Analytics API.
 
       return {
         id: post.id,
@@ -369,11 +380,12 @@ export async function GET(request: NextRequest) {
         submissionAttempts: record?.submission_attempts || 0,
         contentType: "blog" as const,
         notIndexedReasons: reasons,
-        fixAction,
-        gscClicks,
-        gscImpressions,
-        gscCtr,
-        gscPosition,
+        fixAction: null,
+        gscClicks: null,
+        gscImpressions: null,
+        gscCtr: null,
+        gscPosition: null,
+        inspection: extractInspectionDetails(record?.inspection_result),
       };
     });
 
@@ -383,8 +395,6 @@ export async function GET(request: NextRequest) {
         const compositeSlug = `${yp.urlPrefix}/${yp.slug}`;
         const record = indexingRecords[compositeSlug] || indexingRecords[yp.slug];
         const indexingStatus = resolvePageStatus(record);
-        const inspection = record?.inspection_result as unknown as Record<string, any> | null;
-        const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
         const yachtContentType = yp.urlPrefix === "yachts" ? "yacht" as const
           : yp.urlPrefix === "destinations" ? "destination" as const
           : "itinerary" as const;
@@ -412,6 +422,7 @@ export async function GET(request: NextRequest) {
           gscImpressions: null,
           gscCtr: null,
           gscPosition: null,
+          inspection: extractInspectionDetails(record?.inspection_result),
         });
       }
     }
@@ -442,8 +453,6 @@ export async function GET(request: NextRequest) {
           const record = indexingRecords[newsSlug] || indexingRecords[newsItem.slug];
           const indexingStatus = resolvePageStatus(record);
           const wordCount = newsItem.summary_en ? newsItem.summary_en.split(/\s+/).filter(Boolean).length : 0;
-          const inspection = record?.inspection_result as unknown as Record<string, any> | null;
-          const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
           articles.push({
             id: newsItem.id,
             title: newsItem.headline_en || "(Untitled News)",
@@ -468,6 +477,7 @@ export async function GET(request: NextRequest) {
             gscImpressions: null,
             gscCtr: null,
             gscPosition: null,
+            inspection: extractInspectionDetails(record?.inspection_result),
           });
         }
       } catch (err) {

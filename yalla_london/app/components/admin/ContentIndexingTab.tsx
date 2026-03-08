@@ -30,7 +30,7 @@ interface ArticleIndexing {
   publishedAt: string | null;
   seoScore: number;
   wordCount: number;
-  indexingStatus: "indexed" | "submitted" | "not_indexed" | "error" | "never_submitted";
+  indexingStatus: "indexed" | "submitted" | "discovered" | "not_indexed" | "error" | "never_submitted";
   submittedAt: string | null;
   lastCrawledAt: string | null;
   lastInspectedAt: string | null;
@@ -40,6 +40,25 @@ interface ArticleIndexing {
   submissionAttempts: number;
   notIndexedReasons: string[];
   fixAction: string | null;
+  gscClicks: number | null;
+  gscImpressions: number | null;
+  gscCtr: number | null;
+  gscPosition: number | null;
+  inspection?: {
+    verdict: string | null;
+    robotsTxtState: string | null;
+    indexingAllowed: string | null;
+    crawlAllowed: string | null;
+    pageFetchState: string | null;
+    crawledAs: string | null;
+    userCanonical: string | null;
+    googleCanonical: string | null;
+    canonicalMismatch: boolean;
+    mobileUsabilityVerdict: string | null;
+    richResultsVerdict: string | null;
+    referringUrlCount: number;
+    sitemapCount: number;
+  };
 }
 
 interface SystemIssue {
@@ -837,6 +856,81 @@ export default function ContentIndexingTab() {
                                 </li>
                               ))}
                             </ul>
+                          </div>
+                        )}
+
+                        {/* GSC Inspection Details */}
+                        {article.inspection && (
+                          <div className="border-t border-gray-200 pt-2">
+                            <p className="text-xs font-semibold text-gray-700 mb-1.5">
+                              Google Inspection Details
+                            </p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                              {article.inspection.verdict && (
+                                <span>
+                                  Verdict:{" "}
+                                  <span className={article.inspection.verdict === "PASS" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                                    {article.inspection.verdict}
+                                  </span>
+                                </span>
+                              )}
+                              {article.inspection.pageFetchState && (
+                                <span>
+                                  Fetch:{" "}
+                                  <span className={article.inspection.pageFetchState === "SUCCESSFUL" ? "text-green-600" : "text-amber-600"}>
+                                    {article.inspection.pageFetchState}
+                                  </span>
+                                </span>
+                              )}
+                              {article.inspection.robotsTxtState && (
+                                <span>
+                                  Robots.txt:{" "}
+                                  <span className={article.inspection.robotsTxtState === "ALLOWED" ? "text-gray-500" : "text-red-600 font-medium"}>
+                                    {article.inspection.robotsTxtState}
+                                  </span>
+                                </span>
+                              )}
+                              {article.inspection.indexingAllowed && (
+                                <span>
+                                  Indexing:{" "}
+                                  <span className={article.inspection.indexingAllowed.includes("ALLOWED") ? "text-gray-500" : "text-red-600 font-medium"}>
+                                    {article.inspection.indexingAllowed}
+                                  </span>
+                                </span>
+                              )}
+                              {article.inspection.crawledAs && (
+                                <span>Crawler: {article.inspection.crawledAs}</span>
+                              )}
+                              {article.inspection.mobileUsabilityVerdict && (
+                                <span>
+                                  Mobile:{" "}
+                                  <span className={article.inspection.mobileUsabilityVerdict === "PASS" ? "text-gray-500" : "text-amber-600"}>
+                                    {article.inspection.mobileUsabilityVerdict}
+                                  </span>
+                                </span>
+                              )}
+                              {article.inspection.referringUrlCount > 0 && (
+                                <span>Referring URLs: {article.inspection.referringUrlCount}</span>
+                              )}
+                              {article.inspection.sitemapCount > 0 && (
+                                <span>Sitemaps: {article.inspection.sitemapCount}</span>
+                              )}
+                            </div>
+                            {article.inspection.canonicalMismatch && (
+                              <p className="text-xs text-red-600 mt-1">
+                                Canonical mismatch — Yours: {article.inspection.userCanonical} | Google: {article.inspection.googleCanonical}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* GSC Performance */}
+                        {(article.gscClicks !== null || article.gscImpressions !== null) && (
+                          <div className="flex gap-4 text-xs text-gray-500">
+                            {article.gscClicks !== null && <span>Clicks: <span className="font-medium text-gray-700">{article.gscClicks.toLocaleString()}</span></span>}
+                            {article.gscImpressions !== null && <span>Impressions: <span className="font-medium text-gray-700">{article.gscImpressions.toLocaleString()}</span></span>}
+                            {article.gscCtr !== null && <span>CTR: <span className="font-medium text-gray-700">{(article.gscCtr * 100).toFixed(1)}%</span></span>}
+                            {article.gscPosition !== null && <span>Pos: <span className="font-medium text-gray-700">{article.gscPosition.toFixed(1)}</span></span>}
                           </div>
                         )}
 

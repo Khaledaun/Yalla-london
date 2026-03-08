@@ -174,12 +174,12 @@ export function generateExecSummary(result: AuditRunResult): string {
     lines.push('');
   }
 
-  // Crawl Freshness section
+  // Crawl Freshness & Indexing Health section
   if (result.crawlFreshness) {
     const cf = result.crawlFreshness;
     lines.push('---');
     lines.push('');
-    lines.push('## Google Crawl Freshness');
+    lines.push('## Google Crawl & Indexing Health');
     lines.push('');
 
     // Sitemap status
@@ -191,19 +191,113 @@ export function generateExecSummary(result: AuditRunResult): string {
     }
     lines.push('');
 
+    // Indexing health snapshot
+    if (cf.indexingHealth) {
+      const ih = cf.indexingHealth;
+      lines.push('### Indexing Health');
+      lines.push('');
+      lines.push(`| Metric | Value |`);
+      lines.push(`|--------|-------|`);
+      lines.push(`| Indexing rate | **${ih.indexingRate}%** |`);
+      lines.push(`| Submission rate | ${ih.submissionRate}% |`);
+      lines.push(`| Avg time to index | ${ih.avgTimeToIndexDays !== null ? `${ih.avgTimeToIndexDays} days` : 'N/A'} |`);
+      lines.push(`| Stale submissions (>14d) | ${ih.staleSubmissions} |`);
+      lines.push(`| Chronic failures (5+ attempts) | ${ih.chronicFailures} |`);
+      lines.push(`| Hreflang mismatches | ${ih.hreflangMismatches} |`);
+      lines.push('');
+
+      if (ih.topBlockers.length > 0) {
+        lines.push('**Top Blockers:**');
+        for (const b of ih.topBlockers) {
+          lines.push(`- ${b}`);
+        }
+        lines.push('');
+      }
+    }
+
     // Crawl summary
     const s = cf.summary;
     if (s.totalTracked > 0) {
+      lines.push('### Crawl Freshness');
+      lines.push('');
       lines.push(`| Metric | Value |`);
       lines.push(`|--------|-------|`);
       lines.push(`| Pages tracked | ${s.totalTracked} |`);
-      lines.push(`| Crawled within 7 days | ${s.crawledWithin7d} |`);
-      lines.push(`| Crawled within 14 days | ${s.crawledWithin14d} |`);
-      lines.push(`| Crawled within 30 days | ${s.crawledWithin30d} |`);
+      lines.push(`| Indexed | ${s.indexed} |`);
+      lines.push(`| Submitted (pending) | ${s.submitted} |`);
+      lines.push(`| Discovered | ${s.discovered} |`);
+      lines.push(`| Errors | ${s.errors} |`);
+      lines.push(`| Deindexed | ${s.deindexed} |`);
+      lines.push(`| Never submitted | ${s.neverSubmitted} |`);
+      lines.push(`| Crawled within 7d | ${s.crawledWithin7d} |`);
+      lines.push(`| Crawled within 14d | ${s.crawledWithin14d} |`);
+      lines.push(`| Crawled within 30d | ${s.crawledWithin30d} |`);
       lines.push(`| Never crawled | ${s.neverCrawled} |`);
       lines.push(`| Avg days since crawl | ${s.averageDaysSinceCrawl ?? 'N/A'} |`);
       lines.push(`| Oldest crawl | ${s.oldestCrawlDate ? new Date(s.oldestCrawlDate).toISOString().slice(0, 10) : 'N/A'} |`);
       lines.push(`| Newest crawl | ${s.newestCrawlDate ? new Date(s.newestCrawlDate).toISOString().slice(0, 10) : 'N/A'} |`);
+      lines.push('');
+
+      // GSC Performance aggregate
+      if (s.totalImpressions7d > 0 || s.totalClicks7d > 0) {
+        lines.push('### GSC Search Performance (7 days)');
+        lines.push('');
+        lines.push(`| Metric | Value |`);
+        lines.push(`|--------|-------|`);
+        lines.push(`| Total clicks | ${s.totalClicks7d} |`);
+        lines.push(`| Total impressions | ${s.totalImpressions7d} |`);
+        lines.push(`| Avg position | ${s.avgPosition7d ?? 'N/A'} |`);
+        lines.push('');
+      }
+
+      // Submission channels
+      if (s.viaIndexnow > 0 || s.viaSitemap > 0 || s.viaGoogleApi > 0) {
+        lines.push('### Submission Channels');
+        lines.push('');
+        lines.push(`| Channel | Pages |`);
+        lines.push(`|---------|-------|`);
+        lines.push(`| IndexNow | ${s.viaIndexnow} |`);
+        lines.push(`| Sitemap | ${s.viaSitemap} |`);
+        lines.push(`| Google API | ${s.viaGoogleApi} |`);
+        lines.push('');
+      }
+
+      // Per-page detail table (top 30 by priority: errors first, then unindexed, then by impression drop)
+      const sortedPages = [...cf.pages].sort((a, b) => {
+        // Priority: errors > unindexed > stale > impression drops > rest
+        const priorityA = a.status === 'error' ? 0 : a.status !== 'indexed' ? 1 : 3;
+        const priorityB = b.status === 'error' ? 0 : b.status !== 'indexed' ? 1 : 3;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        // Within same priority, sort by impression trend (most negative first)
+        const trendA = a.gscPerformance?.impressionsTrend ?? 0;
+        const trendB = b.gscPerformance?.impressionsTrend ?? 0;
+        return trendA - trendB;
+      });
+
+      lines.push('### Per-Page Indexing Status');
+      lines.push('');
+      lines.push(`| URL | Status | Last Crawl | Impr(7d) | Trend | Issues |`);
+      lines.push(`|-----|--------|-----------|----------|-------|--------|`);
+
+      for (const page of sortedPages.slice(0, 30)) {
+        const shortUrl = page.url.replace(/^https?:\/\/[^/]+/, '');
+        const status = page.status || 'unknown';
+        const lastCrawl = page.daysSinceLastCrawl !== null ? `${page.daysSinceLastCrawl}d ago` : 'never';
+        const impr = page.gscPerformance?.impressions7d ?? '-';
+        const trend = page.gscPerformance?.impressionsTrend !== null && page.gscPerformance?.impressionsTrend !== undefined
+          ? `${page.gscPerformance.impressionsTrend > 0 ? '+' : ''}${page.gscPerformance.impressionsTrend}%`
+          : '-';
+        const pageIssues: string[] = [];
+        if (page.inspection?.robotsTxtState === 'DISALLOWED') pageIssues.push('robots blocked');
+        if (page.inspection?.indexingAllowed === 'DISALLOWED') pageIssues.push('noindex');
+        if (page.inspection?.pageFetchState && page.inspection.pageFetchState !== 'SUCCESSFUL') pageIssues.push(`fetch: ${page.inspection.pageFetchState}`);
+        if (page.inspection?.canonicalMismatch) pageIssues.push('canonical mismatch');
+        if (page.lastError) pageIssues.push(`error: ${page.lastError.substring(0, 30)}`);
+        lines.push(`| ${shortUrl} | ${status} | ${lastCrawl} | ${impr} | ${trend} | ${pageIssues.join(', ') || '-'} |`);
+      }
+      if (sortedPages.length > 30) {
+        lines.push(`| ... | ${sortedPages.length - 30} more pages | | | | |`);
+      }
       lines.push('');
 
       // Stale pages list (top 10)
@@ -214,7 +308,8 @@ export function generateExecSummary(result: AuditRunResult): string {
         lines.push(`### Stale Pages (>14 days since last crawl)`);
         lines.push('');
         for (const page of stalePages.slice(0, 10)) {
-          lines.push(`- **${page.daysSinceLastCrawl}d** — ${page.url} (${page.indexingState || 'unknown'})`);
+          const extra = page.gscPerformance ? `, Impr: ${page.gscPerformance.impressions7d}` : '';
+          lines.push(`- **${page.daysSinceLastCrawl}d** — ${page.url} (${page.indexingState || 'unknown'}${extra})`);
         }
         if (stalePages.length > 10) {
           lines.push(`- ... and ${stalePages.length - 10} more`);
@@ -228,10 +323,32 @@ export function generateExecSummary(result: AuditRunResult): string {
         lines.push(`### Never Crawled`);
         lines.push('');
         for (const page of neverCrawled.slice(0, 10)) {
-          lines.push(`- ${page.url} (${page.indexingState || 'no inspection data'})`);
+          const channels = [
+            page.submittedIndexnow ? 'IndexNow' : '',
+            page.submittedSitemap ? 'Sitemap' : '',
+            page.submittedGoogleApi ? 'GSC API' : '',
+          ].filter(Boolean).join(', ') || 'not submitted';
+          lines.push(`- ${page.url} (${page.indexingState || 'no inspection data'}, via: ${channels}, ${page.submissionAttempts} attempts)`);
         }
         if (neverCrawled.length > 10) {
           lines.push(`- ... and ${neverCrawled.length - 10} more`);
+        }
+        lines.push('');
+      }
+
+      // Impression drops (top 10)
+      const droppingPages = cf.pages
+        .filter((p) => p.gscPerformance?.impressionsTrend !== null && p.gscPerformance?.impressionsTrend !== undefined && p.gscPerformance.impressionsTrend < -20)
+        .sort((a, b) => (a.gscPerformance?.impressionsTrend ?? 0) - (b.gscPerformance?.impressionsTrend ?? 0));
+      if (droppingPages.length > 0) {
+        lines.push(`### Impression Drops (>20% week-over-week)`);
+        lines.push('');
+        for (const page of droppingPages.slice(0, 10)) {
+          const perf = page.gscPerformance!;
+          lines.push(`- **${perf.impressionsTrend}%** — ${page.url} (${perf.impressions7d} impr, pos ${perf.position7d})`);
+        }
+        if (droppingPages.length > 10) {
+          lines.push(`- ... and ${droppingPages.length - 10} more`);
         }
         lines.push('');
       }

@@ -655,3 +655,60 @@ export function computeNotIndexedReasons(
 
   return reasons;
 }
+
+// ─── Inspection Details Extraction ────────────────────────────────────
+// Shared parser for inspection_result JSON stored in URLIndexingStatus.
+// Used by: content-indexing API, master audit crawl-freshness validator,
+// cockpit inspection panels, SEO dashboard.
+
+export interface InspectionDetails {
+  verdict: string | null;
+  robotsTxtState: string | null;
+  indexingAllowed: string | null;
+  crawlAllowed: string | null;
+  pageFetchState: string | null;
+  crawledAs: string | null;
+  userCanonical: string | null;
+  googleCanonical: string | null;
+  canonicalMismatch: boolean;
+  mobileUsabilityVerdict: string | null;
+  richResultsVerdict: string | null;
+  referringUrlCount: number;
+  sitemapCount: number;
+}
+
+/**
+ * Parse the inspection_result JSON blob from URLIndexingStatus into structured fields.
+ * Handles both flat fields (from our internal format) and nested rawResult
+ * (from GSC URL Inspection API response stored verbatim).
+ */
+export function extractInspectionDetails(inspectionResult: unknown): InspectionDetails | undefined {
+  if (!inspectionResult || typeof inspectionResult !== 'object') return undefined;
+  const ir = inspectionResult as Record<string, unknown>;
+
+  // Handle nested rawResult (GSC URL Inspection API stores response under indexStatusResult)
+  const raw = (ir.rawResult as Record<string, unknown>) || {};
+  const indexStatus = (raw.indexStatusResult as Record<string, unknown>) || {};
+
+  const referringUrls = ir.referringUrls || indexStatus.referringUrls;
+  const sitemaps = indexStatus.sitemap;
+
+  return {
+    verdict: (ir.verdict as string) || null,
+    robotsTxtState: (ir.robotsTxtState as string) || (indexStatus.robotsTxtState as string) || null,
+    indexingAllowed: (ir.indexingAllowed as string) || (indexStatus.indexingState as string) || null,
+    crawlAllowed: (ir.crawlAllowed as string) || (indexStatus.crawlAllowed as string) || null,
+    pageFetchState: (ir.pageFetchState as string) || (indexStatus.pageFetchState as string) || null,
+    crawledAs: (ir.crawledAs as string) || (indexStatus.crawledAs as string) || null,
+    userCanonical: (ir.userCanonical as string) || (indexStatus.userCanonical as string) || null,
+    googleCanonical: (ir.googleCanonical as string) || (indexStatus.googleCanonical as string) || null,
+    canonicalMismatch: !!(
+      ir.userCanonical && ir.googleCanonical &&
+      ir.userCanonical !== ir.googleCanonical
+    ),
+    mobileUsabilityVerdict: (ir.mobileUsabilityVerdict as string) || null,
+    richResultsVerdict: (ir.richResultsVerdict as string) || null,
+    referringUrlCount: Array.isArray(referringUrls) ? referringUrls.length : 0,
+    sitemapCount: Array.isArray(sitemaps) ? sitemaps.length : 0,
+  };
+}

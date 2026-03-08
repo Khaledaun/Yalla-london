@@ -315,25 +315,94 @@ export interface CrawlFreshnessData {
     error?: string;
   };
   /** Per-URL crawl data from URLIndexingStatus table */
-  pages: Array<{
-    url: string;
-    lastCrawledAt: string | null;
-    lastInspectedAt: string | null;
-    indexingState: string | null;
-    coverageState: string | null;
-    daysSinceLastCrawl: number | null;
-  }>;
+  pages: Array<PageIndexingDetail>;
   /** Summary statistics */
-  summary: {
-    totalTracked: number;
-    crawledWithin7d: number;
-    crawledWithin14d: number;
-    crawledWithin30d: number;
-    neverCrawled: number;
-    oldestCrawlDate: string | null;
-    newestCrawlDate: string | null;
-    averageDaysSinceCrawl: number | null;
+  summary: CrawlFreshnessSummary;
+  /** Indexing health snapshot — mirrors IndexingSummary from indexing-summary.ts */
+  indexingHealth?: IndexingHealthSnapshot;
+}
+
+/** Comprehensive per-page indexing/crawling detail — maximum data extraction */
+export interface PageIndexingDetail {
+  url: string;
+  // Crawl timing
+  lastCrawledAt: string | null;
+  lastInspectedAt: string | null;
+  daysSinceLastCrawl: number | null;
+  // Indexing status
+  status: string | null;           // Our tracking status (indexed, submitted, discovered, etc.)
+  indexingState: string | null;     // GSC: INDEXING_ALLOWED, etc.
+  coverageState: string | null;     // GSC: "Submitted and indexed", "Crawled - currently not indexed", etc.
+  // Submission history
+  submittedIndexnow: boolean;
+  submittedSitemap: boolean;
+  submittedGoogleApi: boolean;
+  submissionAttempts: number;
+  lastSubmittedAt: string | null;
+  lastError: string | null;
+  // GSC Inspection details (from inspection_result JSON)
+  inspection?: {
+    verdict: string | null;             // PASS, NEUTRAL, FAIL
+    robotsTxtState: string | null;      // ALLOWED, DISALLOWED
+    indexingAllowed: string | null;      // INDEXING_ALLOWED, DISALLOWED
+    crawlAllowed: string | null;        // CRAWLING_ALLOWED, DISALLOWED
+    pageFetchState: string | null;      // SUCCESSFUL, SOFT_404, etc.
+    crawledAs: string | null;           // DESKTOP, MOBILE
+    userCanonical: string | null;
+    googleCanonical: string | null;
+    canonicalMismatch: boolean;
+    mobileUsabilityVerdict: string | null;
+    richResultsVerdict: string | null;
+    referringUrlCount: number;
+    sitemapCount: number;
   };
+  // GSC Search Analytics performance (from GscPagePerformance)
+  gscPerformance?: {
+    clicks7d: number;
+    impressions7d: number;
+    ctr7d: number;
+    position7d: number;
+    clicks30d: number;
+    impressions30d: number;
+    impressionsTrend: number | null;  // % change week-over-week
+  };
+}
+
+export interface CrawlFreshnessSummary {
+  totalTracked: number;
+  crawledWithin7d: number;
+  crawledWithin14d: number;
+  crawledWithin30d: number;
+  neverCrawled: number;
+  oldestCrawlDate: string | null;
+  newestCrawlDate: string | null;
+  averageDaysSinceCrawl: number | null;
+  // Indexing breakdown
+  indexed: number;
+  submitted: number;
+  discovered: number;
+  errors: number;
+  deindexed: number;
+  neverSubmitted: number;
+  // GSC aggregate
+  totalClicks7d: number;
+  totalImpressions7d: number;
+  avgPosition7d: number | null;
+  // Submission channel breakdown
+  viaIndexnow: number;
+  viaSitemap: number;
+  viaGoogleApi: number;
+}
+
+/** Site-level indexing health snapshot for master audit report */
+export interface IndexingHealthSnapshot {
+  indexingRate: number;        // % of pages indexed
+  submissionRate: number;      // % of pages submitted or indexed
+  avgTimeToIndexDays: number | null;
+  staleSubmissions: number;    // submitted >14d ago, still not indexed
+  chronicFailures: number;     // 5+ attempts, still not indexed
+  hreflangMismatches: number;
+  topBlockers: string[];
 }
 
 export interface AuditRunResult {

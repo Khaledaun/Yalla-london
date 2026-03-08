@@ -4,6 +4,11 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { logManualAction } from "@/lib/action-logger";
+import {
+  resolvePageStatus,
+  computeNotIndexedReasons,
+  type PageIndexingStatus,
+} from "@/lib/seo/indexing-summary";
 
 /**
  * Content Indexing Tab API
@@ -11,6 +16,9 @@ import { logManualAction } from "@/lib/action-logger";
  * GET  — Returns all published articles with their indexing status,
  *        diagnostic reasons for non-indexing, and system-level indexing issues.
  * POST — Submit specific articles for indexing or trigger fixes.
+ *
+ * Status resolution uses resolvePageStatus() from indexing-summary.ts —
+ * the single source of truth for mapping DB records → UI status.
  */
 
 interface ArticleIndexingInfo {
@@ -21,8 +29,8 @@ interface ArticleIndexingInfo {
   publishedAt: string | null;
   seoScore: number;
   wordCount: number;
-  // Indexing status
-  indexingStatus: "indexed" | "submitted" | "discovered" | "not_indexed" | "error" | "never_submitted";
+  // Indexing status — uses PageIndexingStatus from shared module
+  indexingStatus: PageIndexingStatus;
   // Diagnostic info
   submittedAt: string | null;
   lastCrawledAt: string | null;
@@ -232,74 +240,14 @@ export async function GET(request: NextRequest) {
         ? post.content_en.split(/\s+/).filter(Boolean).length
         : 0;
 
-      // Determine indexing status
-      let indexingStatus: ArticleIndexingInfo["indexingStatus"] = "never_submitted";
-      if (record) {
-        if (record.status === "indexed" || record.indexing_state === "INDEXED") {
-          indexingStatus = "indexed";
-        } else if (record.status === "error") {
-          indexingStatus = "error";
-        } else if (record.status === "submitted") {
-          indexingStatus = "submitted";
-        } else if (record.status === "discovered") {
-          indexingStatus = "discovered";
-        } else {
-          indexingStatus = "not_indexed";
-        }
-      }
+      // Determine indexing status — uses shared resolvePageStatus()
+      const indexingStatus = resolvePageStatus(record);
 
-      // Build reasons for not being indexed
-      const reasons: string[] = [];
+      // Build reasons — uses shared computeNotIndexedReasons() + endpoint-specific deep inspection
+      const reasons: string[] = computeNotIndexedReasons(indexingStatus, record, { hasIndexNowKey, hasGscCredentials });
       const fixAction: string | null = null;
 
-      if (indexingStatus === "never_submitted") {
-        if (!hasIndexNowKey && !hasGscCredentials) {
-          reasons.push("Neither IndexNow key nor Google Search Console credentials are configured — articles cannot be submitted to search engines");
-        } else if (!hasIndexNowKey) {
-          reasons.push("INDEXNOW_KEY not set — cannot submit to Bing/Yandex");
-        }
-        if (!hasGscCredentials) {
-          reasons.push("Google Search Console credentials not configured — cannot submit sitemap or check indexing");
-        }
-        reasons.push("Article has never been submitted to search engines");
-      } else if (indexingStatus === "submitted") {
-        const submittedAt = record?.last_submitted_at;
-        if (submittedAt) {
-          const hoursSinceSubmission = (Date.now() - new Date(submittedAt).getTime()) / (1000 * 60 * 60);
-          if (hoursSinceSubmission < 48) {
-            reasons.push(`Submitted ${Math.round(hoursSinceSubmission)} hours ago — Google typically takes 2-14 days to crawl new URLs`);
-          } else if (hoursSinceSubmission < 336) {
-            reasons.push(`Submitted ${Math.round(hoursSinceSubmission / 24)} days ago — still within normal Google crawl timeframe (up to 14 days)`);
-          } else {
-            reasons.push(`Submitted ${Math.round(hoursSinceSubmission / 24)} days ago — this is longer than expected. Consider resubmitting.`);
-          }
-        }
-        if (!record?.submitted_indexnow) {
-          reasons.push("Not submitted via IndexNow (Bing/Yandex)");
-        }
-        if (!record?.submitted_sitemap) {
-          reasons.push("Sitemap not submitted to Google via GSC — Google relies on sitemap discovery for blog content");
-        }
-      } else if (indexingStatus === "not_indexed") {
-        const coverage = record?.coverage_state || "";
-        if (coverage.includes("Crawled - currently not indexed")) {
-          reasons.push("Google crawled this page but chose not to index it — content may need improvement (more depth, unique value, or better internal linking)");
-        } else if (coverage.includes("Discovered - currently not indexed")) {
-          reasons.push("Google discovered this URL but hasn't crawled it yet — this is normal for new sites");
-        } else if (coverage.includes("Duplicate")) {
-          reasons.push("Google considers this a duplicate of another page — check for similar content on the site");
-        } else if (coverage.includes("Excluded by")) {
-          reasons.push(`Page excluded: ${coverage}`);
-        } else if (coverage.includes("Blocked by robots.txt")) {
-          reasons.push("Blocked by robots.txt — check your robots.txt configuration");
-        } else if (coverage.includes("noindex")) {
-          reasons.push("Page has a noindex tag — remove it to allow indexing");
-        } else if (coverage) {
-          reasons.push(`Google coverage state: ${coverage}`);
-        } else {
-          reasons.push("Submitted but Google has not indexed it — no specific reason available from GSC");
-        }
-
+      if (indexingStatus === "not_indexed") {
         // Inspection-level issues — extract from stored inspection_result JSON
         const inspectionResult = record?.inspection_result as unknown as Record<string, any> | null;
         if (inspectionResult) {
@@ -371,12 +319,6 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      } else if (indexingStatus === "error") {
-        if (record?.last_error) {
-          reasons.push(`Error: ${record.last_error}`);
-        } else {
-          reasons.push("An error occurred during indexing — no details available");
-        }
       }
 
       // SEO quality issues — only surface as "reasons" for non-indexed articles.
@@ -440,13 +382,7 @@ export async function GET(request: NextRequest) {
       for (const yp of yachtPages) {
         const compositeSlug = `${yp.urlPrefix}/${yp.slug}`;
         const record = indexingRecords[compositeSlug] || indexingRecords[yp.slug];
-        let indexingStatus: ArticleIndexingInfo["indexingStatus"] = "never_submitted";
-        if (record) {
-          if (record.status === "indexed" || record.indexing_state === "INDEXED") indexingStatus = "indexed";
-          else if (record.status === "error") indexingStatus = "error";
-          else if (record.status === "submitted") indexingStatus = "submitted";
-          else indexingStatus = "not_indexed";
-        }
+        const indexingStatus = resolvePageStatus(record);
         const inspection = record?.inspection_result as unknown as Record<string, any> | null;
         const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
         const yachtContentType = yp.urlPrefix === "yachts" ? "yacht" as const
@@ -470,7 +406,7 @@ export async function GET(request: NextRequest) {
           submittedGoogleApi: record?.submitted_google_api || false,
           submissionAttempts: record?.submission_attempts || 0,
           contentType: yachtContentType,
-          notIndexedReasons: indexingStatus === "never_submitted" ? ["Page has never been submitted to search engines"] : [],
+          notIndexedReasons: computeNotIndexedReasons(indexingStatus, record, { hasIndexNowKey, hasGscCredentials }),
           fixAction: null,
           gscClicks: null,
           gscImpressions: null,
@@ -504,13 +440,7 @@ export async function GET(request: NextRequest) {
         for (const newsItem of newsItems) {
           const newsSlug = `news/${newsItem.slug}`;
           const record = indexingRecords[newsSlug] || indexingRecords[newsItem.slug];
-          let indexingStatus: ArticleIndexingInfo["indexingStatus"] = "never_submitted";
-          if (record) {
-            if (record.status === "indexed" || record.indexing_state === "INDEXED") indexingStatus = "indexed";
-            else if (record.status === "error") indexingStatus = "error";
-            else if (record.status === "submitted") indexingStatus = "submitted";
-            else indexingStatus = "not_indexed";
-          }
+          const indexingStatus = resolvePageStatus(record);
           const wordCount = newsItem.summary_en ? newsItem.summary_en.split(/\s+/).filter(Boolean).length : 0;
           const inspection = record?.inspection_result as unknown as Record<string, any> | null;
           const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
@@ -532,7 +462,7 @@ export async function GET(request: NextRequest) {
             submittedGoogleApi: record?.submitted_google_api || false,
             submissionAttempts: record?.submission_attempts || 0,
             contentType: "news" as const,
-            notIndexedReasons: indexingStatus === "never_submitted" ? ["News article has never been submitted to search engines"] : [],
+            notIndexedReasons: computeNotIndexedReasons(indexingStatus, record, { hasIndexNowKey, hasGscCredentials }),
             fixAction: null,
             gscClicks: null,
             gscImpressions: null,

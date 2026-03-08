@@ -526,3 +526,132 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
  * The content-indexing API needs this to resolve individual article statuses.
  */
 export { resolveStatus };
+
+// ─── Per-Article Status (for UI) ────────────────────────────────────────
+
+/**
+ * UI-friendly status type used by content-indexing, cockpit, and indexing pages.
+ * Maps from the internal StatusValue to what the frontend displays.
+ */
+export type PageIndexingStatus =
+  | "indexed"
+  | "submitted"
+  | "discovered"
+  | "not_indexed"
+  | "error"
+  | "never_submitted";
+
+/**
+ * Resolve a single page's indexing status for UI display.
+ * This is the ONLY function that should map DB records → UI status.
+ *
+ * Uses resolveStatus() internally, then maps internal-only values
+ * (deindexed, chronic_failure) to UI-visible equivalents.
+ */
+export function resolvePageStatus(
+  record: { status: string; indexing_state: string | null } | null | undefined,
+): PageIndexingStatus {
+  if (!record) return "never_submitted";
+  const internal = resolveStatus(record);
+  switch (internal) {
+    case "indexed": return "indexed";
+    case "submitted": return "submitted";
+    case "discovered": return "discovered";
+    case "error": return "error";
+    case "chronic_failure": return "error"; // Show as error in UI — needs attention
+    case "deindexed": return "not_indexed"; // Was indexed, now removed
+    case "never_submitted": return "never_submitted";
+    default: return "not_indexed";
+  }
+}
+
+/**
+ * Compute human-readable diagnostic reasons for why a page is not indexed.
+ * Used by content-indexing tab and cockpit Content Matrix.
+ */
+export function computeNotIndexedReasons(
+  pageStatus: PageIndexingStatus,
+  record: {
+    last_submitted_at?: Date | string | null;
+    submitted_indexnow?: boolean;
+    submitted_sitemap?: boolean;
+    coverage_state?: string | null;
+    last_error?: string | null;
+    submission_attempts?: number;
+  } | null | undefined,
+  config: {
+    hasIndexNowKey: boolean;
+    hasGscCredentials: boolean;
+  },
+): string[] {
+  const reasons: string[] = [];
+
+  if (pageStatus === "never_submitted") {
+    if (!config.hasIndexNowKey && !config.hasGscCredentials) {
+      reasons.push("Neither IndexNow key nor Google Search Console credentials are configured — articles cannot be submitted to search engines");
+    } else if (!config.hasIndexNowKey) {
+      reasons.push("INDEXNOW_KEY not set — cannot submit to Bing/Yandex");
+    }
+    if (!config.hasGscCredentials) {
+      reasons.push("Google Search Console credentials not configured — cannot submit sitemap or check indexing");
+    }
+    reasons.push("Article has never been submitted to search engines");
+    return reasons;
+  }
+
+  if (pageStatus === "submitted" && record) {
+    const submittedAt = record.last_submitted_at;
+    if (submittedAt) {
+      const ts = typeof submittedAt === "string" ? new Date(submittedAt).getTime() : submittedAt.getTime();
+      const hoursSinceSubmission = (Date.now() - ts) / (1000 * 60 * 60);
+      if (hoursSinceSubmission < 48) {
+        reasons.push(`Submitted ${Math.round(hoursSinceSubmission)} hours ago — Google typically takes 2-14 days to crawl new URLs`);
+      } else if (hoursSinceSubmission < 336) {
+        reasons.push(`Submitted ${Math.round(hoursSinceSubmission / 24)} days ago — still within normal Google crawl timeframe (up to 14 days)`);
+      } else {
+        reasons.push(`Submitted ${Math.round(hoursSinceSubmission / 24)} days ago — this is longer than expected. Consider resubmitting.`);
+      }
+    }
+    if (!record.submitted_indexnow) {
+      reasons.push("Not submitted via IndexNow (Bing/Yandex)");
+    }
+    if (!record.submitted_sitemap) {
+      reasons.push("Sitemap not submitted to Google via GSC — Google relies on sitemap discovery for blog content");
+    }
+    return reasons;
+  }
+
+  if (pageStatus === "not_indexed" && record) {
+    const coverage = record.coverage_state || "";
+    if (coverage.includes("Crawled - currently not indexed")) {
+      reasons.push("Google crawled this page but chose not to index it — content may need improvement (more depth, unique value, or better internal linking)");
+    } else if (coverage.includes("Discovered - currently not indexed")) {
+      reasons.push("Google discovered this URL but hasn't crawled it yet — this is normal for new sites");
+    } else if (coverage.includes("Duplicate")) {
+      reasons.push("Google considers this a duplicate of another page — check for similar content on the site");
+    } else if (coverage.includes("Excluded by")) {
+      reasons.push(`Page excluded: ${coverage}`);
+    } else if (coverage.includes("Blocked by robots.txt")) {
+      reasons.push("Blocked by robots.txt — check your robots.txt configuration");
+    } else if (coverage.includes("noindex")) {
+      reasons.push("Page has a noindex tag — remove it to allow indexing");
+    } else if (coverage) {
+      reasons.push(`Google coverage state: ${coverage}`);
+    } else {
+      reasons.push("Page status unknown — run the SEO agent to inspect this URL via Google Search Console");
+    }
+    return reasons;
+  }
+
+  if (pageStatus === "error" && record) {
+    if (record.last_error) {
+      reasons.push(`Submission error: ${record.last_error}`);
+    }
+    if ((record.submission_attempts || 0) >= 5) {
+      reasons.push(`Failed after ${record.submission_attempts} submission attempts — may need manual investigation`);
+    }
+    return reasons;
+  }
+
+  return reasons;
+}

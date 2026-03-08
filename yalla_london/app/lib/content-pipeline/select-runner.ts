@@ -335,6 +335,17 @@ export async function runContentSelector(
       }
     }
 
+    // Invalidate sitemap cache if new content was published — Google should
+    // discover new URLs on its next crawl, not wait for the 4-hour cron cycle.
+    if (published.length > 0) {
+      try {
+        const { regenerateAllSitemapCaches } = await import("@/lib/sitemap-cache");
+        await regenerateAllSitemapCaches();
+      } catch (err) {
+        console.warn("[content-selector] Sitemap cache refresh failed:", err instanceof Error ? err.message : String(err));
+      }
+    }
+
     const durationMs = Date.now() - cronStart;
 
     await logCronExecution("content-selector", "completed", {

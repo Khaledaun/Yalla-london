@@ -46,6 +46,7 @@
     "seo:crawl": "node scripts/seo-audit-playwright.mjs crawl",
     "seo:screenshot": "node scripts/seo-audit-playwright.mjs screenshot",
     "seo:index": "node scripts/auto-index-all.mjs",
+    "seed:authors": "tsx prisma/seed-authors.ts",
     "audit:master": "tsx scripts/master-audit.ts",
     "audit:ci": "tsx scripts/ci-audit-gate.ts",
     "audit:weekly-policy-monitor": "tsx scripts/weekly-policy-monitor.ts",

@@ -1466,6 +1466,10 @@ FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
 - Describe at least one honest limitation or failed approach — imperfection signals authenticity.
 - NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
 
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.
@@ -1486,6 +1490,10 @@ Always respond with valid JSON.`,
 - صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
 - لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً ثم توسع بالتفاصيل الداعمة.
+- أضف نقطتي بيانات محددتين غير موجودتين في ويكيبيديا (أسعار 2026 الحالية، ساعات العمل المحققة).
+- استخدم تفاصيل حسية أصلية عند وصف المواقع بدلاً من الأوصاف العامة.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {

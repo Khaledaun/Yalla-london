@@ -1,0 +1,456 @@
+/**
+ * Campaign Agent — Article Enhancer
+ *
+ * The core AI engine that enhances PUBLISHED BlogPost content.
+ * Unlike enhance-runner.ts (which works on reservoir ArticleDrafts),
+ * this operates on live BlogPost records.
+ *
+ * Each operation is modular and composable — a campaign can apply
+ * any combination of operations to each article.
+ *
+ * Budget: each article enhancement uses ≤ 35s of AI time.
+ * The caller (campaign-runner) enforces overall budget.
+ */
+
+import type {
+  CampaignOperation,
+  ArticleSnapshot,
+  ItemProcessResult,
+  ItemChanges,
+  CampaignConfig,
+} from './types';
+
+// ─── Snapshot helpers ────────────────────────────────────────────────────────
+
+function wordCount(html: string): number {
+  return html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+}
+
+function countMatches(html: string, pattern: RegExp): number {
+  return (html.match(pattern) || []).length;
+}
+
+const AUTHENTICITY_SIGNALS = [
+  /insider tip/i, /when (?:we|i) (?:last )?visited/i, /the atmosphere/i,
+  /hidden gem/i, /locals (?:love|recommend|know)/i, /our recommendation/i,
+  /don't miss/i, /first.?hand/i, /we noticed/i, /what struck (?:us|me)/i,
+  /pro tip/i, /little.?known/i, /we recommend/i, /we found/i,
+  /the scent of/i, /the sound of/i, /the taste of/i,
+];
+
+export function takeSnapshot(contentEn: string, contentAr: string, post: Record<string, unknown>): ArticleSnapshot {
+  const authCount = AUTHENTICITY_SIGNALS.filter(r => r.test(contentEn)).length;
+  return {
+    wordCountEn: wordCount(contentEn),
+    wordCountAr: wordCount(contentAr),
+    h2Count: countMatches(contentEn, /<h2/gi),
+    h3Count: countMatches(contentEn, /<h3/gi),
+    internalLinkCount: countMatches(contentEn, /class="internal-link"/gi) +
+      countMatches(contentEn, /yalla-london\.com\/blog/gi),
+    affiliateLinkCount: countMatches(contentEn, /booking\.com|halalbooking|getyourguide|viator|agoda|klook|boatbookings/gi),
+    seoScore: (post.seo_score as number) || null,
+    metaTitleEn: (post.meta_title_en as string) || null,
+    metaDescEn: (post.meta_description_en as string) || null,
+    metaDescLen: ((post.meta_description_en as string) || '').length,
+    hasAuthenticitySignals: authCount >= 3,
+    authenticitySignalCount: authCount,
+    featuredImage: (post.featured_image as string) || null,
+  };
+}
+
+// ─── Operation: Determine what needs fixing ──────────────────────────────────
+
+export function diagnoseArticle(snapshot: ArticleSnapshot, config: CampaignConfig): CampaignOperation[] {
+  const needed: CampaignOperation[] = [];
+
+  // Check each requested operation against actual article state
+  for (const op of config.operations) {
+    switch (op) {
+      case 'expand_content':
+        if (snapshot.wordCountEn < (config.minWordCountTarget || 1500)) needed.push(op);
+        break;
+      case 'add_authenticity':
+        if (snapshot.authenticitySignalCount < 3) needed.push(op);
+        break;
+      case 'fix_heading_hierarchy':
+        if (snapshot.h2Count < 4) needed.push(op);
+        break;
+      case 'add_internal_links':
+        if (snapshot.internalLinkCount < 3) needed.push(op);
+        break;
+      case 'add_affiliate_links':
+        if (snapshot.affiliateLinkCount < 2) needed.push(op);
+        break;
+      case 'fix_meta_description':
+        if (snapshot.metaDescLen < 120 || snapshot.metaDescLen > 160) needed.push(op);
+        break;
+      case 'fix_meta_title': {
+        const titleLen = (snapshot.metaTitleEn || '').length;
+        if (titleLen < 30 || titleLen > 60) needed.push(op);
+        break;
+      }
+      case 'expand_arabic':
+        if (snapshot.wordCountAr < snapshot.wordCountEn * 0.5) needed.push(op);
+        break;
+      default:
+        // Always include operations we can't auto-diagnose
+        needed.push(op);
+    }
+  }
+
+  return needed;
+}
+
+// ─── Fetch real published articles for internal link injection ────────────────
+
+async function getRecentSlugs(siteId: string, excludeSlug: string): Promise<Array<{ slug: string; title_en: string }>> {
+  const { prisma } = await import('@/lib/db');
+  return prisma.blogPost.findMany({
+    where: { siteId, published: true, deletedAt: null, slug: { not: excludeSlug } },
+    select: { slug: true, title_en: true },
+    orderBy: { created_at: 'desc' },
+    take: 20,
+  });
+}
+
+// ─── Build AI prompt ─────────────────────────────────────────────────────────
+
+function buildEnhancementPrompt(
+  title: string,
+  keyword: string,
+  currentHtml: string,
+  currentMetaDesc: string,
+  currentMetaTitle: string,
+  operations: CampaignOperation[],
+  relatedArticles: Array<{ slug: string; title_en: string }>,
+  destination: string,
+): string {
+  const wc = wordCount(currentHtml);
+  const ops = operations.map(o => `- ${o}`).join('\n');
+
+  // Build internal link options
+  const linkOptions = relatedArticles.slice(0, 8).map(a =>
+    `  <a href="/blog/${a.slug}" class="internal-link">${a.title_en}</a>`
+  ).join('\n');
+
+  return `You are a senior luxury travel editor enhancing a PUBLISHED article for better search rankings and revenue.
+
+ARTICLE TITLE: "${title}"
+KEYWORD: "${keyword}"
+DESTINATION: ${destination}
+CURRENT WORD COUNT: ${wc} words
+CURRENT META TITLE: "${currentMetaTitle}"
+CURRENT META DESCRIPTION: "${currentMetaDesc}" (${currentMetaDesc.length} chars)
+
+OPERATIONS REQUIRED (only do what's listed):
+${ops}
+
+CURRENT ARTICLE (HTML):
+${currentHtml.substring(0, 12000)}
+
+${operations.includes('add_internal_links') ? `
+AVAILABLE INTERNAL LINKS (use 3-5 of these with natural anchor text):
+${linkOptions}
+` : ''}
+
+RULES:
+1. Return the FULL enhanced article as valid HTML. Keep ALL existing content — only ADD to it.
+2. Do NOT remove or rewrite existing paragraphs. Insert new content between existing sections.
+3. Every new H2 section must address a distinct angle or question travelers have.
+4. EXPERIENCE SIGNALS (if required): Use "insider tip:", "when we visited", "the atmosphere here", "a hidden gem", "locals recommend", "pro tip:", sensory details (scents, sounds, textures), specific prices in £, specific opening hours, neighbourhood names.
+5. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
+6. AFFILIATE LINKS (if required): Use <a href="https://www.booking.com/searchresults.html?ss=${encodeURIComponent(keyword)}" target="_blank" rel="nofollow sponsored" class="affiliate-link">Book on Booking.com</a> or similar for HalalBooking, GetYourGuide, Viator.
+7. INTERNAL LINKS: Use exactly the href format from the AVAILABLE INTERNAL LINKS list with class="internal-link".
+8. Keep the same tone and writing style as the original article.
+9. NO markdown. Return only HTML.
+
+At the end, on separate lines return:
+META_TITLE: [50-60 chars, keyword near front]
+META_DESCRIPTION: [120-155 chars, compelling with keyword]
+
+Return ONLY the enhanced HTML followed by META_TITLE and META_DESCRIPTION lines. No preamble, no explanation.`;
+}
+
+// ─── Main enhancement function ───────────────────────────────────────────────
+
+export async function enhancePublishedArticle(
+  postId: string,
+  operations: CampaignOperation[],
+  config: CampaignConfig,
+  budgetMs: number = 40_000,
+): Promise<ItemProcessResult> {
+  const startTime = Date.now();
+  const { prisma } = await import('@/lib/db');
+
+  // ── Load the article ──────────────────────────────────────────────
+  const post = await prisma.blogPost.findUnique({
+    where: { id: postId },
+    select: {
+      id: true, slug: true, title_en: true, title_ar: true,
+      content_en: true, content_ar: true,
+      meta_title_en: true, meta_title_ar: true,
+      meta_description_en: true, meta_description_ar: true,
+      seo_score: true, featured_image: true, siteId: true,
+      keywords_json: true,
+    },
+  });
+
+  if (!post) {
+    return {
+      success: false, operationsApplied: [], changes: {},
+      costUsd: 0, error: `BlogPost ${postId} not found`,
+      beforeSnapshot: {} as ArticleSnapshot,
+    };
+  }
+
+  const beforeSnapshot = takeSnapshot(post.content_en, post.content_ar, post as unknown as Record<string, unknown>);
+
+  // Skip if already above threshold
+  if (config.skipIfScoreAbove && beforeSnapshot.seoScore && beforeSnapshot.seoScore >= config.skipIfScoreAbove) {
+    const ops = diagnoseArticle(beforeSnapshot, config);
+    if (ops.length === 0) {
+      return {
+        success: true, operationsApplied: [], changes: {},
+        costUsd: 0, beforeSnapshot, afterSnapshot: beforeSnapshot,
+        error: 'Skipped — all metrics already meet thresholds',
+      };
+    }
+  }
+
+  // Diagnose what actually needs fixing
+  const neededOps = diagnoseArticle(beforeSnapshot, config);
+  if (neededOps.length === 0) {
+    return {
+      success: true, operationsApplied: [], changes: {},
+      costUsd: 0, beforeSnapshot, afterSnapshot: beforeSnapshot,
+      error: 'Skipped — no operations needed',
+    };
+  }
+
+  // ── Get site context ──────────────────────────────────────────────
+  let destination = 'luxury travel';
+  let siteName = 'travel editorial';
+  try {
+    const { getSiteConfig } = await import('@/config/sites');
+    const siteConfig = getSiteConfig(post.siteId);
+    if (siteConfig) {
+      destination = siteConfig.destination || destination;
+      siteName = siteConfig.name || siteName;
+    }
+  } catch { /* use defaults */ }
+
+  // ── Get related articles for internal links ────────────────────────
+  const relatedArticles = neededOps.includes('add_internal_links')
+    ? await getRecentSlugs(post.siteId, post.slug)
+    : [];
+
+  // ── Extract keyword ───────────────────────────────────────────────
+  let keyword = post.title_en;
+  try {
+    const kw = post.keywords_json as unknown;
+    if (Array.isArray(kw) && kw.length > 0) keyword = kw[0] as string;
+    else if (typeof kw === 'object' && kw && 'primary' in kw) keyword = (kw as Record<string, string>).primary;
+  } catch { /* use title */ }
+
+  // ── Build prompt and call AI ───────────────────────────────────────
+  const prompt = buildEnhancementPrompt(
+    post.title_en, keyword, post.content_en,
+    post.meta_description_en || '', post.meta_title_en || '',
+    neededOps, relatedArticles, destination,
+  );
+
+  const remainingMs = budgetMs - (Date.now() - startTime);
+  if (remainingMs < 10_000) {
+    return {
+      success: false, operationsApplied: [], changes: {},
+      costUsd: 0, error: 'Insufficient budget for AI call',
+      beforeSnapshot,
+    };
+  }
+
+  try {
+    const { generateCompletion } = await import('@/lib/ai/provider');
+    const aiResult = await generateCompletion(
+      [
+        { role: 'system', content: `You are a senior luxury travel content editor at ${siteName}, specializing in ${destination} travel for Arab and international travelers. You write with authority, first-hand experience, and specific local knowledge. Your enhancements must significantly improve SEO and reader value while preserving the original article's voice.` },
+        { role: 'user', content: prompt },
+      ],
+      {
+        maxTokens: 8000,
+        temperature: 0.5,
+        siteId: post.siteId,
+        taskType: 'campaign-enhance',
+        calledFrom: 'campaign-agent',
+        timeoutMs: Math.min(remainingMs - 3000, 35_000),
+        phaseBudgetHint: 'heavy',
+      },
+    );
+
+    if (!aiResult || !aiResult.content || aiResult.content.length < 500) {
+      return {
+        success: false, operationsApplied: [], changes: {},
+        costUsd: 0, error: 'AI returned insufficient content',
+        beforeSnapshot,
+      };
+    }
+
+    const rawOutput = aiResult.content;
+    const costUsd = estimateCostFromResult(aiResult);
+
+    // ── Parse output ────────────────────────────────────────────────
+    const metaTitleMatch = rawOutput.match(/META_TITLE:\s*(.+?)(?:\n|$)/i);
+    const metaDescMatch = rawOutput.match(/META_DESCRIPTION:\s*(.+?)(?:\n|$)/i);
+
+    const enhancedHtml = rawOutput
+      .replace(/META_TITLE:.*$/im, '')
+      .replace(/META_DESCRIPTION:.*$/im, '')
+      .replace(/^```html?\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+
+    // Validate the enhanced content is actually larger/better
+    const newWc = wordCount(enhancedHtml);
+    if (newWc < beforeSnapshot.wordCountEn * 0.8) {
+      return {
+        success: false, operationsApplied: [], changes: {},
+        costUsd, error: `Enhanced content too short (${newWc}w vs original ${beforeSnapshot.wordCountEn}w) — AI may have truncated`,
+        beforeSnapshot,
+      };
+    }
+
+    // ── Build update data ───────────────────────────────────────────
+    const updateData: Record<string, unknown> = {
+      content_en: enhancedHtml,
+      updated_at: new Date(),
+    };
+
+    // Only update meta if AI provided better versions
+    const newMetaTitle = metaTitleMatch?.[1]?.trim();
+    if (newMetaTitle && newMetaTitle.length >= 30 && newMetaTitle.length <= 65) {
+      updateData.meta_title_en = newMetaTitle;
+    }
+
+    const newMetaDesc = metaDescMatch?.[1]?.trim();
+    if (newMetaDesc && newMetaDesc.length >= 120 && newMetaDesc.length <= 165) {
+      updateData.meta_description_en = newMetaDesc;
+    }
+
+    // Demote any H1s in body to H2 (page template provides H1)
+    if (typeof updateData.content_en === 'string') {
+      updateData.content_en = (updateData.content_en as string)
+        .replace(/<h1([^>]*)>/gi, '<h2$1>')
+        .replace(/<\/h1>/gi, '</h2>');
+    }
+
+    // ── Save to database ────────────────────────────────────────────
+    if (!config.dryRun) {
+      await prisma.blogPost.update({
+        where: { id: postId },
+        data: updateData,
+      });
+    }
+
+    // ── Calculate changes ───────────────────────────────────────────
+    const afterContent = updateData.content_en as string;
+    const afterSnapshot = takeSnapshot(afterContent, post.content_ar, {
+      ...post,
+      ...updateData,
+    } as unknown as Record<string, unknown>);
+
+    const changes: ItemChanges = {
+      wordsAdded: afterSnapshot.wordCountEn - beforeSnapshot.wordCountEn,
+      h2sAdded: afterSnapshot.h2Count - beforeSnapshot.h2Count,
+      h3sAdded: afterSnapshot.h3Count - beforeSnapshot.h3Count,
+      internalLinksAdded: afterSnapshot.internalLinkCount - beforeSnapshot.internalLinkCount,
+      affiliateLinksAdded: afterSnapshot.affiliateLinkCount - beforeSnapshot.affiliateLinkCount,
+      metaDescRewritten: !!newMetaDesc,
+      metaTitleRewritten: !!newMetaTitle,
+      authenticitySignalsAdded: afterSnapshot.authenticitySignalCount - beforeSnapshot.authenticitySignalCount,
+    };
+
+    return {
+      success: true,
+      operationsApplied: neededOps,
+      changes,
+      costUsd,
+      beforeSnapshot,
+      afterSnapshot,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false, operationsApplied: [], changes: {},
+      costUsd: 0, error: message, beforeSnapshot,
+    };
+  }
+}
+
+// ─── Arabic expansion (separate AI call) ─────────────────────────────────────
+
+export async function expandArabicContent(
+  postId: string,
+  budgetMs: number = 30_000,
+): Promise<{ success: boolean; wordsAdded: number; costUsd: number; error?: string }> {
+  const { prisma } = await import('@/lib/db');
+
+  const post = await prisma.blogPost.findUnique({
+    where: { id: postId },
+    select: { id: true, title_en: true, title_ar: true, content_en: true, content_ar: true, siteId: true },
+  });
+
+  if (!post) return { success: false, wordsAdded: 0, costUsd: 0, error: 'Post not found' };
+
+  const enWc = wordCount(post.content_en);
+  const arWc = wordCount(post.content_ar);
+
+  // Arabic should be at least 60% of English word count
+  if (arWc >= enWc * 0.6) {
+    return { success: true, wordsAdded: 0, costUsd: 0, error: 'Arabic content already adequate' };
+  }
+
+  try {
+    const { generateCompletion } = await import('@/lib/ai/provider');
+    const result = await generateCompletion(
+      [
+        { role: 'system', content: 'أنت محرر محتوى سفر فاخر متخصص في الكتابة باللغة العربية الفصحى للمسافرين العرب. تكتب بأسلوب جذاب وطبيعي.' },
+        { role: 'user', content: `Translate and culturally adapt this English travel article to Arabic. The result should be a complete, standalone Arabic article (not a literal translation). Maintain the same structure (H2/H3 headings), but adapt cultural references for Arab readers. Use Modern Standard Arabic. Return only the HTML content.\n\nENGLISH ARTICLE:\n${post.content_en.substring(0, 10000)}` },
+      ],
+      {
+        maxTokens: 5000,
+        temperature: 0.5,
+        siteId: post.siteId,
+        taskType: 'campaign-arabic-expand',
+        calledFrom: 'campaign-agent',
+        timeoutMs: Math.min(budgetMs - 3000, 30_000),
+        phaseBudgetHint: 'heavy',
+      },
+    );
+
+    if (!result || !result.content || result.content.length < 200) {
+      return { success: false, wordsAdded: 0, costUsd: 0, error: 'AI returned insufficient Arabic content' };
+    }
+
+    const newArabic = result.content
+      .replace(/^```html?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const newArWc = wordCount(newArabic);
+
+    if (newArWc > arWc) {
+      await prisma.blogPost.update({
+        where: { id: postId },
+        data: { content_ar: newArabic, updated_at: new Date() },
+      });
+      return { success: true, wordsAdded: newArWc - arWc, costUsd: estimateCostFromResult(result) };
+    }
+
+    return { success: false, wordsAdded: 0, costUsd: 0, error: 'New Arabic shorter than existing' };
+  } catch (err) {
+    return { success: false, wordsAdded: 0, costUsd: 0, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function estimateCostFromResult(result: { usage: { promptTokens: number; completionTokens: number } }): number {
+  // Default to grok-4-1-fast pricing: $0.20/$0.50 per 1M tokens
+  return (result.usage.promptTokens / 1_000_000) * 0.20 + (result.usage.completionTokens / 1_000_000) * 0.50;
+}

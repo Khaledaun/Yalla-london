@@ -2800,6 +2800,92 @@ model ArticleDraft {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// Campaign Agent Models
+// ══════════════════════════════════════════════════════════════════
+
+/// Campaign — A batch operation that processes multiple articles/pages
+/// through a defined set of operations (enhance, inject affiliates, add media, etc.)
+model Campaign {
+  id              String   @id @default(cuid())
+  siteId          String
+  name            String                         // Human-readable name: "March 2026 Content Enhancement"
+  type            String                         // enhance_content, inject_affiliates, fix_arabic, fix_headings, seo_optimize, inject_media, custom
+  status          String   @default("draft")     // draft, queued, running, paused, completed, failed, cancelled
+  config          Json     @db.JsonB             // { operations: string[], filters: {}, aiModel: string, dryRun: boolean }
+  priority        Int      @default(5)           // 1 (highest) to 10 (lowest)
+
+  // Progress tracking
+  totalItems      Int      @default(0)
+  completedItems  Int      @default(0)
+  failedItems     Int      @default(0)
+  skippedItems    Int      @default(0)
+
+  // Execution
+  runCount        Int      @default(0)           // How many cron invocations processed items
+  lastRunAt       DateTime?
+  lastError       String?  @db.Text
+  startedAt       DateTime?
+  completedAt     DateTime?
+  pausedAt        DateTime?
+
+  // Budget control
+  maxItemsPerRun  Int      @default(3)           // Items to process per cron invocation
+  maxAiCostUsd    Float?                         // Optional cost ceiling
+  currentCostUsd  Float    @default(0)
+
+  // Creator
+  createdBy       String?                        // User ID or "system"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  items           CampaignItem[]
+
+  @@index([siteId, status])
+  @@index([status, priority])
+  @@index([createdAt])
+  @@map("campaigns")
+}
+
+/// CampaignItem — Individual article/page within a campaign
+model CampaignItem {
+  id              String   @id @default(cuid())
+  campaignId      String
+  blogPostId      String?                        // FK to BlogPost (for published articles)
+  articleDraftId  String?                        // FK to ArticleDraft (for pipeline drafts)
+  targetUrl       String?                        // The page URL being operated on
+  targetTitle     String?                        // Article title for display
+
+  // Processing
+  status          String   @default("pending")   // pending, processing, completed, failed, skipped
+  attempts        Int      @default(0)
+  maxAttempts     Int      @default(3)
+
+  // Before/after snapshots for rollback
+  beforeSnapshot  Json?    @db.JsonB             // { wordCount, h2Count, seoScore, metaDesc, affiliateCount, ... }
+  afterSnapshot   Json?    @db.JsonB             // Same shape — what changed
+
+  // Operation results
+  operationsApplied Json?  @db.JsonB             // ["expanded_content", "added_affiliates", "fixed_headings", ...]
+  changes         Json?    @db.JsonB             // { wordsAdded: 450, h2sAdded: 3, affiliatesAdded: 2, ... }
+  error           String?  @db.Text
+  aiCostUsd       Float    @default(0)
+
+  // Timestamps
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, status])
+  @@index([blogPostId])
+  @@index([status])
+  @@map("campaign_items")
+}
+
+// ══════════════════════════════════════════════════════════════════
 // Design System Models
 // ══════════════════════════════════════════════════════════════════
 

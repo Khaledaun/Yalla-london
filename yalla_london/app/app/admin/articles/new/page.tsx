@@ -292,7 +292,7 @@ export default function NewArticlePage() {
                     <Link className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm">
-                    <Image className="h-4 w-4" alt="" />
+                    <Image className="h-4 w-4" />
                   </Button>
                 </div>
 

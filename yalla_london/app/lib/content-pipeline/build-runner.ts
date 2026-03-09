@@ -306,20 +306,8 @@ export async function runContentBuilder(
       }
     }
 
+    // Note: route.ts already logs to CronJobLog — don't double-log here
     const durationMs = Date.now() - cronStart;
-
-    await logCronExecution("content-builder", "completed", {
-      durationMs,
-      resultSummary: {
-        draftId: draftRecord.id,
-        keyword: draftRecord.keyword,
-        phase: currentPhase,
-        nextPhase: result.nextPhase,
-        success: result.success,
-        error: result.error,
-      },
-    });
-
     return {
       success: true,
       draftId: draftRecord.id as string,

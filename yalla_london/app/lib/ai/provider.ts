@@ -667,12 +667,12 @@ export async function generateCompletion(
   const firstSharePct = isSingleProvider ? 0.95 // Single provider: give it almost everything
     : hint === 'light' ? 0.50
     : hint === 'medium' ? 0.55
-    : hint === 'heavy' ? 0.55
+    : hint === 'heavy' ? 0.65 // Heavy tasks (campaign-enhance) need more time for first provider
     : 0.65; // default (backwards compatible)
   const maxPerProviderMs = isSingleProvider ? 50_000 // Single provider: no cap
     : hint === 'light' ? 15_000
-    : hint === 'medium' ? 20_000
-    : 40_000;
+    : hint === 'medium' ? 25_000
+    : 50_000; // Heavy tasks: allow up to 50s per provider
 
   if (isSingleProvider) {
     console.log(`[ai/provider] Single-provider mode: ${availableProviders[0].provider} gets 95% budget (${Math.round(totalBudgetMs / 1000)}s total)`);

@@ -434,7 +434,9 @@ export async function runPrePublicationGate(
     const authenticityResult = checkAuthenticitySignals(contentBody);
     checks.push(authenticityResult.check);
     if (!authenticityResult.check.passed) {
-      warnings.push(authenticityResult.check.message);
+      // Authenticity is now a BLOCKER per Google Jan 2026 Authenticity Update.
+      // Content with 0 experience signals gets actively demoted and refused indexing.
+      blockers.push(authenticityResult.check.message);
     }
   }
 

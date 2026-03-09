@@ -87,9 +87,10 @@ const getAuthorForSite = cache(async function getAuthorForSite(siteId: string): 
 async function getDbPost(slug: string, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
-    // 3s timeout — fail fast to static fallback. On cold start the Prisma
-    // connection alone can take 2-3s; if the query hasn't returned by 3s
-    // the static fallback is faster than waiting.
+    // 8s timeout — must be generous enough to survive cold starts (Prisma
+    // connection alone takes 2-3s). A timeout here returns null → notFound() → 404,
+    // and ISR caches that 404 for 1 hour. If Googlebot hits during a cold start
+    // with a 3s timeout, it gets 404 and may deprioritize the page for weeks.
     // Use select instead of include to skip heavy JSON columns (~40% less data)
     return await withTimeout(
       prisma.blogPost.findFirst({
@@ -119,7 +120,7 @@ async function getDbPost(slug: string, siteId: string) {
           category: { select: { id: true, name_en: true, name_ar: true, slug: true } },
         },
       }),
-      3000,
+      8000,
     );
   } catch (e) {
     console.warn("[blog] getDbPost failed for slug:", slug, e instanceof Error ? e.message : String(e));

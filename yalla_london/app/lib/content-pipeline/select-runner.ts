@@ -612,6 +612,27 @@ export async function promoteToBlogPost(
     }
   }
 
+  // Clean slug: remove date stamps and deduplicate year tokens to avoid
+  // Google's "auto-generated content" signals
+  slug = slug
+    .replace(/-\d{4}-\d{2}-\d{2}$/g, "")  // Strip trailing date stamps (e.g., -2026-02-17)
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "");
+  // Deduplicate year tokens (e.g., "ramadan-2026-timetable-2026" → "ramadan-2026-timetable")
+  const yearInSlug = slug.match(/\b(20[2-3]\d)\b/);
+  if (yearInSlug) {
+    let firstYearSeen = false;
+    slug = slug.replace(new RegExp(`-?${yearInSlug[1]}`, "g"), (m) => {
+      if (!firstYearSeen) { firstYearSeen = true; return m; }
+      return "";
+    }).replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
+  }
+  // Cap slug length at 60 chars (shorter = better for SEO)
+  if (slug.length > 60) {
+    const lastH = slug.lastIndexOf("-", 60);
+    slug = lastH > 30 ? slug.slice(0, lastH) : slug.slice(0, 60);
+  }
+
   // Check for slug collision GLOBALLY — BlogPost.slug is @unique across all sites.
   // If a collision is found, append a suffix with crypto randomness to avoid
   // TOCTOU race conditions where two concurrent promotions pick the same suffix.

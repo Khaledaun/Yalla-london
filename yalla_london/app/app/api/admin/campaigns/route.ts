@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'create':
         return handleCreate(body);
+      case 'kickstart':
+        return handleKickstart(body, request);
       case 'run':
         return handleRun(body.campaignId);
       case 'run_single':
@@ -213,6 +215,115 @@ async function handleCancel(campaignId: string) {
   const { cancelCampaign } = await import('@/lib/campaigns/campaign-runner');
   await cancelCampaign(campaignId);
   return NextResponse.json({ success: true, message: 'Campaign cancelled' });
+}
+
+/**
+ * Kickstart — one-tap campaign creation + immediate first batch processing.
+ * Creates the campaign, queues it, and runs the first batch of items right now.
+ * Designed for ADHD owner: one tap → articles start getting enhanced.
+ */
+async function handleKickstart(body: Record<string, unknown>, request: NextRequest) {
+  const { createCampaign, runCampaignBatch } = await import('@/lib/campaigns/campaign-runner');
+  const { getDefaultSiteId } = await import('@/config/sites');
+  const { logManualAction } = await import('@/lib/action-logger');
+
+  const siteId = (body.siteId as string) || getDefaultSiteId();
+  const preset = (body.preset as string) || 'enhance_all';
+
+  // Built-in presets (same as cockpit UI)
+  const PRESETS: Record<string, { name: string; type: string; operations: string[] }> = {
+    enhance_all: {
+      name: 'Full Content Enhancement',
+      type: 'enhance_content',
+      operations: [
+        'expand_content', 'add_authenticity', 'fix_heading_hierarchy',
+        'add_internal_links', 'add_affiliate_links', 'fix_meta_description',
+      ],
+    },
+    fix_seo: {
+      name: 'SEO Quick Fix',
+      type: 'seo_optimize',
+      operations: ['fix_meta_description', 'fix_meta_title', 'add_internal_links'],
+    },
+    add_revenue: {
+      name: 'Revenue Injection',
+      type: 'inject_affiliates',
+      operations: ['add_affiliate_links'],
+    },
+    fix_arabic: {
+      name: 'Arabic Content Expansion',
+      type: 'fix_arabic',
+      operations: ['expand_arabic'],
+    },
+    authenticity: {
+      name: 'Authenticity Boost',
+      type: 'enhance_content',
+      operations: ['add_authenticity', 'expand_content'],
+    },
+  };
+
+  const selectedPreset = PRESETS[preset];
+  if (!selectedPreset) {
+    return NextResponse.json({
+      error: `Unknown preset: ${preset}. Available: ${Object.keys(PRESETS).join(', ')}`,
+    }, { status: 400 });
+  }
+
+  const config = {
+    operations: selectedPreset.operations,
+    ...(body.config as Record<string, unknown> || {}),
+  } as unknown as import('@/lib/campaigns/types').CampaignConfig;
+
+  // Step 1: Create campaign
+  const campaign = await createCampaign(
+    siteId,
+    body.name as string || selectedPreset.name,
+    selectedPreset.type,
+    config,
+    'kickstart',
+  );
+
+  if (campaign.totalItems === 0) {
+    return NextResponse.json({
+      success: true,
+      campaignId: campaign.id,
+      totalItems: 0,
+      message: 'No articles need enhancement — all already meet thresholds',
+    });
+  }
+
+  // Step 2: Set to running
+  const { prisma } = await import('@/lib/db');
+  await prisma.campaign.update({
+    where: { id: campaign.id },
+    data: { status: 'running', startedAt: new Date() },
+  });
+
+  // Step 3: Run first batch immediately (budget: 250s to leave room for response)
+  const result = await runCampaignBatch(campaign.id, 250_000);
+
+  logManualAction(request, {
+    action: 'kickstart-campaign',
+    resource: 'campaign',
+    resourceId: campaign.id,
+    success: true,
+    summary: `Kickstarted "${selectedPreset.name}" — ${campaign.totalItems} articles queued, ${result.itemsSucceeded} enhanced in first batch`,
+  }).catch(err => console.warn('[campaigns] action-log failed:', err.message));
+
+  return NextResponse.json({
+    success: true,
+    campaignId: campaign.id,
+    totalItems: campaign.totalItems,
+    firstBatch: {
+      processed: result.itemsProcessed,
+      succeeded: result.itemsSucceeded,
+      failed: result.itemsFailed,
+      costUsd: Math.round(result.totalCostUsd * 1000) / 1000,
+      duration_ms: result.duration_ms,
+    },
+    message: `Campaign "${selectedPreset.name}" started with ${campaign.totalItems} articles. ${result.itemsSucceeded} enhanced in first batch. Cron will process ${3} more every 30 minutes.`,
+    nextRun: 'Campaign executor runs at :20 and :50 past every hour',
+  });
 }
 
 async function handlePreview(body: Record<string, unknown>) {

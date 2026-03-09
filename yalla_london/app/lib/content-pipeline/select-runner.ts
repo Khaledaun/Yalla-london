@@ -533,10 +533,37 @@ export async function promoteToBlogPost(
       console.warn("[content-selector] Internal link validation failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
     }
   }
-  const enTitle = (enDraft?.topic_title as string) || keyword;
-  const arTitle = (arDraft?.topic_title as string) || "";
+  // ── Title auto-repair ───────────────────────────────────────────────
+  // If topic_title is missing or too short (< 10 chars, which blocks the gate),
+  // try to recover a title from: (1) seo_meta.metaTitle, (2) keyword, (3) first H1/H2 in content.
+  // This prevents articles with good content from being blocked by a missing title.
+  let enTitle = (enDraft?.topic_title as string) || "";
   const enSeoMeta = ((enDraft?.seo_meta || {}) as Record<string, unknown>);
   const arSeoMeta = ((arDraft?.seo_meta || {}) as Record<string, unknown>);
+
+  if (enTitle.length < 10) {
+    // Try seo_meta.metaTitle first (usually the best formatted)
+    const metaTitle = (enSeoMeta.metaTitle as string) || "";
+    if (metaTitle.length >= 10) {
+      enTitle = metaTitle;
+      console.log(`[content-selector] Auto-repaired short title for draft ${draft.id}: using metaTitle "${enTitle}"`);
+    } else if (keyword && keyword.length >= 10) {
+      enTitle = keyword;
+      console.log(`[content-selector] Auto-repaired short title for draft ${draft.id}: using keyword "${enTitle}"`);
+    } else if (enHtml) {
+      // Extract first heading from content
+      const headingMatch = enHtml.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
+      if (headingMatch && headingMatch[1].length >= 10) {
+        enTitle = headingMatch[1].trim();
+        console.log(`[content-selector] Auto-repaired short title for draft ${draft.id}: extracted from heading "${enTitle}"`);
+      } else {
+        // Last resort: use keyword even if short
+        enTitle = keyword || "Untitled Article";
+        console.warn(`[content-selector] Draft ${draft.id} has no usable title — using fallback: "${enTitle}"`);
+      }
+    }
+  }
+  const arTitle = (arDraft?.topic_title as string) || "";
   const outline = (draft.outline_data || {}) as Record<string, unknown>;
 
   if (!enHtml && !arHtml) {
@@ -670,16 +697,34 @@ export async function promoteToBlogPost(
     console.warn("[content-selector] Cannibalization check failed (non-fatal):", cannibErr instanceof Error ? cannibErr.message : cannibErr);
   }
 
-  // ── Slug artifact rejection ──────────────────────────────────────────────
-  // Reject slugs that contain hash/hex artifacts (e.g. "-a1b2c3d4") or
+  // ── Slug artifact cleanup ──────────────────────────────────────────────
+  // Detect hash/hex artifacts (e.g. "-a1b2c3d4", "-0e0828e5") or
   // malformed suffixes like "-155-chars". These are symptoms of upstream bugs
-  // (collision appenders, truncated meta descriptions) that produce ugly URLs
-  // which hurt CTR and look unprofessional in SERPs.
-  const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{4,}$|-\d+-chars$/;
-  if (SLUG_ARTIFACT_PATTERN.test(slug)) {
-    console.warn(`[content-selector] Rejecting artifact slug: ${slug}`);
-    await prisma.articleDraft.update({ where: { id: draft.id as string }, data: { last_error: `Slug artifact detected: ${slug}` } });
-    return null;
+  // (collision appenders, truncated meta descriptions) that produce ugly URLs.
+  // Instead of rejecting the article, STRIP the artifact and try a clean slug.
+  // Years (2020-2039) are excluded — "-2024" is a legitimate date, not a hash.
+  const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{5,}$|-\d+-chars$/; // 5+ hex chars (was 4, which caught years like 2024)
+  const YEAR_SUFFIX_PATTERN = /-20[2-3]\d$/; // legitimate year suffixes
+  if (SLUG_ARTIFACT_PATTERN.test(slug) && !YEAR_SUFFIX_PATTERN.test(slug)) {
+    const cleanedSlug = slug.replace(SLUG_ARTIFACT_PATTERN, "");
+    if (cleanedSlug && cleanedSlug.length > 5) {
+      console.log(`[content-selector] Cleaned artifact from slug: "${slug}" → "${cleanedSlug}"`);
+      slug = cleanedSlug;
+      // Re-check for collision after cleaning
+      const cleanCollision = await prisma.blogPost.findFirst({
+        where: { slug: cleanedSlug, deletedAt: null },
+        select: { id: true },
+      });
+      if (cleanCollision) {
+        const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
+        slug = `${cleanedSlug}-${randomBytes}`;
+        console.log(`[content-selector] Cleaned slug collided — using "${slug}"`);
+      }
+    } else {
+      console.warn(`[content-selector] Slug artifact detected but cleaning produced invalid slug: "${slug}" → "${cleanedSlug}". Skipping.`);
+      await prisma.articleDraft.update({ where: { id: draft.id as string }, data: { last_error: `Slug artifact detected: ${slug}` } });
+      return null;
+    }
   }
 
   // Get or create category and system user
@@ -736,8 +781,34 @@ export async function promoteToBlogPost(
   // Extract meta fields — sanitize to strip AI artifacts like "(under 60 chars)"
   const enMetaTitle = sanitizeTitle(cleanTitle((enSeoMeta.metaTitle as string) || enTitle));
   const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
-  const enMetaDesc = sanitizeMetaDescription((enSeoMeta.metaDescription as string) || "");
+  let enMetaDesc = sanitizeMetaDescription((enSeoMeta.metaDescription as string) || "");
   const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
+
+  // ── Auto-generate meta description from content when missing ───────────
+  // A missing meta description means Google picks its own snippet (often bad).
+  // Extract the first meaningful paragraph from content as a fallback.
+  if ((!enMetaDesc || enMetaDesc.length < 50) && enHtml) {
+    // Strip tags, get text, take first ~155 chars at word boundary
+    const plainText = enHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    // Skip very short opening lines (e.g. image captions) — find first sentence > 40 chars
+    const sentences = plainText.split(/[.!?]\s+/);
+    let excerpt = "";
+    for (const s of sentences) {
+      excerpt += (excerpt ? ". " : "") + s.trim();
+      if (excerpt.length >= 120) break;
+    }
+    if (excerpt.length > 160) {
+      const lastSpace = excerpt.substring(0, 155).lastIndexOf(" ");
+      excerpt = excerpt.substring(0, lastSpace > 80 ? lastSpace : 155);
+    }
+    if (excerpt.length >= 50) {
+      enMetaDesc = sanitizeMetaDescription(excerpt);
+      console.log(`[content-selector] Auto-generated meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
+    }
+  }
   const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
   const schemaType = (outline.schemaType as string) || "";
   const pageType = schemaType === "FAQPage" ? "faq"

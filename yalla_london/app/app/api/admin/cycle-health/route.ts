@@ -139,7 +139,42 @@ export async function POST(request: NextRequest) {
     return executeFixAll(request, siteId);
   }
 
-  return NextResponse.json({ error: "Unknown action. Use 'fix' or 'fix_all'" }, { status: 400 });
+  if (action === "diagnose") {
+    // Run diagnostic-agent + fix orphaned "promoting" drafts
+    const { prisma } = await import("@/lib/db");
+    const results: Record<string, unknown> = {};
+
+    // Fix orphaned "promoting" drafts (stuck from crashed content-selector)
+    try {
+      const fixed = await prisma.articleDraft.updateMany({
+        where: {
+          current_phase: "promoting",
+          updated_at: { lte: new Date(Date.now() - 10 * 60 * 1000) },
+        },
+        data: { current_phase: "reservoir", updated_at: new Date() },
+      });
+      results.promotingFixed = fixed.count;
+    } catch { results.promotingFixed = 0; }
+
+    // Run diagnostic agent
+    try {
+      const { diagnoseStuckDrafts, applyDiagnosticFix } = await import("@/lib/ops/diagnostic-agent");
+      const diagnoses = await diagnoseStuckDrafts();
+      let fixed = 0;
+      for (const d of diagnoses.slice(0, 10)) {
+        const result = await applyDiagnosticFix(d);
+        if (result?.success) fixed++;
+      }
+      results.diagnosed = diagnoses.length;
+      results.fixed = fixed;
+    } catch (err) {
+      results.diagnoseError = err instanceof Error ? err.message : String(err);
+    }
+
+    return NextResponse.json({ success: true, action: "diagnose", results });
+  }
+
+  return NextResponse.json({ error: "Unknown action. Use 'fix', 'fix_all', or 'diagnose'" }, { status: 400 });
 }
 
 // ─── Report Generator ──────────────────────────────────────────────────────
@@ -597,6 +632,95 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       evidence: { applied: fixesApplied, succeeded: fixesSucceeded, failed: failedFixes },
     });
   }
+
+  // ── 11. FRAGILITY DETECTION: Attempt oscillation (diagnostic-agent reducing vs failure-hooks incrementing) ──
+  try {
+    const oscillatingDrafts = await prisma.articleDraft.count({
+      where: {
+        current_phase: { notIn: ["reservoir", "published", "rejected"] },
+        phase_attempts: { gte: 3, lt: 5 },
+        updated_at: { lte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+        last_error: { contains: "diagnostic-agent-reset" },
+      },
+    });
+    if (oscillatingDrafts > 0) {
+      issues.push({
+        id: "attempt-oscillation",
+        category: "pipeline",
+        severity: oscillatingDrafts > 3 ? "critical" : "warning",
+        what: `${oscillatingDrafts} draft${oscillatingDrafts > 1 ? "s" : ""} may be oscillating between recovery systems`,
+        why: "Drafts with 3-4 attempts and diagnostic-agent-reset errors that haven't progressed in 4+ hours are likely stuck in a reduce/increment cycle.",
+        fix: "Run Diagnose to force-reject these drafts. They'll never recover automatically.",
+        fixAction: { endpoint: "/api/admin/cycle-health", method: "POST", payload: { action: "diagnose" }, label: "Force Reject", description: "Permanently reject oscillating drafts" },
+        evidence: { oscillatingDrafts },
+      });
+    }
+  } catch { /* ArticleDraft table may not exist */ }
+
+  // ── 12. FRAGILITY DETECTION: Orphaned "promoting" drafts (atomic claim leaked) ──
+  try {
+    const promotingDrafts = await prisma.articleDraft.count({
+      where: {
+        current_phase: "promoting",
+        updated_at: { lte: new Date(Date.now() - 30 * 60 * 1000) },
+      },
+    });
+    if (promotingDrafts > 0) {
+      issues.push({
+        id: "orphaned-promoting-drafts",
+        category: "pipeline",
+        severity: "warning",
+        what: `${promotingDrafts} draft${promotingDrafts > 1 ? "s" : ""} stuck in "promoting" phase for 30+ minutes`,
+        why: "Drafts are atomically claimed as 'promoting' during content-selector. If the process crashed mid-promotion, they're orphaned.",
+        fix: "Reset these drafts back to 'reservoir' so they can be promoted on the next run.",
+        fixAction: { endpoint: "/api/admin/cycle-health", method: "POST", payload: { action: "diagnose" }, label: "Reset to Reservoir", description: "Revert orphaned promoting drafts back to reservoir" },
+        evidence: { promotingDrafts },
+      });
+    }
+  } catch { /* ArticleDraft table may not exist */ }
+
+  // ── 13. FRAGILITY DETECTION: Duplicate Related sections on BlogPosts ──
+  try {
+    const postsWithDuplicateRelated = await prisma.blogPost.count({
+      where: {
+        published: true,
+        content_en: { contains: "related-articles" },
+        AND: { content_en: { contains: "related-link" } },
+      },
+    });
+    if (postsWithDuplicateRelated > 0) {
+      issues.push({
+        id: "duplicate-related-sections",
+        category: "content",
+        severity: "info",
+        what: `${postsWithDuplicateRelated} article${postsWithDuplicateRelated > 1 ? "s have" : " has"} both "Related Articles" AND "Related:" sections`,
+        why: "Multiple link injectors (seo-agent + content-auto-fix) may have added separate related sections to the same article.",
+        fix: "Review articles and consolidate duplicate related sections into one.",
+        fixAction: null,
+        evidence: { postsWithDuplicateRelated },
+      });
+    }
+  } catch { /* BlogPost table may not exist */ }
+
+  // ── 14. FRAGILITY DETECTION: Campaign items targeting unpublished articles ──
+  try {
+    const wastedCampaignItems = await (prisma.$queryRawUnsafe(
+      `SELECT COUNT(*) as count FROM "CampaignItem" ci JOIN "BlogPost" bp ON ci."targetId" = bp.id WHERE ci.status IN ('pending', 'processing') AND bp.published = false`
+    ) as Promise<Array<{ count: bigint }>>).catch(() => [{ count: BigInt(0) }]);
+    const wastedCount = Number(wastedCampaignItems[0]?.count || 0);
+    if (wastedCount > 0) {
+      issues.push({
+        id: "campaign-targets-unpublished",
+        category: "content",
+        severity: "warning",
+        what: `${wastedCount} active campaign task${wastedCount > 1 ? "s" : ""} targeting unpublished articles`,
+        why: "Campaign enhancer would waste AI budget processing articles that are no longer live.",
+        fix: "Cancel these campaign tasks or re-publish the target articles.",
+        fixAction: null,
+        evidence: { wastedCampaignItems: wastedCount },
+      });
+    }
+  } catch { /* CampaignItem/BlogPost table may not exist */ }
 
   // ── Calculate grade ──
   let score = 100;

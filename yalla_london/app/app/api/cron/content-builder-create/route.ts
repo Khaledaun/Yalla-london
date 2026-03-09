@@ -149,36 +149,41 @@ async function handleCreate(request: NextRequest) {
         strategy = "template_cycle";
       }
 
-      // Create bilingual draft pair
-      const enDraft = await prisma.articleDraft.create({
-        data: {
-          site_id: siteId,
-          keyword,
-          locale: "en",
-          current_phase: "research",
-          topic_proposal_id: topicProposalId,
-          generation_strategy: strategy,
-          phase_started_at: new Date(),
-          research_data: prePopulatedResearch,
-        },
-      });
+      // Create bilingual draft pair in a transaction to prevent orphans.
+      // If AR creation fails, EN draft is rolled back too — no orphaned single-language drafts.
+      const { enDraft, arDraft } = await prisma.$transaction(async (tx: typeof prisma) => {
+        const en = await tx.articleDraft.create({
+          data: {
+            site_id: siteId,
+            keyword,
+            locale: "en",
+            current_phase: "research",
+            topic_proposal_id: topicProposalId,
+            generation_strategy: strategy,
+            phase_started_at: new Date(),
+            research_data: prePopulatedResearch,
+          },
+        });
 
-      const arDraft = await prisma.articleDraft.create({
-        data: {
-          site_id: siteId,
-          keyword,
-          locale: "ar",
-          current_phase: "research",
-          topic_proposal_id: topicProposalId,
-          generation_strategy: strategy + "_ar",
-          phase_started_at: new Date(),
-          paired_draft_id: enDraft.id,
-        },
-      });
+        const ar = await tx.articleDraft.create({
+          data: {
+            site_id: siteId,
+            keyword,
+            locale: "ar",
+            current_phase: "research",
+            topic_proposal_id: topicProposalId,
+            generation_strategy: strategy + "_ar",
+            phase_started_at: new Date(),
+            paired_draft_id: en.id,
+          },
+        });
 
-      await prisma.articleDraft.update({
-        where: { id: enDraft.id },
-        data: { paired_draft_id: arDraft.id },
+        await tx.articleDraft.update({
+          where: { id: en.id },
+          data: { paired_draft_id: ar.id },
+        });
+
+        return { enDraft: en, arDraft: ar };
       });
 
       if (topicProposalId) {

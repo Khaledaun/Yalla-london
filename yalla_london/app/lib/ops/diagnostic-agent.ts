@@ -365,12 +365,12 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
       case "timeout":
       case "budget_exhaustion": {
         // ASSEMBLY SPECIAL CASE: Do NOT reset attempts to 0.
-        // The assembly phase has a raw fallback at attempts >= 1 that concatenates sections
-        // directly without AI. Resetting to 0 would cause it to try the AI call again,
-        // which will just timeout again — creating an infinite loop.
-        // Instead, ensure attempts >= 1 so the raw fallback fires on next builder run.
+        // The assembly phase has a raw fallback at attempts >= 2 (phases.ts:588)
+        // that concatenates sections directly without AI. Resetting to 0 would cause
+        // it to try the AI call again, which will just timeout — creating an infinite loop.
+        // Ensure attempts >= 2 so the raw fallback fires on the very next builder run.
         if (draft.current_phase === "assembly") {
-          const newAttempts = Math.max(draft.phase_attempts || 0, 1);
+          const newAttempts = Math.max(draft.phase_attempts || 0, 2);
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {
@@ -445,7 +445,9 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             where: { id: draft.id },
             data: {
               current_phase: "images",
-              phase_attempts: 0,
+              // Don't reset to 0 — preserve lifetime history. New phase gets a fresh start
+              // but the total attempt count is remembered for the permanent cap.
+              phase_attempts: Math.max((draft.phase_attempts || 0) - 2, 0),
               phase_started_at: null,
               assembled_html: rawHtml,
               word_count: wordCount,
@@ -462,8 +464,9 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // For other stuck phases, mark as needs_manual_review if 8+ attempts
-        if ((diagnosis.attempts || 0) >= 8) {
+        // For other stuck phases, mark as needs_manual_review if 5+ attempts
+        // Unified cap: all recovery paths use 5 as the permanent failure threshold.
+        if ((diagnosis.attempts || 0) >= 5) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {
@@ -503,60 +506,64 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
       }
 
       case "bad_data": {
+        // Check permanent cap FIRST — prevents infinite loops where bad_data keeps
+        // resetting attempts to 0 and the draft fails with the same error forever.
+        const bdAttempts = draft.phase_attempts || 0;
+        if (bdAttempts >= 5) {
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED", updated_at: new Date() },
+          });
+          return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: bdAttempts } };
+        }
+
         // Try to repair JSON fields
         let repaired = false;
         const updateData: Record<string, unknown> = { updated_at: new Date() };
 
         if (draft.current_phase === "drafting" || draft.current_phase === "assembly") {
-          // Validate sections_data is a proper array
           const sections = draft.sections_data;
           if (sections && !Array.isArray(sections)) {
             updateData.sections_data = [];
             updateData.sections_completed = 0;
-            updateData.current_phase = "drafting"; // Restart drafting
-            updateData.phase_attempts = 0;
+            updateData.current_phase = "drafting";
+            // Reduce by 2 instead of resetting to 0 — preserves lifetime history
+            updateData.phase_attempts = Math.max(bdAttempts - 2, 0);
             repaired = true;
           }
         }
 
         if (repaired) {
           await prisma.articleDraft.update({ where: { id: draft.id }, data: updateData });
-          return {
-            diagnosis,
-            fixApplied: "repair_json_data",
-            success: true,
-            before,
-            after: updateData,
-          };
+          return { diagnosis, fixApplied: "repair_json_data", success: true, before, after: updateData };
         }
 
-        // Can't auto-repair — reset for retry
+        // Can't auto-repair — reduce by 2 for retry (NOT reset to 0)
+        const bdReduced = Math.max(bdAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: 0, phase_started_at: null, updated_at: new Date() },
+          data: { phase_attempts: bdReduced, phase_started_at: null, updated_at: new Date() },
         });
-        return {
-          diagnosis,
-          fixApplied: "reset_attempts_bad_data",
-          success: true,
-          before,
-          after: { phase: draft.current_phase, attempts: 0 },
-        };
+        return { diagnosis, fixApplied: "reduce_attempts_bad_data", success: true, before, after: { phase: draft.current_phase, attempts: bdReduced } };
       }
 
       case "provider_down": {
-        // Nothing to fix — providers are external. Just reset attempts so it retries later.
+        // Check permanent cap FIRST — prevents infinite loops when provider stays down
+        const pdAttempts = draft.phase_attempts || 0;
+        if (pdAttempts >= 5) {
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED", updated_at: new Date() },
+          });
+          return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: pdAttempts } };
+        }
+        // Reduce by 2 instead of resetting to 0 — preserves lifetime history
+        const pdReduced = Math.max(pdAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: 0, phase_started_at: null, updated_at: new Date() },
+          data: { phase_attempts: pdReduced, phase_started_at: null, updated_at: new Date() },
         });
-        return {
-          diagnosis,
-          fixApplied: "reset_for_provider_retry",
-          success: true,
-          before,
-          after: { phase: draft.current_phase, attempts: 0 },
-        };
+        return { diagnosis, fixApplied: "reduce_for_provider_retry", success: true, before, after: { phase: draft.current_phase, attempts: pdReduced } };
       }
 
       case "schema_mismatch": {
@@ -583,18 +590,21 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
       }
 
       default: {
-        // Unknown — reset attempts as a generic fix
+        // Unknown — check permanent cap first, then reduce attempts
+        const unkAttempts = draft.phase_attempts || 0;
+        if (unkAttempts >= 5) {
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED", updated_at: new Date() },
+          });
+          return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: unkAttempts } };
+        }
+        const unkReduced = Math.max(unkAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: Math.max(0, (draft.phase_attempts || 0) - 2), phase_started_at: null, updated_at: new Date() },
+          data: { phase_attempts: unkReduced, phase_started_at: null, updated_at: new Date() },
         });
-        return {
-          diagnosis,
-          fixApplied: "reduce_attempts_generic",
-          success: true,
-          before,
-          after: { phase: draft.current_phase, attempts: Math.max(0, (draft.phase_attempts || 0) - 2) },
-        };
+        return { diagnosis, fixApplied: "reduce_attempts_generic", success: true, before, after: { phase: draft.current_phase, attempts: unkReduced } };
       }
     }
   } catch (err) {

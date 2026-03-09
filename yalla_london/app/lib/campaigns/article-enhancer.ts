@@ -203,6 +203,21 @@ export async function enhancePublishedArticle(
     };
   }
 
+  // Guard: skip unpublished articles. content-auto-fix may have unpublished this
+  // article (thin content, duplicate detection) while it was queued for enhancement.
+  // Processing unpublished articles wastes AI budget on dead content.
+  const publishStatus = await prisma.blogPost.findUnique({
+    where: { id: postId },
+    select: { published: true },
+  });
+  if (!publishStatus?.published) {
+    return {
+      success: false, operationsApplied: [], changes: {},
+      costUsd: 0, error: `BlogPost ${postId} is unpublished — skipping enhancement`,
+      beforeSnapshot: {} as ArticleSnapshot,
+    };
+  }
+
   const beforeSnapshot = takeSnapshot(post.content_en, post.content_ar, post as unknown as Record<string, unknown>);
 
   // Skip if already above threshold

@@ -38,6 +38,22 @@ export async function runContentSelector(
 
   try {
     const { prisma } = await import("@/lib/db");
+
+    // ── Dedup guard: prevent concurrent content-selector runs ──
+    // Unlike content-builder which has dedup markers, content-selector had none.
+    // Two concurrent Vercel invocations could both promote the same draft.
+    const recentRun = await prisma.cronJobLog.findFirst({
+      where: {
+        job_name: "content-selector",
+        status: { not: "skipped" },
+        started_at: { gte: new Date(Date.now() - 60_000) },
+      },
+      orderBy: { started_at: "desc" },
+    });
+    if (recentRun) {
+      console.log("[content-selector] Another run started within 60s — skipping to prevent duplicate promotions");
+      return { success: true, message: "Dedup: skipped (recent run exists)", durationMs: Date.now() - cronStart };
+    }
     const { getActiveSiteIds, SITES, getSiteDomain } = await import("@/config/sites");
     // Import quality gate threshold from centralized SEO standards — single source of truth.
     // When standards.ts is updated (e.g., after algorithm changes), this threshold updates automatically.
@@ -59,7 +75,8 @@ export async function runContentSelector(
     const MAX_ENHANCEMENT_ATTEMPTS = 3;
     let candidates: Array<Record<string, unknown>> = [];
     try {
-      candidates = await prisma.articleDraft.findMany({
+      // Step 1: Find candidates
+      const reservoirDrafts = await prisma.articleDraft.findMany({
         where: {
           site_id: { in: activeSites },
           current_phase: "reservoir",
@@ -71,6 +88,20 @@ export async function runContentSelector(
         ],
         take: MAX_ARTICLES_PER_RUN * 3,
       });
+
+      // Step 2: Atomically claim candidates by setting current_phase to "promoting"
+      // This prevents concurrent content-selector runs from promoting the same draft.
+      // The updateMany WHERE re-checks current_phase="reservoir" — if another process
+      // already claimed it, count will be 0 and we skip it.
+      for (const rd of reservoirDrafts) {
+        const claimed = await prisma.articleDraft.updateMany({
+          where: { id: rd.id as string, current_phase: "reservoir" },
+          data: { current_phase: "promoting", updated_at: new Date() },
+        });
+        if (claimed.count > 0) {
+          candidates.push(rd);
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("does not exist") || msg.includes("P2021")) {
@@ -279,9 +310,11 @@ export async function runContentSelector(
           `[content-selector] Failed to promote draft ${draft.id} (keyword: "${draft.keyword}") — ${errType}: ${errMsg}`,
         );
         if (errStack) console.error(`[content-selector] Promote stack:\n${errStack}`);
+        // Revert from "promoting" back to "reservoir" so the draft is eligible for next run
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
+            current_phase: "reservoir",
             last_error: `Promotion failed: ${errMsg}`,
             phase_attempts: { increment: 1 },
           },
@@ -856,14 +889,22 @@ export async function promoteToBlogPost(
   const targetUrl = `/blog/${slug}`;
   const siteUrl = getSiteDomain(siteId);
   if (options?.skipGate) {
+    // Even on admin force-publish, guard against truly empty titles
+    if (!cleanedEnTitle || cleanedEnTitle.length < 3) {
+      console.warn(`[content-selector] Admin force-publish BLOCKED — cleanedEnTitle is empty or too short: "${cleanedEnTitle}"`);
+      return null;
+    }
     console.log(`[content-selector] Pre-pub gate SKIPPED for draft ${draft.id} (admin override)`);
   } else {
     try {
+      // Pass POST-sanitized titles to the gate so it checks what will actually be stored.
+      // Previously passed raw enTitle/arTitle — a title passing the gate could become
+      // empty/short after sanitizeTitle() when stored in the DB.
       const gateResult = await runPrePublicationGate(
         targetUrl,
         {
-          title_en: enTitle,
-          title_ar: arTitle,
+          title_en: cleanedEnTitle,
+          title_ar: cleanedArTitle,
           meta_title_en: enMetaTitle,
           meta_description_en: enMetaDesc,
           content_en: enHtml,
@@ -887,10 +928,11 @@ export async function promoteToBlogPost(
             `[content-selector] Pre-pub gate warnings for draft ${draft.id}: ${gateResult.warnings.join("; ")}`,
           );
         }
-        // Mark the draft with the gate failure so it's visible in dashboard
+        // Mark the draft with the gate failure and revert from "promoting" to "reservoir"
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
+            current_phase: "reservoir",
             last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
             updated_at: new Date(),
           },
@@ -913,6 +955,7 @@ export async function promoteToBlogPost(
       await prisma.articleDraft.update({
         where: { id: draft.id as string },
         data: {
+          current_phase: "reservoir",
           last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
           updated_at: new Date(),
         },
@@ -921,52 +964,76 @@ export async function promoteToBlogPost(
     }
   }
 
-  // Retry blogPost.create() up to 2 times on slug collision (P2002 unique constraint).
-  // The pre-check at line 532 handles most collisions, but a race condition can still
-  // occur if two concurrent promotions pass the check before either creates.
+  // Create BlogPost + update draft in a Prisma transaction to prevent orphans.
+  // Previously BlogPost was created first, draft updated ~200 lines later. If the process
+  // crashed between them, the draft stayed "reservoir" and got promoted again = duplicate.
+  // Now both happen atomically — either both succeed or neither does.
+  const publishData = {
+    current_phase: "published" as const,
+    published_at: new Date(),
+    completed_at: new Date(),
+    updated_at: new Date(),
+    needs_review: true,
+  };
+
+  const blogPostData = {
+    title_en: cleanedEnTitle,
+    title_ar: cleanedArTitle || cleanedEnTitle || "",
+    slug,
+    excerpt_en: enMetaDesc,
+    excerpt_ar: arMetaDesc || enMetaDesc || "",
+    content_en: enHtml,
+    content_ar: arHtml || enHtml || "",
+    meta_title_en: enMetaTitle,
+    meta_title_ar: arMetaTitle,
+    meta_description_en: enMetaDesc,
+    meta_description_ar: arMetaDesc,
+    tags: (() => {
+      const INTERNAL_TAGS_SET = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
+      const allTags = [
+        ...keywords.slice(0, 5),
+        isBilingual ? "bilingual" : `primary-${locale}`,
+        ...missingLanguageTags,
+        site.destination.toLowerCase(),
+      ];
+      return allTags.filter(t => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
+    })(),
+    published: true,
+    featured_image: featuredImage,
+    siteId,
+    category_id: category.id,
+    author_id: systemUser.id,
+    page_type: pageType,
+    seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
+    keywords_json: keywords,
+    questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
+  };
+
+  // Retry on slug collision (P2002 unique constraint).
   let blogPost;
   for (let slugAttempt = 0; slugAttempt < 3; slugAttempt++) {
     try {
-      blogPost = await prisma.blogPost.create({
-        data: {
-          title_en: cleanedEnTitle,
-          title_ar: cleanedArTitle || cleanedEnTitle || "",
-          slug,
-          excerpt_en: enMetaDesc,
-          excerpt_ar: arMetaDesc || enMetaDesc || "",
-          content_en: enHtml,
-          content_ar: arHtml || enHtml || "",
-          meta_title_en: enMetaTitle,
-          meta_title_ar: arMetaTitle,
-          meta_description_en: enMetaDesc,
-          meta_description_ar: arMetaDesc,
-          tags: (() => {
-            // Internal pipeline tags are kept for operational tracking but filtered
-            // from public-facing metadata in generateMetadata() and BlogPostClient.
-            const INTERNAL_TAGS_SET = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
-            const allTags = [
-              ...keywords.slice(0, 5),
-              isBilingual ? "bilingual" : `primary-${locale}`,
-              ...missingLanguageTags,
-              site.destination.toLowerCase(),
-            ];
-            // Only store clean public tags on BlogPost — internal tags added noise to sitemaps, RSS, and OG tags
-            return allTags.filter(t => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
-          })(),
-          published: true,
-          featured_image: featuredImage,
-          siteId,
-          category_id: category.id,
-          author_id: systemUser.id,
-          page_type: pageType,
-          seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
-          keywords_json: keywords,
-          questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
-        },
+      // Transaction: BlogPost create + draft status update happen atomically.
+      // If either fails, both are rolled back — no orphaned BlogPosts.
+      const txResult = await prisma.$transaction(async (tx: typeof prisma) => {
+        const bp = await tx.blogPost.create({ data: { ...blogPostData, slug } });
+        await tx.articleDraft.update({
+          where: { id: draft.id as string },
+          data: { ...publishData, blog_post_id: bp.id },
+        });
+        if (pairedDraft) {
+          await tx.articleDraft.update({
+            where: { id: pairedDraft.id as string },
+            data: { ...publishData, blog_post_id: bp.id },
+          }).catch((err: Error) => {
+            console.warn(`[content-selector] Failed to update paired draft ${pairedDraft!.id}:`, err.message);
+          });
+        }
+        return bp;
       });
+      blogPost = txResult;
       break; // success — exit retry loop
     } catch (createErr) {
-      // P2002 = Prisma unique constraint violation (duplicate slug)
       const isP2002 = createErr instanceof Error &&
         (createErr.message.includes("Unique constraint") || (createErr as unknown as Record<string, unknown>).code === "P2002");
       if (isP2002 && slugAttempt < 2) {
@@ -974,7 +1041,7 @@ export async function promoteToBlogPost(
         slug = `${slug.replace(/-[a-f0-9]{8}$/, "")}-${randomBytes}`;
         console.warn(`[content-selector] Slug collision on create (attempt ${slugAttempt + 1}) — retrying with "${slug}"`);
       } else {
-        throw createErr; // Non-slug error or exhausted retries — propagate
+        throw createErr;
       }
     }
   }
@@ -1166,30 +1233,8 @@ ${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:
     console.warn("[select-runner] Schema injection failed (non-fatal):", schemaErr instanceof Error ? schemaErr.message : schemaErr);
   }
 
-  // Update BOTH drafts to published state
-  const publishData = {
-    current_phase: "published",
-    blog_post_id: blogPost.id,
-    published_at: new Date(),
-    completed_at: new Date(),
-    updated_at: new Date(),
-    needs_review: true,
-  };
-
-  await prisma.articleDraft.update({
-    where: { id: draft.id as string },
-    data: publishData,
-  });
-
-  if (pairedDraft) {
-    await prisma.articleDraft.update({
-      where: { id: pairedDraft.id as string },
-      data: publishData,
-    }).catch((err: Error) => {
-      console.warn(`[content-selector] Failed to update paired draft ${pairedDraft!.id}:`, err.message);
-    });
-  }
-
+  // Draft status update already happened in the transaction above.
+  // Only update TopicProposal (non-critical, outside transaction).
   if (draft.topic_proposal_id) {
     try {
       await prisma.topicProposal.update({

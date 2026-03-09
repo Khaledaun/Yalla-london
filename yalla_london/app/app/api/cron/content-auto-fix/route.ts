@@ -464,6 +464,10 @@ async function handleAutoFix(request: NextRequest) {
 
         if (!bestHost || bestScore < 1) continue;
 
+        // Skip if the host already has any related section (from seo-agent or previous runs)
+        // Prevents accumulation of multiple "Related:" blocks from different injectors.
+        if ((bestHost.content_en || "").includes("related-articles") || (bestHost.content_en || "").includes("related-link")) continue;
+
         // Append a "Related reading" link at the end of the host article
         const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
         await prisma.blogPost.update({
@@ -484,10 +488,23 @@ async function handleAutoFix(request: NextRequest) {
   // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below 800 words ──
   // Blog articles that bypassed the quality gate (1000w min). Threshold is 800w to
   // catch thin content that hurts site quality while allowing news/info pages which
-  // have their own lower thresholds. Detects content type from URL to avoid
-  // unpublishing legitimately shorter non-blog content.
+  // have their own lower thresholds.
+  // GUARD: Skip articles with active campaign enhancement tasks — unpublishing mid-campaign
+  // wastes AI budget and erases the duplicate/thin flag marker.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
+      // Get IDs of articles currently being enhanced by campaigns
+      let activeCampaignPostIds: Set<string> = new Set();
+      try {
+        const activeTasks = await prisma.campaignItem.findMany({
+          where: { status: { in: ["pending", "processing"] } },
+          select: { targetId: true },
+        });
+        activeCampaignPostIds = new Set(activeTasks.map((t: { targetId: string }) => t.targetId));
+      } catch {
+        // CampaignItem table may not exist — proceed without filter
+      }
+
       const allPublished = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
@@ -502,10 +519,13 @@ async function handleAutoFix(request: NextRequest) {
 
       let thinUnpublished = 0;
       for (const post of allPublished) {
+        // Skip articles being enhanced by active campaign
+        if (activeCampaignPostIds.has(post.id)) {
+          console.log(`[content-auto-fix] Skipping thin check for "${post.slug}" — active campaign task`);
+          continue;
+        }
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
-        // Blog articles: 800w minimum. This catches the 500-999w range that
-        // previously slipped through (e.g., 570w article).
         if (wordCount < 800) {
           await prisma.blogPost.update({
             where: { id: post.id },

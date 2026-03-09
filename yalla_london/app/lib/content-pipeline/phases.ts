@@ -561,6 +561,7 @@ export async function phaseAssembly(
   site: SiteConfig,
   budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  const phaseStart = Date.now();
   const outline = (draft.outline_data || {}) as Record<string, unknown>;
   const sections = (draft.sections_data || []) as Array<Record<string, unknown>>;
 
@@ -686,8 +687,13 @@ Return JSON:
     assembledWordCount = Math.max(assembledWordCount, actualWords);
 
     // If still too short and we have budget, run an expansion pass
-    // Skip expansion if less than 18s remaining — it will be caught by content-auto-fix cron later
-    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 18_000;
+    // Use FRESH wall-clock budget calculation, not the stale budgetRemainingMs parameter
+    // which was captured at the start of assembly and doesn't account for time consumed
+    // by the first AI call.
+    const freshBudgetMs = budgetRemainingMs !== undefined
+      ? budgetRemainingMs - (Date.now() - phaseStart)
+      : undefined;
+    const canExpand = freshBudgetMs === undefined || freshBudgetMs > 18_000;
     if (assembledWordCount < 1200 && canExpand) {
       try {
         const expansionPrompt = `You are a luxury travel editor expanding a short article to meet the 1,500-word minimum.
@@ -710,7 +716,7 @@ Return JSON:
   "wordCount": 1600
 }`;
 
-        const expansionTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
+        const expansionTimeout = freshBudgetMs !== undefined ? Math.max(freshBudgetMs - 5_000, 10_000) : 25_000;
         const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
           systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: isArabic(draft.locale) ? 3500 : 2000,

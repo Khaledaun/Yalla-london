@@ -146,7 +146,7 @@ OPERATIONS REQUIRED (only do what's listed):
 ${ops}
 
 CURRENT ARTICLE (HTML):
-${currentHtml.substring(0, 12000)}
+${currentHtml.substring(0, 6000)}
 
 ${operations.includes('add_internal_links') ? `
 AVAILABLE INTERNAL LINKS (use 3-5 of these with natural anchor text):
@@ -199,6 +199,21 @@ export async function enhancePublishedArticle(
     return {
       success: false, operationsApplied: [], changes: {},
       costUsd: 0, error: `BlogPost ${postId} not found`,
+      beforeSnapshot: {} as ArticleSnapshot,
+    };
+  }
+
+  // Guard: skip unpublished articles. content-auto-fix may have unpublished this
+  // article (thin content, duplicate detection) while it was queued for enhancement.
+  // Processing unpublished articles wastes AI budget on dead content.
+  const publishStatus = await prisma.blogPost.findUnique({
+    where: { id: postId },
+    select: { published: true },
+  });
+  if (!publishStatus?.published) {
+    return {
+      success: false, operationsApplied: [], changes: {},
+      costUsd: 0, error: `BlogPost ${postId} is unpublished — skipping enhancement`,
       beforeSnapshot: {} as ArticleSnapshot,
     };
   }
@@ -269,19 +284,30 @@ export async function enhancePublishedArticle(
   }
 
   try {
-    const { generateCompletion } = await import('@/lib/ai/provider');
+    const { generateCompletion, getAllCircuitStates } = await import('@/lib/ai/provider');
+
+    // Check if all providers are circuit-open before wasting an attempt
+    const circuitState = typeof getAllCircuitStates === 'function' ? getAllCircuitStates() : null;
+    if (circuitState && Object.keys(circuitState).length > 0 && Object.values(circuitState).every(s => s.state === 'open')) {
+      return {
+        success: false, operationsApplied: [], changes: {},
+        costUsd: 0, error: 'All AI providers circuit-open — waiting for cooldown (retry in 5 min)',
+        beforeSnapshot,
+      };
+    }
+
     const aiResult = await generateCompletion(
       [
         { role: 'system', content: `You are a senior luxury travel content editor at ${siteName}, specializing in ${destination} travel for Arab and international travelers. You write with authority, first-hand experience, and specific local knowledge. Your enhancements must significantly improve SEO and reader value while preserving the original article's voice.` },
         { role: 'user', content: prompt },
       ],
       {
-        maxTokens: 8000,
+        maxTokens: 4500,
         temperature: 0.5,
         siteId: post.siteId,
         taskType: 'campaign-enhance',
         calledFrom: 'campaign-agent',
-        timeoutMs: Math.min(remainingMs - 3000, 35_000),
+        timeoutMs: Math.min(remainingMs - 5000, 80_000),
         phaseBudgetHint: 'heavy',
       },
     );

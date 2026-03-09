@@ -325,7 +325,10 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           const relatedSection = `\n<section class="related-articles"><h2>Related Articles</h2><ul>\n${relatedLinks}\n</ul></section>`;
 
           // Append the section if it doesn't already have one
-          if (!post.content_en.includes("related-articles")) {
+          // Check both CSS class names used by different injectors to prevent duplicate sections:
+          // - "related-articles" is used by seo-agent
+          // - "related-link" is used by content-auto-fix orphan resolution
+          if (!post.content_en.includes("related-articles") && !post.content_en.includes("related-link")) {
             try {
               await prisma.blogPost.update({
                 where: { id: post.id },

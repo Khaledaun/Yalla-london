@@ -677,6 +677,131 @@ console.log("=".repeat(80) + "\n");
 const categories = [...new Set(results.map(r => r.category))];
 let totalPass = 0, totalFail = 0, totalWarn = 0;
 
+// ── FRAGILITY DETECTION TESTS ──
+// These tests verify the fixes for the 18 fragilities found in the March 9 2026 deep audit.
+
+test("Fragility", "Atomic claiming on reservoir drafts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const hasAtomicClaim = content.includes('current_phase: "promoting"') && content.includes("updateMany");
+  const hasRevert = content.includes('current_phase: "reservoir"') && content.includes("Promotion failed");
+  return hasAtomicClaim && hasRevert
+    ? { status: PASS, details: "Reservoir drafts atomically claimed via updateMany → 'promoting'" }
+    : { status: FAIL, details: "Missing atomic claiming or revert on reservoir drafts" };
+});
+
+test("Fragility", "BlogPost create + draft update in transaction", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const hasTransaction = content.includes("$transaction") && content.includes("blogPost.create") && content.includes("articleDraft.update");
+  return hasTransaction
+    ? { status: PASS, details: "BlogPost create + draft update wrapped in Prisma $transaction" }
+    : { status: FAIL, details: "BlogPost create and draft update not in transaction — orphan risk" };
+});
+
+test("Fragility", "Unified attempt cap (5) across all recovery systems", () => {
+  const failureHooks = fs.readFileSync(path.join(APP_DIR, "lib/ops/failure-hooks.ts"), "utf-8");
+  const diagAgent = fs.readFileSync(path.join(APP_DIR, "lib/ops/diagnostic-agent.ts"), "utf-8");
+  const hasCapInHooks = failureHooks.includes("currentAttempts >= 5");
+  const noResetToZero = !diagAgent.includes("phase_attempts: 0,") || diagAgent.includes("phase_attempts: Math.max");
+  // Check diagnostic-agent doesn't reset to 0 in bad_data/provider_down handlers
+  const badDataSection = diagAgent.substring(diagAgent.indexOf('case "bad_data"'), diagAgent.indexOf('case "provider_down"'));
+  const providerSection = diagAgent.substring(diagAgent.indexOf('case "provider_down"'), diagAgent.indexOf('case "schema_mismatch"'));
+  const bdNoZero = !badDataSection.includes("phase_attempts: 0");
+  const pdNoZero = !providerSection.includes("phase_attempts: 0");
+  return hasCapInHooks && bdNoZero && pdNoZero
+    ? { status: PASS, details: "Cap=5 in failure-hooks, no reset-to-0 in diagnostic-agent bad_data/provider_down" }
+    : { status: FAIL, details: `Hooks cap=${hasCapInHooks}, bad_data no-zero=${bdNoZero}, provider_down no-zero=${pdNoZero}` };
+});
+
+test("Fragility", "Assembly raw fallback threshold >= 2", () => {
+  const phases = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/phases.ts"), "utf-8");
+  const diagAgent = fs.readFileSync(path.join(APP_DIR, "lib/ops/diagnostic-agent.ts"), "utf-8");
+  const phasesCorrect = phases.includes("attempts >= 2");
+  const diagCorrect = diagAgent.includes("Math.max(draft.phase_attempts || 0, 2)");
+  return phasesCorrect && diagCorrect
+    ? { status: PASS, details: "Raw fallback at >=2 in phases.ts, diagnostic-agent ensures >=2" }
+    : { status: FAIL, details: `phases.ts >=2: ${phasesCorrect}, diagnostic >=2: ${diagCorrect}` };
+});
+
+test("Fragility", "Related section dedup guards", () => {
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const seoChecks = seoAgent.includes('"related-link"') && seoAgent.includes('"related-articles"');
+  const autoFixChecks = autoFix.includes('"related-articles"') && autoFix.includes('"related-link"');
+  return seoChecks && autoFixChecks
+    ? { status: PASS, details: "Both injectors check for each other's CSS classes" }
+    : { status: FAIL, details: `seo-agent checks both: ${seoChecks}, auto-fix checks both: ${autoFixChecks}` };
+});
+
+test("Fragility", "Campaign enhancer checks published status", () => {
+  const enhancer = fs.readFileSync(path.join(APP_DIR, "lib/campaigns/article-enhancer.ts"), "utf-8");
+  const checksPublished = enhancer.includes("publishStatus?.published") || enhancer.includes("published: true");
+  return checksPublished
+    ? { status: PASS, details: "Campaign enhancer skips unpublished articles" }
+    : { status: FAIL, details: "Campaign enhancer processes articles without checking published status" };
+});
+
+test("Fragility", "Content-auto-fix skips campaign-active articles", () => {
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const checksCampaign = autoFix.includes("activeCampaignPostIds");
+  return checksCampaign
+    ? { status: PASS, details: "Thin-content unpublish skips articles with active campaigns" }
+    : { status: FAIL, details: "content-auto-fix doesn't check for active campaign tasks" };
+});
+
+test("Fragility", "Content-selector dedup guard", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const hasDedup = content.includes("content-selector") && content.includes("Another run started within");
+  return hasDedup
+    ? { status: PASS, details: "Content-selector has dedup guard against concurrent runs" }
+    : { status: FAIL, details: "Content-selector missing dedup guard" };
+});
+
+test("Fragility", "Pre-pub gate checks post-sanitized title", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const lastIdx = content.lastIndexOf("runPrePublicationGate");
+  const gateSection = content.substring(lastIdx, lastIdx + 300);
+  const checksCleanedTitle = gateSection.includes("cleanedEnTitle") || gateSection.includes("cleanedArTitle");
+  return checksCleanedTitle
+    ? { status: PASS, details: "Gate receives post-sanitized titles (cleanedEnTitle/cleanedArTitle)" }
+    : { status: FAIL, details: "Gate still receives raw pre-sanitized titles" };
+});
+
+test("Fragility", "EN+AR draft pair in transaction", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-builder-create/route.ts"), "utf-8");
+  const hasTransaction = content.includes("$transaction") && content.includes("enDraft") && content.includes("arDraft");
+  return hasTransaction
+    ? { status: PASS, details: "Draft pair creation wrapped in Prisma $transaction" }
+    : { status: FAIL, details: "Draft pair creation not transactional — AR failure orphans EN" };
+});
+
+test("Fragility", "Assembly expansion uses fresh budget", () => {
+  const phases = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/phases.ts"), "utf-8");
+  const hasFreshBudget = phases.includes("freshBudgetMs") && phases.includes("phaseStart");
+  return hasFreshBudget
+    ? { status: PASS, details: "Assembly expansion recalculates budget from wall clock" }
+    : { status: FAIL, details: "Assembly expansion uses stale budgetRemainingMs" };
+});
+
+test("Fragility", "Cycle-health detects fragility patterns", () => {
+  const health = fs.readFileSync(path.join(APP_DIR, "app/api/admin/cycle-health/route.ts"), "utf-8");
+  const checksOscillation = health.includes("attempt-oscillation");
+  const checksPromoting = health.includes("orphaned-promoting-drafts");
+  const checksDuplicateRelated = health.includes("duplicate-related-sections");
+  const checksCampaignWaste = health.includes("campaign-targets-unpublished");
+  return checksOscillation && checksPromoting && checksDuplicateRelated && checksCampaignWaste
+    ? { status: PASS, details: "4 fragility pattern detectors in cycle-health" }
+    : { status: FAIL, details: `oscillation=${checksOscillation} promoting=${checksPromoting} related=${checksDuplicateRelated} campaign=${checksCampaignWaste}` };
+});
+
+test("Fragility", "Cron schedule staggered (no 9:00-9:15 collision)", () => {
+  const vercelJson = fs.readFileSync(path.join(APP_DIR, "vercel.json"), "utf-8");
+  // scheduled-publish should NOT be at "5 9" anymore
+  const hasCollision = vercelJson.includes('"5 9 * * *"') || vercelJson.includes('"10 9 * * *"');
+  return !hasCollision
+    ? { status: PASS, details: "Cron jobs staggered: no more 9:00/9:05/9:10 collision window" }
+    : { status: FAIL, details: "Cron schedule still has 9:00-9:10 collision window" };
+});
+
 for (const cat of categories) {
   const catResults = results.filter(r => r.category === cat);
   const catPass = catResults.filter(r => r.status === PASS).length;

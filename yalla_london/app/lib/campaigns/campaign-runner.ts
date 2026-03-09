@@ -183,10 +183,23 @@ export async function runCampaignBatch(
   // Process items one at a time with budget checks
   for (const item of pendingItems) {
     const remainingBudget = budgetMs - (Date.now() - startTime);
-    if (remainingBudget < 15_000) {
+    if (remainingBudget < 20_000) {
       console.log(`[campaign-runner] Budget low (${Math.round(remainingBudget / 1000)}s) — stopping batch`);
       break;
     }
+
+    // Check circuit breaker state — don't burn items when all providers are down
+    try {
+      const { getAllCircuitStates } = await import('@/lib/ai/provider');
+      if (typeof getAllCircuitStates === 'function') {
+        const circuits = getAllCircuitStates();
+        if (circuits && Object.keys(circuits).length > 0 && Object.values(circuits).every(s => s.state === 'open')) {
+          console.log('[campaign-runner] All AI providers circuit-open — pausing batch until cooldown');
+          result.errors.push('All AI providers circuit-open — batch paused, will retry next run');
+          break;
+        }
+      }
+    } catch { /* getAllCircuitStates may not exist in older builds */ }
 
     // Mark as processing
     await prisma.campaignItem.update({
@@ -219,7 +232,7 @@ export async function runCampaignBatch(
 
       // ── Run content enhancement (if any non-Arabic ops) ────────
       if (contentOps.length > 0) {
-        const itemBudget = Math.min(remainingBudget - 5000, 40_000);
+        const itemBudget = Math.min(remainingBudget - 5000, 90_000);
         const enhanceResult = await enhancePublishedArticle(
           item.blogPostId, contentOps, config, itemBudget,
         );
@@ -269,11 +282,12 @@ export async function runCampaignBatch(
       const message = err instanceof Error ? err.message : String(err);
       console.warn(`[campaign-runner] Item ${item.id} failed:`, message);
 
-      const newAttempts = (item.attempts || 0) + 1;
+      // attempts was already incremented when we set status=processing
+      const currentAttempts = (item.attempts || 0) + 1;
       await prisma.campaignItem.update({
         where: { id: item.id },
         data: {
-          status: newAttempts >= 3 ? 'failed' : 'pending',
+          status: currentAttempts >= 3 ? 'failed' : 'pending',
           error: message,
           processedAt: new Date(),
         },

@@ -839,6 +839,22 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
 
     const urls = newPosts.map((p: any) => `${siteUrl}/blog/${p.slug}`);
 
+    // Also discover news items (not just blog posts)
+    try {
+      const newsItems = await prisma.newsItem.findMany({
+        where: { siteId, created_at: { gte: sevenDaysAgo }, status: "published" },
+        select: { slug: true },
+        take: 50,
+      });
+      for (const n of newsItems) {
+        urls.push(`${siteUrl}/news/${n.slug}`);
+      }
+    } catch { /* NewsItem table might not exist */ }
+
+    // Add Arabic variants for all discovered URLs
+    const arUrls = urls.map((u: string) => u.replace(/^(https?:\/\/[^/]+)(\/.*)$/, "$1/ar$2"));
+    urls.push(...arUrls);
+
     // IndexNow submission is delegated to seo/cron (via lib/seo/indexing-service.ts)
     // which uses fetchWithRetry with exponential backoff for better reliability.
     console.log(
@@ -860,7 +876,7 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
               create: {
                 site_id: siteId,
                 url,
-                slug: url.split("/blog/")[1] || null,
+                slug: url.replace(/^https?:\/\/[^/]+\/?/, "").replace(/^ar\//, "") || "/",
                 status: "discovered",
                 submitted_indexnow: false,
                 last_submitted_at: null,

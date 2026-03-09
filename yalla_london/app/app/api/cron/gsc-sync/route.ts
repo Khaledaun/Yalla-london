@@ -10,14 +10,15 @@ import { logCronExecution } from "@/lib/cron-logger";
  * Runs daily at 4:00 UTC (after analytics at 3:00, before content generation at 5:00).
  *
  * What it does:
- * 1. Calls GSC Search Analytics API with dimensions: ['page'] for EACH active site
- *    — ONE API call returns clicks/impressions/CTR/position for every page with impressions
- * 2. Upserts daily snapshots into GscPagePerformance table
- * 3. Cross-references: any URL with GSC impressions > 0 = confirmed indexed by Google
+ * 1. Calls GSC Search Analytics API with dimensions: ['page', 'date'] for EACH active site
+ *    — Returns PER-DAY per-page clicks/impressions/CTR/position (not aggregated totals)
+ * 2. Cleans old aggregated data for the window (prevents overcounting from old format)
+ * 3. Upserts per-day snapshots into GscPagePerformance table (one row per URL per day)
+ * 4. Cross-references: any URL with GSC impressions > 0 = confirmed indexed by Google
  *    → Updates URLIndexingStatus to "indexed" (fast path to close the 8-vs-60 gap)
- * 4. Creates URLIndexingStatus records for GSC-discovered URLs we never tracked
- * 5. Fetches previous 7-day window for trend comparison
- * 6. Detects significant traffic drops (>30% clicks decrease) and logs alerts
+ * 5. Creates URLIndexingStatus records for GSC-discovered URLs we never tracked
+ * 6. Fetches previous 7-day window for trend comparison (also per-day)
+ * 7. Detects significant traffic drops (>30% clicks decrease) and logs alerts
  *
  * GSC Search Analytics quota: 25,000 requests/day — very generous. One call per site.
  */
@@ -86,7 +87,6 @@ async function handleGscSync(request: NextRequest) {
     const previousStart = new Date(today.getTime() - 17 * 86400000);
 
     const toDateStr = (d: Date) => d.toISOString().split("T")[0];
-    const snapshotDate = new Date(toDateStr(today)); // Midnight-aligned date for DB
 
     let totalPagesProcessed = 0;
     let totalIndexedUpdated = 0;
@@ -138,10 +138,12 @@ async function handleGscSync(request: NextRequest) {
         }
 
         // ── Step 1: Fetch CURRENT + PREVIOUS period in parallel ──
-        // Previously sequential (2 API calls × 5-10s = 10-20s). Parallel saves 5-10s.
+        // Use ["page", "date"] dimensions to get PER-DAY breakdowns instead of
+        // aggregated totals. This prevents overcounting when consumers sum across
+        // date ranges (each row = one URL's metrics for one day).
         const [currentData, previousDataParallel] = await Promise.all([
-          gsc.getSearchAnalytics(toDateStr(currentStart), toDateStr(currentEnd), ["page"]),
-          gsc.getSearchAnalytics(toDateStr(previousStart), toDateStr(previousEnd), ["page"]).catch((err: Error) => {
+          gsc.getSearchAnalytics(toDateStr(currentStart), toDateStr(currentEnd), ["page", "date"]),
+          gsc.getSearchAnalytics(toDateStr(previousStart), toDateStr(previousEnd), ["page", "date"]).catch((err: Error) => {
             console.warn(`[gsc-sync] ${siteId}: Previous period fetch failed:`, err.message);
             return null;
           }),
@@ -157,13 +159,32 @@ async function handleGscSync(request: NextRequest) {
           continue;
         }
 
-        // ── Step 2: Upsert page performance snapshots ──
+        // ── Step 2: Clean old aggregated data for current window ──
+        // Previous versions stored 7-day aggregates under a single date (today),
+        // causing ~7x overcounting. Delete old rows in this window so only per-day data remains.
+        try {
+          await prisma.gscPagePerformance.deleteMany({
+            where: {
+              site_id: siteId,
+              date: { gte: currentStart, lte: today },
+            },
+          });
+        } catch (cleanErr) {
+          console.warn(`[gsc-sync] ${siteId}: Failed to clean old data:`, cleanErr instanceof Error ? cleanErr.message : String(cleanErr));
+        }
+
+        // ── Step 3: Upsert page performance snapshots (per-day) ──
+        // With dimensions: ["page", "date"], row.keys = [pageUrl, dateStr]
+        // Each row represents ONE page's metrics for ONE day.
         for (const row of currentData.rows) {
           if (Date.now() - cronStart > BUDGET_MS - 5000) break;
 
           const pageUrl = row.keys[0];
+          const rowDateStr = row.keys[1]; // e.g. "2026-03-06"
           // Skip URLs that don't belong to this site (GSC may return cross-domain)
           if (!pageUrl.includes(bareDomain)) continue;
+
+          const rowDate = new Date(rowDateStr + "T00:00:00Z");
 
           try {
             await prisma.gscPagePerformance.upsert({
@@ -171,13 +192,13 @@ async function handleGscSync(request: NextRequest) {
                 site_id_url_date: {
                   site_id: siteId,
                   url: pageUrl,
-                  date: snapshotDate,
+                  date: rowDate,
                 },
               },
               create: {
                 site_id: siteId,
                 url: pageUrl,
-                date: snapshotDate,
+                date: rowDate,
                 clicks: row.clicks || 0,
                 impressions: row.impressions || 0,
                 ctr: row.ctr || 0,
@@ -198,12 +219,14 @@ async function handleGscSync(request: NextRequest) {
           }
         }
 
-        // ── Step 3: Cross-reference indexing status ──
+        // ── Step 4: Cross-reference indexing status ──
         // Any URL with GSC impressions > 0 is definitively indexed by Google
-        const urlsWithImpressions = currentData.rows
-          .filter((r: { impressions?: number }) => (r.impressions || 0) > 0)
-          .map((r: { keys: string[] }) => r.keys[0])
-          .filter((url: string) => url.includes(bareDomain));
+        const urlsWithImpressions = [...new Set<string>(
+          currentData.rows
+            .filter((r: { impressions?: number }) => (r.impressions || 0) > 0)
+            .map((r: { keys: string[] }) => r.keys[0])
+            .filter((url: string) => url.includes(bareDomain))
+        )];
 
         if (urlsWithImpressions.length > 0) {
           try {
@@ -225,12 +248,14 @@ async function handleGscSync(request: NextRequest) {
           }
         }
 
-        // ── Step 4: Create missing URLIndexingStatus records ──
+        // ── Step 5: Create missing URLIndexingStatus records ──
         // For URLs GSC knows about but we never tracked
         try {
-          const allGscUrls = currentData.rows
-            .map((r: { keys: string[] }) => r.keys[0])
-            .filter((url: string) => url.includes(bareDomain));
+          const allGscUrls = [...new Set<string>(
+            currentData.rows
+              .map((r: { keys: string[] }) => r.keys[0])
+              .filter((url: string) => url.includes(bareDomain))
+          )];
 
           const existing = await prisma.uRLIndexingStatus.findMany({
             where: { site_id: siteId, url: { in: allGscUrls } },
@@ -273,30 +298,44 @@ async function handleGscSync(request: NextRequest) {
           console.warn(`[gsc-sync] ${siteId}: Failed to create missing tracking records:`, err instanceof Error ? err.message : String(err));
         }
 
-        // ── Step 5: Process PREVIOUS period data (already fetched in parallel) ──
+        // ── Step 6: Process PREVIOUS period data (already fetched in parallel) ──
+        // Also per-day now (dimensions: ["page", "date"])
         if (previousDataParallel?.rows?.length && Date.now() - cronStart < BUDGET_MS - 5000) {
-          const prevSnapshotDate = new Date(toDateStr(previousEnd));
+          // Clean old aggregated data for previous window
+          try {
+            await prisma.gscPagePerformance.deleteMany({
+              where: {
+                site_id: siteId,
+                date: { gte: previousStart, lt: currentStart },
+              },
+            });
+          } catch {
+            // Non-critical
+          }
+
           for (const row of previousDataParallel.rows) {
             if (Date.now() - cronStart > BUDGET_MS - 3000) break;
             const pageUrl = row.keys[0];
+            const rowDateStr = row.keys[1];
             if (!pageUrl.includes(bareDomain)) continue;
 
             sitePreviousClicks += row.clicks || 0;
             sitePreviousImpressions += row.impressions || 0;
 
+            const rowDate = new Date(rowDateStr + "T00:00:00Z");
             try {
               await prisma.gscPagePerformance.upsert({
                 where: {
                   site_id_url_date: {
                     site_id: siteId,
                     url: pageUrl,
-                    date: prevSnapshotDate,
+                    date: rowDate,
                   },
                 },
                 create: {
                   site_id: siteId,
                   url: pageUrl,
-                  date: prevSnapshotDate,
+                  date: rowDate,
                   clicks: row.clicks || 0,
                   impressions: row.impressions || 0,
                   ctr: row.ctr || 0,
@@ -315,7 +354,7 @@ async function handleGscSync(request: NextRequest) {
           }
         }
 
-        // ── Step 6: Detect significant traffic drops ──
+        // ── Step 7: Detect significant traffic drops ──
         const clicksChangePercent = sitePreviousClicks > 0
           ? ((siteCurrentClicks - sitePreviousClicks) / sitePreviousClicks) * 100
           : 0;

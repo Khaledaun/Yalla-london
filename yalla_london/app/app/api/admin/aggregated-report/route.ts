@@ -507,7 +507,7 @@ export async function GET(request: NextRequest) {
             category: `Discovery: ${di.category}`,
             title: di.title,
             rootCause: di.description,
-            fix: di.impact,
+            fix: di.description,
           });
         }
       }

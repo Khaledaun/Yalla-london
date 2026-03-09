@@ -159,6 +159,15 @@ function getCircuitState(provider: AIProvider): CircuitState {
   return circuitBreakers.get(provider)!;
 }
 
+/** Returns all circuit breaker states — used by campaign runner to detect all-providers-down */
+export function getAllCircuitStates(): Record<string, { state: string; failures: number }> {
+  const result: Record<string, { state: string; failures: number }> = {};
+  for (const [provider, state] of circuitBreakers.entries()) {
+    result[provider] = { state: state.state, failures: state.failures };
+  }
+  return result;
+}
+
 function recordProviderSuccess(provider: AIProvider): void {
   circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed' });
 }

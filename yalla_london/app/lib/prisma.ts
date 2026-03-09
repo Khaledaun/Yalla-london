@@ -126,10 +126,12 @@ function getPrismaClient(): PrismaClient {
       dbUrl = `${dbUrl}&pgbouncer=true`;
     }
     // Reduce pool timeout to fail fast instead of hanging when pool is full.
-    // 5s is enough for a healthy connection; 15s caused page renders to hang
-    // when concurrent requests exhausted the pool (audit showed 11s timeouts).
+    // 10s balances reliability vs responsiveness: 5s caused cron failures when
+    // multiple Vercel instances competed for PgBouncer slots (seen in production
+    // on content-auto-fix-lite — "Timed out fetching a new connection").
+    // 15s caused page renders to hang (audit showed 11s timeouts).
     if (dbUrl && !dbUrl.includes("pool_timeout=")) {
-      dbUrl = `${dbUrl}&pool_timeout=5`;
+      dbUrl = `${dbUrl}&pool_timeout=10`;
     }
     // Fail fast on connection establishment — prevents requests from hanging
     // when PgBouncer pool is exhausted (MaxClientsInSessionMode).

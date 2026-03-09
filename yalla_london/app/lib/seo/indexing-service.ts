@@ -1585,7 +1585,8 @@ export async function submitUrlImmediately(
 }
 
 export const gscApi = new GoogleSearchConsoleAPI();
-export default {
+
+const indexingService = {
   submitToIndexNow,
   pingSitemaps,
   getAllIndexableUrls,
@@ -1596,3 +1597,5 @@ export default {
   submitUrlImmediately,
   gscApi,
 };
+// eslint-disable-next-line import/no-anonymous-default-export
+export default indexingService;

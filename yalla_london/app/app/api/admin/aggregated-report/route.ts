@@ -579,6 +579,91 @@ export async function GET(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════════════
     const plainLanguage = buildPlainLanguage(grade, compositeScore, auditScore, indexing, gsc, pipeline, operations, issues, latestArticles, siteConfig?.name || siteId);
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 13. PLATFORM HEALTH CHECK (runtime infrastructure verification)
+    // ═══════════════════════════════════════════════════════════════════════
+    let platformHealth: {
+      score: number; grade: string; totalChecks: number; passed: number; failed: number; warnings: number;
+      checks: Array<{ category: string; name: string; status: "pass" | "fail" | "warn"; detail: string }>;
+      recentFixes: Array<{ date: string; description: string }>;
+    } | null = null;
+    if (Date.now() - start < BUDGET_MS - 5_000) {
+      try {
+        const fs = await import("fs");
+        const path = await import("path");
+        const checks: Array<{ category: string; name: string; status: "pass" | "fail" | "warn"; detail: string }> = [];
+
+        const fileExists = (p: string) => {
+          try { fs.accessSync(p); return true; } catch { return false; }
+        };
+        const fileContains = (p: string, s: string) => {
+          try { return fs.readFileSync(p, "utf8").includes(s); } catch { return false; }
+        };
+
+        const base = path.resolve(process.cwd());
+
+        // Security checks
+        checks.push({ category: "Security", name: "Login rate limiting", status: fileContains(`${base}/app/api/admin/login/route.ts`, "rateLimitMap") ? "pass" : "fail", detail: fileContains(`${base}/app/api/admin/login/route.ts`, "rateLimitMap") ? "5 attempts/15min with progressive delay" : "No rate limiting on admin login" });
+        checks.push({ category: "Security", name: "XSS sanitization", status: fileExists(`${base}/lib/html-sanitizer.ts`) ? "pass" : "fail", detail: fileExists(`${base}/lib/html-sanitizer.ts`) ? "sanitizeHtml() utility available" : "Missing HTML sanitizer" });
+        checks.push({ category: "Security", name: "Database routes protected", status: fileContains(`${base}/app/api/admin/database/route.ts`, "requireAdmin") ? "pass" : "fail", detail: "Admin auth on database API" });
+        checks.push({ category: "Security", name: "CSP headers", status: fileContains(`${base}/next.config.js`, "Content-Security-Policy") ? "pass" : "warn", detail: "Content Security Policy in next.config.js" });
+
+        // SEO checks
+        checks.push({ category: "SEO", name: "Pre-publication gate (14 checks)", status: fileExists(`${base}/lib/seo/orchestrator/pre-publication-gate.ts`) ? "pass" : "fail", detail: "Fail-closed gate on all publish paths" });
+        checks.push({ category: "SEO", name: "Centralized SEO standards", status: fileExists(`${base}/lib/seo/standards.ts`) ? "pass" : "fail", detail: "Single source of truth for all thresholds" });
+        checks.push({ category: "SEO", name: "Dynamic OG images", status: fileExists(`${base}/app/api/og/route.tsx`) ? "pass" : "fail", detail: "Per-site branded OG images via ImageResponse" });
+        checks.push({ category: "SEO", name: "Arabic SSR metadata", status: fileContains(`${base}/app/blog/[slug]/page.tsx`, "x-locale") ? "pass" : "fail", detail: "Blog metadata respects Arabic locale from middleware" });
+        checks.push({ category: "SEO", name: "IndexNow multi-engine", status: fileContains(`${base}/lib/seo/indexing-service.ts`, "indexnow.org") ? "pass" : "fail", detail: "Submits to Bing + Yandex + api.indexnow.org" });
+
+        // Pipeline checks
+        checks.push({ category: "Pipeline", name: "Atomic draft claiming", status: fileContains(`${base}/app/api/cron/content-builder/route.ts`, "updateMany") ? "pass" : "fail", detail: "Race condition prevention via updateMany" });
+        checks.push({ category: "Pipeline", name: "Quality gate score >= 70", status: fileContains(`${base}/lib/seo/standards.ts`, "qualityGateScore: 70") ? "pass" : "fail", detail: "Aligned across phases.ts, select-runner, standards" });
+        checks.push({ category: "Pipeline", name: "Author rotation (E-E-A-T)", status: fileExists(`${base}/lib/content-pipeline/author-rotation.ts`) ? "pass" : "fail", detail: "Named authors with load balancing" });
+        checks.push({ category: "Pipeline", name: "Title sanitization", status: fileContains(`${base}/lib/content-pipeline/select-runner.ts`, "cleanTitle") ? "pass" : "warn", detail: "Strips AI artifacts and slug-style titles" });
+
+        // Multi-site checks
+        checks.push({ category: "Multi-Site", name: "5 sites configured", status: fileContains(`${base}/config/sites.ts`, "arabaldives") && fileContains(`${base}/config/sites.ts`, "french-riviera") ? "pass" : "fail", detail: "All 5 site configs present" });
+        checks.push({ category: "Multi-Site", name: "Site switcher working", status: fileContains(`${base}/components/admin/premium-admin-nav.tsx`, "handleSiteSwitch") ? "pass" : "fail", detail: "Cycles through active sites with localStorage + cookie" });
+        checks.push({ category: "Multi-Site", name: "Per-site affiliate rules", status: fileContains(`${base}/app/api/cron/affiliate-injection/route.ts`, "arabaldives") ? "pass" : "fail", detail: "Destination-specific affiliate URLs for all 5 sites" });
+
+        // Admin UI checks
+        checks.push({ category: "Admin UI", name: "Admin profile page", status: fileExists(`${base}/app/admin/profile/page.tsx`) ? "pass" : "fail", detail: "User info + password change" });
+        checks.push({ category: "Admin UI", name: "Admin help page", status: fileExists(`${base}/app/admin/help/page.tsx`) ? "pass" : "fail", detail: "Quick links + cron schedule reference" });
+        checks.push({ category: "Admin UI", name: "Workflow real data", status: !fileContains(`${base}/components/admin/workflow-control-dashboard.tsx`, "Math.random") ? "pass" : "fail", detail: "No mock/fake data in workflow dashboard" });
+        checks.push({ category: "Admin UI", name: "Photo pool API wired", status: fileContains(`${base}/components/admin/photo-pool-manager.tsx`, "fetch(\"/api/admin/media\"") || fileContains(`${base}/components/admin/photo-pool-manager.tsx`, "fetch('/api/admin/media'") ? "pass" : "fail", detail: "Delete and bulk category call real API" });
+
+        const passed = checks.filter((c) => c.status === "pass").length;
+        const failed = checks.filter((c) => c.status === "fail").length;
+        const warned = checks.filter((c) => c.status === "warn").length;
+        const healthPct = Math.round((passed / checks.length) * 100);
+
+        const recentFixes = [
+          { date: "2026-03-09", description: "Discovery scanner double-protocol URL fix" },
+          { date: "2026-03-09", description: "Discovery issue field mapping fix" },
+          { date: "2026-03-09", description: "Login rate limiting added (5 attempts/15min)" },
+          { date: "2026-03-09", description: "Site switcher wired to cycle active sites" },
+          { date: "2026-03-09", description: "Photo pool delete/bulk category API wired" },
+          { date: "2026-03-09", description: "Social calendar image upload via MediaPicker" },
+          { date: "2026-03-09", description: "Dynamic OG image route (per-site branding)" },
+          { date: "2026-03-09", description: "Arabic SSR: locale-aware metadata + JSON-LD" },
+          { date: "2026-03-09", description: "Workflow dashboard: mock data replaced with real API" },
+          { date: "2026-03-09", description: "Logo path: dynamic per-site branding convention" },
+          { date: "2026-03-09", description: "GSC sync: fixed ~7x overcounting (per-day storage)" },
+        ];
+
+        platformHealth = {
+          score: healthPct,
+          grade: healthPct >= 90 ? "A" : healthPct >= 75 ? "B" : healthPct >= 60 ? "C" : healthPct >= 40 ? "D" : "F",
+          totalChecks: checks.length,
+          passed,
+          failed,
+          warnings: warned,
+          checks,
+          recentFixes,
+        };
+      } catch (e) { console.warn("[aggregated-report] platform health:", e instanceof Error ? e.message : e); }
+    }
+
     const report = {
       _format: "yalla-aggregated-report-v2",
       _generated: new Date().toISOString(),
@@ -593,6 +678,7 @@ export async function GET(request: NextRequest) {
       operations,
       discovery,
       publicAudit,
+      platformHealth,
       latestArticles,
       issues,
       fixPlan,

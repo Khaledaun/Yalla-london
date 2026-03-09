@@ -124,7 +124,7 @@ function buildEnhancementPrompt(
   operations: CampaignOperation[],
   relatedArticles: Array<{ slug: string; title_en: string }>,
   destination: string,
-): string {
+): { prompt: string; mode: 'patch' | 'full' } {
   const wc = wordCount(currentHtml);
   const ops = operations.map(o => `- ${o}`).join('\n');
 
@@ -133,7 +133,67 @@ function buildEnhancementPrompt(
     `  <a href="/blog/${a.slug}" class="internal-link">${a.title_en}</a>`
   ).join('\n');
 
-  return `You are a senior luxury travel editor enhancing a PUBLISHED article for better search rankings and revenue.
+  // For articles > 1500 words, use PATCH mode — AI returns only new/changed sections
+  // This avoids token truncation (a 3000-word article needs ~7000 output tokens to reproduce)
+  const usePatchMode = wc > 1500;
+
+  if (usePatchMode) {
+    // Extract H2 sections as anchors for patch insertion
+    const h2s = [...currentHtml.matchAll(/<h2[^>]*>(.*?)<\/h2>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').trim());
+    const sectionList = h2s.length > 0 ? h2s.map((h, i) => `  ${i + 1}. "${h}"`).join('\n') : '  (no H2 sections found)';
+
+    const prompt = `You are a senior luxury travel editor enhancing a PUBLISHED article using PATCH MODE.
+
+ARTICLE TITLE: "${title}"
+KEYWORD: "${keyword}"
+DESTINATION: ${destination}
+CURRENT WORD COUNT: ${wc} words
+CURRENT META TITLE: "${currentMetaTitle}"
+CURRENT META DESCRIPTION: "${currentMetaDesc}" (${currentMetaDesc.length} chars)
+
+OPERATIONS REQUIRED:
+${ops}
+
+EXISTING H2 SECTIONS:
+${sectionList}
+
+ARTICLE EXCERPT (first 3000 chars for context):
+${currentHtml.substring(0, 3000)}
+
+${operations.includes('add_internal_links') ? `AVAILABLE INTERNAL LINKS (use 3-5 with natural anchor text):\n${linkOptions}\n` : ''}
+
+PATCH MODE INSTRUCTIONS:
+Return ONLY the new content to INSERT, using these markers:
+
+<!-- INSERT_AFTER: "exact H2 text" -->
+<new HTML content to insert after that section>
+<!-- END_INSERT -->
+
+<!-- APPEND_TO_END -->
+<new sections to add at the end of the article>
+<!-- END_APPEND -->
+
+<!-- INJECT_LINKS -->
+<p>Read more: <a href="/blog/slug" class="internal-link">Title</a> | <a href="/blog/slug2" class="internal-link">Title2</a></p>
+<!-- END_INJECT_LINKS -->
+
+RULES:
+1. Do NOT reproduce existing content — only return NEW content to add.
+2. Each INSERT_AFTER block should add 150-300 words of new content after the named section.
+3. EXPERIENCE SIGNALS: Use "insider tip:", "when we visited", "the atmosphere here", "a hidden gem", "locals recommend", "pro tip:", sensory details (scents, sounds, textures), specific prices in £, specific hours, neighbourhood names.
+4. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
+5. AFFILIATE LINKS: Use <a href="https://www.booking.com/searchresults.html?ss=${encodeURIComponent(keyword)}" target="_blank" rel="nofollow sponsored" class="affiliate-link">Book on Booking.com</a> or similar.
+6. NO markdown. HTML only. No preamble.
+
+At the end, on separate lines:
+META_TITLE: [50-60 chars, keyword near front]
+META_DESCRIPTION: [120-155 chars, compelling with keyword]`;
+
+    return { prompt, mode: 'patch' };
+  }
+
+  // FULL MODE for short articles (≤1500 words) — AI returns the entire enhanced article
+  const prompt = `You are a senior luxury travel editor enhancing a PUBLISHED article for better search rankings and revenue.
 
 ARTICLE TITLE: "${title}"
 KEYWORD: "${keyword}"
@@ -146,12 +206,9 @@ OPERATIONS REQUIRED (only do what's listed):
 ${ops}
 
 CURRENT ARTICLE (HTML):
-${currentHtml.substring(0, 6000)}
+${currentHtml.substring(0, 8000)}
 
-${operations.includes('add_internal_links') ? `
-AVAILABLE INTERNAL LINKS (use 3-5 of these with natural anchor text):
-${linkOptions}
-` : ''}
+${operations.includes('add_internal_links') ? `AVAILABLE INTERNAL LINKS (use 3-5 with natural anchor text):\n${linkOptions}\n` : ''}
 
 RULES:
 1. Return the FULL enhanced article as valid HTML. Keep ALL existing content — only ADD to it.
@@ -169,6 +226,8 @@ META_TITLE: [50-60 chars, keyword near front]
 META_DESCRIPTION: [120-155 chars, compelling with keyword]
 
 Return ONLY the enhanced HTML followed by META_TITLE and META_DESCRIPTION lines. No preamble, no explanation.`;
+
+  return { prompt, mode: 'full' };
 }
 
 // ─── Main enhancement function ───────────────────────────────────────────────
@@ -268,11 +327,16 @@ export async function enhancePublishedArticle(
   } catch { /* use title */ }
 
   // ── Build prompt and call AI ───────────────────────────────────────
-  const prompt = buildEnhancementPrompt(
+  const { prompt, mode: enhanceMode } = buildEnhancementPrompt(
     post.title_en, keyword, post.content_en,
     post.meta_description_en || '', post.meta_title_en || '',
     neededOps, relatedArticles, destination,
   );
+
+  // Scale maxTokens: patch mode needs less (only new content), full mode scales with article size
+  const scaledMaxTokens = enhanceMode === 'patch'
+    ? 3000 // Patches are concise — new sections + links only
+    : Math.min(Math.ceil(beforeSnapshot.wordCountEn * 2.5), 8000); // Full: scale to article size
 
   const remainingMs = budgetMs - (Date.now() - startTime);
   if (remainingMs < 10_000) {
@@ -302,17 +366,17 @@ export async function enhancePublishedArticle(
         { role: 'user', content: prompt },
       ],
       {
-        maxTokens: 4500,
+        maxTokens: scaledMaxTokens,
         temperature: 0.5,
         siteId: post.siteId,
         taskType: 'campaign-enhance',
         calledFrom: 'campaign-agent',
         timeoutMs: Math.min(remainingMs - 5000, 80_000),
-        phaseBudgetHint: 'heavy',
+        phaseBudgetHint: enhanceMode === 'patch' ? 'medium' : 'heavy',
       },
     );
 
-    if (!aiResult || !aiResult.content || aiResult.content.length < 500) {
+    if (!aiResult || !aiResult.content || aiResult.content.length < 100) {
       return {
         success: false, operationsApplied: [], changes: {},
         costUsd: 0, error: 'AI returned insufficient content',
@@ -327,21 +391,69 @@ export async function enhancePublishedArticle(
     const metaTitleMatch = rawOutput.match(/META_TITLE:\s*(.+?)(?:\n|$)/i);
     const metaDescMatch = rawOutput.match(/META_DESCRIPTION:\s*(.+?)(?:\n|$)/i);
 
-    const enhancedHtml = rawOutput
-      .replace(/META_TITLE:.*$/im, '')
-      .replace(/META_DESCRIPTION:.*$/im, '')
-      .replace(/^```html?\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
+    let enhancedHtml: string;
 
-    // Validate the enhanced content is actually larger/better
-    const newWc = wordCount(enhancedHtml);
-    if (newWc < beforeSnapshot.wordCountEn * 0.8) {
-      return {
-        success: false, operationsApplied: [], changes: {},
-        costUsd, error: `Enhanced content too short (${newWc}w vs original ${beforeSnapshot.wordCountEn}w) — AI may have truncated`,
-        beforeSnapshot,
-      };
+    if (enhanceMode === 'patch') {
+      // ── PATCH MODE: apply insertions to original content ──────────
+      enhancedHtml = post.content_en;
+
+      // Apply INSERT_AFTER patches
+      const insertPatches = [...rawOutput.matchAll(/<!-- INSERT_AFTER:\s*"([^"]+)"\s*-->([\s\S]*?)<!-- END_INSERT -->/gi)];
+      for (const patch of insertPatches) {
+        const sectionTitle = patch[1].trim();
+        const newContent = patch[2].trim();
+        if (!newContent) continue;
+        // Find the H2 with this title and insert after the next closing tag
+        const escapedTitle = sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const sectionRegex = new RegExp(`(<h2[^>]*>[^<]*${escapedTitle}[^<]*<\\/h2>)`, 'i');
+        const sectionMatch = enhancedHtml.match(sectionRegex);
+        if (sectionMatch && sectionMatch.index !== undefined) {
+          // Find the next </p>, </ul>, </ol>, or </div> after the H2 to insert after the first block
+          const afterH2 = enhancedHtml.substring(sectionMatch.index + sectionMatch[0].length);
+          const nextBlockEnd = afterH2.match(/<\/(p|ul|ol|div|blockquote)>/i);
+          if (nextBlockEnd && nextBlockEnd.index !== undefined) {
+            const insertPoint = sectionMatch.index + sectionMatch[0].length + nextBlockEnd.index + nextBlockEnd[0].length;
+            enhancedHtml = enhancedHtml.substring(0, insertPoint) + '\n' + newContent + enhancedHtml.substring(insertPoint);
+          } else {
+            // No block end found — insert right after the H2
+            const insertPoint = sectionMatch.index + sectionMatch[0].length;
+            enhancedHtml = enhancedHtml.substring(0, insertPoint) + '\n' + newContent + enhancedHtml.substring(insertPoint);
+          }
+        }
+      }
+
+      // Apply APPEND_TO_END
+      const appendMatch = rawOutput.match(/<!-- APPEND_TO_END -->([\s\S]*?)<!-- END_APPEND -->/i);
+      if (appendMatch?.[1]?.trim()) {
+        enhancedHtml += '\n' + appendMatch[1].trim();
+      }
+
+      // Apply INJECT_LINKS
+      const linksMatch = rawOutput.match(/<!-- INJECT_LINKS -->([\s\S]*?)<!-- END_INJECT_LINKS -->/i);
+      if (linksMatch?.[1]?.trim()) {
+        // Check if related links section already exists
+        if (!enhancedHtml.includes('class="related-articles"') && !enhancedHtml.includes('class="related-link"')) {
+          enhancedHtml += '\n<section class="related-articles">' + linksMatch[1].trim() + '</section>';
+        }
+      }
+    } else {
+      // ── FULL MODE: use the raw AI output as the new article ──────
+      enhancedHtml = rawOutput
+        .replace(/META_TITLE:.*$/im, '')
+        .replace(/META_DESCRIPTION:.*$/im, '')
+        .replace(/^```html?\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+
+      // Validate full-mode content isn't truncated
+      const newWc = wordCount(enhancedHtml);
+      if (newWc < beforeSnapshot.wordCountEn * 0.85) {
+        return {
+          success: false, operationsApplied: [], changes: {},
+          costUsd, error: `Enhanced content too short (${newWc}w vs original ${beforeSnapshot.wordCountEn}w) — AI may have truncated`,
+          beforeSnapshot,
+        };
+      }
     }
 
     // ── Build update data ───────────────────────────────────────────

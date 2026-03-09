@@ -607,10 +607,11 @@ export async function promoteToBlogPost(
   // Empty content guard — prevent publishing articles with insufficient English content
   if (enHtml && enHtml.trim().length < 500) {
     console.warn(`[content-selector] Skipping draft ${draft.id} — content_en too short (${enHtml.trim().length} chars)`);
+    // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
     await prisma.articleDraft.update({
       where: { id: draft.id as string },
-      data: { last_error: "Empty content_en — skipped promotion" },
-    }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+      data: { current_phase: "reservoir", last_error: "Empty content_en — skipped promotion" },
+    }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
     return null;
   }
 
@@ -710,14 +711,15 @@ export async function promoteToBlogPost(
       );
       if (existingMatch) {
         console.warn(`[content-selector] SKIPPED draft ${draft.id}: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already published as /blog/${existingMatch.slug}`);
-        // Mark the draft so it doesn't keep being selected every run
+        // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
+            current_phase: "reservoir",
             last_error: `Normalized duplicate title: "${candidateTitle}" ≈ existing "/blog/${existingMatch.slug}"`,
             updated_at: new Date(),
           },
-        }).catch(() => {});
+        }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
         return null;
       }
     } catch (titleCheckErr) {
@@ -737,13 +739,15 @@ export async function promoteToBlogPost(
       if (cannibResult.cannibalizes && cannibResult.overlappingArticle) {
         const overlap = cannibResult.overlappingArticle;
         console.warn(`[content-selector] SKIPPED draft ${draft.id}: keyword cannibalization (${overlap.overlapScore}% overlap) with existing "/blog/${overlap.slug}" — shared: ${overlap.sharedKeywords.join(", ")}`);
+        // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
+            current_phase: "reservoir",
             last_error: `Keyword cannibalization: ${overlap.overlapScore}% overlap with "/blog/${overlap.slug}" (${overlap.sharedKeywords.slice(0, 5).join(", ")})`,
             updated_at: new Date(),
           },
-        }).catch(() => {});
+        }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
         return null;
       }
     }
@@ -776,7 +780,8 @@ export async function promoteToBlogPost(
       }
     } else {
       console.warn(`[content-selector] Slug artifact detected but cleaning produced invalid slug: "${slug}" → "${cleanedSlug}". Skipping.`);
-      await prisma.articleDraft.update({ where: { id: draft.id as string }, data: { last_error: `Slug artifact detected: ${slug}` } });
+      // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
+      await prisma.articleDraft.update({ where: { id: draft.id as string }, data: { current_phase: "reservoir", last_error: `Slug artifact detected: ${slug}` } }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
       return null;
     }
   }

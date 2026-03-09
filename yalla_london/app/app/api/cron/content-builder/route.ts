@@ -149,7 +149,9 @@ async function handleContentBuilder(request: NextRequest) {
       });
     } else {
       const didProcessDraft = result.draftId ? 1 : 0;
-      const didAdvance = (result.previousPhase && result.nextPhase && result.previousPhase !== result.nextPhase) ? 1 : 0;
+      // Count success if phase advanced OR if still in multi-section drafting (sections progressed)
+      const didAdvance = (result.previousPhase && result.nextPhase && result.previousPhase !== result.nextPhase) ? 1
+        : (result.phaseSuccess && didProcessDraft) ? 1 : 0;
 
       await logCronExecution("content-builder", "completed", {
         durationMs,

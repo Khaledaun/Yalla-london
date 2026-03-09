@@ -65,18 +65,25 @@ async function handleCreate(request: NextRequest) {
       }
 
       // Skip if there are already active drafts for this site (builder will advance them)
-      // Only count drafts that are actually progressing — exclude stuck drafts (no update in 4h)
-      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+      // Only count drafts that are genuinely progressing:
+      // - Exclude stuck drafts (no update in 4h)
+      // - Exclude drafts just touched by sweeper/diagnostic (last_error contains recovery messages)
+      //   because sweeper resets updated_at, making stuck drafts look "active"
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          updated_at: { gte: fourHoursAgo },
+          updated_at: { gte: twoHoursAgo },
+          // Exclude drafts that were recovered by sweeper but may still be stuck
+          NOT: {
+            last_error: { contains: "Reset phase timer" },
+          },
         },
       });
-      if (activeDrafts >= 2) {
+      if (activeDrafts >= 4) {
         skippedSites.push(`${siteId}(${activeDrafts} active)`);
         console.log(`[builder-create] Site ${siteId} has ${activeDrafts} active drafts — skipping creation`);
         continue;

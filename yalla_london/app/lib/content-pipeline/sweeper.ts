@@ -260,6 +260,49 @@ export async function runSweeper(): Promise<SweeperResult> {
       }
     }
 
+    // ── 2b. Fix orphaned "promoting" drafts (content-selector crashed mid-promotion) ─
+    try {
+      const promotingDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          current_phase: "promoting",
+          updated_at: { lt: new Date(Date.now() - 10 * 60 * 1000) }, // Stuck 10+ minutes
+        },
+        take: 10,
+      });
+      for (const draft of promotingDrafts) {
+        const draftId = draft.id as string;
+        const keyword = (draft.keyword as string) || "unknown";
+        const locale = (draft.locale as string) || "en";
+        try {
+          await prisma.articleDraft.update({
+            where: { id: draftId },
+            data: {
+              current_phase: "reservoir",
+              last_error: "Reverted from promoting — content-selector crashed mid-promotion",
+              updated_at: new Date(),
+            },
+          });
+          recovered.push({
+            draftId,
+            keyword,
+            locale,
+            problem: "Orphaned in promoting phase — content-selector crashed mid-promotion",
+            diagnosis: "Reverted to reservoir so it can be re-promoted on next run",
+            fix: "Reset current_phase from promoting to reservoir",
+            previousPhase: "promoting",
+            newPhase: "reservoir",
+          });
+          console.log(`[sweeper] Reverted orphaned promoting draft ${draftId} (${keyword} ${locale}) to reservoir`);
+        } catch (err) {
+          console.warn(`[sweeper] Failed to revert promoting draft ${draftId}:`, err instanceof Error ? err.message : err);
+          skipped++;
+        }
+      }
+    } catch (promErr) {
+      console.warn("[sweeper] Orphaned promoting query failed:", promErr instanceof Error ? promErr.message : promErr);
+    }
+
     // ── 3. Find failed drafts at max attempts but with fixable errors ─
     let failingDrafts: Array<Record<string, unknown>> = [];
     try {

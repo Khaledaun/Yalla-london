@@ -17,9 +17,20 @@
  */
 
 // Patterns that AI echoes from prompt templates
-const CHAR_COUNT_PATTERN = /\s*\((?:under\s+)?\d+(?:\s*[-–]\s*\d+)?\s*(?:chars?|characters?)\)/gi;
+// NOTE: Use /i only (not /gi) for patterns used with .test() — the /g flag
+// makes .test() stateful (remembers lastIndex), causing alternating true/false
+// results when called in a loop. Only use /g on patterns passed to .replace().
+const CHAR_COUNT_PATTERN = /\s*\((?:under\s+)?\d+(?:\s*[-–]\s*\d+)?\s*(?:chars?|characters?)\)/i;
+const CHAR_COUNT_PATTERN_G = /\s*\((?:under\s+)?\d+(?:\s*[-–]\s*\d+)?\s*(?:chars?|characters?)\)/gi;
 const CHAR_SUFFIX_PATTERN = /\s*[-–]\s*(?:under\s+)?\d+\s*chars?$/i;
 const INSTRUCTION_ECHOES = [
+  /\bSEO[- ]optimized\b/i,
+  /\bincluding keyword\b/i,
+  /\bwith keyword and CTA\b/i,
+  /\bMeta description\s+\d+[-–]\d+\s*chars?\b/i,
+  /\bSEO title\b/i,
+];
+const INSTRUCTION_ECHOES_G = [
   /\bSEO[- ]optimized\b/gi,
   /\bincluding keyword\b/gi,
   /\bwith keyword and CTA\b/gi,
@@ -44,13 +55,13 @@ export function sanitizeTitle(title: string): string {
   let cleaned = title;
 
   // Strip character count patterns: "(under 60 chars)", "(53 chars)", etc.
-  cleaned = cleaned.replace(CHAR_COUNT_PATTERN, "");
+  cleaned = cleaned.replace(CHAR_COUNT_PATTERN_G, "");
 
   // Strip suffix patterns: "- Under 60 Chars"
   cleaned = cleaned.replace(CHAR_SUFFIX_PATTERN, "");
 
-  // Strip AI instruction echoes
-  for (const pattern of INSTRUCTION_ECHOES) {
+  // Strip AI instruction echoes (use /g versions for .replace())
+  for (const pattern of INSTRUCTION_ECHOES_G) {
     cleaned = cleaned.replace(pattern, "");
   }
 
@@ -81,11 +92,11 @@ export function sanitizeMetaDescription(desc: string): string {
 
   let cleaned = desc;
 
-  // Strip character count patterns
-  cleaned = cleaned.replace(CHAR_COUNT_PATTERN, "");
+  // Strip character count patterns (use /g version for .replace())
+  cleaned = cleaned.replace(CHAR_COUNT_PATTERN_G, "");
 
-  // Strip AI instruction echoes
-  for (const pattern of INSTRUCTION_ECHOES) {
+  // Strip AI instruction echoes (use /g versions for .replace())
+  for (const pattern of INSTRUCTION_ECHOES_G) {
     cleaned = cleaned.replace(pattern, "");
   }
 

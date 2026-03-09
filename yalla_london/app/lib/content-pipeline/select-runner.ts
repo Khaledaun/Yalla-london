@@ -969,6 +969,30 @@ export async function promoteToBlogPost(
     }
   }
 
+  // ── CJ Affiliate Link Injection ─────────────────────────────────────────
+  // Inject affiliate CTAs into content before publishing. Non-blocking:
+  // if injection fails, publish the article without affiliates.
+  try {
+    const { processContent: injectAffiliateLinks } = await import("@/lib/affiliate/content-processor");
+    const domain = getSiteDomain(siteId);
+
+    if (enHtml) {
+      const enResult = await injectAffiliateLinks(enHtml, {
+        category: category?.slug || "",
+        tags: keywords,
+        language: "en",
+        articleId: draft.id as string,
+        baseUrl: `https://${domain}`,
+      });
+      if (enResult.hasAffiliateContent) {
+        enHtml = enResult.html;
+        console.log(`[content-selector] Injected ${enResult.injectedLinks.length} CJ affiliate links (EN) into draft ${draft.id}`);
+      }
+    }
+  } catch (affErr) {
+    console.warn(`[content-selector] CJ affiliate injection failed (non-blocking):`, affErr instanceof Error ? affErr.message : affErr);
+  }
+
   // Create BlogPost + update draft in a Prisma transaction to prevent orphans.
   // Previously BlogPost was created first, draft updated ~200 lines later. If the process
   // crashed between them, the draft stayed "reservoir" and got promoted again = duplicate.

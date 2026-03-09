@@ -340,7 +340,7 @@ async function handleAutoFixLite(request: NextRequest) {
   if (Date.now() - cronStart < BUDGET_MS - 12_000) {
     try {
       const { getSiteDomain } = await import("@/config/sites");
-      // Find published posts that don't have a URLIndexingStatus record
+      // Find published posts — limit to 50 to keep DB load manageable
       const untrackedPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
@@ -348,25 +348,30 @@ async function handleAutoFixLite(request: NextRequest) {
           deletedAt: null,
         },
         select: { slug: true, siteId: true },
-        take: 100,
+        take: 50,
         orderBy: { created_at: "desc" },
       }), "never-submitted-catchup") as Array<{ slug: string; siteId: string }>;
 
-      for (const post of untrackedPosts) {
-        if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
+      // Build all URLs, then batch-check which ones are already tracked (1 query instead of N)
+      const postUrls = untrackedPosts.map((post) => {
         const domain = getSiteDomain(post.siteId);
-        const url = `${domain}/blog/${post.slug}`;
-        // Check if this URL is already tracked
-        const existing = await prisma.uRLIndexingStatus.findFirst({
-          where: { site_id: post.siteId, url },
-          select: { id: true },
-        }).catch(() => null);
+        return { url: `${domain}/blog/${post.slug}`, siteId: post.siteId, slug: post.slug };
+      });
 
-        if (!existing) {
-          const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
-          await ensureUrlTracked(url, post.siteId, `blog/${post.slug}`);
-          neverSubmittedFixed++;
-        }
+      const existingUrls = await withPoolRetry(async () => prisma.uRLIndexingStatus.findMany({
+        where: { url: { in: postUrls.map((p) => p.url) } },
+        select: { url: true },
+      }), "never-submitted-existing-check") as Array<{ url: string }>;
+
+      const trackedSet = new Set(existingUrls.map((e) => e.url));
+      const untracked = postUrls.filter((p) => !trackedSet.has(p.url));
+
+      // Track missing URLs — limit to 10 per run to avoid pool exhaustion
+      const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+      for (const post of untracked.slice(0, 10)) {
+        if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
+        await ensureUrlTracked(post.url, post.siteId, `blog/${post.slug}`);
+        neverSubmittedFixed++;
       }
       if (neverSubmittedFixed > 0) {
         console.log(`[auto-fix-lite] Tracked ${neverSubmittedFixed} previously untracked URLs`);

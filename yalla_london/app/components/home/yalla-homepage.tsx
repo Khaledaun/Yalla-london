@@ -400,7 +400,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <NewsTicker speed={45} />
 
       {/* ═══ HERO ═══ */}
-      <section className="relative min-h-[85vh] flex items-end overflow-hidden">
+      {/* Explicit h-[85vh] prevents CLS — the container has a fixed height before images load */}
+      <section className="relative h-[60vh] sm:h-[70vh] md:h-[85vh] flex items-end overflow-hidden">
         {/* Rotating Background Images */}
         {HERO_IMAGES.map((img, i) => (
           <Image

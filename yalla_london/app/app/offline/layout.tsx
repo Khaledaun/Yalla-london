@@ -10,12 +10,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
 
   return {
-    title: `My Purchases | ${siteName} Shop`,
+    title: `Offline | ${siteName}`,
     robots: { index: false, follow: false },
   };
 }
 
-export default function PurchasesLayout({
+export default function OfflineLayout({
   children,
 }: {
   children: React.ReactNode;

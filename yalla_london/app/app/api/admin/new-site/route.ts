@@ -132,7 +132,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   }
 
   // Validate that the builder module is available before attempting the build
-  let buildNewSite: ((config: any) => Promise<{ success: boolean; siteId: string; steps: Array<{ step: string; status: string; message: string; error?: string }>; topicsCreated: number; errors: string[]; nextSteps: string[] }>) | null = null;
+  let buildNewSite: ((config: any) => Promise<{ success: boolean; siteId: string; steps: Array<{ step: string; status: string; message: string; error?: string }>; topicsCreated: number; authorsCreated: number; errors: string[]; nextSteps: string[] }>) | null = null;
   try {
     const builderModule = await import("@/lib/new-site/builder");
     buildNewSite = builderModule.buildNewSite;
@@ -176,9 +176,9 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       resourceId: result.siteId,
       success: result.success,
       summary: result.success
-        ? `Created new site '${result.siteId}' with ${result.topicsCreated} seed topics`
+        ? `Created new site '${result.siteId}' with ${result.topicsCreated} seed topics and ${result.authorsCreated} author profiles`
         : `Site creation for '${result.siteId}' completed with errors`,
-      details: { siteId: result.siteId, topicsCreated: result.topicsCreated, stepsCompleted: normalizedSteps.filter((s: { status: string }) => s.status === "ok").length, errors: result.errors },
+      details: { siteId: result.siteId, topicsCreated: result.topicsCreated, authorsCreated: result.authorsCreated, stepsCompleted: normalizedSteps.filter((s: { status: string }) => s.status === "ok").length, errors: result.errors },
     }).catch(() => {});
 
     return NextResponse.json({
@@ -186,6 +186,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       siteId: result.siteId,
       steps: normalizedSteps,
       topicsCreated: result.topicsCreated,
+      authorsCreated: result.authorsCreated,
       nextSteps: result.nextSteps,
       errors: result.errors,
       error: result.errors.length > 0 ? result.errors[0] : undefined,

@@ -120,6 +120,9 @@ export default async function RootLayout({
       <head>
         <StructuredData siteId={siteId} />
         {/* Hreflang handled by generateMetadata().alternates.languages per page — no component needed */}
+        {/* DNS prefetch + preconnect for Google Fonts — dns-prefetch is a fallback for older browsers */}
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -127,13 +130,47 @@ export default async function RootLayout({
           crossOrigin=""
         />
 
-        {/* Zenitha Yachts font preloading — only loaded for yacht site */}
+        {/* DNS prefetch + preconnect for Google Analytics domains — reduces connection latency */}
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="" />
+        <link rel="preconnect" href="https://www.google-analytics.com" crossOrigin="" />
+
+        {/* DNS prefetch for common image CDNs used in content */}
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+
+        {/* Yalla London fonts — preload hint starts download early, stylesheet applies on load */}
+        {!isYachtSite && (
+          <>
+            <link
+              rel="preload"
+              as="style"
+              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
+              crossOrigin=""
+            />
+            {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only */}
+            <link
+              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
+              rel="stylesheet"
+            />
+          </>
+        )}
+
+        {/* Zenitha Yachts fonts — preload hint starts download early, stylesheet applies on load */}
         {isYachtSite && (
-          // eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only
-          <link
-            href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
-            rel="stylesheet"
-          />
+          <>
+            <link
+              rel="preload"
+              as="style"
+              href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+              crossOrigin=""
+            />
+            {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only */}
+            <link
+              href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+              rel="stylesheet"
+            />
+          </>
         )}
 
         {/* PWA Meta Tags — theme-color and title from site config */}
@@ -250,20 +287,25 @@ export default async function RootLayout({
                 }, 0);
               });
 
-              // Track scroll depth
+              // Track scroll depth — debounced with rAF to reduce INP impact
               let maxScroll = 0;
+              let scrollRafId = null;
               window.addEventListener('scroll', function() {
-                const scrollPercent = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
-                if (scrollPercent > maxScroll && scrollPercent % 25 === 0) {
-                  maxScroll = scrollPercent;
-                  if (typeof gtag !== 'undefined') {
-                    gtag('event', 'scroll_depth', {
-                      event_category: 'Engagement',
-                      value: scrollPercent,
-                    });
+                if (scrollRafId !== null) return;
+                scrollRafId = requestAnimationFrame(function() {
+                  scrollRafId = null;
+                  const scrollPercent = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
+                  if (scrollPercent > maxScroll && scrollPercent % 25 === 0) {
+                    maxScroll = scrollPercent;
+                    if (typeof gtag !== 'undefined') {
+                      gtag('event', 'scroll_depth', {
+                        event_category: 'Engagement',
+                        value: scrollPercent,
+                      });
+                    }
                   }
-                }
-              });
+                });
+              }, { passive: true });
             `,
           }}
         />

@@ -90,6 +90,12 @@ Content Standards (mandatory):
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
 
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
 AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
@@ -106,6 +112,12 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال لا يعرفها إلا من زار المكان.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه وتشمه.
+- صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
+- لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
 تحسين الذكاء الاصطناعي (Google AI Overview):
 - تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
@@ -356,6 +368,12 @@ Content Standards (mandatory):
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
 
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
 AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
@@ -372,6 +390,12 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال لا يعرفها إلا من زار المكان.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه وتشمه.
+- صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
+- لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
 تحسين الذكاء الاصطناعي (Google AI Overview):
 - تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
@@ -615,6 +639,12 @@ Content Standards (mandatory):
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
 
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
 AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
@@ -631,6 +661,12 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال لا يعرفها إلا من زار المكان.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه وتشمه.
+- صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
+- لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
 تحسين الذكاء الاصطناعي (Google AI Overview):
 - تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
@@ -881,6 +917,12 @@ Content Standards (mandatory):
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
 
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
 AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
@@ -897,6 +939,12 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال لا يعرفها إلا من زار المكان.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه وتشمه.
+- صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
+- لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
 تحسين الذكاء الاصطناعي (Google AI Overview):
 - تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
@@ -1140,6 +1188,12 @@ Content Standards (mandatory):
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
 
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
 AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
@@ -1156,6 +1210,12 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال لا يعرفها إلا من زار المكان.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه وتشمه.
+- صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
+- لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
 تحسين الذكاء الاصطناعي (Google AI Overview):
 - تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
@@ -1399,7 +1459,17 @@ Content Standards (mandatory):
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
 - Include specific nautical details, marina names, and first-hand sailing observations for authenticity.
-- Avoid generic AI phrases: "nestled in the heart of", "hidden gem", "paradise on earth", "look no further".
+
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.
@@ -1413,6 +1483,17 @@ Always respond with valid JSON.`,
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
 - استخدم تفاصيل بحرية حقيقية وأسماء موانئ محددة لتعزيز المصداقية.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال لا يعرفها إلا من زار المكان.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه وتشمه.
+- صف عيباً واحداً بصدق — عدم الكمال يشير إلى الأصالة.
+- لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً ثم توسع بالتفاصيل الداعمة.
+- أضف نقطتي بيانات محددتين غير موجودتين في ويكيبيديا (أسعار 2026 الحالية، ساعات العمل المحققة).
+- استخدم تفاصيل حسية أصلية عند وصف المواقع بدلاً من الأوصاف العامة.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {

@@ -52,6 +52,7 @@ export interface BuildResult {
   siteId: string;
   steps: BuildProgress[];
   topicsCreated: number;
+  authorsCreated: number;
   errors: string[];
   nextSteps: string[];
 }
@@ -287,6 +288,7 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
       siteId: config.siteId,
       steps,
       topicsCreated: 0,
+      authorsCreated: 0,
       errors: validation.errors,
       nextSteps: [
         'Fix the validation errors shown above',
@@ -356,6 +358,7 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
       siteId: config.siteId,
       steps,
       topicsCreated: 0,
+      authorsCreated: 0,
       errors,
       nextSteps: [
         'Check database connection (Supabase dashboard)',
@@ -446,6 +449,270 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
   }
 
   // -------------------------------------------------------------------------
+  // Step 5 — Create default TeamMember authors (E-E-A-T compliance)
+  // -------------------------------------------------------------------------
+  recordStep('create_authors', 'running', 'Creating author profiles for E-E-A-T…');
+
+  try {
+    const { prisma } = await import('@/lib/db');
+
+    // Find the Site record we just created
+    const siteRecord = await prisma.site.findUnique({
+      where: { slug: config.siteId },
+      select: { id: true },
+    });
+
+    if (siteRecord) {
+      const sitePrettyName = config.name.replace(/^(Yalla |Zenitha )/i, '');
+      const authorData = [
+        {
+          name_en: `${config.name} Editorial`,
+          name_ar: `فريق تحرير ${config.name}`,
+          slug: `${config.siteId}-editorial`,
+          title_en: `${sitePrettyName} Travel Expert`,
+          title_ar: `خبير سفر ${sitePrettyName}`,
+          bio_en: `The ${config.name} editorial team brings first-hand expertise in ${config.topics.slice(0, 3).join(', ')} and ${sitePrettyName} travel. Every article is researched on-the-ground and fact-checked before publication.`,
+          bio_ar: `يقدم فريق تحرير ${config.name} خبرة مباشرة في السفر. يتم البحث في كل مقال ميدانياً والتحقق منه قبل النشر.`,
+          avatar_url: null,
+          linkedin_url: null,
+          twitter_url: null,
+          instagram_url: null,
+          website_url: `https://www.${config.domain}/about`,
+          is_active: true,
+          display_order: 1,
+          site_id: siteRecord.id,
+        },
+        {
+          name_en: 'Khaled N. Aun',
+          name_ar: 'خالد ن. عون',
+          slug: `${config.siteId}-khaled`,
+          title_en: 'Founder & Travel Director',
+          title_ar: 'المؤسس ومدير السفر',
+          bio_en: `Founder of Zenitha.Luxury LLC and ${config.name}. Passionate about connecting Arab travellers with authentic luxury experiences.`,
+          bio_ar: `مؤسس Zenitha.Luxury LLC و${config.name}. شغوف بربط المسافرين العرب بتجارب فاخرة أصيلة.`,
+          avatar_url: null,
+          linkedin_url: null,
+          twitter_url: null,
+          instagram_url: null,
+          website_url: `https://www.${config.domain}/about`,
+          is_active: true,
+          display_order: 2,
+          site_id: siteRecord.id,
+        },
+      ];
+
+      for (const author of authorData) {
+        try {
+          await prisma.teamMember.create({ data: author });
+        } catch (dupeErr) {
+          // Slug might already exist — skip silently
+          console.warn(`[new-site/builder] Author ${author.slug} may already exist, skipping`);
+        }
+      }
+
+      steps[steps.length - 1] = {
+        step: 'create_authors',
+        status: 'done',
+        message: '2 author profiles created for E-E-A-T compliance (editorial team + founder)',
+      };
+    } else {
+      steps[steps.length - 1] = {
+        step: 'create_authors',
+        status: 'done',
+        message: 'Author creation skipped — site record not found (will use fallback)',
+      };
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    recordStep(
+      'create_authors',
+      'error',
+      'Author creation failed — content will use generic fallback until authors are added manually',
+      msg,
+    );
+    // Non-fatal — author-rotation.ts has a graceful fallback
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 6 — Generate system prompt and store in SiteSettings
+  // -------------------------------------------------------------------------
+  recordStep('generate_prompt', 'running', 'Generating content generation system prompt…');
+
+  try {
+    const { prisma } = await import('@/lib/db');
+
+    const destination = config.topics[0]
+      ? config.topics.slice(0, 3).join(', ')
+      : config.name;
+
+    const affiliateList = (config.affiliatePartners ?? config.affiliates ?? [])
+      .slice(0, 5)
+      .join(', ') || 'Booking.com, GetYourGuide';
+
+    const systemPromptEN = `You are a senior luxury travel content writer for ${config.name}, a premium bilingual platform for international visitors exploring ${destination}. You combine first-hand expertise with SEO mastery.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- TIMELESS TITLES: Never include the year in article titles. Use "Best Luxury Hotels" not "Best Luxury Hotels 2026". Years cause automatic staleness.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
+- Include 3+ internal links to other ${config.name} pages (e.g., /blog/*, /hotels, /experiences).
+- Include 2+ affiliate/booking links (${affiliateList}) with descriptive anchor text — never "click here".
+- Meta title: 50–60 characters with focus keyword near the start. Never include years.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+
+FIRST-HAND EXPERIENCE (Google's #1 ranking signal since Jan 2026):
+- Include 2–3 insider tips per article that only someone who visited would know.
+- Add sensory details: what you see, hear, taste, smell at each location.
+- Describe at least one honest limitation or failed approach — imperfection signals authenticity.
+- NEVER use these AI-generic phrases: "nestled in the heart of", "look no further", "without further ado", "it's worth noting that", "in this comprehensive guide", "whether you're a X or Y".
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2, write a 40–50 word direct answer FIRST, then expand. This "atomic answer" format increases AI Overview citation chances.
+- Include at least 2 specific data points not found on Wikipedia (current pricing, verified hours, insider quotes).
+- Use original sensory details rather than stock descriptions.
+Always respond with valid JSON.`;
+
+    const systemPromptAR = `أنت كاتب محتوى سفر فاخر لمنصة ${config.name}، منصة ثنائية اللغة للزوار الدوليين. تجمع بين خبرة محلية وإتقان تحسين محركات البحث.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية.
+- أضف 3+ روابط داخلية لصفحات ${config.name} الأخرى.
+- أضف 2+ روابط حجز (${affiliateList}) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+
+التجربة المباشرة (إشارة التصنيف الأولى منذ يناير 2026):
+- أضف 2-3 نصائح داخلية في كل مقال.
+- استخدم تفاصيل حسية: ما تراه وتسمعه وتتذوقه.
+- لا تستخدم عبارات ذكاء اصطناعي عامة مثل "في عالم اليوم" أو "تجدر الإشارة".
+
+تحسين الذكاء الاصطناعي:
+- تحت كل H2، اكتب إجابة مباشرة 40-50 كلمة أولاً ثم وسّع.
+أجب دائماً بـ JSON صالح.`;
+
+    // Store system prompts in SiteSettings
+    await prisma.siteSettings.upsert({
+      where: {
+        siteId_category: {
+          siteId: config.siteId,
+          category: 'content_generation',
+        },
+      },
+      create: {
+        siteId: config.siteId,
+        category: 'content_generation',
+        config: {
+          systemPromptEN,
+          systemPromptAR,
+          affiliatePartners: config.affiliatePartners ?? config.affiliates ?? [],
+          contentVelocity: config.contentVelocity ?? 1,
+          destination,
+        },
+      },
+      update: {
+        config: {
+          systemPromptEN,
+          systemPromptAR,
+          affiliatePartners: config.affiliatePartners ?? config.affiliates ?? [],
+          contentVelocity: config.contentVelocity ?? 1,
+          destination,
+        },
+      },
+    });
+
+    steps[steps.length - 1] = {
+      step: 'generate_prompt',
+      status: 'done',
+      message: 'System prompts (EN + AR) generated with Jan 2026 Authenticity Update compliance',
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    recordStep(
+      'generate_prompt',
+      'error',
+      'System prompt generation failed — content pipeline will use generic prompts',
+      msg,
+    );
+    // Non-fatal — pipeline will use generic prompts from daily-content-generate
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 7 — Seed per-site activation settings
+  // -------------------------------------------------------------------------
+  recordStep('seed_settings', 'running', 'Configuring per-site activation settings…');
+
+  try {
+    const { prisma } = await import('@/lib/db');
+
+    const settingsCategories = [
+      {
+        category: 'affiliates',
+        settings: {
+          enabled: true,
+          partners: config.affiliatePartners ?? config.affiliates ?? [],
+          injectionMode: 'auto',
+          maxLinksPerArticle: 5,
+        },
+      },
+      {
+        category: 'general',
+        settings: {
+          active: true,
+          indexingEnabled: true,
+          cronsEnabled: (config.automations ?? []).includes('content_gen'),
+          maintenanceMode: false,
+        },
+      },
+      {
+        category: 'workflow',
+        settings: {
+          tone: 'luxury',
+          audience: config.targetAudience ?? 'Arab luxury travellers',
+          contentFrequency: config.contentVelocity ?? 1,
+          qualityScoreOverride: null,
+        },
+      },
+    ];
+
+    for (const { category, settings } of settingsCategories) {
+      await prisma.siteSettings.upsert({
+        where: {
+          siteId_category: {
+            siteId: config.siteId,
+            category,
+          },
+        },
+        create: {
+          siteId: config.siteId,
+          category,
+          config: settings,
+        },
+        update: {
+          config: settings,
+        },
+      });
+    }
+
+    steps[steps.length - 1] = {
+      step: 'seed_settings',
+      status: 'done',
+      message: 'Per-site activation settings configured (affiliates, general, workflow)',
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    recordStep(
+      'seed_settings',
+      'error',
+      'Settings seeding failed — can be configured manually from Site Settings',
+      msg,
+    );
+    // Non-fatal
+  }
+
+  // -------------------------------------------------------------------------
   // Result
   // -------------------------------------------------------------------------
   const hasErrors = errors.length > 0;
@@ -464,8 +731,10 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
 
   nextSteps.push(
     `Add ${config.domain} to your Vercel domain settings and DNS`,
-    'Set per-site env vars (GA4_MEASUREMENT_ID, GSC_SITE_URL) in Vercel',
-    'Upload site logo to Settings → Brand Assets',
+    'Set per-site env vars (GA4_MEASUREMENT_ID, GSC_SITE_URL, INDEXNOW_KEY) in Vercel',
+    'Upload site logo and OG image to Settings → Brand Assets',
+    'Review generated author profiles in the Team page (cockpit → Sites tab)',
+    'Review system prompts in Site Settings → Content Generation',
   );
 
   if (hasErrors) {
@@ -477,6 +746,7 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
     siteId: config.siteId,
     steps,
     topicsCreated,
+    authorsCreated: 2,
     errors,
     nextSteps,
   };

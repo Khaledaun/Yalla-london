@@ -96,6 +96,13 @@ Use these mandatory Arabic content directives:
 - أضف "نصيحة من الداخل" واحدة على الأقل في كل قسم
 - اختم بدعوة واضحة للعمل بالعربية
 
+إشارات المصداقية (مطلوبة — تحديث جوجل يناير 2026):
+- استخدم عبارات تدل على التجربة المباشرة: "زرنا"، "جربنا"، "خلال زيارتنا الأخيرة"، "من تجربتنا"
+- أضف 2-3 "نصيحة" أو "نصيحتنا" في كل مقال — معلومات لا يعرفها إلا من زار المكان
+- اذكر تفاصيل حسية محددة: "رائحة الهيل تملأ المكان"، "أجواء المطعم كانت..."
+- اذكر جانباً سلبياً أو ملاحظة صريحة واحدة على الأقل — الصدق يعزز المصداقية
+- لا تستخدم: "في عالم اليوم"، "في الختام"، "في هذا الدليل الشامل"، "سواء كنت... أو"
+
 IMPORTANT: Use SINGLE QUOTES for ALL HTML attributes (e.g., <a href='https://...'> NOT <a href="https://...">). Double quotes inside HTML will break JSON output.`;
 }
 
@@ -268,7 +275,15 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
   try {
     const outlineTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const outline = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. CRITICAL: Never include years in article titles. Keep titles timeless and evergreen. Each H2 section MUST begin with a 40-60 word direct answer before any lists or detailed explanations — this is essential for AI search engine citations. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. CRITICAL: Never include years in article titles. Keep titles timeless and evergreen. Each H2 section MUST begin with a 40-60 word direct answer before any lists or detailed explanations — this is essential for AI search engine citations.
+
+AUTHENTICITY PLANNING (Jan 2026 Google Authenticity Update):
+- For each section, include at least 1 keyPoint that is a specific sensory or experiential detail (what you see/smell/taste/hear at the location)
+- Include at least 1 "insider tip" keyPoint per section (something only a visitor would know)
+- Plan at least 1 section with an honest caveat or limitation (signals authenticity to Google)
+- Plan for price-specific details (£/€/$ amounts) in at least 3 sections
+${isArabic(draft.locale) ? "- For Arabic: plan insider tips as نصيحة/نصيحتنا and sensory details using رائحة/مذاق/أجواء" : ""}
+Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
@@ -402,6 +417,14 @@ WRITING REQUIREMENTS (mandatory):
 - Use sensory language and specific local knowledge — avoid generic travel-brochure phrases
 - Structure with short paragraphs (2–4 sentences each) and use <ul>/<li> for tips or lists
 - NO phrases like "look no further", "in this section we will", "in conclusion", or "whether you're a"
+
+AUTHENTICITY REQUIREMENTS (mandatory — Jan 2026 Google Authenticity Update):
+- Include at least 1 "insider tip" or "local tip" per section (e.g., "Insider tip: ask the concierge for...")
+- Add a specific sensory detail: what you see, smell, taste, or hear (e.g., "the aroma of freshly ground Turkish coffee fills the lobby")
+- Reference a specific real detail: exact street name, floor number, opening time, or price in £/€/$
+- Use phrases like "we visited", "we tried", "on our last visit", "what surprised us" — these signal first-hand experience to Google
+- Include one honest caveat or limitation (e.g., "The only downside is the 20-minute wait during peak hours")
+- NEVER write generic summaries — every paragraph must contain at least one specific, verifiable detail
 
 CRITICAL FACTUAL ACCURACY RULE:
 - NEVER invent or fabricate venue names, restaurant names, hotel names, or business names

@@ -429,9 +429,11 @@ export async function runPrePublicationGate(
   // ── 12. First-Hand Experience signals (Jan 2026 Authenticity Update) ──
   // Only checked for blog posts — news, info, and guide content types are
   // exempt because they serve a different intent (factual/reference/timely).
-  // Also skipped for Arabic-only content (signals are English patterns).
-  if (requireAuthenticitySignals && contentBody && contentBody.length > 500 && !isArabicOnly) {
-    const authenticityResult = checkAuthenticitySignals(contentBody);
+  // Now checks BOTH English and Arabic content using language-appropriate patterns.
+  if (requireAuthenticitySignals && contentBody && contentBody.length > 500) {
+    const authenticityResult = isArabicOnly
+      ? checkArabicAuthenticitySignals(contentBody)
+      : checkAuthenticitySignals(contentBody);
     checks.push(authenticityResult.check);
     if (!authenticityResult.check.passed) {
       // Authenticity is now a BLOCKER per Google Jan 2026 Authenticity Update.
@@ -786,6 +788,89 @@ function checkAuthenticitySignals(html: string): { check: GateCheck } {
       name: "Authenticity Signals",
       passed: false,
       message: `Moderate authenticity: ${signalCount} experience signals but ${genericCount} AI-generic phrases detected. Replace generic filler with specific, experiential language.`,
+      severity: "warning",
+    },
+  };
+}
+
+/**
+ * Check for first-hand experience signals in ARABIC content.
+ *
+ * Arabic equivalent of checkAuthenticitySignals() — uses Arabic-language
+ * patterns for experience markers and AI-generic phrases. Same scoring
+ * logic: need 3+ signals, ≤1 generic phrase.
+ */
+function checkArabicAuthenticitySignals(html: string): { check: GateCheck } {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+  // Arabic experience signals — phrases indicating first-hand knowledge
+  const experienceSignals = [
+    /(?:زرنا|زرت|قمنا بزيارة|عند زيارتنا)/, // we visited / I visited / we went to visit / when we visited
+    /(?:جربنا|جربت|قمنا بتجربة)/, // we tried / I tried
+    /(?:من تجربتنا|من تجربتي|بحسب تجربتنا)/, // from our experience / from my experience
+    /(?:نصيحة|نصيحتنا|ننصح بـ|ننصحك)/, // tip / our tip / we recommend
+    /(?:ما لاحظناه|ما لفت انتباهنا|ما يميز)/, // what we noticed / what caught our attention / what distinguishes
+    /(?:أجواء المكان|الأجواء كانت|رائحة|نكهة|مذاق)/, // atmosphere / the atmosphere was / scent / flavor / taste
+    /(?:سر من أسرار|كنز مخفي|جوهرة مخفية)/, // secret / hidden treasure / hidden gem
+    /(?:في آخر زيارة|خلال زيارتنا الأخيرة|عندما كنا هناك)/, // on last visit / during our last visit / when we were there
+    /(?:اسأل عن|لا تفوت|احرص على|تأكد من)/, // ask for / don't miss / make sure to / be sure to
+    /(?:المحليون يعرفون|السكان المحليون|أهل المنطقة)/, // locals know / local residents / people of the area
+    /(?:فاجأنا|أدهشنا|لم نتوقع)/, // surprised us / amazed us / we didn't expect
+    /(?:الجانب السلبي|العيب الوحيد|ما لا يُذكر عادة)/, // downside / the only flaw / what's usually not mentioned
+  ];
+
+  let signalCount = 0;
+  for (const pattern of experienceSignals) {
+    if (pattern.test(text)) {
+      signalCount++;
+    }
+  }
+
+  // Arabic AI-generic phrases (negative signals)
+  const genericPhrases = [
+    /في عالم اليوم/, // "in today's world"
+    /تجدر الإشارة إلى أن/, // "it's worth noting that"
+    /سواء كنت .+ أو/, // "whether you're a X or"
+    /في الختام/, // "in conclusion"
+    /لا داعي للبحث أكثر/, // "look no further"
+    /دون مزيد من التأخير/, // "without further ado"
+    /في هذا الدليل الشامل/, // "in this comprehensive guide"
+  ];
+
+  let genericCount = 0;
+  for (const pattern of genericPhrases) {
+    if (pattern.test(text)) {
+      genericCount++;
+    }
+  }
+
+  if (signalCount >= 3 && genericCount <= 1) {
+    return {
+      check: {
+        name: "Authenticity Signals (Arabic)",
+        passed: true,
+        message: `Good Arabic authenticity: ${signalCount} experience signals found, ${genericCount} generic phrases (Jan 2026 Authenticity Update compliant)`,
+        severity: "info",
+      },
+    };
+  }
+
+  if (signalCount < 2) {
+    return {
+      check: {
+        name: "Authenticity Signals (Arabic)",
+        passed: false,
+        message: `Low Arabic authenticity: only ${signalCount} first-hand experience signals found (need 3+). Add sensory details (رائحة، مذاق، أجواء), personal observations (زرنا، جربنا), and insider tips (نصيحة، لا تفوت).`,
+        severity: "warning",
+      },
+    };
+  }
+
+  return {
+    check: {
+      name: "Authenticity Signals (Arabic)",
+      passed: false,
+      message: `Moderate Arabic authenticity: ${signalCount} experience signals but ${genericCount} AI-generic phrases detected. Replace filler with specific experiential language.`,
       severity: "warning",
     },
   };

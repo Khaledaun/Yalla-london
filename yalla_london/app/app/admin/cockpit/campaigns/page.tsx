@@ -284,6 +284,40 @@ export default function CampaignsPage() {
     return labels[op] || op;
   };
 
+  // ── Kickstart (one-tap) ─────────────────────────────────────
+  const [kickstartLoading, setKickstartLoading] = useState<string | null>(null);
+  const [kickstartResult, setKickstartResult] = useState<{
+    campaignId: string; totalItems: number; firstBatch: { succeeded: number; failed: number; costUsd: number }; message: string;
+  } | null>(null);
+
+  const kickstart = async (preset: string) => {
+    setKickstartLoading(preset);
+    setKickstartResult(null);
+    try {
+      const res = await fetch("/api/admin/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "kickstart",
+          preset,
+          siteId: selectedSiteId || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Request failed" }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setKickstartResult(data);
+      showToast(data.message || "Campaign started!", "success");
+      loadCampaigns();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Kickstart failed", "error");
+    } finally {
+      setKickstartLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, sans-serif" }}>
@@ -342,6 +376,77 @@ export default function CampaignsPage() {
           + New Campaign
         </button>
       </div>
+
+      {/* ── Quick Start (one-tap) ────────────────────────────────── */}
+      {campaigns.length === 0 && !showCreate && (
+        <div style={{
+          background: "linear-gradient(135deg, #1E3A5F 0%, #0D4A6B 100%)",
+          borderRadius: 16, padding: 20, marginBottom: 20, color: "#fff",
+        }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Quick Start</h2>
+          <p style={{ margin: "0 0 16px", fontSize: 13, opacity: 0.85 }}>
+            One tap — creates campaign, scans all articles, and starts enhancing immediately
+          </p>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {[
+              { key: "enhance_all", label: "Full Enhancement", emoji: "🚀", desc: "Content + SEO + Affiliates + Authenticity", color: "#059669" },
+              { key: "fix_seo", label: "SEO Quick Fix", emoji: "🔍", desc: "Meta tags + internal links", color: "#2563EB" },
+              { key: "add_revenue", label: "Revenue Injection", emoji: "💰", desc: "Add affiliate links everywhere", color: "#D97706" },
+              { key: "authenticity", label: "Authenticity Boost", emoji: "✨", desc: "Pass Google Jan 2026 update", color: "#7C3AED" },
+              { key: "fix_arabic", label: "Arabic Expansion", emoji: "🌍", desc: "Expand thin Arabic content", color: "#0891B2" },
+            ].map(item => (
+              <button
+                key={item.key}
+                onClick={() => kickstart(item.key)}
+                disabled={!!kickstartLoading}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "14px 16px", background: kickstartLoading === item.key ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10,
+                  color: "#fff", cursor: kickstartLoading ? "wait" : "pointer",
+                  textAlign: "left", width: "100%",
+                  transition: "background 0.2s",
+                }}
+              >
+                <span style={{ fontSize: 28, lineHeight: 1 }}>{item.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, opacity: 0.8 }}>{item.desc}</div>
+                </div>
+                {kickstartLoading === item.key ? (
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>Starting...</span>
+                ) : (
+                  <span style={{
+                    background: item.color, padding: "4px 10px",
+                    borderRadius: 6, fontSize: 12, fontWeight: 700,
+                  }}>
+                    GO
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Kickstart result */}
+          {kickstartResult && (
+            <div style={{
+              marginTop: 12, background: "rgba(255,255,255,0.15)",
+              borderRadius: 8, padding: 12, fontSize: 13,
+            }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Campaign Started</div>
+              <div>{kickstartResult.totalItems} articles queued</div>
+              <div>{kickstartResult.firstBatch.succeeded} enhanced in first batch</div>
+              {kickstartResult.firstBatch.failed > 0 && (
+                <div style={{ color: "#FCA5A5" }}>{kickstartResult.firstBatch.failed} failed</div>
+              )}
+              <div style={{ opacity: 0.8, marginTop: 4 }}>
+                Cron processes 3 more every 30 min automatically
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Create Campaign Panel ────────────────────────────────── */}
       {showCreate && (

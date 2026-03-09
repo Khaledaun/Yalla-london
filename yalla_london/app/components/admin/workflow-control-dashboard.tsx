@@ -14,8 +14,6 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  PlayCircle,
-  PauseCircle,
   Send,
   FileText,
   TrendingUp,
@@ -36,37 +34,21 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface AutomationJob {
-  jobName: string;
-  label: string;
-  schedule: string;
-  featureFlag: string | null;
-  flagStatus: 'enabled' | 'disabled' | 'no_flag';
-  status: 'active' | 'degraded' | 'inactive' | 'disabled' | 'never_run';
-  lastRun: {
-    startedAt: string;
-    completedAt: string | null;
-    status: string;
-    durationMs: number | null;
-    itemsProcessed: number;
-    itemsSucceeded: number;
-    itemsFailed: number;
-    error: string | null;
-    timedOut: boolean;
-  } | null;
-  last24h: {
-    runs: number;
-    failures: number;
-  };
+interface CronJobEntry {
+  name: string;
+  status: string;
+  durationMs: number | null;
+  startedAt: string;
+  error: string | null;
+  plainError: string | null;
+  itemsProcessed: number;
 }
 
-interface AutomationSummary {
-  total: number;
-  active: number;
-  degraded: number;
-  disabled: number;
-  neverRun: number;
-  inactive: number;
+interface CronHealthData {
+  failedLast24h: number;
+  timedOutLast24h: number;
+  lastRunAt: string | null;
+  recentJobs: CronJobEntry[];
 }
 
 interface QueuedTopic {
@@ -126,9 +108,8 @@ export function WorkflowControlDashboard() {
   const [selectedContent, setSelectedContent] = useState<string[]>([]);
   const [bulkPublishing, setBulkPublishing] = useState(false);
 
-  // Automation state
-  const [automationJobs, setAutomationJobs] = useState<AutomationJob[]>([]);
-  const [automationSummary, setAutomationSummary] = useState<AutomationSummary | null>(null);
+  // Automation state (from cockpit API cronHealth)
+  const [cronHealth, setCronHealth] = useState<CronHealthData | null>(null);
   const [automationLoading, setAutomationLoading] = useState(false);
 
   // Filters
@@ -185,18 +166,21 @@ export function WorkflowControlDashboard() {
     }
   }, []);
 
-  // Fetch automation status (real CronJobLog data)
+  // Fetch automation status from cockpit API (real CronJobLog data)
   const fetchAutomationStatus = useCallback(async () => {
     setAutomationLoading(true);
     try {
-      const response = await fetch('/api/admin/automation-status');
+      const response = await fetch('/api/admin/cockpit');
+      if (!response.ok) {
+        console.warn('[workflow] cockpit API returned', response.status);
+        return;
+      }
       const data = await response.json();
-      if (data.jobs) {
-        setAutomationJobs(data.jobs);
-        setAutomationSummary(data.summary);
+      if (data.cronHealth) {
+        setCronHealth(data.cronHealth);
       }
     } catch (error) {
-      console.error('Failed to fetch automation status:', error);
+      console.warn('[workflow] Failed to fetch automation status:', error instanceof Error ? error.message : error);
     } finally {
       setAutomationLoading(false);
     }
@@ -915,13 +899,13 @@ export function WorkflowControlDashboard() {
         {/* Automation Tab */}
         <TabsContent value="automation" className="mt-6">
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Workflow Status — Real data from CronJobLog */}
+            {/* Cron Health — Real data from cockpit API / CronJobLog */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-yellow-500" />
-                    Automation Status
+                    Cron Health (Last 24h)
                   </CardTitle>
                   <Button
                     variant="outline"
@@ -936,24 +920,19 @@ export function WorkflowControlDashboard() {
                     )}
                   </Button>
                 </div>
-                {automationSummary && (
+                {cronHealth && (
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <Badge variant="outline" className="bg-green-100 text-green-700">
-                      {automationSummary.active} active
+                      {cronHealth.recentJobs.filter(j => j.status === 'completed').length} succeeded
                     </Badge>
-                    {automationSummary.degraded > 0 && (
+                    {cronHealth.failedLast24h > 0 && (
+                      <Badge variant="outline" className="bg-red-100 text-red-700">
+                        {cronHealth.failedLast24h} failed
+                      </Badge>
+                    )}
+                    {cronHealth.timedOutLast24h > 0 && (
                       <Badge variant="outline" className="bg-yellow-100 text-yellow-700">
-                        {automationSummary.degraded} degraded
-                      </Badge>
-                    )}
-                    {automationSummary.disabled > 0 && (
-                      <Badge variant="outline" className="bg-gray-100 text-gray-700">
-                        {automationSummary.disabled} disabled
-                      </Badge>
-                    )}
-                    {automationSummary.neverRun > 0 && (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                        {automationSummary.neverRun} never run
+                        {cronHealth.timedOutLast24h} timed out
                       </Badge>
                     )}
                   </div>
@@ -961,60 +940,66 @@ export function WorkflowControlDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {automationJobs.length === 0 && !automationLoading && (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      No automation data available. Cron jobs will appear here after their first run.
-                    </p>
+                  {(!cronHealth || cronHealth.recentJobs.length === 0) && !automationLoading && (
+                    <div className="text-center py-6 text-gray-500">
+                      <Clock className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">No cron runs in the last 24 hours.</p>
+                      <p className="text-xs mt-1 text-gray-400">
+                        For detailed cron management, visit{' '}
+                        <a href="/admin/cockpit" className="text-blue-600 hover:underline">Cockpit</a>
+                        {' '}or{' '}
+                        <a href="/admin/departures" className="text-blue-600 hover:underline">Departures Board</a>.
+                      </p>
+                    </div>
                   )}
-                  {automationJobs.map((job) => {
-                    const statusConfig = {
-                      active: { icon: CheckCircle2, bg: 'bg-green-100', text: 'text-green-600', badge: 'bg-green-100 text-green-700', badgeLabel: 'Active' },
-                      degraded: { icon: AlertTriangle, bg: 'bg-yellow-100', text: 'text-yellow-600', badge: 'bg-yellow-100 text-yellow-700', badgeLabel: 'Degraded' },
-                      inactive: { icon: XCircle, bg: 'bg-red-100', text: 'text-red-600', badge: 'bg-red-100 text-red-700', badgeLabel: 'Inactive' },
-                      disabled: { icon: PauseCircle, bg: 'bg-gray-100', text: 'text-gray-500', badge: 'bg-gray-100 text-gray-600', badgeLabel: 'Disabled' },
-                      never_run: { icon: Clock, bg: 'bg-blue-100', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-700', badgeLabel: 'Never Run' },
-                    };
-                    const cfg = statusConfig[job.status];
-                    const StatusIcon = cfg.icon;
+                  {cronHealth?.recentJobs.map((job, idx) => {
+                    const isSuccess = job.status === 'completed';
+                    const isFailed = job.status === 'failed';
+                    const StatusIcon = isSuccess ? CheckCircle2 : isFailed ? XCircle : AlertTriangle;
+                    const bgClass = isSuccess ? 'bg-green-100' : isFailed ? 'bg-red-100' : 'bg-yellow-100';
+                    const textClass = isSuccess ? 'text-green-600' : isFailed ? 'text-red-600' : 'text-yellow-600';
+                    const badgeClass = isSuccess ? 'bg-green-100 text-green-700' : isFailed ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
 
                     return (
-                      <div key={job.jobName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={`${job.name}-${idx}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className={`p-2 ${cfg.bg} rounded shrink-0`}>
-                            <StatusIcon className={`h-4 w-4 ${cfg.text}`} />
+                          <div className={`p-2 ${bgClass} rounded shrink-0`}>
+                            <StatusIcon className={`h-4 w-4 ${textClass}`} />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{job.label}</p>
-                            <p className="text-xs text-gray-500">{job.schedule}</p>
-                            {job.lastRun && (
-                              <p className="text-xs text-gray-400">
-                                Last: {new Date(job.lastRun.startedAt).toLocaleString()}
-                                {job.lastRun.durationMs != null && ` (${(job.lastRun.durationMs / 1000).toFixed(1)}s)`}
-                              </p>
-                            )}
-                            {job.lastRun?.error && (
-                              <p className="text-xs text-red-500 truncate" title={job.lastRun.error}>
-                                {job.lastRun.error}
+                            <p className="font-medium text-sm truncate">{job.name}</p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(job.startedAt).toLocaleString()}
+                              {job.durationMs != null && ` (${(job.durationMs / 1000).toFixed(1)}s)`}
+                            </p>
+                            {job.plainError && (
+                              <p className="text-xs text-red-500 truncate" title={job.error || job.plainError}>
+                                {job.plainError}
                               </p>
                             )}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                          <Badge variant="outline" className={cfg.badge}>
-                            {cfg.badgeLabel}
+                          <Badge variant="outline" className={badgeClass}>
+                            {job.status}
                           </Badge>
-                          {job.last24h.runs > 0 && (
+                          {job.itemsProcessed > 0 && (
                             <span className="text-xs text-gray-400">
-                              {job.last24h.runs} runs / 24h
-                              {job.last24h.failures > 0 && (
-                                <span className="text-red-500"> ({job.last24h.failures} failed)</span>
-                              )}
+                              {job.itemsProcessed} items
                             </span>
                           )}
                         </div>
                       </div>
                     );
                   })}
+                  {cronHealth && cronHealth.recentJobs.length > 0 && (
+                    <p className="text-xs text-gray-400 text-center pt-2">
+                      Showing last {cronHealth.recentJobs.length} cron runs.{' '}
+                      <a href="/admin/departures" className="text-blue-600 hover:underline">
+                        View full schedule
+                      </a>
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

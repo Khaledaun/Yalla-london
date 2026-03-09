@@ -251,6 +251,51 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 });
 
 /**
+ * PATCH /api/admin/media
+ * Bulk update media category
+ */
+export const PATCH = withAdminAuth(async (request: NextRequest) => {
+  try {
+    const body = await request.json();
+    const { ids, category } = body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid or empty IDs array' },
+        { status: 400 }
+      );
+    }
+
+    if (!category || typeof category !== 'string') {
+      return NextResponse.json(
+        { error: 'Category is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await prisma.mediaAsset.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        category,
+        updated_at: new Date()
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `${result.count} media files updated to category "${category}"`,
+      updatedCount: result.count
+    });
+  } catch (error) {
+    console.error('Failed to update media category:', error);
+    return NextResponse.json(
+      { error: 'Failed to update media category' },
+      { status: 500 }
+    );
+  }
+});
+
+/**
  * DELETE /api/admin/media
  * Bulk delete media files
  */

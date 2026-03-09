@@ -58,6 +58,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { isPremiumFeatureEnabled, validatePremiumFeatureAccess } from '@/lib/feature-flags'
+import { getActiveSiteIds, getSiteConfig } from '@/config/sites'
 
 export interface NavItem {
   id: string
@@ -244,7 +245,25 @@ export function PremiumAdminNav({
   const { data: session } = useSession()
   const pathname = usePathname()
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
-  const [currentSite, setCurrentSite] = useState(siteContext?.siteId || 'default')
+  const activeSiteIds = getActiveSiteIds()
+  const [selectedSiteId, setSelectedSiteId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('selectedSiteId')
+      if (stored && activeSiteIds.includes(stored)) return stored
+    }
+    return activeSiteIds[0] || 'yalla-london'
+  })
+  const currentSiteConfig = getSiteConfig(selectedSiteId)
+  const currentSite = selectedSiteId
+
+  const handleSiteSwitch = () => {
+    if (activeSiteIds.length < 2) return
+    const idx = activeSiteIds.indexOf(selectedSiteId)
+    const nextId = activeSiteIds[(idx + 1) % activeSiteIds.length]
+    localStorage.setItem('selectedSiteId', nextId)
+    document.cookie = `x-site-id=${nextId};path=/;max-age=31536000`
+    window.location.reload()
+  }
 
   // Auto-expand current section
   useEffect(() => {
@@ -381,8 +400,7 @@ export function PremiumAdminNav({
 
   return (
     <nav className={`space-y-2 ${className}`}>
-      {/* Site Switcher (if multi-site enabled) */}
-      {siteContext?.canSwitchSites && (
+      {activeSiteIds.length > 1 && (
         <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
@@ -390,28 +408,12 @@ export function PremiumAdminNav({
                 Current Site
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {siteContext.siteName}
+                {currentSiteConfig?.name || selectedSiteId}
               </p>
             </div>
             <button
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-              onClick={() => {
-                const currentSiteId = typeof window !== "undefined" ? localStorage.getItem("admin_site_id") || "" : "";
-                fetch("/api/admin/sites")
-                  .then(r => r.ok ? r.json() : null)
-                  .then(data => {
-                    const sites: Array<{ id: string; name: string }> = data?.sites || [];
-                    if (sites.length < 2) return;
-                    const currentIdx = sites.findIndex((s: { id: string }) => s.id === currentSiteId);
-                    const nextSite = sites[(currentIdx + 1) % sites.length];
-                    if (nextSite) {
-                      localStorage.setItem("admin_site_id", nextSite.id);
-                      document.cookie = `x-site-id=${nextSite.id};path=/;max-age=31536000`;
-                      window.location.reload();
-                    }
-                  })
-                  .catch(() => {});
-              }}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={handleSiteSwitch}
             >
               Switch
             </button>

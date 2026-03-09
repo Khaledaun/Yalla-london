@@ -169,40 +169,50 @@ export function PhotoPoolManager() {
     if (selectedPhotos.length === 0) return
 
     try {
-      const res = await fetch("/api/media/upload", {
+      const res = await fetch("/api/admin/media", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedPhotos }),
       });
       if (!res.ok) {
-        console.warn("[photo-pool] Delete API failed:", res.status);
+        const msg = await res.text().catch(() => res.statusText);
+        console.warn("[photo-pool] Delete API failed:", res.status, msg);
+        alert(`Failed to delete photos: ${res.status}`);
+        return;
       }
+      // Only update local state after successful API call
+      setPhotos(prev => prev.filter(p => !selectedPhotos.includes(p.id)))
+      setSelectedPhotos([])
     } catch (err) {
       console.warn("[photo-pool] Delete request failed:", err instanceof Error ? err.message : err);
+      alert("Failed to delete photos. Check console for details.");
     }
-    // Update local state regardless (optimistic)
-    setPhotos(prev => prev.filter(p => !selectedPhotos.includes(p.id)))
-    setSelectedPhotos([])
   }
 
   const handleBulkCategoryChange = async (category: string) => {
+    if (selectedPhotos.length === 0) return
+
     try {
-      const res = await fetch("/api/media/upload", {
+      const res = await fetch("/api/admin/media", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedPhotos, category }),
       });
       if (!res.ok) {
-        console.warn("[photo-pool] Bulk category update failed:", res.status);
+        const msg = await res.text().catch(() => res.statusText);
+        console.warn("[photo-pool] Bulk category update failed:", res.status, msg);
+        alert(`Failed to update category: ${res.status}`);
+        return;
       }
+      // Only update local state after successful API call
+      setPhotos(prev => prev.map(p =>
+        selectedPhotos.includes(p.id) ? { ...p, category } : p
+      ))
+      setSelectedPhotos([])
     } catch (err) {
       console.warn("[photo-pool] Bulk category request failed:", err instanceof Error ? err.message : err);
+      alert("Failed to update category. Check console for details.");
     }
-    // Update local state regardless (optimistic)
-    setPhotos(prev => prev.map(p =>
-      selectedPhotos.includes(p.id) ? { ...p, category } : p
-    ))
-    setSelectedPhotos([])
   }
 
   const filteredPhotos = photos.filter(photo => {

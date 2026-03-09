@@ -396,7 +396,7 @@ Be specific and cite real data — do not make generic suggestions.`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          { maxTokens: 2000, temperature: 0.4, taskType: "seo-optimization", calledFrom: "perplexity-audit-fallback", siteId: config.siteId, timeoutMs: 40000 }
+          { maxTokens: 2000, temperature: 0.4, taskType: "seo-optimization", calledFrom: "perplexity-audit-fallback", siteId: config.siteId, timeoutMs: Math.min(remaining - 3000, 15000) }
         );
         responseContent = result.content;
       }

@@ -44,7 +44,6 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
 function normalizeSlug(slug: string): string {
   return slug
     .replace(SLUG_ARTIFACT_PATTERN, "")
-    // eslint-disable-next-line security/detect-unsafe-regex
     .replace(/-20\d{2}(-\d{2}(-\d{2})?)?/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -946,9 +947,9 @@ export function WorkflowControlDashboard() {
                       <p className="text-sm">No cron runs in the last 24 hours.</p>
                       <p className="text-xs mt-1 text-gray-400">
                         For detailed cron management, visit{' '}
-                        <a href="/admin/cockpit" className="text-blue-600 hover:underline">Cockpit</a>
+                        <Link href="/admin/cockpit" className="text-blue-600 hover:underline">Cockpit</Link>
                         {' '}or{' '}
-                        <a href="/admin/departures" className="text-blue-600 hover:underline">Departures Board</a>.
+                        <Link href="/admin/departures" className="text-blue-600 hover:underline">Departures Board</Link>.
                       </p>
                     </div>
                   )}
@@ -995,9 +996,9 @@ export function WorkflowControlDashboard() {
                   {cronHealth && cronHealth.recentJobs.length > 0 && (
                     <p className="text-xs text-gray-400 text-center pt-2">
                       Showing last {cronHealth.recentJobs.length} cron runs.{' '}
-                      <a href="/admin/departures" className="text-blue-600 hover:underline">
+                      <Link href="/admin/departures" className="text-blue-600 hover:underline">
                         View full schedule
-                      </a>
+                      </Link>
                     </p>
                   )}
                 </div>

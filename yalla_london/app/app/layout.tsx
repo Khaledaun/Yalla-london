@@ -129,7 +129,7 @@ export default async function RootLayout({
 
         {/* Zenitha Yachts font preloading — only loaded for yacht site */}
         {isYachtSite && (
-          // eslint-disable-next-line @next/next/no-page-custom-fonts -- App Router layout.tsx applies to all pages; this rule is Pages Router only
+          // eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only
           <link
             href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
             rel="stylesheet"

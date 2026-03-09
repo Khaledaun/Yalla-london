@@ -212,7 +212,6 @@ export default function PromptsPage() {
     // Replace variables with test values
     selectedPrompt.variables.forEach(variable => {
       const value = testVariables[variable] || `[${variable}]`
-      // eslint-disable-next-line security/detect-non-literal-regexp
       result = result.replace(new RegExp(`\\{\\{${variable}\\}\\}`, 'g'), value)
     })
     

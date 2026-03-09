@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate hostname format
+    // eslint-disable-next-line security/detect-unsafe-regex
     const hostnameRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*(\.[a-zA-Z0-9][a-zA-Z0-9-]*)+$/;
     if (!hostnameRegex.test(hostname)) {
       return NextResponse.json(

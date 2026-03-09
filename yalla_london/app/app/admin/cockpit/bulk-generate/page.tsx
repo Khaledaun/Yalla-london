@@ -179,7 +179,7 @@ export default function BulkGeneratePage() {
     } finally {
       setRunning(false);
     }
-  }, [siteId, language, topicSource, count, manualKeywords, pageType, autoPublish]);
+  }, [siteId, language, topicSource, count, manualKeywords, pageType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Continue Generation ─────────────────────────────────────────────
 

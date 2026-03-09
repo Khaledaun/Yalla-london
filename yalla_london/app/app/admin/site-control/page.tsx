@@ -673,7 +673,7 @@ export default function SiteControl() {
                   {asset.isVideo ? (
                     <Video className="h-8 w-8 text-gray-400" />
                   ) : (
-                    <Image className="h-8 w-8 text-gray-400" />
+                    <Image className="h-8 w-8 text-gray-400" alt="" />
                   )}
                 </div>
                 <h4 className="font-medium text-gray-900 text-sm mb-1">{asset.filename}</h4>
@@ -745,7 +745,7 @@ export default function SiteControl() {
                       {logoPreview ? (
                         <NextImage src={logoPreview} alt="Logo preview" width={0} height={0} sizes="100vw" className="w-full h-full object-contain" style={{ width: '100%', height: '100%' }} unoptimized />
                       ) : (
-                        <Image className="h-8 w-8 text-gray-400" />
+                        <Image className="h-8 w-8 text-gray-400" alt="" />
                       )}
                     </div>
                     <div className="flex-1">
@@ -770,7 +770,7 @@ export default function SiteControl() {
                       {faviconPreview ? (
                         <NextImage src={faviconPreview} alt="Favicon preview" width={0} height={0} sizes="100vw" className="w-full h-full object-contain" style={{ width: '100%', height: '100%' }} unoptimized />
                       ) : (
-                        <Image className="h-4 w-4 text-gray-400" />
+                        <Image className="h-4 w-4 text-gray-400" alt="" />
                       )}
                     </div>
                     <div className="flex-1">

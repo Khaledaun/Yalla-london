@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
 
+const BUDGET_MS = 53_000; // Standard Vercel Pro 60s budget with 7s buffer (used as fallback guard)
+
 /**
  * Autonomous SEO Agent - Runs 3x daily (7am, 1pm, 8pm UTC)
  *
@@ -67,17 +69,23 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const _cronStart = Date.now();
+  const start = Date.now();
 
   try {
     const { prisma } = await import("@/lib/db");
     const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
     const { forEachSite } = await import("@/lib/resilience");
 
+    // Budget guard: abort if setup already consumed too much time
+    if (Date.now() - start > BUDGET_MS - 7_000) {
+      return NextResponse.json({ success: false, error: "Budget exhausted before main loop" }, { status: 200 });
+    }
+
     // Only process live sites
     const siteIds = getActiveSiteIds();
 
     // Use forEachSite for timeout-aware per-site iteration
+    const remainingBudget = Math.min(280_000, (maxDuration * 1000) - (Date.now() - start) - 20_000);
     const loopResult = await forEachSite(
       siteIds,
       async (siteId) => {
@@ -85,11 +93,11 @@ export async function GET(request: NextRequest) {
         return runSEOAgent(prisma, siteId, siteUrl);
       },
       20_000, // 20s safety margin for response serialization
-      280_000 // 280s budget within maxDuration = 300s (20s buffer for response)
+      remainingBudget
     );
 
     await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {
-      durationMs: Date.now() - _cronStart,
+      durationMs: Date.now() - start,
       sitesProcessed: Object.keys(loopResult.results || {}),
       resultSummary: { message: `completed=${loopResult.completed}, failed=${loopResult.failed}, skipped=${loopResult.skipped}` },
     });
@@ -110,7 +118,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("SEO Agent error:", error);
     await logCronExecution("seo-agent", "failed", {
-      durationMs: Date.now() - _cronStart,
+      durationMs: Date.now() - start,
       errorMessage: error instanceof Error ? error.message : "SEO agent failed",
     });
 
@@ -212,6 +220,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
+    if (hasBudget(5_000)) {
     try {
       const { enhancedSchemaInjector } = await import(
         "@/lib/seo/enhanced-schema-injector"
@@ -241,6 +250,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       const { getSiteDomain: _gsd } = await import("@/config/sites");
       const baseSiteUrl = siteUrl || _gsd(siteId);
       for (const post of postsWithoutSchema) {
+        if (!hasBudget(2_000)) break;
         if (!post.content_en || post.content_en.length < 100) continue;
         try {
           const postUrl = `${baseSiteUrl}/blog/${post.slug}`;
@@ -266,6 +276,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       };
     } catch (schemaError) {
       console.warn("Schema auto-injection failed (non-fatal):", schemaError);
+    }
     }
 
     // 12c. AUTO-INJECT INTERNAL LINKS FOR POSTS WITH < 3 INTERNAL LINKS

@@ -15,7 +15,7 @@
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
 
-const DEFAULT_TIMEOUT_MS = 53_000;
+const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
 export interface BuildRunnerResult {
   success: boolean;
@@ -144,9 +144,26 @@ export async function runContentBuilder(
     }
 
     const currentPhase = draftRecord.current_phase as string;
+    const overheadMs = Date.now() - cronStart;
     console.log(
-      `[content-builder] Running phase "${currentPhase}" for draft ${draftRecord.id} (keyword: "${draftRecord.keyword}")`,
+      `[content-builder] Running phase "${currentPhase}" for draft ${draftRecord.id} (keyword: "${draftRecord.keyword}", overhead: ${overheadMs}ms, budget remaining: ${deadline.remainingMs()}ms)`,
     );
+
+    // ── Budget guard for heavy phases ─────────────────────────────────────
+    // If overhead consumed too much budget (>20s, e.g., cold start + pool timeout),
+    // skip this run for heavy phases — they need at least 30s to succeed.
+    // The draft will be picked up on the next cron run with a fresh budget.
+    const heavyPhasesForBudget = ["assembly", "drafting"];
+    if (heavyPhasesForBudget.includes(currentPhase) && deadline.remainingMs() < 30_000) {
+      console.warn(`[content-builder] Skipping heavy phase "${currentPhase}" — only ${Math.round(deadline.remainingMs() / 1000)}s remaining (need 30s+). Will retry next cron run.`);
+      return {
+        success: true,
+        message: `Budget too low for heavy phase "${currentPhase}" (${Math.round(deadline.remainingMs() / 1000)}s remaining) — deferred to next run`,
+        draftId: draftRecord.id as string,
+        previousPhase: currentPhase,
+        durationMs: Date.now() - cronStart,
+      };
+    }
 
     // ── Claim the draft BEFORE processing ─────────────────────────────────
     await prisma.articleDraft.update({

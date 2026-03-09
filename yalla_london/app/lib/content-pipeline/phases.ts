@@ -553,18 +553,16 @@ export async function phaseAssembly(
     totalWords += (section.wordCount as number) || 0;
   }
 
-  // RAW FALLBACK: If budget is critically low (<12s) or draft has ANY previous assembly failure,
-  // skip AI polish entirely and concatenate sections directly. This guarantees forward
-  // progress — content-auto-fix cron can enhance the article later.
-  //
-  // Threshold: attempts >= 1 (was 4). Assembly AI calls are the #1 source of timeouts
-  // because they require large prompts (6000+ chars of HTML) and large responses (1500+ tokens).
-  // After a single failure, retrying with the same budget/provider will almost certainly fail again.
-  // Raw fallback produces complete articles instantly — the auto-fix cron polishes them later.
-  // Smart skip: Assembly AI needs 25-35s. If budget < 25s, the AI call will timeout and waste
-  // the cron cycle. Go straight to raw fallback (instant, always succeeds).
+  // RAW FALLBACK: skip AI polish when budget is critically low or after repeated failures.
+  // Assembly AI needs 25-35s for large prompt + 1500+ token response.
+  // Raw fallback concatenates sections instantly — content-auto-fix cron polishes later.
   const attempts = draft.phase_attempts || 0;
-  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) || attempts >= 1;
+  // Raw fallback when budget is critically low OR after 2+ failures.
+  // Changed from attempts >= 1 to >= 2: give assembly ONE real AI attempt before
+  // falling back. The old threshold (1) meant assembly AI polish NEVER ran after
+  // the first failure — raw HTML was always used. With >= 2, assembly gets one
+  // chance to run with full budget on the next cron cycle.
+  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) || attempts >= 2;
 
   if (useFallback) {
     console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);

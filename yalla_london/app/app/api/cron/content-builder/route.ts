@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
 
 /**
  * Content Builder — Incremental Phase Processor
@@ -125,7 +125,7 @@ async function handleContentBuilder(request: NextRequest) {
 
     // Run the builder
     const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");
-    const result = await runContentBuilder({ timeoutMs: 53_000 });
+    const result = await runContentBuilder({ timeoutMs: 280_000 });
 
     const durationMs = Date.now() - cronStart;
 

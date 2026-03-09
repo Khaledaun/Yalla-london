@@ -312,8 +312,8 @@ export async function runPerplexityAudit(
   let totalTokens = 0;
   let totalCost = 0;
 
-  // Budget guard: 53s budget with 7s buffer for Vercel Pro 60s limit
-  const BUDGET_MS = 53_000;
+  // Budget guard: 280s budget with 20s buffer for Vercel Pro 300s limit
+  const BUDGET_MS = 280_000;
   const startTime = Date.now();
 
   // Filter sections based on depth
@@ -396,7 +396,7 @@ Be specific and cite real data — do not make generic suggestions.`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          { maxTokens: 2000, temperature: 0.4, taskType: "seo-optimization", calledFrom: "perplexity-audit-fallback", siteId: config.siteId, timeoutMs: 40000 }
+          { maxTokens: 2000, temperature: 0.4, taskType: "seo-optimization", calledFrom: "perplexity-audit-fallback", siteId: config.siteId, timeoutMs: Math.min(remaining - 3000, 15000) }
         );
         responseContent = result.content;
       }

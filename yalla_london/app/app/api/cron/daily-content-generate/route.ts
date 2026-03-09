@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -134,7 +134,7 @@ async function generateDailyContentAllSites() {
   // Only process sites with live websites to save AI tokens and time
   const siteIds = getActiveSiteIds();
   const allResults: Record<string, any> = {};
-  const deadline = createDeadline(7_000, 60_000); // 60s maxDuration (Vercel Pro), 7s margin → 53s budget
+  const deadline = createDeadline(20_000, 300_000); // 300s maxDuration (Vercel Pro), 20s margin → 280s budget
 
   // Fail fast if no AI provider is configured — don't waste 45s per site timing out
   const aiReady = await isAIAvailable();

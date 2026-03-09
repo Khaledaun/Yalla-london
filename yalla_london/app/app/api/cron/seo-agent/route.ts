@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
         const siteUrl = getSiteDomain(siteId);
         return runSEOAgent(prisma, siteId, siteUrl);
       },
-      7_000, // 7s safety margin for response serialization
-      53_000 // 53s budget within maxDuration = 60s (7s buffer for response)
+      20_000, // 20s safety margin for response serialization
+      280_000 // 280s budget within maxDuration = 300s (20s buffer for response)
     );
 
     await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {
@@ -138,7 +138,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
 
   // Budget guard — exit early if we're running out of time
   const agentStart = Date.now();
-  const AGENT_BUDGET_MS = 40_000; // 40s budget per site (within forEachSite's 45s limit)
+  const AGENT_BUDGET_MS = 120_000; // 120s budget per site (within forEachSite's 280s total)
   const budgetLeft = () => AGENT_BUDGET_MS - (Date.now() - agentStart);
   const hasBudget = (minMs = 3_000) => budgetLeft() > minMs;
 

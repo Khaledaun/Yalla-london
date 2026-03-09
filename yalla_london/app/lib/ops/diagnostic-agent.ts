@@ -390,9 +390,26 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         }
 
         // Non-assembly phases: Reduce attempts by 2 (not reset to 0) and unlock.
-        // Resetting to 0 caused infinite recovery loops — the sweeper would re-increment,
-        // diagnostic-agent would reset to 0 again, forever bypassing the permanent cap (10).
         // Reducing by 2 gives the draft 2 more chances while preserving lifetime history.
+        // But if already at permanent cap (5+), reject instead of reducing — prevents
+        // infinite loops where diagnostic-agent keeps resurrecting permanently failed drafts.
+        if ((draft.phase_attempts || 0) >= 5) {
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              current_phase: "rejected",
+              last_error: "MAX_RECOVERIES_EXCEEDED",
+              updated_at: new Date(),
+            },
+          });
+          return {
+            diagnosis,
+            fixApplied: "permanently_rejected_at_cap",
+            success: true,
+            before,
+            after: { phase: "rejected", attempts: draft.phase_attempts, phase_started_at: null },
+          };
+        }
         const reducedAttempts = Math.max((draft.phase_attempts || 0) - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },

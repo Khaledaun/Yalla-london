@@ -464,9 +464,15 @@ async function recoverDraft(
     });
     const currentAttempts = current?.phase_attempts ?? 0;
 
-    // If already at 8+ total attempts across recoveries, stop trying
-    if (currentAttempts >= 8) {
+    // If already at 5+ total attempts across recoveries, stop trying.
+    // Lowered from 8 to 5: stuck drafts were cycling through assembly raw fallback →
+    // downstream failure → recovery → repeat, blocking new draft creation for days.
+    if (currentAttempts >= 5) {
       console.warn(`[failure-hook] Draft ${draftId} has ${currentAttempts} total attempts — abandoning recovery`);
+      await prisma.articleDraft.update({
+        where: { id: draftId },
+        data: { last_error: "MAX_RECOVERIES_EXCEEDED", current_phase: "rejected" },
+      }).catch(() => {});
       return false;
     }
 
@@ -490,7 +496,7 @@ async function recoverDraft(
       },
     });
 
-    console.log(`[failure-hook] Recovered draft ${draftId}: reset to "${resetPhase}" (strategy: ${strategy}, attempts: ${currentAttempts + 1}/8)`);
+    console.log(`[failure-hook] Recovered draft ${draftId}: reset to "${resetPhase}" (strategy: ${strategy}, attempts: ${currentAttempts + 1}/5)`);
     return true;
   } catch (err) {
     console.error(`[failure-hook] Failed to recover draft ${draftId}:`, err);

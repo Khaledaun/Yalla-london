@@ -65,15 +65,19 @@ async function handleCreate(request: NextRequest) {
       }
 
       // Skip if there are already active drafts for this site (builder will advance them)
+      // Only count drafts that are actually progressing — exclude stuck drafts (no update in 4h)
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
+          updated_at: { gte: fourHoursAgo },
         },
       });
       if (activeDrafts >= 2) {
+        skippedSites.push(`${siteId}(${activeDrafts} active)`);
         console.log(`[builder-create] Site ${siteId} has ${activeDrafts} active drafts — skipping creation`);
         continue;
       }

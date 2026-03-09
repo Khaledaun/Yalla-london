@@ -4272,15 +4272,19 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   const plainLanguage = (rpt.plainLanguage as string) || "";
                   const executiveSummary = (rpt.executiveSummary as string) || "";
                   const latestArticles = (rpt.latestArticles as Array<{ title: string; slug: string; indexingStatus: string; clicks: number; impressions: number; position: number; seoScore: number }>) || [];
-                  const scores = (rpt.scores as { seoAudit: number; indexing: number; contentVelocity: number; operations: number }) || { seoAudit: 0, indexing: 0, contentVelocity: 0, operations: 0 };
+                  const scores = (rpt.scores as { seoAudit: number; discovery: number; indexing: number; contentVelocity: number; operations: number; publicWebsite: number }) || { seoAudit: 0, discovery: 0, indexing: 0, contentVelocity: 0, operations: 0, publicWebsite: 0 };
                   const gsc = (rpt.gsc as { clicks7d: number; impressions7d: number; avgCtr7d: number; avgPosition7d: number; topPages: Array<{ url: string; clicks: number; impressions: number; position: number }> }) || { clicks7d: 0, impressions7d: 0, avgCtr7d: 0, avgPosition7d: 0, topPages: [] };
                   const indexing = (rpt.indexing as { rate: number; indexed: number; errors: number; chronicFailures: number; neverSubmitted: number }) || { rate: 0, indexed: 0, errors: 0, chronicFailures: 0, neverSubmitted: 0 };
                   const operations = (rpt.operations as { cronFailures24h: number; cronSuccesses24h: number; aiCost7d: number; failedCrons: string[] }) || { cronFailures24h: 0, cronSuccesses24h: 0, aiCost7d: 0, failedCrons: [] };
+                  const discoveryData = rpt.discovery as { totalPages: number; totalIssues: number; overallScore: number; overallGrade: string; funnel: { published: number; inSitemap: number; submitted: number; crawled: number; indexed: number; performing: number; converting: number }; crawlabilityScore: number; indexabilityScore: number; contentQualityScore: number; aioReadinessScore: number; aioEligiblePages: number; topIssues: Array<{ severity: string; category: string; title: string; description: string }>; pagesNeedingAttention: Array<{ url: string; slug: string; title: string; score: number; topIssue: string }> } | null;
+                  const publicAuditData = rpt.publicAudit as { pagesChecked: number; pagesReachable: number; pagesUnreachable: number; avgResponseTimeMs: number; results: Array<{ url: string; status: number; responseTimeMs: number; ok: boolean; error?: string }> } | null;
 
                   const sections = [
                     { id: "summary", label: "Executive Summary" },
                     { id: "scores", label: "Score Breakdown" },
                     { id: "gsc", label: "Search Performance (GSC)" },
+                    { id: "discovery", label: `Discovery Audit${discoveryData ? ` (${discoveryData.overallGrade})` : ""}` },
+                    { id: "publicAudit", label: `Public Website${publicAuditData ? ` (${publicAuditData.pagesReachable}/${publicAuditData.pagesChecked})` : ""}` },
                     { id: "indexing", label: "Indexing Status" },
                     { id: "operations", label: "Operations Health" },
                     { id: "articles", label: "Latest Articles" },
@@ -4380,10 +4384,12 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "scores" && (
                                     <div className="grid grid-cols-2 gap-2">
                                       {[
-                                        { label: "SEO Audit", value: scores.seoAudit, weight: "40%" },
-                                        { label: "Indexing", value: scores.indexing, weight: "20%" },
-                                        { label: "Content Velocity", value: scores.contentVelocity, weight: "20%" },
-                                        { label: "Operations", value: scores.operations, weight: "20%" },
+                                        { label: "SEO Audit", value: scores.seoAudit, weight: "30%" },
+                                        { label: "Discovery", value: scores.discovery || 0, weight: "15%" },
+                                        { label: "Indexing", value: scores.indexing, weight: "15%" },
+                                        { label: "Content Velocity", value: scores.contentVelocity, weight: "15%" },
+                                        { label: "Operations", value: scores.operations, weight: "15%" },
+                                        { label: "Public Website", value: scores.publicWebsite || 0, weight: "10%" },
                                       ].map((s) => (
                                         <div key={s.label} className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
                                           <div className="text-zinc-500 text-[10px]">{s.label} ({s.weight})</div>
@@ -4412,6 +4418,103 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                         </div>
                                       )}
                                     </div>
+                                  )}
+                                  {sec.id === "discovery" && (
+                                    discoveryData ? (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center gap-3 mb-2">
+                                          <div className={`text-2xl font-black ${discoveryData.overallGrade === "A" ? "text-emerald-400" : discoveryData.overallGrade === "B" ? "text-blue-400" : discoveryData.overallGrade === "C" ? "text-amber-400" : "text-red-400"}`}>
+                                            {discoveryData.overallGrade}
+                                          </div>
+                                          <div className="text-zinc-400 text-[11px]">{discoveryData.overallScore}/100 — {discoveryData.totalPages} pages, {discoveryData.totalIssues} issues</div>
+                                        </div>
+                                        <p className="text-zinc-500 text-[10px] font-medium mb-1">Discovery Funnel</p>
+                                        <div className="grid grid-cols-4 gap-1 text-center">
+                                          {[
+                                            { label: "Published", value: discoveryData.funnel.published, color: "text-zinc-300" },
+                                            { label: "Submitted", value: discoveryData.funnel.submitted, color: "text-blue-400" },
+                                            { label: "Indexed", value: discoveryData.funnel.indexed, color: "text-emerald-400" },
+                                            { label: "Performing", value: discoveryData.funnel.performing, color: "text-violet-400" },
+                                          ].map((f) => (
+                                            <div key={f.label} className="bg-zinc-800/50 rounded p-1">
+                                              <div className={`font-bold text-sm ${f.color}`}>{f.value}</div>
+                                              <div className="text-zinc-600 text-[9px]">{f.label}</div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        <p className="text-zinc-500 text-[10px] font-medium mt-2 mb-1">Health Scores</p>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                          {[
+                                            { label: "Crawlability", value: discoveryData.crawlabilityScore },
+                                            { label: "Indexability", value: discoveryData.indexabilityScore },
+                                            { label: "Content Quality", value: discoveryData.contentQualityScore },
+                                            { label: "AIO Readiness", value: discoveryData.aioReadinessScore },
+                                          ].map((s) => (
+                                            <div key={s.label} className="bg-zinc-800/50 rounded px-2 py-1">
+                                              <div className="text-zinc-500 text-[10px]">{s.label}</div>
+                                              <div className={`font-bold ${s.value >= 70 ? "text-emerald-400" : s.value >= 40 ? "text-amber-400" : "text-red-400"}`}>{s.value}/100</div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {discoveryData.topIssues.length > 0 && (
+                                          <div className="mt-2">
+                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">Top Issues</p>
+                                            {discoveryData.topIssues.slice(0, 5).map((di, i) => (
+                                              <div key={i} className="flex items-start gap-1.5 py-0.5 text-[10px]">
+                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[8px] font-medium uppercase ${di.severity === "critical" ? "bg-red-900/50 text-red-300" : di.severity === "high" ? "bg-orange-900/50 text-orange-300" : "bg-amber-900/50 text-amber-300"}`}>{di.severity}</span>
+                                                <span className="text-zinc-300">{di.title}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {discoveryData.pagesNeedingAttention.length > 0 && (
+                                          <div className="mt-2">
+                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">Pages Needing Attention</p>
+                                            {discoveryData.pagesNeedingAttention.slice(0, 5).map((p, i) => (
+                                              <div key={i} className="flex justify-between py-0.5 text-[10px]">
+                                                <span className="text-zinc-400 truncate max-w-[55%]">{p.title || p.slug}</span>
+                                                <span className="text-zinc-500">{p.score}/100 — {p.topIssue}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : <p className="text-zinc-500">Discovery audit did not run (budget exceeded).</p>
+                                  )}
+                                  {sec.id === "publicAudit" && (
+                                    publicAuditData ? (
+                                      <div className="space-y-2">
+                                        <div className="grid grid-cols-3 gap-1.5 text-center">
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className={`font-bold ${publicAuditData.pagesReachable === publicAuditData.pagesChecked ? "text-emerald-400" : "text-amber-400"}`}>{publicAuditData.pagesReachable}/{publicAuditData.pagesChecked}</div>
+                                            <div className="text-zinc-500 text-[10px]">Reachable</div>
+                                          </div>
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className={`font-bold ${publicAuditData.pagesUnreachable > 0 ? "text-red-400" : "text-zinc-400"}`}>{publicAuditData.pagesUnreachable}</div>
+                                            <div className="text-zinc-500 text-[10px]">Unreachable</div>
+                                          </div>
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className={`font-bold ${publicAuditData.avgResponseTimeMs <= 2500 ? "text-emerald-400" : publicAuditData.avgResponseTimeMs <= 5000 ? "text-amber-400" : "text-red-400"}`}>{publicAuditData.avgResponseTimeMs}ms</div>
+                                            <div className="text-zinc-500 text-[10px]">Avg Response</div>
+                                          </div>
+                                        </div>
+                                        <div className="mt-2">
+                                          <p className="text-zinc-500 text-[10px] font-medium mb-1">Page Results</p>
+                                          {publicAuditData.results.map((r, i) => (
+                                            <div key={i} className="flex items-center justify-between py-0.5 text-[10px]">
+                                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                <span className={r.ok ? "text-emerald-400" : "text-red-400"}>{r.ok ? "✓" : "✗"}</span>
+                                                <span className="text-zinc-400 truncate">{r.url}</span>
+                                              </div>
+                                              <div className="flex gap-2 shrink-0 text-zinc-500">
+                                                <span className={r.ok ? "" : "text-red-400"}>{r.status || "ERR"}</span>
+                                                <span>{r.responseTimeMs}ms</span>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : <p className="text-zinc-500">Public website audit did not run (budget exceeded).</p>
                                   )}
                                   {sec.id === "indexing" && (
                                     <div className="grid grid-cols-3 gap-1.5 text-center">

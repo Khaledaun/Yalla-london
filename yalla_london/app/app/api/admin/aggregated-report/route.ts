@@ -13,6 +13,8 @@ export const maxDuration = 60;
  * - CronJobLog (operational health)
  * - ApiUsageLog (AI cost summary)
  * - Latest published articles with performance data
+ * - Discovery Audit (page-by-page deep analysis: crawl, index, content, AIO)
+ * - Public Website Audit (live HTTP checks on key pages)
  *
  * GET: Generate report
  * POST: Save report to SeoAuditReport with triggeredBy="aggregated"
@@ -330,7 +332,122 @@ export async function GET(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 7. SYNTHESIZE: Issues + Root Causes + Fix Plan
+    // 7. DISCOVERY AUDIT (page-by-page deep analysis)
+    // ═══════════════════════════════════════════════════════════════════════
+    let discovery: {
+      totalPages: number; totalIssues: number; overallScore: number; overallGrade: string;
+      funnel: { published: number; inSitemap: number; submitted: number; crawled: number; indexed: number; performing: number; converting: number };
+      issuesBySeverity: Record<string, number>; issuesByCategory: Record<string, number>;
+      indexingRate: number; avgPosition: number; totalClicks7d: number; totalImpressions7d: number; avgCtr: number;
+      aioEligiblePages: number; aioEligibleRate: number;
+      crawlabilityScore: number; indexabilityScore: number; contentQualityScore: number; aioReadinessScore: number;
+      topIssues: Array<{ severity: string; category: string; title: string; description: string; impact: string; autoFixable: boolean }>;
+      pagesNeedingAttention: Array<{ url: string; slug: string; title: string; score: number; topIssue: string }>;
+    } | null = null;
+    if (Date.now() - start < BUDGET_MS - 12_000) {
+      try {
+        const { scanSiteDiscovery } = await import("@/lib/discovery/scanner");
+        const remainingBudget = BUDGET_MS - (Date.now() - start) - 8_000;
+        const discoverySummary = await scanSiteDiscovery(siteId, {
+          budgetMs: Math.min(remainingBudget, 15_000),
+          liveHttpCheck: false, // Skip live checks to stay within budget
+          limit: 100,
+        });
+        discovery = {
+          totalPages: discoverySummary.totalPages,
+          totalIssues: discoverySummary.totalIssues,
+          overallScore: discoverySummary.overallScore,
+          overallGrade: discoverySummary.overallGrade,
+          funnel: discoverySummary.funnel,
+          issuesBySeverity: discoverySummary.issuesBySeverity as Record<string, number>,
+          issuesByCategory: discoverySummary.issuesByCategory as Record<string, number>,
+          indexingRate: discoverySummary.indexingRate,
+          avgPosition: discoverySummary.avgPosition,
+          totalClicks7d: discoverySummary.totalClicks7d,
+          totalImpressions7d: discoverySummary.totalImpressions7d,
+          avgCtr: discoverySummary.avgCtr,
+          aioEligiblePages: discoverySummary.aioEligiblePages,
+          aioEligibleRate: discoverySummary.aioEligibleRate,
+          crawlabilityScore: discoverySummary.crawlabilityScore,
+          indexabilityScore: discoverySummary.indexabilityScore,
+          contentQualityScore: discoverySummary.contentQualityScore,
+          aioReadinessScore: discoverySummary.aioReadinessScore,
+          topIssues: discoverySummary.topIssues.slice(0, 10).map((i) => ({
+            severity: i.severity, category: i.category, title: i.title,
+            description: i.description, impact: i.impact, autoFixable: i.autoFixable,
+          })),
+          pagesNeedingAttention: discoverySummary.pagesNeedingAttention.slice(0, 10).map((p) => ({
+            url: p.url, slug: p.slug, title: p.title, score: p.score, topIssue: p.topIssue,
+          })),
+        };
+      } catch (e) { console.warn("[aggregated-report] discovery:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 8. PUBLIC WEBSITE AUDIT (live page checks on key pages)
+    // ═══════════════════════════════════════════════════════════════════════
+    let publicAudit: {
+      pagesChecked: number;
+      pagesReachable: number;
+      pagesUnreachable: number;
+      avgResponseTimeMs: number;
+      results: Array<{ url: string; status: number; responseTimeMs: number; ok: boolean; error?: string }>;
+    } | null = null;
+    if (Date.now() - start < BUDGET_MS - 8_000) {
+      try {
+        const baseUrl = siteDomain.startsWith("http") ? siteDomain : `https://${siteConfig?.domain || siteDomain}`;
+        // Key pages to check: homepage, blog index, about, contact + 5 most recent articles
+        const keyPages = [
+          "/", "/blog", "/about", "/contact",
+          ...latestArticles.slice(0, 5).map((a) => `/blog/${a.slug}`),
+        ];
+
+        const pageResults: Array<{ url: string; status: number; responseTimeMs: number; ok: boolean; error?: string }> = [];
+        for (const path of keyPages) {
+          if (Date.now() - start > BUDGET_MS - 5_000) break;
+          const fullUrl = `${baseUrl}${path}`;
+          const pageStart = Date.now();
+          try {
+            const res = await fetch(fullUrl, {
+              method: "HEAD",
+              redirect: "follow",
+              signal: AbortSignal.timeout(5000),
+              headers: { "User-Agent": "YallaAuditBot/1.0 (+https://zenitha.luxury)" },
+            });
+            pageResults.push({
+              url: path,
+              status: res.status,
+              responseTimeMs: Date.now() - pageStart,
+              ok: res.ok,
+            });
+          } catch (fetchErr) {
+            pageResults.push({
+              url: path,
+              status: 0,
+              responseTimeMs: Date.now() - pageStart,
+              ok: false,
+              error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+            });
+          }
+        }
+
+        const reachable = pageResults.filter((r) => r.ok).length;
+        const avgTime = pageResults.length > 0
+          ? Math.round(pageResults.reduce((sum, r) => sum + r.responseTimeMs, 0) / pageResults.length)
+          : 0;
+
+        publicAudit = {
+          pagesChecked: pageResults.length,
+          pagesReachable: reachable,
+          pagesUnreachable: pageResults.length - reachable,
+          avgResponseTimeMs: avgTime,
+          results: pageResults,
+        };
+      } catch (e) { console.warn("[aggregated-report] public audit:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 9. SYNTHESIZE: Issues + Root Causes + Fix Plan
     // ═══════════════════════════════════════════════════════════════════════
     const issues: Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }> = [];
 
@@ -379,6 +496,43 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // From discovery audit
+    if (discovery) {
+      for (const di of discovery.topIssues.filter((i) => i.severity === "critical" || i.severity === "high")) {
+        // Avoid duplicating issues already captured by SEO audit
+        const isDuplicate = issues.some((existing) => existing.title === di.title || existing.category === di.category && existing.title.includes(di.title.slice(0, 30)));
+        if (!isDuplicate) {
+          issues.push({
+            severity: di.severity,
+            category: `Discovery: ${di.category}`,
+            title: di.title,
+            rootCause: di.description,
+            fix: di.impact,
+          });
+        }
+      }
+    }
+
+    // From public website audit
+    if (publicAudit && publicAudit.pagesUnreachable > 0) {
+      const unreachable = publicAudit.results.filter((r) => !r.ok);
+      issues.push({
+        severity: unreachable.length > 2 ? "critical" : "high",
+        category: "Public Website",
+        title: `${unreachable.length} page(s) unreachable on live site`,
+        rootCause: unreachable.map((r) => `${r.url}: ${r.error || `HTTP ${r.status}`}`).join("; "),
+        fix: "Check server logs, verify Vercel deployment is healthy, and ensure these routes exist.",
+      });
+    }
+    if (publicAudit && publicAudit.avgResponseTimeMs > 3000) {
+      issues.push({
+        severity: "medium", category: "Performance",
+        title: `Average response time is ${publicAudit.avgResponseTimeMs}ms (target: <2500ms)`,
+        rootCause: "Slow server response indicates heavy database queries, unoptimized pages, or server overload.",
+        fix: "Check Vercel function logs for slow routes. Consider static generation for high-traffic pages.",
+      });
+    }
+
     // Sort by severity
     const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     issues.sort((a, b) => (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4));
@@ -393,43 +547,52 @@ export async function GET(request: NextRequest) {
     }));
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 8. GRADE + EXECUTIVE SUMMARY
+    // 10. GRADE + EXECUTIVE SUMMARY
     // ═══════════════════════════════════════════════════════════════════════
     const criticals = issues.filter((i) => i.severity === "critical").length;
     const highs = issues.filter((i) => i.severity === "high").length;
 
-    // Composite score: 40% SEO audit, 20% indexing, 20% content velocity, 20% operations
+    // Composite score: 30% SEO audit, 15% discovery, 15% indexing, 15% content velocity, 15% operations, 10% public website
     const indexScore = Math.min(100, indexing.rate);
     const contentScore = pipeline.publishedThisWeek >= 7 ? 100 : pipeline.publishedThisWeek >= 3 ? 70 : pipeline.publishedThisWeek >= 1 ? 40 : 10;
     const opsScore = operations.cronFailures24h === 0 ? 100 : operations.cronFailures24h <= 3 ? 60 : 20;
-    const compositeScore = Math.round(auditScore * 0.4 + indexScore * 0.2 + contentScore * 0.2 + opsScore * 0.2);
+    const discoveryScore = discovery ? discovery.overallScore : auditScore; // fallback to SEO audit if discovery didn't run
+    const publicScore = publicAudit
+      ? (publicAudit.pagesChecked > 0 ? Math.round((publicAudit.pagesReachable / publicAudit.pagesChecked) * 100) : 0)
+      : 100; // assume good if not checked
+    const compositeScore = Math.round(
+      auditScore * 0.30 + discoveryScore * 0.15 + indexScore * 0.15 +
+      contentScore * 0.15 + opsScore * 0.15 + publicScore * 0.10
+    );
 
     const grade = compositeScore >= 80 ? "A" : compositeScore >= 65 ? "B" : compositeScore >= 50 ? "C" : compositeScore >= 35 ? "D" : "F";
 
     const executiveSummary = buildExecutiveSummary(grade, compositeScore, auditScore, indexing, gsc, pipeline, operations, criticals, highs, siteConfig?.name || siteId);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 9. CLAUDE PROMPT (pre-built for review)
+    // 11. CLAUDE PROMPT (pre-built for review)
     // ═══════════════════════════════════════════════════════════════════════
     const claudePrompt = buildClaudePrompt(siteId, siteConfig?.name || siteId, compositeScore, grade, issues, fixPlan, indexing, gsc, pipeline, operations);
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 10. PLAIN LANGUAGE REPORT
+    // 12. PLAIN LANGUAGE REPORT
     // ═══════════════════════════════════════════════════════════════════════
     const plainLanguage = buildPlainLanguage(grade, compositeScore, auditScore, indexing, gsc, pipeline, operations, issues, latestArticles, siteConfig?.name || siteId);
 
     const report = {
-      _format: "yalla-aggregated-report-v1",
+      _format: "yalla-aggregated-report-v2",
       _generated: new Date().toISOString(),
       site: { id: siteId, name: siteConfig?.name || siteId, domain: siteConfig?.domain || siteDomain },
       grade,
       compositeScore,
-      scores: { seoAudit: auditScore, indexing: indexScore, contentVelocity: contentScore, operations: opsScore },
+      scores: { seoAudit: auditScore, discovery: discoveryScore, indexing: indexScore, contentVelocity: contentScore, operations: opsScore, publicWebsite: publicScore },
       executiveSummary,
       gsc,
       indexing,
       pipeline,
       operations,
+      discovery,
+      publicAudit,
       latestArticles,
       issues,
       fixPlan,

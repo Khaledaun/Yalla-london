@@ -1,3 +1,5 @@
+export const maxDuration = 300; // 5 min — audit runs 10 AI sections sequentially
+
 /**
  * Public SEO Audit API — Perplexity-powered deep site analysis
  *

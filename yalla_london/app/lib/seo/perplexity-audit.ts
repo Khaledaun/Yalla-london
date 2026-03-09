@@ -312,8 +312,8 @@ export async function runPerplexityAudit(
   let totalTokens = 0;
   let totalCost = 0;
 
-  // Budget guard: 53s budget with 7s buffer for Vercel Pro 60s limit
-  const BUDGET_MS = 53_000;
+  // Budget guard: 280s budget with 20s buffer for Vercel Pro 300s limit
+  const BUDGET_MS = 280_000;
   const startTime = Date.now();
 
   // Filter sections based on depth

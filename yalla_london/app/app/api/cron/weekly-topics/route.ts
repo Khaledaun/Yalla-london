@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   }
 
   const _cronStart = Date.now();
-  const BUDGET_MS = 53_000; // 53s usable out of 120s maxDuration
+  const BUDGET_MS = 280_000; // 280s usable out of 300s maxDuration
   const budgetLeft = () => BUDGET_MS - (Date.now() - _cronStart);
 
   try {

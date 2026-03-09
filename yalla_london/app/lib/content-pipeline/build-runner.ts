@@ -15,7 +15,7 @@
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
 
-const DEFAULT_TIMEOUT_MS = 53_000;
+const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
 export interface BuildRunnerResult {
   success: boolean;

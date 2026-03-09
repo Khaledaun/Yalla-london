@@ -696,8 +696,34 @@ async function generateWithAI(
     const { generateJSON } = await import("@/lib/ai/provider");
 
     // Apply humanization layer to system prompt
-    const baseSystemPrompt =
+    // First try static config, then fall back to SiteSettings (for wizard-created sites)
+    let baseSystemPrompt =
       language === "en" ? site.systemPromptEN : site.systemPromptAR;
+
+    if (!baseSystemPrompt) {
+      try {
+        const { prisma } = await import("@/lib/db");
+        const contentGenSettings = await prisma.siteSettings.findUnique({
+          where: { siteId_category: { siteId: site.id, category: "content_generation" } },
+        });
+        if (contentGenSettings?.config) {
+          const s = contentGenSettings.config as Record<string, string>;
+          baseSystemPrompt = language === "en"
+            ? s.systemPromptEN || ""
+            : s.systemPromptAR || "";
+        }
+      } catch (promptErr) {
+        console.warn(`[daily-content-generate] SiteSettings prompt fallback failed:`, promptErr instanceof Error ? promptErr.message : promptErr);
+      }
+    }
+
+    // Final fallback — generic prompt if nothing found
+    if (!baseSystemPrompt) {
+      baseSystemPrompt = language === "en"
+        ? `You are a senior luxury travel content writer for ${site.name}. Write 1,500–2,000 words minimum with proper heading hierarchy, 3+ internal links, and 2+ affiliate links. Always respond with valid JSON.`
+        : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب 1,500–2,000 كلمة كحد أدنى. أجب دائماً بـ JSON صالح.`;
+    }
+
     const writingStyle = pickWritingStyle();
 
     // Load per-site workflow instructions from SiteSettings (cockpit-configurable)

@@ -72,8 +72,9 @@ const TESTIMONIALS = [
 function HeroSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
 
+  // Explicit h-* (not min-h-*) prevents CLS — fixed height before hero image loads
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-[var(--z-navy)]">
+    <section className="relative h-[70vh] sm:h-[80vh] md:h-[90vh] flex items-center justify-center overflow-hidden bg-[var(--z-navy)]">
       {/* Hero background photo — aerial yacht on deep blue sea */}
       <Image
         src={PHOTOS.hero}

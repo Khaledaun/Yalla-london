@@ -74,21 +74,29 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
   const [showStickyShare, setShowStickyShare] = useState(false)
   const articleRef = useRef<HTMLDivElement>(null)
 
-  // Reading progress bar
+  // Reading progress bar — debounced with requestAnimationFrame to improve INP
   useEffect(() => {
+    let rafId: number | null = null
     const handleScroll = () => {
-      if (!articleRef.current) return
-      const el = articleRef.current
-      const rect = el.getBoundingClientRect()
-      const total = el.scrollHeight
-      const visible = window.innerHeight
-      const scrolled = Math.max(0, -rect.top)
-      const progress = Math.min(100, (scrolled / (total - visible)) * 100)
-      setReadProgress(progress)
-      setShowStickyShare(rect.top < -200 && rect.bottom > 200)
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        if (!articleRef.current) return
+        const el = articleRef.current
+        const rect = el.getBoundingClientRect()
+        const total = el.scrollHeight
+        const visible = window.innerHeight
+        const scrolled = Math.max(0, -rect.top)
+        const progress = Math.min(100, (scrolled / (total - visible)) * 100)
+        setReadProgress(progress)
+        setShowStickyShare(rect.top < -200 && rect.bottom > 200)
+      })
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
   }, [])
 
   const formatDate = (dateString: string) => {
@@ -209,7 +217,8 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
       </nav>
 
       {/* ═══ Hero Section — Magazine Style ═══ */}
-      <section className="relative min-h-[28rem] md:min-h-[34rem] overflow-hidden">
+      {/* Explicit height prevents CLS (Cumulative Layout Shift) when hero image loads */}
+      <section className="relative h-[28rem] md:h-[34rem] overflow-hidden">
         {/* Background image */}
         <div className="absolute inset-0">
           {post.featured_image ? (

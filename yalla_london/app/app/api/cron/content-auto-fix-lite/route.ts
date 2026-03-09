@@ -333,7 +333,52 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
-  // ── 7. SITEMAP CACHE REGENERATION ─────────────────────────────────────
+  // ── 7. NEVER-SUBMITTED CATCH-UP ──────────────────────────────────────
+  // Find published articles that have no URLIndexingStatus record and track them.
+  // Prevents "never submitted" gap where ensureUrlTracked() failed silently on publish.
+  let neverSubmittedFixed = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 12_000) {
+    try {
+      const { getSiteDomain } = await import("@/config/sites");
+      // Find published posts that don't have a URLIndexingStatus record
+      const untrackedPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+        },
+        select: { slug: true, siteId: true },
+        take: 100,
+        orderBy: { created_at: "desc" },
+      }), "never-submitted-catchup") as Array<{ slug: string; siteId: string }>;
+
+      for (const post of untrackedPosts) {
+        if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
+        const domain = getSiteDomain(post.siteId);
+        const url = `${domain}/blog/${post.slug}`;
+        // Check if this URL is already tracked
+        const existing = await prisma.uRLIndexingStatus.findFirst({
+          where: { site_id: post.siteId, url },
+          select: { id: true },
+        }).catch(() => null);
+
+        if (!existing) {
+          const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+          await ensureUrlTracked(url, post.siteId, `blog/${post.slug}`);
+          neverSubmittedFixed++;
+        }
+      }
+      if (neverSubmittedFixed > 0) {
+        console.log(`[auto-fix-lite] Tracked ${neverSubmittedFixed} previously untracked URLs`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`never-submitted-catchup: ${msg}`);
+      console.warn("[auto-fix-lite] Never-submitted catch-up failed:", msg);
+    }
+  }
+
+  // ── 8. SITEMAP CACHE REGENERATION ─────────────────────────────────────
   // Pre-build sitemap data so /sitemap.xml serves instantly from cache.
   // This replaces the old design of 10+ live DB queries per request,
   // which caused timeouts and broke Google's ability to crawl the site.
@@ -352,7 +397,7 @@ async function handleAutoFixLite(request: NextRequest) {
 
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned;
+  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + neverSubmittedFixed;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {
@@ -367,7 +412,7 @@ async function handleAutoFixLite(request: NextRequest) {
     resultSummary: results,
   }).catch(err => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
 
-  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, ...results });
+  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, ...results });
 }
 
 export async function GET(request: NextRequest) {

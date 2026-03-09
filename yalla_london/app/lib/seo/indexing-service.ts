@@ -1088,6 +1088,27 @@ export async function ensureUrlTracked(url: string, siteId: string, slug?: strin
       },
       update: {}, // Don't overwrite existing records — preserves indexed/submitted status
     });
+
+    // Also track the Arabic /ar/ variant if this is an English URL
+    // Prevents the "never submitted" gap where /ar/ pages only get discovered at 4 AM daily sync
+    if (!url.includes("/ar/") && !url.endsWith("/ar")) {
+      const arUrl = url.replace(/^(https?:\/\/[^/]+)(\/.*)$/, "$1/ar$2");
+      if (arUrl !== url) {
+        await prisma.uRLIndexingStatus.upsert({
+          where: { site_id_url: { site_id: siteId, url: arUrl } },
+          create: {
+            site_id: siteId,
+            url: arUrl,
+            slug: `ar/${derivedSlug}`,
+            status: "discovered",
+            submitted_indexnow: false,
+            submitted_sitemap: false,
+            submitted_google_api: false,
+          },
+          update: {},
+        }).catch(() => {}); // Non-critical — Arabic tracking is best-effort
+      }
+    }
   } catch (err) {
     console.warn(`[indexing-service] ensureUrlTracked failed for ${url}:`, err instanceof Error ? err.message : err);
   }

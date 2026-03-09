@@ -2962,6 +2962,18 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const [diagnosticLoading, setDiagnosticLoading] = useState<string | null>(null);
   const [diagnosticResult, setDiagnosticResult] = useState<Record<string, string>>({});
 
+  // ── Audit Reports state (daily scheduled audit history + JSON summaries) ──
+  const [auditReportsOpen, setAuditReportsOpen] = useState<string | null>(null);
+  const [auditReportsData, setAuditReportsData] = useState<Record<string, Array<{
+    id: string; healthScore: number; totalFindings: number; criticalCount: number;
+    highCount: number; summary: string; triggeredBy: string; createdAt: string;
+  }>>>({});
+  const [auditReportsLoading, setAuditReportsLoading] = useState<string | null>(null);
+  const [auditJsonExpanded, setAuditJsonExpanded] = useState<string | null>(null);
+  const [auditJsonData, setAuditJsonData] = useState<Record<string, unknown> | null>(null);
+  const [auditJsonLoading, setAuditJsonLoading] = useState<string | null>(null);
+  const [auditJsonCopied, setAuditJsonCopied] = useState(false);
+
   // ── Latest Published Content state ──
   const [latestPubSiteId, setLatestPubSiteId] = useState<string | null>(null);
   const [latestPubLoading, setLatestPubLoading] = useState<string | null>(null);
@@ -2981,6 +2993,64 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
       setLatestPubData((prev) => ({ ...prev, [siteId]: [] }));
     } finally {
       setLatestPubLoading(null);
+    }
+  };
+
+  const loadAuditReports = async (siteId: string) => {
+    if (auditReportsOpen === siteId) { setAuditReportsOpen(null); return; }
+    setAuditReportsOpen(siteId);
+    setAuditReportsLoading(siteId);
+    setAuditJsonExpanded(null);
+    setAuditJsonData(null);
+    try {
+      const res = await fetch(`/api/admin/seo-audit?siteId=${encodeURIComponent(siteId)}&history=true`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setAuditReportsData((prev) => ({ ...prev, [siteId]: json.reports ?? [] }));
+    } catch (e) {
+      console.warn("[cockpit] audit reports load failed:", e instanceof Error ? e.message : e);
+      setAuditReportsData((prev) => ({ ...prev, [siteId]: [] }));
+    } finally {
+      setAuditReportsLoading(null);
+    }
+  };
+
+  const loadAuditJson = async (reportId: string, siteId: string) => {
+    if (auditJsonExpanded === reportId) { setAuditJsonExpanded(null); return; }
+    setAuditJsonExpanded(reportId);
+    setAuditJsonLoading(reportId);
+    setAuditJsonCopied(false);
+    try {
+      const res = await fetch(`/api/admin/seo-audit?reportId=${encodeURIComponent(reportId)}&format=json_summary&siteId=${encodeURIComponent(siteId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setAuditJsonData(json);
+    } catch (e) {
+      console.warn("[cockpit] audit JSON load failed:", e instanceof Error ? e.message : e);
+      setAuditJsonData({ error: e instanceof Error ? e.message : "Failed to load" });
+    } finally {
+      setAuditJsonLoading(null);
+    }
+  };
+
+  const copyAuditJson = async () => {
+    if (!auditJsonData) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(auditJsonData, null, 2));
+      setAuditJsonCopied(true);
+      setTimeout(() => setAuditJsonCopied(false), 3000);
+    } catch {
+      // Fallback for iOS Safari
+      const textarea = document.createElement("textarea");
+      textarea.value = JSON.stringify(auditJsonData, null, 2);
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setAuditJsonCopied(true);
+      setTimeout(() => setAuditJsonCopied(false), 3000);
     }
   };
 
@@ -3385,6 +3455,16 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-violet-400 border border-zinc-700"
               >
                 Reports
+              </button>
+              <button
+                onClick={() => loadAuditReports(site.id)}
+                className={`px-2 py-1 rounded text-xs border font-medium transition-colors ${
+                  auditReportsOpen === site.id
+                    ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
+                    : "bg-gradient-to-r from-emerald-900/50 to-teal-900/50 hover:from-emerald-800/50 hover:to-teal-800/50 text-emerald-300 border-emerald-700/50"
+                }`}
+              >
+                {auditReportsLoading === site.id ? "Loading…" : "Audit Reports"}
               </button>
               <button
                 onClick={() => window.location.href = `/admin/cockpit/per-page-audit?siteId=${encodeURIComponent(site.id)}`}
@@ -3858,6 +3938,108 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 </div>
               );
             })()}
+
+            {/* ══════ Audit Reports Panel (daily + manual reports with JSON copy) ══════ */}
+            {auditReportsOpen === site.id && (
+              <div className="mt-3 border-t border-emerald-800/50 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-emerald-400">Audit Reports</p>
+                  <button onClick={() => setAuditReportsOpen(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                </div>
+                <p className="text-[10px] text-zinc-500 mb-2">Daily automated + manual SEO audits. Tap any report to see the JSON summary you can copy.</p>
+                {(!auditReportsData[site.id] || auditReportsData[site.id].length === 0) ? (
+                  <p className="text-xs text-zinc-500">No audit reports yet. Run a Master Audit or wait for the daily scheduled audit (4:30 AM UTC).</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[70vh] overflow-y-auto">
+                    {auditReportsData[site.id].map((report) => {
+                      const isJsonOpen = auditJsonExpanded === report.id;
+                      return (
+                        <div key={report.id}>
+                          <button
+                            onClick={() => loadAuditJson(report.id, site.id)}
+                            className="w-full text-left bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold text-sm ${
+                                  report.healthScore >= 70 ? "text-emerald-400" :
+                                  report.healthScore >= 40 ? "text-amber-400" : "text-red-400"
+                                }`}>
+                                  {report.healthScore}
+                                </span>
+                                <div>
+                                  <div className="text-zinc-300 text-[11px]">
+                                    {new Date(report.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                                    {" "}
+                                    <span className="text-zinc-600">{new Date(report.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                                  </div>
+                                  <span className={`text-[9px] px-1 py-0.5 rounded ${
+                                    report.triggeredBy === "scheduled" ? "bg-blue-900/40 text-blue-400" : "bg-zinc-700/50 text-zinc-400"
+                                  }`}>
+                                    {report.triggeredBy === "scheduled" ? "Daily Auto" : "Manual"}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                {report.criticalCount > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded bg-red-900/50 text-red-300 text-[10px]">{report.criticalCount}C</span>
+                                )}
+                                {report.highCount > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-300 text-[10px]">{report.highCount}H</span>
+                                )}
+                                <span className="text-zinc-600 text-[10px]">{isJsonOpen ? "▲" : "▼"}</span>
+                              </div>
+                            </div>
+                            <p className="text-zinc-500 text-[10px] mt-1 line-clamp-2">{report.summary}</p>
+                          </button>
+
+                          {/* Expanded JSON summary + plain language report */}
+                          {isJsonOpen && (
+                            <div className="ml-2 mt-1 space-y-2">
+                              {auditJsonLoading === report.id ? (
+                                <p className="text-xs text-zinc-500 animate-pulse px-3 py-2">Loading report data…</p>
+                              ) : auditJsonData ? (
+                                <>
+                                  {/* Plain language report */}
+                                  {(auditJsonData as Record<string, unknown>).plainLanguage && (
+                                    <div className="bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2.5">
+                                      <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">Plain Language Summary</p>
+                                      <pre className="text-[11px] text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">
+                                        {(auditJsonData as Record<string, unknown>).plainLanguage as string}
+                                      </pre>
+                                    </div>
+                                  )}
+
+                                  {/* JSON with copy button */}
+                                  <div className="bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2.5">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">JSON Summary (tap to copy)</p>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); copyAuditJson(); }}
+                                        className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                                          auditJsonCopied
+                                            ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700"
+                                            : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200 border border-zinc-600"
+                                        }`}
+                                      >
+                                        {auditJsonCopied ? "Copied!" : "Copy JSON"}
+                                      </button>
+                                    </div>
+                                    <pre className="text-[10px] text-zinc-400 whitespace-pre-wrap font-mono max-h-64 overflow-y-auto leading-relaxed">
+                                      {JSON.stringify(auditJsonData, null, 2)}
+                                    </pre>
+                                  </div>
+                                </>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ══════ Latest Published Content Panel ══════ */}
             {latestPubSiteId === site.id && (

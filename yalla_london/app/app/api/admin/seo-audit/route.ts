@@ -1303,8 +1303,9 @@ async function runAudit(siteId: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { requireAdmin } = await import("@/lib/admin-middleware");
-    const authError = await requireAdmin(request);
+    // Allow both admin sessions and CRON_SECRET (daily-seo-audit cron calls this)
+    const { requireAdminOrCron } = await import("@/lib/admin-middleware");
+    const authError = await requireAdminOrCron(request);
     if (authError) return authError;
 
     const { getDefaultSiteId } = await import("@/config/sites");

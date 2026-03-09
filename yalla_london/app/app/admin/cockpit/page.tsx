@@ -2974,6 +2974,18 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const [auditJsonLoading, setAuditJsonLoading] = useState<string | null>(null);
   const [auditJsonCopied, setAuditJsonCopied] = useState(false);
 
+  // ── Aggregated Report state ──
+  const [aggReportSiteId, setAggReportSiteId] = useState<string | null>(null);
+  const [aggReportLoading, setAggReportLoading] = useState<string | null>(null);
+  const [aggReportStep, setAggReportStep] = useState<"idle" | "checking" | "choose" | "generating" | "done" | "error">("idle");
+  const [aggReportSources, setAggReportSources] = useState<Record<string, unknown> | null>(null);
+  const [aggReportData, setAggReportData] = useState<Record<string, Record<string, unknown>>>({});
+  const [aggReportCopied, setAggReportCopied] = useState<string | null>(null);
+  const [aggReportSaving, setAggReportSaving] = useState(false);
+  const [aggReportSaved, setAggReportSaved] = useState(false);
+  const [aggReportSection, setAggReportSection] = useState<string | null>(null);
+  const [aggReportError, setAggReportError] = useState<string | null>(null);
+
   // ── Latest Published Content state ──
   const [latestPubSiteId, setLatestPubSiteId] = useState<string | null>(null);
   const [latestPubLoading, setLatestPubLoading] = useState<string | null>(null);
@@ -2993,6 +3005,99 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
       setLatestPubData((prev) => ({ ...prev, [siteId]: [] }));
     } finally {
       setLatestPubLoading(null);
+    }
+  };
+
+  const openAggReport = async (siteId: string) => {
+    if (aggReportSiteId === siteId && aggReportStep !== "idle") {
+      setAggReportSiteId(null);
+      setAggReportStep("idle");
+      return;
+    }
+    setAggReportSiteId(siteId);
+    setAggReportStep("checking");
+    setAggReportError(null);
+    setAggReportSaved(false);
+    setAggReportSection(null);
+    try {
+      const res = await fetch(`/api/admin/aggregated-report?siteId=${encodeURIComponent(siteId)}&checkRecent=true`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setAggReportSources(json);
+      // If there's a recent aggregated report saved, offer to load it directly
+      if (json.sources?.aggregatedReport?.hasRecent && json.sources.aggregatedReport.report) {
+        setAggReportData((prev) => ({ ...prev, [siteId]: json.sources.aggregatedReport.report as Record<string, unknown> }));
+      }
+      setAggReportStep("choose");
+    } catch (e) {
+      setAggReportError(e instanceof Error ? e.message : "Failed to check data sources");
+      setAggReportStep("error");
+    }
+  };
+
+  const generateAggReport = async (siteId: string, useCached: boolean) => {
+    setAggReportStep("generating");
+    setAggReportError(null);
+    setAggReportLoading(siteId);
+    try {
+      // If useCached and there's already a report, skip generation
+      if (useCached && aggReportData[siteId] && Object.keys(aggReportData[siteId]).length > 0) {
+        setAggReportStep("done");
+        return;
+      }
+      const res = await fetch(`/api/admin/aggregated-report?siteId=${encodeURIComponent(siteId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Generation failed");
+      setAggReportData((prev) => ({ ...prev, [siteId]: json }));
+      setAggReportStep("done");
+    } catch (e) {
+      setAggReportError(e instanceof Error ? e.message : "Report generation failed");
+      setAggReportStep("error");
+    } finally {
+      setAggReportLoading(null);
+    }
+  };
+
+  const saveAggReport = async (siteId: string) => {
+    setAggReportSaving(true);
+    try {
+      const res = await fetch("/api/admin/aggregated-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success) {
+        setAggReportSaved(true);
+        if (json.reportId) {
+          setAggReportData((prev) => ({ ...prev, [siteId]: { ...prev[siteId], reportId: json.reportId, savedAt: new Date().toISOString() } }));
+        }
+      }
+    } catch (e) {
+      console.warn("[cockpit] save aggregated report failed:", e instanceof Error ? e.message : e);
+    } finally {
+      setAggReportSaving(false);
+    }
+  };
+
+  const copyAggReportSection = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setAggReportCopied(label);
+      setTimeout(() => setAggReportCopied(null), 3000);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setAggReportCopied(label);
+      setTimeout(() => setAggReportCopied(null), 3000);
     }
   };
 
@@ -3481,6 +3586,16 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 }`}
               >
                 {latestPubLoading === site.id ? "Loading…" : "Latest Published"}
+              </button>
+              <button
+                onClick={() => openAggReport(site.id)}
+                className={`px-2 py-1 rounded text-xs border font-medium transition-colors ${
+                  aggReportSiteId === site.id && aggReportStep !== "idle"
+                    ? "bg-gradient-to-r from-amber-900/50 to-orange-900/50 text-amber-200 border-amber-600"
+                    : "bg-gradient-to-r from-amber-900/40 to-orange-900/40 hover:from-amber-800/50 hover:to-orange-800/50 text-amber-300 border-amber-700/50"
+                }`}
+              >
+                {aggReportLoading === site.id ? "Generating…" : "Aggregated Report"}
               </button>
               <button
                 onClick={() => setExpandedSite(isExpanded ? null : site.id)}
@@ -4038,6 +4153,410 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ══════ Aggregated Report Panel ══════ */}
+            {aggReportSiteId === site.id && aggReportStep !== "idle" && (
+              <div className="mt-3 border-t border-amber-800/50 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-amber-400">Aggregated SEO Report</p>
+                  <button onClick={() => { setAggReportSiteId(null); setAggReportStep("idle"); }} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                </div>
+
+                {/* Step 1: Checking sources */}
+                {aggReportStep === "checking" && (
+                  <p className="text-xs text-zinc-400 animate-pulse">Checking data sources for recent reports…</p>
+                )}
+
+                {/* Step 2: Choose — use cached or generate fresh */}
+                {aggReportStep === "choose" && aggReportSources && (() => {
+                  const src = aggReportSources as { sources: { seoAudit: { hasRecent: boolean; score: number | null; lastRun: string | null }; aggregatedReport: { hasRecent: boolean; score: number | null; lastRun: string | null; summary: string | null }; gscData: { hasRecent: boolean; lastDate: string | null }; indexingData: { hasRecent: boolean } }; allSourcesFresh: boolean; estimatedGenerationTimeSec: number; recommendation: string };
+                  const hasSavedReport = src.sources.aggregatedReport.hasRecent;
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-zinc-400">{src.recommendation}</p>
+
+                      {/* Source freshness indicators */}
+                      <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.seoAudit.hasRecent ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-400" : "bg-red-950/20 border-red-800/30 text-red-400"}`}>
+                          <div className="font-medium">{src.sources.seoAudit.hasRecent ? "✓" : "✗"} SEO Audit</div>
+                          {src.sources.seoAudit.lastRun && <div className="text-[10px] opacity-70">Score: {src.sources.seoAudit.score} — {timeAgo(src.sources.seoAudit.lastRun)}</div>}
+                          {!src.sources.seoAudit.hasRecent && <div className="text-[10px] opacity-70">No report in last 12h</div>}
+                        </div>
+                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.gscData.hasRecent ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-400" : "bg-amber-950/20 border-amber-800/30 text-amber-400"}`}>
+                          <div className="font-medium">{src.sources.gscData.hasRecent ? "✓" : "~"} GSC Data</div>
+                          {src.sources.gscData.lastDate && <div className="text-[10px] opacity-70">Last: {new Date(src.sources.gscData.lastDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
+                          {!src.sources.gscData.hasRecent && <div className="text-[10px] opacity-70">Data may be stale</div>}
+                        </div>
+                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.indexingData.hasRecent ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-400" : "bg-amber-950/20 border-amber-800/30 text-amber-400"}`}>
+                          <div className="font-medium">{src.sources.indexingData.hasRecent ? "✓" : "~"} Indexing</div>
+                        </div>
+                        {hasSavedReport && (
+                          <div className="bg-blue-950/20 border-blue-800/30 border rounded-lg px-2.5 py-2 text-blue-400">
+                            <div className="font-medium">✓ Saved Report</div>
+                            <div className="text-[10px] opacity-70">Score: {src.sources.aggregatedReport.score} — {timeAgo(src.sources.aggregatedReport.lastRun!)}</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        {hasSavedReport && (
+                          <button
+                            onClick={() => generateAggReport(site.id, true)}
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 border border-blue-700/50 transition-colors"
+                          >
+                            Use Saved Report
+                          </button>
+                        )}
+                        {src.allSourcesFresh && (
+                          <button
+                            onClick={() => generateAggReport(site.id, false)}
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-emerald-900/50 hover:bg-emerald-800/50 text-emerald-300 border border-emerald-700/50 transition-colors"
+                          >
+                            Generate from Recent Data (~{src.estimatedGenerationTimeSec}s)
+                          </button>
+                        )}
+                        <button
+                          onClick={() => generateAggReport(site.id, false)}
+                          className="px-3 py-2 rounded-lg text-xs font-medium bg-amber-900/50 hover:bg-amber-800/50 text-amber-300 border border-amber-700/50 transition-colors"
+                        >
+                          Generate Fresh (~{src.estimatedGenerationTimeSec}s)
+                        </button>
+                      </div>
+
+                      {/* Tip for non-fresh sources */}
+                      {!src.allSourcesFresh && (
+                        <p className="text-[10px] text-zinc-500">
+                          Tip: Run the daily SEO audit cron first for the most complete report. Expected generation: ~{src.estimatedGenerationTimeSec}s.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Step 3: Generating */}
+                {aggReportStep === "generating" && (
+                  <div className="flex items-center gap-2 text-xs text-amber-300">
+                    <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    <span>Generating aggregated report… This may take 15-40 seconds.</span>
+                  </div>
+                )}
+
+                {/* Step 4: Error */}
+                {aggReportStep === "error" && (
+                  <div className="space-y-2">
+                    <div className="bg-red-950/30 border border-red-800/50 rounded-lg px-3 py-2 text-xs text-red-300">
+                      {aggReportError || "An error occurred"}
+                    </div>
+                    <button
+                      onClick={() => generateAggReport(site.id, false)}
+                      className="px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 5: Done — Full report display */}
+                {aggReportStep === "done" && aggReportData[site.id] && (() => {
+                  const rpt = aggReportData[site.id];
+                  const grade = (rpt.grade as string) || "?";
+                  const score = (rpt.compositeScore as number) || 0;
+                  const gradeColor = grade === "A" ? "text-emerald-400" : grade === "B" ? "text-blue-400" : grade === "C" ? "text-amber-400" : "text-red-400";
+                  const gradeBg = grade === "A" ? "from-emerald-900/30 to-emerald-800/20" : grade === "B" ? "from-blue-900/30 to-blue-800/20" : grade === "C" ? "from-amber-900/30 to-amber-800/20" : "from-red-900/30 to-red-800/20";
+                  const issues = (rpt.issues as Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }>) || [];
+                  const fixPlan = (rpt.fixPlan as Array<{ priority: number; action: string; category: string; severity: string; expectedImpact: string }>) || [];
+                  const claudePrompt = (rpt.claudePrompt as string) || "";
+                  const plainLanguage = (rpt.plainLanguage as string) || "";
+                  const executiveSummary = (rpt.executiveSummary as string) || "";
+                  const latestArticles = (rpt.latestArticles as Array<{ title: string; slug: string; indexingStatus: string; clicks: number; impressions: number; position: number; seoScore: number }>) || [];
+                  const scores = (rpt.scores as { seoAudit: number; indexing: number; contentVelocity: number; operations: number }) || { seoAudit: 0, indexing: 0, contentVelocity: 0, operations: 0 };
+                  const gsc = (rpt.gsc as { clicks7d: number; impressions7d: number; avgCtr7d: number; avgPosition7d: number; topPages: Array<{ url: string; clicks: number; impressions: number; position: number }> }) || { clicks7d: 0, impressions7d: 0, avgCtr7d: 0, avgPosition7d: 0, topPages: [] };
+                  const indexing = (rpt.indexing as { rate: number; indexed: number; errors: number; chronicFailures: number; neverSubmitted: number }) || { rate: 0, indexed: 0, errors: 0, chronicFailures: 0, neverSubmitted: 0 };
+                  const operations = (rpt.operations as { cronFailures24h: number; cronSuccesses24h: number; aiCost7d: number; failedCrons: string[] }) || { cronFailures24h: 0, cronSuccesses24h: 0, aiCost7d: 0, failedCrons: [] };
+
+                  const sections = [
+                    { id: "summary", label: "Executive Summary" },
+                    { id: "scores", label: "Score Breakdown" },
+                    { id: "gsc", label: "Search Performance (GSC)" },
+                    { id: "indexing", label: "Indexing Status" },
+                    { id: "operations", label: "Operations Health" },
+                    { id: "articles", label: "Latest Articles" },
+                    { id: "issues", label: `Issues (${issues.length})` },
+                    { id: "fixplan", label: "Fix Plan" },
+                    { id: "prompt", label: "Claude Prompt" },
+                    { id: "plain", label: "Plain Language Report" },
+                    { id: "json", label: "Full JSON" },
+                  ];
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Grade header */}
+                      <div className={`bg-gradient-to-r ${gradeBg} rounded-xl p-4`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`text-4xl font-black ${gradeColor}`}>{grade}</div>
+                          <div className="flex-1">
+                            <div className={`text-xl font-bold ${gradeColor}`}>{score}/100</div>
+                            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Composite Score</div>
+                            <div className="h-1.5 bg-zinc-700/50 rounded-full mt-1.5 overflow-hidden">
+                              <div className={`h-full rounded-full ${grade === "A" ? "bg-emerald-500" : grade === "B" ? "bg-blue-500" : grade === "C" ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${score}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-zinc-300 mt-2">{executiveSummary}</p>
+                      </div>
+
+                      {/* Top-level action buttons */}
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => copyAggReportSection(plainLanguage, "plain")}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "plain" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"}`}
+                        >
+                          {aggReportCopied === "plain" ? "Copied!" : "Copy Report"}
+                        </button>
+                        <button
+                          onClick={() => copyAggReportSection(claudePrompt, "prompt")}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "prompt" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-violet-900/40 hover:bg-violet-800/40 text-violet-300 border border-violet-700/50"}`}
+                        >
+                          {aggReportCopied === "prompt" ? "Copied!" : "Copy Claude Prompt"}
+                        </button>
+                        <button
+                          onClick={() => copyAggReportSection(JSON.stringify(rpt, null, 2), "json")}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "json" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"}`}
+                        >
+                          {aggReportCopied === "json" ? "Copied!" : "Copy Full JSON"}
+                        </button>
+                        {!aggReportSaved ? (
+                          <button
+                            onClick={() => saveAggReport(site.id)}
+                            disabled={aggReportSaving}
+                            className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-amber-900/40 hover:bg-amber-800/40 text-amber-300 border border-amber-700/50 transition-colors disabled:opacity-50"
+                          >
+                            {aggReportSaving ? "Saving…" : "Save Report"}
+                          </button>
+                        ) : (
+                          <span className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-emerald-900/30 text-emerald-300 border border-emerald-700/30">Saved</span>
+                        )}
+                        <button
+                          onClick={() => {
+                            // Copy prompt + instructions to review saved report
+                            const reviewPrompt = `I have a saved aggregated SEO report for ${site.name} (site ID: ${site.id}).
+
+The report was generated at ${(rpt._generated as string) || new Date().toISOString()} with a composite score of ${score}/100 (Grade ${grade}).
+
+Here is the full Claude prompt from the report — please review and fix the issues:
+
+${claudePrompt}
+
+The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggregated". If you need the raw data, fetch it from /api/admin/aggregated-report?siteId=${site.id}`;
+                            copyAggReportSection(reviewPrompt, "review");
+                          }}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "review" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-gradient-to-r from-violet-900/40 to-blue-900/40 hover:from-violet-800/40 hover:to-blue-800/40 text-violet-300 border border-violet-700/50"}`}
+                        >
+                          {aggReportCopied === "review" ? "Copied!" : "Copy Review Prompt"}
+                        </button>
+                      </div>
+
+                      {/* Expandable sections */}
+                      <div className="space-y-1">
+                        {sections.map((sec) => {
+                          const isOpen = aggReportSection === sec.id;
+                          return (
+                            <div key={sec.id}>
+                              <button
+                                onClick={() => setAggReportSection(isOpen ? null : sec.id)}
+                                className="w-full flex items-center justify-between bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2 text-xs transition-colors"
+                              >
+                                <span className="font-medium text-zinc-200">{sec.label}</span>
+                                <span className="text-zinc-600">{isOpen ? "▲" : "▼"}</span>
+                              </button>
+                              {isOpen && (
+                                <div className="ml-1 mt-1 bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px] space-y-2 max-h-[60vh] overflow-y-auto">
+                                  {sec.id === "summary" && (
+                                    <p className="text-zinc-300 whitespace-pre-wrap">{executiveSummary}</p>
+                                  )}
+                                  {sec.id === "scores" && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {[
+                                        { label: "SEO Audit", value: scores.seoAudit, weight: "40%" },
+                                        { label: "Indexing", value: scores.indexing, weight: "20%" },
+                                        { label: "Content Velocity", value: scores.contentVelocity, weight: "20%" },
+                                        { label: "Operations", value: scores.operations, weight: "20%" },
+                                      ].map((s) => (
+                                        <div key={s.label} className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
+                                          <div className="text-zinc-500 text-[10px]">{s.label} ({s.weight})</div>
+                                          <div className={`font-bold ${s.value >= 70 ? "text-emerald-400" : s.value >= 40 ? "text-amber-400" : "text-red-400"}`}>{s.value}/100</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {sec.id === "gsc" && (
+                                    <div className="space-y-2">
+                                      <div className="grid grid-cols-4 gap-1.5 text-center">
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-blue-400">{gsc.clicks7d}</div><div className="text-zinc-500 text-[10px]">Clicks 7d</div></div>
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-zinc-300">{gsc.impressions7d}</div><div className="text-zinc-500 text-[10px]">Imp 7d</div></div>
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-zinc-300">{gsc.avgCtr7d}%</div><div className="text-zinc-500 text-[10px]">CTR</div></div>
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${gsc.avgPosition7d <= 20 ? "text-emerald-400" : "text-amber-400"}`}>{gsc.avgPosition7d || "—"}</div><div className="text-zinc-500 text-[10px]">Avg Pos</div></div>
+                                      </div>
+                                      {gsc.topPages.length > 0 && (
+                                        <div>
+                                          <p className="text-zinc-500 text-[10px] font-medium mb-1">Top Pages</p>
+                                          {gsc.topPages.slice(0, 5).map((p, i) => (
+                                            <div key={i} className="flex justify-between text-[10px] py-0.5">
+                                              <span className="text-zinc-400 truncate max-w-[60%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
+                                              <span className="text-zinc-500">{p.clicks}c / {p.impressions}i / pos {p.position}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {sec.id === "indexing" && (
+                                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                                      <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${indexing.rate >= 60 ? "text-emerald-400" : "text-red-400"}`}>{indexing.rate}%</div><div className="text-zinc-500 text-[10px]">Rate</div></div>
+                                      <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-emerald-400">{indexing.indexed}</div><div className="text-zinc-500 text-[10px]">Indexed</div></div>
+                                      <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${indexing.errors > 0 ? "text-red-400" : "text-zinc-400"}`}>{indexing.errors}</div><div className="text-zinc-500 text-[10px]">Errors</div></div>
+                                      {indexing.chronicFailures > 0 && <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-red-400">{indexing.chronicFailures}</div><div className="text-zinc-500 text-[10px]">Chronic</div></div>}
+                                      {indexing.neverSubmitted > 0 && <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-amber-400">{indexing.neverSubmitted}</div><div className="text-zinc-500 text-[10px]">Never Submitted</div></div>}
+                                    </div>
+                                  )}
+                                  {sec.id === "operations" && (
+                                    <div className="space-y-2">
+                                      <div className="grid grid-cols-3 gap-1.5 text-center">
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-emerald-400">{operations.cronSuccesses24h}</div><div className="text-zinc-500 text-[10px]">Cron OK (24h)</div></div>
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${operations.cronFailures24h > 0 ? "text-red-400" : "text-zinc-400"}`}>{operations.cronFailures24h}</div><div className="text-zinc-500 text-[10px]">Cron Fails</div></div>
+                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-zinc-300">${operations.aiCost7d}</div><div className="text-zinc-500 text-[10px]">AI Cost 7d</div></div>
+                                      </div>
+                                      {operations.failedCrons.length > 0 && (
+                                        <div className="bg-red-950/20 border border-red-800/30 rounded-lg px-2.5 py-1.5 text-[10px] text-red-400">
+                                          Failed: {operations.failedCrons.join(", ")}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {sec.id === "articles" && (
+                                    <div className="space-y-1">
+                                      {latestArticles.length === 0 ? (
+                                        <p className="text-zinc-500">No published articles.</p>
+                                      ) : latestArticles.map((a, i) => (
+                                        <div key={i} className="flex items-center justify-between text-[10px] py-1 border-b border-zinc-800/50 last:border-0">
+                                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                            <span className={a.indexingStatus === "indexed" ? "text-emerald-400" : a.indexingStatus === "submitted" ? "text-blue-400" : "text-red-400"}>
+                                              {a.indexingStatus === "indexed" ? "✓" : a.indexingStatus === "submitted" ? "⟳" : "✗"}
+                                            </span>
+                                            <span className="text-zinc-300 truncate">{a.title}</span>
+                                          </div>
+                                          <div className="flex gap-2 shrink-0 text-zinc-500">
+                                            {a.clicks > 0 && <span>{a.clicks}c</span>}
+                                            <span className={a.seoScore >= 70 ? "text-emerald-400" : a.seoScore >= 50 ? "text-amber-400" : "text-red-400"}>{a.seoScore}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {sec.id === "issues" && (
+                                    <div className="space-y-2">
+                                      {issues.length === 0 ? (
+                                        <p className="text-emerald-400">No issues found!</p>
+                                      ) : issues.map((issue, i) => (
+                                        <div key={i} className={`rounded-lg px-2.5 py-2 border ${
+                                          issue.severity === "critical" ? "bg-red-950/20 border-red-800/30" :
+                                          issue.severity === "high" ? "bg-orange-950/20 border-orange-800/30" :
+                                          "bg-amber-950/20 border-amber-800/30"
+                                        }`}>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className={`text-[9px] px-1 py-0.5 rounded font-medium uppercase ${
+                                              issue.severity === "critical" ? "bg-red-900/50 text-red-300" :
+                                              issue.severity === "high" ? "bg-orange-900/50 text-orange-300" :
+                                              "bg-amber-900/50 text-amber-300"
+                                            }`}>{issue.severity}</span>
+                                            <span className="text-zinc-500 text-[10px]">{issue.category}</span>
+                                          </div>
+                                          <div className="text-zinc-200 font-medium mt-1">{issue.title}</div>
+                                          <div className="text-zinc-400 mt-1"><span className="text-zinc-500 font-medium">Root cause:</span> {issue.rootCause}</div>
+                                          <div className="text-zinc-400 mt-0.5"><span className="text-zinc-500 font-medium">Fix:</span> {issue.fix}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {sec.id === "fixplan" && (
+                                    <div className="space-y-1.5">
+                                      {fixPlan.length === 0 ? (
+                                        <p className="text-zinc-500">No fix plan items.</p>
+                                      ) : fixPlan.map((fp) => (
+                                        <div key={fp.priority} className="flex items-start gap-2 text-[11px]">
+                                          <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                            fp.severity === "critical" ? "bg-red-900/50 text-red-300" :
+                                            fp.severity === "high" ? "bg-orange-900/50 text-orange-300" :
+                                            "bg-amber-900/50 text-amber-300"
+                                          }`}>{fp.priority}</span>
+                                          <div>
+                                            <div className="text-zinc-200">{fp.action}</div>
+                                            <div className="text-zinc-500 text-[10px]">{fp.category} — {fp.expectedImpact}</div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {sec.id === "prompt" && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-zinc-500 text-[10px] font-medium">Claude review prompt — copy this to a new conversation</p>
+                                        <button
+                                          onClick={() => copyAggReportSection(claudePrompt, "prompt-sec")}
+                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "prompt-sec" ? "bg-emerald-900/50 text-emerald-300" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                                        >
+                                          {aggReportCopied === "prompt-sec" ? "Copied!" : "Copy"}
+                                        </button>
+                                      </div>
+                                      <pre className="text-zinc-300 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{claudePrompt}</pre>
+                                    </div>
+                                  )}
+                                  {sec.id === "plain" && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-zinc-500 text-[10px] font-medium">Plain language report</p>
+                                        <button
+                                          onClick={() => copyAggReportSection(plainLanguage, "plain-sec")}
+                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "plain-sec" ? "bg-emerald-900/50 text-emerald-300" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                                        >
+                                          {aggReportCopied === "plain-sec" ? "Copied!" : "Copy"}
+                                        </button>
+                                      </div>
+                                      <pre className="text-zinc-300 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{plainLanguage}</pre>
+                                    </div>
+                                  )}
+                                  {sec.id === "json" && (
+                                    <div>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <p className="text-zinc-500 text-[10px] font-medium">Full JSON data</p>
+                                        <button
+                                          onClick={() => copyAggReportSection(JSON.stringify(rpt, null, 2), "json-sec")}
+                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "json-sec" ? "bg-emerald-900/50 text-emerald-300" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                                        >
+                                          {aggReportCopied === "json-sec" ? "Copied!" : "Copy"}
+                                        </button>
+                                      </div>
+                                      <pre className="text-zinc-400 whitespace-pre-wrap font-mono text-[9px] leading-relaxed max-h-96 overflow-y-auto">{JSON.stringify(rpt, null, 2)}</pre>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex items-center justify-between text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
+                        <span>Generated: {(rpt._generated as string) ? new Date(rpt._generated as string).toLocaleString() : "now"}</span>
+                        <span>Duration: {((rpt.durationMs as number) || 0) / 1000}s</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

@@ -246,6 +246,7 @@ export default function TopicsContent() {
         ) : <span />
       ),
     },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [actionLoading])
 
   // Filter controls (shared between inline desktop and mobile bottom sheet)

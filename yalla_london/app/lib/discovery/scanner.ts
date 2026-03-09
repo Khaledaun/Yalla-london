@@ -197,7 +197,7 @@ function analyzePageDiscovery(
   } | undefined,
   inSitemap: boolean,
 ): PageDiscoveryReport {
-  const url = `https://${domain}/blog/${post.slug}`;
+  const url = `${domain}/blog/${post.slug}`;
   const contentEn = post.content_en || "";
   const contentAr = post.content_ar || "";
   const textEn = contentEn.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();

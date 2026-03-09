@@ -295,7 +295,7 @@ export default function NewArticlePage() {
                     <Image className="h-4 w-4" />
                   </Button>
                 </div>
-                
+
                 {/* Editor */}
                 <Textarea
                   value={article.content}

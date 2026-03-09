@@ -210,25 +210,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
-  const canonicalUrl = `${baseUrl}/blog/${slug}`;
+
+  // Arabic SSR: detect locale from middleware header so crawlers on /ar/ routes
+  // see Arabic metadata in the HTML head (not just after client hydration).
+  const locale = headersList.get("x-locale") || "en";
+  const isArabic = locale === "ar";
+
+  // Locale-aware canonical: /ar/blog/slug for Arabic, /blog/slug for English.
+  // Google requires canonical to match the URL being crawled.
+  const enUrl = `${baseUrl}/blog/${slug}`;
+  const arUrl = `${baseUrl}/ar/blog/${slug}`;
+  const canonicalUrl = isArabic ? arUrl : enUrl;
 
   const result = await findPost(slug, siteId);
   if (!result) {
     return {
-      title: `Post Not Found | ${siteName}`,
-      description: "The blog post you are looking for could not be found.",
+      title: isArabic ? `المقال غير موجود | ${siteName}` : `Post Not Found | ${siteName}`,
+      description: isArabic
+        ? "لم يتم العثور على المقال الذي تبحث عنه."
+        : "The blog post you are looking for could not be found.",
       robots: { index: false, follow: false },
     };
   }
 
   const { source, post } = result;
-  // Arabic SSR: serve locale-appropriate metadata so crawlers on /ar/ routes
-  // see Arabic title/description in the HTML head (not just after hydration).
-  const locale = headersList.get("x-locale") || "en";
-  const title = locale === "ar"
+  const title = isArabic
     ? ((post as any).meta_title_ar || post.title_ar || post.title_en)
     : (post.meta_title_en || post.title_en);
-  const rawDescription = locale === "ar"
+  const rawDescription = isArabic
     ? ((post as any).meta_description_ar || post.excerpt_ar || post.excerpt_en || "")
     : (post.meta_description_en || post.excerpt_en || "");
   // Cap at 160 chars — Google truncates beyond this and it hurts CTR
@@ -264,13 +273,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const INTERNAL_TAGS = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
   const publicTags = tags.filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
 
-  // noindex articles with empty or extremely thin content — prevents indexing placeholder pages
+  // noindex articles with empty or extremely thin content — prevents indexing placeholder pages.
+  // Check BOTH languages — an Arabic-only article with substantial content_ar should still be indexed.
   const contentEn = post.content_en || "";
-  const hasSubstantiveContent = !!(contentEn.trim() && contentEn.trim().length > 100);
+  const contentAr = post.content_ar || "";
+  const hasSubstantiveContent = isArabic
+    ? !!(contentAr.trim() && contentAr.trim().length > 100)
+    : !!(contentEn.trim() && contentEn.trim().length > 100);
 
   // Fetch real author name for E-E-A-T (cached — shared with page component)
   const author = await getAuthorForSite(siteId);
-  const authorName = author?.name_en || `${siteName} Editorial`;
+  const authorName = isArabic
+    ? (author?.name_ar || author?.name_en || `${siteName} Editorial`)
+    : (author?.name_en || `${siteName} Editorial`);
 
   return {
     title,
@@ -282,9 +297,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: canonicalUrl,
       languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/blog/${slug}`,
-        "x-default": canonicalUrl,
+        "en-GB": enUrl,
+        "ar-SA": arUrl,
+        "x-default": enUrl,
       },
     },
     openGraph: {
@@ -292,8 +307,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName,
-      locale: "en_GB",
-      alternateLocale: "ar_SA",
+      locale: isArabic ? "ar_SA" : "en_GB",
+      alternateLocale: isArabic ? "en_GB" : "ar_SA",
       type: "article",
       publishedTime: createdAt,
       modifiedTime: updatedAt,
@@ -301,7 +316,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       section: categoryName,
       tags: publicTags,
       images: image
-        ? [{ url: image, width: 1200, height: 630, alt: post.title_en }]
+        ? [{ url: image, width: 1200, height: 630, alt: isArabic ? (post.title_ar || post.title_en) : post.title_en }]
         : [],
     },
     twitter: {
@@ -411,7 +426,9 @@ function generateStructuredData(
     keywords = post.keywords || [];
   }
 
-  const contentHtml = post.content_en || "";
+  const isArabic = locale === "ar";
+  // Use locale-appropriate content for word count and FAQ extraction
+  const contentHtml = isArabic ? (post.content_ar || post.content_en || "") : (post.content_en || "");
   const contentText =
     source === "static"
       ? contentHtml
@@ -431,17 +448,32 @@ function generateStructuredData(
   // Extract FAQ-like Q&A pairs from content for AIO citation
   const faqPairs = extractFaqPairs(contentHtml);
 
+  // Use locale-appropriate headline and description for structured data.
+  // Google expects JSON-LD to match the visible page content language.
+  const headline = isArabic
+    ? (post.title_ar || post.title_en)
+    : post.title_en;
+  const schemaDescription = isArabic
+    ? (post.excerpt_ar || post.excerpt_en || "")
+    : (post.excerpt_en || "");
+  const authorName = isArabic
+    ? (author?.name_ar || author?.name_en || `${siteName} Editorial`)
+    : (author?.name_en || `${siteName} Editorial`);
+  const canonicalPageUrl = isArabic
+    ? `${baseUrl}/ar/blog/${post.slug}`
+    : `${baseUrl}/blog/${post.slug}`;
+
   const articleSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: post.title_en,
-    description: post.excerpt_en || "",
+    headline,
+    description: schemaDescription,
     image: post.featured_image || "",
     datePublished: createdAt,
     dateModified: updatedAt,
     author: author ? {
       "@type": "Person",
-      name: author.name_en,
+      name: authorName,
       url: `${baseUrl}/about#${author.slug}`,
       ...(author.linkedin_url ? { sameAs: [author.linkedin_url, author.twitter_url, author.instagram_url].filter(Boolean) } : {}),
     } : {
@@ -460,7 +492,7 @@ function generateStructuredData(
     },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `${baseUrl}/blog/${post.slug}`,
+      "@id": canonicalPageUrl,
     },
     articleSection: categoryName,
     keywords: keywords.join(", "),
@@ -477,23 +509,25 @@ function generateStructuredData(
     }));
   }
 
+  // Breadcrumb URLs must match the locale of the page being crawled.
+  const arPrefix = isArabic ? "/ar" : "";
   const breadcrumbItems = [
-    { "@type": "ListItem" as const, position: 1, name: "Home", item: baseUrl },
-    { "@type": "ListItem" as const, position: 2, name: "Blog", item: `${baseUrl}/blog` },
+    { "@type": "ListItem" as const, position: 1, name: isArabic ? "الرئيسية" : "Home", item: `${baseUrl}${arPrefix}` || baseUrl },
+    { "@type": "ListItem" as const, position: 2, name: isArabic ? "المدونة" : "Blog", item: `${baseUrl}${arPrefix}/blog` },
   ];
   if (categoryName && categoryName !== "Travel") {
     breadcrumbItems.push({
       "@type": "ListItem" as const,
       position: 3,
       name: categoryName,
-      item: `${baseUrl}/blog/category/${categoryName.toLowerCase().replace(/\s+&\s+/g, "-").replace(/\s+/g, "-")}`,
+      item: `${baseUrl}${arPrefix}/blog/category/${categoryName.toLowerCase().replace(/\s+&\s+/g, "-").replace(/\s+/g, "-")}`,
     });
   }
   breadcrumbItems.push({
     "@type": "ListItem" as const,
     position: breadcrumbItems.length + 1,
-    name: post.title_en,
-    item: `${baseUrl}/blog/${post.slug}`,
+    name: headline,
+    item: canonicalPageUrl,
   });
 
   const breadcrumbSchema = {

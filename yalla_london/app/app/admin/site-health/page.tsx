@@ -145,7 +145,7 @@ export default function SiteHealthPage() {
     } catch (err) {
       console.warn("[site-health] fetch issues failed:", err instanceof Error ? err.message : err);
     }
-  }, [overview, severityFilter, categoryFilter, statusFilter, urlSearch, pagination.page, pagination.limit]);
+  }, [overview, severityFilter, categoryFilter, statusFilter, urlSearch, pagination.page, pagination.limit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial load
   useEffect(() => {

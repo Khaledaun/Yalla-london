@@ -4278,6 +4278,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   const operations = (rpt.operations as { cronFailures24h: number; cronSuccesses24h: number; aiCost7d: number; failedCrons: string[] }) || { cronFailures24h: 0, cronSuccesses24h: 0, aiCost7d: 0, failedCrons: [] };
                   const discoveryData = rpt.discovery as { totalPages: number; totalIssues: number; overallScore: number; overallGrade: string; funnel: { published: number; inSitemap: number; submitted: number; crawled: number; indexed: number; performing: number; converting: number }; crawlabilityScore: number; indexabilityScore: number; contentQualityScore: number; aioReadinessScore: number; aioEligiblePages: number; topIssues: Array<{ severity: string; category: string; title: string; description: string }>; pagesNeedingAttention: Array<{ url: string; slug: string; title: string; score: number; topIssue: string }> } | null;
                   const publicAuditData = rpt.publicAudit as { pagesChecked: number; pagesReachable: number; pagesUnreachable: number; avgResponseTimeMs: number; results: Array<{ url: string; status: number; responseTimeMs: number; ok: boolean; error?: string }> } | null;
+                  const platformHealthData = rpt.platformHealth as { score: number; grade: string; totalChecks: number; passed: number; failed: number; warnings: number; checks: Array<{ category: string; name: string; status: "pass" | "fail" | "warn"; detail: string }>; recentFixes: Array<{ date: string; description: string }> } | null;
 
                   const sections = [
                     { id: "summary", label: "Executive Summary" },
@@ -4285,6 +4286,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                     { id: "gsc", label: "Search Performance (GSC)" },
                     { id: "discovery", label: `Discovery Audit${discoveryData ? ` (${discoveryData.overallGrade})` : ""}` },
                     { id: "publicAudit", label: `Public Website${publicAuditData ? ` (${publicAuditData.pagesReachable}/${publicAuditData.pagesChecked})` : ""}` },
+                    { id: "platformHealth", label: `Platform Health${platformHealthData ? ` (${platformHealthData.grade} ${platformHealthData.passed}/${platformHealthData.totalChecks})` : ""}` },
                     { id: "indexing", label: "Indexing Status" },
                     { id: "operations", label: "Operations Health" },
                     { id: "articles", label: "Latest Articles" },
@@ -4515,6 +4517,64 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                         </div>
                                       </div>
                                     ) : <p className="text-zinc-500">Public website audit did not run (budget exceeded).</p>
+                                  )}
+                                  {sec.id === "platformHealth" && (
+                                    platformHealthData ? (
+                                      <div className="space-y-3">
+                                        <div className="grid grid-cols-4 gap-1.5 text-center">
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className={`text-xl font-black ${platformHealthData.grade === "A" ? "text-emerald-400" : platformHealthData.grade === "B" ? "text-blue-400" : "text-amber-400"}`}>{platformHealthData.grade}</div>
+                                            <div className="text-zinc-500 text-[10px]">Grade</div>
+                                          </div>
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className="font-bold text-emerald-400">{platformHealthData.passed}</div>
+                                            <div className="text-zinc-500 text-[10px]">Pass</div>
+                                          </div>
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className={`font-bold ${platformHealthData.failed > 0 ? "text-red-400" : "text-zinc-400"}`}>{platformHealthData.failed}</div>
+                                            <div className="text-zinc-500 text-[10px]">Fail</div>
+                                          </div>
+                                          <div className="bg-zinc-800/50 rounded p-1.5">
+                                            <div className={`font-bold ${platformHealthData.warnings > 0 ? "text-amber-400" : "text-zinc-400"}`}>{platformHealthData.warnings}</div>
+                                            <div className="text-zinc-500 text-[10px]">Warn</div>
+                                          </div>
+                                        </div>
+                                        {Object.entries(
+                                          platformHealthData.checks.reduce((acc, c) => {
+                                            if (!acc[c.category]) acc[c.category] = [];
+                                            acc[c.category].push(c);
+                                            return acc;
+                                          }, {} as Record<string, typeof platformHealthData.checks>)
+                                        ).map(([cat, checks]) => (
+                                          <div key={cat}>
+                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">{cat}</p>
+                                            {checks.map((c, i) => (
+                                              <div key={i} className="flex items-center justify-between py-0.5 text-[10px]">
+                                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                  <span className={c.status === "pass" ? "text-emerald-400" : c.status === "fail" ? "text-red-400" : "text-amber-400"}>
+                                                    {c.status === "pass" ? "✓" : c.status === "fail" ? "✗" : "⚠"}
+                                                  </span>
+                                                  <span className="text-zinc-300 truncate">{c.name}</span>
+                                                </div>
+                                                <span className="text-zinc-500 text-[9px] shrink-0 ml-2">{c.detail}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ))}
+                                        {platformHealthData.recentFixes.length > 0 && (
+                                          <div>
+                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">Recent Fixes Applied</p>
+                                            {platformHealthData.recentFixes.slice(0, 8).map((f, i) => (
+                                              <div key={i} className="flex items-center gap-1.5 py-0.5 text-[10px]">
+                                                <span className="text-emerald-400">+</span>
+                                                <span className="text-zinc-400">{f.description}</span>
+                                                <span className="text-zinc-600 ml-auto shrink-0">{f.date}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : <p className="text-zinc-500">Platform health check did not run.</p>
                                   )}
                                   {sec.id === "indexing" && (
                                     <div className="grid grid-cols-3 gap-1.5 text-center">

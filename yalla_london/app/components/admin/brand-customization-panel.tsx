@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Palette, 
   Type, 
-  Image, 
+  Image as ImageIcon,
   Globe, 
   Save,
   RefreshCw,
@@ -426,7 +426,7 @@ export function BrandCustomizationPanel() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Image className="h-5 w-5" />
+                <ImageIcon className="h-5 w-5" />
                 Logo & Branding Assets
               </CardTitle>
             </CardHeader>

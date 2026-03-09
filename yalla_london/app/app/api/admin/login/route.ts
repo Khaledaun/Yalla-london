@@ -26,15 +26,18 @@ interface RateLimitEntry {
 
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
-// Periodic cleanup to prevent memory leak (every 30 minutes)
-setInterval(() => {
+let requestCounter = 0;
+
+function maybeCleanup() {
+  requestCounter++;
+  if (requestCounter % 100 !== 0) return;
   const now = Date.now();
   for (const [ip, entry] of rateLimitMap) {
     if (now - entry.firstAttempt > RATE_LIMIT_WINDOW_MS && now > entry.lockedUntil) {
       rateLimitMap.delete(ip);
     }
   }
-}, 30 * 60 * 1000);
+}
 
 function getClientIp(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -42,32 +45,29 @@ function getClientIp(request: NextRequest): string {
     || 'unknown';
 }
 
-function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number; delayMs?: number } {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
 
   if (!entry) return { allowed: true };
 
-  // Check lockout
   if (entry.lockedUntil > now) {
     return { allowed: false, retryAfterSeconds: Math.ceil((entry.lockedUntil - now) / 1000) };
   }
 
-  // Reset if window expired
   if (now - entry.firstAttempt > RATE_LIMIT_WINDOW_MS) {
     rateLimitMap.delete(ip);
     return { allowed: true };
   }
 
-  // Check attempts
   if (entry.attempts >= RATE_LIMIT_MAX_ATTEMPTS) {
-    // Lock out for remaining window time
     const lockDuration = RATE_LIMIT_WINDOW_MS - (now - entry.firstAttempt);
     entry.lockedUntil = now + lockDuration;
     return { allowed: false, retryAfterSeconds: Math.ceil(lockDuration / 1000) };
   }
 
-  return { allowed: true };
+  const delayMs = entry.attempts > 0 ? Math.min(entry.attempts * 1000, 4000) : 0;
+  return { allowed: true, delayMs };
 }
 
 function recordFailedAttempt(ip: string): void {
@@ -87,14 +87,18 @@ function clearRateLimit(ip: string): void {
 export async function POST(request: NextRequest) {
   let step = 'parse-body'
 
-  // Rate limit check
   const clientIp = getClientIp(request);
+  maybeCleanup();
   const rateCheck = checkRateLimit(clientIp);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { error: `Too many login attempts. Try again in ${rateCheck.retryAfterSeconds} seconds.` },
       { status: 429, headers: { 'Retry-After': String(rateCheck.retryAfterSeconds) } }
     );
+  }
+
+  if (rateCheck.delayMs && rateCheck.delayMs > 0) {
+    await new Promise(resolve => setTimeout(resolve, rateCheck.delayMs));
   }
 
   try {

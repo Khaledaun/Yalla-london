@@ -62,6 +62,7 @@ import {
   setMinutes,
 } from "date-fns";
 import { getDefaultSiteId } from "@/config/sites";
+import { MediaPicker } from "@/components/shared/media-picker";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -133,6 +134,8 @@ export default function SocialCalendarPage() {
   const [newContent, setNewContent] = useState("");
   const [newDate, setNewDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("09:00");
+  const [newMedia, setNewMedia] = useState<string[]>([]);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   const loadPosts = useCallback(async () => {
     try {
@@ -187,12 +190,14 @@ export default function SocialCalendarPage() {
           site: newSite,
           scheduledFor,
           status: "scheduled",
+          media: newMedia,
         }),
       });
       if (res.ok) {
         toast.success("Post scheduled");
         setShowNewPost(false);
         setNewContent("");
+        setNewMedia([]);
         await loadPosts();
       } else {
         toast.error("Failed to create post");
@@ -554,6 +559,14 @@ export default function SocialCalendarPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Media Picker */}
+      <MediaPicker
+        isOpen={showMediaPicker}
+        onClose={() => setShowMediaPicker(false)}
+        onSelect={(url) => setNewMedia((prev) => [...prev, url])}
+        accept="image"
+      />
+
       {/* New Post Dialog */}
       <Dialog open={showNewPost} onOpenChange={setShowNewPost}>
         <DialogContent className="sm:max-w-md">
@@ -612,11 +625,34 @@ export default function SocialCalendarPage() {
                 />
               </div>
             </div>
-            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-4 text-center">
-              <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Image upload coming soon
-              </p>
+            <div className="space-y-2">
+              {newMedia.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  {newMedia.map((url, i) => (
+                    <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setNewMedia((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-0 right-0 bg-black/60 text-white rounded-bl p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowMediaPicker(true)}
+                className="w-full rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-4 text-center hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors"
+              >
+                <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {newMedia.length > 0 ? "Add another image" : "Add image"}
+                </p>
+              </button>
             </div>
           </div>
           <DialogFooter>

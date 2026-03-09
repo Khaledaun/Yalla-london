@@ -101,6 +101,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
 
   // Internal pipeline tags that should never be shown to visitors
   const INTERNAL_TAGS = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- INTERNAL_TAGS is a module-level constant, not a reactive dependency
   const publicTags = useMemo(
     () => (post?.tags || []).filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-")),
     [post?.tags],

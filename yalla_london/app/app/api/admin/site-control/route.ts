@@ -145,7 +145,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
               primaryColor: '#8B5CF6',
               secondaryColor: '#F59E0B',
               fontFamily: 'Inter',
-              logoUrl: `/branding/${siteId || 'yalla-london'}/brand-kit/01-logos-svg/yalla-primary-dark.svg`,
+              logoUrl: `/branding/${siteId}/brand-kit/01-logos-svg/logo.svg`,
               faviconUrl: '/images/favicon.ico'
             },
             seo_config: {

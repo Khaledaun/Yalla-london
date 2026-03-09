@@ -2015,7 +2015,78 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 **Safari Crash Fix on SEO Audit (PR #434):**
 - Added `res.ok` check before `res.json()` in SEO audit page (Safari throws on non-JSON responses)
 
-### Current Platform Status (March 8, 2026)
+### Session: March 9, 2026 — GSC Numbers Fix, Discovery Audit & Public Website Audit
+
+**CRITICAL: GSC Numbers Inflation Fix (Root Cause):**
+- **Problem:** Aggregated report showed 664 clicks / 22,535 impressions for 7 days but real GSC showed 293 clicks / 7,890 impressions for 28 days (~7x overcounting)
+- **Root cause:** `gsc-sync` cron called GSC API with `dimensions: ["page"]` which returns 7-day aggregated totals per page, then stored ALL rows under `date = today`. When consumers queried `date >= d7` (last 7 days), they got 7 daily snapshots each containing the full 7-day aggregate = ~7x inflation
+- **Fix in `gsc-sync/route.ts`:**
+  - Changed `dimensions: ["page"]` → `dimensions: ["page", "date"]` for per-day breakdowns
+  - Each row now stored with actual date from GSC response (`row.keys[1]`), not `snapshotDate`
+  - Added Step 2: deletes old aggregated data for the current window before upserting (clean transition from old format)
+  - URL arrays deduplicated with `new Set<string>()` (same URL appears in multiple per-day rows)
+  - Previous period (trend comparison) also converted to per-day storage
+  - Step numbering updated to 7 steps (was 6)
+- **Impact on consumers:** All 10+ files that query `gscPagePerformance` with date range sums now get correct numbers automatically — no consumer code changes needed
+- **Transition:** First gsc-sync run after deploy cleans old data and writes per-day rows. For ~24h, DB has less historical data. By day 7, full coverage restored.
+
+**Aggregated Report v2 — 2 New Audit Sections:**
+
+1. **Section 7: Discovery Audit** — calls `scanSiteDiscovery()` from `lib/discovery/scanner.ts`
+   - Discovery funnel: published → inSitemap → submitted → crawled → indexed → performing → converting
+   - 4 health scores: crawlability, indexability, content quality, AIO readiness
+   - Top 10 issues (deduplicated against SEO audit findings)
+   - Top 10 pages needing attention with scores + top issue
+   - Budget-aware: 15s cap, skips live HTTP checks to stay within 53s total
+
+2. **Section 8: Public Website Audit** — live HTTP HEAD checks on key pages
+   - Checks: homepage, blog index, about, contact + 5 most recent published articles
+   - Per-page: HTTP status, response time (ms), reachability, error message
+   - Summary: pages checked/reachable/unreachable, average response time
+   - Issues surfaced: unreachable pages (critical/high), slow response (>3000ms, medium)
+   - 5s timeout per page with AbortSignal, budget-guarded
+
+**Updated Composite Scoring (6 components, was 4):**
+
+| Component | Weight (old) | Weight (new) |
+|-----------|-------------|-------------|
+| SEO Audit | 40% | 30% |
+| Discovery | — | 15% |
+| Indexing | 20% | 15% |
+| Content Velocity | 20% | 15% |
+| Operations | 20% | 15% |
+| Public Website | — | 10% |
+
+- Report format bumped to `yalla-aggregated-report-v2`
+- Discovery + public audit issues feed into synthesized issues list (deduplicated)
+
+**Cockpit UI Updates:**
+- 2 new expandable sections in aggregated report display:
+  - **Discovery Audit** — grade header, funnel visualization (4 columns), 4 health score cards, top issues with severity badges, pages needing attention
+  - **Public Website** — reachable/unreachable/avg response summary cards, per-page results with status indicators and response times
+- Score Breakdown shows all 6 components with weights
+- Sections list: 13 expandable panels (was 11)
+
+**content-auto-fix-lite Build Error Fix:**
+- `withPoolRetry<T>` generic lost type inference — TypeScript couldn't infer `T` from async lambdas
+- Fixed all 4 call sites with explicit `as Array<{...}>` type assertions
+- This cron had been failing on every run since deployment, causing 29 cron failures
+
+**Never-Submitted Pages Fix (55 pages):**
+- **Section 7 in content-auto-fix-lite:** catches published BlogPosts missing `URLIndexingStatus` records (runs every 4h)
+- **`ensureUrlTracked()`:** now auto-tracks Arabic `/ar/` variant when tracking English URL
+- **`seo-agent`:** discovers news items + Arabic variants for all discovered URLs
+- Root cause: Arabic pages only discovered at 4 AM daily sync, not on publish
+
+**Files Modified:**
+- `app/api/cron/gsc-sync/route.ts` — per-day storage, old data cleanup, URL dedup
+- `app/api/admin/aggregated-report/route.ts` — discovery audit, public website audit, v2 scoring
+- `app/admin/cockpit/page.tsx` — discovery + public audit UI panels, updated score breakdown
+- `app/api/cron/content-auto-fix-lite/route.ts` — type assertions, never-submitted catch-up
+- `lib/seo/indexing-service.ts` — Arabic URL auto-tracking
+- `app/api/cron/seo-agent/route.ts` — news + Arabic URL discovery
+
+### Current Platform Status (March 9, 2026)
 
 **What Works End-to-End:**
 - Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
@@ -2036,12 +2107,15 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 - Cron resilience (feature flags, alerting, rate limiting) ✅
 - Named author profiles for E-E-A-T ✅
 - Title sanitization + cannibalization detection ✅
-- Content-auto-fix: orphan resolution, thin content unpublish, duplicate detection, broken link cleanup ✅
+- Content-auto-fix: orphan resolution, thin content unpublish, duplicate detection, broken link cleanup, never-submitted catch-up ✅
 - Admin sidebar simplified (~100 → ~35 items), mobile-first with bottom nav ✅
 - AI Task Runner (7 structured tasks), Embedded Coding Assistant, Legal Pages Manager ✅
 - Action logging on all dashboard endpoints ✅
 - Multi-site scoping on all DB queries ✅
 - Zenitha Yachts hermetically separated ✅
+- GSC sync with accurate per-day data storage (no more overcounting) ✅
+- Aggregated report v2 with discovery audit + public website audit + 6-component scoring ✅
+- Arabic URL auto-tracking on publish (was only discovered at daily sync) ✅
 
 **Known Remaining Issues:**
 
@@ -2055,8 +2129,9 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | Orphan Models | 16+ Prisma models never referenced in code | LOW |
 | Gemini Provider | Account frozen — re-add when billing reactivated | LOW |
 | Perplexity Provider | Quota exhausted — re-add when replenished | LOW |
+| GSC Data Transition | First 7 days after deploy will have less historical data as old aggregated rows are replaced by per-day rows | LOW (self-resolving) |
 
-### Critical Rules Learned (March 4-8 Sessions)
+### Critical Rules Learned (March 4-9 Sessions)
 
 1. **BlogPost has no `title` field** — always use `title_en`/`title_ar`. Never `select: { title: true }` on BlogPost.
 2. **BlogPost has no `quality_score` field** — use `seo_score`. `quality_score` is on ArticleDraft only.
@@ -2076,3 +2151,7 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 16. **IndexNow submits to 3 engines independently** — Bing, Yandex, api.indexnow.org. One failure doesn't block others.
 17. **`cleanTitle()` must run on ALL BlogPost creation paths** — prevents slug-style titles ("best-halal-restaurants-london") from reaching production.
 18. **Map constructor from Prisma queries with nullable keys infers `unknown` values** — explicitly type the Map or filter null keys first.
+19. **GSC sync must use `dimensions: ["page", "date"]`** — `["page"]` returns 7-day aggregated totals per page. Storing those under a single date causes ~7x overcounting when consumers sum by date range. Per-day data stores one row per URL per day — consumers summing across date ranges get correct totals.
+20. **`withPoolRetry<T>` loses type inference** — TypeScript can't infer `T` from async lambdas. Always add explicit `as Array<{...}>` type assertion at call sites.
+21. **`[...new Set(array)]` returns `unknown[]`** — TypeScript can't infer Set generic from spread. Use `[...new Set<string>(array)]` with explicit generic.
+22. **`ensureUrlTracked()` must also track Arabic `/ar/` variants** — Arabic URLs only discovered at daily sync if not tracked on publish.

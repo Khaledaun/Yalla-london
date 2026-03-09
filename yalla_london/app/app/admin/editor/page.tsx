@@ -732,7 +732,7 @@ These luxury hotels in Mayfair offer unparalleled service, exquisite dining, and
                   <Link className="h-4 w-4" />
                 </button>
                 <button title="Insert Image" onClick={() => { const url = prompt('Image URL:'); if (url) applyFormat('![', `](${url})`); }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
-                  <Image className="h-4 w-4" alt="" />
+                  <Image className="h-4 w-4" />
                 </button>
                 <button title="Insert Video" onClick={() => { const url = prompt('Video URL:'); if (url) { setContent(c => c + `\n<video src="${url}" controls></video>\n`); } }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Video className="h-4 w-4" />

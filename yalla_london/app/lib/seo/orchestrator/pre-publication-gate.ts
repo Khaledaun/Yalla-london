@@ -103,9 +103,11 @@ export async function runPrePublicationGate(
   // Detect hash/hex artifacts in the URL slug that indicate upstream bugs
   // (e.g. "-a1b2c3d4" collision suffixes, "-155-chars" truncation artifacts).
   // These produce ugly URLs that hurt CTR and look unprofessional in SERPs.
-  const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{4,}$|-\d+-chars$/;
+  // Require 5+ hex chars to avoid false positives on legitimate years (2024, 2025, 2026).
+  const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{5,}$|-\d+-chars$/;
+  const YEAR_SUFFIX_PATTERN = /-20[2-3]\d$/;
   const urlSlug = targetUrl.split("/").pop() || "";
-  if (urlSlug && SLUG_ARTIFACT_PATTERN.test(urlSlug)) {
+  if (urlSlug && SLUG_ARTIFACT_PATTERN.test(urlSlug) && !YEAR_SUFFIX_PATTERN.test(urlSlug)) {
     const artifactCheck: GateCheck = {
       name: "Slug Artifact",
       passed: false,

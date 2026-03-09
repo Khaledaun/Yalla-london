@@ -382,6 +382,7 @@ async function generateArticle(
   const targetUrl = `/blog/${slug}`;
   const siteUrl = getSiteDomain(site.id);
   let gateBlocked = false;
+  let computedSeoScore = 50; // Default to 50 (mediocre) — computed from gate results below
   try {
     const { runPrePublicationGate } = await import(
       "@/lib/seo/orchestrator/pre-publication-gate"
@@ -414,6 +415,16 @@ async function generateArticle(
       siteId: site.id,
     }, siteUrl);
 
+    // Compute REAL SEO score from gate checks instead of trusting AI self-report.
+    // Start at 100, deduct for each failed check (blockers: -15, warnings: -8).
+    const totalChecks = gateResult.checks.length || 1;
+    const failedBlockers = gateResult.blockers.length;
+    const failedWarnings = gateResult.warnings.length;
+    computedSeoScore = Math.max(0, Math.min(100,
+      100 - (failedBlockers * 15) - (failedWarnings * 8)
+    ));
+    console.log(`[${site.name}] Computed SEO score: ${computedSeoScore} (${totalChecks} checks, ${failedBlockers} blockers, ${failedWarnings} warnings)`);
+
     if (!gateResult.allowed) {
       console.warn(
         `[${site.name}] Pre-publication gate BLOCKED: ${gateResult.blockers.join("; ")}`,
@@ -426,8 +437,10 @@ async function generateArticle(
       );
     }
   } catch (gateError) {
-    // Gate check failure is non-fatal — still publish but log
-    console.warn(`[${site.name}] Pre-publication gate error (non-fatal):`, gateError);
+    // Gate failure is FATAL — fail closed. Publishing without quality checks
+    // leads to low-quality content that Google refuses to index and actively demotes.
+    console.warn(`[${site.name}] Pre-publication gate error — blocking publication (fail-closed):`, gateError);
+    gateBlocked = true;
   }
 
   // Duplicate title check — prevent keyword cannibalization
@@ -507,7 +520,7 @@ async function generateArticle(
       category_id: category.id,
       author_id: systemUser.id,
       page_type: content.pageType || "guide",
-      seo_score: content.seoScore || 85,
+      seo_score: computedSeoScore, // Computed from gate checks, NOT AI self-report
       keywords_json: content.keywords || [],
       questions_json: content.questions || [],
     },
@@ -912,12 +925,37 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
 }
 
 function generateSlug(title: string, language: string): string {
-  const cleanTitle = title
+  let cleanTitle = title
     .toLowerCase()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+    .replace(/^-+|-+$/g, "");
+
+  // Strip date stamps (e.g., "-2026-02-17", "-2024-12-01") — signals auto-generated content to Google
+  cleanTitle = cleanTitle.replace(/-\d{4}-\d{2}-\d{2}$/g, "");
+
+  // Deduplicate year tokens (e.g., "ramadan-2026-timetable-2026" → "ramadan-2026-timetable")
+  const yearMatch = cleanTitle.match(/\b(20[2-3]\d)\b/);
+  if (yearMatch) {
+    const year = yearMatch[1];
+    // Replace second and subsequent occurrences of the same year
+    let firstSeen = false;
+    cleanTitle = cleanTitle.replace(new RegExp(`-?${year}`, "g"), (match) => {
+      if (!firstSeen) { firstSeen = true; return match; }
+      return "";
+    });
+  }
+
+  // Clean up trailing/leading/double hyphens from removals
+  cleanTitle = cleanTitle.replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
+
+  // Cap length — shorter slugs are better for SEO
+  cleanTitle = cleanTitle.slice(0, 60);
+  // Don't end on a partial word
+  if (cleanTitle.length === 60) {
+    const lastHyphen = cleanTitle.lastIndexOf("-");
+    if (lastHyphen > 30) cleanTitle = cleanTitle.slice(0, lastHyphen);
+  }
 
   if (!cleanTitle) {
     const fallback = `untitled-${language}-${Date.now().toString(36)}`;

@@ -712,6 +712,17 @@ export async function GET(request: NextRequest) {
       } catch (e) { console.warn("[aggregated-report] platform health:", e instanceof Error ? e.message : e); }
     }
 
+    // Google submission health check — surface whether GSC credentials are working
+    const googleSubmissionHealth = {
+      gscCredentialsConfigured: !!(process.env.GSC_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL),
+      gscPrivateKeyConfigured: !!(process.env.GSC_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY),
+      indexNowKeyConfigured: !!process.env.INDEXNOW_KEY,
+      note: "IndexNow reaches Bing/Yandex only. Google requires GSC sitemap submission via service account credentials.",
+      warning: !(process.env.GSC_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL)
+        ? "CRITICAL: GSC credentials not configured — Google is NOT being notified about new/updated pages. Set GSC_CLIENT_EMAIL and GSC_PRIVATE_KEY env vars."
+        : null,
+    };
+
     const report = {
       _format: "yalla-aggregated-report-v2",
       _generated: new Date().toISOString(),
@@ -727,6 +738,7 @@ export async function GET(request: NextRequest) {
       discovery,
       publicAudit,
       platformHealth,
+      googleSubmissionHealth,
       latestArticles,
       issues,
       fixPlan,

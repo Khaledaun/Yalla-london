@@ -36,6 +36,7 @@ const navigation = [
       { label: 'Health Report',     href: '/admin/cockpit/health' },
       { label: 'Write Article',     href: '/admin/cockpit/write' },
       { label: 'Bulk Generator',    href: '/admin/cockpit/bulk-generate' },
+      { label: 'Campaign Agent',    href: '/admin/cockpit/campaigns' },
       { label: 'Departures Board',  href: '/admin/departures' },
       { label: 'Discovery Monitor', href: '/admin/discovery' },
     ],

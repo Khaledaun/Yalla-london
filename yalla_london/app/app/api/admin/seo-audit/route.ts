@@ -1303,8 +1303,9 @@ async function runAudit(siteId: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { requireAdmin } = await import("@/lib/admin-middleware");
-    const authError = await requireAdmin(request);
+    // Allow both admin sessions and CRON_SECRET (daily-seo-audit cron calls this)
+    const { requireAdminOrCron } = await import("@/lib/admin-middleware");
+    const authError = await requireAdminOrCron(request);
     if (authError) return authError;
 
     const { getDefaultSiteId } = await import("@/config/sites");
@@ -1343,9 +1344,51 @@ export async function GET(request: NextRequest) {
       try {
         const report = await prisma.seoAuditReport.findUnique({ where: { id: reportId } });
         if (!report) return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
+        // If format=json_summary, return only the compact summary from the report
+        if (request.nextUrl.searchParams.get("format") === "json_summary") {
+          const reportData = report.report as Record<string, unknown>;
+          if (reportData.jsonSummary) {
+            return NextResponse.json(reportData.jsonSummary);
+          }
+          // If no pre-computed summary, return basic info
+          return NextResponse.json({
+            _format: "yalla-seo-audit-v1",
+            _generated: report.createdAt,
+            site: { id: report.siteId },
+            healthScore: report.healthScore,
+            summary: report.summary,
+            counts: { total: report.totalFindings, critical: report.criticalCount, high: report.highCount, medium: report.mediumCount, low: report.lowCount },
+          });
+        }
         return NextResponse.json({ success: true, ...report.report as object, savedAt: report.createdAt });
       } catch {
         return NextResponse.json({ success: false, error: "Report not found" }, { status: 404 });
+      }
+    }
+
+    // If format=latest_json, return the most recent saved JSON summary without running a new audit
+    if (request.nextUrl.searchParams.get("format") === "latest_json") {
+      const { prisma } = await import("@/lib/db");
+      try {
+        const latest = await prisma.seoAuditReport.findFirst({
+          where: { siteId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (!latest) return NextResponse.json({ success: false, error: "No audit reports found" }, { status: 404 });
+        const reportData = latest.report as Record<string, unknown>;
+        if (reportData.jsonSummary) {
+          return NextResponse.json(reportData.jsonSummary);
+        }
+        return NextResponse.json({
+          _format: "yalla-seo-audit-v1",
+          _generated: latest.createdAt,
+          site: { id: latest.siteId },
+          healthScore: latest.healthScore,
+          summary: latest.summary,
+          counts: { total: latest.totalFindings, critical: latest.criticalCount, high: latest.highCount, medium: latest.mediumCount, low: latest.lowCount },
+        });
+      } catch {
+        return NextResponse.json({ success: false, error: "No reports available" }, { status: 404 });
       }
     }
 

@@ -25,6 +25,21 @@ import { logCronExecution } from "@/lib/cron-logger";
 const BUDGET_MS = 53_000;
 const META_MAX_CHARS = 155;
 
+/** Retry a DB operation once after 2s if it fails on pool timeout */
+async function withPoolRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("connection pool") || msg.includes("connect_timeout")) {
+      console.warn(`[auto-fix-lite] ${label} pool timeout, retrying in 2s...`);
+      await new Promise((r) => setTimeout(r, 2000));
+      return await fn();
+    }
+    throw err;
+  }
+}
+
 async function handleAutoFixLite(request: NextRequest) {
   const cronStart = Date.now();
   const authHeader = request.headers.get("authorization");
@@ -56,7 +71,7 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 1. STUCK DRAFT RECOVERY ────────────────────────────────────────────
   try {
     const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
-    const stuckDrafts = await prisma.articleDraft.findMany({
+    const stuckDrafts = await withPoolRetry(async () => prisma.articleDraft.findMany({
       where: {
         site_id: { in: activeSiteIds },
         current_phase: {
@@ -66,7 +81,7 @@ async function handleAutoFixLite(request: NextRequest) {
       },
       select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
       take: 20,
-    });
+    }), "stuck-recovery") as Array<{ id: string; current_phase: string; keyword: string; phase_attempts: number }>;
 
     for (const draft of stuckDrafts) {
       if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
@@ -104,7 +119,7 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 2. HEADING HIERARCHY FIX ───────────────────────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      const recentPosts = await prisma.blogPost.findMany({
+      const recentPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
           published: true,
@@ -113,7 +128,7 @@ async function handleAutoFixLite(request: NextRequest) {
         select: { id: true, slug: true, content_en: true, content_ar: true },
         take: 50,
         orderBy: { created_at: "desc" },
-      });
+      }), "heading-fix") as Array<{ id: string; slug: string; content_en: string; content_ar: string }>;
 
       for (const post of recentPosts) {
         if (!post.content_en || post.content_en.trim().length === 0) continue;
@@ -215,7 +230,7 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 5. META DESCRIPTION TRIM — ArticleDrafts ──────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      const draftsWithMeta = await prisma.articleDraft.findMany({
+      const draftsWithMeta = await withPoolRetry(async () => prisma.articleDraft.findMany({
         where: {
           site_id: { in: activeSiteIds },
           current_phase: { in: ["reservoir", "published"] },
@@ -223,7 +238,7 @@ async function handleAutoFixLite(request: NextRequest) {
         },
         select: { id: true, seo_meta: true },
         take: 20,
-      });
+      }), "meta-trim-drafts") as Array<{ id: string; seo_meta: Record<string, unknown> | null }>;
 
       for (const draft of draftsWithMeta) {
         if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
@@ -259,7 +274,7 @@ async function handleAutoFixLite(request: NextRequest) {
       const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } = await import("@/lib/content-pipeline/title-sanitizer");
 
       // Scan recent posts for title artifacts
-      const postsToCheck = await prisma.blogPost.findMany({
+      const postsToCheck = await withPoolRetry(async () => prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
           deletedAt: null,
@@ -272,7 +287,7 @@ async function handleAutoFixLite(request: NextRequest) {
         },
         take: 50,
         orderBy: { updated_at: "desc" },
-      });
+      }), "title-artifact-cleanup") as Array<{ id: string; title_en: string; meta_title_en: string | null; meta_description_en: string | null }>;
 
       for (const post of postsToCheck) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;

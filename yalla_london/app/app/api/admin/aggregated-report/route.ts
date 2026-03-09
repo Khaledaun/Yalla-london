@@ -1,0 +1,701 @@
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+/**
+ * Aggregated SEO Report API
+ *
+ * Pulls from ALL audit/data sources and synthesizes into one comprehensive report:
+ * - Latest SeoAuditReport (daily/manual SEO health audit)
+ * - Cycle Health (pipeline + cron + AI diagnostics)
+ * - GSC real data (clicks, impressions, position, CTR)
+ * - URLIndexingStatus (indexing state per page)
+ * - BlogPost + ArticleDraft (content pipeline state)
+ * - CronJobLog (operational health)
+ * - ApiUsageLog (AI cost summary)
+ * - Latest published articles with performance data
+ *
+ * GET: Generate report
+ * POST: Save report to SeoAuditReport with triggeredBy="aggregated"
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+
+const BUDGET_MS = 53_000;
+
+export async function GET(request: NextRequest) {
+  const start = Date.now();
+  try {
+    const { requireAdmin } = await import("@/lib/admin-middleware");
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
+
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteConfig, getSiteDomain, getActiveSiteIds } = await import("@/config/sites");
+    const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
+    const siteConfig = getSiteConfig(siteId);
+    const siteDomain = getSiteDomain(siteId);
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CHECK RECENT MODE: returns what data sources have recent reports (last 12h)
+    // Used by the UI to let user decide whether to reuse or regenerate
+    // ═══════════════════════════════════════════════════════════════════════
+    const checkRecent = request.nextUrl.searchParams.get("checkRecent");
+    if (checkRecent === "true") {
+      const cutoff = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+      const [latestSeoAudit, latestAggregated, latestCronRuns] = await Promise.all([
+        prisma.seoAuditReport.findFirst({
+          where: { siteId, triggeredBy: { not: "aggregated" }, createdAt: { gte: cutoff } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, healthScore: true, createdAt: true, triggeredBy: true },
+        }),
+        prisma.seoAuditReport.findFirst({
+          where: { siteId, triggeredBy: "aggregated", createdAt: { gte: cutoff } },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, healthScore: true, createdAt: true, report: true, summary: true },
+        }),
+        prisma.cronJobLog.findMany({
+          where: { started_at: { gte: cutoff }, job_name: { in: ["seo-agent", "daily-seo-audit", "content-auto-fix-lite", "content-builder", "content-selector"] } },
+          orderBy: { started_at: "desc" },
+          take: 10,
+          select: { job_name: true, status: true, started_at: true },
+        }),
+      ]);
+
+      // Check if GSC data is recent
+      const latestGsc = await prisma.gscPagePerformance.findFirst({
+        where: { site_id: siteId },
+        orderBy: { date: "desc" },
+        select: { date: true },
+      }).catch(() => null);
+
+      // Check indexing data freshness
+      const latestIndexing = await prisma.uRLIndexingStatus.findFirst({
+        where: { site_id: siteId, last_inspected_at: { gte: cutoff } },
+        select: { last_inspected_at: true },
+      }).catch(() => null);
+
+      const sources = {
+        seoAudit: {
+          hasRecent: !!latestSeoAudit,
+          reportId: latestSeoAudit?.id || null,
+          score: latestSeoAudit?.healthScore || null,
+          lastRun: latestSeoAudit?.createdAt?.toISOString() || null,
+          triggeredBy: latestSeoAudit?.triggeredBy || null,
+        },
+        aggregatedReport: {
+          hasRecent: !!latestAggregated,
+          reportId: latestAggregated?.id || null,
+          score: latestAggregated?.healthScore || null,
+          lastRun: latestAggregated?.createdAt?.toISOString() || null,
+          summary: latestAggregated?.summary || null,
+          report: latestAggregated?.report || null,
+        },
+        gscData: {
+          hasRecent: !!latestGsc,
+          lastDate: latestGsc?.date?.toISOString() || null,
+        },
+        indexingData: {
+          hasRecent: !!latestIndexing,
+          lastInspection: latestIndexing?.last_inspected_at?.toISOString() || null,
+        },
+        recentCronRuns: latestCronRuns.map((r) => ({
+          job: r.job_name,
+          status: r.status,
+          at: r.started_at.toISOString(),
+        })),
+      };
+
+      const allSourcesFresh = sources.seoAudit.hasRecent && sources.gscData.hasRecent;
+      const estimatedGenerationTimeSec = allSourcesFresh ? 15 : 40;
+
+      return NextResponse.json({
+        success: true,
+        mode: "checkRecent",
+        siteId,
+        sources,
+        allSourcesFresh,
+        estimatedGenerationTimeSec,
+        recommendation: allSourcesFresh
+          ? "Recent data available for all sources. You can generate an aggregated report using existing data (faster) or trigger fresh audits first."
+          : "Some data sources are stale or missing. A fresh aggregated report will collect live data, which takes ~40 seconds.",
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 1. LATEST SEO AUDIT REPORT
+    // ═══════════════════════════════════════════════════════════════════════
+    let latestAudit: Record<string, unknown> | null = null;
+    let auditScore = 0;
+    let auditSummary = "";
+    let auditFindings: Array<{ id: string; severity: string; category: string; title: string; fix: string; count: number }> = [];
+    try {
+      const report = await prisma.seoAuditReport.findFirst({
+        where: { siteId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (report) {
+        latestAudit = report.report as Record<string, unknown>;
+        auditScore = report.healthScore;
+        auditSummary = report.summary || "";
+        auditFindings = ((latestAudit?.findings || []) as Array<{ id: string; severity: string; category: string; title: string; fix: string; count: number }>);
+      }
+    } catch (e) { console.warn("[aggregated-report] audit fetch:", e instanceof Error ? e.message : e); }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 2. INDEXING STATUS
+    // ═══════════════════════════════════════════════════════════════════════
+    let indexing = { totalTracked: 0, indexed: 0, submitted: 0, discovered: 0, errors: 0, chronicFailures: 0, neverSubmitted: 0, rate: 0 };
+    if (Date.now() - start < BUDGET_MS - 10_000) {
+      try {
+        const [total, idx, sub, disc, err, chronic, never] = await Promise.all([
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "submitted" } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "discovered" } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "error" } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "chronic_failure" } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_indexnow: false, submitted_sitemap: false, submitted_google_api: false } }),
+        ]);
+        const published = await prisma.blogPost.count({ where: { siteId, published: true, deletedAt: null } }).catch(() => 0);
+        const effectiveTotal = published > 0 ? published : total;
+        indexing = { totalTracked: total, indexed: idx, submitted: sub, discovered: disc, errors: err, chronicFailures: chronic, neverSubmitted: never, rate: effectiveTotal > 0 ? Math.min(100, Math.round((idx / effectiveTotal) * 100)) : 0 };
+      } catch (e) { console.warn("[aggregated-report] indexing:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 3. GSC PERFORMANCE DATA (real clicks/impressions)
+    // ═══════════════════════════════════════════════════════════════════════
+    let gsc = { clicks7d: 0, impressions7d: 0, avgCtr7d: 0, avgPosition7d: 0, clicks30d: 0, impressions30d: 0, topPages: [] as Array<{ url: string; clicks: number; impressions: number; position: number }>, topQueries: [] as Array<{ query: string; clicks: number; impressions: number; position: number }> };
+    if (Date.now() - start < BUDGET_MS - 8_000) {
+      try {
+        const now = new Date();
+        const d7 = new Date(now.getTime() - 7 * 86400000);
+        const d30 = new Date(now.getTime() - 30 * 86400000);
+
+        const [recent7, recent30] = await Promise.all([
+          prisma.gscPagePerformance.findMany({ where: { site_id: siteId, date: { gte: d7 } }, select: { url: true, clicks: true, impressions: true, position: true, ctr: true }, take: 500 }),
+          prisma.gscPagePerformance.findMany({ where: { site_id: siteId, date: { gte: d30 } }, select: { url: true, clicks: true, impressions: true, position: true }, take: 1000 }),
+        ]);
+
+        let c7 = 0, i7 = 0, pos7Sum = 0, pos7Count = 0;
+        const pageMap = new Map<string, { clicks: number; impressions: number; posSum: number; count: number }>();
+        for (const r of recent7) {
+          c7 += r.clicks || 0; i7 += r.impressions || 0;
+          if (r.position && r.position > 0) { pos7Sum += r.position; pos7Count++; }
+          const p = pageMap.get(r.url) || { clicks: 0, impressions: 0, posSum: 0, count: 0 };
+          p.clicks += r.clicks || 0; p.impressions += r.impressions || 0;
+          if (r.position) { p.posSum += r.position; p.count++; }
+          pageMap.set(r.url, p);
+        }
+
+        let c30 = 0, i30 = 0;
+        for (const r of recent30) { c30 += r.clicks || 0; i30 += r.impressions || 0; }
+
+        const topPages = [...pageMap.entries()]
+          .map(([url, d]) => ({ url, clicks: d.clicks, impressions: d.impressions, position: d.count > 0 ? Math.round(d.posSum / d.count * 10) / 10 : 0 }))
+          .sort((a, b) => b.clicks - a.clicks)
+          .slice(0, 10);
+
+        gsc = {
+          clicks7d: c7, impressions7d: i7,
+          avgCtr7d: i7 > 0 ? Math.round((c7 / i7) * 10000) / 100 : 0,
+          avgPosition7d: pos7Count > 0 ? Math.round(pos7Sum / pos7Count * 10) / 10 : 0,
+          clicks30d: c30, impressions30d: i30,
+          topPages,
+          topQueries: [], // GSC queries not stored per-page; would need gscQueryPerformance table
+        };
+
+        // Try to get query data if table exists
+        try {
+          const queries = await (prisma as Record<string, unknown>)["gscQueryPerformance"]?.["findMany"]?.({ where: { site_id: siteId, date: { gte: d7 } }, select: { query: true, clicks: true, impressions: true, position: true }, take: 200 } as Record<string, unknown>) as Array<{ query: string; clicks: number; impressions: number; position: number }> | undefined;
+          if (queries && Array.isArray(queries)) {
+            const qMap = new Map<string, { clicks: number; impressions: number; posSum: number; count: number }>();
+            for (const q of queries) {
+              const e = qMap.get(q.query) || { clicks: 0, impressions: 0, posSum: 0, count: 0 };
+              e.clicks += q.clicks || 0; e.impressions += q.impressions || 0;
+              if (q.position) { e.posSum += q.position; e.count++; }
+              qMap.set(q.query, e);
+            }
+            gsc.topQueries = [...qMap.entries()]
+              .map(([query, d]) => ({ query, clicks: d.clicks, impressions: d.impressions, position: d.count > 0 ? Math.round(d.posSum / d.count * 10) / 10 : 0 }))
+              .sort((a, b) => b.clicks - a.clicks)
+              .slice(0, 10);
+          }
+        } catch { /* gscQueryPerformance might not exist */ }
+      } catch (e) { console.warn("[aggregated-report] gsc:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 4. CONTENT PIPELINE STATUS
+    // ═══════════════════════════════════════════════════════════════════════
+    let pipeline = { published: 0, reservoir: 0, inPipeline: 0, rejected: 0, stuck: 0, topicsQueued: 0, publishedThisWeek: 0, publishedThisMonth: 0, avgSeoScore: 0, avgWordCount: 0 };
+    if (Date.now() - start < BUDGET_MS - 6_000) {
+      try {
+        const d7 = new Date(Date.now() - 7 * 86400000);
+        const d30 = new Date(Date.now() - 30 * 86400000);
+        const oneHourAgo = new Date(Date.now() - 3600000);
+
+        const [pubCount, resCount, pipCount, rejCount, stuckCount, topicCount, pub7, pub30, seoAgg] = await Promise.all([
+          prisma.blogPost.count({ where: { siteId, published: true, deletedAt: null } }),
+          prisma.articleDraft.count({ where: { site_id: siteId, current_phase: "reservoir" } }),
+          prisma.articleDraft.count({ where: { site_id: siteId, current_phase: { in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"] } } }),
+          prisma.articleDraft.count({ where: { site_id: siteId, current_phase: "rejected" } }),
+          prisma.articleDraft.count({ where: { site_id: siteId, current_phase: { in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"] }, updated_at: { lt: oneHourAgo } } }),
+          prisma.topicProposal.count({ where: { site_id: siteId, status: { in: ["approved", "pending"] } } }),
+          prisma.blogPost.count({ where: { siteId, published: true, deletedAt: null, created_at: { gte: d7 } } }),
+          prisma.blogPost.count({ where: { siteId, published: true, deletedAt: null, created_at: { gte: d30 } } }),
+          prisma.blogPost.aggregate({ _avg: { seo_score: true }, where: { siteId, published: true, deletedAt: null } }).catch(() => ({ _avg: { seo_score: null } })),
+        ]);
+
+        pipeline = {
+          published: pubCount, reservoir: resCount, inPipeline: pipCount, rejected: rejCount,
+          stuck: stuckCount, topicsQueued: topicCount, publishedThisWeek: pub7, publishedThisMonth: pub30,
+          avgSeoScore: Math.round(seoAgg._avg.seo_score || 0),
+          avgWordCount: 0, // would need content_en length query
+        };
+      } catch (e) { console.warn("[aggregated-report] pipeline:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 5. OPERATIONAL HEALTH (cron jobs, AI costs)
+    // ═══════════════════════════════════════════════════════════════════════
+    let operations = { cronFailures24h: 0, cronSuccesses24h: 0, failedCrons: [] as string[], aiCost7d: 0, aiCalls7d: 0, aiFailures7d: 0, autoFixes7d: 0 };
+    if (Date.now() - start < BUDGET_MS - 5_000) {
+      try {
+        const d24h = new Date(Date.now() - 86400000);
+        const d7 = new Date(Date.now() - 7 * 86400000);
+
+        const [cronFail, cronOk, failedNames, aiAgg, autoFixCount] = await Promise.all([
+          prisma.cronJobLog.count({ where: { status: "failed", started_at: { gte: d24h } } }),
+          prisma.cronJobLog.count({ where: { status: "completed", started_at: { gte: d24h } } }),
+          prisma.cronJobLog.findMany({ where: { status: "failed", started_at: { gte: d24h } }, select: { job_name: true }, distinct: ["job_name"] }),
+          prisma.apiUsageLog.aggregate({ _sum: { estimatedCostUsd: true, totalTokens: true }, _count: { id: true }, where: { siteId, createdAt: { gte: d7 } } }).catch(() => ({ _sum: { estimatedCostUsd: null, totalTokens: null }, _count: { id: 0 } })),
+          prisma.autoFixLog.count({ where: { createdAt: { gte: d7 } } }).catch(() => 0),
+        ]);
+
+        let aiFailures = 0;
+        try {
+          aiFailures = await prisma.apiUsageLog.count({ where: { siteId, createdAt: { gte: d7 }, success: false } });
+        } catch { /* success field might not exist */ }
+
+        operations = {
+          cronFailures24h: cronFail, cronSuccesses24h: cronOk,
+          failedCrons: failedNames.map((f) => f.job_name),
+          aiCost7d: Math.round((aiAgg._sum.estimatedCostUsd || 0) * 100) / 100,
+          aiCalls7d: aiAgg._count.id || 0,
+          aiFailures7d: aiFailures,
+          autoFixes7d: autoFixCount,
+        };
+      } catch (e) { console.warn("[aggregated-report] operations:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 6. LATEST PUBLISHED ARTICLES (with indexing + GSC data)
+    // ═══════════════════════════════════════════════════════════════════════
+    let latestArticles: Array<{ title: string; slug: string; publishedAt: string; seoScore: number; indexingStatus: string; clicks: number; impressions: number; position: number }> = [];
+    if (Date.now() - start < BUDGET_MS - 4_000) {
+      try {
+        const posts = await prisma.blogPost.findMany({
+          where: { siteId, published: true, deletedAt: null },
+          select: { slug: true, title_en: true, seo_score: true, created_at: true },
+          orderBy: { created_at: "desc" },
+          take: 15,
+        });
+
+        for (const post of posts) {
+          if (Date.now() - start > BUDGET_MS - 3_000) break;
+          const url = `https://${siteConfig?.domain || siteDomain.replace(/^https?:\/\//, "")}/blog/${post.slug}`;
+          let idxStatus = "unknown";
+          try {
+            const idx = await prisma.uRLIndexingStatus.findFirst({ where: { site_id: siteId, url: { contains: post.slug } }, select: { status: true } });
+            idxStatus = idx?.status || "not_tracked";
+          } catch { /* ignore */ }
+
+          // Get GSC data for this page
+          let clicks = 0, impressions = 0, position = 0;
+          const gscPage = gsc.topPages.find((p) => p.url.includes(post.slug));
+          if (gscPage) { clicks = gscPage.clicks; impressions = gscPage.impressions; position = gscPage.position; }
+
+          latestArticles.push({
+            title: post.title_en,
+            slug: post.slug,
+            publishedAt: post.created_at.toISOString(),
+            seoScore: post.seo_score || 0,
+            indexingStatus: idxStatus,
+            clicks, impressions, position,
+          });
+        }
+      } catch (e) { console.warn("[aggregated-report] latest articles:", e instanceof Error ? e.message : e); }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 7. SYNTHESIZE: Issues + Root Causes + Fix Plan
+    // ═══════════════════════════════════════════════════════════════════════
+    const issues: Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }> = [];
+
+    // From audit findings
+    for (const f of auditFindings.filter((f) => f.severity === "critical" || f.severity === "high")) {
+      issues.push({
+        severity: f.severity,
+        category: f.category,
+        title: f.title,
+        rootCause: diagnoseRootCause(f.id, f.category, pipeline, operations, indexing),
+        fix: f.fix,
+      });
+    }
+
+    // Operational issues not in audit
+    if (operations.cronFailures24h > 3) {
+      issues.push({
+        severity: "high", category: "Operations",
+        title: `${operations.cronFailures24h} cron failures in last 24h (${operations.failedCrons.join(", ")})`,
+        rootCause: operations.failedCrons.length > 0 ? `Failed crons: ${operations.failedCrons.join(", ")}. Likely causes: DB pool exhaustion, AI provider timeouts, or budget exceeded.` : "Unknown",
+        fix: "Check CronJobLog for error messages. Run 'Diagnose' from cockpit to auto-fix stuck jobs.",
+      });
+    }
+    if (pipeline.stuck > 0) {
+      issues.push({
+        severity: "high", category: "Content Pipeline",
+        title: `${pipeline.stuck} drafts stuck in pipeline for 1+ hours`,
+        rootCause: "AI provider timeout during content generation, assembly phase hitting budget limits, or DB connection pool exhaustion preventing phase advancement.",
+        fix: "Run 'Diagnose' to auto-recover stuck drafts. If recurring, check AI Costs tab for provider failures.",
+      });
+    }
+    if (pipeline.reservoir === 0 && pipeline.published > 0) {
+      issues.push({
+        severity: "medium", category: "Content Pipeline",
+        title: "Empty reservoir — no articles ready to publish",
+        rootCause: "Content builder not producing enough drafts, or quality gate (score >= 70) rejecting most drafts.",
+        fix: "Run 'Build' to generate new content. Check if topics are available (Gen Topics button).",
+      });
+    }
+    if (gsc.clicks7d === 0 && pipeline.published > 5) {
+      issues.push({
+        severity: "high", category: "Traffic",
+        title: "Zero clicks in the last 7 days despite having published content",
+        rootCause: "Possible causes: (1) GSC data not syncing — check if gsc-sync cron is running, (2) Pages not indexed — indexing rate is " + indexing.rate + "%, (3) Site is new and needs more time to build authority, (4) Content not matching search intent for target keywords.",
+        fix: "Verify GSC connection in Settings. Run seo-agent to submit pages to IndexNow. Focus on long-tail keywords with lower competition.",
+      });
+    }
+
+    // Sort by severity
+    const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    issues.sort((a, b) => (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4));
+
+    // Fix plan: prioritized actions
+    const fixPlan = issues.slice(0, 10).map((issue, i) => ({
+      priority: i + 1,
+      action: issue.fix,
+      category: issue.category,
+      severity: issue.severity,
+      expectedImpact: issue.severity === "critical" ? "High — directly blocking traffic/revenue" : issue.severity === "high" ? "Medium — significant improvement expected" : "Low — incremental improvement",
+    }));
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 8. GRADE + EXECUTIVE SUMMARY
+    // ═══════════════════════════════════════════════════════════════════════
+    const criticals = issues.filter((i) => i.severity === "critical").length;
+    const highs = issues.filter((i) => i.severity === "high").length;
+
+    // Composite score: 40% SEO audit, 20% indexing, 20% content velocity, 20% operations
+    const indexScore = Math.min(100, indexing.rate);
+    const contentScore = pipeline.publishedThisWeek >= 7 ? 100 : pipeline.publishedThisWeek >= 3 ? 70 : pipeline.publishedThisWeek >= 1 ? 40 : 10;
+    const opsScore = operations.cronFailures24h === 0 ? 100 : operations.cronFailures24h <= 3 ? 60 : 20;
+    const compositeScore = Math.round(auditScore * 0.4 + indexScore * 0.2 + contentScore * 0.2 + opsScore * 0.2);
+
+    const grade = compositeScore >= 80 ? "A" : compositeScore >= 65 ? "B" : compositeScore >= 50 ? "C" : compositeScore >= 35 ? "D" : "F";
+
+    const executiveSummary = buildExecutiveSummary(grade, compositeScore, auditScore, indexing, gsc, pipeline, operations, criticals, highs, siteConfig?.name || siteId);
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 9. CLAUDE PROMPT (pre-built for review)
+    // ═══════════════════════════════════════════════════════════════════════
+    const claudePrompt = buildClaudePrompt(siteId, siteConfig?.name || siteId, compositeScore, grade, issues, fixPlan, indexing, gsc, pipeline, operations);
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 10. PLAIN LANGUAGE REPORT
+    // ═══════════════════════════════════════════════════════════════════════
+    const plainLanguage = buildPlainLanguage(grade, compositeScore, auditScore, indexing, gsc, pipeline, operations, issues, latestArticles, siteConfig?.name || siteId);
+
+    const report = {
+      _format: "yalla-aggregated-report-v1",
+      _generated: new Date().toISOString(),
+      site: { id: siteId, name: siteConfig?.name || siteId, domain: siteConfig?.domain || siteDomain },
+      grade,
+      compositeScore,
+      scores: { seoAudit: auditScore, indexing: indexScore, contentVelocity: contentScore, operations: opsScore },
+      executiveSummary,
+      gsc,
+      indexing,
+      pipeline,
+      operations,
+      latestArticles,
+      issues,
+      fixPlan,
+      claudePrompt,
+      plainLanguage,
+      durationMs: Date.now() - start,
+    };
+
+    return NextResponse.json({ success: true, ...report });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[aggregated-report] Failed:", msg);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { requireAdmin } = await import("@/lib/admin-middleware");
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
+
+    const body = await request.json().catch(() => ({}));
+    const siteId = body.siteId;
+    if (!siteId) return NextResponse.json({ success: false, error: "siteId required" }, { status: 400 });
+
+    // Generate fresh report by calling GET internally
+    const reportRes = await fetch(`${request.nextUrl.origin}/api/admin/aggregated-report?siteId=${encodeURIComponent(siteId)}`, {
+      headers: { cookie: request.headers.get("cookie") || "" },
+    });
+    const reportData = await reportRes.json();
+
+    if (!reportData.success) {
+      return NextResponse.json({ success: false, error: reportData.error || "Report generation failed" }, { status: 500 });
+    }
+
+    // Save to SeoAuditReport with special triggeredBy
+    const { prisma } = await import("@/lib/db");
+    try {
+      const saved = await prisma.seoAuditReport.create({
+        data: {
+          siteId,
+          healthScore: reportData.compositeScore || 0,
+          totalFindings: reportData.issues?.length || 0,
+          criticalCount: reportData.issues?.filter((i: { severity: string }) => i.severity === "critical").length || 0,
+          highCount: reportData.issues?.filter((i: { severity: string }) => i.severity === "high").length || 0,
+          mediumCount: reportData.issues?.filter((i: { severity: string }) => i.severity === "medium").length || 0,
+          lowCount: reportData.issues?.filter((i: { severity: string }) => i.severity === "low").length || 0,
+          report: reportData as Record<string, unknown>,
+          summary: reportData.executiveSummary || "",
+          triggeredBy: "aggregated",
+        },
+      });
+      return NextResponse.json({ success: true, reportId: saved.id, ...reportData });
+    } catch (saveErr) {
+      console.warn("[aggregated-report] Save failed:", saveErr instanceof Error ? saveErr.message : saveErr);
+      return NextResponse.json({ success: true, saveError: "Generated but save failed", ...reportData });
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function diagnoseRootCause(
+  findingId: string, category: string,
+  pipeline: { stuck: number; reservoir: number; topicsQueued: number },
+  operations: { cronFailures24h: number; failedCrons: string[]; aiFailures7d: number },
+  indexing: { rate: number; chronicFailures: number; neverSubmitted: number },
+): string {
+  // Pattern-match finding IDs to likely root causes
+  if (findingId.startsWith("idx-rate")) {
+    if (indexing.neverSubmitted > 5) return "Many pages were never submitted to search engines. The google-indexing cron may not be running or is hitting rate limits.";
+    if (indexing.chronicFailures > 0) return `${indexing.chronicFailures} pages failed after 5+ submission attempts — likely thin content, duplicate content, or quality issues causing Google to reject them.`;
+    return "Site is new and still building authority. Continue publishing quality content and submitting via IndexNow.";
+  }
+  if (findingId.includes("meta-title") || findingId.includes("meta-desc")) {
+    if (operations.failedCrons.includes("seo-agent")) return "The seo-agent cron (which auto-generates meta tags) is failing. Check its error log.";
+    return "Content generation prompts may not be producing meta tags, or the seo-agent auto-fix hasn't run yet.";
+  }
+  if (findingId.includes("thin")) {
+    if (operations.aiFailures7d > 10) return "High AI failure rate (${operations.aiFailures7d} failures in 7 days) suggests content generation is being cut short by timeouts.";
+    return "Articles may be hitting the assembly phase timeout and falling back to raw HTML concatenation, producing shorter content.";
+  }
+  if (findingId.includes("orphan") || findingId.includes("links")) {
+    return "The seo-agent internal link injection runs on a limited batch per execution. With many articles, it takes multiple runs to link them all.";
+  }
+  if (category === "Content Pipeline") {
+    if (pipeline.stuck > 0) return `${pipeline.stuck} drafts stuck — likely AI provider timeouts or DB pool exhaustion.`;
+    if (pipeline.topicsQueued === 0) return "No topics available. The weekly-topics cron may have failed or topics are exhausted.";
+    return "Pipeline is operational but may need more topic seeds or higher throughput.";
+  }
+  return "Multiple factors may contribute. Check the specific cron logs and AI cost dashboard for detailed error messages.";
+}
+
+function buildExecutiveSummary(
+  grade: string, composite: number, auditScore: number,
+  indexing: { rate: number; indexed: number; errors: number },
+  gsc: { clicks7d: number; impressions7d: number },
+  pipeline: { published: number; publishedThisWeek: number; reservoir: number },
+  operations: { cronFailures24h: number; aiCost7d: number },
+  criticals: number, highs: number, siteName: string,
+): string {
+  const parts: string[] = [];
+  parts.push(`${siteName} scores ${composite}/100 (Grade ${grade}).`);
+
+  if (gsc.clicks7d > 0) {
+    parts.push(`${gsc.clicks7d} clicks and ${gsc.impressions7d} impressions in the last 7 days.`);
+  } else {
+    parts.push("No search traffic recorded in the last 7 days — the site needs more indexed content and authority.");
+  }
+
+  parts.push(`${indexing.rate}% of published articles are indexed (${indexing.indexed} pages).`);
+  parts.push(`${pipeline.publishedThisWeek} articles published this week, ${pipeline.reservoir} in reservoir ready to publish.`);
+
+  if (criticals > 0 || highs > 0) {
+    parts.push(`${criticals} critical and ${highs} high-priority issues need attention.`);
+  }
+
+  if (operations.cronFailures24h > 0) {
+    parts.push(`${operations.cronFailures24h} cron failures in the last 24 hours.`);
+  }
+
+  return parts.join(" ");
+}
+
+function buildClaudePrompt(
+  siteId: string, siteName: string, score: number, grade: string,
+  issues: Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }>,
+  fixPlan: Array<{ priority: number; action: string; category: string; severity: string }>,
+  indexing: { rate: number; errors: number; chronicFailures: number },
+  gsc: { clicks7d: number; impressions7d: number },
+  pipeline: { published: number; stuck: number; reservoir: number; rejected: number },
+  operations: { cronFailures24h: number; failedCrons: string[]; aiFailures7d: number },
+): string {
+  const lines: string[] = [];
+  lines.push(`I just generated an aggregated SEO report for ${siteName} (site ID: ${siteId}).`);
+  lines.push(`Current grade: ${grade} (${score}/100).`);
+  lines.push("");
+  lines.push("Here are the issues found with root cause analysis:");
+  lines.push("");
+
+  for (const issue of issues.slice(0, 15)) {
+    lines.push(`[${issue.severity.toUpperCase()}] ${issue.title}`);
+    lines.push(`  Root cause: ${issue.rootCause}`);
+    lines.push(`  Suggested fix: ${issue.fix}`);
+    lines.push("");
+  }
+
+  lines.push("Key metrics:");
+  lines.push(`- Indexing rate: ${indexing.rate}% (${indexing.errors} errors, ${indexing.chronicFailures} chronic failures)`);
+  lines.push(`- GSC 7-day: ${gsc.clicks7d} clicks, ${gsc.impressions7d} impressions`);
+  lines.push(`- Content: ${pipeline.published} published, ${pipeline.reservoir} reservoir, ${pipeline.stuck} stuck, ${pipeline.rejected} rejected`);
+  lines.push(`- Operations: ${operations.cronFailures24h} cron failures (24h), ${operations.aiFailures7d} AI failures (7d)`);
+  if (operations.failedCrons.length > 0) {
+    lines.push(`- Failed crons: ${operations.failedCrons.join(", ")}`);
+  }
+  lines.push("");
+  lines.push("Please review this report against the current state of the codebase. For each issue:");
+  lines.push("1. Verify whether the root cause analysis is accurate");
+  lines.push("2. Check if the suggested fix is already implemented or needs code changes");
+  lines.push("3. Implement the fixes in priority order");
+  lines.push("4. After fixing, run the relevant crons to verify the fix works");
+
+  return lines.join("\n");
+}
+
+function buildPlainLanguage(
+  grade: string, composite: number, auditScore: number,
+  indexing: { rate: number; indexed: number; errors: number; chronicFailures: number; neverSubmitted: number },
+  gsc: { clicks7d: number; impressions7d: number; avgPosition7d: number; avgCtr7d: number; topPages: Array<{ url: string; clicks: number; impressions: number; position: number }> },
+  pipeline: { published: number; publishedThisWeek: number; reservoir: number; stuck: number; inPipeline: number; topicsQueued: number },
+  operations: { cronFailures24h: number; cronSuccesses24h: number; aiCost7d: number; autoFixes7d: number; failedCrons: string[] },
+  issues: Array<{ severity: string; title: string; fix: string }>,
+  latestArticles: Array<{ title: string; slug: string; indexingStatus: string; clicks: number; impressions: number; position: number }>,
+  siteName: string,
+): string {
+  const lines: string[] = [];
+
+  lines.push(`═══ ${siteName} — Aggregated Report ═══`);
+  lines.push(`Grade: ${grade} (${composite}/100)  |  SEO Health: ${auditScore}/100`);
+  lines.push(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+  lines.push("");
+
+  // Traffic
+  lines.push("─── TRAFFIC ───");
+  if (gsc.clicks7d > 0) {
+    lines.push(`  Clicks (7d):      ${gsc.clicks7d}`);
+    lines.push(`  Impressions (7d): ${gsc.impressions7d}`);
+    lines.push(`  Avg CTR:          ${gsc.avgCtr7d}%`);
+    lines.push(`  Avg Position:     ${gsc.avgPosition7d}`);
+  } else {
+    lines.push("  No search traffic recorded in the last 7 days.");
+  }
+  lines.push("");
+
+  // Indexing
+  lines.push("─── INDEXING ───");
+  lines.push(`  Rate:    ${indexing.rate}% (${indexing.indexed} of ${indexing.indexed + indexing.errors + (indexing.neverSubmitted || 0)} pages)`);
+  if (indexing.errors > 0) lines.push(`  Errors:  ${indexing.errors} pages`);
+  if (indexing.chronicFailures > 0) lines.push(`  Failed:  ${indexing.chronicFailures} pages (5+ attempts)`);
+  if (indexing.neverSubmitted > 0) lines.push(`  Never submitted: ${indexing.neverSubmitted} pages`);
+  lines.push("");
+
+  // Content
+  lines.push("─── CONTENT ───");
+  lines.push(`  Published:    ${pipeline.published} articles total`);
+  lines.push(`  This week:    ${pipeline.publishedThisWeek} new`);
+  lines.push(`  Reservoir:    ${pipeline.reservoir} ready to publish`);
+  lines.push(`  In pipeline:  ${pipeline.inPipeline} being generated`);
+  if (pipeline.stuck > 0) lines.push(`  STUCK:        ${pipeline.stuck} drafts (1h+)`);
+  lines.push(`  Topics:       ${pipeline.topicsQueued} queued`);
+  lines.push("");
+
+  // Operations
+  lines.push("─── OPERATIONS ───");
+  lines.push(`  Cron success rate: ${operations.cronSuccesses24h}/${operations.cronSuccesses24h + operations.cronFailures24h} (24h)`);
+  if (operations.failedCrons.length > 0) lines.push(`  Failed: ${operations.failedCrons.join(", ")}`);
+  lines.push(`  AI cost (7d):  $${operations.aiCost7d}`);
+  lines.push(`  Auto-fixes:    ${operations.autoFixes7d} (7d)`);
+  lines.push("");
+
+  // Top pages
+  if (gsc.topPages.length > 0) {
+    lines.push("─── TOP PAGES (by clicks, 7d) ───");
+    for (const p of gsc.topPages.slice(0, 5)) {
+      try {
+        const path = new URL(p.url).pathname;
+        lines.push(`  ${p.clicks} clicks | ${p.impressions} imp | pos ${p.position} | ${path}`);
+      } catch {
+        lines.push(`  ${p.clicks} clicks | ${p.url}`);
+      }
+    }
+    lines.push("");
+  }
+
+  // Latest articles
+  if (latestArticles.length > 0) {
+    lines.push("─── LATEST PUBLISHED ───");
+    for (const a of latestArticles.slice(0, 8)) {
+      const idx = a.indexingStatus === "indexed" ? "✓" : a.indexingStatus === "submitted" ? "⟳" : "✗";
+      lines.push(`  [${idx}] ${a.title}`);
+      if (a.clicks > 0) lines.push(`      ${a.clicks} clicks | ${a.impressions} imp | pos ${a.position}`);
+    }
+    lines.push("");
+  }
+
+  // Issues
+  const criticals = issues.filter((i) => i.severity === "critical");
+  const highs = issues.filter((i) => i.severity === "high");
+  if (criticals.length > 0 || highs.length > 0) {
+    lines.push("─── ISSUES TO FIX ───");
+    for (const i of criticals) {
+      lines.push(`  [CRITICAL] ${i.title}`);
+      lines.push(`    → ${i.fix}`);
+    }
+    for (const i of highs.slice(0, 5)) {
+      lines.push(`  [HIGH] ${i.title}`);
+      lines.push(`    → ${i.fix}`);
+    }
+    if (highs.length > 5) lines.push(`  ... and ${highs.length - 5} more high-priority issues`);
+  }
+
+  return lines.join("\n");
+}

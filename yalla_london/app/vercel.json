@@ -206,6 +206,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/daily-seo-audit",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/cron/seo-audit-runner",
       "schedule": "*/15 * * * *"
     },

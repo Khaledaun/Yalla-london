@@ -22,13 +22,7 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const { isFeatureFlagEnabled } = await import("@/lib/feature-flags");
-    const enabled = await isFeatureFlagEnabled("FEATURE_AFFILIATE_DEAL_DISCOVERY");
-    if (!enabled) {
-      return NextResponse.json({ success: true, skipped: true, message: "Deal discovery disabled" });
-    }
-
-    const { isCjConfigured } = await import("@/lib/affiliate/cj-client");
+    const { isCjConfigured} = await import("@/lib/affiliate/cj-client");
     if (!isCjConfigured()) {
       return NextResponse.json({ success: true, skipped: true, message: "CJ_API_TOKEN not configured" });
     }

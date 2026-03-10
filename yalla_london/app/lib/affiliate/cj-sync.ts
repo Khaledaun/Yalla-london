@@ -79,36 +79,40 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
   const syncStart = Date.now();
 
   try {
-    // Fetch joined advertisers
-    const joinedResponse = await lookupAdvertisers({ joined: true, recordsPerPage: 100 });
-    // Fetch our specific pending advertiser IDs
-    const pendingInDb = await prisma.cjAdvertiser.findMany({
-      where: { networkId: CJ_NETWORK_ID, status: "PENDING" },
-      select: { externalId: true },
-    });
-    const pendingIds = pendingInDb.map((a) => a.externalId);
-
-    // If we have pending IDs, also look them up specifically
-    let pendingResponse: CjAdvertiserRecord[] = [];
-    if (pendingIds.length > 0) {
-      try {
-        const resp = await lookupAdvertisers({
-          advertiserIds: pendingIds,
-          recordsPerPage: 100,
-        });
-        pendingResponse = resp.records;
-      } catch (err) {
-        console.warn("[cj-sync] Failed to lookup pending advertisers:", err instanceof Error ? err.message : String(err));
-      }
-    }
-
-    // Merge all records, dedup by advertiserId
+    // ── Step 1: Fetch ALL advertisers (no joined filter) with pagination ──
+    // Previously only fetched joined=true, which returns 0 when no applications
+    // have been approved yet. Now fetches everything: joined, pending, not-joined.
     const allRecords = new Map<string, CjAdvertiserRecord>();
-    for (const rec of [...joinedResponse.records, ...pendingResponse]) {
-      if (rec.advertiserId) {
-        allRecords.set(rec.advertiserId, rec);
+    const MAX_PAGES = 5; // Safety cap: 500 advertisers max
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      if (Date.now() - syncStart > budgetMs * 0.5) {
+        console.warn("[cj-sync] Budget >50% used during fetch, stopping pagination");
+        break;
+      }
+
+      try {
+        // No `joined` filter — fetches ALL relationship statuses
+        const response = await lookupAdvertisers({
+          recordsPerPage: 100,
+          pageNumber: page,
+        });
+
+        for (const rec of response.records) {
+          if (rec.advertiserId) {
+            allRecords.set(rec.advertiserId, rec);
+          }
+        }
+
+        // Stop if we got fewer than a full page
+        if (response.recordsReturned < 100) break;
+      } catch (err) {
+        console.warn(`[cj-sync] Failed to fetch advertiser page ${page}:`, err instanceof Error ? err.message : String(err));
+        break;
       }
     }
+
+    console.log(`[cj-sync] Fetched ${allRecords.size} advertisers across all statuses`);
 
     for (const [, rec] of allRecords) {
       // Budget guard

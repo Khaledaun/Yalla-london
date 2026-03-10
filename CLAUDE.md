@@ -2380,3 +2380,89 @@ The CJ Prisma models (`CjAdvertiser`, `CjLink`, `CjOffer`, `CjCommission`, `CjCl
 - Scope all dashboard/report queries by `siteId` where field exists
 - Revenue, partners, links tabs in `affiliate-hq` currently show global data (only coverage tab is per-site)
 - `checkLinkHealth()` in `monitor.ts` has no siteId parameter (global health score)
+
+### Session: March 10, 2026 — GEO (Generative Engine Optimization) & CJ Sync Fix
+
+**GEO Research & Implementation:**
+Researched the `geo-seo-claude` tool and Princeton GEO research to identify optimization strategies for AI search engines (ChatGPT, Perplexity, Gemini, Google AI Overviews). Key findings:
+- AI-referred traffic converts **4.4x higher** than organic search
+- AI traffic growing **527% YoY** — only 23% of marketers optimizing for it
+- Statistics boost AI visibility by **+37%**, source citations by **+30%** (Princeton)
+- Optimal citability: passages 134-167 words, answer capsules 40-80 words
+- Brand mentions worth **3x backlinks** in generative context
+- Cross-platform citation overlap only **11%** — must optimize for each separately
+
+**GEO Fix 1: AI Crawler Access (robots.txt — already done):**
+- `app/robots.ts` already allows: GPTBot, ChatGPT-User, Google-Extended, ClaudeBot, anthropic-ai, PerplexityBot, Applebot, cohere-ai, FacebookBot
+- No changes needed — 95% compliant
+
+**GEO Fix 2: Stats + Citations in ALL Content Prompts (8 files, 6 sites):**
+1. `config/sites.ts`: Added "GEO Citability" directive to all 6 site system prompts (EN) — 2+ statistics, 40-80 word paragraphs, comparison tables, answer capsules
+2. `lib/content-pipeline/phases.ts`: Added GEO directives to Phase 1 (Research — `citabilitySources` schema), Phase 2 (Outline — citability structure), Phase 3 (Drafting — stats + attribution rules)
+3. `lib/content-pipeline/enhance-runner.ts`: Added GEO block before STYLE RULES
+4. `lib/campaigns/article-enhancer.ts`: Added GEO directive to both PATCH and FULL modes
+5. `lib/content-engine/scripter.ts`: Added GEO block to blog article prompt
+
+**GEO Fix 3: Citability Pre-Publication Gate (Check 16):**
+- `lib/seo/standards.ts`: New `GEO_OPTIMIZATION` constant with market data, citability thresholds, platform-specific notes
+- `lib/seo/orchestrator/pre-publication-gate.ts`: New `checkCitability()` function scoring 5 signals:
+  1. Statistics/data points (3+ needed)
+  2. Source attributions (2+ needed)
+  3. Self-contained paragraphs (3+ of 40-200 words)
+  4. Comparison/structured data (tables, ordered lists)
+  5. Question-answering H2 structure (2+ question H2s)
+- WARNING-only severity, never blocks publication
+- **Total pre-publication checks: 16** (was 15 after adding check 15 for internal link ratio)
+
+**CJ Advertiser Sync Fix:**
+- Root cause: `lookupAdvertisers({ joined: true })` returned 0 results when no advertisers are approved yet
+- Fix: Removed `joined: true` filter, added pagination (up to 5 pages / 500 advertisers), fetches ALL statuses
+- Dashboard now shows PENDING/NOT_JOINED/JOINED advertisers correctly
+
+**DB Migration Fix:**
+- `prisma/migrations/20260310_create_missing_tables/migration.sql`: Fixed `column "etsyListingId" does not exist` error
+- Regenerated with 760 `ALTER TABLE ADD COLUMN IF NOT EXISTS` statements for existing tables + `CREATE TABLE IF NOT EXISTS` for new tables
+
+**Standards version bumped to `2026-03-10`**
+
+**Files Modified:**
+
+| File | Change |
+|------|--------|
+| `lib/seo/standards.ts` | New `GEO_OPTIMIZATION` constant, version bump |
+| `lib/seo/orchestrator/pre-publication-gate.ts` | Check 16: Citability (GEO) |
+| `config/sites.ts` | GEO directives in all 6 site system prompts |
+| `lib/content-pipeline/phases.ts` | GEO in research, outline, drafting phases |
+| `lib/content-pipeline/enhance-runner.ts` | GEO block in enhancement prompt |
+| `lib/campaigns/article-enhancer.ts` | GEO in PATCH + FULL modes |
+| `lib/content-engine/scripter.ts` | GEO in blog article prompt |
+| `lib/affiliate/cj-sync.ts` | Remove `joined` filter, add pagination |
+| `prisma/migrations/20260310_create_missing_tables/migration.sql` | Idempotent ALTER TABLE + CREATE TABLE |
+
+### Critical Rules Learned (March 10 Session — GEO)
+
+44. **GEO directives must be in ALL content generation prompts** — sites.ts system prompts, phases.ts (research/outline/drafting), enhance-runner.ts, article-enhancer.ts, scripter.ts. Missing any one means that content path produces non-GEO-optimized articles.
+45. **Citability check is WARNING-only** — never block publication for low citability. AI can't reliably add real statistics; campaign enhancer and manual editing add them post-publish.
+46. **CJ `lookupAdvertisers({ joined: true })` returns 0 for new accounts** — always fetch without status filter and classify locally. New CJ accounts have no JOINED advertisers until applications are approved.
+47. **`ALTER TABLE ADD COLUMN IF NOT EXISTS` is required for idempotent migrations** — `CREATE TABLE IF NOT EXISTS` skips existing tables entirely, leaving new columns missing. Always pair with ALTER TABLE for every column.
+
+### Summary of All Pre-Publication Gate Checks (16 total)
+
+| # | Check | Severity | Added |
+|---|-------|----------|-------|
+| 1 | Route existence | Blocker | Original |
+| 2 | Arabic route check | Blocker | Original |
+| 3 | SEO minimums (title, meta, description, content length) | Blocker | Original |
+| 4 | SEO score (<50 blocks, <70 warns) | Blocker/Warning | Feb 2026 |
+| 5 | Heading hierarchy (H1 count, skip detection, H2 minimum) | Warning | Feb 2026 |
+| 6 | Word count (1,000 blocker, 1,200 target) | Blocker | Feb 2026 |
+| 7 | Internal links (3 minimum) | Warning | Feb 2026 |
+| 8 | Readability (Flesch-Kincaid ≤12) | Warning | Feb 2026 |
+| 9 | Image alt text | Warning | Feb 2026 |
+| 10 | Author attribution (E-E-A-T) | Warning | Feb 2026 |
+| 11 | Structured data presence | Warning | Feb 2026 |
+| 12 | Authenticity signals (Jan 2026 — experience markers) | Warning | Feb 2026 |
+| 13 | Affiliate links (revenue requirement) | Warning | Feb 2026 |
+| 14 | AIO readiness (direct answers, question H2s) | Warning | Feb 2026 |
+| 15 | Internal link ratio | Warning | Mar 2026 |
+| 16 | Citability / GEO (stats, attributions, self-contained paragraphs) | Warning | Mar 2026 |

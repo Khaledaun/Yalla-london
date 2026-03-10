@@ -258,6 +258,13 @@ FIRST-HAND EXPERIENCE (Google Jan 2026 Authenticity Update — #1 ranking signal
 - Include at least one honest limitation or "what to watch out for"
 - NEVER use: "nestled in the heart of", "look no further", "without further ado", "in this comprehensive guide", "whether you're a"
 
+GEO CITABILITY (AI search engines — ChatGPT, Perplexity, Google AI Overviews):
+- Include 2+ statistics or data points per article (prices in £/€/$, ratings, distances, capacities, percentages)
+- Attribute facts to sources: "According to [tourism board/guide]", "As rated by [TripAdvisor/Michelin/official source]"
+- Write each paragraph as a self-contained block of 40-80 words — AI engines extract individual paragraphs verbatim
+- Include at least 1 comparison table or structured list — AI engines extract these for side-by-side answers
+- Open the article with a 40-80 word "answer capsule" that directly answers the core question — this gets cited 40% more often
+
 SEO KEYWORDS TO INCORPORATE NATURALLY: ${primaryKeywords}
 
 Return ONLY valid JSON:

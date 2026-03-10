@@ -181,7 +181,8 @@ RULES:
 1. Do NOT reproduce existing content — only return NEW content to add.
 2. Each INSERT_AFTER block should add 150-300 words of new content after the named section.
 3. EXPERIENCE SIGNALS: Use "insider tip:", "when we visited", "the atmosphere here", "a hidden gem", "locals recommend", "pro tip:", sensory details (scents, sounds, textures), specific prices in £, specific hours, neighbourhood names.
-4. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
+4. GEO CITABILITY: Include 1+ statistic per new section (price, rating, distance). Attribute facts: "According to [source]". Write self-contained paragraphs (40-80 words each) — AI engines extract these verbatim.
+5. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
 5. AFFILIATE LINKS: Use <a href="https://www.booking.com/searchresults.html?ss=${encodeURIComponent(keyword)}" target="_blank" rel="nofollow sponsored" class="affiliate-link">Book on Booking.com</a> or similar.
 6. NO markdown. HTML only. No preamble.
 
@@ -215,7 +216,8 @@ RULES:
 2. Do NOT remove or rewrite existing paragraphs. Insert new content between existing sections.
 3. Every new H2 section must address a distinct angle or question travelers have.
 4. EXPERIENCE SIGNALS (if required): Use "insider tip:", "when we visited", "the atmosphere here", "a hidden gem", "locals recommend", "pro tip:", sensory details (scents, sounds, textures), specific prices in £, specific opening hours, neighbourhood names.
-5. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
+5. GEO CITABILITY: Add 1+ statistic per new H2 section (price, rating, capacity). Attribute facts: "According to [source]", "As rated by [authority]". Self-contained paragraphs of 40-80 words each.
+6. BANNED PHRASES: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide", "nestled in the heart of", "without further ado", "it's worth noting".
 6. AFFILIATE LINKS (if required): Use <a href="https://www.booking.com/searchresults.html?ss=${encodeURIComponent(keyword)}" target="_blank" rel="nofollow sponsored" class="affiliate-link">Book on Booking.com</a> or similar for HalalBooking, GetYourGuide, Viator.
 7. INTERNAL LINKS: Use exactly the href format from the AVAILABLE INTERNAL LINKS list with class="internal-link".
 8. Keep the same tone and writing style as the original article.

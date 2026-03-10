@@ -525,11 +525,137 @@ export async function runPrePublicationGate(
     }
   }
 
+  // ── 16. Citability Score (GEO — AI search engine citation readiness) ──
+  // Checks whether content is structured for extraction by AI search engines
+  // (ChatGPT, Perplexity, Gemini, Google AI Overviews). Princeton research
+  // shows statistics (+37%) and source citations (+30%) are the top GEO
+  // techniques. WARNING-only — never blocks publication.
+  if (contentBody && !isArabicOnly) {
+    const { check: citabilityCheck } = checkCitability(contentBody);
+    checks.push(citabilityCheck);
+    if (!citabilityCheck.passed) {
+      warnings.push(citabilityCheck.message);
+    }
+  }
+
   return {
     allowed: blockers.length === 0,
     checks,
     blockers,
     warnings,
+  };
+}
+
+/**
+ * Check GEO Citability — how easily AI search engines can extract and cite content.
+ *
+ * Based on Princeton GEO research (arXiv:2311.09735) and 8,000-citation analysis:
+ * - Statistics addition: +37% AI visibility
+ * - Source citations: +30% AI visibility
+ * - Self-contained paragraphs: higher extraction rate
+ * - Answer capsule (40-80 words): +40% citation rate
+ *
+ * WARNING-only — surfaces improvements but never blocks publication.
+ */
+function checkCitability(html: string): { check: GateCheck } {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const issues: string[] = [];
+  let score = 0;
+  const maxScore = 5;
+
+  // Signal 1: Statistics / data points (numbers with context)
+  // Look for patterns like "42%", "$150", "2.5 million", "3 out of 5", year references
+  const statPatterns = [
+    /\d+(\.\d+)?%/g,                         // percentages: 42%, 3.5%
+    /[\$£€¥]\s?\d[\d,.]*/g,                  // currency: $150, £2,500
+    /\d[\d,]*\s?(million|billion|thousand)/gi, // large numbers
+    /\d+\s?out of\s?\d+/gi,                  // ratios: 3 out of 5
+    /\b(20[12]\d)\b/g,                        // year references: 2024, 2025, 2026
+  ];
+  let statCount = 0;
+  for (const pattern of statPatterns) {
+    const matches = text.match(pattern);
+    statCount += matches ? matches.length : 0;
+  }
+  if (statCount >= 3) {
+    score++; // Good: 3+ data points
+  } else {
+    issues.push(`only ${statCount} statistics/data points found (target: 3+)`);
+  }
+
+  // Signal 2: Source attributions ("According to X", "reported by Y", "Source: Z")
+  const attributionPatterns = [
+    /according to\s/gi,
+    /as reported by\s/gi,
+    /\bsource:\s/gi,
+    /\bcited by\s/gi,
+    /\b(?:a |the )?(?:\d{4}\s)?(?:study|survey|report|research|analysis)\s(?:by|from|published)/gi,
+    /\b(?:tourism|government|ministry|council|authority|board)\b/gi,
+    /\bMichelin[- ]star/gi,
+    /\bUNESCO\b/gi,
+    /\bTripAdvisor\b/gi,
+    /\bBooking\.com\b/gi,
+  ];
+  let attrCount = 0;
+  for (const pattern of attributionPatterns) {
+    const matches = text.match(pattern);
+    attrCount += matches ? matches.length : 0;
+  }
+  if (attrCount >= 2) {
+    score++; // Good: 2+ source attributions
+  } else {
+    issues.push(`only ${attrCount} source citations found (target: 2+ — use "According to X" or name authorities)`);
+  }
+
+  // Signal 3: Self-contained paragraphs (check <p> tags have 40-200 words)
+  const paragraphs = html.match(/<p[^>]*>(.*?)<\/p>/gi) || [];
+  const substantiveParagraphs = paragraphs.filter((p) => {
+    const pText = p.replace(/<[^>]+>/g, " ").trim();
+    const wordCount = pText.split(/\s+/).filter((w) => w.length > 0).length;
+    return wordCount >= 40 && wordCount <= 200;
+  });
+  if (substantiveParagraphs.length >= 3) {
+    score++; // Good: 3+ well-sized extractable paragraphs
+  } else {
+    issues.push(`${substantiveParagraphs.length} extractable paragraphs of 40-200 words (target: 3+ for AI extraction)`);
+  }
+
+  // Signal 4: Comparison or structured data (tables, lists with specifics)
+  const hasTables = /<table[\s>]/i.test(html);
+  const hasOrderedLists = /<ol[\s>]/i.test(html);
+  const hasDefinitionTerms = /<dt[\s>]/i.test(html) || /<dl[\s>]/i.test(html);
+  if (hasTables || hasOrderedLists || hasDefinitionTerms) {
+    score++; // Good: structured data AI can extract
+  } else {
+    issues.push("no comparison tables or structured lists found (AI extracts these for side-by-side answers)");
+  }
+
+  // Signal 5: Question-answering structure (H2 as question → immediate answer)
+  const questionH2s = (html.match(/<h2[^>]*>[^<]*\?<\/h2>/gi) || []).length;
+  if (questionH2s >= 2) {
+    score++; // Good: Q&A structure for AI citation
+  } else {
+    issues.push(`${questionH2s} question-format H2s (target: 2+ — AI systems prioritize Q&A structure)`);
+  }
+
+  if (issues.length === 0 || score >= 4) {
+    return {
+      check: {
+        name: "Citability (GEO)",
+        passed: true,
+        message: `GEO citability: ${score}/${maxScore} — ${statCount} stats, ${attrCount} source citations, ${substantiveParagraphs.length} extractable paragraphs. AI search engines can cite this content.`,
+        severity: "info",
+      },
+    };
+  }
+
+  return {
+    check: {
+      name: "Citability (GEO)",
+      passed: false,
+      message: `GEO citability score ${score}/${maxScore} — ${issues.slice(0, 2).join("; ")}. Princeton research: stats +37%, source citations +30% AI visibility. AI-referred traffic converts 4.4x higher.`,
+      severity: "warning",
+    },
   };
 }
 

@@ -110,15 +110,21 @@ function getPrismaClient(): PrismaClient {
   }
 
   try {
-    // Enforce a minimal connection pool to avoid exhausting Supabase PgBouncer
+    // Enforce a small connection pool to avoid exhausting Supabase PgBouncer
     // limits. Each Prisma connection occupies a PgBouncer slot.
     // Prisma defaults to num_cpus*2+1 which quickly exceeds pool_size when
     // multiple Vercel serverless instances are warm.
-    // With connection_limit=1, each instance uses exactly 1 PgBouncer slot.
+    //
+    // connection_limit=5 allows concurrent queries within the same instance
+    // (important when multiple cron jobs fire simultaneously on the same instance).
+    // With ~10 warm instances × 5 = 50, still under Supabase Pro's 60-slot PgBouncer limit.
+    // Previous value of 1 caused "Timed out fetching a new connection" when 5+ crons
+    // (diagnostic-sweep, content-auto-fix-lite, sweeper-agent, content-builder, seo-audit)
+    // all fired at :00 on the same instance.
     let dbUrl = process.env.DATABASE_URL || "";
     if (dbUrl && !dbUrl.includes("connection_limit=")) {
       const sep = dbUrl.includes("?") ? "&" : "?";
-      dbUrl = `${dbUrl}${sep}connection_limit=1`;
+      dbUrl = `${dbUrl}${sep}connection_limit=5`;
     }
     // Required when using PgBouncer (Supabase pooler) — disables prepared
     // statements which aren't compatible with transaction-mode pooling.

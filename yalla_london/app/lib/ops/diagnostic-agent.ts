@@ -410,6 +410,26 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             after: { phase: "rejected", attempts: draft.phase_attempts, phase_started_at: null },
           };
         }
+
+        // If attempts=0, just clear stale lock — reducing 0 by 2 is a no-op
+        if ((draft.phase_attempts || 0) === 0 && draft.phase_started_at) {
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              phase_started_at: null,
+              last_error: `[diagnostic-agent] Cleared stale lock from ${diagnosis.category} (0 attempts, lock was stale)`,
+              updated_at: new Date(),
+            },
+          });
+          return {
+            diagnosis,
+            fixApplied: "unlock_stale_lock",
+            success: true,
+            before,
+            after: { phase: draft.current_phase, attempts: 0, phase_started_at: null },
+          };
+        }
+
         const reducedAttempts = Math.max((draft.phase_attempts || 0) - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
@@ -599,6 +619,22 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           });
           return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: unkAttempts } };
         }
+
+        // If attempts=0 but draft is stuck (stale phase_started_at lock >2h),
+        // just clear the lock — no need to "reduce" attempts. Previously this
+        // was a no-op (Math.max(0-2, 0) = 0) generating 25+ useless log entries.
+        if (unkAttempts === 0 && draft.phase_started_at) {
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              phase_started_at: null,
+              last_error: `[diagnostic-agent] Cleared stale lock (was ${Math.round((Date.now() - new Date(draft.phase_started_at).getTime()) / 60000)}min old, 0 attempts)`,
+              updated_at: new Date(),
+            },
+          });
+          return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: 0, phase_started_at: null } };
+        }
+
         const unkReduced = Math.max(unkAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },

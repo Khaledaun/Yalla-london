@@ -481,15 +481,17 @@ CRITICAL JSON RULES:
 
     for (let retry = 0; retry < maxSectionRetries; retry++) {
       try {
-        // Drafting generates the most tokens (3500 for Arabic) and needs adequate time.
-        // Arabic at ~100 tok/s needs 35s+ for 3500 tokens. Previous 35s cap left only
-        // ~20s per provider after 60/40 split — too tight. Now 48s cap so first provider
-        // gets 65% = ~30s, enough for a full Arabic section.
+        // Drafting generates many tokens (Arabic is ~2.5x more token-dense).
+        // Arabic at ~100 tok/s needs 20s+ for 2000 tokens. Timeout cap is 55s
+        // for Arabic (was 48s) so first provider gets 65% = ~35s per attempt.
+        // maxTokens reduced from 2500→2000 for Arabic (still enough for 300-word
+        // sections) to prevent triple-timeout when all 3 providers each need 25s+.
         const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 3_000, 10_000) : 45_000;
-        const sectionTimeout = Math.min(rawTimeout, 48_000);
+        const timeoutCap = isArabic(draft.locale) ? 55_000 : 48_000;
+        const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2500 : 1500),
+          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2000 : 1500),
           temperature: 0.7,
           timeoutMs: sectionTimeout,
           phaseBudgetHint: 'heavy',

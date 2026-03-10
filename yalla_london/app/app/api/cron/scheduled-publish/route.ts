@@ -212,11 +212,14 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       take: 5,
     });
 
-    // Don't auto-publish orphans — just report them
-    if (orphanedDrafts.length > 0) {
-      log.trackItem(true); // tracking observation
-    }
+    // Don't auto-publish orphans — just report them.
+    // NOTE: Do NOT call log.trackItem() here — orphan detection is observational,
+    // not an actual publish. Previously this inflated itemsSucceeded causing
+    // contradictory logs like "itemsSucceeded: 1, published_count: 0".
     orphanedDraftCount = orphanedDrafts.length;
+    if (orphanedDraftCount > 0) {
+      console.log(`[scheduled-publish] Found ${orphanedDraftCount} orphaned unpublished BlogPost(s): ${orphanedDrafts.map(d => d.slug).join(", ")}`);
+    }
   } catch (err) {
     console.warn("[scheduled-publish] Orphan check failed:", err instanceof Error ? err.message : err);
   }

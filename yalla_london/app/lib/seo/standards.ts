@@ -13,8 +13,8 @@
  */
 
 // ─── Last verified against Google docs ──────────────────────────────────────
-export const STANDARDS_VERSION = "2026-03-03";
-export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + December 2025 Core Update + January 2026 Core Update (Authenticity)";
+export const STANDARDS_VERSION = "2026-03-10";
+export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + December 2025 Core Update + January 2026 Core Update (Authenticity) + Princeton GEO Research (arXiv:2311.09735) + GEO Best Practices 2026";
 const STALENESS_THRESHOLD_DAYS = 30;
 
 /**
@@ -432,6 +432,70 @@ export const AIO_OPTIMIZATION = {
     questionQueryBoost: 0.84,
     /** Queries 8+ words have 57% chance of triggering AIO */
     longQueryTriggerRate: 0.57,
+  },
+} as const;
+
+// ─── Generative Engine Optimization (GEO) ───────────────────────────────────
+// GEO = optimizing for AI-powered search engines (ChatGPT, Perplexity, Gemini,
+// Google AI Overviews) in addition to traditional SEO. AI-referred traffic
+// converts 4.4x higher than organic (Shopify GEO Playbook 2026).
+//
+// Source: Princeton GEO research paper (arXiv:2311.09735), First Page Sage 2026,
+// Search Engine Land 8,000-citation study, Semrush GEO Guide 2026.
+export const GEO_OPTIMIZATION = {
+  /** GEO services market: $850M+ (projected $7.3B by 2031) */
+  marketSize: { current: 850_000_000, projected2031: 7_300_000_000 },
+  /** AI-referred traffic converts 4.4x higher than organic */
+  aiTrafficConversionMultiplier: 4.4,
+  /** AI-referred traffic growth: +527% year-over-year */
+  aiTrafficGrowthYoY: 5.27,
+  /** Only 23% of marketers investing in GEO — first-mover advantage */
+  marketerAdoption: 0.23,
+  /** Brand mentions correlate 3x stronger than backlinks for AI visibility */
+  brandMentionVsBacklinkRatio: 3.0,
+
+  /** Citability — how easily AI can extract and quote your content */
+  citability: {
+    /** Optimal extractable passage length for AI citation (words) */
+    optimalPassageLength: { min: 134, max: 167 },
+    /** Answer capsule: 40-80 word direct answer opening every article */
+    answerCapsuleWords: { min: 40, max: 80 },
+    /** 44.2% of AI citations come from the first 30% of content */
+    frontLoadedCitationRate: 0.442,
+    /** Minimum statistics/data points per article for AI citability */
+    minStatisticsPerArticle: 2,
+    /** Minimum source attributions per article ("According to X") */
+    minSourceCitations: 2,
+    /** Princeton study: statistics addition = +37% AI visibility */
+    statisticsVisibilityBoost: 0.37,
+    /** Princeton study: quotation addition = +30% AI visibility */
+    quotationVisibilityBoost: 0.30,
+    /** Princeton study: keyword stuffing HURTS in generative contexts */
+    keywordStuffingHurtsGEO: true,
+  },
+
+  /** Platform-specific optimization notes */
+  platforms: {
+    /** ChatGPT: relies on Bing index, favors entity clarity and topical depth */
+    chatgpt: { index: "bing", favors: "entity_signals_topical_depth" },
+    /** Perplexity: real-time crawling, citation-first, favors short quotable paragraphs */
+    perplexity: { index: "realtime_crawl", favors: "short_quotable_paragraphs" },
+    /** Google AI Overviews: cites top-10 organic 86% of time */
+    googleAIO: { index: "google", topResultCitationRate: 0.86 },
+    /** Only 11% of domains cited by BOTH ChatGPT and Google AIO for same query */
+    crossPlatformOverlap: 0.11,
+  },
+
+  /** Content requirements for GEO citability */
+  contentRequirements: {
+    /** Self-contained paragraphs — each must make sense if extracted alone */
+    selfContainedParagraphs: true,
+    /** Attribution format: "According to [Source]", "As reported by [Expert]" */
+    attributionFormat: true,
+    /** Comparison tables — AI systems extract structured data */
+    comparisonTables: true,
+    /** FAQ sections increase citation likelihood in AIO */
+    faqSections: true,
   },
 } as const;
 

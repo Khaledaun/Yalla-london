@@ -168,6 +168,11 @@ Return JSON:
     "toneGuidance": "luxury, authoritative, helpful for Arab travelers",
     "uniqueAngle": "what makes this article stand out from competitors",
     "affiliateOpportunities": ["opp1", "opp2"]
+  },
+  "citabilitySources": {
+    "authoritySources": ["name official/authoritative sources to cite for this topic"],
+    "availableStatistics": ["specific numbers, prices, percentages, or data points to include"],
+    "expertQuotes": ["named experts, organizations, or studies that could be attributed"]
   }
 }${isArabic(draft.locale) ? "\n\nAll headings, questions, and subtopics should be in Arabic." : ""}`;
 
@@ -283,6 +288,11 @@ AUTHENTICITY PLANNING (Jan 2026 Google Authenticity Update):
 - Plan at least 1 section with an honest caveat or limitation (signals authenticity to Google)
 - Plan for price-specific details (£/€/$ amounts) in at least 3 sections
 ${isArabic(draft.locale) ? "- For Arabic: plan insider tips as نصيحة/نصيحتنا and sensory details using رائحة/مذاق/أجواء" : ""}
+GEO CITABILITY (AI search engines — ChatGPT, Perplexity, Google AI Overviews):
+- Each section should include at least 1 verifiable statistic or data point (price, distance, capacity, rating)
+- Plan 2+ source attributions across the article ("According to [tourism board/official source]", "As rated by [authority]")
+- Each H2 section must open with a self-contained paragraph of 40-80 words that directly answers the section question — AI systems extract these verbatim
+- Plan at least 1 comparison table or structured list (AI extracts these for side-by-side answers)
 Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
@@ -425,6 +435,12 @@ AUTHENTICITY REQUIREMENTS (mandatory — Jan 2026 Google Authenticity Update):
 - Use phrases like "we visited", "we tried", "on our last visit", "what surprised us" — these signal first-hand experience to Google
 - Include one honest caveat or limitation (e.g., "The only downside is the 20-minute wait during peak hours")
 - NEVER write generic summaries — every paragraph must contain at least one specific, verifiable detail
+
+GEO CITABILITY (AI search engines cite content with stats + sources):
+- Include at least 1 specific statistic or data point in this section (price, percentage, distance, rating, capacity)
+- When citing facts, attribute them: "According to [source]", "As rated by [authority]", or "Source: [name]"
+- Write each paragraph as a self-contained block (40-80 words) — AI engines extract individual paragraphs, not whole articles
+- If this section compares options, use an HTML <table> or structured <ul> — AI engines extract these for side-by-side answers
 
 CRITICAL FACTUAL ACCURACY RULE:
 - NEVER invent or fabricate venue names, restaurant names, hotel names, or business names

@@ -109,6 +109,12 @@ MANDATORY IMPROVEMENTS (ALL required):
 5. AFFILIATE PLACEHOLDERS: Add 2 booking call-to-actions using: <div class="affiliate-placeholder" data-partner="booking.com" data-keyword="${keyword}">📍 Check availability and rates</div>
 6. META DESCRIPTION: Rewrite to exactly 130–155 characters, including the keyword "${keyword}" naturally. Return it on a separate line at the end: META_DESCRIPTION: [your meta description]
 
+GEO CITABILITY (AI search citation — Princeton research: stats +37%, citations +30% AI visibility):
+- Add at least 2 specific statistics or data points (prices, distances, ratings, capacities, percentages)
+- Attribute facts to sources: "According to [tourism board/guide]", "As rated by [TripAdvisor/Michelin]"
+- Write each new paragraph as a self-contained 40-80 word block — AI engines extract individual paragraphs
+- If comparing options, use an HTML <table> — AI engines extract tables for structured answers
+
 STYLE RULES:
 - No generic AI phrases: "in conclusion", "look no further", "whether you're a X or a Y", "in this comprehensive guide"
 - Write with authority and lived experience — as if you visited personally

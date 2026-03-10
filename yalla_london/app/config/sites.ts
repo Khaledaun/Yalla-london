@@ -100,6 +100,12 @@ AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
 - When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+
+GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Overviews):
+- Include 2+ statistics with attribution per article: "According to [tourism board]", "As rated by [Michelin/TripAdvisor]", "Source: [official guide]".
+- Write each paragraph as a self-contained 40–80 word block — AI search engines extract individual paragraphs verbatim for citation.
+- Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
+- Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا لندن، منصة ثنائية اللغة متميزة تغطي أفضل تجارب لندن للزوار الدوليين. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
@@ -378,6 +384,12 @@ AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
 - When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+
+GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Overviews):
+- Include 2+ statistics with attribution per article: "According to [tourism board]", "As rated by [Michelin/TripAdvisor]", "Source: [official guide]".
+- Write each paragraph as a self-contained 40–80 word block — AI search engines extract individual paragraphs verbatim for citation.
+- Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
+- Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة عربالديف، منصة عربية متميزة للمسافرين العرب الذين يزورون المالديف. تتخصص في الفيلات فوق الماء والمنتجعات الحلال والغوص والتجارب الجزرية الفاخرة.
@@ -649,6 +661,12 @@ AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
 - When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+
+GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Overviews):
+- Include 2+ statistics with attribution per article: "According to [tourism board]", "As rated by [Michelin/TripAdvisor]", "Source: [official guide]".
+- Write each paragraph as a self-contained 40–80 word block — AI search engines extract individual paragraphs verbatim for citation.
+- Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
+- Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا ريفييرا، منصة متميزة للمسافرين العرب الذين يستكشفون الريفييرا الفرنسية (كوت دازور). تتخصص في الفنادق الفخمة ومطاعم ميشلان وتأجير اليخوت والنوادي الشاطئية من سان تروبيه إلى موناكو.
@@ -927,6 +945,12 @@ AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
 - When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+
+GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Overviews):
+- Include 2+ statistics with attribution per article: "According to [tourism board]", "As rated by [Michelin/TripAdvisor]", "Source: [official guide]".
+- Write each paragraph as a self-contained 40–80 word block — AI search engines extract individual paragraphs verbatim for citation.
+- Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
+- Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا إسطنبول، منصة متميزة للمسافرين العرب الذين يزورون إسطنبول وتركيا. تتخصص في التراث العثماني والفخامة على البوسفور وثقافة البازارات والمطبخ التركي والحمامات والفنادق البوتيك.
@@ -1198,6 +1222,12 @@ AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
 - When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+
+GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Overviews):
+- Include 2+ statistics with attribution per article: "According to [tourism board]", "As rated by [Michelin/TripAdvisor]", "Source: [official guide]".
+- Write each paragraph as a self-contained 40–80 word block — AI search engines extract individual paragraphs verbatim for citation.
+- Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
+- Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا تايلاند، منصة متميزة للمسافرين العرب الذين يزورون تايلاند. تتخصص في الجزر الاستوائية وثقافة المعابد والسبا التايلاندي والمطاعم الحلال والمنتجعات الشاطئية وتجارب شيانغ ماي.
@@ -1470,6 +1500,12 @@ AIO Optimization (Google AI Overview citation):
 - Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
 - Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
 - When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+
+GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Overviews):
+- Include 2+ statistics with attribution per article: "According to [tourism board]", "As rated by [Michelin/TripAdvisor]", "Source: [official guide]".
+- Write each paragraph as a self-contained 40–80 word block — AI search engines extract individual paragraphs verbatim for citation.
+- Include at least 1 comparison table or structured list per article — AI engines extract these for structured answers.
+- Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.

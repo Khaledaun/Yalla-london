@@ -49,6 +49,7 @@ const navigation = [
     href: '/admin/articles',
     items: [
       { label: 'All Articles',       href: '/admin/articles' },
+      { label: 'London News',        href: '/admin/news' },
       { label: 'Topics & Pipeline',  href: '/admin/topics' },
       { label: 'Content Engine',     href: '/admin/content-engine' },
       { label: 'Indexing & SEO',     href: '/admin/seo' },

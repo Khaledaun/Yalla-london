@@ -28,8 +28,10 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       ? "http://localhost:3000"
       : `https://${hostname}`;
 
-  // Common disallow rules for bots that should skip admin/API
-  const standardDisallow = ["/admin/", "/api/", "/_next/"];
+  // Common disallow rules for bots that should skip admin/API/internal paths
+  // /cdn-cgi/ = Cloudflare internal endpoints (email protection, etc.) — wastes crawl budget
+  // /d/ = blocks malformed /d/ownload URL pattern discovered by Google (broken external link)
+  const standardDisallow = ["/admin/", "/api/", "/_next/", "/cdn-cgi/", "/d/"];
   // Empty string generates explicit `Disallow: ` line (= allow all).
   // Do NOT use [] — Next.js omits the Disallow line entirely for empty arrays.
   const allowAll = "";

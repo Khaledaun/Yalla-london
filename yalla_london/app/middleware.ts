@@ -216,6 +216,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
+  // ── ?lang=ar → /ar/ 301 redirect ─────────────────────────────────
+  // Legacy ?lang=ar query parameters should 301 to /ar/ prefix.
+  // These URLs were indexed by Google and must permanently redirect.
+  if (searchParams.get("lang") === "ar") {
+    const url = request.nextUrl.clone();
+    url.pathname = `/ar${pathname === "/" ? "" : pathname}`;
+    url.searchParams.delete("lang");
+    return NextResponse.redirect(url, 301);
+  }
+
   // ── Blog duplicate 301 redirects ────────────────────────────────
   // Consolidate duplicate article clusters (hash-suffix variants, date variants)
   // to their canonical URL, preserving link equity.

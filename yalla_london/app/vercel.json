@@ -27,6 +27,15 @@
     },
     "app/api/cron/**/*.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/content-builder-create/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/daily-content-generate/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/campaign-executor/**/*.ts": {
+      "maxDuration": 300
     }
   },
   "env": {

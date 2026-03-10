@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes — Vercel Pro allows up to 300s. Route-level export overrides vercel.json's 60s default for cron/**.
+export const maxDuration = 60;
 
 /**
  * SEO Deep Review — Active Fixer Cron (00:00 UTC daily)
@@ -31,8 +31,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
 
-const TOTAL_BUDGET_MS = 280_000; // 280s safe budget
-const PER_ARTICLE_BUDGET_MS = 45_000; // 45s max per article
+const TOTAL_BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel 60s limit
+const PER_ARTICLE_BUDGET_MS = 12_000; // 12s max per article (non-AI fixes are fast)
 
 interface ArticleFix {
   blogPostId: string;
@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
         }
 
         // ── Fix 7: Content Expansion (AI) ─────────────────────────────
-        if (wordCount < 1000 && updatedContentEN.length > 100 && !checkArticleBudget() && (Date.now() - articleStart < PER_ARTICLE_BUDGET_MS - 20_000)) {
+        if (wordCount < 1000 && updatedContentEN.length > 100 && !checkArticleBudget() && (Date.now() - cronStart < TOTAL_BUDGET_MS - 15_000)) {
           try {
             const { generateCompletion } = await import("@/lib/ai/provider");
             const expansionPrompt = `You are an SEO content editor for a luxury travel site. Expand the following article section to add 400+ more words. Add:

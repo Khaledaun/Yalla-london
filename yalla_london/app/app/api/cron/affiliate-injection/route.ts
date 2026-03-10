@@ -333,6 +333,16 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** Validates URL is https:// only — blocks javascript:, data:, and other schemes */
+function isValidAffiliateUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function findMatches(content: string, siteId: string, limit = 4, dbRules?: AffiliateRule[] | null) {
   const lower = content.toLowerCase();
   const rules = dbRules || getAffiliateRulesForSite(siteId);
@@ -342,6 +352,8 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
     for (const keyword of rule.keywords) {
       if (lower.includes(keyword.toLowerCase())) {
         for (const aff of rule.affiliates) {
+          // Skip affiliates with empty tracking params (env var not set)
+          if (aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) continue;
           if (!matches.some((m) => m.name === aff.name)) {
             const occurrences = (lower.match(new RegExp(keyword.toLowerCase(), "g")) || []).length;
             matches.push({ keyword, ...aff, score: Math.min(occurrences * 10, 50) });
@@ -363,8 +375,14 @@ function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[
 
   // Replace placeholder divs with actual CTAs
   for (const match of matches.slice(0, 2)) {
+    // Validate URL scheme — block javascript:/data: injection from compromised DB
+    const fullUrl = match.url + match.param;
+    if (!isValidAffiliateUrl(fullUrl)) {
+      console.warn(`[affiliate-injection] Skipping invalid URL scheme: ${match.name}`);
+      continue;
+    }
     const safeName = escapeHtml(match.name);
-    const safeUrl = encodeURI(match.url + match.param);
+    const safeUrl = encodeURI(fullUrl);
     const cta = `
 <div class="affiliate-recommendation" data-affiliate="${safeName}" data-category="${escapeHtml(match.category)}" style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
   <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">Recommended: ${safeName}</p>
@@ -390,6 +408,7 @@ function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[
   <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Recommended Partners</h3>
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
     ${matches
+      .filter((m) => isValidAffiliateUrl(m.url + m.param))
       .map(
         (m) =>
           `<a href="${encodeURI(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit;">

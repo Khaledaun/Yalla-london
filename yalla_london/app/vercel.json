@@ -228,6 +228,22 @@
     {
       "path": "/api/cron/campaign-executor",
       "schedule": "20,50 * * * *"
+    },
+    {
+      "path": "/api/affiliate/cron/sync-advertisers",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/affiliate/cron/sync-commissions",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/affiliate/cron/discover-deals",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/affiliate/cron/refresh-links",
+      "schedule": "0 3 * * 0"
     }
   ]
 }

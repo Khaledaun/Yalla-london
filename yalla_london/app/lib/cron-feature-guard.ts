@@ -48,6 +48,10 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "social": "CRON_SOCIAL",
   "subscriber-emails": "CRON_SUBSCRIBER_EMAILS",
   "schedule-executor": "CRON_SCHEDULE_EXECUTOR",
+  "affiliate-sync-advertisers": "CRON_AFFILIATE_SYNC_ADVERTISERS",
+  "affiliate-sync-commissions": "CRON_AFFILIATE_SYNC_COMMISSIONS",
+  "affiliate-discover-deals": "CRON_AFFILIATE_DISCOVER_DEALS",
+  "affiliate-refresh-links": "CRON_AFFILIATE_REFRESH_LINKS",
 };
 
 /**

@@ -4358,3 +4358,334 @@ model SeoAuditAction {
   @@index([auditId])
   @@map("seo_audit_actions")
 }
+
+// =============================================================================
+// CJ AFFILIATE NETWORK INTEGRATION
+// =============================================================================
+
+/// AffiliateNetwork — Represents an affiliate network (CJ, AWIN, etc.)
+model AffiliateNetwork {
+  id              String   @id @default(cuid())
+  name            String   // "CJ Affiliate", "AWIN", "Travelpayouts"
+  slug            String   @unique
+  apiBaseUrl      String?
+  apiTokenEnvVar  String   // Name of env var, e.g., "CJ_API_TOKEN" (never store actual token)
+  publisherId     String   // Publisher CID for the network
+  status          NetworkStatus @default(ACTIVE)
+  config          Json?    // Network-specific settings (e.g., GraphQL endpoint)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  advertisers     CjAdvertiser[]
+  links           CjLink[]
+  offers          CjOffer[]
+  commissions     CjCommission[]
+  syncLogs        CjSyncLog[]
+
+  @@map("affiliate_networks")
+}
+
+enum NetworkStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+/// CjAdvertiser — Represents an advertiser within a network (e.g., Booking.com on CJ)
+model CjAdvertiser {
+  id              String   @id @default(cuid())
+  networkId       String
+  externalId      String   // Advertiser ID from CJ (e.g., "4297311")
+  name            String
+  programUrl      String?
+  category        String?  // "Hotel", "Travel", "Air", "Vacation"
+  status          AdvertiserStatus @default(PENDING)
+  commissionRate  String?  // e.g., "4%", "Sale: 3%", "Lead: $0.08-$1.69"
+  sevenDayEpc     Float?   // Earnings per click (7-day)
+  threeMonthEpc   Float?   // Earnings per click (3-month)
+  cookieDuration  Int?     // Cookie duration in days
+  priority        AdvertiserPriority @default(MEDIUM)
+  lastSynced      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  network         AffiliateNetwork @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  links           CjLink[]
+  offers          CjOffer[]
+  commissions     CjCommission[]
+
+  @@unique([networkId, externalId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([threeMonthEpc])
+  @@map("cj_advertisers")
+}
+
+enum AdvertiserStatus {
+  JOINED
+  PENDING
+  NOT_JOINED
+  DECLINED
+}
+
+enum AdvertiserPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// CjLink — Affiliate tracking links from a network
+model CjLink {
+  id              String   @id @default(cuid())
+  networkId       String
+  advertiserId    String
+  name            String
+  destinationUrl  String   @db.Text
+  affiliateUrl    String   @db.Text // The actual CJ tracking URL
+  linkType        CjLinkType @default(TEXT)
+  category        String?
+  language        CjLanguage @default(EN)
+  placement       String?  // e.g., "blog-sidebar", "article-inline", "footer-cta"
+  isActive        Boolean  @default(true)
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Float    @default(0)
+  lastClickAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  network         AffiliateNetwork @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  advertiser      CjAdvertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  clickEvents     CjClickEvent[]
+  commissions     CjCommission[]
+
+  @@index([networkId])
+  @@index([advertiserId])
+  @@index([isActive])
+  @@index([category])
+  @@index([linkType])
+  @@map("cj_links")
+}
+
+enum CjLinkType {
+  TEXT
+  BANNER
+  PRODUCT
+  DEEP
+}
+
+enum CjLanguage {
+  EN
+  AR
+}
+
+/// CjOffer — Product/deal offers from affiliate networks
+model CjOffer {
+  id              String   @id @default(cuid())
+  networkId       String
+  advertiserId    String
+  externalId      String?  // Product ID from CJ catalog
+  title           String
+  titleAr         String?
+  description     String?  @db.Text
+  descriptionAr   String?  @db.Text
+  affiliateUrl    String   @db.Text
+  imageUrl        String?
+  price           Float?
+  currency        String   @default("GBP")
+  category        String   // "hotel", "flight", "experience", "dining", "transport", "shopping"
+  subcategory     String?  // "halal-restaurants", "luxury-hotels", "airport-transfer"
+  tags            String[] @default([])
+  validFrom       DateTime?
+  validTo         DateTime?
+  isActive        Boolean  @default(true)
+  isPriceDropped  Boolean  @default(false)
+  isNewArrival    Boolean  @default(false)
+  previousPrice   Float?   // For price drop detection
+  priority        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  network         AffiliateNetwork @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  advertiser      CjAdvertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@index([networkId])
+  @@index([advertiserId])
+  @@index([isActive])
+  @@index([category])
+  @@index([validTo])
+  @@index([isPriceDropped])
+  @@index([isNewArrival])
+  @@map("cj_offers")
+}
+
+/// CjCommission — Commission/transaction records from the network
+model CjCommission {
+  id              String   @id @default(cuid())
+  networkId       String
+  advertiserId    String
+  linkId          String?
+  externalId      String   // CJ transaction ID
+  actionType      String   // "sale", "lead"
+  saleAmount      Float
+  commissionAmount Float
+  currency        String   @default("GBP")
+  status          CommissionStatus @default(PENDING)
+  eventDate       DateTime
+  lockDate        DateTime?
+  publishDate     DateTime?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  network         AffiliateNetwork @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  advertiser      CjAdvertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  link            CjLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+
+  @@unique([networkId, externalId])
+  @@index([advertiserId])
+  @@index([linkId])
+  @@index([status])
+  @@index([eventDate])
+  @@map("cj_commissions")
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  LOCKED
+}
+
+/// CjPlacement — Defines where affiliate links appear on the site
+model CjPlacement {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  type            PlacementType @default(INLINE)
+  pagePattern     String   // Regex or glob for matching pages, e.g., "/blog/*"
+  position        String   // e.g., "after-paragraph-3", "sidebar-top", "footer"
+  maxLinks        Int      @default(3)
+  rotationStrategy RotationStrategy @default(HIGHEST_EPC)
+  isActive        Boolean  @default(true)
+  config          Json?    // Styling, layout options
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  rules           CjPlacementRule[]
+
+  @@index([isActive])
+  @@map("cj_placements")
+}
+
+enum PlacementType {
+  INLINE
+  SIDEBAR
+  BANNER
+  CTA
+  CARD
+  COMPARISON_TABLE
+}
+
+enum RotationStrategy {
+  RANDOM
+  HIGHEST_EPC
+  NEWEST
+  MANUAL
+}
+
+/// CjPlacementRule — Conditions for a placement to show specific links
+model CjPlacementRule {
+  id              String   @id @default(cuid())
+  placementId     String
+  condition       PlacementCondition @default(CATEGORY_MATCH)
+  value           String   // e.g., "halal-restaurants", "hotels", "ar"
+  advertiserId    String?  // Force specific advertiser
+  priority        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  placement       CjPlacement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+
+  @@index([placementId])
+  @@map("cj_placement_rules")
+}
+
+enum PlacementCondition {
+  CATEGORY_MATCH
+  TAG_MATCH
+  LANGUAGE_MATCH
+  URL_MATCH
+  KEYWORD_MATCH
+}
+
+/// CjClickEvent — Records every affiliate link click for analytics
+model CjClickEvent {
+  id              String   @id @default(cuid())
+  linkId          String
+  sessionId       String?
+  pageUrl         String
+  userAgent       String?
+  country         String?
+  device          ClickDevice @default(DESKTOP)
+  createdAt       DateTime @default(now())
+
+  // Relations
+  link            CjLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, createdAt])
+  @@index([createdAt])
+  @@map("cj_click_events")
+}
+
+enum ClickDevice {
+  DESKTOP
+  MOBILE
+  TABLET
+}
+
+/// CjSyncLog — Records every sync operation with the affiliate network
+model CjSyncLog {
+  id              String   @id @default(cuid())
+  networkId       String
+  syncType        SyncType
+  status          CjSyncStatus @default(SUCCESS)
+  recordsProcessed Int     @default(0)
+  recordsCreated  Int      @default(0)
+  recordsUpdated  Int      @default(0)
+  errors          Json?
+  duration        Int      @default(0) // milliseconds
+  createdAt       DateTime @default(now())
+
+  // Relations
+  network         AffiliateNetwork @relation(fields: [networkId], references: [id], onDelete: Cascade)
+
+  @@index([networkId])
+  @@index([syncType])
+  @@index([createdAt])
+  @@map("cj_sync_logs")
+}
+
+enum SyncType {
+  ADVERTISERS
+  LINKS
+  PRODUCTS
+  COMMISSIONS
+  DEALS
+}
+
+enum CjSyncStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}

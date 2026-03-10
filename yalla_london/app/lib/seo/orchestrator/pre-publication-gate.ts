@@ -527,6 +527,26 @@ export async function runPrePublicationGate(
 
   // ── 16. Citability Score (GEO — AI search engine citation readiness) ──
   // Checks whether content is structured for extraction by AI search engines
+  // ── Check 17: Content Format — detect raw markdown that should be HTML ──
+  // Content stored as markdown renders as plain text on the blog page (visitors
+  // see "# Spring in London" instead of a proper heading). This catches it
+  // before publishing so the content pipeline can fix it.
+  if (contentBody) {
+    const looksLikeMarkdown = /^#{1,6}\s/m.test(contentBody) && !/<[a-z][\s\S]*?>/i.test(contentBody.substring(0, 200));
+    const markdownCheck: GateCheck = {
+      name: "Content Format (HTML vs Markdown)",
+      passed: !looksLikeMarkdown,
+      severity: looksLikeMarkdown ? "blocker" : "info",
+      message: looksLikeMarkdown
+        ? "Content is markdown, not HTML — will show raw '# Heading' text to visitors. Assembly phase must produce HTML."
+        : "Content is properly formatted as HTML.",
+    };
+    checks.push(markdownCheck);
+    if (!markdownCheck.passed) {
+      blockers.push(markdownCheck.message);
+    }
+  }
+
   // (ChatGPT, Perplexity, Gemini, Google AI Overviews). Princeton research
   // shows statistics (+37%) and source citations (+30%) are the top GEO
   // techniques. WARNING-only — never blocks publication.

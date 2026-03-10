@@ -19,17 +19,28 @@ interface LanguageProviderProps {
 }
 
 export function LanguageProvider({ children, initialLocale }: LanguageProviderProps) {
+  // URL-based locale (from middleware x-locale header) ALWAYS wins.
+  // localStorage is ONLY used when no URL locale is set (i.e. user hasn't
+  // navigated to /ar/ but previously toggled the language switcher).
+  // This prevents Arabic showing on the English homepage just because
+  // localStorage has language=ar from a previous session.
   const [language, setLanguage] = useState<Language>(initialLocale || 'en')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // When a URL-based locale is provided (e.g. /ar/ routes), always use it.
-    // Otherwise fall back to the user's localStorage preference.
+    // Only read localStorage when there's NO server-provided locale.
+    // If the URL says English (/blog/foo), respect it — don't let a stale
+    // localStorage preference flip the page to Arabic.
     if (!initialLocale) {
       const saved = localStorage.getItem('language') as Language
       if (saved && (saved === 'en' || saved === 'ar')) {
         setLanguage(saved)
       }
+    } else {
+      // URL locale provided — force it and sync localStorage so the
+      // preference stays consistent with the URL the user is on.
+      setLanguage(initialLocale)
+      try { localStorage.setItem('language', initialLocale) } catch { /* SSR */ }
     }
     setMounted(true)
   }, [initialLocale])

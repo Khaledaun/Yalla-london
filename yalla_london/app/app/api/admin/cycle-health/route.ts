@@ -805,6 +805,34 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     }
   } catch { /* CJ tables may not exist yet */ }
 
+  // ── Check 18: Markdown content in published posts (rendering bug) ──
+  try {
+    // Posts whose content_en starts with "# " are markdown, not HTML — they
+    // render as raw text on the public site instead of proper headings.
+    const markdownPosts = await prisma.blogPost.count({
+      where: {
+        siteId,
+        published: true,
+        deletedAt: null,
+        content_en: { startsWith: "# " },
+      },
+    });
+    if (markdownPosts > 0) {
+      issues.push({
+        id: "markdown-content-in-posts",
+        category: "content",
+        severity: markdownPosts >= 5 ? "critical" as const : "warning" as const,
+        what: `${markdownPosts} published article${markdownPosts > 1 ? "s" : ""} contain${markdownPosts === 1 ? "s" : ""} raw markdown instead of HTML`,
+        why: "These articles show raw '# Heading' text to visitors instead of proper formatted headings. The content pipeline generated markdown instead of HTML.",
+        fix: "Run content-auto-fix-lite cron to auto-convert markdown to HTML, or manually re-run the assembly phase for these drafts.",
+        fixAction: { method: "POST", endpoint: "/api/cron/content-auto-fix-lite", payload: {}, label: "Fix Markdown", description: "Run lite auto-fix to convert markdown to HTML" },
+        evidence: { markdownPostCount: markdownPosts },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Markdown check failed:", err instanceof Error ? err.message : err);
+  }
+
   // ── Calculate grade ──
   let score = 100;
   for (const issue of issues) {

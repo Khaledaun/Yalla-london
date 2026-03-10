@@ -85,7 +85,7 @@ const navigation = [
     href: '/admin/cockpit/commerce',
     items: [
       { label: 'Commerce Hub',      href: '/admin/cockpit/commerce' },
-      { label: 'Affiliates',        href: '/admin/affiliates' },
+      { label: 'Affiliate HQ',      href: '/admin/affiliate-hq' },
     ],
   },
   {

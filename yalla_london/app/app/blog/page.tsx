@@ -98,8 +98,25 @@ async function getDbPosts() {
     const { prisma } = await import("@/lib/db");
     return await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null, siteId },
-      include: { category: true },
+      select: {
+        id: true,
+        slug: true,
+        title_en: true,
+        title_ar: true,
+        excerpt_en: true,
+        excerpt_ar: true,
+        meta_description_en: true,
+        meta_description_ar: true,
+        featured_image: true,
+        content_en: true,
+        content_ar: true,
+        created_at: true,
+        updated_at: true,
+        siteId: true,
+        category: { select: { id: true, name_en: true, name_ar: true, slug: true } },
+      },
       orderBy: { created_at: "desc" },
+      take: 100,
     });
   } catch {
     return [];

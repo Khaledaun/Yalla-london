@@ -506,18 +506,14 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
   const { prisma } = await import("@/lib/db");
   const checkStart = Date.now();
 
-  const pending = await prisma.cjAdvertiser.findMany({
-    where: { networkId: CJ_NETWORK_ID, status: "PENDING" },
-    select: { externalId: true, name: true },
-  });
-
-  if (pending.length === 0) {
-    return { checked: 0, newlyApproved: [], linksSynced: 0 };
-  }
-
-  // Run a full advertiser sync to detect status changes
+  // Always run a full sync first — this populates the DB on first run
+  // and detects status changes (PENDING→JOINED) on subsequent runs.
+  // Previously this function returned early when DB had 0 PENDING records,
+  // which meant the initial sync never ran (bootstrap problem).
   const remaining = () => budgetMs - (Date.now() - checkStart);
-  const { newlyApproved } = await syncAdvertisers(remaining());
+  const { result: syncResult, newlyApproved } = await syncAdvertisers(remaining());
+
+  const totalInDb = syncResult.created + syncResult.updated;
 
   let linksSynced = 0;
 
@@ -541,7 +537,7 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
   }
 
   return {
-    checked: pending.length,
+    checked: totalInDb,
     newlyApproved,
     linksSynced,
   };

@@ -217,6 +217,11 @@ function parsePaginatedResponse<T>(
   const elements = extractAllElements(xml, elementTag);
   const records = elements.map(parser);
 
+  // Diagnostic: warn if CJ says records exist but parser found none (tag mismatch)
+  if (recordsReturned > 0 && records.length === 0) {
+    console.warn(`[cj-client] XML tag mismatch? CJ says ${recordsReturned} records but parser found 0 <${elementTag}> elements. XML preview: ${xml.substring(0, 300)}`);
+  }
+
   return { records, totalMatched, recordsReturned, pageNumber };
 }
 
@@ -470,6 +475,10 @@ export async function lookupAdvertisers(opts: {
 }): Promise<CjPaginatedResponse<CjAdvertiserRecord>> {
   const params: Record<string, string> = {};
 
+  // website-id is required for CJ to scope results to this publisher property
+  const websiteId = getWebsiteId();
+  if (websiteId) params["website-id"] = websiteId;
+
   if (opts.joined !== undefined) {
     params["joined"] = opts.joined ? "true" : "false";
   }
@@ -483,7 +492,16 @@ export async function lookupAdvertisers(opts: {
   params["records-per-page"] = String(opts.recordsPerPage || 100);
 
   const xml = await cjFetch(ADVERTISER_LOOKUP_URL, params);
-  return parsePaginatedResponse(xml, "advertiser", parseAdvertiser);
+  const result = parsePaginatedResponse(xml, "advertiser", parseAdvertiser);
+
+  // Diagnostic: log API response metadata for debugging
+  console.log(`[cj-client] lookupAdvertisers: totalMatched=${result.totalMatched}, recordsReturned=${result.recordsReturned}, parsed=${result.records.length}, page=${result.pageNumber}`);
+  if (result.totalMatched === 0 && result.records.length === 0) {
+    // Log first 500 chars of response to diagnose empty results
+    console.warn(`[cj-client] Empty advertiser response. XML preview: ${xml.substring(0, 500)}`);
+  }
+
+  return result;
 }
 
 /**

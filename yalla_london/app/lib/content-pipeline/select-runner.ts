@@ -288,6 +288,7 @@ export async function runContentSelector(
 
     // Promote selected articles to BlogPost
     const published: Array<{ draftId: string; blogPostId: string; keyword: string; score: number }> = [];
+    const skippedReasons: Array<{ draftId: string; keyword: string; reason: string }> = [];
 
     for (const draft of selected) {
       const remainingMs = timeoutMs - (Date.now() - cronStart);
@@ -301,6 +302,16 @@ export async function runContentSelector(
         const result = await promoteToBlogPost(draft, prisma, SITES, getSiteDomain);
         if (result) {
           published.push(result);
+        } else {
+          // promoteToBlogPost returned null — draft was reverted to reservoir internally.
+          // Log the reason so it shows in cron logs (previously silent — caused "published: 0" mystery).
+          const draftAfter = await prisma.articleDraft.findUnique({
+            where: { id: draft.id as string },
+            select: { last_error: true, current_phase: true },
+          }).catch(() => null);
+          const reason = draftAfter?.last_error || "unknown (no last_error set)";
+          console.warn(`[content-selector] Draft ${draft.id} ("${draft.keyword}") promotion returned null — reason: ${reason}`);
+          skippedReasons.push({ draftId: draft.id as string, keyword: draft.keyword as string, reason });
         }
       } catch (promoteErr) {
         const errType = promoteErr instanceof Error ? promoteErr.constructor.name : "Unknown";
@@ -392,6 +403,7 @@ export async function runContentSelector(
         selected: selected.length,
         published: published.length,
         articles: published,
+        skippedReasons: skippedReasons.length > 0 ? skippedReasons : undefined,
       },
     });
 

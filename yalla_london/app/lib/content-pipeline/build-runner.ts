@@ -29,6 +29,7 @@ export interface BuildRunnerResult {
   strategy?: string;
   message?: string;
   reservoirCount?: number;
+  additionalDrafts?: Array<{ draftId: string; phase: string; success: boolean }>;
   durationMs: number;
 }
 
@@ -306,6 +307,90 @@ export async function runContentBuilder(
       }
     }
 
+    // ── Multi-draft processing: advance additional light-phase drafts if budget allows ──
+    // After sweeper resets 40+ drafts, processing 1 draft per 15-min run creates a days-long
+    // backlog. Light phases (research, outline, images, seo, scoring) complete in 5-15s,
+    // so we can process 2-3 per run when budget allows. Heavy phases (drafting, assembly)
+    // need 30s+ and are never batched.
+    const LIGHT_PHASES = new Set(["research", "outline", "images", "seo", "scoring"]);
+    const MAX_ADDITIONAL_DRAFTS = 2;
+    const additionalResults: Array<{ draftId: string; phase: string; success: boolean }> = [];
+
+    if (result.success && deadline.remainingMs() > 60_000) {
+      try {
+        const moreDrafts = await prisma.articleDraft.findMany({
+          where: {
+            id: { not: draftRecord.id as string },
+            site_id: { in: activeSites },
+            current_phase: { in: Array.from(LIGHT_PHASES) },
+            phase_attempts: { lt: 5 },
+            OR: [
+              { phase_started_at: null },
+              { phase_started_at: { lt: new Date(Date.now() - 300 * 1000) } },
+            ],
+          },
+          orderBy: { updated_at: "asc" },
+          take: MAX_ADDITIONAL_DRAFTS,
+        });
+
+        for (const extraDraft of moreDrafts) {
+          if (deadline.remainingMs() < 25_000) break; // Leave 25s buffer
+
+          const extraPhase = extraDraft.current_phase as string;
+          if (!LIGHT_PHASES.has(extraPhase)) continue;
+
+          console.log(`[content-builder] Additional light-phase: "${extraPhase}" for draft ${extraDraft.id} (budget: ${Math.round(deadline.remainingMs() / 1000)}s)`);
+
+          // Claim the draft
+          await prisma.articleDraft.update({
+            where: { id: extraDraft.id as string },
+            data: { phase_started_at: new Date() },
+          });
+
+          try {
+            const extraResult = await runPhase(extraDraft as any, SITES[extraDraft.site_id as string], deadline.remainingMs());
+            const extraUpdate: Record<string, unknown> = { updated_at: new Date() };
+
+            if (extraResult.success) {
+              extraUpdate.current_phase = extraResult.nextPhase;
+              extraUpdate.phase_attempts = 0;
+              extraUpdate.last_error = null;
+              extraUpdate.phase_started_at = new Date();
+              if (extraResult.data.research_data) extraUpdate.research_data = extraResult.data.research_data;
+              if (extraResult.data.outline_data) extraUpdate.outline_data = extraResult.data.outline_data;
+              if (extraResult.data.seo_meta) extraUpdate.seo_meta = extraResult.data.seo_meta;
+              if (extraResult.data.images_data) extraUpdate.images_data = extraResult.data.images_data;
+              if (extraResult.data.quality_score !== undefined) extraUpdate.quality_score = extraResult.data.quality_score;
+              if (extraResult.data.seo_score !== undefined) extraUpdate.seo_score = extraResult.data.seo_score;
+              if (extraResult.data.word_count !== undefined) extraUpdate.word_count = extraResult.data.word_count;
+              if (extraResult.nextPhase === "reservoir" || extraResult.nextPhase === "rejected") {
+                extraUpdate.completed_at = new Date();
+              }
+            } else {
+              extraUpdate.phase_started_at = new Date();
+              extraUpdate.phase_attempts = { increment: 1 };
+              extraUpdate.last_error = extraResult.error || `Phase "${extraPhase}" failed`;
+            }
+
+            await prisma.articleDraft.update({
+              where: { id: extraDraft.id as string },
+              data: extraUpdate,
+            });
+            additionalResults.push({ draftId: extraDraft.id as string, phase: extraPhase, success: extraResult.success });
+          } catch (extraErr) {
+            console.warn(`[content-builder] Additional draft ${extraDraft.id} failed:`, extraErr instanceof Error ? extraErr.message : extraErr);
+            await prisma.articleDraft.update({
+              where: { id: extraDraft.id as string },
+              data: { phase_started_at: null, updated_at: new Date() },
+            }).catch(() => {});
+            additionalResults.push({ draftId: extraDraft.id as string, phase: extraPhase, success: false });
+          }
+        }
+      } catch (batchErr) {
+        console.warn("[content-builder] Multi-draft batch failed (non-fatal):", batchErr instanceof Error ? batchErr.message : batchErr);
+      }
+    }
+
     // Note: route.ts already logs to CronJobLog — don't double-log here
     const durationMs = Date.now() - cronStart;
     return {
@@ -318,6 +403,7 @@ export async function runContentBuilder(
       phaseSuccess: result.success,
       phaseError: result.error || null,
       strategy: draftRecord.generation_strategy as string,
+      additionalDrafts: additionalResults.length > 0 ? additionalResults : undefined,
       durationMs,
     };
   } catch (error) {

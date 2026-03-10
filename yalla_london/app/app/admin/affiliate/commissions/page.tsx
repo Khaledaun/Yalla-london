@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 interface Commission {
   id: string;
@@ -62,7 +63,7 @@ export default function CommissionsPage() {
           >
             {syncing ? "Syncing..." : "Sync Last 7 Days"}
           </button>
-          <a href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</a>
+          <Link href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</Link>
         </div>
       </div>
 

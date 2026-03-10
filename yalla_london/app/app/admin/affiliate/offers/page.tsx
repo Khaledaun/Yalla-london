@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 interface Offer {
   id: string;
@@ -54,7 +55,7 @@ export default function OffersPage() {
           <button onClick={discover} style={{ padding: "0.4rem 0.8rem", borderRadius: "6px", border: "1px solid #C49A2A", background: "#fff8e1", fontSize: "0.8rem", cursor: "pointer", color: "#92700C" }}>
             Discover Deals
           </button>
-          <a href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</a>
+          <Link href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</Link>
         </div>
       </div>
 

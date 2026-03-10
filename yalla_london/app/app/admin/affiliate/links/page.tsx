@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 interface Link {
   id: string;
@@ -55,7 +56,7 @@ export default function LinksPage() {
           <button onClick={syncAll} style={{ padding: "0.4rem 0.8rem", borderRadius: "6px", border: "1px solid #e5e7eb", background: "#fff", fontSize: "0.8rem", cursor: "pointer" }}>
             Sync All Links
           </button>
-          <a href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</a>
+          <Link href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</Link>
         </div>
       </div>
 

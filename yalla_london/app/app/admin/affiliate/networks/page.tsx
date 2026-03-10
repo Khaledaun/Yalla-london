@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface Network {
   id: string;
@@ -29,7 +30,7 @@ export default function NetworksPage() {
     <div style={{ padding: "1.5rem", maxWidth: "900px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <h1 style={{ fontSize: "1.3rem", fontWeight: 700 }}>Affiliate Networks</h1>
-        <a href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</a>
+        <Link href="/admin/affiliate" style={{ fontSize: "0.8rem", color: "#4A7BA8" }}>← Dashboard</Link>
       </div>
 
       {loading ? (

@@ -1066,6 +1066,118 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
   );
 }
 
+// ─── News Card (used in Mission Control) ──────────────────────────────────────
+
+function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; triggerAction: (endpoint: string, body: object, label: string) => void; actionLoading: string | null }) {
+  const [news, setNews] = useState<{ total: number; published: number; draft: number; expiringSoon: number; latestItems: Array<{ id: string; headline_en: string; news_category: string; urgency: string; status: string; published_at: string | null; expires_at: string | null }> } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/news?site_id=${encodeURIComponent(siteId)}`);
+        if (!res.ok) { setLoading(false); return; }
+        const json = await res.json();
+        if (!cancelled) {
+          setNews({
+            total: json.stats?.total ?? 0,
+            published: json.stats?.published ?? 0,
+            draft: json.stats?.draft ?? 0,
+            expiringSoon: json.stats?.expiringSoon ?? 0,
+            latestItems: (json.items ?? []).slice(0, 3),
+          });
+        }
+      } catch {
+        console.warn("[NewsCard] failed to fetch news");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [siteId]);
+
+  const urgencyColor = (u: string) => u === "breaking" ? "text-red-400" : u === "urgent" ? "text-amber-400" : "text-zinc-400";
+  const statusBadge = (s: string) => s === "published" ? "bg-emerald-900/40 text-emerald-300" : s === "draft" ? "bg-blue-900/40 text-blue-300" : "bg-zinc-800 text-zinc-400";
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <SectionTitle>London News</SectionTitle>
+        <Link href="/admin/news" className="text-[10px] text-blue-400 hover:text-blue-300">View All →</Link>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-zinc-500 text-center py-3">Loading…</p>
+      ) : !news || news.total === 0 ? (
+        <div className="text-center py-3">
+          <p className="text-xs text-zinc-500 mb-2">No news items yet</p>
+          <ActionButton
+            onClick={() => triggerAction("/api/cron/london-news", {}, "News")}
+            loading={actionLoading === "News"}
+            variant="success"
+          >
+            📰 Generate News Now
+          </ActionButton>
+        </div>
+      ) : (
+        <>
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-zinc-200">{news.total}</div>
+              <div className="text-[10px] text-zinc-500">Total</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-emerald-400">{news.published}</div>
+              <div className="text-[10px] text-zinc-500">Published</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-blue-400">{news.draft}</div>
+              <div className="text-[10px] text-zinc-500">Draft</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className={`text-lg font-bold ${news.expiringSoon > 0 ? "text-amber-400" : "text-zinc-600"}`}>{news.expiringSoon}</div>
+              <div className="text-[10px] text-zinc-500">Expiring</div>
+            </div>
+          </div>
+
+          {/* Latest items */}
+          {news.latestItems.length > 0 && (
+            <div className="space-y-1.5 mb-3">
+              {news.latestItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 text-xs">
+                  <span className={urgencyColor(item.urgency)}>
+                    {item.urgency === "breaking" ? "🔴" : item.urgency === "urgent" ? "🟠" : "🔵"}
+                  </span>
+                  <span className="text-zinc-300 truncate flex-1">{item.headline_en}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] ${statusBadge(item.status)}`}>{item.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <ActionButton
+              onClick={() => triggerAction("/api/cron/london-news", {}, "News")}
+              loading={actionLoading === "News"}
+            >
+              📰 Generate News
+            </ActionButton>
+            <ActionButton
+              onClick={() => triggerAction("/api/cron/london-news?type=weekly_deep", {}, "Deep Research")}
+              loading={actionLoading === "Deep Research"}
+            >
+              🔬 Deep Research
+            </ActionButton>
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
 // ─── Tab 1: Mission Control ───────────────────────────────────────────────────
 
 function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void; siteId: string; onUpdateIndexing?: (summary: { total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number }) => void }) {
@@ -1496,6 +1608,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           </div>
         </Card>
       )}
+
+      {/* London News */}
+      <NewsCard siteId={siteId} triggerAction={triggerAction} actionLoading={actionLoading} />
 
       {/* Quick Actions */}
       <Card>

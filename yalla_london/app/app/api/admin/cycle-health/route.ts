@@ -805,6 +805,95 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     }
   } catch { /* CJ tables may not exist yet */ }
 
+  // ── Check 18: Markdown content in published posts (rendering bug) ──
+  try {
+    // Posts whose content_en starts with "# " are markdown, not HTML — they
+    // render as raw text on the public site instead of proper headings.
+    const markdownPosts = await prisma.blogPost.count({
+      where: {
+        siteId,
+        published: true,
+        deletedAt: null,
+        content_en: { startsWith: "# " },
+      },
+    });
+    if (markdownPosts > 0) {
+      issues.push({
+        id: "markdown-content-in-posts",
+        category: "content",
+        severity: markdownPosts >= 5 ? "critical" as const : "warning" as const,
+        what: `${markdownPosts} published article${markdownPosts > 1 ? "s" : ""} contain${markdownPosts === 1 ? "s" : ""} raw markdown instead of HTML`,
+        why: "These articles show raw '# Heading' text to visitors instead of proper formatted headings. The content pipeline generated markdown instead of HTML.",
+        fix: "Run content-auto-fix-lite cron to auto-convert markdown to HTML, or manually re-run the assembly phase for these drafts.",
+        fixAction: { method: "POST", endpoint: "/api/cron/content-auto-fix-lite", payload: {}, label: "Fix Markdown", description: "Run lite auto-fix to convert markdown to HTML" },
+        evidence: { markdownPostCount: markdownPosts },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Markdown check failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Check 19: News freshness — stale news detection ──
+  try {
+    const latestNews = await prisma.newsItem.findFirst({
+      where: { siteId, status: "published" },
+      orderBy: { published_at: "desc" },
+      select: { published_at: true, headline_en: true },
+    });
+    const publishedNewsCount = await prisma.newsItem.count({
+      where: { siteId, status: "published" },
+    });
+
+    if (!latestNews || publishedNewsCount === 0) {
+      issues.push({
+        id: "news-no-items",
+        category: "content",
+        severity: "warning" as const,
+        what: "No published news items found",
+        why: "The news carousel on the homepage will show seed/placeholder data instead of real news. The london-news cron may not be running or may be failing.",
+        fix: "Run the london-news cron manually from Departures Board, or check that it's enabled in feature flags.",
+        fixAction: { method: "POST", endpoint: "/api/cron/london-news", payload: {}, label: "Generate News", description: "Run london-news cron to generate fresh news items" },
+        evidence: { publishedNewsCount: 0 },
+      });
+    } else if (latestNews.published_at) {
+      const hoursSinceLastNews = (Date.now() - new Date(latestNews.published_at).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastNews > 72) {
+        issues.push({
+          id: "news-stale",
+          category: "content",
+          severity: hoursSinceLastNews > 168 ? "critical" as const : "warning" as const,
+          what: `News is ${Math.round(hoursSinceLastNews / 24)} days old — last: "${(latestNews.headline_en || "").slice(0, 60)}"`,
+          why: "Stale news makes the site look abandoned to visitors. The london-news cron runs daily at 6:20 UTC — it may be failing or disabled.",
+          fix: "Run london-news cron manually or check CronJobLog for errors. Ensure XAI_API_KEY is set for Grok live news.",
+          fixAction: { method: "POST", endpoint: "/api/cron/london-news", payload: {}, label: "Generate News", description: "Run london-news cron for fresh content" },
+          evidence: { hoursSinceLastNews: Math.round(hoursSinceLastNews), lastHeadline: (latestNews.headline_en || "").slice(0, 80) },
+        });
+      }
+    }
+
+    // Check Grok availability — if not configured, news is template-only
+    const lastNewsLog = await prisma.cronJobLog.findFirst({
+      where: { jobName: "london-news", status: "completed" },
+      orderBy: { startedAt: "desc" },
+      select: { resultSummary: true },
+    });
+    const logSummary = lastNewsLog?.resultSummary as Record<string, unknown> | null;
+    if (logSummary && logSummary.grokStatus === "unavailable") {
+      issues.push({
+        id: "news-grok-unavailable",
+        category: "content",
+        severity: "info" as const,
+        what: "Grok live search unavailable — news is template-only",
+        why: "Without XAI_API_KEY, the london-news cron can only generate from pre-written templates. No real-time news from London sources.",
+        fix: "Add XAI_API_KEY environment variable in Vercel to enable real-time London news from Grok web_search.",
+        fixAction: null,
+        evidence: { grokStatus: "unavailable" },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] News freshness check failed:", err instanceof Error ? err.message : err);
+  }
+
   // ── Calculate grade ──
   let score = 100;
   for (const issue of issues) {

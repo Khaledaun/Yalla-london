@@ -3,21 +3,8 @@ export const revalidate = 0;
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, isYachtSite } from "@/config/sites";
 import { logCronExecution } from "@/lib/cron-logger";
-import { blogPosts } from "@/data/blog-content";
-import { extendedBlogPosts } from "@/data/blog-content-extended";
-import {
-  informationArticles as baseInfoArticles,
-} from "@/data/information-hub-content";
-import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
-
-// ---------------------------------------------------------------------------
-// Static content pools for cross-referencing
-// ---------------------------------------------------------------------------
-
-const allBlogPosts = [...blogPosts, ...extendedBlogPosts];
-const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
 // ---------------------------------------------------------------------------
 // Trusted London news sources
@@ -119,10 +106,10 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     ttl_days: 5,
   },
-  // Seasonal events — Christmas
+  // Seasonal events — Christmas (year-agnostic)
   {
-    headline_en: "London Christmas Markets 2025: Best Markets for Shopping and Festive Fun",
-    headline_ar: "أسواق عيد الميلاد في لندن 2025: أفضل الأسواق للتسوق والمرح الاحتفالي",
+    headline_en: "London Christmas Markets: Best Markets for Shopping and Festive Fun",
+    headline_ar: "أسواق عيد الميلاد في لندن: أفضل الأسواق للتسوق والمرح الاحتفالي",
     summary_en:
       "London's beloved Christmas markets are opening across the city, from Winter Wonderland in Hyde Park to the Southbank Centre Market. Discover unique gifts, mulled wine, and festive food stalls. Most markets run from mid-November through early January.",
     summary_ar:
@@ -140,10 +127,10 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [11, 12, 1],
     ttl_days: 60,
   },
-  // Seasonal events — New Year's Eve
+  // Seasonal events — New Year's Eve (year-agnostic)
   {
-    headline_en: "London New Year's Eve 2025: Fireworks, Events, and Transport Guide",
-    headline_ar: "ليلة رأس السنة في لندن 2025: الألعاب النارية والفعاليات ودليل النقل",
+    headline_en: "London New Year's Eve: Fireworks, Events, and Transport Guide",
+    headline_ar: "ليلة رأس السنة في لندن: الألعاب النارية والفعاليات ودليل النقل",
     summary_en:
       "London's iconic New Year's Eve fireworks display returns along the Thames. Tickets are required for the official viewing areas near the London Eye and Westminster. Free viewing spots are available further along the river. The last Tube runs until approximately 2am, with night buses available throughout.",
     summary_ar:
@@ -182,10 +169,10 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [10, 11],
     ttl_days: 14,
   },
-  // Summer festivals
+  // Summer festivals (year-agnostic)
   {
-    headline_en: "London Summer Festivals 2025: Music, Food, and Culture Guide",
-    headline_ar: "مهرجانات لندن الصيفية 2025: دليل الموسيقى والطعام والثقافة",
+    headline_en: "London Summer Festivals: Music, Food, and Culture Guide",
+    headline_ar: "مهرجانات لندن الصيفية: دليل الموسيقى والطعام والثقافة",
     summary_en:
       "London's summer festival season is in full swing with events including BST Hyde Park, Wireless Festival, and Notting Hill Carnival. From open-air concerts to food festivals and cultural celebrations, there is something for every visitor. Check opening times and book tickets early.",
     summary_ar:
@@ -224,10 +211,10 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [1, 2, 3, 10, 11, 12],
     ttl_days: 3,
   },
-  // Sales — Boxing Day / January Sales
+  // Sales — Boxing Day / January Sales (year-agnostic)
   {
-    headline_en: "London January Sales 2025: Best Deals at Top Shopping Destinations",
-    headline_ar: "تخفيضات يناير في لندن 2025: أفضل العروض في أبرز وجهات التسوق",
+    headline_en: "London January Sales: Best Deals at Top Shopping Destinations",
+    headline_ar: "تخفيضات يناير في لندن: أفضل العروض في أبرز وجهات التسوق",
     summary_en:
       "London's famous January sales offer massive discounts at Harrods, Selfridges, Oxford Street, and Westfield. Many stores start sales on Boxing Day with reductions of up to 70%. Luxury brands at Bicester Village also participate. Plan your shopping trip to make the most of the best deals.",
     summary_ar:
@@ -245,10 +232,10 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [12, 1],
     ttl_days: 30,
   },
-  // Sales — Summer sales
+  // Sales — Summer sales (year-agnostic)
   {
-    headline_en: "London Summer Sales 2025: Shop the Best Discounts Across the City",
-    headline_ar: "تخفيضات صيف لندن 2025: تسوق أفضل الخصومات في جميع أنحاء المدينة",
+    headline_en: "London Summer Sales: Shop the Best Discounts Across the City",
+    headline_ar: "تخفيضات صيف لندن: تسوق أفضل الخصومات في جميع أنحاء المدينة",
     summary_en:
       "London's summer sales are offering discounts across major department stores and designer outlets. Harrods, Selfridges, Harvey Nichols, and Oxford Street shops have significant reductions on fashion, beauty, and homewares. Bicester Village outlet also runs summer promotions.",
     summary_ar:
@@ -266,10 +253,10 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [6, 7],
     ttl_days: 45,
   },
-  // Sales — Black Friday
+  // Sales — Black Friday (year-agnostic)
   {
-    headline_en: "Black Friday in London 2025: Best Deals and Shopping Guide",
-    headline_ar: "بلاك فرايداي في لندن 2025: أفضل العروض ودليل التسوق",
+    headline_en: "Black Friday in London: Best Deals and Shopping Guide",
+    headline_ar: "بلاك فرايداي في لندن: أفضل العروض ودليل التسوق",
     summary_en:
       "Black Friday deals are live across London's major shopping destinations. From Harrods and Selfridges to Oxford Street and Westfield, find massive discounts on luxury goods, electronics, fashion, and beauty. Many deals are available both in-store and online. Arrive early for the best selections.",
     summary_ar:
@@ -371,6 +358,48 @@ const NEWS_TEMPLATES: NewsTemplate[] = [
     active_months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     ttl_days: 60,
   },
+  // Spring events — March/April/May
+  {
+    headline_en: "Spring in London: Best Gardens, Walks, and Outdoor Experiences",
+    headline_ar: "الربيع في لندن: أفضل الحدائق والمشي والتجارب في الهواء الطلق",
+    summary_en:
+      "Spring brings London's parks and gardens to life with cherry blossoms, tulips, and daffodils. Kew Gardens, Hyde Park, Regent's Park, and Greenwich Park are at their most beautiful. The Chelsea Flower Show and London Marathon are among the season's highlights. Enjoy longer days and milder weather for exploring on foot.",
+    summary_ar:
+      "يحيي الربيع حدائق لندن وحدائقها بأزهار الكرز والتوليب والنرجس. حدائق كيو وهايد بارك وريجنت بارك وغرينتش بارك في أجمل حالاتها. معرض تشيلسي للزهور وماراثون لندن من أبرز أحداث الموسم.",
+    announcement_en: "Spring gardens and events guide",
+    announcement_ar: "دليل حدائق وفعاليات الربيع",
+    news_category: "events",
+    source: TRUSTED_SOURCES[1], // Visit London
+    source_url: "https://www.visitlondon.com/things-to-do/whats-on/spring",
+    relevance_score: 80,
+    urgency: "normal",
+    is_major: true,
+    tags: ["spring", "gardens", "kew", "chelsea-flower-show", "london-marathon", "parks"],
+    keywords: ["spring london", "london gardens spring", "chelsea flower show", "kew gardens"],
+    active_months: [3, 4, 5],
+    ttl_days: 45,
+  },
+  // Ramadan guide (relevant for Arab audience)
+  {
+    headline_en: "Ramadan in London: Iftar, Mosques, and Halal Dining Guide",
+    headline_ar: "رمضان في لندن: الإفطار والمساجد ودليل المطاعم الحلال",
+    summary_en:
+      "London offers a welcoming Ramadan experience for Muslim visitors and residents. Many restaurants across Edgware Road, Knightsbridge, and Mayfair serve special iftar menus. The East London Mosque and London Central Mosque hold community iftars. Halal-certified restaurants throughout the city cater to those observing the fast.",
+    summary_ar:
+      "توفر لندن تجربة رمضانية ترحيبية للزوار والمقيمين المسلمين. تقدم العديد من المطاعم في إدجوير رود ونايتسبريدج ومايفير قوائم إفطار خاصة. يقيم مسجد شرق لندن والمسجد المركزي في لندن موائد إفطار جماعية.",
+    announcement_en: "Ramadan dining guide",
+    announcement_ar: "دليل المطاعم في رمضان",
+    news_category: "events",
+    source: TRUSTED_SOURCES[4], // Time Out
+    source_url: "https://www.timeout.com/london/restaurants/best-halal-restaurants-in-london",
+    relevance_score: 92,
+    urgency: "normal",
+    is_major: true,
+    tags: ["ramadan", "iftar", "halal", "mosques", "edgware-road", "muslim-friendly"],
+    keywords: ["ramadan london", "iftar london", "halal restaurants london", "mosques london"],
+    active_months: [2, 3, 4], // Ramadan shifts annually; covers Feb-Apr for 2026-2028
+    ttl_days: 35,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -407,65 +436,69 @@ function slugify(text: string): string {
 // Helper: compute related article slugs
 // ---------------------------------------------------------------------------
 
-interface ContentItem {
-  slug: string;
-  tags: string[];
-  keywords: string[];
-  published: boolean;
-}
-
-function computeRelatedArticleSlugs(
+/**
+ * Query live BlogPosts from DB to find related articles for a news item.
+ * Falls back gracefully if DB is unavailable.
+ */
+async function computeRelatedArticleSlugsFromDB(
+  prisma: import("@prisma/client").PrismaClient,
+  siteId: string,
   newsCategory: NewsCategory,
   newsTags: string[],
   newsKeywords: string[],
   maxResults: number = 3,
-): string[] {
-  const matchTagFamilies = CATEGORY_TO_ARTICLE_TAGS[newsCategory] ?? [];
+): Promise<string[]> {
+  try {
+    const matchTagFamilies = CATEGORY_TO_ARTICLE_TAGS[newsCategory] ?? [];
+    const allSearchTerms = [
+      ...newsTags.map((t) => t.toLowerCase()),
+      ...matchTagFamilies.map((t) => t.toLowerCase()),
+      ...newsKeywords.map((k) => k.toLowerCase()),
+    ];
 
-  // Normalise for case-insensitive comparison
-  const newsTagsLower = new Set([
-    ...newsTags.map((t) => t.toLowerCase()),
-    ...matchTagFamilies.map((t) => t.toLowerCase()),
-  ]);
-  const newsKeywordsLower = new Set(newsKeywords.map((k) => k.toLowerCase()));
+    if (allSearchTerms.length === 0) return [];
 
-  // Build a unified pool of content items
-  const pool: ContentItem[] = [
-    ...allBlogPosts
-      .filter((p) => p.published)
-      .map((p) => ({
-        slug: p.slug,
-        tags: p.tags ?? [],
-        keywords: p.keywords ?? [],
-        published: p.published,
-      })),
-    ...allInfoArticles
-      .filter((a) => a.published)
-      .map((a) => ({
-        slug: a.slug,
-        tags: a.tags ?? [],
-        keywords: a.keywords ?? [],
-        published: a.published,
-      })),
-  ];
+    // Query published BlogPosts for this site — lightweight select
+    const posts = await prisma.blogPost.findMany({
+      where: {
+        siteId,
+        published: true,
+      },
+      select: {
+        slug: true,
+        title_en: true,
+        category: true,
+      },
+      take: 200,
+      orderBy: { published_at: "desc" },
+    });
 
-  // Score each content item
-  const scored = pool.map((item) => {
-    let score = 0;
-    for (const tag of item.tags) {
-      if (newsTagsLower.has(tag.toLowerCase())) score += 15;
-    }
-    for (const kw of item.keywords) {
-      if (newsKeywordsLower.has(kw.toLowerCase())) score += 10;
-    }
-    return { slug: item.slug, score };
-  });
+    // Score each post by title/category keyword overlap
+    const scored = posts.map((post) => {
+      let score = 0;
+      const titleWords = (post.title_en || "").toLowerCase().split(/\s+/);
+      const categoryLower = (post.category || "").toLowerCase();
 
-  return scored
-    .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, maxResults)
-    .map((s) => s.slug);
+      for (const term of allSearchTerms) {
+        // Category match is strongest signal
+        if (categoryLower.includes(term)) score += 20;
+        // Title word match
+        for (const word of titleWords) {
+          if (word.includes(term) || term.includes(word)) score += 10;
+        }
+      }
+      return { slug: post.slug, score };
+    });
+
+    return scored
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxResults)
+      .map((s) => s.slug);
+  } catch (err) {
+    console.warn("[london-news] Related articles DB query failed:", err instanceof Error ? err.message : err);
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -521,33 +554,52 @@ ${runType === "weekly_deep" ? "\n### Weekly Deep: Cross-reference all news again
 // Helper: find info articles affected by a news category (for weekly_deep)
 // ---------------------------------------------------------------------------
 
-function findAffectedInfoArticles(
+/**
+ * Find published BlogPosts whose title/category relate to the news category.
+ * Used for weekly_deep fact-checking cross-referencing.
+ */
+async function findAffectedInfoArticlesFromDB(
+  prisma: import("@prisma/client").PrismaClient,
+  siteId: string,
   newsCategory: NewsCategory,
   newsTags: string[],
-): { slug: string; title_en: string; reason: string }[] {
-  const relevantTags = new Set([
-    ...newsTags.map((t) => t.toLowerCase()),
-    ...(CATEGORY_TO_ARTICLE_TAGS[newsCategory] ?? []).map((t) => t.toLowerCase()),
-  ]);
+): Promise<{ slug: string; title_en: string; reason: string }[]> {
+  try {
+    const searchTerms = [
+      ...newsTags.map((t) => t.toLowerCase()),
+      ...(CATEGORY_TO_ARTICLE_TAGS[newsCategory] ?? []).map((t) => t.toLowerCase()),
+    ];
+    if (searchTerms.length === 0) return [];
 
-  const affected: { slug: string; title_en: string; reason: string }[] = [];
+    const posts = await prisma.blogPost.findMany({
+      where: {
+        siteId,
+        published: true,
+      },
+      select: { slug: true, title_en: true, category: true },
+      take: 100,
+    });
 
-  for (const article of allInfoArticles) {
-    if (!article.published) continue;
-
-    const articleTags = (article.tags ?? []).map((t) => t.toLowerCase());
-    const overlap = articleTags.filter((t) => relevantTags.has(t));
-
-    if (overlap.length > 0) {
-      affected.push({
-        slug: article.slug,
-        title_en: article.title_en,
-        reason: `Matching tags: ${overlap.join(", ")}`,
-      });
+    const affected: { slug: string; title_en: string; reason: string }[] = [];
+    for (const post of posts) {
+      const titleLower = (post.title_en || "").toLowerCase();
+      const catLower = (post.category || "").toLowerCase();
+      const matches = searchTerms.filter(
+        (t) => titleLower.includes(t) || catLower.includes(t),
+      );
+      if (matches.length > 0) {
+        affected.push({
+          slug: post.slug,
+          title_en: post.title_en,
+          reason: `Matching terms: ${matches.join(", ")}`,
+        });
+      }
     }
+    return affected;
+  } catch (err) {
+    console.warn("[london-news] Affected articles DB query failed:", err instanceof Error ? err.message : err);
+    return [];
   }
-
-  return affected;
 }
 
 // ---------------------------------------------------------------------------
@@ -602,6 +654,15 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel Pro 60s limit
   const siteId = request.nextUrl.searchParams.get("site_id") || getDefaultSiteId();
+
+  // Skip yacht sites — they don't use the news pipeline
+  if (isYachtSite(siteId)) {
+    return NextResponse.json({
+      success: true,
+      skipped: true,
+      reason: `Yacht site ${siteId} does not use news pipeline`,
+    });
+  }
 
   // 2. Determine run type
   const runType = (request.nextUrl.searchParams.get("type") as "daily" | "weekly_deep") ?? "daily";
@@ -683,17 +744,24 @@ export async function GET(request: NextRequest) {
     itemsFound = selectedTemplates.length;
 
     // 5b. Supplement templates with LIVE news from Grok (if XAI_API_KEY is configured)
-    const liveNewsItems = await fetchLiveNewsViaGrok(runType);
+    const grokResult = await fetchLiveNewsViaGrok(runType);
+    const liveNewsItems = grokResult.items;
+    if (grokResult.status === "unavailable") {
+      console.warn("[london-news] Grok unavailable — XAI_API_KEY not configured. Only template news will be generated.");
+      errors.push("Grok unavailable: XAI_API_KEY not configured — only template-based news generated");
+    } else if (grokResult.status === "failed") {
+      console.warn(`[london-news] Grok API call failed: ${grokResult.errorMessage}`);
+      errors.push(`Grok API failed: ${grokResult.errorMessage}`);
+    }
     if (liveNewsItems.length > 0) {
       console.log(`[london-news] Grok returned ${liveNewsItems.length} live news items`);
-      // Mark Grok as a checked source immediately (don't wait for save loop)
       if (!sourcesChecked.includes("Grok Live Search")) {
         sourcesChecked.push("Grok Live Search");
       }
     }
 
     // 6. Create news items from selected templates + live news
-    const createdItems: { id: string; slug: string; headline: string; category: string }[] = [];
+    const createdItems: { id: string; slug: string; headline: string; category: string; updated?: boolean }[] = [];
 
     for (const template of selectedTemplates) {
       if (Date.now() - startTime > BUDGET_MS) {
@@ -703,18 +771,16 @@ export async function GET(request: NextRequest) {
       try {
         const baseSlug = slugify(template.headline_en);
 
-        // CHECK FOR EXISTING NEWS WITH SAME BASE TOPIC
-        // Instead of appending a date and creating a new URL every time,
-        // look for an existing news item with a matching slug prefix.
+        // CHECK FOR EXISTING NEWS WITH EXACT SAME SLUG
         // If found, UPDATE it (new content, new timestamp) instead of creating a duplicate.
+        // Use exact match — startsWith is too broad (e.g. "london" matches "london-ramadan-guide")
         const existingByBase = await prisma.newsItem.findFirst({
           where: {
             siteId,
-            slug: { startsWith: baseSlug },
+            slug: baseSlug,
             status: "published",
           },
           select: { id: true, slug: true },
-          orderBy: { created_at: "desc" },
         });
 
         if (existingByBase) {
@@ -746,6 +812,7 @@ export async function GET(request: NextRequest) {
             slug: existingByBase.slug,
             headline: template.headline_en,
             category: template.news_category,
+            updated: true,
           });
           continue;
         }
@@ -765,8 +832,10 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Compute related article slugs
-        const relatedArticleSlugs = computeRelatedArticleSlugs(
+        // Compute related article slugs from live DB
+        const relatedArticleSlugs = await computeRelatedArticleSlugsFromDB(
+          prisma,
+          siteId,
           template.news_category,
           template.tags,
           template.keywords,
@@ -775,8 +844,8 @@ export async function GET(request: NextRequest) {
         // Compute expiry date
         const expiresAt = new Date(today.getTime() + template.ttl_days * 24 * 60 * 60 * 1000);
 
-        // Find affected info articles for cross-referencing
-        const affectedInfo = findAffectedInfoArticles(template.news_category, template.tags);
+        // Find affected info articles for cross-referencing (live DB)
+        const affectedInfo = await findAffectedInfoArticlesFromDB(prisma, siteId, template.news_category, template.tags);
         const affectedInfoSlugs = affectedInfo.map((a) => a.slug);
         const updatesInfoArticle = affectedInfoSlugs.length > 0;
 
@@ -911,16 +980,14 @@ export async function GET(request: NextRequest) {
       try {
         const baseSlug = slugify(liveItem.headline_en || "london-news");
 
-        // CHECK FOR EXISTING NEWS WITH SAME BASE TOPIC
-        // Same logic as templates above — update existing instead of creating duplicates.
+        // CHECK FOR EXISTING NEWS WITH EXACT SAME SLUG
         const existingByBase = await prisma.newsItem.findFirst({
           where: {
             siteId,
-            slug: { startsWith: baseSlug },
+            slug: baseSlug,
             status: "published",
           },
           select: { id: true, slug: true },
-          orderBy: { created_at: "desc" },
         });
 
         if (existingByBase) {
@@ -944,6 +1011,7 @@ export async function GET(request: NextRequest) {
             slug: existingByBase.slug,
             headline: liveItem.headline_en || "",
             category: (liveItem.category || "general") as string,
+            updated: true,
           });
           continue;
         }
@@ -970,9 +1038,11 @@ export async function GET(request: NextRequest) {
 
         const ttlDays = liveItem.ttl_days || 3;
         const expiresAt = new Date(today.getTime() + ttlDays * 24 * 60 * 60 * 1000);
-        const relatedArticleSlugs = computeRelatedArticleSlugs(
+        const relatedArticleSlugs = await computeRelatedArticleSlugsFromDB(
+          prisma,
+          siteId,
           liveCategory,
-          [],
+          [liveCategory, "grok-live"],
           [],
         );
 
@@ -1080,6 +1150,8 @@ export async function GET(request: NextRequest) {
             items_archived: itemsArchived,
             created_items: createdItems,
             recent_categories_skipped: [...recentCategories],
+            grok_status: grokResult.status,
+            grok_error: grokResult.errorMessage || undefined,
             errors: errors.length > 0 ? errors : undefined,
           },
         },
@@ -1099,6 +1171,7 @@ export async function GET(request: NextRequest) {
         skipped: itemsSkipped,
         archived: itemsArchived,
         factsFlagged,
+        grokStatus: grokResult.status,
       },
     });
 
@@ -1117,6 +1190,8 @@ export async function GET(request: NextRequest) {
         itemsArchived,
         factsFlagged,
         sourcesChecked,
+        grokStatus: grokResult.status,
+        grokError: grokResult.errorMessage || undefined,
       },
       createdItems,
       errors: errors.length > 0 ? errors : undefined,
@@ -1214,20 +1289,26 @@ interface GrokLiveNewsItem {
   ttl_days: number;
 }
 
+interface GrokFetchResult {
+  items: GrokLiveNewsItem[];
+  status: "success" | "unavailable" | "failed";
+  errorMessage?: string;
+}
+
 /**
  * Fetch real-time London news via Grok's web_search tool.
  * Uses domain filtering to restrict results to TRUSTED_SOURCES.
- * Returns empty array if XAI_API_KEY is not configured (graceful degradation).
+ * Returns status info so callers can log Grok availability to CronJobLog.
  */
 async function fetchLiveNewsViaGrok(
   runType: string,
-): Promise<GrokLiveNewsItem[]> {
+): Promise<GrokFetchResult> {
   try {
     const { isGrokSearchAvailable, searchCityNews } = await import(
       "@/lib/ai/grok-live-search"
     );
     if (!isGrokSearchAvailable()) {
-      return [];
+      return { items: [], status: "unavailable", errorMessage: "XAI_API_KEY not configured" };
     }
 
     // Use the first 5 trusted domains for Grok web_search filtering
@@ -1243,7 +1324,7 @@ async function fetchLiveNewsViaGrok(
     jsonStr = jsonStr.trim();
 
     const parsed = JSON.parse(jsonStr);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return { items: [], status: "success" };
 
     // Limit to 3 items max for daily, 5 for weekly_deep
     const maxItems = runType === "weekly_deep" ? 5 : 3;
@@ -1252,12 +1333,13 @@ async function fetchLiveNewsViaGrok(
       `[london-news] Grok live search returned ${parsed.length} news items (using ${result.usage.totalTokens} tokens)`,
     );
 
-    return parsed.slice(0, maxItems) as GrokLiveNewsItem[];
+    return {
+      items: parsed.slice(0, maxItems) as GrokLiveNewsItem[],
+      status: "success",
+    };
   } catch (error) {
-    console.warn(
-      "[london-news] Grok live news fetch failed (non-fatal):",
-      error instanceof Error ? error.message : error,
-    );
-    return [];
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.warn("[london-news] Grok live news fetch failed (non-fatal):", errMsg);
+    return { items: [], status: "failed", errorMessage: errMsg };
   }
 }

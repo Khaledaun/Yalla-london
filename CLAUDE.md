@@ -2517,3 +2517,82 @@ Researched the `geo-seo-claude` tool and Princeton GEO research to identify opti
 49. **Never force Arab/Islamic angles on general topics** — "Best Afternoon Tea in London" should be a universal guide that happens to mention halal options. Not "Best Afternoon Tea for Arab Travelers".
 50. **All topic generation prompts must include explicit mix ratios** — AI defaults to the most specific angle it finds in the prompt. Without explicit "3-4 general, 1-2 niche" instructions, it generates all-niche topics.
 51. **primaryKeywordsEN drives trends monitoring AND topic dedup** — expanding it from 4 to 12 keywords means trends monitor tracks broader market signals, and topic dedup catches more overlap with published content.
+
+### Session: March 10, 2026 — GSC Cleanup, SEO URL Hygiene & Indexing State Audit
+
+**GSC Sitemap Cleanup (Manual — Khaled in GSC):**
+- Removed duplicate non-www sitemap (`https://yalla-london.com/sitemap.xml`, submitted Feb 20)
+- Kept canonical www sitemap (`https://www.yalla-london.com/sitemap.xml`, submitted March 10)
+- Two sitemaps were confusing Google about canonical domain
+
+**GSC URL Removals (Manual — Khaled in GSC):**
+- Submitted 6 legacy `?lang=ar` URLs for temporary removal:
+  - `https://www.yalla-london.com/?lang=ar`
+  - `https://www.yalla-london.com/about?lang=ar`
+  - `https://www.yalla-london.com/contact?lang=ar`
+  - `https://www.yalla-london.com/blog?lang=ar`
+  - `https://www.yalla-london.com/events?lang=ar`
+  - `https://www.yalla-london.com/recommendations?lang=ar`
+- These were indexed by Google but use the wrong URL pattern (should be `/ar/` prefix, not `?lang=ar`)
+
+**Fix 1: `?lang=ar` → `/ar/` Permanent 301 Redirect (`middleware.ts`):**
+- Added redirect in middleware BEFORE blog redirect section
+- `/?lang=ar` → `/ar/`, `/about?lang=ar` → `/ar/about`, etc.
+- Strips `lang` query parameter, preserves all other params
+- Makes GSC temporary removal permanent — Google follows 301 and updates index
+- Without this, URLs would reappear after GSC removal expires (~6 months)
+
+**Fix 2: Language Switcher URL Navigation (`components/language-switcher.tsx`):**
+- **Problem:** Language toggle was client-side state only (`setLanguage('ar')`) — URL stayed the same
+- Google couldn't discover Arabic pages via the switcher link
+- Users sharing an Arabic page would share the English URL
+- **Fix:** Now uses `router.push('/ar/about')` for Arabic and `router.push('/about')` for English
+- Aligns with `/ar/` prefix routing architecture
+- Arabic pages now properly discoverable by crawlers following navigation links
+
+**Full SEO URL Hygiene Audit (2 parallel agents, 200+ files scanned):**
+
+| Area | Status | Details |
+|------|--------|---------|
+| Canonical URLs | CLEAN | All use dynamic `getBaseUrl()`, no hardcoding |
+| Hreflang tags | CLEAN | All pages have en-GB, ar-SA, x-default |
+| `?lang=ar` links in code | CLEAN | Zero instances in any component or page |
+| Sitemap query params | CLEAN | No `?lang=`, `?token=`, `?utm_` in sitemap |
+| www/non-www redirect | CLEAN | Already in middleware (301 non-www → www) |
+| Trailing slashes | CLEAN | `trailingSlash: false` in next.config.js |
+| 404 handling | CLEAN | Proper `notFound()` usage, no false 200s |
+| Hardcoded domains | CLEAN | Only in test files, production uses dynamic |
+| URL encoding | CLEAN | No soft hyphens, double-encoding, or malformed URLs |
+| Robots.txt | CLEAN | All AI crawlers allowed, admin/API blocked |
+
+**Current Google Indexing State (as of March 10, 2026):**
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| Sitemap submitted | `www.yalla-london.com/sitemap.xml` | GSC (March 10) |
+| Duplicate sitemap | REMOVED (was `yalla-london.com/sitemap.xml`) | GSC cleanup |
+| `?lang=ar` URLs | 6 submitted for removal | GSC Removals |
+| `?lang=ar` redirect | 301 to `/ar/` (pending deploy) | middleware.ts |
+| Language switcher | URL-based navigation (pending deploy) | language-switcher.tsx |
+| IndexNow engines | Bing + Yandex + api.indexnow.org | lib/seo/indexing-service.ts |
+| Pre-pub gate checks | 16 total | pre-publication-gate.ts |
+
+**Known Indexing Issue — Arabic SSR (KG-032, still open):**
+- `/ar/` routes exist and return 200 status
+- hreflang tags promise `/ar/` pages with Arabic content
+- BUT: server renders English HTML, Arabic only loads client-side via React state
+- Googlebot sees English content at `/ar/about` — may cause hreflang mismatch warnings in GSC
+- **Impact:** Arabic pages may not be indexed as Arabic by Google
+- **Fix needed:** Server-side Arabic content rendering (read `x-locale` header in page components and return Arabic HTML from server)
+- **Priority:** MEDIUM — not blocking English indexing, but limits Arabic SEO
+
+**Deployment Required:**
+Both code fixes (`?lang=ar` redirect + language switcher) are committed and pushed but NOT live until deployed to Vercel.
+
+### Critical Rules Learned (March 10 Session — GSC/Indexing)
+
+52. **Never submit two sitemaps for www and non-www** — confuses Google about canonical domain. Keep only the canonical (www) version.
+53. **GSC URL removal is temporary (~6 months)** — always pair with a permanent 301 redirect in code so URLs don't reappear after removal expires.
+54. **Language switchers must change the URL, not just React state** — Google can't see client-side state changes. Use `router.push('/ar/path')` not `setLanguage('ar')`.
+55. **`?lang=ar` query parameters are a legacy anti-pattern** — the correct pattern is `/ar/` URL prefix. Any `?lang=` URLs in Google's index are duplicates that should be redirected.
+56. **Arabic SSR is required for proper hreflang compliance** — if hreflang promises Arabic content at `/ar/about` but Googlebot sees English HTML, Google may ignore the hreflang or flag it as a mismatch. Server must return Arabic HTML based on `x-locale` header.

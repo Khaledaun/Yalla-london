@@ -62,6 +62,7 @@ async function handleAutoFixLite(request: NextRequest) {
     stuckUnstuck: 0,
     stuckRejected: 0,
     headingsFixed: 0,
+    markdownConverted: 0,
     metaTrimmedPosts: 0,
     metaTrimmedDrafts: 0,
     titleArtifactsCleaned: 0,
@@ -166,6 +167,73 @@ async function handleAutoFixLite(request: NextRequest) {
       const msg = err instanceof Error ? err.message : String(err);
       results.errors.push(`heading-fix: ${msg}`);
       console.warn("[auto-fix-lite] Heading fix failed:", msg);
+    }
+  }
+
+  // ── 2b. MARKDOWN → HTML CONVERSION ──────────────────────────────────
+  // Some pipeline runs produce markdown instead of HTML. This converts them
+  // in the DB so the blog renderer doesn't show raw `# Heading` text.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      // Find posts whose content starts with markdown heading (# ) or has
+      // no HTML tags at all — these are markdown, not HTML
+      const markdownPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          OR: [
+            { content_en: { startsWith: "# " } },
+            { content_en: { startsWith: "## " } },
+          ],
+        },
+        select: { id: true, slug: true, content_en: true, content_ar: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      }), "markdown-fix") as Array<{ id: string; slug: string; content_en: string; content_ar: string }>;
+
+      const convertMarkdown = (text: string): string => {
+        if (!text) return text;
+        // Only convert if content looks like markdown
+        if (/<[a-z][\s\S]*?>/i.test(text) && !text.startsWith("# ")) return text;
+        let html = text;
+        html = html.replace(/^######\s+(.+)$/gm, "<h6>$1</h6>");
+        html = html.replace(/^#####\s+(.+)$/gm, "<h5>$1</h5>");
+        html = html.replace(/^####\s+(.+)$/gm, "<h4>$1</h4>");
+        html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+        html = html.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
+        html = html.replace(/^#\s+(.+)$/gm, "<h2>$1</h2>");
+        html = html.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
+        html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+        html = html.replace(/^[\-\*]\s+(.+)$/gm, "<li>$1</li>");
+        html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
+        html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, "<ul>$1</ul>");
+        html = html.replace(/^(?!<[a-z/])((?!$).+)$/gm, "<p>$1</p>");
+        html = html.replace(/<p>\s*<\/p>/g, "");
+        return html;
+      };
+
+      for (const post of markdownPosts) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        const updateData: Record<string, string> = {};
+        const enConverted = convertMarkdown(post.content_en);
+        if (enConverted !== post.content_en) updateData.content_en = enConverted;
+        if (post.content_ar && /^#{1,6}\s/m.test(post.content_ar)) {
+          const arConverted = convertMarkdown(post.content_ar);
+          if (arConverted !== post.content_ar) updateData.content_ar = arConverted;
+        }
+        if (Object.keys(updateData).length > 0) {
+          await prisma.blogPost.update({ where: { id: post.id }, data: updateData });
+          results.markdownConverted++;
+          console.log(`[auto-fix-lite] Converted markdown → HTML for: ${post.slug}`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`markdown-fix: ${msg}`);
+      console.warn("[auto-fix-lite] Markdown conversion failed:", msg);
     }
   }
 

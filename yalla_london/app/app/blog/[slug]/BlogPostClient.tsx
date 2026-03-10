@@ -120,7 +120,46 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
   // the H1 via the article title. This is a safety net for articles not yet
   // cleaned by the content-auto-fix-lite cron.
   const rawContentPreH1 = post ? (language === 'en' ? post.content_en : post.content_ar) : ''
-  const rawContent = rawContentPreH1
+
+  // Safety net: convert markdown syntax to HTML if content was stored as
+  // markdown instead of HTML (some older or failed pipeline runs). This
+  // prevents raw `# Heading` and `**bold**` from showing as plain text.
+  const markdownToHtml = (text: string): string => {
+    // Skip if content is already HTML (has at least one HTML tag)
+    if (/<[a-z][\s\S]*?>/i.test(text) && !text.startsWith('# ')) return text;
+    // Only convert if content looks like markdown (starts with # or has markdown patterns)
+    const hasMarkdown = /^#{1,6}\s|^\*\*|^\-\s|^\d+\.\s|\*\*[^*]+\*\*|\[.+\]\(.+\)/m.test(text);
+    if (!hasMarkdown) return text;
+
+    let html = text;
+    // Headings: # H1 → <h2> (demoted), ## H2 → <h2>, ### H3 → <h3>, etc.
+    html = html.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+    html = html.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^#\s+(.+)$/gm, '<h2>$1</h2>'); // H1 → H2 (page template has H1)
+    // Bold and italic
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Links: [text](url) → <a href="url">text</a>
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    // Unordered lists
+    html = html.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+    // Ordered lists
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    // Wrap consecutive <li> blocks in <ul>
+    html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul>$1</ul>');
+    // Paragraphs: wrap non-tag lines in <p>
+    html = html.replace(/^(?!<[a-z/])((?!$).+)$/gm, '<p>$1</p>');
+    // Clean up empty paragraphs
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    return html;
+  };
+
+  const rawContentMd = markdownToHtml(rawContentPreH1);
+  const rawContent = rawContentMd
     .replace(/<h1(\s[^>]*)?>|<h1>/gi, '<h2$1>')
     .replace(/<\/h1>/gi, '</h2>')
   const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))

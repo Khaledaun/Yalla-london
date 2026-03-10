@@ -34,16 +34,33 @@ export async function GET(request: NextRequest) {
     }
 
     const { runDealDiscovery } = await import("@/lib/affiliate/deal-discovery");
-    const result = await runDealDiscovery(50_000);
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const activeSites = getActiveSiteIds().filter((s: string) => s !== "zenitha-yachts-med");
+    const BUDGET_MS = 50_000;
+    const perSiteBudget = Math.floor(BUDGET_MS / Math.max(activeSites.length, 1));
+    const results: Record<string, unknown> = {};
+    let totalDeals = 0;
+
+    for (const site of activeSites) {
+      if (Date.now() - startTime > BUDGET_MS) break;
+      try {
+        const result = await runDealDiscovery(perSiteBudget, site);
+        results[site] = result;
+        totalDeals += result.totalDealsFound || 0;
+      } catch (err) {
+        console.warn(`[affiliate-discover-deals] ${site} failed:`, err instanceof Error ? err.message : String(err));
+        results[site] = { error: "failed" };
+      }
+    }
 
     const { logCronExecution } = await import("@/lib/cron-logger");
     await logCronExecution("affiliate-discover-deals", "completed", {
       durationMs: Date.now() - startTime,
-      itemsProcessed: result.totalDealsFound,
-      resultSummary: result as unknown as Record<string, unknown>,
+      itemsProcessed: totalDeals,
+      resultSummary: { sites: Object.keys(results), totalDeals, results },
     }).catch((err: Error) => console.warn("[affiliate-discover-deals] log failed:", err.message));
 
-    return NextResponse.json({ success: true, ...result, durationMs: Date.now() - startTime });
+    return NextResponse.json({ success: true, totalDeals, results, durationMs: Date.now() - startTime });
   } catch (error) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
     await onCronFailure({ jobName: "affiliate-discover-deals", error }).catch((err: Error) => console.warn("[affiliate-discover-deals] failure hook failed:", err.message));

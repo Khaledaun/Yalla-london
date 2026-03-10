@@ -102,6 +102,11 @@ export function getDealCategoriesForSite(siteId?: string): Record<string, string
       dining: ["thailand restaurant", "thai halal restaurant", "bangkok dining"],
       wellness: ["thailand spa", "thailand wellness resort", "thai massage retreat"],
     },
+    "zenitha-yachts-med": {
+      yachts: ["yacht charter", "luxury yacht charter", "mediterranean yacht rental"],
+      experiences: ["sailing vacation", "yacht cruise", "island hopping yacht"],
+      destinations: ["greek islands yacht", "croatia yacht charter", "turkey yacht"],
+    },
   };
 
   return SITE_DEAL_CATEGORIES[id] || SITE_DEAL_CATEGORIES["yalla-london"] || {};
@@ -145,6 +150,11 @@ export function getAdvertiserMapForSite(siteId?: string): Record<string, string[
       experience: ["GetYourGuide", "Viator", "Klook"],
       wellness: ["Booking.com", "Agoda"],
       transport: ["Kiwi.com", "12Go Asia"],
+    },
+    "zenitha-yachts-med": {
+      yacht: ["Boatbookings", "Click&Boat", "Zizooboats"],
+      experience: ["GetYourGuide", "Viator"],
+      transport: ["Kiwi.com", "Skyscanner"],
     },
   };
 

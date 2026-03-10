@@ -2363,3 +2363,20 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 41. **CJ API does NOT provide clicks/impressions/EPC/CTR** — those metrics only exist in CJ's UI reports. Track clicks locally via `CjClickEvent`. Never query CJ for click data.
 42. **`FixAction` interface requires `endpoint` (not `url`), `payload`, `label`, `description`** — always match the exact type definition in cycle-health/route.ts.
 43. **CJ API rate limit is 25 req/min** — always use the rate limiter in `cj-client.ts`. Circuit breaker opens after 3 consecutive failures with 5-min cooldown.
+
+**Multi-Site Affiliate Data Isolation — Known Schema Gaps (March 10 Audit):**
+
+The CJ Prisma models (`CjAdvertiser`, `CjLink`, `CjOffer`, `CjCommission`, `CjClickEvent`, `CjSyncLog`) have **NO `siteId` field**. This is architecturally correct for shared resources (one CJ account, advertisers are shared), but causes cross-site data leakage in revenue, clicks, and deals when multiple sites are active.
+
+**Immediate fixes applied:**
+- `apiUsageLog` aggregate in `getProfitabilityReport()` now scoped by `siteId`
+- `zenitha-yachts-med` added to `SITE_DEAL_CATEGORIES` and `SITE_ADVERTISER_MAPS`
+- `discover-deals` cron now loops all active sites with per-site budget
+
+**Schema migration needed before second site goes live:**
+- Add `siteId String?` to `CjCommission`, `CjClickEvent`, `CjOffer`
+- Populate `CjClickEvent.siteId` from `x-site-id` header in `trackClick()`
+- Populate `CjCommission.siteId` from SID parameter (format: `{siteId}_{slug}`)
+- Scope all dashboard/report queries by `siteId` where field exists
+- Revenue, partners, links tabs in `affiliate-hq` currently show global data (only coverage tab is per-site)
+- `checkLinkHealth()` in `monitor.ts` has no siteId parameter (global health score)

@@ -235,7 +235,7 @@ export async function getProfitabilityReport(siteId?: string): Promise<Profitabi
       where: { published: true, deletedAt: null, siteId: targetSiteId },
     }),
     prisma.apiUsageLog.aggregate({
-      where: { createdAt: { gte: d30 } },
+      where: { createdAt: { gte: d30 }, siteId: targetSiteId },
       _sum: { estimatedCostUsd: true },
     }),
   ]);

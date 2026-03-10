@@ -19,6 +19,33 @@ import {
 } from "./cj-client";
 
 // ---------------------------------------------------------------------------
+// Ensure AffiliateNetwork record exists (auto-seed on first use)
+// ---------------------------------------------------------------------------
+
+async function ensureNetworkExists(): Promise<void> {
+  const { prisma } = await import("@/lib/db");
+  const existing = await prisma.affiliateNetwork.findUnique({
+    where: { id: CJ_NETWORK_ID },
+  });
+  if (!existing) {
+    await prisma.affiliateNetwork.upsert({
+      where: { id: CJ_NETWORK_ID },
+      create: {
+        id: CJ_NETWORK_ID,
+        name: "CJ Affiliate",
+        slug: "cj",
+        apiBaseUrl: "https://commission-detail.api.cj.com",
+        apiTokenEnvVar: "CJ_API_TOKEN",
+        publisherId: process.env.CJ_PUBLISHER_CID || "",
+        status: "ACTIVE",
+      },
+      update: {},
+    });
+    console.log("[cj-sync] Auto-created AffiliateNetwork record:", CJ_NETWORK_ID);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Advertiser Sync
 // ---------------------------------------------------------------------------
 
@@ -44,6 +71,7 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
     };
   }
 
+  await ensureNetworkExists();
   const { prisma } = await import("@/lib/db");
   const result: SyncResult = { processed: 0, created: 0, updated: 0, errors: [] };
   const newlyApproved: string[] = [];
@@ -402,6 +430,13 @@ export async function syncCommissions(
 
           const status = mapCommissionStatus(rec.actionStatus);
 
+          if (!advertiser) {
+            result.errors.push(
+              `Skipping commission ${rec.actionId}: advertiser '${rec.advertiserName || rec.advertiserId}' not found in DB`
+            );
+            continue;
+          }
+
           await prisma.cjCommission.upsert({
             where: {
               networkId_externalId: {
@@ -411,7 +446,7 @@ export async function syncCommissions(
             },
             create: {
               networkId: CJ_NETWORK_ID,
-              advertiserId: advertiser?.id || "",
+              advertiserId: advertiser.id,
               externalId: rec.actionId,
               actionType: rec.actionType,
               saleAmount: rec.saleAmount,

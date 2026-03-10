@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
       joinedCount > 0 &&
       recentErrors.length === 0;
     const isWarning =
-      configured && (circuitBreaker.isOpen || recentErrors.length > 0 || pendingCount > 0);
+      configured && (circuitBreaker.isOpen || recentErrors.length > 0);
 
     return NextResponse.json({
       status: isHealthy ? "healthy" : isWarning ? "warning" : "critical",

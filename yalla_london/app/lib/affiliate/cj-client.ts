@@ -189,7 +189,7 @@ function parseCommission(xml: string): CjCommissionRecord {
     actionId: extractXmlText(xml, "action-id") || extractXmlText(xml, "original-action-id"),
     actionStatus: extractXmlText(xml, "action-status"),
     actionType: extractXmlText(xml, "action-type"),
-    advertiserId: extractXmlText(xml, "cid"),
+    advertiserId: extractXmlText(xml, "advertiser-cid") || extractXmlText(xml, "cid"),
     advertiserName: extractXmlText(xml, "advertiser-name"),
     commissionAmount: extractXmlNumber(xml, "commission-amount"),
     saleAmount: extractXmlNumber(xml, "sale-amount"),

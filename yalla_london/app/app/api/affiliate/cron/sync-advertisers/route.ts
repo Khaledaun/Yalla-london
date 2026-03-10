@@ -9,8 +9,6 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BUDGET_MS = 53_000;
-
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
@@ -36,8 +34,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, message: "CJ_API_TOKEN not configured" });
     }
 
+    const BUDGET_MS = 53_000;
     const { checkPendingAdvertisers } = await import("@/lib/affiliate/cj-sync");
-    const result = await checkPendingAdvertisers();
+    const result = await checkPendingAdvertisers(BUDGET_MS - (Date.now() - startTime));
 
     // If newly approved, log notification
     if (result.newlyApproved.length > 0) {

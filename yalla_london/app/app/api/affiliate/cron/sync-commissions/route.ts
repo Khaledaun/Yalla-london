@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
     const dateTo = new Date().toISOString().split("T")[0];
     const dateFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    const BUDGET_MS = 53_000;
     const { syncCommissions } = await import("@/lib/affiliate/cj-sync");
-    const result = await syncCommissions(dateFrom, dateTo);
+    const result = await syncCommissions(dateFrom, dateTo, BUDGET_MS - (Date.now() - startTime));
 
     const { logCronExecution } = await import("@/lib/cron-logger");
     await logCronExecution("affiliate-sync-commissions", "completed", {

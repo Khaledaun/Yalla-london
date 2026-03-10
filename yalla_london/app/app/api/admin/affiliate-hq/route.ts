@@ -1,0 +1,410 @@
+/**
+ * Affiliate HQ — Unified Dashboard API
+ *
+ * GET  — Returns aggregated data for all 5 dashboard tabs in a single request.
+ *        Accepts ?siteId=<id>&networkId=<id> for filtering.
+ * POST — Actions: sync_advertisers, sync_commissions, inject_links, refresh_deals,
+ *         toggle_flag, test_connection, search_products
+ */
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const { requireAdmin } = await import("@/lib/admin-middleware");
+  await requireAdmin(request);
+
+  const { prisma } = await import("@/lib/db");
+  const { CJ_NETWORK_ID, isCjConfigured, getWebsiteId, getCircuitBreakerState } = await import(
+    "@/lib/affiliate/cj-client"
+  );
+  const { getDefaultSiteId } = await import("@/config/sites");
+
+  const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
+  const start = Date.now();
+
+  try {
+    // ── Tab 1: Revenue Dashboard ──
+    const d7 = new Date(Date.now() - 7 * 86400_000);
+    const d30 = new Date(Date.now() - 30 * 86400_000);
+    const d60 = new Date(Date.now() - 60 * 86400_000);
+
+    const [commissions30d, commissionsPrev30d, commissions7d] = await Promise.all([
+      prisma.cjCommission.aggregate({
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+        _sum: { commissionAmount: true },
+        _count: true,
+      }),
+      prisma.cjCommission.aggregate({
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d60, lt: d30 } },
+        _sum: { commissionAmount: true },
+        _count: true,
+      }),
+      prisma.cjCommission.aggregate({
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d7 } },
+        _sum: { commissionAmount: true },
+        _count: true,
+      }),
+    ]);
+
+    const rev30 = commissions30d._sum.commissionAmount || 0;
+    const revPrev30 = commissionsPrev30d._sum.commissionAmount || 0;
+    const revTrend = revPrev30 > 0 ? ((rev30 - revPrev30) / revPrev30) * 100 : 0;
+
+    // Clicks 7d
+    const clicks7d = await prisma.cjClickEvent.count({ where: { createdAt: { gte: d7 } } });
+
+    // Top advertisers by commission
+    const topAdvertisers = await prisma.cjCommission.groupBy({
+      by: ["advertiserId"],
+      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+      _sum: { commissionAmount: true },
+      orderBy: { _sum: { commissionAmount: "desc" } },
+      take: 10,
+    });
+
+    // Resolve advertiser names
+    const advIds = topAdvertisers.map((a) => a.advertiserId);
+    const advNames = await prisma.cjAdvertiser.findMany({
+      where: { id: { in: advIds } },
+      select: { id: true, name: true },
+    });
+    const nameMap = new Map(advNames.map((a) => [a.id, a.name]));
+
+    // Top articles by clicks
+    const topClicks = await prisma.cjClickEvent.groupBy({
+      by: ["pageUrl"],
+      where: { createdAt: { gte: d30 } },
+      _count: true,
+      orderBy: { _count: { pageUrl: "desc" } },
+      take: 10,
+    });
+
+    const revenue = {
+      total30d: rev30,
+      total7d: commissions7d._sum.commissionAmount || 0,
+      count30d: commissions30d._count || 0,
+      trendPercent: Math.round(revTrend),
+      clicks7d,
+      topAdvertisers: topAdvertisers.map((a) => ({
+        name: nameMap.get(a.advertiserId) || "Unknown",
+        commission: a._sum.commissionAmount || 0,
+      })),
+      topArticlesByClicks: topClicks.map((c) => ({
+        url: c.pageUrl,
+        clicks: c._count,
+      })),
+    };
+
+    // ── Tab 2: Partners (Advertisers) ──
+    const advertisers = await prisma.cjAdvertiser.findMany({
+      where: { networkId: CJ_NETWORK_ID },
+      orderBy: { threeMonthEpc: "desc" },
+      select: {
+        id: true,
+        externalId: true,
+        name: true,
+        status: true,
+        category: true,
+        sevenDayEpc: true,
+        threeMonthEpc: true,
+        cookieDuration: true,
+        priority: true,
+        lastSynced: true,
+      },
+    });
+
+    const partners = {
+      networks: [
+        {
+          id: "cj",
+          name: "CJ Affiliate",
+          status: isCjConfigured() ? "active" : "unconfigured",
+          apiHealth: getCircuitBreakerState().isOpen ? "red" : isCjConfigured() ? "green" : "gray",
+          advertisers: advertisers.length,
+          websiteId: getWebsiteId() || null,
+        },
+      ],
+      advertisers: advertisers.map((a) => ({
+        id: a.id,
+        externalId: a.externalId,
+        name: a.name,
+        status: a.status,
+        category: a.category,
+        sevenDayEpc: a.sevenDayEpc,
+        threeMonthEpc: a.threeMonthEpc,
+        cookieDuration: a.cookieDuration,
+        priority: a.priority,
+        lastSynced: a.lastSynced,
+      })),
+    };
+
+    // ── Tab 3: Content Coverage ──
+    const totalPublished = await prisma.blogPost.count({
+      where: { published: true, deletedAt: null, siteId },
+    });
+
+    let withAffiliatesCount = 0;
+    if (totalPublished > 0) {
+      withAffiliatesCount = await prisma.blogPost.count({
+        where: {
+          published: true,
+          deletedAt: null,
+          siteId,
+          OR: [
+            { content_en: { contains: 'rel="sponsored' } },
+            { content_en: { contains: "affiliate-cta-block" } },
+          ],
+        },
+      });
+    }
+
+    const uncoveredArticles = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        deletedAt: null,
+        siteId,
+        NOT: {
+          OR: [
+            { content_en: { contains: 'rel="sponsored' } },
+            { content_en: { contains: "affiliate-cta-block" } },
+          ],
+        },
+      },
+      select: { id: true, title_en: true, slug: true, created_at: true },
+      orderBy: { created_at: "desc" },
+      take: 15,
+    });
+
+    const coverage = {
+      totalArticles: totalPublished,
+      withAffiliates: withAffiliatesCount,
+      withoutAffiliates: totalPublished - withAffiliatesCount,
+      coveragePercent: totalPublished > 0 ? Math.round((withAffiliatesCount / totalPublished) * 100) : 0,
+      uncoveredArticles: uncoveredArticles.map((a) => ({
+        id: a.id,
+        title: a.title_en,
+        slug: a.slug,
+        createdAt: a.created_at,
+      })),
+    };
+
+    // ── Tab 4: Links & Offers ──
+    const [totalLinksCount, activeLinksCount, linksByType] = await Promise.all([
+      prisma.cjLink.count({ where: { advertiser: { networkId: CJ_NETWORK_ID } } }),
+      prisma.cjLink.count({ where: { advertiser: { networkId: CJ_NETWORK_ID }, isActive: true } }),
+      prisma.cjLink.groupBy({
+        by: ["linkType"],
+        where: { advertiser: { networkId: CJ_NETWORK_ID } },
+        _count: true,
+      }),
+    ]);
+
+    const recentDeals = await prisma.cjOffer.findMany({
+      where: { networkId: CJ_NETWORK_ID, isActive: true },
+      include: { advertiser: { select: { name: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+    });
+
+    const links = {
+      total: totalLinksCount,
+      active: activeLinksCount,
+      inactive: totalLinksCount - activeLinksCount,
+      byType: Object.fromEntries(linksByType.map((l) => [l.linkType, l._count])),
+      recentDeals: recentDeals.map((d) => ({
+        id: d.id,
+        title: d.title,
+        advertiser: d.advertiser.name,
+        price: d.price,
+        previousPrice: d.previousPrice,
+        isPriceDrop: d.isPriceDropped,
+        isNewArrival: d.isNewArrival,
+        category: d.category,
+        validTo: d.validTo,
+      })),
+    };
+
+    // ── Tab 5: System Health ──
+    const syncLogs = await prisma.cjSyncLog.findMany({
+      where: { networkId: CJ_NETWORK_ID },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: {
+        id: true,
+        syncType: true,
+        status: true,
+        recordsProcessed: true,
+        recordsCreated: true,
+        recordsUpdated: true,
+        errors: true,
+        duration: true,
+        createdAt: true,
+      },
+    });
+
+    // Feature flags
+    let featureFlags: Array<{ name: string; enabled: boolean }> = [];
+    try {
+      featureFlags = await prisma.featureFlag.findMany({
+        where: { name: { startsWith: "FEATURE_AFFILIATE" } },
+        select: { name: true, enabled: true },
+        orderBy: { name: "asc" },
+      });
+    } catch {
+      // Feature flags table may not exist yet
+    }
+
+    const circuitBreaker = getCircuitBreakerState();
+
+    const systemHealth = {
+      circuitBreaker,
+      syncHistory: syncLogs.map((s) => ({
+        id: s.id,
+        type: s.syncType,
+        status: s.status,
+        processed: s.recordsProcessed,
+        created: s.recordsCreated,
+        updated: s.recordsUpdated,
+        errors: s.errors,
+        durationMs: s.duration,
+        time: s.createdAt,
+      })),
+      featureFlags,
+      credentials: {
+        apiTokenConfigured: isCjConfigured(),
+        websiteIdConfigured: !!getWebsiteId(),
+      },
+    };
+
+    return NextResponse.json({
+      success: true,
+      siteId,
+      revenue,
+      partners,
+      coverage,
+      links,
+      systemHealth,
+      durationMs: Date.now() - start,
+    });
+  } catch (error) {
+    console.error("[affiliate-hq] GET failed:", error instanceof Error ? error.message : String(error));
+    return NextResponse.json({ success: false, error: "Failed to load affiliate data" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const { requireAdmin } = await import("@/lib/admin-middleware");
+  await requireAdmin(request);
+
+  try {
+    const body = await request.json();
+    const { action } = body;
+
+    switch (action) {
+      case "sync_advertisers": {
+        const origin = request.nextUrl.origin;
+        const cronSecret = process.env.CRON_SECRET;
+        const headers: Record<string, string> = {};
+        if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+
+        const res = await fetch(`${origin}/api/affiliate/cron/sync-advertisers`, {
+          method: "POST",
+          headers,
+        });
+        const data = await res.json();
+        return NextResponse.json({ success: true, action, result: data });
+      }
+
+      case "sync_commissions": {
+        const origin = request.nextUrl.origin;
+        const cronSecret = process.env.CRON_SECRET;
+        const headers: Record<string, string> = {};
+        if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+
+        const res = await fetch(`${origin}/api/affiliate/cron/sync-commissions`, {
+          method: "POST",
+          headers,
+        });
+        const data = await res.json();
+        return NextResponse.json({ success: true, action, result: data });
+      }
+
+      case "refresh_deals": {
+        const origin = request.nextUrl.origin;
+        const cronSecret = process.env.CRON_SECRET;
+        const headers: Record<string, string> = {};
+        if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+
+        const res = await fetch(`${origin}/api/affiliate/cron/discover-deals`, {
+          method: "POST",
+          headers,
+        });
+        const data = await res.json();
+        return NextResponse.json({ success: true, action, result: data });
+      }
+
+      case "refresh_links": {
+        const origin = request.nextUrl.origin;
+        const cronSecret = process.env.CRON_SECRET;
+        const headers: Record<string, string> = {};
+        if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+
+        const res = await fetch(`${origin}/api/affiliate/cron/refresh-links`, {
+          method: "POST",
+          headers,
+        });
+        const data = await res.json();
+        return NextResponse.json({ success: true, action, result: data });
+      }
+
+      case "test_connection": {
+        const { isCjConfigured, getCircuitBreakerState } = await import("@/lib/affiliate/cj-client");
+        return NextResponse.json({
+          success: true,
+          action,
+          result: {
+            configured: isCjConfigured(),
+            circuitBreaker: getCircuitBreakerState(),
+          },
+        });
+      }
+
+      case "toggle_flag": {
+        const { prisma } = await import("@/lib/db");
+        const { flagName, enabled } = body;
+        if (!flagName) {
+          return NextResponse.json({ success: false, error: "flagName required" }, { status: 400 });
+        }
+        await prisma.featureFlag.upsert({
+          where: { name: flagName },
+          create: { name: flagName, enabled: !!enabled, description: `Affiliate flag: ${flagName}` },
+          update: { enabled: !!enabled },
+        });
+        return NextResponse.json({ success: true, action, flagName, enabled: !!enabled });
+      }
+
+      case "inject_links": {
+        const origin = request.nextUrl.origin;
+        const cronSecret = process.env.CRON_SECRET;
+        const headers: Record<string, string> = {};
+        if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+
+        const res = await fetch(`${origin}/api/cron/affiliate-injection`, {
+          method: "POST",
+          headers,
+        });
+        const data = await res.json();
+        return NextResponse.json({ success: true, action, result: data });
+      }
+
+      default:
+        return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
+    }
+  } catch (error) {
+    console.error("[affiliate-hq] POST failed:", error instanceof Error ? error.message : String(error));
+    return NextResponse.json({ success: false, error: "Action failed" }, { status: 500 });
+  }
+}

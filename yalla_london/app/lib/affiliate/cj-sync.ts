@@ -33,7 +33,7 @@ interface SyncResult {
  * Sync all advertisers from CJ — both joined and pending.
  * Detects status changes (PENDING → JOINED) and returns newly approved advertisers.
  */
-export async function syncAdvertisers(): Promise<{
+export async function syncAdvertisers(budgetMs = 50_000): Promise<{
   result: SyncResult;
   newlyApproved: string[]; // advertiser IDs that changed from PENDING to JOINED
 }> {
@@ -47,6 +47,8 @@ export async function syncAdvertisers(): Promise<{
   const { prisma } = await import("@/lib/db");
   const result: SyncResult = { processed: 0, created: 0, updated: 0, errors: [] };
   const newlyApproved: string[] = [];
+
+  const syncStart = Date.now();
 
   try {
     // Fetch joined advertisers
@@ -81,6 +83,12 @@ export async function syncAdvertisers(): Promise<{
     }
 
     for (const [, rec] of allRecords) {
+      // Budget guard
+      if (Date.now() - syncStart > budgetMs) {
+        console.warn("[cj-sync] Advertiser sync budget exhausted, returning partial result");
+        break;
+      }
+
       try {
         result.processed++;
 
@@ -352,7 +360,8 @@ export async function syncProducts(
  */
 export async function syncCommissions(
   dateFrom: string,
-  dateTo: string
+  dateTo: string,
+  budgetMs = 50_000
 ): Promise<SyncResult> {
   if (!isCjConfigured()) {
     return { processed: 0, created: 0, updated: 0, errors: ["CJ_API_TOKEN not configured"] };
@@ -361,11 +370,19 @@ export async function syncCommissions(
   const { prisma } = await import("@/lib/db");
   const result: SyncResult = { processed: 0, created: 0, updated: 0, errors: [] };
 
+  const syncStart = Date.now();
+
   try {
     let pageNumber = 1;
     let hasMore = true;
 
     while (hasMore) {
+      // Budget guard — stop before exhausting Vercel timeout
+      if (Date.now() - syncStart > budgetMs) {
+        console.warn("[cj-sync] Commission sync budget exhausted, returning partial result");
+        break;
+      }
+
       const response = await fetchCommissions({
         dateFrom,
         dateTo,
@@ -442,12 +459,13 @@ export async function syncCommissions(
 /**
  * Check pending advertisers — if any became JOINED, auto-fetch their links.
  */
-export async function checkPendingAdvertisers(): Promise<{
+export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
   checked: number;
   newlyApproved: string[];
   linksSynced: number;
 }> {
   const { prisma } = await import("@/lib/db");
+  const checkStart = Date.now();
 
   const pending = await prisma.cjAdvertiser.findMany({
     where: { networkId: CJ_NETWORK_ID, status: "PENDING" },
@@ -459,19 +477,28 @@ export async function checkPendingAdvertisers(): Promise<{
   }
 
   // Run a full advertiser sync to detect status changes
-  const { newlyApproved } = await syncAdvertisers();
+  const remaining = () => budgetMs - (Date.now() - checkStart);
+  const { newlyApproved } = await syncAdvertisers(remaining());
 
   let linksSynced = 0;
 
   // For each newly approved advertiser, fetch their links and products
   for (const advId of newlyApproved) {
+    if (remaining() < 5_000) {
+      console.warn("[cj-sync] Budget low, skipping remaining newly approved advertisers");
+      break;
+    }
+
     console.log(`[cj-sync] Auto-fetching links for newly approved advertiser: ${advId}`);
     const linksResult = await syncLinks(advId);
     linksSynced += linksResult.created;
 
-    // Also search for London-relevant products
-    const londonKeywords = ["london hotel", "london tour", "london restaurant"];
-    await syncProducts(advId, londonKeywords);
+    // Search for site-relevant products
+    if (remaining() > 5_000) {
+      const { getKeywordsForSite } = await import("./site-keywords");
+      const keywords = getKeywordsForSite();
+      await syncProducts(advId, keywords);
+    }
   }
 
   return {

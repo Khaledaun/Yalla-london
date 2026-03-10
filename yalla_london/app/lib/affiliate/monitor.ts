@@ -6,6 +6,7 @@
  */
 
 import { CJ_NETWORK_ID } from "./cj-client";
+import { getDefaultSiteId } from "@/config/sites";
 
 // ---------------------------------------------------------------------------
 // Link Health Monitor
@@ -102,7 +103,7 @@ export async function getRevenueReport(): Promise<RevenueReport> {
   const [last7, last30, prev30] = await Promise.all([
     prisma.cjCommission.findMany({
       where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d7 } },
-      select: { amount: true, advertiserId: true },
+      select: { commissionAmount: true, advertiserId: true },
     }),
     prisma.cjCommission.findMany({
       where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
@@ -114,20 +115,20 @@ export async function getRevenueReport(): Promise<RevenueReport> {
     }),
   ]);
 
-  const rev7 = last7.reduce((s, c) => s + c.amount, 0);
-  const rev30 = last30.reduce((s, c) => s + c.amount, 0);
+  const rev7 = last7.reduce((s, c) => s + c.commissionAmount, 0);
+  const rev30 = last30.reduce((s, c) => s + c.commissionAmount, 0);
 
   // Revenue by advertiser with trend
   const byAdv: Record<string, { current: number; previous: number; name: string }> = {};
   for (const c of last30) {
     const name = c.advertiser?.name || "Unknown";
     if (!byAdv[name]) byAdv[name] = { current: 0, previous: 0, name };
-    byAdv[name].current += c.amount;
+    byAdv[name].current += c.commissionAmount;
   }
   for (const c of prev30) {
     const name = c.advertiser?.name || "Unknown";
     if (!byAdv[name]) byAdv[name] = { current: 0, previous: 0, name };
-    byAdv[name].previous += c.amount;
+    byAdv[name].previous += c.commissionAmount;
   }
 
   const byAdvertiser = Object.values(byAdv)
@@ -158,11 +159,12 @@ export interface ContentCoverageReport {
   uncoveredArticles: Array<{ id: string; title: string; slug: string }>;
 }
 
-export async function getContentCoverage(): Promise<ContentCoverageReport> {
+export async function getContentCoverage(siteId?: string): Promise<ContentCoverageReport> {
   const { prisma } = await import("@/lib/db");
+  const targetSiteId = siteId || getDefaultSiteId();
 
   const articles = await prisma.blogPost.findMany({
-    where: { published: true, deletedAt: null, siteId: "yalla-london" },
+    where: { published: true, deletedAt: null, siteId: targetSiteId },
     select: { id: true, title_en: true, slug: true, content_en: true },
     orderBy: { created_at: "desc" },
     take: 200,
@@ -211,21 +213,22 @@ export interface ProfitabilityReport {
   revenuePerClick: number;
 }
 
-export async function getProfitabilityReport(): Promise<ProfitabilityReport> {
+export async function getProfitabilityReport(siteId?: string): Promise<ProfitabilityReport> {
   const { prisma } = await import("@/lib/db");
+  const targetSiteId = siteId || getDefaultSiteId();
 
   const d30 = new Date(Date.now() - 30 * 86400_000);
 
   const [commissions, clicks, articleCount, aiCosts] = await Promise.all([
     prisma.cjCommission.aggregate({
       where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
-      _sum: { amount: true },
+      _sum: { commissionAmount: true },
     }),
     prisma.cjClickEvent.count({
       where: { createdAt: { gte: d30 } },
     }),
     prisma.blogPost.count({
-      where: { published: true, deletedAt: null, siteId: "yalla-london" },
+      where: { published: true, deletedAt: null, siteId: targetSiteId },
     }),
     prisma.apiUsageLog.aggregate({
       where: { createdAt: { gte: d30 } },
@@ -233,7 +236,7 @@ export async function getProfitabilityReport(): Promise<ProfitabilityReport> {
     }),
   ]);
 
-  const totalRevenue = commissions._sum.amount || 0;
+  const totalRevenue = commissions._sum.commissionAmount || 0;
   const aiCost = (aiCosts._sum.estimatedCostUsd || 0);
   const hostingCost = 20; // Vercel Pro $20/month estimate
 

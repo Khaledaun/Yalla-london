@@ -149,20 +149,31 @@ export default function AdminNewsPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Trigger cron
+  // Trigger cron — route through departures API (adds CRON_SECRET header)
   const triggerCron = async (type: 'daily' | 'weekly_deep') => {
     setTriggering(true)
     setTriggerResult(null)
     try {
-      const res = await fetch(`/api/cron/london-news?type=${type}`, { method: 'GET' })
-      const data = await res.json()
-      setTriggerResult({
-        ok: res.ok,
-        message: res.ok
-          ? `Generated ${data.metrics?.itemsPublished ?? 0} news items`
-          : (data.error || 'Failed to trigger'),
+      const res = await fetch('/api/admin/departures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: `/api/cron/london-news?type=${type}` }),
       })
-      if (res.ok) fetchData()
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        let msg = 'Failed to trigger'
+        try { msg = JSON.parse(text).error || msg } catch { /* non-JSON */ }
+        setTriggerResult({ ok: false, message: msg })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setTriggerResult({
+          ok: true,
+          message: data.result?.metrics?.itemsPublished != null
+            ? `Generated ${data.result.metrics.itemsPublished} news items`
+            : 'News generation triggered successfully',
+        })
+        fetchData()
+      }
     } catch {
       setTriggerResult({ ok: false, message: 'Network error' })
     } finally {

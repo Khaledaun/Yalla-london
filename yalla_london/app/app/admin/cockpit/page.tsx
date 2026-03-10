@@ -1213,7 +1213,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
       if (json.success === false) {
         setActionResult(`❌ ${label}: ${json.error || "Failed"}`);
       } else if (json.published) {
-        setActionResult(`✅ Published ${json.published.length} articles. Skipped ${json.skipped?.length ?? 0}.`);
+        const skipReasons = (json.skipped ?? []).map((s: { reason?: string; keyword?: string }) => s.reason || s.keyword || "unknown").slice(0, 3).join("; ");
+        const skipMsg = json.skipped?.length > 0 ? ` Skipped ${json.skipped.length}: ${skipReasons}` : "";
+        setActionResult(`✅ Published ${json.published.length} articles.${skipMsg}`);
       } else {
         setActionResult(`✅ ${label} triggered`);
       }
@@ -1632,6 +1634,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2 }, "Publish")} loading={actionLoading === "Publish"} variant="success">
             📤 Force Publish (2)
+          </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2, skipDedup: true }, "Fix & Publish")} loading={actionLoading === "Fix & Publish"} variant="amber">
+            🔧 Fix & Publish
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google

@@ -1258,6 +1258,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// POST handler — delegates to GET for Vercel cron + departures board compatibility
+export async function POST(request: NextRequest) {
+  return GET(request);
+}
+
 // ---------------------------------------------------------------------------
 // Helper: map source to FactEntry source_type
 // ---------------------------------------------------------------------------

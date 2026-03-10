@@ -139,9 +139,9 @@ export async function phaseResearch(
   const { generateJSON } = await import("@/lib/ai/provider");
   const lang = getLocaleLabel(draft.locale);
 
-  const prompt = `You are an SEO research analyst for "${site.name}" (${site.destination} luxury travel for Arab travelers).
+  const prompt = `You are an SEO research analyst for "${site.name}" (${site.destination} luxury travel for international visitors, with special expertise for Arab and Gulf travelers).
 
-Analyze the keyword "${draft.keyword}" and provide comprehensive research data for writing a high-quality ${lang} article.
+Analyze the keyword "${draft.keyword}" and provide comprehensive research data for writing a high-quality ${lang} article. If the keyword is a general travel topic, research it broadly for all travelers. If it's a niche Arab/halal topic, go deep on that angle.
 
 Return JSON:
 {
@@ -179,7 +179,7 @@ Return JSON:
   try {
     const researchTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const research = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel SEO researcher for the ${site.destination} market targeting Arab travelers. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a luxury travel SEO researcher for the ${site.destination} market targeting international luxury travelers (with special expertise for Arab and Gulf visitors). Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,

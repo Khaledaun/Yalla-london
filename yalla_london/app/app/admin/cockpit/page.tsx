@@ -1635,6 +1635,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2 }, "Publish")} loading={actionLoading === "Publish"} variant="success">
             📤 Force Publish (2)
           </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2, skipDedup: true }, "Fix & Publish")} loading={actionLoading === "Fix & Publish"} variant="amber">
+            🔧 Fix & Publish
+          </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google
           </ActionButton>

@@ -28,6 +28,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
   let locale: "en" | "ar" | "both" = "both";
   let count = 2; // per language
   let specificDraftId: string | null = null;
+  let skipDedup = false;
 
   let siteId = getDefaultSiteId();
 
@@ -42,6 +43,10 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     // Accept specific draftId — publish that exact draft instead of picking by score
     if (body.draftId && typeof body.draftId === "string") {
       specificDraftId = body.draftId;
+    }
+    // Accept skipDedup — bypass title/keyword cannibalization checks
+    if (body.skipDedup === true) {
+      skipDedup = true;
     }
   } catch {
     // Use defaults
@@ -93,7 +98,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
       try {
         // Admin explicitly chose this draft — skip the pre-pub gate
-        const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true });
+        const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true, skipDedup });
         if (result) {
           log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
           logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: true, summary: `Published "${keyword}" → BlogPost ${result.blogPostId}`, durationMs: Date.now() - start, details: { blogPostId: result.blogPostId, keyword, locale: draft.locale, score } }).catch(() => {});
@@ -162,7 +167,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
         // ── Step 2: Promote to BlogPost — admin override skips pre-pub gate ────
         try {
-          const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true });
+          const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true, skipDedup });
           if (result) {
             published.push({ ...result, locale: lang });
             published_this_locale++;

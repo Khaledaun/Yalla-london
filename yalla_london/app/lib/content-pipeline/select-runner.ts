@@ -512,7 +512,7 @@ export async function promoteToBlogPost(
   prisma: any,
   SITES: Record<string, any>,
   getSiteDomain: (siteId: string) => string,
-  options?: { skipGate?: boolean },
+  options?: { skipGate?: boolean; skipDedup?: boolean },
 ): Promise<{ draftId: string; blogPostId: string; keyword: string; score: number } | null> {
   const { getDefaultSiteId } = await import("@/config/sites");
   const siteId = (draft.site_id as string) || getDefaultSiteId();
@@ -706,6 +706,8 @@ export async function promoteToBlogPost(
   // Uses normalized comparison: strips years, common filler words (guide, best, etc.),
   // and punctuation so "Best London Hotels 2026" matches "Top London Hotels Guide 2025".
   // This prevents near-duplicate articles that compete for the same SERP position.
+  // Skipped when admin explicitly chooses to publish via "Fix & Publish" (skipDedup: true).
+  if (!options?.skipDedup) {
   const normalizeForDedup = (t: string) => t.toLowerCase()
     .replace(/\b20\d{2}\b/g, '')
     .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
@@ -774,6 +776,7 @@ export async function promoteToBlogPost(
   } catch (cannibErr) {
     console.warn("[content-selector] Cannibalization check failed (non-fatal):", cannibErr instanceof Error ? cannibErr.message : cannibErr);
   }
+  } // end skipDedup guard
 
   // ── Slug artifact cleanup ──────────────────────────────────────────────
   // Detect hash/hex artifacts (e.g. "-a1b2c3d4", "-0e0828e5") or

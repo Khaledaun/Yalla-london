@@ -47,7 +47,7 @@ export function takeSnapshot(contentEn: string, contentAr: string, post: Record<
     h3Count: countMatches(contentEn, /<h3/gi),
     internalLinkCount: countMatches(contentEn, /class="internal-link"/gi) +
       countMatches(contentEn, /yalla-london\.com\/blog/gi),
-    affiliateLinkCount: countMatches(contentEn, /booking\.com|halalbooking|getyourguide|viator|agoda|klook|boatbookings/gi),
+    affiliateLinkCount: countMatches(contentEn, /booking\.com|halalbooking|getyourguide|viator|agoda|klook|boatbookings|anrdoezrs\.net|dpbolvw\.net|tkqlhce\.com|jdoqocy\.com|kqzyfj\.com|affiliate-recommendation|data-affiliate-id/gi),
     seoScore: (post.seo_score as number) || null,
     metaTitleEn: (post.meta_title_en as string) || null,
     metaDescEn: (post.meta_description_en as string) || null,

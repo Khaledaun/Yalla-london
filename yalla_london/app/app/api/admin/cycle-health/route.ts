@@ -760,7 +760,9 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
           published: true, deletedAt: null, siteId: targetSiteId,
           OR: [
             { content_en: { contains: 'rel="sponsored' } },
-            { content_en: { contains: "affiliate-cta-block" } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
+            { content_en: { contains: "data-affiliate-id" } },
           ],
         },
       });

@@ -899,6 +899,16 @@ function countAffiliateLinks(html: string): number {
     /airbnb\.com/gi,
     /skyscanner\.com/gi,
     /kayak\.com/gi,
+    // CJ affiliate redirect domains
+    /anrdoezrs\.net/gi,
+    /dpbolvw\.net/gi,
+    /tkqlhce\.com/gi,
+    /jdoqocy\.com/gi,
+    /kqzyfj\.com/gi,
+    /commission-junction\.com/gi,
+    // Injected affiliate classes
+    /class="affiliate-recommendation"/gi,
+    /data-affiliate-id/gi,
   ];
 
   let count = 0;

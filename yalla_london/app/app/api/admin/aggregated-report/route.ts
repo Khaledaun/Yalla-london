@@ -712,6 +712,77 @@ export async function GET(request: NextRequest) {
       } catch (e) { console.warn("[aggregated-report] platform health:", e instanceof Error ? e.message : e); }
     }
 
+    // ── Affiliate Performance (Section 9) ──
+    let affiliatePerformance: Record<string, unknown> | null = null;
+    {
+      const affStart = Date.now();
+      try {
+        const { isCjConfigured, CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
+        if (isCjConfigured()) {
+          const d30 = new Date(Date.now() - 30 * 86400_000);
+          const [joinedAdvs, activeLinks, commissions30d, clicks7d, lastSyncs] = await Promise.all([
+            prisma.cjAdvertiser.count({ where: { networkId: CJ_NETWORK_ID, status: "JOINED" } }),
+            prisma.cjLink.count({ where: { advertiser: { networkId: CJ_NETWORK_ID }, isActive: true } }),
+            prisma.cjCommission.aggregate({
+              where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+              _sum: { commissionAmount: true },
+              _count: true,
+            }),
+            prisma.cjClickEvent.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 86400_000) } } }),
+            prisma.cjSyncLog.findMany({
+              where: { networkId: CJ_NETWORK_ID },
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              select: { syncType: true, status: true, createdAt: true },
+            }),
+          ]);
+
+          // Coverage %
+          let coveragePercent = 0;
+          const totalPublished = await prisma.blogPost.count({
+            where: { published: true, deletedAt: null, siteId },
+          });
+          if (totalPublished > 0) {
+            const withAffiliates = await prisma.blogPost.count({
+              where: {
+                published: true, deletedAt: null, siteId,
+                OR: [
+                  { content_en: { contains: 'rel="sponsored' } },
+                  { content_en: { contains: "affiliate-recommendation" } },
+                  { content_en: { contains: 'rel="noopener sponsored"' } },
+                  { content_en: { contains: "data-affiliate-id" } },
+                ],
+              },
+            });
+            coveragePercent = Math.round((withAffiliates / totalPublished) * 100);
+          }
+
+          affiliatePerformance = {
+            configured: true,
+            joinedAdvertisers: joinedAdvs,
+            activeLinks,
+            commissions30d: {
+              total: commissions30d._sum.commissionAmount || 0,
+              count: commissions30d._count || 0,
+            },
+            clicks7d,
+            coveragePercent,
+            lastSyncs: lastSyncs.map(s => ({
+              type: s.syncType,
+              status: s.status,
+              time: s.createdAt,
+            })),
+            durationMs: Date.now() - affStart,
+          };
+        } else {
+          affiliatePerformance = { configured: false, note: "CJ_API_TOKEN not set" };
+        }
+      } catch (e) {
+        console.warn("[aggregated-report] affiliate:", e instanceof Error ? e.message : e);
+        affiliatePerformance = { configured: false, error: "Failed to query affiliate data" };
+      }
+    }
+
     // Google submission health check — surface whether GSC credentials are working
     const googleSubmissionHealth = {
       gscCredentialsConfigured: !!(process.env.GSC_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL),
@@ -738,6 +809,7 @@ export async function GET(request: NextRequest) {
       discovery,
       publicAudit,
       platformHealth,
+      affiliatePerformance,
       googleSubmissionHealth,
       latestArticles,
       issues,

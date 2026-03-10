@@ -51,6 +51,8 @@ export async function processContent(
     language: "en" | "ar";
     articleId?: string;
     baseUrl?: string;
+    slug?: string;
+    siteId?: string;
   }
 ): Promise<ProcessedContent> {
   const injectedLinks: ProcessedContent["injectedLinks"] = [];
@@ -66,13 +68,14 @@ export async function processContent(
     // If feature flag check fails, proceed anyway
   }
 
-  // Get matching links
+  // Get matching links (per-site)
   const injection = await getLinksForContent(
     html,
     metadata.language,
     metadata.category,
     metadata.tags,
-    MAX_AFFILIATE_LINKS
+    MAX_AFFILIATE_LINKS,
+    metadata.siteId
   );
 
   if (injection.links.length === 0) {
@@ -98,7 +101,11 @@ export async function processContent(
     if (targetIndex <= 0) continue; // Never inject before/into first paragraph
     if (targetIndex - lastInjectionIndex < MIN_PARAGRAPHS_BETWEEN_INJECTIONS) continue;
 
-    const trackingUrl = generateTrackingUrl(link.id, metadata.baseUrl);
+    // Build SID for revenue attribution: siteId_articleSlug
+    const sid = metadata.slug
+      ? `${metadata.siteId || "default"}_${metadata.slug}`.substring(0, 100)
+      : undefined;
+    const trackingUrl = generateTrackingUrl(link.id, metadata.baseUrl, sid);
     const ctaHtml = generateCtaBlock(link, trackingUrl, metadata.language);
 
     // Insert CTA after the target paragraph

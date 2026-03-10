@@ -667,6 +667,95 @@ test("SEO Dashboard", "seo-command no Math.random() fake data", () => {
     : { status: PASS, details: "No fake random data" };
 });
 
+// ==================== CATEGORY 17: CJ Affiliate Integration ====================
+
+test("CJ Affiliate", "CJ_API_TOKEN env var referenced in cj-client.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/cj-client.ts"), "utf-8");
+  return content.includes("CJ_API_TOKEN")
+    ? { status: PASS, details: "CJ_API_TOKEN referenced in cj-client" }
+    : { status: FAIL, details: "CJ_API_TOKEN not found in cj-client.ts" };
+});
+
+test("CJ Affiliate", "CJ_WEBSITE_ID env var wired in cj-client.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/cj-client.ts"), "utf-8");
+  return content.includes("CJ_WEBSITE_ID") && content.includes("getWebsiteId")
+    ? { status: PASS, details: "CJ_WEBSITE_ID wired via getWebsiteId()" }
+    : { status: FAIL, details: "CJ_WEBSITE_ID not wired in cj-client.ts" };
+});
+
+test("CJ Affiliate", "monitor.ts uses commissionAmount not amount", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/monitor.ts"), "utf-8");
+  const hasWrongField = /\bc\.amount\b/.test(content) || content.includes("_sum: { amount:");
+  return !hasWrongField
+    ? { status: PASS, details: "Uses commissionAmount correctly" }
+    : { status: FAIL, details: "Still references c.amount — will crash at runtime" };
+});
+
+test("CJ Affiliate", "No hardcoded 'yalla-london' in lib/affiliate/*.ts", () => {
+  const files = ["monitor.ts", "deal-discovery.ts", "link-injector.ts", "cj-sync.ts"];
+  const violations: string[] = [];
+  for (const f of files) {
+    try {
+      const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate", f), "utf-8");
+      if (content.includes('"yalla-london"') || content.includes("'yalla-london'")) {
+        violations.push(f);
+      }
+    } catch { /* file may not exist */ }
+  }
+  return violations.length === 0
+    ? { status: PASS, details: "No hardcoded yalla-london in affiliate modules" }
+    : { status: FAIL, details: `Hardcoded in: ${violations.join(", ")}` };
+});
+
+test("CJ Affiliate", "Circuit breaker in cj-client.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/cj-client.ts"), "utf-8");
+  return content.includes("isCircuitOpen") && content.includes("recordCjFailure")
+    ? { status: PASS, details: "Circuit breaker pattern implemented" }
+    : { status: FAIL, details: "Missing circuit breaker in CJ API client" };
+});
+
+test("CJ Affiliate", "SID tracking in link-tracker.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/link-tracker.ts"), "utf-8");
+  return content.includes("sid") && content.includes("generateTrackingUrl")
+    ? { status: PASS, details: "SID parameter supported in tracking URLs" }
+    : { status: FAIL, details: "Missing SID support in link-tracker" };
+});
+
+test("CJ Affiliate", "Per-site keywords in site-keywords.ts", () => {
+  try {
+    const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/site-keywords.ts"), "utf-8");
+    const hasSites = content.includes("arabaldives") && content.includes("istanbul") && content.includes("french-riviera");
+    return hasSites
+      ? { status: PASS, details: "Per-site keyword maps for all destinations" }
+      : { status: FAIL, details: "Missing site keyword maps" };
+  } catch {
+    return { status: FAIL, details: "site-keywords.ts file not found" };
+  }
+});
+
+test("CJ Affiliate", "Budget guards in all 4 affiliate cron routes", () => {
+  const cronRoutes = [
+    "app/api/affiliate/cron/sync-advertisers/route.ts",
+    "app/api/affiliate/cron/sync-commissions/route.ts",
+    "app/api/affiliate/cron/refresh-links/route.ts",
+    "app/api/affiliate/cron/discover-deals/route.ts",
+  ];
+  const missing: string[] = [];
+  for (const route of cronRoutes) {
+    try {
+      const content = fs.readFileSync(path.join(APP_DIR, route), "utf-8");
+      if (!content.includes("BUDGET") && !content.includes("budgetMs") && !content.includes("budget")) {
+        missing.push(route.split("/").pop() || route);
+      }
+    } catch {
+      missing.push(route.split("/").pop() || route);
+    }
+  }
+  return missing.length === 0
+    ? { status: PASS, details: "All 4 affiliate cron routes have budget guards" }
+    : { status: WARN, details: `Missing budget guard in: ${missing.join(", ")}` };
+});
+
 // ==================== PRINT RESULTS ====================
 
 console.log("\n" + "=".repeat(80));

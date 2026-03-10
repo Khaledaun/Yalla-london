@@ -722,6 +722,89 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     }
   } catch { /* CampaignItem/BlogPost table may not exist */ }
 
+  // ── 15. AFFILIATE: CJ sync staleness ──
+  try {
+    const { CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
+    const lastAdvSync = await prisma.cjSyncLog.findFirst({
+      where: { networkId: CJ_NETWORK_ID, syncType: "ADVERTISERS" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, status: true },
+    });
+    if (lastAdvSync) {
+      const hoursSinceSync = (Date.now() - lastAdvSync.createdAt.getTime()) / 3600_000;
+      if (hoursSinceSync > 12) {
+        issues.push({
+          id: "cj-sync-stale",
+          category: "cron",
+          severity: hoursSinceSync > 24 ? "critical" : "warning",
+          what: `CJ advertiser sync is ${Math.round(hoursSinceSync)}h stale`,
+          why: `Last sync was ${lastAdvSync.createdAt.toISOString()} (status: ${lastAdvSync.status}). Expected every 6h.`,
+          fix: "Run affiliate-sync-advertisers cron from Departures Board or check if CJ feature flags are disabled.",
+          fixAction: { method: "POST", endpoint: "/api/affiliate/cron/sync-advertisers", payload: {}, label: "Sync Advertisers", description: "Run CJ advertiser sync cron" },
+          evidence: { hoursSinceSync: Math.round(hoursSinceSync), lastStatus: lastAdvSync.status },
+        });
+      }
+    }
+  } catch { /* CJ tables may not exist yet */ }
+
+  // ── 16. AFFILIATE: Zero coverage articles ──
+  try {
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const targetSiteId = siteId || getDefaultSiteId();
+    const totalPublished = await prisma.blogPost.count({
+      where: { published: true, deletedAt: null, siteId: targetSiteId },
+    });
+    if (totalPublished > 5) {
+      const withAffiliates = await prisma.blogPost.count({
+        where: {
+          published: true, deletedAt: null, siteId: targetSiteId,
+          OR: [
+            { content_en: { contains: 'rel="sponsored' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
+            { content_en: { contains: "data-affiliate-id" } },
+          ],
+        },
+      });
+      const coveragePercent = Math.round((withAffiliates / totalPublished) * 100);
+      if (coveragePercent < 80) {
+        issues.push({
+          id: "cj-low-coverage",
+          category: "content",
+          severity: coveragePercent < 50 ? "warning" : "info",
+          what: `Only ${coveragePercent}% of published articles have affiliate links (${withAffiliates}/${totalPublished})`,
+          why: "Articles without affiliate links generate zero revenue. Target is 80%+ coverage.",
+          fix: "Run affiliate-injection cron or a campaign with 'add_revenue' preset.",
+          fixAction: null,
+          evidence: { withAffiliates, totalPublished, coveragePercent },
+        });
+      }
+    }
+  } catch { /* BlogPost table may not exist */ }
+
+  // ── 17. AFFILIATE: Commission sync errors ──
+  try {
+    const { CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
+    const lastCommSync = await prisma.cjSyncLog.findFirst({
+      where: { networkId: CJ_NETWORK_ID, syncType: "COMMISSIONS" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, status: true, errors: true },
+    });
+    if (lastCommSync && (lastCommSync.status === "FAILED" || lastCommSync.status === "PARTIAL")) {
+      const errorCount = Array.isArray(lastCommSync.errors) ? (lastCommSync.errors as string[]).length : 0;
+      issues.push({
+        id: "cj-commission-sync-error",
+        category: "cron",
+        severity: lastCommSync.status === "FAILED" ? "warning" : "info",
+        what: `Last commission sync ${lastCommSync.status.toLowerCase()} with ${errorCount} error${errorCount !== 1 ? "s" : ""}`,
+        why: `Commission sync ran at ${lastCommSync.createdAt.toISOString()} but encountered errors. Revenue data may be incomplete.`,
+        fix: "Check CJ API credentials and run sync-commissions cron manually.",
+        fixAction: { method: "POST", endpoint: "/api/affiliate/cron/sync-commissions", payload: {}, label: "Sync Commissions", description: "Run CJ commission sync cron" },
+        evidence: { status: lastCommSync.status, errorCount, lastRun: lastCommSync.createdAt },
+      });
+    }
+  } catch { /* CJ tables may not exist yet */ }
+
   // ── Calculate grade ──
   let score = 100;
   for (const issue of issues) {

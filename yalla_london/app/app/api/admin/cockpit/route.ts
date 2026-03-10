@@ -1021,6 +1021,29 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
     snapshot.revenueWeekUsd = Math.round((conversions._sum?.commission ?? 0)) / 100; // cents → dollars
     snapshot.topPartner = topPartnerGroup[0]?.partner_id ?? null;
     snapshot.aiCostWeekUsd = Math.round((aiCosts._sum?.estimatedCostUsd ?? 0) * 100) / 100;
+
+    // Merge CJ-specific data (separate tables from generic tracking)
+    try {
+      const cjClicks = await prisma.cjClickEvent.count({
+        where: { createdAt: { gte: weekAgo } },
+      }).catch(() => 0);
+      const cjClicksToday = await prisma.cjClickEvent.count({
+        where: { createdAt: { gte: todayStart } },
+      }).catch(() => 0);
+      const cjCommissions = await prisma.cjCommission.aggregate({
+        _count: { id: true },
+        _sum: { commissionAmount: true },
+        where: { eventDate: { gte: weekAgo } },
+      }).catch(() => ({ _count: { id: 0 }, _sum: { commissionAmount: null } }));
+
+      // Add CJ data to generic totals
+      snapshot.affiliateClicksToday += cjClicksToday;
+      snapshot.affiliateClicksWeek += cjClicks;
+      snapshot.conversionsWeek += cjCommissions._count?.id ?? 0;
+      snapshot.revenueWeekUsd += Math.round((cjCommissions._sum?.commissionAmount ?? 0) * 100) / 100;
+    } catch {
+      // CJ tables may not exist yet — silently skip
+    }
   } catch (err) {
     console.warn("[cockpit] revenue snapshot failed:", err instanceof Error ? err.message : err);
   }

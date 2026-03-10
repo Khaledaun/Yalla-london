@@ -18,18 +18,22 @@ export async function trackClick(opts: {
   userAgent?: string;
   sessionId?: string;
   country?: string;
+  sid?: string;
 }): Promise<string | null> {
   try {
     const { prisma } = await import("@/lib/db");
 
     const device = detectDevice(opts.userAgent || "");
 
+    // Store SID in sessionId for revenue attribution (format: siteId_articleSlug)
+    const sessionId = opts.sid || opts.sessionId || null;
+
     await prisma.cjClickEvent.create({
       data: {
         linkId: opts.linkId,
         pageUrl: opts.pageUrl,
         userAgent: opts.userAgent || null,
-        sessionId: opts.sessionId || null,
+        sessionId,
         country: opts.country || null,
         device,
       },
@@ -50,7 +54,15 @@ export async function trackClick(opts: {
       select: { affiliateUrl: true },
     });
 
-    return link?.affiliateUrl || null;
+    if (!link?.affiliateUrl) return null;
+
+    // Append SID to CJ affiliate URL for commission attribution
+    if (opts.sid) {
+      const separator = link.affiliateUrl.includes("?") ? "&" : "?";
+      return `${link.affiliateUrl}${separator}sid=${encodeURIComponent(opts.sid)}`;
+    }
+
+    return link.affiliateUrl;
   } catch (err) {
     console.warn("[link-tracker] Failed to track click:", err instanceof Error ? err.message : String(err));
     return null;
@@ -60,10 +72,20 @@ export async function trackClick(opts: {
 /**
  * Generate an internal tracking URL that wraps the CJ affiliate URL.
  * When clicked, it tracks the click then 302 redirects to the CJ URL.
+ *
+ * @param linkId - The CJ link database ID
+ * @param baseUrl - Optional base URL prefix
+ * @param sid - Optional Sub-ID for revenue attribution (format: siteId_articleSlug)
  */
-export function generateTrackingUrl(linkId: string, baseUrl?: string): string {
+export function generateTrackingUrl(linkId: string, baseUrl?: string, sid?: string): string {
   const base = baseUrl || "";
-  return `${base}/api/affiliate/click?id=${encodeURIComponent(linkId)}`;
+  let url = `${base}/api/affiliate/click?id=${encodeURIComponent(linkId)}`;
+  if (sid) {
+    // CJ SID max length is 100 characters
+    const truncatedSid = sid.substring(0, 100);
+    url += `&sid=${encodeURIComponent(truncatedSid)}`;
+  }
+  return url;
 }
 
 /**

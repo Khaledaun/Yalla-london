@@ -10,27 +10,30 @@
  */
 
 import { searchProducts, CJ_NETWORK_ID, isCjConfigured } from "./cj-client";
+import { getDealCategoriesForSite } from "./site-keywords";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
 // ---------------------------------------------------------------------------
-// Category & Seasonal Keywords
+// Category & Seasonal Keywords (per-site)
 // ---------------------------------------------------------------------------
 
-const CATEGORY_KEYWORDS = [
-  { keyword: "hotels london", category: "hotel" },
-  { keyword: "flights london", category: "flight" },
-  { keyword: "tours london", category: "experience" },
-  { keyword: "halal restaurants london", category: "dining" },
-  { keyword: "luxury experiences london", category: "experience" },
-  { keyword: "car rental london", category: "transport" },
-  { keyword: "airport transfer london", category: "transport" },
-  { keyword: "travel insurance uk", category: "insurance" },
-  { keyword: "luxury shopping london", category: "shopping" },
-  { keyword: "london attractions tickets", category: "experience" },
-];
+function getCategoryKeywords(siteId?: string): Array<{ keyword: string; category: string }> {
+  const categories = getDealCategoriesForSite(siteId);
+  const result: Array<{ keyword: string; category: string }> = [];
+  for (const [category, keywords] of Object.entries(categories)) {
+    for (const keyword of keywords) {
+      result.push({ keyword, category });
+    }
+  }
+  return result;
+}
 
-function getSeasonalKeywords(): Array<{ keyword: string; category: string }> {
+function getSeasonalKeywords(siteId?: string): Array<{ keyword: string; category: string }> {
   const month = new Date().getMonth(); // 0-indexed
   const keywords: Array<{ keyword: string; category: string }> = [];
+  const id = siteId || getDefaultSiteId();
+  const config = getSiteConfig(id);
+  const dest = config?.destination?.toLowerCase() || "london";
 
   // Current month + next 2 months
   const monthNames = [
@@ -41,23 +44,22 @@ function getSeasonalKeywords(): Array<{ keyword: string; category: string }> {
   for (let i = 0; i < 3; i++) {
     const m = (month + i) % 12;
     keywords.push(
-      { keyword: `${monthNames[m]} london deals`, category: "travel" },
+      { keyword: `${monthNames[m]} ${dest} deals`, category: "travel" },
     );
   }
 
-  // Add specific seasonal events
+  // Ramadan/Eid — relevant for all sites targeting Arab travelers
   if (month >= 2 && month <= 4) {
-    keywords.push({ keyword: "ramadan london", category: "dining" });
-    keywords.push({ keyword: "eid london", category: "experience" });
+    keywords.push({ keyword: `ramadan ${dest}`, category: "dining" });
+    keywords.push({ keyword: `eid ${dest}`, category: "experience" });
   }
   if (month >= 10 || month <= 0) {
-    keywords.push({ keyword: "christmas london", category: "experience" });
-    keywords.push({ keyword: "new year london", category: "experience" });
-    keywords.push({ keyword: "winter london hotel", category: "hotel" });
+    keywords.push({ keyword: `winter ${dest} hotel`, category: "hotel" });
+    keywords.push({ keyword: `new year ${dest}`, category: "experience" });
   }
   if (month >= 5 && month <= 7) {
-    keywords.push({ keyword: "summer london", category: "experience" });
-    keywords.push({ keyword: "summer deals london hotel", category: "hotel" });
+    keywords.push({ keyword: `summer ${dest}`, category: "experience" });
+    keywords.push({ keyword: `summer deals ${dest} hotel`, category: "hotel" });
   }
 
   return keywords;
@@ -78,9 +80,9 @@ export interface DealDiscoveryResult {
 
 /**
  * Run the full deal discovery engine.
- * Searches across all joined advertisers for London-relevant deals.
+ * Searches across all joined advertisers for site-relevant deals.
  */
-export async function runDealDiscovery(budgetMs = 50_000): Promise<DealDiscoveryResult> {
+export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Promise<DealDiscoveryResult> {
   if (!isCjConfigured()) {
     return {
       totalDealsFound: 0,
@@ -115,8 +117,8 @@ export async function runDealDiscovery(budgetMs = 50_000): Promise<DealDiscovery
 
   const advertiserIds = joinedAdvertisers.map((a) => a.externalId);
 
-  // Combine category + seasonal keywords
-  const allKeywords = [...CATEGORY_KEYWORDS, ...getSeasonalKeywords()];
+  // Combine category + seasonal keywords (per-site)
+  const allKeywords = [...getCategoryKeywords(siteId), ...getSeasonalKeywords(siteId)];
 
   for (const { keyword, category } of allKeywords) {
     // Budget check

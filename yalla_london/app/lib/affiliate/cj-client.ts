@@ -278,6 +278,46 @@ const CJ_PUBLISHER_CID = "7895467";
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
 
+// ---------------------------------------------------------------------------
+// Circuit Breaker — opens after 3 consecutive failures, 5-min cooldown
+// ---------------------------------------------------------------------------
+
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+let _circuitFailures = 0;
+let _circuitOpenedAt = 0;
+
+function isCircuitOpen(): boolean {
+  if (_circuitFailures < CIRCUIT_BREAKER_THRESHOLD) return false;
+  // Check if cooldown has passed
+  if (Date.now() - _circuitOpenedAt > CIRCUIT_BREAKER_COOLDOWN_MS) {
+    // Half-open: allow one probe
+    _circuitFailures = CIRCUIT_BREAKER_THRESHOLD - 1;
+    return false;
+  }
+  return true;
+}
+
+function recordCjSuccess(): void {
+  _circuitFailures = 0;
+}
+
+function recordCjFailure(): void {
+  _circuitFailures++;
+  if (_circuitFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    _circuitOpenedAt = Date.now();
+    console.warn(`[cj-client] Circuit breaker OPEN after ${_circuitFailures} consecutive failures. Cooldown: ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`);
+  }
+}
+
+/**
+ * Get the current circuit breaker state for health checks.
+ */
+export function getCircuitBreakerState(): { failures: number; isOpen: boolean; openedAt: number } {
+  return { failures: _circuitFailures, isOpen: isCircuitOpen(), openedAt: _circuitOpenedAt };
+}
+
 let _rateLimiter: RateLimiter | null = null;
 
 function getRateLimiter(): RateLimiter {
@@ -306,6 +346,11 @@ async function cjFetch(
   params: Record<string, string> = {},
   retryCount = 0
 ): Promise<string> {
+  // Circuit breaker check
+  if (isCircuitOpen()) {
+    throw createCjError("CJ API circuit breaker is OPEN — too many consecutive failures. Will retry after cooldown.", 503);
+  }
+
   const limiter = getRateLimiter();
   await limiter.acquire();
 
@@ -365,10 +410,12 @@ async function cjFetch(
       );
     }
 
-    return await response.text();
+    const text = await response.text();
+    recordCjSuccess();
+    return text;
   } catch (err) {
-    if (err && typeof err === "object" && "isRateLimit" in err) throw err;
-    if (err && typeof err === "object" && "isAuth" in err) throw err;
+    if (err && typeof err === "object" && "isRateLimit" in err) { recordCjFailure(); throw err; }
+    if (err && typeof err === "object" && "isAuth" in err) { recordCjFailure(); throw err; }
 
     // Network error — retry
     if (retryCount < MAX_RETRIES) {
@@ -379,6 +426,7 @@ async function cjFetch(
       await new Promise((r) => setTimeout(r, delay));
       return cjFetch(url, params, retryCount + 1);
     }
+    recordCjFailure();
     throw createCjError(
       `Network error after ${MAX_RETRIES} retries: ${err instanceof Error ? err.message : String(err)}`,
       0
@@ -459,6 +507,8 @@ export async function searchLinks(opts: {
   if (opts.language) params["language"] = opts.language;
   if (opts.keywords) params["keywords"] = opts.keywords;
   if (opts.promotionType) params["promotion-type"] = opts.promotionType;
+  const websiteId = getWebsiteId();
+  if (websiteId) params["website-id"] = websiteId;
   params["page-number"] = String(opts.pageNumber || 1);
   params["records-per-page"] = String(opts.recordsPerPage || 100);
 
@@ -488,6 +538,8 @@ export async function searchProducts(opts: {
   if (opts.highPrice !== undefined)
     params["high-price"] = String(opts.highPrice);
   if (opts.currency) params["currency"] = opts.currency;
+  const wsId = getWebsiteId();
+  if (wsId) params["website-id"] = wsId;
   params["page-number"] = String(opts.pageNumber || 1);
   params["records-per-page"] = String(opts.recordsPerPage || 100);
 
@@ -522,6 +574,13 @@ export async function fetchCommissions(opts: {
 
   const xml = await cjFetch(COMMISSION_DETAIL_URL, params);
   return parsePaginatedResponse(xml, "commission", parseCommission);
+}
+
+/**
+ * Get the CJ website ID for scoping API results.
+ */
+export function getWebsiteId(): string {
+  return process.env.CJ_WEBSITE_ID || "";
 }
 
 /**

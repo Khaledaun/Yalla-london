@@ -11,26 +11,45 @@
  */
 
 import { CJ_NETWORK_ID } from "./cj-client";
+import { getAdvertiserMapForSite } from "./site-keywords";
 
 // ---------------------------------------------------------------------------
-// Category → Advertiser Mapping
+// Category → Advertiser Mapping (per-site)
 // ---------------------------------------------------------------------------
 
-const CATEGORY_ADVERTISER_MAP: Record<string, string[]> = {
-  hotel: ["Booking.com UK", "IHG Europe", "Vrbo", "Expedia, Inc"],
-  hotels: ["Booking.com UK", "IHG Europe", "Vrbo", "Expedia, Inc"],
-  accommodation: ["Booking.com UK", "IHG Europe", "Vrbo", "Expedia, Inc"],
-  flight: ["Qatar Airways", "KAYAK US", "Expedia, Inc"],
-  flights: ["Qatar Airways", "KAYAK US", "Expedia, Inc"],
-  transport: ["Qatar Airways", "KAYAK US"],
-  experience: ["TripAdvisor Commerce Campaign", "Expedia, Inc"],
-  experiences: ["TripAdvisor Commerce Campaign", "Expedia, Inc"],
-  dining: ["TripAdvisor Commerce Campaign"],
-  restaurant: ["TripAdvisor Commerce Campaign"],
-  travel: ["Expedia, Inc", "lastminute.com INT", "KAYAK US"],
-  vacation: ["Expedia, Inc", "Vrbo", "lastminute.com INT"],
-  shopping: ["lastminute.com INT"],
-};
+/**
+ * Build the category-to-advertiser map for a site.
+ * Falls back to a global default map if no site-specific mapping exists.
+ */
+function getCategoryAdvertiserMap(siteId?: string): Record<string, string[]> {
+  const siteMap = getAdvertiserMapForSite(siteId);
+  if (Object.keys(siteMap).length === 0) {
+    // Fallback to CJ advertiser names from DB — handled by getLinksForContent fallback
+    return {};
+  }
+
+  // Expand to include plural and alias forms
+  const expanded: Record<string, string[]> = {};
+  for (const [category, advertisers] of Object.entries(siteMap)) {
+    expanded[category] = advertisers;
+    // Add plurals
+    if (!category.endsWith("s")) {
+      expanded[category + "s"] = advertisers;
+    }
+  }
+  // Standard aliases
+  if (expanded["hotel"]) {
+    expanded["accommodation"] = expanded["hotel"];
+  }
+  if (expanded["experience"]) {
+    expanded["dining"] = expanded["dining"] || expanded["experience"];
+    expanded["restaurant"] = expanded["dining"] || expanded["experience"];
+  }
+  expanded["travel"] = expanded["hotel"] || [];
+  expanded["vacation"] = expanded["hotel"] || [];
+
+  return expanded;
+}
 
 // Keywords to detect content category
 const KEYWORD_CATEGORIES: Array<{ keywords: string[]; category: string }> = [
@@ -101,6 +120,7 @@ export async function getLinksForContent(
   category: string,
   tags: string[],
   maxLinks = 5,
+  siteId?: string,
 ): Promise<InjectionResult> {
   const { prisma } = await import("@/lib/db");
 
@@ -108,10 +128,11 @@ export async function getLinksForContent(
   const detectedCategories = detectCategories(content);
   const allCategories = [...new Set<string>([category, ...detectedCategories, ...tags])];
 
-  // 2. Find matching advertiser names
+  // 2. Find matching advertiser names (per-site)
+  const categoryMap = getCategoryAdvertiserMap(siteId);
   const matchedAdvertiserNames = new Set<string>();
   for (const cat of allCategories) {
-    const names = CATEGORY_ADVERTISER_MAP[cat.toLowerCase()] || [];
+    const names = categoryMap[cat.toLowerCase()] || [];
     for (const n of names) matchedAdvertiserNames.add(n);
   }
 
@@ -135,6 +156,13 @@ export async function getLinksForContent(
       take: 10,
     });
     advertisers.push(...allJoined);
+  }
+
+  // Graceful degradation: if no CJ advertisers at all, return empty
+  // Content still publishes fine — affiliate links are an enhancement, not a requirement
+  if (advertisers.length === 0) {
+    console.warn("[link-injector] No joined CJ advertisers found — skipping link injection");
+    return { links: [], placements: [], detectedCategories };
   }
 
   // 4. Get best link for each advertiser (no duplicates)

@@ -17,6 +17,7 @@ function isValidLinkId(id: string): boolean {
 
 export async function GET(request: NextRequest) {
   const linkId = request.nextUrl.searchParams.get("id");
+  const sid = request.nextUrl.searchParams.get("sid") || undefined;
 
   if (!linkId || !isValidLinkId(linkId)) {
     return NextResponse.redirect(new URL("/", request.url), 302);
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
       userAgent: request.headers.get("user-agent") || undefined,
       sessionId: request.cookies.get("session-id")?.value || undefined,
       country: request.headers.get("x-vercel-ip-country") || undefined,
+      sid,
     });
 
     if (affiliateUrl) {

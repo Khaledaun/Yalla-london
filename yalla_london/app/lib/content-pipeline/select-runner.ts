@@ -46,12 +46,12 @@ export async function runContentSelector(
       where: {
         job_name: "content-selector",
         status: { not: "skipped" },
-        started_at: { gte: new Date(Date.now() - 60_000) },
+        started_at: { gte: new Date(Date.now() - 30_000) },
       },
       orderBy: { started_at: "desc" },
     });
     if (recentRun) {
-      console.log("[content-selector] Another run started within 60s — skipping to prevent duplicate promotions");
+      console.log("[content-selector] Another run started within 30s — skipping to prevent duplicate promotions");
       return { success: true, message: "Dedup: skipped (recent run exists)", durationMs: Date.now() - cronStart };
     }
     const { getActiveSiteIds, SITES, getSiteDomain } = await import("@/config/sites");
@@ -265,9 +265,17 @@ export async function runContentSelector(
       const keyword = ((candidate.keyword as string) || "").toLowerCase().trim();
       if (!keyword) continue;
 
-      const isDuplicate = Array.from(selectedKeywords).some(
-        (k) => k.includes(keyword) || keyword.includes(k),
-      );
+      // Use word-level overlap instead of substring matching.
+      // Old: "london" blocked "best london hotels" (substring match too aggressive).
+      // New: >60% shared words = duplicate (e.g., "halal restaurants london" ≈ "best halal restaurants london")
+      const keywordWords = new Set(keyword.split(/\s+/).filter(w => w.length > 2));
+      const isDuplicate = keywordWords.size > 0 && Array.from(selectedKeywords).some((k) => {
+        const existingWords = new Set(k.split(/\s+/).filter(w => w.length > 2));
+        if (existingWords.size === 0 || keywordWords.size === 0) return false;
+        const shared = [...keywordWords].filter(w => existingWords.has(w)).length;
+        const overlapRatio = shared / Math.min(keywordWords.size, existingWords.size);
+        return overlapRatio > 0.6;
+      });
 
       if (!isDuplicate) {
         selected.push(candidate);

@@ -605,9 +605,71 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 14. CHRONIC INDEXING FAILURES — improve content on pages Google won't index ──
+  // Pages submitted 10+ times without indexing likely have content quality issues.
+  // Flag them with specific remediation needs so seo-deep-review can fix them.
+  let chronicIndexingFixed = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      const chronicPages = await prisma.uRLIndexingStatus.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          status: { in: ["submitted", "discovered", "pending_review"] },
+          submission_attempts: { gte: 10 },
+        },
+        select: { url: true, site_id: true, submission_attempts: true },
+        take: 10,
+      });
+
+      for (const page of chronicPages) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+        // Extract slug from URL
+        const slugMatch = page.url.match(/\/blog\/([^\/]+)$/);
+        if (!slugMatch) continue;
+        const slug = slugMatch[1];
+
+        // Find the BlogPost and check content quality
+        const post = await prisma.blogPost.findFirst({
+          where: { slug, siteId: page.site_id },
+          select: { id: true, content_en: true, meta_title_en: true, meta_description_en: true, seo_score: true, tags: true },
+        });
+        if (!post) continue;
+
+        const contentText = (post.content_en || "").replace(/<[^>]+>/g, " ").trim();
+        const wordCount = contentText.split(/\s+/).filter(Boolean).length;
+
+        // Add "needs-indexing-review" tag if not already tagged
+        const currentTags = (post.tags || []) as string[];
+        if (currentTags.includes("needs-indexing-review")) continue;
+
+        const issues: string[] = [];
+        if (wordCount < 800) issues.push(`thin (${wordCount}w)`);
+        if (!post.meta_description_en || post.meta_description_en.length < 120) issues.push("weak meta desc");
+        if ((post.seo_score || 0) < 70) issues.push(`low SEO score (${post.seo_score})`);
+
+        await prisma.blogPost.update({
+          where: { id: post.id },
+          data: {
+            tags: [...currentTags, "needs-indexing-review"],
+            updated_at: new Date(),
+          },
+        });
+        chronicIndexingFixed++;
+        console.log(`[content-auto-fix] Flagged chronic indexing failure: ${slug} (${page.submission_attempts} attempts, issues: ${issues.join(", ") || "unknown"})`);
+      }
+      if (chronicIndexingFixed > 0) {
+        console.log(`[content-auto-fix] Flagged ${chronicIndexingFixed} chronic indexing failures for review`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`chronic-indexing: ${msg}`);
+      console.warn("[content-auto-fix] Chronic indexing fix failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility

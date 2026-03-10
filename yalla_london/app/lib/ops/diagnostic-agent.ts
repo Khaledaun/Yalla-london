@@ -65,6 +65,8 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
 
   try {
     // Find drafts stuck in the same phase for 3+ attempts or >2 hours
+    // Increased from take:20 to take:50 to process more stuck drafts per sweep.
+    // With 64 stuck drafts, 20 per sweep meant 3+ sweeps to clear the backlog.
     const stuckDrafts = await prisma.articleDraft.findMany({
       where: {
         current_phase: {
@@ -88,7 +90,7 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
         outline_data: true,
         research_data: true,
       },
-      take: 20,
+      take: 50,
       orderBy: { phase_attempts: "desc" },
     });
 
@@ -723,6 +725,31 @@ async function logDiagnostic(verification: DiagnosticVerification, siteId: strin
 
 export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticResult> {
   const start = Date.now();
+
+  // Phase 0: Aggressive cleanup — reject drafts stuck >48h regardless of attempts.
+  // These have been through multiple diagnostic cycles without recovery — they're never
+  // going to publish. Clear them to make room for fresh content.
+  try {
+    const { prisma: p0 } = await import("@/lib/db");
+    const rejectedOld = await p0.articleDraft.updateMany({
+      where: {
+        current_phase: {
+          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+        },
+        updated_at: { lt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+      },
+      data: {
+        current_phase: "rejected",
+        last_error: "[diagnostic-agent] Auto-rejected: stuck >48h without progress",
+        updated_at: new Date(),
+      },
+    });
+    if (rejectedOld.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} drafts stuck >48h`);
+    }
+  } catch (p0err) {
+    console.warn("[diagnostic-agent] Phase 0 cleanup failed:", p0err instanceof Error ? p0err.message : p0err);
+  }
 
   // Phase 1: Diagnose
   const [draftDiagnoses, cronDiagnoses] = await Promise.all([

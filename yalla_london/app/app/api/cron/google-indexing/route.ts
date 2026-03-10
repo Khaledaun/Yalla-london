@@ -299,6 +299,10 @@ async function handleIndexing(request: NextRequest) {
         const stuckPages = await prisma.uRLIndexingStatus.findMany({
           where: {
             status: { in: ["submitted", "pending_review", "discovered"] },
+            // Cap resubmission at 15 attempts — pages with 5-12 failed submissions
+            // likely have fundamental quality/technical issues that IndexNow can't fix.
+            // Stop wasting crawl budget and flag for content review instead.
+            submission_attempts: { lt: 15 },
             OR: [
               // Submitted >7 days ago but still not indexed
               { last_submitted_at: { lt: sevenDaysAgo } },
@@ -306,8 +310,8 @@ async function handleIndexing(request: NextRequest) {
               { last_submitted_at: null, submitted_indexnow: false },
             ],
           },
-          select: { url: true, site_id: true },
-          take: 30, // raised from 20 to handle backlog of never-submitted pages
+          select: { url: true, site_id: true, submission_attempts: true },
+          take: 30,
         });
 
         if (stuckPages.length > 0) {

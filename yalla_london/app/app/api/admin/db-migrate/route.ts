@@ -145,6 +145,19 @@ const ENUM_STATEMENTS: { name: string; values: string[] }[] = [
   { name: "ItineraryDifficulty", values: ["EASY", "MODERATE", "ADVANCED"] },
   { name: "ConversionStatus", values: ["PENDING", "BOOKED", "COMPLETED", "CANCELLED", "PAID"] },
   { name: "SubscriberStatus", values: ["PENDING", "CONFIRMED", "UNSUBSCRIBED", "BOUNCED", "COMPLAINED"] },
+  // CJ Affiliate enums
+  { name: "NetworkStatus", values: ["ACTIVE", "PAUSED", "DISABLED"] },
+  { name: "AdvertiserStatus", values: ["JOINED", "PENDING", "NOT_JOINED", "DECLINED"] },
+  { name: "AdvertiserPriority", values: ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+  { name: "CjLinkType", values: ["TEXT", "BANNER", "PRODUCT", "DEEP"] },
+  { name: "CjLanguage", values: ["EN", "AR"] },
+  { name: "CommissionStatus", values: ["PENDING", "APPROVED", "DECLINED", "LOCKED"] },
+  { name: "PlacementType", values: ["INLINE", "SIDEBAR", "BANNER", "CTA", "CARD", "COMPARISON_TABLE"] },
+  { name: "RotationStrategy", values: ["RANDOM", "HIGHEST_EPC", "NEWEST", "MANUAL"] },
+  { name: "PlacementCondition", values: ["CATEGORY_MATCH", "TAG_MATCH", "LANGUAGE_MATCH", "URL_MATCH", "KEYWORD_MATCH"] },
+  { name: "ClickDevice", values: ["DESKTOP", "MOBILE", "TABLET"] },
+  { name: "SyncType", values: ["ADVERTISERS", "LINKS", "PRODUCTS", "COMMISSIONS", "DEALS"] },
+  { name: "CjSyncStatus", values: ["SUCCESS", "PARTIAL", "FAILED"] },
 ];
 
 // Full CREATE TABLE statements for tables that might be entirely missing
@@ -1187,6 +1200,188 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   },
 
   // ════════════════════════════════════════════════════════════════════════
+  // CJ AFFILIATE NETWORK MODELS
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "affiliate_networks",
+    model: "AffiliateNetwork",
+    sql: `CREATE TABLE IF NOT EXISTS "affiliate_networks" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "name" TEXT NOT NULL,
+  "slug" TEXT NOT NULL UNIQUE,
+  "apiBaseUrl" TEXT,
+  "apiTokenEnvVar" TEXT NOT NULL,
+  "publisherId" TEXT NOT NULL,
+  "status" "NetworkStatus" NOT NULL DEFAULT 'ACTIVE',
+  "config" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cj_advertisers",
+    model: "CjAdvertiser",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_advertisers" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "networkId" TEXT NOT NULL REFERENCES "affiliate_networks"("id") ON DELETE CASCADE,
+  "externalId" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "programUrl" TEXT,
+  "category" TEXT,
+  "status" "AdvertiserStatus" NOT NULL DEFAULT 'PENDING',
+  "commissionRate" TEXT,
+  "sevenDayEpc" DOUBLE PRECISION,
+  "threeMonthEpc" DOUBLE PRECISION,
+  "cookieDuration" INTEGER,
+  "priority" "AdvertiserPriority" NOT NULL DEFAULT 'MEDIUM',
+  "lastSynced" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE("networkId", "externalId")
+)`,
+  },
+  {
+    table: "cj_links",
+    model: "CjLink",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_links" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "networkId" TEXT NOT NULL REFERENCES "affiliate_networks"("id") ON DELETE CASCADE,
+  "advertiserId" TEXT NOT NULL REFERENCES "cj_advertisers"("id") ON DELETE CASCADE,
+  "name" TEXT NOT NULL,
+  "destinationUrl" TEXT NOT NULL,
+  "affiliateUrl" TEXT NOT NULL,
+  "linkType" "CjLinkType" NOT NULL DEFAULT 'TEXT',
+  "category" TEXT,
+  "language" "CjLanguage" NOT NULL DEFAULT 'EN',
+  "placement" TEXT,
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "impressions" INTEGER NOT NULL DEFAULT 0,
+  "clicks" INTEGER NOT NULL DEFAULT 0,
+  "conversions" INTEGER NOT NULL DEFAULT 0,
+  "revenue" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "lastClickAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cj_offers",
+    model: "CjOffer",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_offers" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "networkId" TEXT NOT NULL REFERENCES "affiliate_networks"("id") ON DELETE CASCADE,
+  "advertiserId" TEXT NOT NULL REFERENCES "cj_advertisers"("id") ON DELETE CASCADE,
+  "externalId" TEXT,
+  "title" TEXT NOT NULL,
+  "titleAr" TEXT,
+  "description" TEXT,
+  "descriptionAr" TEXT,
+  "affiliateUrl" TEXT NOT NULL,
+  "imageUrl" TEXT,
+  "price" DOUBLE PRECISION,
+  "currency" TEXT NOT NULL DEFAULT 'GBP',
+  "category" TEXT NOT NULL,
+  "subcategory" TEXT,
+  "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+  "validFrom" TIMESTAMP(3),
+  "validTo" TIMESTAMP(3),
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "isPriceDropped" BOOLEAN NOT NULL DEFAULT false,
+  "isNewArrival" BOOLEAN NOT NULL DEFAULT false,
+  "previousPrice" DOUBLE PRECISION,
+  "priority" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cj_commissions",
+    model: "CjCommission",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_commissions" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "networkId" TEXT NOT NULL REFERENCES "affiliate_networks"("id") ON DELETE CASCADE,
+  "advertiserId" TEXT NOT NULL REFERENCES "cj_advertisers"("id") ON DELETE CASCADE,
+  "linkId" TEXT REFERENCES "cj_links"("id") ON DELETE SET NULL,
+  "externalId" TEXT NOT NULL,
+  "actionType" TEXT NOT NULL,
+  "saleAmount" DOUBLE PRECISION NOT NULL,
+  "commissionAmount" DOUBLE PRECISION NOT NULL,
+  "currency" TEXT NOT NULL DEFAULT 'GBP',
+  "status" "CommissionStatus" NOT NULL DEFAULT 'PENDING',
+  "eventDate" TIMESTAMP(3) NOT NULL,
+  "lockDate" TIMESTAMP(3),
+  "publishDate" TIMESTAMP(3),
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE("networkId", "externalId")
+)`,
+  },
+  {
+    table: "cj_click_events",
+    model: "CjClickEvent",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_click_events" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "linkId" TEXT NOT NULL REFERENCES "cj_links"("id") ON DELETE CASCADE,
+  "sessionId" TEXT,
+  "pageUrl" TEXT NOT NULL,
+  "userAgent" TEXT,
+  "country" TEXT,
+  "device" "ClickDevice" NOT NULL DEFAULT 'DESKTOP',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cj_sync_logs",
+    model: "CjSyncLog",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_sync_logs" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "networkId" TEXT NOT NULL REFERENCES "affiliate_networks"("id") ON DELETE CASCADE,
+  "syncType" "SyncType" NOT NULL,
+  "status" "CjSyncStatus" NOT NULL DEFAULT 'SUCCESS',
+  "recordsProcessed" INTEGER NOT NULL DEFAULT 0,
+  "recordsCreated" INTEGER NOT NULL DEFAULT 0,
+  "recordsUpdated" INTEGER NOT NULL DEFAULT 0,
+  "errors" JSONB,
+  "duration" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cj_placements",
+    model: "CjPlacement",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_placements" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "slug" TEXT NOT NULL UNIQUE,
+  "name" TEXT NOT NULL,
+  "type" "PlacementType" NOT NULL DEFAULT 'INLINE',
+  "pagePattern" TEXT NOT NULL,
+  "position" TEXT NOT NULL,
+  "maxLinks" INTEGER NOT NULL DEFAULT 3,
+  "rotationStrategy" "RotationStrategy" NOT NULL DEFAULT 'HIGHEST_EPC',
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "config" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "cj_placement_rules",
+    model: "CjPlacementRule",
+    sql: `CREATE TABLE IF NOT EXISTS "cj_placement_rules" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "placementId" TEXT NOT NULL REFERENCES "cj_placements"("id") ON DELETE CASCADE,
+  "condition" "PlacementCondition" NOT NULL DEFAULT 'CATEGORY_MATCH',
+  "value" TEXT NOT NULL,
+  "advertiserId" TEXT,
+  "priority" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
   // SUBSCRIBER & EMAIL MODELS
   // ════════════════════════════════════════════════════════════════════════
 
@@ -1370,6 +1565,47 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "yacht_sync_logs_siteId_idx" ON "yacht_sync_logs"("siteId")',
     'CREATE INDEX IF NOT EXISTS "yacht_sync_logs_source_idx" ON "yacht_sync_logs"("source")',
     'CREATE INDEX IF NOT EXISTS "yacht_sync_logs_startedAt_idx" ON "yacht_sync_logs"("startedAt")',
+  ],
+
+  // ── CJ Affiliate Indexes ────────────────────────────────────
+  cj_advertisers: [
+    'CREATE INDEX IF NOT EXISTS "cj_advertisers_status_idx" ON "cj_advertisers"("status")',
+    'CREATE INDEX IF NOT EXISTS "cj_advertisers_category_idx" ON "cj_advertisers"("category")',
+    'CREATE INDEX IF NOT EXISTS "cj_advertisers_priority_idx" ON "cj_advertisers"("priority")',
+    'CREATE INDEX IF NOT EXISTS "cj_advertisers_threeMonthEpc_idx" ON "cj_advertisers"("threeMonthEpc")',
+  ],
+  cj_links: [
+    'CREATE INDEX IF NOT EXISTS "cj_links_networkId_idx" ON "cj_links"("networkId")',
+    'CREATE INDEX IF NOT EXISTS "cj_links_advertiserId_idx" ON "cj_links"("advertiserId")',
+    'CREATE INDEX IF NOT EXISTS "cj_links_isActive_idx" ON "cj_links"("isActive")',
+    'CREATE INDEX IF NOT EXISTS "cj_links_category_idx" ON "cj_links"("category")',
+    'CREATE INDEX IF NOT EXISTS "cj_links_linkType_idx" ON "cj_links"("linkType")',
+  ],
+  cj_offers: [
+    'CREATE INDEX IF NOT EXISTS "cj_offers_networkId_idx" ON "cj_offers"("networkId")',
+    'CREATE INDEX IF NOT EXISTS "cj_offers_advertiserId_idx" ON "cj_offers"("advertiserId")',
+    'CREATE INDEX IF NOT EXISTS "cj_offers_isActive_idx" ON "cj_offers"("isActive")',
+    'CREATE INDEX IF NOT EXISTS "cj_offers_category_idx" ON "cj_offers"("category")',
+  ],
+  cj_commissions: [
+    'CREATE INDEX IF NOT EXISTS "cj_commissions_advertiserId_idx" ON "cj_commissions"("advertiserId")',
+    'CREATE INDEX IF NOT EXISTS "cj_commissions_status_idx" ON "cj_commissions"("status")',
+    'CREATE INDEX IF NOT EXISTS "cj_commissions_eventDate_idx" ON "cj_commissions"("eventDate")',
+  ],
+  cj_click_events: [
+    'CREATE INDEX IF NOT EXISTS "cj_click_events_linkId_createdAt_idx" ON "cj_click_events"("linkId", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "cj_click_events_createdAt_idx" ON "cj_click_events"("createdAt")',
+  ],
+  cj_sync_logs: [
+    'CREATE INDEX IF NOT EXISTS "cj_sync_logs_networkId_idx" ON "cj_sync_logs"("networkId")',
+    'CREATE INDEX IF NOT EXISTS "cj_sync_logs_syncType_idx" ON "cj_sync_logs"("syncType")',
+    'CREATE INDEX IF NOT EXISTS "cj_sync_logs_createdAt_idx" ON "cj_sync_logs"("createdAt")',
+  ],
+  cj_placements: [
+    'CREATE INDEX IF NOT EXISTS "cj_placements_isActive_idx" ON "cj_placements"("isActive")',
+  ],
+  cj_placement_rules: [
+    'CREATE INDEX IF NOT EXISTS "cj_placement_rules_placementId_idx" ON "cj_placement_rules"("placementId")',
   ],
 
   // ── Design System Indexes ───────────────────────────────────

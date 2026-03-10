@@ -376,8 +376,9 @@ async function generateTopicsDirect(
   locale: string,
   destination: string,
 ): Promise<{ topics: any[] }> {
-  const prompt = `You are a local editor specializing in ${destination}. Suggest 5 timely article topics about ${destination} for "${category}"
+  const prompt = `You are a local editor specializing in ${destination} luxury travel for international visitors. Suggest 5 timely article topics about ${destination} for "${category}"
 in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
+IMPORTANT: 3-4 topics should target general luxury travel keywords (highest search volume). 1-2 can target niche Arab/halal topics.
 Return strict JSON array with objects: {title, slug, rationale, sources: string[]}`;
 
   const res = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -427,11 +428,12 @@ async function generateTopicsViaAIProvider(
   const { generateJSON } = await import('@/lib/ai/provider');
 
   const prompt = locale === 'en'
-    ? `You are a local editor specializing in ${destination} for a luxury travel platform targeting Arab travelers.
+    ? `You are a local editor specializing in ${destination} for a luxury travel platform serving international visitors (with special expertise for Arab and Gulf travelers).
 Suggest 5 timely, SEO-worthy article topics about ${destination} for the category "${category}".
+IMPORTANT: 3-4 topics should target GENERAL luxury travel keywords (highest search volume). 1-2 topics can target Arab/halal niche keywords (our differentiator).
 Each topic should have a short URL slug and 1-2 authority source domains.
 Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
-    : `أنت محرر متخصص في ${destination} لمنصة سفر فاخرة تستهدف المسافرين العرب.
+    : `أنت محرر متخصص في ${destination} لمنصة سفر فاخرة تستهدف المسافرين العرب والدوليين.
 اقترح 5 مواضيع مقالات عن ${destination} مناسبة لفئة "${category}".
 لكل موضوع عنوان قصير وسلاغ URL ومصدرين موثوقين.
 أرجع مصفوفة JSON: [{title, slug, rationale, sources: ["domain.com"]}]`;

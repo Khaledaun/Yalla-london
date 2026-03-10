@@ -219,10 +219,11 @@ export async function searchTrendingTopics(
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().split('T')[0];
 
   const prompt = locale === 'en'
-    ? `You are a travel content strategist for luxury Arab travelers visiting ${destination}.
+    ? `You are a travel content strategist for a luxury travel platform covering ${destination} for international visitors (with special expertise for Arab and Gulf travelers).
 
 Search for the most trending and newsworthy topics about ${destination} travel RIGHT NOW.
-Focus on: luxury hotels, halal restaurants, shopping, events, seasonal activities, transport updates.
+Focus on: luxury hotels, fine dining restaurants, shopping, events, seasonal activities, transport updates, new openings, nightlife, day trips, spas, cultural experiences.
+IMPORTANT: 6-7 topics should be GENERAL luxury travel topics (highest search volume). 2-3 can be Arab/halal niche topics.
 
 Return a JSON array of 8-10 trending topics:
 [{
@@ -231,14 +232,14 @@ Return a JSON array of 8-10 trending topics:
   "rationale": "Why this is trending now (1-2 sentences)",
   "trending_score": 0.0-1.0,
   "sources": ["source-domain.com"],
-  "category": "hotels|restaurants|shopping|events|transport|culture|seasonal"
+  "category": "hotels|restaurants|shopping|events|transport|culture|seasonal|nightlife|wellness"
 }]
 
 Return ONLY the JSON array, no other text.`
-    : `أنت استراتيجي محتوى سفر للمسافرين العرب الفاخرين الذين يزورون ${destination}.
+    : `أنت استراتيجي محتوى سفر لمنصة سفر فاخرة تغطي ${destination} للزوار الدوليين والمسافرين العرب.
 
 ابحث عن أكثر المواضيع رواجاً حول السفر إلى ${destination} الآن.
-ركز على: الفنادق الفاخرة، المطاعم الحلال، التسوق، الفعاليات، الأنشطة الموسمية.
+ركز على: الفنادق الفاخرة، المطاعم، التسوق، الفعاليات، الأنشطة الموسمية، الجولات السياحية.
 
 أرجع مصفوفة JSON من 8-10 مواضيع:
 [{"title", "slug", "rationale", "trending_score", "sources", "category"}]

@@ -77,7 +77,13 @@ export const SITES: Record<string, SiteConfig> = {
     primaryColor: "#1C1917",
     secondaryColor: "#C8322B",
     systemPromptEN:
-      `You are a senior luxury travel content writer for Yalla London, a premium bilingual platform covering London's finest experiences for international visitors. You combine first-hand London expertise with SEO mastery.
+      `You are a senior luxury travel content writer for Yalla London, a premium bilingual platform covering London's finest experiences for international visitors with special expertise in serving Arab and Gulf travelers. You combine first-hand London expertise with SEO mastery.
+
+AUDIENCE STRATEGY (critical for topic selection and content):
+- PRIMARY audience: All international luxury travelers visiting London (broadest reach for SEO)
+- SECONDARY audience: Arab and Gulf travelers (our niche differentiator — add halal dining tips, Arabic-speaking service notes, prayer facility info WHERE RELEVANT to the topic)
+- DO NOT force Arab/Islamic angles on general topics. "Best Afternoon Tea in London" should be a universal guide. "Best Hotels in London" can mention Arabic-speaking staff as a bonus, not the main angle.
+- When the topic IS specifically about Arab travelers (e.g., "halal restaurants", "Ramadan in London"), go deep on that niche.
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
@@ -131,25 +137,26 @@ Always respond with valid JSON.`,
 - استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
+      // ─── General luxury London topics (broadest audience) ─────────
       {
-        keyword: "luxury boutique hotels London 2026",
+        keyword: "best luxury hotels in London",
         longtails: [
-          "best boutique hotels Mayfair",
+          "best 5 star hotels London",
+          "luxury boutique hotels Mayfair",
           "luxury hotels near Hyde Park",
-          "five star hotels London Arab friendly",
         ],
         questions: [
-          "Which boutique hotels in London offer Arabic-speaking staff?",
-          "What are the most luxurious hotels near Harrods?",
+          "What are the most luxurious hotels in London?",
+          "Which London hotels have the best views?",
         ],
         pageType: "guide",
       },
       {
-        keyword: "best fine dining restaurants London 2026",
+        keyword: "best Michelin star restaurants London",
         longtails: [
           "fine dining Knightsbridge Mayfair",
-          "luxury restaurants London Michelin star",
-          "Arabic restaurants London 2026",
+          "Michelin star tasting menus London",
+          "best restaurants Soho Covent Garden",
         ],
         questions: [
           "What are the best Michelin-star restaurants in London?",
@@ -158,28 +165,54 @@ Always respond with valid JSON.`,
         pageType: "list",
       },
       {
-        keyword: "London shopping guide for Arab visitors",
+        keyword: "best things to do in London",
         longtails: [
-          "Harrods shopping guide Arabic",
-          "luxury brands Oxford Street",
+          "unique experiences London",
+          "hidden gems London tourists miss",
+          "London bucket list experiences",
+        ],
+        questions: [
+          "What are the most unique things to do in London?",
+          "What hidden gems should tourists visit in London?",
+        ],
+        pageType: "listicle",
+      },
+      {
+        keyword: "London luxury shopping guide",
+        longtails: [
+          "Harrods shopping guide",
+          "luxury brands Oxford Street Bond Street",
           "VAT refund London tourist shopping",
         ],
         questions: [
-          "How do Arab tourists get VAT refunds in London?",
           "What are the best luxury shopping areas in London?",
+          "How do tourists get VAT refunds in London?",
         ],
         pageType: "guide",
       },
       {
-        keyword: "family-friendly luxury London experiences",
+        keyword: "best afternoon tea in London",
         longtails: [
-          "London with kids luxury activities",
-          "best family hotels London 2026",
-          "child friendly fine dining London",
+          "afternoon tea Ritz Claridges Savoy",
+          "best afternoon tea with champagne London",
+          "themed afternoon tea London",
         ],
         questions: [
-          "What luxury activities can families enjoy in London?",
-          "Which London hotels offer the best kids clubs?",
+          "Which hotel has the best afternoon tea in London?",
+          "How much does afternoon tea cost at The Ritz?",
+        ],
+        pageType: "list",
+      },
+      {
+        keyword: "London weekend break itinerary",
+        longtails: [
+          "3 day London itinerary luxury",
+          "London weekend trip planning",
+          "what to do in London for 2 days",
+        ],
+        questions: [
+          "How should I plan a luxury weekend in London?",
+          "What is the best 3-day London itinerary?",
         ],
         pageType: "guide",
       },
@@ -187,7 +220,7 @@ Always respond with valid JSON.`,
         keyword: "London private tours and exclusive experiences",
         longtails: [
           "private guided tours London",
-          "VIP London experiences 2026",
+          "VIP London experiences",
           "exclusive after-hours museum tours London",
         ],
         questions: [
@@ -200,12 +233,12 @@ Always respond with valid JSON.`,
         keyword: "best London spas and wellness retreats",
         longtails: [
           "luxury spa treatments London",
-          "women-only spa London",
-          "hammam London Turkish bath",
+          "best day spas London",
+          "couples spa experience London",
         ],
         questions: [
-          "Which London spas offer women-only sessions?",
-          "Where are the best hammam experiences in London?",
+          "Which London spas offer the best luxury treatments?",
+          "Where are the best wellness retreats near London?",
         ],
         pageType: "list",
       },
@@ -219,6 +252,46 @@ Always respond with valid JSON.`,
         questions: [
           "How can I get VIP hospitality tickets for Premier League matches?",
           "Which London football stadiums offer the best tours?",
+        ],
+        pageType: "guide",
+      },
+      // ─── Arab traveler niche topics (our differentiator) ──────────
+      {
+        keyword: "halal restaurants in London",
+        longtails: [
+          "best halal fine dining London",
+          "halal restaurants Knightsbridge Mayfair",
+          "halal steak restaurants London",
+        ],
+        questions: [
+          "Where are the best halal restaurants in London?",
+          "Which Michelin restaurants in London serve halal food?",
+        ],
+        pageType: "list",
+      },
+      {
+        keyword: "Arab friendly hotels in London",
+        longtails: [
+          "hotels with Arabic speaking staff London",
+          "halal friendly hotels London",
+          "best hotels for Gulf tourists London",
+        ],
+        questions: [
+          "Which London hotels cater to Arab guests?",
+          "What hotels in London have Arabic-speaking concierge?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "family-friendly luxury London experiences",
+        longtails: [
+          "London with kids luxury activities",
+          "best family hotels London",
+          "child friendly fine dining London",
+        ],
+        questions: [
+          "What luxury activities can families enjoy in London?",
+          "Which London hotels offer the best kids clubs?",
         ],
         pageType: "guide",
       },
@@ -325,9 +398,18 @@ Always respond with valid JSON.`,
       "transport",
     ],
     primaryKeywordsEN: [
+      // General luxury London travel (broadest audience)
+      "luxury hotels london",
+      "best restaurants london",
+      "things to do in london",
+      "london travel guide",
+      "london weekend breaks",
+      "best afternoon tea london",
+      "london shopping guide",
+      // Arab traveler niche (our differentiator)
       "london guide for arabs",
-      "arab tourists london",
-      "halal london",
+      "halal restaurants london",
+      "arab friendly hotels london",
       "london for arab families",
     ],
     primaryKeywordsAR: [

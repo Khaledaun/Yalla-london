@@ -2466,3 +2466,54 @@ Researched the `geo-seo-claude` tool and Princeton GEO research to identify opti
 | 14 | AIO readiness (direct answers, question H2s) | Warning | Feb 2026 |
 | 15 | Internal link ratio | Warning | Mar 2026 |
 | 16 | Citability / GEO (stats, attributions, self-contained paragraphs) | Warning | Mar 2026 |
+
+### Session: March 10, 2026 — Pipeline Fixes from Aggregated Report + Topic Research Diversification
+
+**7 Pipeline Fixes from Aggregated Report (Grade A 85/100):**
+
+1. **seo-deep-review timeout fix**: AI `generateCompletion` call in content expansion was hanging without timeout. Added dynamic timeout based on remaining article budget (`PER_ARTICLE_BUDGET_MS - elapsed - 2000`, max 10s).
+2. **seo-deep-review authenticity injection**: Added Fix 10 — injects insider tip callout box after 2nd H2 for articles with <3 authenticity markers.
+3. **Diagnostic agent aggressive cleanup**: Phase 0 auto-rejects drafts stuck >48h. Increased processing from `take:20` to `take:50`.
+4. **content-auto-fix-lite expanded**: Post scan increased from 50 to 200, URL tracking batch from 10 to 30 per run.
+5. **IndexNow chronic failure cap**: Added `submission_attempts: { lt: 15 }` to stop wasting crawl budget on pages that fail 15+ times.
+6. **content-auto-fix Section 14**: Chronic indexing failure detection — tags articles needing manual review when submission_attempts >= 10.
+7. **Content selector keyword dedup**: Changed from substring matching to word-level overlap (>60% threshold) — "london" no longer blocks "best london hotels".
+
+**Topic Research Diversification (8 files modified):**
+
+**Problem:** 70%+ of all topic generation was hardcoded to "Arab travelers" focus, limiting search volume potential. Primary keywords were 100% Arab-specific ("london guide for arabs", "halal london"). Topic templates, system prompts, Grok search, and AI provider prompts all targeted Arab travelers exclusively.
+
+**Solution — Hybrid approach (60-70% general + 30-40% niche):**
+
+1. **`config/sites.ts` — primaryKeywordsEN expanded**: From 4 Arab-only keywords to 12 balanced keywords (7 general luxury + 5 Arab niche). Added: "luxury hotels london", "best restaurants london", "things to do in london", "london travel guide", "london weekend breaks", "best afternoon tea london", "london shopping guide".
+
+2. **`config/sites.ts` — topicsEN rebalanced**: From 7 templates (71% Arab-focused) to 12 templates (75% general + 25% niche). New general topics: "best luxury hotels in London", "best Michelin star restaurants London", "best things to do in London", "London luxury shopping guide", "best afternoon tea in London", "London weekend break itinerary", "best London spas and wellness retreats", "London Premier League match day experience". Niche topics: "halal restaurants in London", "Arab friendly hotels in London", "family-friendly luxury London experiences".
+
+3. **`config/sites.ts` — systemPromptEN updated**: Added AUDIENCE STRATEGY section: primary audience is "all international luxury travelers" (broadest reach for SEO), secondary audience is "Arab and Gulf travelers" (niche differentiator). Explicit instruction: "DO NOT force Arab/Islamic angles on general topics."
+
+4. **`app/api/admin/topic-research/route.ts`**: Prompt updated with "CRITICAL TOPIC MIX" requiring 60-70% general luxury topics + 30-40% niche. Context changed from "targeting Arab travelers" to "international visitors, with special expertise serving Arab and Gulf travelers". System prompt broadened to "luxury travel content" rather than "travel content for Arab audiences".
+
+5. **`app/api/cron/weekly-topics/route.ts`**: All 3 generation functions updated:
+   - Perplexity direct: "luxury travel for international visitors" + mix instruction
+   - AI provider: "luxury travel platform serving international visitors" + explicit 3-4 general / 1-2 niche split
+   - Grok live search: Updated in grok-live-search.ts (see below)
+
+6. **`lib/ai/grok-live-search.ts` — searchTrendingTopics**: Prompt changed from "luxury Arab travelers" to "international visitors (with special expertise for Arab and Gulf travelers)". Added broader categories: nightlife, day trips, spas, cultural experiences. Explicit instruction: "6-7 topics should be GENERAL luxury travel topics. 2-3 can be Arab/halal niche topics."
+
+7. **`app/api/cron/trends-monitor/route.ts` — MONITORED_KEYWORDS expanded**: From 4 Arab-heavy keywords to 6 balanced keywords. Added: "luxury hotels london", "best restaurants london", "things to do london", "london travel guide". Kept: "halal restaurants london", "arab friendly london".
+
+8. **`lib/content-pipeline/phases.ts` — research phase**: Research prompt broadened from "luxury travel for Arab travelers" to "luxury travel for international visitors, with special expertise for Arab and Gulf visitors".
+
+**Why NOT Google Keyword Planner:**
+- Requires Google Ads account with active billing (cost + complexity)
+- API is for advertisers, not content planning
+- Our Grok live search + Perplexity already provide trend signals
+- Better ROI: broaden existing prompts + keywords than add another API dependency
+- Can revisit when the platform is generating revenue
+
+### Critical Rules Learned (March 10 Session — Topic Diversification)
+
+48. **Topic mix must be 60-70% general + 30-40% niche** — general luxury keywords have 10-50x more search volume than Arab-specific variants. "luxury hotels london" gets ~50K monthly searches vs "arab friendly hotels london" gets ~500. Both are valuable but different scales.
+49. **Never force Arab/Islamic angles on general topics** — "Best Afternoon Tea in London" should be a universal guide that happens to mention halal options. Not "Best Afternoon Tea for Arab Travelers".
+50. **All topic generation prompts must include explicit mix ratios** — AI defaults to the most specific angle it finds in the prompt. Without explicit "3-4 general, 1-2 niche" instructions, it generates all-niche topics.
+51. **primaryKeywordsEN drives trends monitoring AND topic dedup** — expanding it from 4 to 12 keywords means trends monitor tracks broader market signals, and topic dedup catches more overlap with published content.

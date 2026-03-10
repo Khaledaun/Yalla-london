@@ -340,7 +340,8 @@ async function handleAutoFixLite(request: NextRequest) {
   if (Date.now() - cronStart < BUDGET_MS - 12_000) {
     try {
       const { getSiteDomain } = await import("@/config/sites");
-      // Find published posts — limit to 50 to keep DB load manageable
+      // Find ALL published posts — increased from 50 to 200 to ensure we catch every article.
+      // With 37 never-submitted pages, the old limit of 50 only checked the most recent posts.
       const untrackedPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
@@ -348,7 +349,7 @@ async function handleAutoFixLite(request: NextRequest) {
           deletedAt: null,
         },
         select: { slug: true, siteId: true },
-        take: 50,
+        take: 200,
         orderBy: { created_at: "desc" },
       }), "never-submitted-catchup") as Array<{ slug: string; siteId: string }>;
 
@@ -366,9 +367,9 @@ async function handleAutoFixLite(request: NextRequest) {
       const trackedSet = new Set(existingUrls.map((e) => e.url));
       const untracked = postUrls.filter((p) => !trackedSet.has(p.url));
 
-      // Track missing URLs — limit to 10 per run to avoid pool exhaustion
+      // Track missing URLs — increased from 10 to 30 per run to clear 37-page backlog faster
       const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
-      for (const post of untracked.slice(0, 10)) {
+      for (const post of untracked.slice(0, 30)) {
         if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
         await ensureUrlTracked(post.url, post.siteId, `blog/${post.slug}`);
         neverSubmittedFixed++;

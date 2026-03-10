@@ -22,14 +22,18 @@ import { logCronExecution } from "@/lib/cron-logger";
 
 // Target keywords to monitor (reduced from 10 to 6 to prevent timeout)
 const MONITORED_KEYWORDS = [
-  "halal food london",
-  "luxury london",
-  "london hotels",
-  "arab restaurants london",
-]; // Reduced from 6 to 4 — saves ~1-2s on API calls, prevents timeout risk
+  // General luxury keywords (highest search volume)
+  "luxury hotels london",
+  "best restaurants london",
+  "things to do london",
+  "london travel guide",
+  // Niche keywords (our differentiator)
+  "halal restaurants london",
+  "arab friendly london",
+]; // 6 keywords — balanced general + niche
 
 // Arabic keywords for GCC audience
-const ARABIC_KEYWORDS = ["سياحة لندن", "فنادق لندن", "مطاعم لندن", "حلال لندن"];
+const ARABIC_KEYWORDS = ["سياحة لندن", "فنادق لندن", "أفضل مطاعم لندن", "حلال لندن"];
 
 interface TrendData {
   keyword: string;

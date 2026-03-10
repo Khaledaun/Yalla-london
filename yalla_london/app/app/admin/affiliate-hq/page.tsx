@@ -91,7 +91,7 @@ interface AffiliateHQData {
 
 // ─── Page Component ─────────────────────────────────────────────────────────
 
-const TABS = ["Revenue", "Partners", "Coverage", "Links", "System"] as const;
+const TABS = ["Revenue", "Partners", "Coverage", "Links", "Actions", "System"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function AffiliateHQPage() {
@@ -237,6 +237,7 @@ export default function AffiliateHQPage() {
       )}
       {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} />}
       {activeTab === "Links" && <LinksTab data={data} onAction={runAction} actionLoading={actionLoading} />}
+      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} />}
       {activeTab === "System" && <SystemTab data={data} onAction={runAction} actionLoading={actionLoading} />}
     </div>
   );
@@ -542,7 +543,242 @@ function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; on
   );
 }
 
-// ─── Tab 5: System Health ───────────────────────────────────────────────────
+// ─── Tab 5: Actions ──────────────────────────────────────────────────────────
+
+function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null }) {
+  const [diagResult, setDiagResult] = useState<{
+    status: string;
+    issueCount: number;
+    issues: Array<{ severity: string; issue: string; fix: string }>;
+    joinedAdvertisers: number;
+    coveragePercent: number;
+  } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ name: string; price: number; salePrice: number; advertiser: string }> | null>(null);
+  const [fullSyncResult, setFullSyncResult] = useState<Record<string, unknown> | null>(null);
+
+  const runDiagnose = async () => {
+    onAction("diagnose");
+    try {
+      const res = await fetch("/api/admin/affiliate-hq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "diagnose" }),
+      });
+      const json = await res.json();
+      if (json.success && json.result) setDiagResult(json.result);
+    } catch { /* handled by parent */ }
+  };
+
+  const runSearch = async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await fetch("/api/admin/affiliate-hq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "search_products", keywords: searchQuery }),
+      });
+      const json = await res.json();
+      if (json.success && json.result) setSearchResults(json.result.products || []);
+    } catch { setSearchResults([]); }
+  };
+
+  const runFullSync = async () => {
+    setFullSyncResult(null);
+    onAction("full_sync");
+    try {
+      const res = await fetch("/api/admin/affiliate-hq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "full_sync" }),
+      });
+      const json = await res.json();
+      if (json.success && json.result) setFullSyncResult(json.result);
+    } catch { /* handled by parent */ }
+  };
+
+  const sevColor = (s: string) =>
+    s === "critical" ? "#dc2626" : s === "high" ? "#f59e0b" : s === "medium" ? "#3b82f6" : "#6b7280";
+
+  return (
+    <div>
+      {/* Quick Actions Grid */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.75rem" }}>Quick Actions</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+          <ActionCard
+            label="Diagnose Issues"
+            desc="Check for problems and get fix suggestions"
+            color="#7c3aed"
+            loading={actionLoading === "diagnose"}
+            onClick={runDiagnose}
+          />
+          <ActionCard
+            label="Full Sync"
+            desc="Run all 4 CJ syncs in sequence"
+            color="#1e3a5f"
+            loading={actionLoading === "full_sync"}
+            onClick={runFullSync}
+          />
+          <ActionCard
+            label="Inject Links"
+            desc="Add affiliate links to uncovered articles"
+            color="#16a34a"
+            loading={actionLoading === "inject_links"}
+            onClick={() => onAction("inject_links")}
+          />
+          <ActionCard
+            label="Sync Commissions"
+            desc="Pull latest revenue data from CJ"
+            color="#C49A2A"
+            loading={actionLoading === "sync_commissions"}
+            onClick={() => onAction("sync_commissions")}
+          />
+          <ActionCard
+            label="Sync Advertisers"
+            desc="Check for newly approved partners"
+            color="#3b82f6"
+            loading={actionLoading === "sync_advertisers"}
+            onClick={() => onAction("sync_advertisers")}
+          />
+          <ActionCard
+            label="Discover Deals"
+            desc="Search CJ catalog for new offers"
+            color="#f59e0b"
+            loading={actionLoading === "refresh_deals"}
+            onClick={() => onAction("refresh_deals")}
+          />
+          <ActionCard
+            label="Refresh Links"
+            desc="Update tracking links from CJ"
+            color="#6b7280"
+            loading={actionLoading === "refresh_links"}
+            onClick={() => onAction("refresh_links")}
+          />
+          <ActionCard
+            label="Test Connection"
+            desc="Verify CJ API credentials work"
+            color="#0ea5e9"
+            loading={actionLoading === "test_connection"}
+            onClick={() => onAction("test_connection")}
+          />
+        </div>
+      </div>
+
+      {/* Diagnose Results */}
+      {diagResult && (
+        <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "#f8fafc", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, margin: 0 }}>
+              Diagnosis: <span style={{ color: diagResult.status === "healthy" ? "#16a34a" : diagResult.status === "critical" ? "#dc2626" : "#f59e0b" }}>
+                {diagResult.status.toUpperCase()}
+              </span>
+            </h3>
+            <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+              {diagResult.joinedAdvertisers} partners | {diagResult.coveragePercent}% coverage
+            </span>
+          </div>
+          {diagResult.issues.length === 0 ? (
+            <p style={{ color: "#16a34a", fontSize: "0.85rem", margin: 0 }}>All systems healthy — no issues found</p>
+          ) : (
+            diagResult.issues.map((issue, i) => (
+              <div key={i} style={{ padding: "0.5rem 0", borderBottom: i < diagResult.issues.length - 1 ? "1px solid #e5e7eb" : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: sevColor(issue.severity), flexShrink: 0 }} />
+                  <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>{issue.issue}</span>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "#16a34a", marginLeft: "1rem", marginTop: "0.25rem" }}>
+                  Fix: {issue.fix}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Full Sync Results */}
+      {fullSyncResult && (
+        <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "#f0fdf4", borderRadius: 12, border: "1px solid #bbf7d0" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Full Sync Results</h3>
+          {Object.entries(fullSyncResult).map(([step, result]) => {
+            const r = result as Record<string, unknown>;
+            const ok = r && !r.error;
+            return (
+              <div key={step} style={{ display: "flex", justifyContent: "space-between", padding: "0.35rem 0", fontSize: "0.8rem", borderBottom: "1px solid #dcfce7" }}>
+                <span style={{ textTransform: "capitalize" }}>{step}</span>
+                <span style={{ color: ok ? "#16a34a" : "#dc2626", fontWeight: 600 }}>
+                  {ok ? (r.success ? "Done" : "OK") : String(r.error || "Failed")}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Product Search */}
+      <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+        <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Search CJ Products</h3>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="e.g. hotel london, halal restaurant..."
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            style={{ flex: 1, padding: "0.5rem 0.75rem", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.85rem" }}
+          />
+          <button onClick={runSearch} style={btnStyle("#7c3aed")}>Search</button>
+        </div>
+        {searchResults && (
+          searchResults.length === 0 ? (
+            <p style={{ fontSize: "0.8rem", color: "#6b7280" }}>No products found. Try different keywords.</p>
+          ) : (
+            <div>
+              {searchResults.slice(0, 10).map((p, i) => (
+                <div key={i} style={{ padding: "0.5rem 0", borderBottom: "1px solid #f3f4f6" }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>{p.name}</div>
+                  <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>
+                    {p.advertiser} | ${p.salePrice || p.price}
+                    {p.salePrice > 0 && p.salePrice < p.price && (
+                      <span style={{ color: "#16a34a", fontWeight: 600 }}> (SALE from ${p.price})</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({ label, desc, color, loading, onClick }: {
+  label: string; desc: string; color: string; loading: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      style={{
+        padding: "0.75rem",
+        background: loading ? "#f3f4f6" : "#fff",
+        border: `2px solid ${loading ? "#d1d5db" : color}`,
+        borderRadius: 10,
+        cursor: loading ? "not-allowed" : "pointer",
+        textAlign: "left",
+        transition: "all 0.15s",
+      }}
+    >
+      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: loading ? "#9ca3af" : color }}>
+        {loading ? "Running..." : label}
+      </div>
+      <div style={{ fontSize: "0.7rem", color: "#6b7280", marginTop: "0.15rem" }}>{desc}</div>
+    </button>
+  );
+}
+
+// ─── Tab 6: System Health ───────────────────────────────────────────────────
 
 function SystemTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null }) {
   const { systemHealth } = data;

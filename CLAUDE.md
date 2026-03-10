@@ -2263,3 +2263,103 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 36. **Cron schedules must be staggered by 10+ minutes** — simultaneous crons writing to the same table (e.g., BlogPost) can cause record collisions. Space them out in `vercel.json`.
 37. **Assembly budget must be recalculated after AI call** — use `Date.now() - phaseStart` for fresh budget, not the stale `budgetRemainingMs` passed at function entry. A 25s AI call consumes real wall-clock time that the old variable doesn't reflect.
 38. **Content-selector needs dedup guard** — check `CronJobLog` for recent run within 60s. Vercel can invoke the same cron endpoint twice near-simultaneously.
+
+### Session: March 10, 2026 — CJ Affiliate Integration: Full 9-Phase Operational Hardening
+
+**Complete CJ Affiliate integration hardened and production-ready across 9 phases (plan at `docs/plans/tranquil-soaring-teacup.md`).**
+
+**Phase 1: Schema & Runtime Crash Fixes (4 fixes):**
+1. `monitor.ts`: Fixed `c.amount` → `c.commissionAmount` across all revenue calculations
+2. `monitor.ts`: Made `getContentCoverage()` and `getProfitabilityReport()` accept `siteId` param (was hardcoded "yalla-london")
+3. `cj-client.ts`: Added `getWebsiteId()` helper reading `CJ_WEBSITE_ID` env var, wired into `isCjConfigured()` and test output
+4. All 4 affiliate cron routes: Added/verified budget guards (53s `BUDGET_MS`)
+
+**Phase 2: Multi-Site Support (4 fixes):**
+1. `cj-sync.ts`: Per-site keyword search (London, Maldives, French Riviera, Istanbul, Thailand)
+2. `deal-discovery.ts`: Per-site deal category keywords
+3. `link-injector.ts`: Per-site advertiser category mapping
+4. All 4 cron routes: Loop through `getActiveSiteIds()`, skip `zenitha-yachts-med`
+
+**Phase 3: SID Tracking for Revenue Attribution:**
+1. `link-tracker.ts`: Extended tracking URLs with `&sid={siteId}_{articleSlug}` (max 100 chars for CJ)
+2. `link-tracker.ts`: `trackClick()` stores SID in `CjClickEvent.sessionId`
+3. `content-processor.ts`: Injects `data-sid` attribute into affiliate links in article HTML
+4. `cj-sync.ts`: Commission sync parses SID from `rec.sid`, matches to article slug
+
+**Phase 4: Test Connections & Monitoring:**
+1. `test-connections.html`: Added "Affiliate (CJ)" panel with 6 live tests
+2. NEW `app/api/admin/cj-health/route.ts`: Health endpoint (API connectivity, sync times, error counts, feature flags)
+3. `cockpit/page.tsx`: Added "Affiliate Revenue" card in Mission Control tab
+4. `cycle-health/route.ts`: 3 new checks — CJ sync staleness (check 15), zero coverage (check 16), commission sync errors (check 17)
+5. `aggregated-report/route.ts`: Section 9 — Affiliate Performance (advertisers, links, coverage, commissions, sync health, top articles)
+
+**Phase 5: Cron & Campaign Alignment:**
+1. `vercel.json`: Staggered sync-advertisers to :30 (was conflicting with trends-monitor at :00)
+2. `article-enhancer.ts`: Uses CJ tracking links from `getLinksForContent()` instead of generic URLs
+3. `affiliate-injection/route.ts`: Queries CjLink table for joined advertisers' tracking URLs, falls back to static rules
+4. `departures/route.ts`: All 4 CJ affiliate crons added to known crons whitelist
+
+**Phase 6: Resilience & Error Handling:**
+1. `cj-client.ts`: Circuit breaker (3 consecutive failures → 5-min cooldown, half-open probe)
+2. `link-injector.ts`: Graceful degradation — falls back to static affiliate URLs when CJ API fails
+3. All `lib/affiliate/*.ts`: Fixed empty catch blocks with descriptive `[cj-*]` logging
+4. Verified `monitor.ts` `Promise.all` stays under 4 concurrent queries
+
+**Phase 7: Smoke Tests:**
+1. `scripts/smoke-test.ts`: 8 new CJ-specific tests (env vars, budget guards, CRON_SECRET, feature flags, field names, no hardcoded siteId, catch logging)
+
+**Phase 8: Unified Affiliate Command Center (`/admin/affiliate-hq`):**
+- NEW `app/admin/affiliate-hq/page.tsx` (1,200+ lines): Single page with 6 swipeable tabs
+  - **Tab 1 Revenue:** Hero commission number, 30-day sparkline, KPIs, top articles, top advertisers
+  - **Tab 2 Partners:** Network cards with health indicators, advertiser table (JOINED/PENDING/DECLINED), test connection buttons
+  - **Tab 3 Coverage:** Coverage donut chart, uncovered articles list with "Inject Links" button, per-site breakdown
+  - **Tab 4 Links:** Link stats, link table sorted by clicks, deals section with expiry dates, product search
+  - **Tab 5 Actions:** 8 action buttons (Diagnose, Full Sync, Inject Links, Sync Commissions/Advertisers, Discover Deals, Refresh Links, Test Connection), diagnosis results panel, product search, full sync results
+  - **Tab 6 System:** Sync timeline, cron status cards with "Run Now" buttons, feature flags toggles, API health, error log
+- Site selector + network selector at top, auto-refresh every 60s
+- NEW `app/api/admin/affiliate-hq/route.ts`: Aggregated API for all 6 tabs (GET + POST with 12 actions)
+
+**Phase 9: MCP Server (`scripts/mcp-cj-server.ts`):**
+- 7 tools: `cj_get_advertisers`, `cj_get_revenue`, `cj_get_link_health`, `cj_get_content_coverage`, `cj_get_sync_status`, `cj_search_products`, `cj_config_status`
+- Follows `mcp-google-server.ts` pattern, accepts optional `networkId` for future multi-network
+
+**Self-Challenge Audit (5-dimension deep audit, 7 fixes):**
+1. **CRITICAL: Auth bypass in affiliate-hq** — `requireAdmin` return value was discarded (unauthenticated access). Fixed with `const authError = await requireAdmin(request); if (authError) return authError;`
+2. **CRITICAL: Coverage detection mismatch** — affiliate-injection cron injects `class="affiliate-recommendation"` but coverage queries only checked for `rel="sponsored"` and `affiliate-cta-block`. Added `affiliate-recommendation` and `rel="noopener sponsored"` to all detection queries (3 locations across 2 files)
+3. **HIGH: Departures board missing CJ crons** — Added all 4 CJ crons to KNOWN_CRONS array
+4. **HIGH: affiliate-injection missing data-affiliate-partner attribute** — Added for tracking
+5. **Build: cycle-health FixAction type mismatch** — Used `url` instead of `endpoint` property
+
+**Key Files Created/Modified:**
+
+| File | Change |
+|------|--------|
+| `lib/affiliate/monitor.ts` | Fixed `commissionAmount`, siteId param, coverage patterns |
+| `lib/affiliate/cj-client.ts` | `getWebsiteId()`, circuit breaker |
+| `lib/affiliate/cj-sync.ts` | Per-site keywords, SID attribution, budget guards |
+| `lib/affiliate/deal-discovery.ts` | Per-site keywords |
+| `lib/affiliate/link-injector.ts` | Per-site advertiser map, graceful fallback |
+| `lib/affiliate/link-tracker.ts` | SID tracking |
+| `lib/affiliate/content-processor.ts` | SID injection |
+| 4× `app/api/affiliate/cron/*/route.ts` | Budget guards, per-site loop, feature flags |
+| NEW `app/admin/affiliate-hq/page.tsx` | 6-tab unified command center |
+| NEW `app/api/admin/affiliate-hq/route.ts` | Aggregated API (GET + 12 POST actions) |
+| NEW `app/api/admin/cj-health/route.ts` | Health endpoint |
+| NEW `scripts/mcp-cj-server.ts` | MCP server (7 tools) |
+| `app/api/admin/departures/route.ts` | 4 CJ crons in whitelist |
+| `app/api/admin/cycle-health/route.ts` | 3 CJ health checks + FixAction type fix |
+| `app/api/admin/aggregated-report/route.ts` | Section 9 affiliate data |
+| `app/admin/cockpit/page.tsx` | Affiliate Revenue card |
+| `public/test-connections.html` | CJ test panel |
+| `scripts/smoke-test.ts` | 8 CJ smoke tests |
+| `app/api/cron/affiliate-injection/route.ts` | CJ DB links + data-affiliate-partner |
+| `lib/campaigns/article-enhancer.ts` | CJ tracking links |
+| `vercel.json` | Cron stagger |
+
+### Critical Rules Learned (March 10 Session)
+
+39. **`requireAdmin` return value MUST be checked** — `const authError = await requireAdmin(request); if (authError) return authError;`. Discarding the return silently bypasses auth.
+40. **Coverage detection must match ALL injection patterns** — affiliate-injection uses `class="affiliate-recommendation"` and `rel="noopener sponsored"`, but also check for `rel="sponsored"`, `affiliate-cta-block`, and `data-affiliate-id`. Missing any pattern causes articles to appear "uncovered" and get re-injected every cron run.
+41. **CJ API does NOT provide clicks/impressions/EPC/CTR** — those metrics only exist in CJ's UI reports. Track clicks locally via `CjClickEvent`. Never query CJ for click data.
+42. **`FixAction` interface requires `endpoint` (not `url`), `payload`, `label`, `description`** — always match the exact type definition in cycle-health/route.ts.
+43. **CJ API rate limit is 25 req/min** — always use the rate limiter in `cj-client.ts`. Circuit breaker opens after 3 consecutive failures with 5-min cooldown.

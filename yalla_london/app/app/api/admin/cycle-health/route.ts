@@ -740,7 +740,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
           what: `CJ advertiser sync is ${Math.round(hoursSinceSync)}h stale`,
           why: `Last sync was ${lastAdvSync.createdAt.toISOString()} (status: ${lastAdvSync.status}). Expected every 6h.`,
           fix: "Run affiliate-sync-advertisers cron from Departures Board or check if CJ feature flags are disabled.",
-          fixAction: { method: "POST", url: "/api/affiliate/cron/sync-advertisers" },
+          fixAction: { method: "POST", endpoint: "/api/affiliate/cron/sync-advertisers", payload: {}, label: "Sync Advertisers", description: "Run CJ advertiser sync cron" },
           evidence: { hoursSinceSync: Math.round(hoursSinceSync), lastStatus: lastAdvSync.status },
         });
       }
@@ -797,7 +797,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         what: `Last commission sync ${lastCommSync.status.toLowerCase()} with ${errorCount} error${errorCount !== 1 ? "s" : ""}`,
         why: `Commission sync ran at ${lastCommSync.createdAt.toISOString()} but encountered errors. Revenue data may be incomplete.`,
         fix: "Check CJ API credentials and run sync-commissions cron manually.",
-        fixAction: { method: "POST", url: "/api/affiliate/cron/sync-commissions" },
+        fixAction: { method: "POST", endpoint: "/api/affiliate/cron/sync-commissions", payload: {}, label: "Sync Commissions", description: "Run CJ commission sync cron" },
         evidence: { status: lastCommSync.status, errorCount, lastRun: lastCommSync.createdAt },
       });
     }

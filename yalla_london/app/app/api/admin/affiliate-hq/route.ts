@@ -14,7 +14,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { requireAdmin } = await import("@/lib/admin-middleware");
-  await requireAdmin(request);
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
 
   const { prisma } = await import("@/lib/db");
   const { CJ_NETWORK_ID, isCjConfigured, getWebsiteId, getCircuitBreakerState } = await import(
@@ -156,6 +157,8 @@ export async function GET(request: NextRequest) {
           OR: [
             { content_en: { contains: 'rel="sponsored' } },
             { content_en: { contains: "affiliate-cta-block" } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
           ],
         },
       });
@@ -170,6 +173,8 @@ export async function GET(request: NextRequest) {
           OR: [
             { content_en: { contains: 'rel="sponsored' } },
             { content_en: { contains: "affiliate-cta-block" } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
           ],
         },
       },
@@ -398,6 +403,146 @@ export async function POST(request: NextRequest) {
         });
         const data = await res.json();
         return NextResponse.json({ success: true, action, result: data });
+      }
+
+      case "search_products": {
+        const { searchProducts } = await import("@/lib/affiliate/cj-client");
+        const { keywords: searchKeywords, advertiserId: searchAdvId } = body;
+        const results = await searchProducts({
+          keywords: searchKeywords || "hotel",
+          advertiserIds: searchAdvId ? [searchAdvId] : undefined,
+          recordsPerPage: 20,
+        });
+        return NextResponse.json({
+          success: true,
+          action,
+          result: {
+            total: results.totalMatched,
+            returned: results.recordsReturned,
+            products: results.records.map((r) => ({
+              name: r.name,
+              price: r.price,
+              salePrice: r.salePrice,
+              advertiser: r.advertiserName,
+              imageUrl: r.imageUrl,
+              buyUrl: r.buyUrl,
+            })),
+          },
+        });
+      }
+
+      case "run_health_check": {
+        const origin2 = request.nextUrl.origin;
+        const res2 = await fetch(`${origin2}/api/admin/cj-health`, {
+          headers: { cookie: request.headers.get("cookie") || "" },
+        });
+        if (!res2.ok) return NextResponse.json({ success: false, error: `Health check returned ${res2.status}` });
+        const healthData = await res2.json();
+        return NextResponse.json({ success: true, action, result: healthData });
+      }
+
+      case "full_sync": {
+        // Run all syncs sequentially: advertisers → commissions → deals → links
+        const origin3 = request.nextUrl.origin;
+        const cs = process.env.CRON_SECRET;
+        const h: Record<string, string> = {};
+        if (cs) h["Authorization"] = `Bearer ${cs}`;
+
+        const syncResults: Record<string, unknown> = {};
+        const steps = [
+          { name: "advertisers", path: "/api/affiliate/cron/sync-advertisers" },
+          { name: "commissions", path: "/api/affiliate/cron/sync-commissions" },
+          { name: "deals", path: "/api/affiliate/cron/discover-deals" },
+          { name: "links", path: "/api/affiliate/cron/refresh-links" },
+        ];
+        for (const step of steps) {
+          try {
+            const sr = await fetch(`${origin3}${step.path}`, { method: "POST", headers: h });
+            syncResults[step.name] = sr.ok ? await sr.json() : { error: `HTTP ${sr.status}` };
+          } catch (e) {
+            syncResults[step.name] = { error: e instanceof Error ? e.message : "failed" };
+          }
+        }
+        return NextResponse.json({ success: true, action, result: syncResults });
+      }
+
+      case "diagnose": {
+        // Check for common issues and return actionable diagnosis
+        const { prisma: diagPrisma } = await import("@/lib/db");
+        const { getCircuitBreakerState: getCb } = await import("@/lib/affiliate/cj-client");
+        const { getDefaultSiteId: getDefSite } = await import("@/config/sites");
+        const defSite = getDefSite();
+
+        const cb = getCb();
+        const issues: Array<{ severity: string; issue: string; fix: string }> = [];
+
+        // Check circuit breaker
+        if (cb.isOpen) {
+          issues.push({ severity: "critical", issue: "Circuit breaker is OPEN — CJ API calls are blocked", fix: "Wait for 5-min cooldown or check CJ API status" });
+        }
+
+        // Check credentials
+        if (!process.env.CJ_API_TOKEN) issues.push({ severity: "critical", issue: "CJ_API_TOKEN not configured", fix: "Add CJ_API_TOKEN to Vercel env vars" });
+        if (!process.env.CJ_WEBSITE_ID) issues.push({ severity: "high", issue: "CJ_WEBSITE_ID not set — link/product searches may return wrong results", fix: "Add CJ_WEBSITE_ID=101702529 to Vercel env vars" });
+
+        // Check last sync times
+        const lastAdvSync = await diagPrisma.cjSyncLog.findFirst({
+          where: { syncType: "ADVERTISERS" }, orderBy: { createdAt: "desc" },
+        });
+        const lastCommSync = await diagPrisma.cjSyncLog.findFirst({
+          where: { syncType: "COMMISSIONS" }, orderBy: { createdAt: "desc" },
+        });
+
+        if (!lastAdvSync) {
+          issues.push({ severity: "high", issue: "No advertiser sync has ever run", fix: "Tap 'Sync Advertisers' button" });
+        } else if (Date.now() - new Date(lastAdvSync.createdAt).getTime() > 24 * 3600_000) {
+          issues.push({ severity: "medium", issue: `Last advertiser sync was ${Math.round((Date.now() - new Date(lastAdvSync.createdAt).getTime()) / 3600_000)}h ago`, fix: "Tap 'Sync Advertisers' or check if cron is disabled" });
+        }
+        if (lastAdvSync?.status === "FAILED") {
+          issues.push({ severity: "high", issue: "Last advertiser sync FAILED", fix: "Check CJ API credentials and retry" });
+        }
+
+        if (!lastCommSync) {
+          issues.push({ severity: "medium", issue: "No commission sync has ever run", fix: "Tap 'Sync Commissions' button" });
+        }
+
+        // Check article coverage
+        const totalPub = await diagPrisma.blogPost.count({ where: { published: true, deletedAt: null, siteId: defSite } });
+        const withAffs = await diagPrisma.blogPost.count({
+          where: {
+            published: true, deletedAt: null, siteId: defSite,
+            OR: [
+              { content_en: { contains: 'rel="sponsored' } },
+              { content_en: { contains: "affiliate-recommendation" } },
+              { content_en: { contains: 'rel="noopener sponsored"' } },
+            ],
+          },
+        });
+        const coveragePct = totalPub > 0 ? Math.round((withAffs / totalPub) * 100) : 0;
+        if (coveragePct < 50) {
+          issues.push({ severity: "high", issue: `Only ${coveragePct}% of articles have affiliate links (${withAffs}/${totalPub})`, fix: "Tap 'Inject Affiliate Links' to add links to uncovered articles" });
+        }
+
+        // Check for joined advertisers
+        const joinedCount = await diagPrisma.cjAdvertiser.count({ where: { status: "JOINED" } });
+        if (joinedCount === 0) {
+          issues.push({ severity: "high", issue: "No joined CJ advertisers — cannot generate affiliate links", fix: "Apply to advertisers in CJ dashboard, then sync" });
+        }
+
+        const overallStatus = issues.some(i => i.severity === "critical") ? "critical" : issues.some(i => i.severity === "high") ? "warning" : issues.length > 0 ? "info" : "healthy";
+
+        return NextResponse.json({
+          success: true,
+          action,
+          result: {
+            status: overallStatus,
+            issueCount: issues.length,
+            issues,
+            circuitBreaker: cb,
+            joinedAdvertisers: joinedCount,
+            coveragePercent: coveragePct,
+          },
+        });
       }
 
       default:

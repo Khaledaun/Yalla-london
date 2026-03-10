@@ -173,13 +173,17 @@ export async function getContentCoverage(siteId?: string): Promise<ContentCovera
   const withAffiliates = articles.filter((a) =>
     (a.content_en || "").includes('rel="sponsored') ||
     (a.content_en || "").includes("affiliate-cta-block") ||
-    (a.content_en || "").includes("data-affiliate-id")
+    (a.content_en || "").includes("data-affiliate-id") ||
+    (a.content_en || "").includes("affiliate-recommendation") ||
+    (a.content_en || "").includes('rel="noopener sponsored"')
   );
 
   const without = articles.filter(
     (a) =>
       !(a.content_en || "").includes('rel="sponsored') &&
-      !(a.content_en || "").includes("affiliate-cta-block")
+      !(a.content_en || "").includes("affiliate-cta-block") &&
+      !(a.content_en || "").includes("affiliate-recommendation") &&
+      !(a.content_en || "").includes('rel="noopener sponsored"')
   );
 
   return {

@@ -91,21 +91,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Set up affiliate partners
-    if (affiliates?.length) {
-      for (const affiliateName of affiliates) {
-        await prisma.affiliatePartner.upsert({
-          where: { slug: affiliateName.toLowerCase().replace(/\s+/g, '-') },
-          create: {
-            name: affiliateName,
-            slug: affiliateName.toLowerCase().replace(/\s+/g, '-'),
-            partner_type: 'HOTEL',
-            is_active: true,
-          },
-          update: {},
-        }).catch(() => {
-          // Partner might already exist
-        });
+    // Set up affiliate partners (requires SitePremium record)
+    if (affiliates?.length && site?.id) {
+      // Find or create SitePremium for this site
+      const sitePremium = await prisma.sitePremium.findFirst({
+        where: { siteId: siteId },
+        select: { id: true },
+      }).catch(() => null);
+
+      if (sitePremium) {
+        for (const affiliateName of affiliates) {
+          const slug = affiliateName.toLowerCase().replace(/\s+/g, '-');
+          await prisma.affiliatePartner.upsert({
+            where: { siteId_slug: { siteId: sitePremium.id, slug } },
+            create: {
+              siteId: sitePremium.id,
+              name: affiliateName,
+              slug,
+              partner_type: 'HOTEL',
+              is_active: true,
+              createdById: 'system',
+              updatedById: 'system',
+            },
+            update: {},
+          }).catch((err: Error) => {
+            console.warn(`[site-create] Failed to upsert affiliate partner '${affiliateName}':`, err.message);
+          });
+        }
       }
     }
 

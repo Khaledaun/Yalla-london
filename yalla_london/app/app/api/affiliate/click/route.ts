@@ -8,11 +8,12 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 
-// UUID v4 or CUID format validation — prevents enumeration attacks
+// UUID v4, CUID, or CJ link ID format validation — prevents enumeration attacks
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CUID_REGEX = /^[a-z0-9]{20,30}$/i;
+const CJ_LINK_REGEX = /^cj-link-\d+$/;
 function isValidLinkId(id: string): boolean {
-  return UUID_REGEX.test(id) || CUID_REGEX.test(id);
+  return UUID_REGEX.test(id) || CUID_REGEX.test(id) || CJ_LINK_REGEX.test(id);
 }
 
 export async function GET(request: NextRequest) {

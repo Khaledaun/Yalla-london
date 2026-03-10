@@ -64,8 +64,8 @@ export async function processContent(
     if (!enabled) {
       return { html, injectedLinks: [], hasAffiliateContent: false };
     }
-  } catch {
-    // If feature flag check fails, proceed anyway
+  } catch (err) {
+    console.warn("[content-processor] Feature flag check failed, proceeding:", err instanceof Error ? err.message : String(err));
   }
 
   // Get matching links (per-site)

@@ -192,7 +192,7 @@
     },
     {
       "path": "/api/cron/content-auto-fix-lite",
-      "schedule": "0 */4 * * *"
+      "schedule": "30 0,4,8,12,16,20 * * *"
     },
     {
       "path": "/api/cron/content-freshness",
@@ -224,7 +224,7 @@
     },
     {
       "path": "/api/cron/schedule-executor",
-      "schedule": "0 */2 * * *"
+      "schedule": "15 1,3,5,7,9,11,13,15,17,19,21,23 * * *"
     },
     {
       "path": "/api/cron/subscriber-emails",

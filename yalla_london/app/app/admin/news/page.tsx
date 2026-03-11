@@ -118,6 +118,7 @@ function formatDuration(ms: number | null): string {
 // ---------------------------------------------------------------------------
 
 export default function AdminNewsPage() {
+  const [activeSiteId, setActiveSiteId] = useState('yalla-london')
   const [newsItems, setNewsItems] = useState<NewsItem[]>([])
   const [researchLogs, setResearchLogs] = useState<ResearchLog[]>([])
   const [stats, setStats] = useState<NewsStats | null>(null)
@@ -133,7 +134,7 @@ export default function AdminNewsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/news')
+      const res = await fetch(`/api/admin/news?site_id=${encodeURIComponent(activeSiteId)}`)
       if (res.ok) {
         const data = await res.json()
         setNewsItems(data.items ?? [])
@@ -145,7 +146,7 @@ export default function AdminNewsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [activeSiteId])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -157,7 +158,7 @@ export default function AdminNewsPage() {
       const res = await fetch('/api/admin/departures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: `/api/cron/london-news?type=${type}` }),
+        body: JSON.stringify({ path: `/api/cron/london-news?type=${type}&site_id=${encodeURIComponent(activeSiteId)}` }),
       })
       if (!res.ok) {
         const text = await res.text().catch(() => '')

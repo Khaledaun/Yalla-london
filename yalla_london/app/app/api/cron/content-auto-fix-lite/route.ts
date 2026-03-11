@@ -435,9 +435,9 @@ async function handleAutoFixLite(request: NextRequest) {
       const trackedSet = new Set(existingUrls.map((e) => e.url));
       const untracked = postUrls.filter((p) => !trackedSet.has(p.url));
 
-      // Track missing URLs — increased from 10 to 30 per run to clear 37-page backlog faster
+      // Track missing URLs — increased to 50 per run to clear 131-page backlog faster
       const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
-      for (const post of untracked.slice(0, 30)) {
+      for (const post of untracked.slice(0, 50)) {
         if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
         await ensureUrlTracked(post.url, post.siteId, `blog/${post.slug}`);
         neverSubmittedFixed++;

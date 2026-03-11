@@ -2888,3 +2888,51 @@ Tests: `revenue-dashboard-verify`, `knowledge-base-verify`, `weekly-digest-verif
 67. **Twitter auto-publish needs exactly 4 env vars** — `TWITTER_API_KEY` (consumer key), `TWITTER_API_SECRET` (consumer secret), `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`. NOT `TWITTER_ACCESS_SECRET` (wrong name). Scheduler accepts both for backward compatibility.
 68. **CJ siteId migration uses SPLIT_PART backfill** — SID format is `{siteId}_{articleSlug}`. `SPLIT_PART("sessionId", '_', 1)` extracts the siteId for all existing click events. Only works when sessionId contains underscore.
 69. **Smoke test count is the official test suite metric** — track it in plan-registry.ts description and update when tests are added. The `smoke-test-run` testType in live-tests.ts checks the actual count via file analysis.
+
+### Session: March 11, 2026 — Deep Audit: 5 Critical Bugs Found and Fixed
+
+**Post-session deep audit run by 3 parallel agents across 8 files. Result: 5 critical bugs caught.**
+
+**Bug #1 (CRITICAL): GDPR endpoint — AuditLog `metadata` field doesn't exist**
+- `prisma.auditLog.create()` used `metadata:` but the AuditLog model has `details Json?` (not `metadata`)
+- **Impact:** Prisma silently rejected the write OR threw at runtime — GDPR Article 30 audit log was NEVER written. Every deletion request was non-compliant.
+- **Fix:** `metadata:` → `details:` in `/api/gdpr/delete/route.ts`
+
+**Bug #2 (CRITICAL): GDPR endpoint — CharterInquiry field names wrong**
+- Code used `contactEmail`, `contactName`, `phoneNumber`, `notes` — none of these fields exist on CharterInquiry
+- **Actual fields:** `email`, `firstName`, `lastName`, `phone`, `brokerNotes`, `message`, `whatsappNumber`
+- **Impact:** Prisma threw on every CharterInquiry update — yacht charter PII was NEVER anonymized. GDPR violation.
+- **Fix:** All field names corrected. firstName→`[Deleted]`, lastName→`User`, email→`deleted-{hash}@anonymized.local`, phone/whatsappNumber/message/brokerNotes→`null`
+
+**Bug #3 (CRITICAL): deal-discovery.ts — siteId param accepted but never stored**
+- `runDealDiscovery(budgetMs, siteId?)` accepted siteId but `prisma.cjOffer.create()` never set `siteId` on the new record
+- **Impact:** All discovered deals stored with `siteId=null`. Per-site deal tabs in affiliate HQ showed empty even after the CJ schema migration. The entire A.2.1 migration benefit was nullified for deal data.
+- **Fix:** Added `siteId: siteId || null` to `cjOffer.create()`. Also scoped expiring offers count with `OR: [{ siteId }, { siteId: null }]`.
+
+**Bug #4 (HIGH): affiliate-hq/route.ts — Links tab CjOffer not scoped by site**
+- Revenue, Coverage, and Clicks tabs all had proper `siteFilter`. Links tab's `cjOffer.findMany()` was global.
+- **Impact:** Selecting Site #2 in the dropdown still showed deals from all sites in the Links tab.
+- **Fix:** Added `offerSiteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {}` to offer query. (CjLink has no siteId field — links are correctly global resources shared across sites.)
+
+**Bug #5 (HIGH): blog/[slug]/page.tsx — Arabic-only articles got noindex on English route**
+- `hasSubstantiveContent` checked only the requested language: Arabic route checked `content_ar`, English route checked `content_en`
+- **Impact:** An article with substantial `content_ar` but empty `content_en` got `robots: { index: false }` on `/blog/slug`. Google saw noindex on the English URL, which is part of the hreflang pair — this can suppress the Arabic URL from Arabic search results too.
+- **Fix:** Changed to `OR` logic: article is indexable if EITHER language has >100 chars of content. Both routes now allow indexing as long as one language is substantial.
+
+**No issues found in:**
+- CJ schema migration SQL (correct PostgreSQL syntax, IF NOT EXISTS, safe backfill)
+- Prisma schema model definitions (siteId correctly typed String? with indexes)
+- link-tracker.ts and cj-sync.ts (siteId properly stored on all write paths)
+- monitor.ts revenue/profitability queries (all scoped with OR pattern)
+- BlogPostClient serverLocale implementation (effectiveLanguage pattern correct)
+- blog page serverLocale passing (correct prop with type cast)
+- Smoke test assertions (all 24 new tests verified to match real files/patterns)
+- plan-registry.ts (all 16 tasks correctly marked done)
+- live-tests.ts (all 7 new testType functions exist in registry)
+
+### Critical Rules Learned (March 11 Deep Audit)
+
+70. **Always verify Prisma field names against schema.prisma before writing — never assume** — `metadata` vs `details`, `contactEmail` vs `email`, `phoneNumber` vs `phone`. A wrong field name causes a runtime crash that the empty catch block swallows silently.
+71. **Empty catch blocks in GDPR/compliance code are especially dangerous** — if deletion fails silently, the endpoint reports success while data remains. Always log the actual error to distinguish expected failures (table not found) from unexpected crashes (wrong field name).
+72. **When a function accepts a parameter but tests show it has no effect, the parameter is not wired** — `runDealDiscovery(budgetMs, siteId?)` accepted siteId but the create call didn't use it. Always trace all call paths from parameter to storage.
+73. **`hasSubstantiveContent` for bilingual articles must check BOTH languages with OR** — a noindex on the English URL can suppress the Arabic hreflang pair from Google's Arabic index. Index if ANY language version has substantial content.

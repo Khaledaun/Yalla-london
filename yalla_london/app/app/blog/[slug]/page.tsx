@@ -470,7 +470,7 @@ function generateStructuredData(
     "@type": "Article",
     headline,
     description: schemaDescription,
-    image: image,
+    image: post.featured_image || `${baseUrl}/api/og?siteId=${siteSlug}&title=${encodeURIComponent((post.title_en || post.title || "").slice(0, 60))}`,
     datePublished: createdAt,
     dateModified: updatedAt,
     author: author ? {

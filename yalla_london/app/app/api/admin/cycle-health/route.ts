@@ -901,7 +901,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       issues.push({
         id: "ga4-not-configured",
         category: "seo" as const,
-        severity: "medium" as const,
+        severity: "warning" as const,
         what: "GA4 not configured — no website traffic data",
         why: "Google Analytics credentials are missing. The cockpit dashboard cannot show sessions, users, or page views.",
         fix: "Add GA4_PROPERTY_ID, GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL, and GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY to Vercel environment variables.",

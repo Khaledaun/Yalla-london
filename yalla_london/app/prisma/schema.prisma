@@ -4490,6 +4490,7 @@ model CjOffer {
   id              String   @id @default(cuid())
   networkId       String
   advertiserId    String
+  siteId          String?  // Per-site scoping (null = available to all sites)
   externalId      String?  // Product ID from CJ catalog
   title           String
   titleAr         String?
@@ -4518,6 +4519,7 @@ model CjOffer {
 
   @@index([networkId])
   @@index([advertiserId])
+  @@index([siteId])
   @@index([isActive])
   @@index([category])
   @@index([validTo])
@@ -4532,6 +4534,7 @@ model CjCommission {
   networkId       String
   advertiserId    String
   linkId          String?
+  siteId          String?  // Site that generated this commission (from SID attribution)
   externalId      String   // CJ transaction ID
   actionType      String   // "sale", "lead"
   saleAmount      Float
@@ -4553,6 +4556,7 @@ model CjCommission {
   @@unique([networkId, externalId])
   @@index([advertiserId])
   @@index([linkId])
+  @@index([siteId])
   @@index([status])
   @@index([eventDate])
   @@map("cj_commissions")
@@ -4633,6 +4637,7 @@ enum PlacementCondition {
 model CjClickEvent {
   id              String   @id @default(cuid())
   linkId          String
+  siteId          String?  // Site where the click occurred (from x-site-id header or SID)
   sessionId       String?
   pageUrl         String
   userAgent       String?
@@ -4644,6 +4649,7 @@ model CjClickEvent {
   link            CjLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId, createdAt])
+  @@index([siteId, createdAt])
   @@index([createdAt])
   @@map("cj_click_events")
 }

@@ -92,7 +92,7 @@ export interface RevenueReport {
   projectedMonthly: number;
 }
 
-export async function getRevenueReport(): Promise<RevenueReport> {
+export async function getRevenueReport(siteId?: string): Promise<RevenueReport> {
   const { prisma } = await import("@/lib/db");
 
   const now = new Date();
@@ -100,17 +100,20 @@ export async function getRevenueReport(): Promise<RevenueReport> {
   const d30 = new Date(now.getTime() - 30 * 86400_000);
   const d60 = new Date(now.getTime() - 60 * 86400_000);
 
+  // Include records for this site OR unscoped records (null siteId = legacy data before migration)
+  const siteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
+
   const [last7, last30, prev30] = await Promise.all([
     prisma.cjCommission.findMany({
-      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d7 } },
+      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d7 }, ...siteFilter },
       select: { commissionAmount: true, advertiserId: true },
     }),
     prisma.cjCommission.findMany({
-      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
       include: { advertiser: { select: { name: true } } },
     }),
     prisma.cjCommission.findMany({
-      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d60, lt: d30 } },
+      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d60, lt: d30 }, ...siteFilter },
       include: { advertiser: { select: { name: true } } },
     }),
   ]);
@@ -223,13 +226,16 @@ export async function getProfitabilityReport(siteId?: string): Promise<Profitabi
 
   const d30 = new Date(Date.now() - 30 * 86400_000);
 
+  // Include records for this site OR unscoped records (null siteId = legacy data before migration)
+  const siteFilter = targetSiteId ? { OR: [{ siteId: targetSiteId }, { siteId: null }] } : {};
+
   const [commissions, clicks, articleCount, aiCosts] = await Promise.all([
     prisma.cjCommission.aggregate({
-      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
       _sum: { commissionAmount: true },
     }),
     prisma.cjClickEvent.count({
-      where: { createdAt: { gte: d30 } },
+      where: { createdAt: { gte: d30 }, ...siteFilter },
     }),
     prisma.blogPost.count({
       where: { published: true, deletedAt: null, siteId: targetSiteId },

@@ -56,19 +56,22 @@ export async function GET(request: NextRequest) {
     const d30 = new Date(Date.now() - 30 * 86400_000);
     const d60 = new Date(Date.now() - 60 * 86400_000);
 
+    // siteId filter: include records scoped to this site OR unscoped (null siteId = legacy/unattributed)
+    const siteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
+
     const [commissions30d, commissionsPrev30d, commissions7d] = await Promise.all([
       prisma.cjCommission.aggregate({
-        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
         _sum: { commissionAmount: true },
         _count: true,
       }),
       prisma.cjCommission.aggregate({
-        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d60, lt: d30 } },
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d60, lt: d30 }, ...siteFilter },
         _sum: { commissionAmount: true },
         _count: true,
       }),
       prisma.cjCommission.aggregate({
-        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d7 } },
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d7 }, ...siteFilter },
         _sum: { commissionAmount: true },
         _count: true,
       }),
@@ -78,11 +81,14 @@ export async function GET(request: NextRequest) {
     const revPrev30 = commissionsPrev30d._sum.commissionAmount || 0;
     const revTrend = revPrev30 > 0 ? ((rev30 - revPrev30) / revPrev30) * 100 : 0;
 
-    const clicks7d = await prisma.cjClickEvent.count({ where: { createdAt: { gte: d7 } } });
+    const clickSiteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
+    const clicks7d = await prisma.cjClickEvent.count({
+      where: { createdAt: { gte: d7 }, ...clickSiteFilter },
+    });
 
     const topAdvertisers = await prisma.cjCommission.groupBy({
       by: ["advertiserId"],
-      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 } },
+      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
       _sum: { commissionAmount: true },
       orderBy: { _sum: { commissionAmount: "desc" } },
       take: 10,
@@ -96,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     const topClicks = await prisma.cjClickEvent.groupBy({
       by: ["pageUrl"],
-      where: { createdAt: { gte: d30 } },
+      where: { createdAt: { gte: d30 }, ...clickSiteFilter },
       _count: true,
       orderBy: { _count: { pageUrl: "desc" } },
       take: 10,

@@ -4,7 +4,7 @@ export const maxDuration = 300; // 300s Vercel Pro limit for test-all
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { runLiveTest, getAvailableTestTypes } from "@/lib/dev-tasks/live-tests";
-import { getPlan, getPlanTasks, computePhaseReadiness, computeProjectReadiness } from "@/lib/dev-tasks/plan-registry";
+import { getPlan, getAllPlans, getPlanTasks, computePhaseReadiness, computeProjectReadiness } from "@/lib/dev-tasks/plan-registry";
 import type { LiveTestResult } from "@/lib/dev-tasks/live-tests";
 import { getDefaultSiteId } from "@/config/sites";
 
@@ -63,12 +63,18 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     return NextResponse.json({ success: true, result });
   }
 
-  // ── Test All: run all tests for a plan sequentially ──────────────────
+  // ── Test All: run all tests for a plan (or ALL plans) sequentially ──
   if (action === "test_all") {
-    const plan = getPlan(planId || "stage-a");
-    if (!plan) {
-      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    // If planId is specified, test that plan only. Otherwise test ALL plans.
+    const plansToTest = planId
+      ? [getPlan(planId)].filter(Boolean) as import("@/lib/dev-tasks/plan-registry").DevPlan[]
+      : getAllPlans();
+
+    if (plansToTest.length === 0) {
+      return NextResponse.json({ error: "No plans found" }, { status: 404 });
     }
+
+    const allTasks = plansToTest.flatMap(p => p.tasks);
 
     const TOTAL_BUDGET_MS = 280_000; // 300s limit - 20s buffer
     const PER_TEST_BUDGET_MS = 25_000;
@@ -84,7 +90,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     let failed = 0;
     let skipped = 0;
 
-    for (const task of plan.tasks) {
+    for (const task of allTasks) {
       const elapsed = Date.now() - startTime;
       const remaining = TOTAL_BUDGET_MS - elapsed;
 
@@ -148,8 +154,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         skipped,
         readiness: avgReadiness,
         durationMs: totalDurationMs,
-        plan: plan.id,
-        project: plan.project,
+        plans: plansToTest.map(p => p.id),
+        project: plansToTest[0]?.project || "general",
       },
       results,
     });

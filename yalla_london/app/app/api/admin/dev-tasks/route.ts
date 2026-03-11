@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
-import { getPlan, getPhases, computePhaseReadiness, computeProjectReadiness } from "@/lib/dev-tasks/plan-registry";
+import { getPlan, getAllPlans, getPhases, computePhaseReadiness, computeProjectReadiness } from "@/lib/dev-tasks/plan-registry";
 
 // ── GET: List tasks (filterable by siteId, status, priority, source) ──────────
 
@@ -44,39 +44,86 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       const tasks = await prisma.devTask.findMany({
         where: { ...where, source: "dev-plan" },
         orderBy: [{ created_at: "asc" }],
-        take: 200,
+        take: 1000,
       });
 
-      // Group by phase (from metadata)
-      const phases: Record<string, { name: string; order: number; tasks: typeof tasks; readiness: number; done: number; total: number }> = {};
+      // Group tasks by plan (sourceRef prefix) then by phase
+      type PlanGroup = {
+        planId: string;
+        planTitle: string;
+        project: string;
+        phases: Array<{ name: string; order: number; tasks: typeof tasks; readiness: number; done: number; total: number }>;
+        totalTasks: number;
+        completedTasks: number;
+        readiness: number;
+      };
+
+      const planMap = new Map<string, { planTitle: string; project: string; phases: Record<string, { name: string; order: number; tasks: typeof tasks; readiness: number; done: number; total: number }> }>();
 
       for (const task of tasks) {
         const meta = (task.metadata || {}) as Record<string, unknown>;
         const phase = (meta.phase as string) || "Unknown";
         const phaseOrder = (meta.phaseOrder as number) || 99;
+        // Extract planId from sourceRef "plan:{planId}/{taskId}"
+        const planId = task.sourceRef?.match(/^plan:([^/]+)\//)?.[1] || "stage-a";
+        const planTitle = (meta.title as string)?.includes("—") ? "" : "";
+        const project = (meta.project as string) || "general / march26";
 
-        if (!phases[phase]) {
-          phases[phase] = { name: phase, order: phaseOrder, tasks: [], readiness: 0, done: 0, total: 0 };
+        if (!planMap.has(planId)) {
+          // Look up plan title from registry
+          const registryPlan = getPlan(planId);
+          planMap.set(planId, {
+            planTitle: registryPlan?.title || planId,
+            project,
+            phases: {},
+          });
         }
-        phases[phase].tasks.push(task);
-        phases[phase].total++;
-        if (task.status === "completed") phases[phase].done++;
+
+        const planData = planMap.get(planId)!;
+        if (!planData.phases[phase]) {
+          planData.phases[phase] = { name: phase, order: phaseOrder, tasks: [], readiness: 0, done: 0, total: 0 };
+        }
+        planData.phases[phase].tasks.push(task);
+        planData.phases[phase].total++;
+        if (task.status === "completed") planData.phases[phase].done++;
       }
 
-      // Compute readiness per phase
-      for (const p of Object.values(phases)) {
-        const readinessValues = p.tasks.map((t) => {
+      // Build plans array with readiness computed
+      const plans: PlanGroup[] = [];
+      for (const [planId, planData] of planMap) {
+        // Compute readiness per phase
+        for (const p of Object.values(planData.phases)) {
+          const readinessValues = p.tasks.map((t) => {
+            const m = (t.metadata || {}) as Record<string, unknown>;
+            return (m.readiness as number) || (t.status === "completed" ? 100 : 0);
+          });
+          p.readiness = readinessValues.length > 0
+            ? Math.round(readinessValues.reduce((a, b) => a + b, 0) / readinessValues.length)
+            : 0;
+        }
+
+        const sortedPhases = Object.values(planData.phases).sort((a, b) => a.order - b.order);
+        const allTasks = sortedPhases.flatMap((p) => p.tasks);
+        const allReadiness = allTasks.map((t) => {
           const m = (t.metadata || {}) as Record<string, unknown>;
           return (m.readiness as number) || (t.status === "completed" ? 100 : 0);
         });
-        p.readiness = readinessValues.length > 0
-          ? Math.round(readinessValues.reduce((a, b) => a + b, 0) / readinessValues.length)
+        const planReadiness = allReadiness.length > 0
+          ? Math.round(allReadiness.reduce((a, b) => a + b, 0) / allReadiness.length)
           : 0;
+
+        plans.push({
+          planId,
+          planTitle: planData.planTitle,
+          project: planData.project,
+          phases: sortedPhases,
+          totalTasks: allTasks.length,
+          completedTasks: allTasks.filter((t) => t.status === "completed").length,
+          readiness: planReadiness,
+        });
       }
 
-      const sortedPhases = Object.values(phases).sort((a, b) => a.order - b.order);
-
-      // Project-level stats
+      // Overall project stats across all plans
       const allReadiness = tasks.map((t) => {
         const m = (t.metadata || {}) as Record<string, unknown>;
         return (m.readiness as number) || (t.status === "completed" ? 100 : 0);
@@ -85,19 +132,20 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         ? Math.round(allReadiness.reduce((a, b) => a + b, 0) / allReadiness.length)
         : 0;
 
-      // Get project info from first task metadata
-      const firstMeta = tasks[0] ? (tasks[0].metadata as Record<string, unknown>) : {};
-      const project = (firstMeta?.project as string) || "general / march26";
+      // Flat phases for backward compatibility
+      const flatPhases = plans.flatMap((p) => p.phases);
 
       return NextResponse.json({
         tasks,
-        phases: sortedPhases,
+        phases: flatPhases,
+        plans,
         projectStats: {
-          project,
+          project: "All Plans",
           totalTasks: tasks.length,
           completedTasks: tasks.filter((t) => t.status === "completed").length,
           readiness: projectReadiness,
-          phaseCount: sortedPhases.length,
+          phaseCount: flatPhases.length,
+          planCount: plans.length,
         },
       });
     }
@@ -339,6 +387,77 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           created,
           updated,
           total: plan.tasks.length,
+        });
+      }
+
+      case "sync_all_plans": {
+        const { siteId: syncSiteId } = body;
+        const targetSiteId = syncSiteId || request.headers.get("x-site-id") || getDefaultSiteId();
+        const allPlans = getAllPlans();
+        let totalCreated = 0;
+        let totalUpdated = 0;
+        const planResults: Array<{ planId: string; title: string; created: number; updated: number; total: number }> = [];
+
+        for (const plan of allPlans) {
+          let created = 0;
+          let updated = 0;
+
+          for (const task of plan.tasks) {
+            const sourceRef = `plan:${plan.id}/${task.id}`;
+            const existing = await prisma.devTask.findFirst({
+              where: { sourceRef, siteId: targetSiteId },
+            });
+
+            const taskMeta = {
+              ...task,
+              project: plan.project,
+            };
+
+            if (existing) {
+              const existingMeta = (existing.metadata || {}) as Record<string, unknown>;
+              await prisma.devTask.update({
+                where: { id: existing.id },
+                data: {
+                  title: `${task.id} — ${task.title}`,
+                  description: task.description,
+                  metadata: { ...existingMeta, ...taskMeta },
+                  status: task.status === "done" ? "completed" : task.status === "in-progress" ? "in_progress" : "pending",
+                  completedAt: task.status === "done" ? (existing.completedAt || new Date()) : null,
+                },
+              });
+              updated++;
+            } else {
+              await prisma.devTask.create({
+                data: {
+                  siteId: targetSiteId,
+                  title: `${task.id} — ${task.title}`,
+                  description: task.description,
+                  category: task.category,
+                  priority: task.phaseOrder <= 1 ? "high" : "medium",
+                  status: task.status === "done" ? "completed" : "pending",
+                  source: "dev-plan",
+                  sourceRef,
+                  dueDate: task.dueDate ? new Date(task.dueDate) : null,
+                  completedAt: task.status === "done" ? new Date() : null,
+                  metadata: taskMeta,
+                },
+              });
+              created++;
+            }
+          }
+
+          totalCreated += created;
+          totalUpdated += updated;
+          planResults.push({ planId: plan.id, title: plan.title, created, updated, total: plan.tasks.length });
+        }
+
+        return NextResponse.json({
+          success: true,
+          totalPlans: allPlans.length,
+          totalCreated,
+          totalUpdated,
+          totalTasks: allPlans.reduce((s, p) => s + p.tasks.length, 0),
+          plans: planResults,
         });
       }
 

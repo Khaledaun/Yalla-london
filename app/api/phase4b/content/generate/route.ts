@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { getBrandConfig } from '@/lib/brand-config';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 interface ContentGenerationRequest {
   topicId: string;
@@ -131,9 +132,12 @@ Format as JSON:
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED || !flags.AUTO_CONTENT_GENERATION) {
       return NextResponse.json(
         { error: 'Content generation feature is disabled' },
@@ -216,16 +220,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Content generation error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to generate content',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to generate content' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     
@@ -275,7 +279,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Draft fetch error:', error);
+    console.error('[phase4b/content/generate] GET error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch drafts' },
       { status: 500 }

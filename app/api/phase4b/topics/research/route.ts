@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 interface PerplexityResponse {
   choices: Array<{
@@ -237,9 +238,12 @@ async function callPerplexityAPI(prompt: string): Promise<TopicSuggestion[]> {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED || !flags.TOPIC_RESEARCH) {
       return NextResponse.json(
         { error: 'Topic research feature is disabled' },
@@ -319,18 +323,18 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Topic research error:', error);
+    console.error('[phase4b/topics/research] POST error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to research topics',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to research topics' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     

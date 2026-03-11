@@ -52,6 +52,8 @@ interface BlogPostData {
 
 interface BlogPostClientProps {
   post: BlogPostData | null;
+  /** Server-determined locale from x-locale header — ensures correct content in initial SSR HTML for Google */
+  serverLocale?: 'en' | 'ar';
 }
 
 /**
@@ -66,8 +68,11 @@ function fastStripScripts(html: string): string {
     .replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
 }
 
-export default function BlogPostClient({ post }: BlogPostClientProps) {
+export default function BlogPostClient({ post, serverLocale }: BlogPostClientProps) {
   const { language, isRTL } = useLanguage()
+  // For SSR: use serverLocale to ensure correct language in initial HTML that Google indexes.
+  // After hydration, the client-side language context takes over (allows user toggle).
+  const effectiveLanguage = (serverLocale ?? language) as 'en' | 'ar'
   const t = (key: string) => getTranslation(language, key)
   const [isLiked, setIsLiked] = useState(false)
   const [readProgress, setReadProgress] = useState(0)
@@ -119,7 +124,11 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
   // Demote <h1> to <h2> at render time — the page template already provides
   // the H1 via the article title. This is a safety net for articles not yet
   // cleaned by the content-auto-fix-lite cron.
-  const rawContentPreH1 = post ? (language === 'en' ? post.content_en : post.content_ar) : ''
+  // Use effectiveLanguage (server-determined on initial render, client-context after hydration)
+  // Fall back to content_en when content_ar is empty (incomplete translations)
+  const rawContentPreH1 = post
+    ? (effectiveLanguage === 'ar' && post.content_ar ? post.content_ar : post.content_en)
+    : ''
 
   // Safety net: convert markdown syntax to HTML if content was stored as
   // markdown instead of HTML (some older or failed pipeline runs). This
@@ -203,10 +212,11 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
     )
   }
 
-  const title = language === 'en' ? post.title_en : post.title_ar
-  const excerpt = language === 'en' ? post.excerpt_en : post.excerpt_ar
+  // Use effectiveLanguage for content — correct in both SSR (Arabic HTML for Google) and client
+  const title = effectiveLanguage === 'ar' && post.title_ar ? post.title_ar : post.title_en
+  const excerpt = effectiveLanguage === 'ar' && post.excerpt_ar ? post.excerpt_ar : post.excerpt_en
   const categoryName = post.category
-    ? (language === 'en' ? post.category.name_en : post.category.name_ar)
+    ? (effectiveLanguage === 'ar' && post.category.name_ar ? post.category.name_ar : post.category.name_en)
     : ''
   const readingTime = post.reading_time || 5
 

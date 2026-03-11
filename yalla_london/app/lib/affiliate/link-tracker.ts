@@ -19,6 +19,7 @@ export async function trackClick(opts: {
   sessionId?: string;
   country?: string;
   sid?: string;
+  siteId?: string;
 }): Promise<string | null> {
   try {
     const { prisma } = await import("@/lib/db");
@@ -28,9 +29,14 @@ export async function trackClick(opts: {
     // Store SID in sessionId for revenue attribution (format: siteId_articleSlug)
     const sessionId = opts.sid || opts.sessionId || null;
 
+    // Extract siteId: explicit param takes priority, then parse from SID (format: siteId_articleSlug)
+    const siteId = opts.siteId ||
+      (opts.sid && opts.sid.includes("_") ? opts.sid.split("_")[0] : null);
+
     await prisma.cjClickEvent.create({
       data: {
         linkId: opts.linkId,
+        siteId,
         pageUrl: opts.pageUrl,
         userAgent: opts.userAgent || null,
         sessionId,

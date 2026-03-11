@@ -1061,17 +1061,21 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
     snapshot.aiCostWeekUsd = Math.round((aiCosts._sum?.estimatedCostUsd ?? 0) * 100) / 100;
 
     // Merge CJ-specific data (separate tables from generic tracking)
+    // Use OR: [{ siteId: { in } }, { siteId: null }] to include both scoped and legacy null records.
     try {
+      const cjSiteFilter = activeSiteIds.length > 0
+        ? { OR: [{ siteId: { in: activeSiteIds } }, { siteId: null }] }
+        : {};
       const cjClicks = await prisma.cjClickEvent.count({
-        where: { createdAt: { gte: weekAgo } },
+        where: { ...cjSiteFilter, createdAt: { gte: weekAgo } },
       }).catch(() => 0);
       const cjClicksToday = await prisma.cjClickEvent.count({
-        where: { createdAt: { gte: todayStart } },
+        where: { ...cjSiteFilter, createdAt: { gte: todayStart } },
       }).catch(() => 0);
       const cjCommissions = await prisma.cjCommission.aggregate({
         _count: { id: true },
         _sum: { commissionAmount: true },
-        where: { eventDate: { gte: weekAgo } },
+        where: { ...cjSiteFilter, eventDate: { gte: weekAgo } },
       }).catch(() => ({ _count: { id: 0 }, _sum: { commissionAmount: null } }));
 
       // Add CJ data to generic totals

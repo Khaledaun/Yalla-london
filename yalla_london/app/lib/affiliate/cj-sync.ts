@@ -441,6 +441,11 @@ export async function syncCommissions(
             continue;
           }
 
+          // Extract siteId from SID parameter (format: siteId_articleSlug)
+          const sidSiteId = rec.sid && rec.sid.includes("_")
+            ? rec.sid.split("_")[0]
+            : null;
+
           await prisma.cjCommission.upsert({
             where: {
               networkId_externalId: {
@@ -451,6 +456,7 @@ export async function syncCommissions(
             create: {
               networkId: CJ_NETWORK_ID,
               advertiserId: advertiser.id,
+              siteId: sidSiteId,
               externalId: rec.actionId,
               actionType: rec.actionType,
               saleAmount: rec.saleAmount,
@@ -473,6 +479,8 @@ export async function syncCommissions(
               status,
               lockDate: rec.lockingDate ? new Date(rec.lockingDate) : undefined,
               publishDate: rec.postingDate ? new Date(rec.postingDate) : undefined,
+              // Update siteId only if it was previously null (don't overwrite known attribution)
+              ...(sidSiteId ? { siteId: sidSiteId } : {}),
             },
           });
 

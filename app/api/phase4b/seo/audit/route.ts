@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 interface SEOAuditRequest {
   contentId?: string;
@@ -289,9 +290,12 @@ function calculateKeywordDensity(text: string, keywords: string[]): number {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED || !flags.SEO_AUTOMATION) {
       return NextResponse.json(
         { error: 'SEO audit feature is disabled' },
@@ -375,21 +379,21 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('SEO audit error:', error);
+    console.error('[phase4b/seo/audit] POST error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to perform SEO audit',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to perform SEO audit' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED || !flags.SEO_AUTOMATION) {
       return NextResponse.json(
         { error: 'SEO audit feature is disabled' },
@@ -435,7 +439,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('SEO audit fetch error:', error);
+    console.error('[phase4b/seo/audit] GET error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch SEO audits' },
       { status: 500 }

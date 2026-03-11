@@ -201,6 +201,25 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "prompt-to-video-verify": testPromptToVideoVerify,
   "video-render-verify": testVideoRenderVerify,
   "viral-content-verify": testViralContentVerify,
+  // Batch 4: PDF + Commerce + Website Builder + Social/Email
+  "pdf-export-verify": testPdfExportVerify,
+  "pdf-library-verify": testPdfLibraryVerify,
+  "stripe-verify": testStripeVerify,
+  "mercury-verify": testMercuryVerify,
+  "financial-dashboard-verify": testFinancialDashboardVerify,
+  "etsy-connection-verify": testEtsyConnectionVerify,
+  "etsy-listing-gen-verify": testEtsyListingGenVerify,
+  "etsy-analytics-verify": testEtsyAnalyticsVerify,
+  "etsy-bulk-verify": testEtsyBulkVerify,
+  "auto-config-verify": testAutoConfigVerify,
+  "zenitha-luxury-verify": testZenithaLuxuryVerify,
+  "authority-pages-verify": testAuthorityPagesVerify,
+  "cross-network-seo-verify": testCrossNetworkSeoVerify,
+  "auto-repurpose-verify": testAutoRepurposeVerify,
+  "pinterest-verify": testPinterestVerify,
+  "welcome-sequence-verify": testWelcomeSequenceVerify,
+  "deal-alert-verify": testDealAlertVerify,
+  "email-social-analytics-verify": testEmailSocialAnalyticsVerify,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -2957,5 +2976,231 @@ async function testViralContentVerify(): Promise<LiveTestResult> {
     plainLanguage: `Viral content tools: scripter viral references=${hasViral}, shareable content=${hasShareable}. Dedicated viral generator not yet built (quiz makers, name generators, calculators).`,
     json: { hasViral, hasShareable, status: "future" },
     error: { code: "NOT_IMPLEMENTED", message: "Viral generator tools not yet built", where: "lib/content-engine/", howToFix: "Build interactive viral tools: quiz makers, name generators, travel calculators with social sharing." },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH 4: PDF + Commerce + Website Builder + Social/Email (18 tests)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── PDF Export Verify ───────────────────────────────────────────────────────────
+async function testPdfExportVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/pdf/html-to-pdf.ts");
+  const content = readContent("lib/pdf/html-to-pdf.ts");
+  const hasPuppeteer = content.includes("puppeteer") || content.includes("Puppeteer");
+  const hasExport = content.includes("export");
+  return makeResult({
+    success: exists,
+    readiness: exists ? 50 : 0,
+    plainLanguage: `PDF export: html-to-pdf=${exists}, Puppeteer=${hasPuppeteer}. Partial — generates PDFs but no public-facing download flow yet.`,
+    json: { exists, hasPuppeteer, hasExport, status: "partial" },
+  });
+}
+
+// ── PDF Library Verify ──────────────────────────────────────────────────────────
+async function testPdfLibraryVerify(): Promise<LiveTestResult> {
+  const schema = readContent("prisma/schema.prisma");
+  const hasGuideModel = schema.includes("model PdfGuide");
+  const hasDownloadModel = schema.includes("model PdfDownload");
+  const pageExists = fileCheck("app/admin/design/page.tsx");
+  return makeResult({
+    success: false, readiness: hasGuideModel ? 20 : 0,
+    plainLanguage: `PDF library: PdfGuide model=${hasGuideModel}, PdfDownload model=${hasDownloadModel}, admin page=${pageExists}. Full PDF library with catalog and downloads not yet built.`,
+    json: { hasGuideModel, hasDownloadModel, pageExists, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "PDF library system not yet built", where: "app/admin/pdf-guides/", howToFix: "Build PDF guide catalog: creation workflow, download tracking, lead capture forms." },
+  });
+}
+
+// ── Stripe Verify ───────────────────────────────────────────────────────────────
+async function testStripeVerify(): Promise<LiveTestResult> {
+  const hasKey = !!process.env.STRIPE_SECRET_KEY;
+  const hasPubKey = !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const apiExists = fileCheck("app/api/admin/mcp/stripe/balance/route.ts");
+  return makeResult({
+    success: false, readiness: hasKey ? 30 : apiExists ? 15 : 0,
+    plainLanguage: `Stripe: secret key=${hasKey ? "set" : "MISSING"}, publishable key=${hasPubKey ? "set" : "MISSING"}, MCP route=${apiExists}. Payment processing not yet integrated.`,
+    json: { hasKey, hasPubKey, apiExists, status: "future" },
+    error: !hasKey ? { code: "ENV_MISSING", message: "STRIPE_SECRET_KEY not set", where: "Vercel env vars", howToFix: "Add STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to Vercel.", envVarsNeeded: ["STRIPE_SECRET_KEY", "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"] } : undefined,
+  });
+}
+
+// ── Mercury Verify ──────────────────────────────────────────────────────────────
+async function testMercuryVerify(): Promise<LiveTestResult> {
+  const hasKey = !!process.env.MERCURY_API_KEY;
+  const apiExists = fileCheck("app/api/admin/mcp/mercury/accounts/route.ts");
+  return makeResult({
+    success: false, readiness: hasKey ? 25 : apiExists ? 15 : 0,
+    plainLanguage: `Mercury banking: API key=${hasKey ? "set" : "MISSING"}, MCP route=${apiExists}. Banking dashboard not yet connected.`,
+    json: { hasKey, apiExists, status: "future" },
+    error: !hasKey ? { code: "ENV_MISSING", message: "MERCURY_API_KEY not set", where: "Vercel env vars", howToFix: "Add MERCURY_API_KEY to Vercel for banking dashboard.", envVarsNeeded: ["MERCURY_API_KEY"] } : undefined,
+  });
+}
+
+// ── Financial Dashboard Verify ──────────────────────────────────────────────────
+async function testFinancialDashboardVerify(): Promise<LiveTestResult> {
+  const commerceExists = fileCheck("app/admin/cockpit/commerce/page.tsx");
+  const stripeApi = fileCheck("app/api/admin/mcp/stripe/balance/route.ts");
+  const mercuryApi = fileCheck("app/api/admin/mcp/mercury/accounts/route.ts");
+  return makeResult({
+    success: false, readiness: commerceExists ? 20 : 0,
+    plainLanguage: `Financial dashboard: commerce page=${commerceExists}, Stripe API=${stripeApi}, Mercury API=${mercuryApi}. Unified revenue dashboard not yet built.`,
+    json: { commerceExists, stripeApi, mercuryApi, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Financial dashboard not yet built", where: "app/admin/cockpit/commerce/", howToFix: "Build unified financial dashboard combining Stripe payments, Mercury banking, and CJ affiliate commissions." },
+  });
+}
+
+// ── Etsy Connection Verify ──────────────────────────────────────────────────────
+async function testEtsyConnectionVerify(): Promise<LiveTestResult> {
+  const hasKey = !!process.env.ETSY_API_KEY;
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: `Etsy OAuth: API key=${hasKey ? "set" : "MISSING"}. Old etsy-sync cron was deleted as orphan. Must build from scratch: OAuth flow, listing management, analytics.`,
+    json: { hasKey, status: "not_started", note: "Old cron deleted — build from scratch" },
+    error: { code: "NOT_IMPLEMENTED", message: "Etsy integration not yet built", where: "lib/etsy/", howToFix: "Build Etsy OAuth flow, listing CRUD, and sync pipeline from scratch. Old etsy-sync cron was deleted as orphan code.", envVarsNeeded: ["ETSY_API_KEY", "ETSY_SHARED_SECRET"] },
+  });
+}
+
+// ── Etsy Listing Gen Verify ─────────────────────────────────────────────────────
+async function testEtsyListingGenVerify(): Promise<LiveTestResult> {
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: "Etsy listing generator not yet built. Requires Etsy OAuth connection first.",
+    json: { status: "not_started", dependsOn: "etsy-connection-verify" },
+    error: { code: "NOT_IMPLEMENTED", message: "Etsy listing generator not built", where: "lib/etsy/", howToFix: "Build AI-powered listing generator after Etsy OAuth is connected." },
+  });
+}
+
+// ── Etsy Analytics Verify ───────────────────────────────────────────────────────
+async function testEtsyAnalyticsVerify(): Promise<LiveTestResult> {
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: "Etsy analytics dashboard not yet built. Requires Etsy OAuth connection first.",
+    json: { status: "not_started", dependsOn: "etsy-connection-verify" },
+    error: { code: "NOT_IMPLEMENTED", message: "Etsy analytics not built", where: "app/admin/", howToFix: "Build Etsy sales/views analytics dashboard after OAuth connection." },
+  });
+}
+
+// ── Etsy Bulk Verify ────────────────────────────────────────────────────────────
+async function testEtsyBulkVerify(): Promise<LiveTestResult> {
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: "Etsy bulk operations not yet built. Requires Etsy OAuth connection and listing generator first.",
+    json: { status: "not_started", dependsOn: ["etsy-connection-verify", "etsy-listing-gen-verify"] },
+    error: { code: "NOT_IMPLEMENTED", message: "Etsy bulk operations not built", where: "lib/etsy/", howToFix: "Build bulk listing creation/update after single-listing flow works." },
+  });
+}
+
+// ── Auto Config Verify ──────────────────────────────────────────────────────────
+async function testAutoConfigVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/ai/provider-config.ts");
+  const content = readContent("lib/ai/provider-config.ts");
+  const hasGetProvider = content.includes("getProviderForTask");
+  const hasSeedDefaults = content.includes("seedDefaultRoutes");
+  const hasGetAllRoutes = content.includes("getAllRoutes");
+  return makeResult({
+    success: exists && hasGetProvider,
+    readiness: exists && hasGetProvider ? 80 : exists ? 40 : 0,
+    plainLanguage: `AI auto-config: provider-config=${exists}, getProviderForTask=${hasGetProvider}, seedDefaultRoutes=${hasSeedDefaults}, getAllRoutes=${hasGetAllRoutes}.`,
+    json: { exists, hasGetProvider, hasSeedDefaults, hasGetAllRoutes },
+  });
+}
+
+// ── Zenitha Luxury Verify ───────────────────────────────────────────────────────
+async function testZenithaLuxuryVerify(): Promise<LiveTestResult> {
+  const sitesContent = readContent("config/sites.ts");
+  const inConfig = sitesContent.includes("zenitha-luxury") || sitesContent.includes("zenitha.luxury");
+  const entityConfig = fileCheck("config/entity.ts");
+  return makeResult({
+    success: false, readiness: inConfig ? 15 : entityConfig ? 10 : 0,
+    plainLanguage: `zenitha.luxury: in sites config=${inConfig}, entity config=${entityConfig}. Curated parent brand — EXCLUDED from all auto-generation crons. Must be manually curated.`,
+    json: { inConfig, entityConfig, status: "future", note: "EXCLUDED from content pipeline, crons, auto-generation" },
+    error: { code: "NOT_IMPLEMENTED", message: "zenitha.luxury site not yet built", where: "config/sites.ts", howToFix: "Build curated parent brand site. NO auto-generated content — manually curated luxury brand presence." },
+  });
+}
+
+// ── Authority Pages Verify ──────────────────────────────────────────────────────
+async function testAuthorityPagesVerify(): Promise<LiveTestResult> {
+  const aboutExists = fileCheck("app/about/page.tsx");
+  const teamExists = fileCheck("app/team/page.tsx") || fileCheck("app/about-us/page.tsx");
+  return makeResult({
+    success: false, readiness: aboutExists ? 20 : 0,
+    plainLanguage: `Authority pages: about=${aboutExists}, team page=${teamExists}. Comprehensive authority content (detailed team bios, methodology, credentials) not yet built for E-E-A-T.`,
+    json: { aboutExists, teamExists, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Authority pages not yet built", where: "app/about/", howToFix: "Create detailed authority content: team bios with credentials, methodology pages, press mentions, expertise signals." },
+  });
+}
+
+// ── Cross-Network SEO Verify ────────────────────────────────────────────────────
+async function testCrossNetworkSeoVerify(): Promise<LiveTestResult> {
+  const sitesContent = readContent("config/sites.ts");
+  const siteCount = (sitesContent.match(/id:\s*["'][^"']+["']/g) || []).length;
+  const hasInternalLinks = sitesContent.includes("internalLinks") || sitesContent.includes("cross-site");
+  return makeResult({
+    success: false, readiness: siteCount > 1 ? 20 : 0,
+    plainLanguage: `Cross-network SEO: ${siteCount} sites configured, cross-site link strategy=${hasInternalLinks}. Automated cross-site internal linking not yet built.`,
+    json: { siteCount, hasInternalLinks, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Cross-network SEO not yet built", where: "lib/seo/", howToFix: "Build automated cross-site internal linking between Zenitha network sites." },
+  });
+}
+
+// ── Auto Repurpose Verify ───────────────────────────────────────────────────────
+async function testAutoRepurposeVerify(): Promise<LiveTestResult> {
+  const scripterExists = fileCheck("lib/content-engine/scripter.ts");
+  const content = readContent("lib/content-engine/scripter.ts");
+  const hasRepurpose = content.includes("repurpose") || content.includes("Repurpose");
+  const hasCrossPlatform = content.includes("platform") || content.includes("Platform");
+  return makeResult({
+    success: false, readiness: hasRepurpose ? 25 : scripterExists ? 15 : 0,
+    plainLanguage: `Auto-repurpose: scripter=${scripterExists}, repurpose logic=${hasRepurpose}, cross-platform=${hasCrossPlatform}. Automated blog→social→email repurposing pipeline not yet built.`,
+    json: { scripterExists, hasRepurpose, hasCrossPlatform, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Auto-repurpose pipeline not built", where: "lib/content-engine/", howToFix: "Build automated pipeline: blog article → social posts (5 platforms) → email newsletter → video script." },
+  });
+}
+
+// ── Pinterest Verify ────────────────────────────────────────────────────────────
+async function testPinterestVerify(): Promise<LiveTestResult> {
+  const hasKey = !!process.env.PINTEREST_API_KEY;
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: `Pinterest: API key=${hasKey ? "set" : "MISSING"}. Pinterest integration not yet built. High value for travel content (visual discovery platform).`,
+    json: { hasKey, status: "not_started" },
+    error: { code: "NOT_IMPLEMENTED", message: "Pinterest integration not built", where: "lib/social/", howToFix: "Build Pinterest API integration for auto-pinning travel content with rich pins.", envVarsNeeded: ["PINTEREST_API_KEY"] },
+  });
+}
+
+// ── Welcome Sequence Verify ─────────────────────────────────────────────────────
+async function testWelcomeSequenceVerify(): Promise<LiveTestResult> {
+  const senderExists = fileCheck("lib/email/sender.ts");
+  const cronExists = fileCheck("app/api/cron/subscriber-emails/route.ts");
+  const hasWelcome = readContent("app/api/cron/subscriber-emails/route.ts").includes("welcome");
+  return makeResult({
+    success: false, readiness: cronExists ? 25 : senderExists ? 15 : 0,
+    plainLanguage: `Welcome email sequence: sender=${senderExists}, subscriber cron=${cronExists}, welcome flow=${hasWelcome}. Automated drip sequence not yet built.`,
+    json: { senderExists, cronExists, hasWelcome, status: "partial" },
+    error: { code: "NOT_IMPLEMENTED", message: "Welcome email sequence not complete", where: "app/api/cron/subscriber-emails/", howToFix: "Build automated welcome drip: Day 0 welcome, Day 3 top content, Day 7 best deals, Day 14 newsletter opt-in." },
+  });
+}
+
+// ── Deal Alert Verify ───────────────────────────────────────────────────────────
+async function testDealAlertVerify(): Promise<LiveTestResult> {
+  const dealDiscovery = fileCheck("lib/affiliate/deal-discovery.ts");
+  const senderExists = fileCheck("lib/email/sender.ts");
+  return makeResult({
+    success: false, readiness: dealDiscovery ? 20 : 0,
+    plainLanguage: `Deal alert emails: deal discovery=${dealDiscovery}, email sender=${senderExists}. Automated deal alert system (discover deals → format email → send to subscribers) not yet built.`,
+    json: { dealDiscovery, senderExists, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Deal alert email system not built", where: "lib/email/", howToFix: "Build automated pipeline: deal-discovery finds deals → format into email template → send to subscribers with matching interests." },
+  });
+}
+
+// ── Email + Social Analytics Verify ─────────────────────────────────────────────
+async function testEmailSocialAnalyticsVerify(): Promise<LiveTestResult> {
+  const emailCenter = fileCheck("app/admin/cockpit/email/page.tsx");
+  const socialCalendar = fileCheck("app/admin/social-calendar/page.tsx");
+  return makeResult({
+    success: false, readiness: emailCenter && socialCalendar ? 20 : 0,
+    plainLanguage: `Email + social analytics: email center=${emailCenter}, social calendar=${socialCalendar}. Unified analytics dashboard (open rates, click rates, engagement, follower growth) not yet built.`,
+    json: { emailCenter, socialCalendar, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Email/social analytics dashboard not built", where: "app/admin/", howToFix: "Build unified analytics: email open/click rates, social engagement metrics, cross-channel performance comparison." },
   });
 }

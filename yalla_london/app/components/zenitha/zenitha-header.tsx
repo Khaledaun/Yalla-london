@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, ChevronDown, Globe, Compass } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
+import { LogoHorizontal } from '@/components/zenitha/zenitha-logo';
 
 /* ════════════════════════════════════════════════════════════════════
    NAV CONFIG — matches the URL structure in the user specification.
@@ -55,36 +56,17 @@ const NAV_LINKS: NavLink[] = [
 ];
 
 /* ════════════════════════════════════════════════════════════════════
-   LOGO — Compass rose + wordmark (placeholder SVG)
+   LOGO — Official brand logo from zenitha-logo.tsx
    ════════════════════════════════════════════════════════════════════ */
 
-function ZenithaLogo({ className = '' }: { className?: string }) {
+function ZenithaLogo({ className = '', dark = false }: { className?: string; dark?: boolean }) {
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <svg
-        width="34"
-        height="34"
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="flex-shrink-0"
-        aria-hidden="true"
-      >
-        <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="1.5" opacity="0.25" />
-        <path d="M50 8L56 44L50 38L44 44L50 8Z" fill="var(--z-gold, #C9A96E)" />
-        <path d="M92 50L56 56L62 50L56 44L92 50Z" fill="currentColor" opacity="0.55" />
-        <path d="M50 92L44 56L50 62L56 56L50 92Z" fill="currentColor" opacity="0.55" />
-        <path d="M8 50L44 44L38 50L44 56L8 50Z" fill="currentColor" opacity="0.55" />
-        <circle cx="50" cy="50" r="4" fill="var(--z-gold, #C9A96E)" />
-      </svg>
-      <div className="flex flex-col leading-none">
-        <span className="font-display text-[20px] font-bold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-          ZENITHA
-        </span>
-        <span className="text-[10px] font-heading font-semibold tracking-[0.22em] uppercase opacity-55">
-          YACHTS
-        </span>
-      </div>
+    <div className={className}>
+      <LogoHorizontal
+        textColor={dark ? '#FFFFFF' : '#0A1628'}
+        scale={0.42}
+        showBg={false}
+      />
     </div>
   );
 }

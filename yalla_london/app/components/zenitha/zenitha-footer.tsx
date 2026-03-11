@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
-import { Mail, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
+import { Mail, MessageCircle, Instagram, Linkedin } from 'lucide-react';
 import { getCopyrightLine } from '@/config/entity';
 import { ZENITHA_CONTACT } from './zenitha-config';
+import { LogoHorizontal } from '@/components/zenitha/zenitha-logo';
 
 /* ════════════════════════════════════════════════════════════════════
    FOOTER NAV — aligned with header nav + legal/social
@@ -68,12 +69,8 @@ export function ZenithaFooter() {
           {/* Brand column — 2 cols wide */}
           <div className="lg:col-span-2">
             {/* Logo */}
-            <div className="flex items-center gap-2.5 mb-5">
-              <Anchor size={26} style={{ color: 'var(--z-gold, #c9a96e)' }} />
-              <div className="flex flex-col leading-none">
-                <span className="font-display text-xl font-bold tracking-tight text-white">ZENITHA</span>
-                <span className="text-[10px] font-heading font-semibold tracking-[0.22em] uppercase text-white/45">YACHTS</span>
-              </div>
+            <div className="mb-5">
+              <LogoHorizontal textColor="#FFFFFF" scale={0.44} showBg={false} />
             </div>
 
             {/* Brand description — global audience, specific countries */}

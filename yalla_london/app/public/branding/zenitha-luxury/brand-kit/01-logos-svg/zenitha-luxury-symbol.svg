@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="Zenitha Luxury Symbol">
+  <rect width="80" height="80" fill="#0A0A0A"/>
+  <!-- Outer diamond -->
+  <polygon points="40,2 78,40 40,78 2,40" fill="none" stroke="#C4A96C" stroke-width="1.2"/>
+  <!-- Inner diamond -->
+  <polygon points="40,16.4 63.6,40 40,63.6 16.4,40" fill="none" stroke="#C4A96C" stroke-width="0.9" opacity="0.4"/>
+  <!-- Four-pointed star -->
+  <polygon points="40,7.2 44.8,35.2 40,23.2 35.2,35.2" fill="#C4A96C"/>
+  <polygon points="72.8,40 44.8,44.8 56.8,40 44.8,35.2" fill="#C4A96C" opacity="0.6"/>
+  <polygon points="40,72.8 35.2,44.8 40,56.8 44.8,44.8" fill="#C4A96C" opacity="0.6"/>
+  <polygon points="7.2,40 35.2,35.2 23.2,40 35.2,44.8" fill="#C4A96C" opacity="0.6"/>
+  <!-- Center dot -->
+  <circle cx="40" cy="40" r="2.8" fill="#C4A96C"/>
+</svg>

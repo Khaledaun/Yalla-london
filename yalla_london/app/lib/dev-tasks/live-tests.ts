@@ -71,6 +71,67 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "prisma-orphan-scan": testPrismaOrphanScan,
   "dead-buttons-scan": testDeadButtonsScan,
   "smoke-test-run": testSmokeTestRun,
+  // Feature Validation: F.1 Content Pipeline (7)
+  "pipeline-topics-exist": testPipelineTopicsExist,
+  "pipeline-drafts-advancing": testPipelineDraftsAdvancing,
+  "pipeline-prepub-gate": testPipelinePrepubGate,
+  "pipeline-published-posts": testPipelinePublishedPosts,
+  "pipeline-title-sanitizer": testPipelineTitleSanitizer,
+  "pipeline-author-rotation": testPipelineAuthorRotation,
+  "pipeline-autofix-cron": testPipelineAutofixCron,
+  // Feature Validation: F.2 SEO & Indexing (6)
+  "seo-indexnow-config": testSeoIndexnowConfig,
+  "seo-sitemap-check": testSeoSitemapCheck,
+  "seo-gsc-sync": testSeoGscSync,
+  "seo-standards-file": testSeoStandardsFile,
+  "seo-schema-markup": testSeoSchemaMarkup,
+  "seo-indexing-status": testSeoIndexingStatus,
+  // Feature Validation: F.3 Dashboard & Admin (6)
+  "dash-cockpit-api": testDashCockpitApi,
+  "dash-departures-api": testDashDeparturesApi,
+  "dash-aggregated-report": testDashAggregatedReport,
+  "dash-cycle-health": testDashCycleHealth,
+  "dash-content-matrix": testDashContentMatrix,
+  "dash-per-page-audit": testDashPerPageAudit,
+  // Feature Validation: F.4 AI System (5)
+  "ai-provider-chain": testAiProviderChain,
+  "ai-cost-tracking": testAiCostTracking,
+  "ai-last-defense": testAiLastDefense,
+  "ai-diagnostic-agent": testAiDiagnosticAgent,
+  "ai-topic-research": testAiTopicResearch,
+  // Feature Validation: F.5 Affiliate System (5)
+  "affiliate-cj-client": testAffiliateCjClient,
+  "affiliate-injection-cron": testAffiliateInjectionCron,
+  "affiliate-hq-page": testAffiliateHqPage,
+  "affiliate-commission-sync": testAffiliateCommissionSync,
+  "affiliate-deal-discovery": testAffiliateDealDiscovery,
+  // Feature Validation: F.6 Cron Infrastructure (5)
+  "cron-budget-guards": testCronBudgetGuards,
+  "cron-feature-guards": testCronFeatureGuards,
+  "cron-auth-pattern": testCronAuthPattern,
+  "cron-logging": testCronLogging,
+  "cron-schedule-check": testCronScheduleCheck,
+  // Feature Validation: F.7 Design & Media (4)
+  "design-brand-provider": testDesignBrandProvider,
+  "design-email-sender": testDesignEmailSender,
+  "design-content-engine": testDesignContentEngine,
+  "design-pdf-generation": testDesignPdfGeneration,
+  // Feature Validation: F.8 Yacht Platform (4)
+  "yacht-models-exist": testYachtModelsExist,
+  "yacht-admin-apis": testYachtAdminApis,
+  "yacht-public-pages": testYachtPublicPages,
+  "yacht-site-shell": testYachtSiteShell,
+  // Feature Validation: F.9 Security & Resilience (5)
+  "security-admin-auth": testSecurityAdminAuth,
+  "security-xss-sanitization": testSecurityXssSanitization,
+  "security-no-empty-catch": testSecurityNoEmptyCatch,
+  "security-no-info-disclosure": testSecurityNoInfoDisclosure,
+  "security-atomic-ops": testSecurityAtomicOps,
+  // Feature Validation: F.10 Multi-Site Engine (4)
+  "multisite-config": testMultisiteConfig,
+  "multisite-middleware": testMultisiteMiddleware,
+  "multisite-db-scoping": testMultisiteDbScoping,
+  "multisite-wizard": testMultisiteWizard,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -1102,4 +1163,763 @@ async function testSmokeTestRun(): Promise<LiveTestResult> {
       json: { error: "SCAN_ERROR", message: msg },
     });
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.1 Content Pipeline (7 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+function fileCheck(path: string): boolean {
+  try { const { existsSync } = require("fs"); const { join } = require("path"); return existsSync(join(process.cwd(), path)); } catch { return false; }
+}
+function readContent(path: string): string {
+  try { const { readFileSync } = require("fs"); const { join } = require("path"); return readFileSync(join(process.cwd(), path), "utf-8"); } catch { return ""; }
+}
+
+// F.1.1 — Topic Proposals in DB
+async function testPipelineTopicsExist(siteId: string): Promise<LiveTestResult> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const count = await prisma.topicProposal.count({ where: { site_id: siteId } });
+    const recent = await prisma.topicProposal.findMany({ where: { site_id: siteId }, orderBy: { created_at: "desc" }, take: 3, select: { title: true, status: true, created_at: true } });
+    return makeResult({
+      success: count > 0, readiness: count > 0 ? 100 : 0,
+      plainLanguage: count > 0 ? `${count} topic proposals for ${siteId}. Latest: "${recent[0]?.title?.slice(0, 50)}".` : "No topic proposals found. Run weekly-topics cron.",
+      json: { count, recent },
+      evidence: { type: "data", content: { count } },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `Topic check failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.1.2 — Article Drafts Advancing
+async function testPipelineDraftsAdvancing(siteId: string): Promise<LiveTestResult> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const phases = await prisma.articleDraft.groupBy({ by: ["current_phase"], where: { site_id: siteId }, _count: true });
+    const total = phases.reduce((s, p) => s + p._count, 0);
+    const phaseMap = Object.fromEntries(phases.map(p => [p.current_phase, p._count]));
+    return makeResult({
+      success: total > 0 && phases.length > 1, readiness: total > 0 ? (phases.length > 1 ? 100 : 60) : 0,
+      plainLanguage: total > 0 ? `${total} drafts across ${phases.length} phases: ${phases.map(p => `${p.current_phase}(${p._count})`).join(", ")}.` : "No article drafts found.",
+      json: { total, phases: phaseMap },
+      evidence: { type: "data", content: phaseMap },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `Draft check failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.1.3 — Pre-Publication Gate (16 Checks)
+async function testPipelinePrepubGate(): Promise<LiveTestResult> {
+  const content = readContent("lib/seo/orchestrator/pre-publication-gate.ts");
+  if (!content) return makeResult({ success: false, plainLanguage: "Pre-pub gate file missing.", json: {} });
+  const checkCount = (content.match(/check\s*\d+|Check\s*\d+/gi) || []).length;
+  const hasAuthenticity = content.includes("authenticity") || content.includes("Authenticity");
+  const hasCitability = content.includes("citability") || content.includes("Citability");
+  const hasAIO = content.includes("AIO") || content.includes("aio");
+  return makeResult({
+    success: checkCount >= 14, readiness: Math.min(100, Math.round((checkCount / 16) * 100)),
+    plainLanguage: `Pre-pub gate has ~${checkCount} checks. Authenticity: ${hasAuthenticity ? "yes" : "no"}, Citability: ${hasCitability ? "yes" : "no"}, AIO: ${hasAIO ? "yes" : "no"}.`,
+    json: { checkCount, hasAuthenticity, hasCitability, hasAIO, target: 16 },
+  });
+}
+
+// F.1.4 — Published BlogPosts
+async function testPipelinePublishedPosts(siteId: string): Promise<LiveTestResult> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const [published, total] = await Promise.all([
+      prisma.blogPost.count({ where: { siteId, published: true } }),
+      prisma.blogPost.count({ where: { siteId } }),
+    ]);
+    const recent = await prisma.blogPost.findFirst({ where: { siteId, published: true }, orderBy: { published_at: "desc" }, select: { title_en: true, seo_score: true, published_at: true } });
+    return makeResult({
+      success: published > 0, readiness: published > 0 ? 100 : 0,
+      plainLanguage: published > 0 ? `${published}/${total} posts published. Latest: "${recent?.title_en?.slice(0, 50)}" (SEO: ${recent?.seo_score || "N/A"}).` : "No published posts yet.",
+      json: { published, total, latest: recent },
+      evidence: { type: "data", content: { published, total } },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `Published posts check failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.1.5 — Title Sanitization
+async function testPipelineTitleSanitizer(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/content-pipeline/title-sanitizer.ts");
+  if (!exists) return makeResult({ success: false, plainLanguage: "title-sanitizer.ts missing.", json: {} });
+  const content = readContent("lib/content-pipeline/title-sanitizer.ts");
+  const hasClean = content.includes("cleanTitle");
+  const hasJaccard = content.includes("jaccard") || content.includes("Jaccard");
+  return makeResult({
+    success: hasClean, readiness: hasClean ? 100 : 0,
+    plainLanguage: `Title sanitizer: cleanTitle=${hasClean}, Jaccard dedup=${hasJaccard}.`,
+    json: { exists, hasCleanTitle: hasClean, hasJaccardDedup: hasJaccard },
+  });
+}
+
+// F.1.6 — Author Rotation
+async function testPipelineAuthorRotation(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/content-pipeline/author-rotation.ts");
+  if (!exists) return makeResult({ success: false, plainLanguage: "author-rotation.ts missing.", json: {} });
+  const content = readContent("lib/content-pipeline/author-rotation.ts");
+  const hasGetNext = content.includes("getNextAuthor");
+  const hasTeamMember = content.includes("TeamMember");
+  return makeResult({
+    success: hasGetNext, readiness: hasGetNext ? 100 : 0,
+    plainLanguage: `Author rotation: getNextAuthor=${hasGetNext}, TeamMember model=${hasTeamMember}.`,
+    json: { exists, hasGetNextAuthor: hasGetNext, hasTeamMember },
+  });
+}
+
+// F.1.7 — Content Auto-Fix Cron
+async function testPipelineAutofixCron(): Promise<LiveTestResult> {
+  const cronExists = fileCheck("app/api/cron/content-auto-fix/route.ts");
+  const liteExists = fileCheck("app/api/cron/content-auto-fix-lite/route.ts");
+  const content = readContent("app/api/cron/content-auto-fix/route.ts");
+  const sections = (content.match(/Section\s+\d+/gi) || []).length;
+  return makeResult({
+    success: cronExists, readiness: cronExists ? 100 : 0,
+    plainLanguage: `Auto-fix cron: exists=${cronExists}, lite=${liteExists}, ~${sections} sections.`,
+    json: { cronExists, liteExists, sections },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.2 SEO & Indexing (6 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.2.1 — IndexNow Multi-Engine
+async function testSeoIndexnowConfig(): Promise<LiveTestResult> {
+  const content = readContent("lib/seo/indexing-service.ts");
+  if (!content) return makeResult({ success: false, plainLanguage: "indexing-service.ts missing.", json: {} });
+  const hasBing = content.includes("bing.com/indexnow");
+  const hasYandex = content.includes("yandex.com/indexnow");
+  const hasRegistry = content.includes("api.indexnow.org");
+  const engines = [hasBing && "Bing", hasYandex && "Yandex", hasRegistry && "IndexNow.org"].filter(Boolean);
+  return makeResult({
+    success: engines.length >= 2, readiness: Math.round((engines.length / 3) * 100),
+    plainLanguage: `IndexNow configured for ${engines.length}/3 engines: ${engines.join(", ")}.`,
+    json: { engines: engines.length, hasBing, hasYandex, hasRegistry },
+  });
+}
+
+// F.2.2 — Sitemap
+async function testSeoSitemapCheck(): Promise<LiveTestResult> {
+  const sitemapExists = fileCheck("app/sitemap.ts");
+  const cacheExists = fileCheck("lib/sitemap-cache.ts");
+  return makeResult({
+    success: sitemapExists, readiness: sitemapExists ? 100 : 0,
+    plainLanguage: `Sitemap: app/sitemap.ts=${sitemapExists}, cache-first=${cacheExists}.`,
+    json: { sitemapExists, cacheExists },
+  });
+}
+
+// F.2.3 — GSC Sync
+async function testSeoGscSync(): Promise<LiveTestResult> {
+  const content = readContent("app/api/cron/gsc-sync/route.ts");
+  if (!content) return makeResult({ success: false, plainLanguage: "gsc-sync cron missing.", json: {} });
+  const hasPerDay = content.includes('"page", "date"') || content.includes("page.*date");
+  const hasCleanup = content.includes("deleteMany") || content.includes("DELETE");
+  return makeResult({
+    success: hasPerDay, readiness: hasPerDay ? 100 : 50,
+    plainLanguage: `GSC sync: per-day storage=${hasPerDay}, old data cleanup=${hasCleanup}.`,
+    json: { hasPerDayDimensions: hasPerDay, hasOldDataCleanup: hasCleanup },
+  });
+}
+
+// F.2.4 — SEO Standards
+async function testSeoStandardsFile(): Promise<LiveTestResult> {
+  const content = readContent("lib/seo/standards.ts");
+  if (!content) return makeResult({ success: false, plainLanguage: "lib/seo/standards.ts missing.", json: {} });
+  const hasVersion = content.includes("STANDARDS_VERSION");
+  const hasGEO = content.includes("GEO_OPTIMIZATION");
+  const hasAuthenticity = content.includes("authenticityUpdateActive");
+  const hasQualityGate = content.includes("qualityGateScore");
+  return makeResult({
+    success: hasVersion, readiness: hasVersion ? 100 : 0,
+    plainLanguage: `SEO standards: version=${hasVersion}, GEO=${hasGEO}, authenticity=${hasAuthenticity}, qualityGate=${hasQualityGate}.`,
+    json: { hasVersion, hasGEO, hasAuthenticity, hasQualityGate },
+  });
+}
+
+// F.2.5 — Schema Markup
+async function testSeoSchemaMarkup(): Promise<LiveTestResult> {
+  const schemaGen = fileCheck("lib/seo/schema-generator.ts");
+  const schemaInjector = fileCheck("lib/seo/enhanced-schema-injector.ts");
+  const structuredData = fileCheck("components/structured-data.tsx");
+  return makeResult({
+    success: structuredData, readiness: structuredData ? 100 : 0,
+    plainLanguage: `Schema: generator=${schemaGen}, injector=${schemaInjector}, component=${structuredData}.`,
+    json: { schemaGenerator: schemaGen, schemaInjector, structuredDataComponent: structuredData },
+  });
+}
+
+// F.2.6 — URL Indexing Status
+async function testSeoIndexingStatus(): Promise<LiveTestResult> {
+  const summaryExists = fileCheck("lib/seo/indexing-summary.ts");
+  const content = readContent("lib/seo/indexing-summary.ts");
+  const hasResolve = content.includes("resolveStatus");
+  try {
+    const { prisma } = await import("@/lib/db");
+    const count = await prisma.uRLIndexingStatus.count().catch(() => 0);
+    return makeResult({
+      success: summaryExists && count > 0, readiness: summaryExists ? (count > 0 ? 100 : 60) : 0,
+      plainLanguage: `Indexing status: ${count} URLs tracked. resolveStatus=${hasResolve}.`,
+      json: { summaryExists, hasResolveStatus: hasResolve, trackedUrls: count },
+    });
+  } catch {
+    return makeResult({
+      success: summaryExists, readiness: summaryExists ? 60 : 0,
+      plainLanguage: `Indexing summary file: ${summaryExists}. DB check skipped.`,
+      json: { summaryExists, hasResolveStatus: hasResolve },
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.3 Dashboard & Admin (6 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.3.1 — Cockpit API
+async function testDashCockpitApi(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/cockpit/page.tsx");
+  const apiExists = fileCheck("app/api/admin/cockpit/route.ts");
+  return makeResult({
+    success: pageExists && apiExists, readiness: pageExists && apiExists ? 100 : 0,
+    plainLanguage: `Cockpit: page=${pageExists}, API=${apiExists}.`,
+    json: { pageExists, apiExists },
+  });
+}
+
+// F.3.2 — Departures Board
+async function testDashDeparturesApi(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/departures/page.tsx");
+  const apiExists = fileCheck("app/api/admin/departures/route.ts");
+  return makeResult({
+    success: pageExists && apiExists, readiness: pageExists && apiExists ? 100 : 0,
+    plainLanguage: `Departures board: page=${pageExists}, API=${apiExists}.`,
+    json: { pageExists, apiExists },
+  });
+}
+
+// F.3.3 — Aggregated Report
+async function testDashAggregatedReport(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/aggregated-report/route.ts");
+  const content = readContent("app/api/admin/aggregated-report/route.ts");
+  const sectionCount = (content.match(/Section\s+\d+|section\s*\d+/gi) || []).length;
+  return makeResult({
+    success: apiExists, readiness: apiExists ? 100 : 0,
+    plainLanguage: `Aggregated report: API=${apiExists}, ~${sectionCount} sections.`,
+    json: { apiExists, sectionCount },
+  });
+}
+
+// F.3.4 — Cycle Health
+async function testDashCycleHealth(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/cycle-health/route.ts");
+  const pageExists = fileCheck("app/admin/cockpit/health/page.tsx");
+  const content = readContent("app/api/admin/cycle-health/route.ts");
+  const checkCount = (content.match(/check\s*\d+|Check\s*\d+/gi) || []).length;
+  return makeResult({
+    success: apiExists, readiness: apiExists ? 100 : 0,
+    plainLanguage: `Cycle health: API=${apiExists}, page=${pageExists}, ~${checkCount} checks.`,
+    json: { apiExists, pageExists, checkCount },
+  });
+}
+
+// F.3.5 — Content Matrix
+async function testDashContentMatrix(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/content-matrix/route.ts");
+  const content = readContent("app/api/admin/content-matrix/route.ts");
+  const hasGateCheck = content.includes("gate_check");
+  const hasReQueue = content.includes("re_queue");
+  return makeResult({
+    success: apiExists, readiness: apiExists ? 100 : 0,
+    plainLanguage: `Content matrix: API=${apiExists}, gateCheck=${hasGateCheck}, reQueue=${hasReQueue}.`,
+    json: { apiExists, hasGateCheck, hasReQueue },
+  });
+}
+
+// F.3.6 — Per-Page Audit
+async function testDashPerPageAudit(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/per-page-audit/route.ts");
+  const pageExists = fileCheck("app/admin/cockpit/per-page-audit/page.tsx");
+  return makeResult({
+    success: apiExists, readiness: apiExists ? 100 : 0,
+    plainLanguage: `Per-page audit: API=${apiExists}, page=${pageExists}.`,
+    json: { apiExists, pageExists },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.4 AI System (5 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.4.1 — Provider Chain + Circuit Breaker
+async function testAiProviderChain(): Promise<LiveTestResult> {
+  const providerExists = fileCheck("lib/ai/provider.ts");
+  const content = readContent("lib/ai/provider.ts");
+  const hasCircuitBreaker = content.includes("circuitBreaker") || content.includes("circuit_breaker") || content.includes("consecutiveFailures");
+  const hasGrok = content.includes("grok") || content.includes("xai");
+  const hasOpenAI = content.includes("openai");
+  const hasClaude = content.includes("claude") || content.includes("anthropic");
+  const providers = [hasGrok && "Grok", hasOpenAI && "OpenAI", hasClaude && "Claude"].filter(Boolean);
+  return makeResult({
+    success: providerExists && hasCircuitBreaker, readiness: providerExists ? 100 : 0,
+    plainLanguage: `AI provider chain: ${providers.join(" → ")}. Circuit breaker: ${hasCircuitBreaker}.`,
+    json: { providerExists, providers, hasCircuitBreaker },
+  });
+}
+
+// F.4.2 — AI Cost Tracking
+async function testAiCostTracking(): Promise<LiveTestResult> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const count = await prisma.apiUsageLog.count().catch(() => -1);
+    const pageExists = fileCheck("app/admin/ai-costs/page.tsx");
+    if (count === -1) {
+      return makeResult({ success: false, readiness: 30, plainLanguage: "ApiUsageLog table missing. Run migration.", json: { tableExists: false } });
+    }
+    return makeResult({
+      success: count > 0, readiness: count > 0 ? 100 : 50,
+      plainLanguage: `AI cost tracking: ${count} API calls logged. Dashboard: ${pageExists}.`,
+      json: { totalCalls: count, dashboardExists: pageExists },
+      evidence: { type: "data", content: { totalCalls: count } },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `AI cost check failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.4.3 — Last-Defense Fallback
+async function testAiLastDefense(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/ai/last-defense.ts");
+  const content = readContent("lib/ai/last-defense.ts");
+  const hasProbeAll = content.includes("probeAll") || content.includes("probe");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: `Last-defense fallback: exists=${exists}, probeAllProviders=${hasProbeAll}.`,
+    json: { exists, hasProbeAll },
+  });
+}
+
+// F.4.4 — Diagnostic Agent
+async function testAiDiagnosticAgent(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/ops/diagnostic-agent.ts");
+  const cronExists = fileCheck("app/api/cron/diagnostic-sweep/route.ts");
+  const content = readContent("lib/ops/diagnostic-agent.ts");
+  const hasDiagnose = content.includes("diagnose");
+  const hasFix = content.includes("recoverDraft") || content.includes("fix");
+  return makeResult({
+    success: exists && cronExists, readiness: exists && cronExists ? 100 : 0,
+    plainLanguage: `Diagnostic agent: lib=${exists}, cron=${cronExists}, diagnose=${hasDiagnose}, fix=${hasFix}.`,
+    json: { exists, cronExists, hasDiagnose, hasFix },
+  });
+}
+
+// F.4.5 — Topic Research
+async function testAiTopicResearch(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/topic-research/route.ts");
+  const content = readContent("app/api/admin/topic-research/route.ts");
+  const hasAI = content.includes("generateCompletion") || content.includes("generate");
+  return makeResult({
+    success: apiExists, readiness: apiExists ? 100 : 0,
+    plainLanguage: `Topic research API: exists=${apiExists}, AI-powered=${hasAI}.`,
+    json: { apiExists, hasAI },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.5 Affiliate System (5 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.5.1 — CJ Client
+async function testAffiliateCjClient(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/affiliate/cj-client.ts");
+  const content = readContent("lib/affiliate/cj-client.ts");
+  const hasCircuitBreaker = content.includes("circuitBreaker") || content.includes("consecutiveFailures");
+  const hasRateLimit = content.includes("rateLimit") || content.includes("25");
+  const hasWebsiteId = content.includes("getWebsiteId");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: `CJ client: exists=${exists}, circuitBreaker=${hasCircuitBreaker}, rateLimit=${hasRateLimit}, websiteId=${hasWebsiteId}.`,
+    json: { exists, hasCircuitBreaker, hasRateLimit, hasWebsiteId },
+  });
+}
+
+// F.5.2 — Affiliate Injection Cron
+async function testAffiliateInjectionCron(): Promise<LiveTestResult> {
+  const cronExists = fileCheck("app/api/cron/affiliate-injection/route.ts");
+  const content = readContent("app/api/cron/affiliate-injection/route.ts");
+  const hasBudget = content.includes("BUDGET") || content.includes("budget");
+  const hasPerSite = content.includes("getActiveSiteIds") || content.includes("activeSite");
+  return makeResult({
+    success: cronExists, readiness: cronExists ? 100 : 0,
+    plainLanguage: `Affiliate injection cron: exists=${cronExists}, budget=${hasBudget}, perSite=${hasPerSite}.`,
+    json: { cronExists, hasBudget, hasPerSite },
+  });
+}
+
+// F.5.3 — Affiliate HQ Page
+async function testAffiliateHqPage(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/affiliate-hq/page.tsx");
+  const apiExists = fileCheck("app/api/admin/affiliate-hq/route.ts");
+  return makeResult({
+    success: pageExists && apiExists, readiness: pageExists && apiExists ? 100 : 0,
+    plainLanguage: `Affiliate HQ: page=${pageExists}, API=${apiExists}.`,
+    json: { pageExists, apiExists },
+  });
+}
+
+// F.5.4 — Commission Sync
+async function testAffiliateCommissionSync(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/affiliate/cj-sync.ts");
+  const content = readContent("lib/affiliate/cj-sync.ts");
+  const hasPerSite = content.includes("SITE_") || content.includes("siteId");
+  const hasSID = content.includes("sid") || content.includes("SID");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: `Commission sync: exists=${exists}, perSite=${hasPerSite}, SID=${hasSID}.`,
+    json: { exists, hasPerSite, hasSID },
+  });
+}
+
+// F.5.5 — Deal Discovery
+async function testAffiliateDealDiscovery(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/affiliate/deal-discovery.ts");
+  const cronExists = fileCheck("app/api/affiliate/cron/discover-deals/route.ts");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: `Deal discovery: lib=${exists}, cron=${cronExists}.`,
+    json: { exists, cronExists },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.6 Cron Infrastructure (5 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.6.1 — Budget Guards
+async function testCronBudgetGuards(): Promise<LiveTestResult> {
+  const cronDir = "app/api/cron";
+  const cronFiles = ["content-builder/route.ts", "seo-agent/route.ts", "weekly-topics/route.ts", "content-auto-fix/route.ts", "gsc-sync/route.ts"];
+  let withBudget = 0;
+  for (const f of cronFiles) {
+    const c = readContent(`${cronDir}/${f}`);
+    if (c.includes("BUDGET") || c.includes("budget") || c.includes("53")) withBudget++;
+  }
+  return makeResult({
+    success: withBudget >= 4, readiness: Math.round((withBudget / cronFiles.length) * 100),
+    plainLanguage: `Budget guards: ${withBudget}/${cronFiles.length} key crons have 53s budget guard.`,
+    json: { withBudget, total: cronFiles.length },
+  });
+}
+
+// F.6.2 — Feature Flag Guards
+async function testCronFeatureGuards(): Promise<LiveTestResult> {
+  const guardFile = fileCheck("lib/cron-feature-guard.ts");
+  const content = readContent("lib/cron-feature-guard.ts");
+  const mappings = (content.match(/cron_/g) || []).length;
+  return makeResult({
+    success: guardFile && mappings > 10, readiness: guardFile ? 100 : 0,
+    plainLanguage: `Cron feature guards: file=${guardFile}, ~${mappings} cron mappings.`,
+    json: { guardFile, mappings },
+  });
+}
+
+// F.6.3 — Cron Auth Pattern
+async function testCronAuthPattern(): Promise<LiveTestResult> {
+  const cronFiles = ["content-builder/route.ts", "seo-agent/route.ts", "weekly-topics/route.ts"];
+  let withAuth = 0;
+  for (const f of cronFiles) {
+    const c = readContent(`app/api/cron/${f}`);
+    if (c.includes("CRON_SECRET") || c.includes("cron_secret")) withAuth++;
+  }
+  return makeResult({
+    success: withAuth >= 2, readiness: Math.round((withAuth / cronFiles.length) * 100),
+    plainLanguage: `Cron auth: ${withAuth}/${cronFiles.length} checked crons use CRON_SECRET pattern.`,
+    json: { withAuth, total: cronFiles.length },
+  });
+}
+
+// F.6.4 — Cron Logging
+async function testCronLogging(): Promise<LiveTestResult> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const count = await prisma.cronJobLog.count().catch(() => -1);
+    const recent = await prisma.cronJobLog.findFirst({ orderBy: { started_at: "desc" }, select: { job_name: true, status: true, started_at: true } }).catch(() => null);
+    return makeResult({
+      success: count > 0, readiness: count > 0 ? 100 : 0,
+      plainLanguage: count > 0 ? `${count} cron log entries. Latest: ${recent?.job_name} (${recent?.status}).` : "No cron logs found.",
+      json: { totalLogs: count, latest: recent },
+      evidence: { type: "data", content: { totalLogs: count } },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `Cron log check failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.6.5 — Cron Schedule (vercel.json)
+async function testCronScheduleCheck(): Promise<LiveTestResult> {
+  const content = readContent("vercel.json");
+  if (!content) return makeResult({ success: false, plainLanguage: "vercel.json missing.", json: {} });
+  const cronMatches = content.match(/"schedule"/g) || [];
+  const pathMatches = content.match(/\/api\/cron\//g) || [];
+  return makeResult({
+    success: cronMatches.length >= 15, readiness: Math.min(100, Math.round((cronMatches.length / 20) * 100)),
+    plainLanguage: `vercel.json has ${cronMatches.length} scheduled crons, ${pathMatches.length} cron paths.`,
+    json: { scheduledCrons: cronMatches.length, cronPaths: pathMatches.length },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.7 Design & Media (4 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.7.1 — Brand Provider
+async function testDesignBrandProvider(): Promise<LiveTestResult> {
+  try {
+    const { getBrandProfile, getAllBrandProfiles } = await import("@/lib/design/brand-provider");
+    const profiles = getAllBrandProfiles();
+    const siteId = getDefaultSiteId();
+    const profile = getBrandProfile(siteId);
+    return makeResult({
+      success: profiles.length > 0, readiness: profiles.length > 0 ? 100 : 0,
+      plainLanguage: `Brand provider: ${profiles.length} profiles. ${siteId}: ${profile.colors?.primary || "no color"}.`,
+      json: { profileCount: profiles.length, sampleSite: siteId, primaryColor: profile.colors?.primary },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `Brand provider test failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.7.2 — Email Sender
+async function testDesignEmailSender(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/email/sender.ts");
+  const content = readContent("lib/email/sender.ts");
+  const hasSendGrid = content.includes("sendgrid") || content.includes("SendGrid");
+  const hasResend = content.includes("resend") || content.includes("Resend");
+  const hasSMTP = content.includes("smtp") || content.includes("SMTP");
+  const providers = [hasSendGrid && "SendGrid", hasResend && "Resend", hasSMTP && "SMTP"].filter(Boolean);
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: `Email sender: exists=${exists}, providers: ${providers.join(", ") || "none"}.`,
+    json: { exists, providers },
+  });
+}
+
+// F.7.3 — Content Engine (4 Agents)
+async function testDesignContentEngine(): Promise<LiveTestResult> {
+  const agents = ["researcher.ts", "ideator.ts", "scripter.ts", "analyst.ts"];
+  const found = agents.filter(a => fileCheck(`lib/content-engine/${a}`));
+  return makeResult({
+    success: found.length === 4, readiness: Math.round((found.length / 4) * 100),
+    plainLanguage: `Content engine: ${found.length}/4 agents found (${found.join(", ")}).`,
+    json: { found, missing: agents.filter(a => !found.includes(a)) },
+  });
+}
+
+// F.7.4 — PDF Generation
+async function testDesignPdfGeneration(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/pdf/html-to-pdf.ts");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: `PDF generation: html-to-pdf.ts=${exists}.`,
+    json: { exists },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.8 Yacht Platform (4 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.8.1 — Yacht Prisma Models
+async function testYachtModelsExist(): Promise<LiveTestResult> {
+  const schema = readContent("prisma/schema.prisma");
+  const models = ["Yacht", "YachtDestination", "CharterItinerary", "CharterInquiry", "BrokerPartner", "YachtAvailability", "YachtAmenity", "YachtImage"];
+  const found = models.filter(m => schema.includes(`model ${m}`));
+  return makeResult({
+    success: found.length === models.length, readiness: Math.round((found.length / models.length) * 100),
+    plainLanguage: `Yacht models: ${found.length}/${models.length} in schema.`,
+    json: { found, missing: models.filter(m => !found.includes(m)) },
+  });
+}
+
+// F.8.2 — Yacht Admin APIs
+async function testYachtAdminApis(): Promise<LiveTestResult> {
+  const routes = ["yachts/route.ts", "yachts/destinations/route.ts", "yachts/inquiries/route.ts", "yachts/itineraries/route.ts", "yachts/brokers/route.ts", "yachts/analytics/route.ts", "yachts/sync/route.ts"];
+  const found = routes.filter(r => fileCheck(`app/api/admin/${r}`));
+  return makeResult({
+    success: found.length >= 5, readiness: Math.round((found.length / routes.length) * 100),
+    plainLanguage: `Yacht admin APIs: ${found.length}/${routes.length} routes exist.`,
+    json: { found: found.length, total: routes.length },
+  });
+}
+
+// F.8.3 — Yacht Public Pages
+async function testYachtPublicPages(): Promise<LiveTestResult> {
+  const pages = ["app/yachts/page.tsx", "app/destinations/page.tsx", "app/itineraries/page.tsx", "app/charter-planner/page.tsx", "app/inquiry/page.tsx", "app/faq/page.tsx"];
+  const found = pages.filter(p => fileCheck(p));
+  return makeResult({
+    success: found.length >= 4, readiness: Math.round((found.length / pages.length) * 100),
+    plainLanguage: `Yacht public pages: ${found.length}/${pages.length} exist.`,
+    json: { found: found.length, total: pages.length },
+  });
+}
+
+// F.8.4 — Yacht Site Shell
+async function testYachtSiteShell(): Promise<LiveTestResult> {
+  const shellExists = fileCheck("components/site-shell.tsx");
+  const headerExists = fileCheck("components/zenitha/zenitha-header.tsx");
+  const footerExists = fileCheck("components/zenitha/zenitha-footer.tsx");
+  const tokensExists = fileCheck("app/zenitha-tokens.css");
+  const all = shellExists && headerExists && footerExists;
+  return makeResult({
+    success: all, readiness: all ? 100 : 0,
+    plainLanguage: `Site shell: shell=${shellExists}, header=${headerExists}, footer=${footerExists}, tokens=${tokensExists}.`,
+    json: { shellExists, headerExists, footerExists, tokensExists },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.9 Security & Resilience (5 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.9.1 — Admin Auth on Routes
+async function testSecurityAdminAuth(): Promise<LiveTestResult> {
+  const routes = ["cockpit/route.ts", "content-matrix/route.ts", "departures/route.ts", "ai-costs/route.ts", "affiliate-hq/route.ts"];
+  let withAuth = 0;
+  for (const r of routes) {
+    const c = readContent(`app/api/admin/${r}`);
+    if (c.includes("requireAdmin") || c.includes("withAdminAuth")) withAuth++;
+  }
+  return makeResult({
+    success: withAuth >= 4, readiness: Math.round((withAuth / routes.length) * 100),
+    plainLanguage: `Admin auth: ${withAuth}/${routes.length} checked routes have requireAdmin/withAdminAuth.`,
+    json: { withAuth, total: routes.length },
+  });
+}
+
+// F.9.2 — XSS Sanitization
+async function testSecurityXssSanitization(): Promise<LiveTestResult> {
+  const sanitizerExists = fileCheck("lib/html-sanitizer.ts");
+  const content = readContent("lib/html-sanitizer.ts");
+  const hasSanitize = content.includes("sanitizeHtml");
+  return makeResult({
+    success: sanitizerExists && hasSanitize, readiness: sanitizerExists ? 100 : 0,
+    plainLanguage: `XSS sanitizer: exists=${sanitizerExists}, sanitizeHtml=${hasSanitize}.`,
+    json: { sanitizerExists, hasSanitize },
+  });
+}
+
+// F.9.3 — No Empty Catch Blocks
+async function testSecurityNoEmptyCatch(): Promise<LiveTestResult> {
+  // Spot check key files for empty catch blocks
+  const files = ["lib/content-pipeline/phases.ts", "lib/content-pipeline/select-runner.ts", "lib/ops/diagnostic-agent.ts"];
+  let emptyCatches = 0;
+  for (const f of files) {
+    const c = readContent(f);
+    const matches = c.match(/catch\s*(?:\([^)]*\))?\s*\{\s*\}/g) || [];
+    emptyCatches += matches.length;
+  }
+  return makeResult({
+    success: emptyCatches === 0, readiness: emptyCatches === 0 ? 100 : Math.max(0, 100 - emptyCatches * 20),
+    plainLanguage: emptyCatches === 0 ? "No empty catch blocks in key pipeline files." : `${emptyCatches} empty catch blocks found in critical files.`,
+    json: { emptyCatches, filesChecked: files.length },
+  });
+}
+
+// F.9.4 — No Info Disclosure
+async function testSecurityNoInfoDisclosure(): Promise<LiveTestResult> {
+  // Check public APIs don't leak error.message
+  const publicApis = ["app/api/blog/route.ts", "app/api/search/route.ts", "app/api/inquiry/route.ts"];
+  let leaks = 0;
+  for (const f of publicApis) {
+    const c = readContent(f);
+    if (c.includes("error.message") && c.includes("500")) leaks++;
+  }
+  return makeResult({
+    success: leaks === 0, readiness: leaks === 0 ? 100 : Math.max(0, 100 - leaks * 30),
+    plainLanguage: leaks === 0 ? "No info disclosure in checked public APIs." : `${leaks} public APIs may leak error details.`,
+    json: { potentialLeaks: leaks, apisChecked: publicApis.length },
+  });
+}
+
+// F.9.5 — Atomic Pipeline Operations
+async function testSecurityAtomicOps(): Promise<LiveTestResult> {
+  const selectRunner = readContent("lib/content-pipeline/select-runner.ts");
+  const hasAtomicClaim = selectRunner.includes("updateMany") && selectRunner.includes("promoting");
+  const hasTransaction = selectRunner.includes("$transaction");
+  const failureHooks = readContent("lib/ops/failure-hooks.ts");
+  const hasLifetimeCap = failureHooks.includes("MAX_RECOVERIES") || failureHooks.includes(">= 5");
+  return makeResult({
+    success: hasAtomicClaim && hasTransaction, readiness: (hasAtomicClaim && hasTransaction) ? 100 : 0,
+    plainLanguage: `Atomic ops: atomicClaim=${hasAtomicClaim}, transaction=${hasTransaction}, lifetimeCap=${hasLifetimeCap}.`,
+    json: { hasAtomicClaim, hasTransaction, hasLifetimeCap },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FEATURE VALIDATION: F.10 Multi-Site Engine (4 tests)
+// ════════════════════════════════════════════════════════════════════════════════
+
+// F.10.1 — Site Config
+async function testMultisiteConfig(): Promise<LiveTestResult> {
+  try {
+    const { SITES, getActiveSiteIds: getActive } = await import("@/config/sites");
+    const siteCount = Object.keys(SITES || {}).length || 0;
+    const activeSites = getActive();
+    return makeResult({
+      success: siteCount >= 5, readiness: siteCount >= 5 ? 100 : Math.round((siteCount / 6) * 100),
+      plainLanguage: `Site config: ${siteCount} sites configured, ${activeSites.length} active.`,
+      json: { siteCount, activeSites },
+    });
+  } catch (err) {
+    return makeResult({ success: false, plainLanguage: `Site config check failed: ${err instanceof Error ? err.message : err}`, json: {} });
+  }
+}
+
+// F.10.2 — Middleware Domain Routing
+async function testMultisiteMiddleware(): Promise<LiveTestResult> {
+  const content = readContent("middleware.ts");
+  if (!content) return makeResult({ success: false, plainLanguage: "middleware.ts missing.", json: {} });
+  const domainCount = (content.match(/yalla|arabaldives|zenitha|riviera|istanbul|thailand/gi) || []).length;
+  const hasXSiteId = content.includes("x-site-id");
+  return makeResult({
+    success: hasXSiteId && domainCount > 5, readiness: hasXSiteId ? 100 : 0,
+    plainLanguage: `Middleware: x-site-id=${hasXSiteId}, ~${domainCount} domain references.`,
+    json: { hasXSiteId, domainReferences: domainCount },
+  });
+}
+
+// F.10.3 — Per-Site DB Scoping
+async function testMultisiteDbScoping(): Promise<LiveTestResult> {
+  // Check key files for siteId in where clauses
+  const files = ["lib/content-pipeline/select-runner.ts", "app/api/cron/content-builder-create/route.ts", "app/api/cron/weekly-topics/route.ts"];
+  let scoped = 0;
+  for (const f of files) {
+    const c = readContent(f);
+    if (c.includes("site_id") || c.includes("siteId")) scoped++;
+  }
+  return makeResult({
+    success: scoped >= 2, readiness: Math.round((scoped / files.length) * 100),
+    plainLanguage: `DB scoping: ${scoped}/${files.length} key pipeline files use siteId in queries.`,
+    json: { scoped, total: files.length },
+  });
+}
+
+// F.10.4 — New Site Wizard
+async function testMultisiteWizard(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/cockpit/new-site/page.tsx");
+  const apiExists = fileCheck("app/api/admin/new-site/route.ts");
+  const builderExists = fileCheck("lib/new-site/builder.ts");
+  const all = pageExists && apiExists && builderExists;
+  return makeResult({
+    success: all, readiness: all ? 100 : 0,
+    plainLanguage: `New site wizard: page=${pageExists}, API=${apiExists}, builder=${builderExists}.`,
+    json: { pageExists, apiExists, builderExists },
+  });
 }

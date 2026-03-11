@@ -2596,3 +2596,135 @@ Both code fixes (`?lang=ar` redirect + language switcher) are committed and push
 54. **Language switchers must change the URL, not just React state** — Google can't see client-side state changes. Use `router.push('/ar/path')` not `setLanguage('ar')`.
 55. **`?lang=ar` query parameters are a legacy anti-pattern** — the correct pattern is `/ar/` URL prefix. Any `?lang=` URLs in Google's index are duplicates that should be redirected.
 56. **Arabic SSR is required for proper hreflang compliance** — if hreflang promises Arabic content at `/ar/about` but Googlebot sees English HTML, Google may ignore the hreflang or flag it as a mismatch. Server must return Arabic HTML based on `x-locale` header.
+
+### Session: March 11, 2026 — News Pipeline Hardening, Operation Log Fixes & Multi-Site Audit
+
+**News Pipeline Fixes (from prior session continuation):**
+- Fixed "Unauthorized" error on `/admin/news` — routed cron triggers through departures API proxy instead of calling cron directly (adds CRON_SECRET header)
+- Added POST handler to `london-news/route.ts` for departures board compatibility
+- Fixed `skipDedup` option in `promoteToBlogPost()` — title normalization dedup was blocking publication of articles with similar titles
+- Added "Fix & Publish" button to cockpit with `skipDedup: true` for manual override
+- Added NewsCard to cockpit Mission Control showing news stats and generate/research buttons
+- News admin page now passes `site_id` via query param for multi-site scoping
+
+**Production Operation Log Fixes (3 issues from 12h analysis):**
+1. **Connection pool exhaustion:** Staggered `schedule-executor` to `:15` and `content-auto-fix-lite` to `:30` past the hour — were colliding with `diagnostic-sweep` at `:00`
+2. **29 "active" drafts blocking creation:** Diagnostic-agent touches `updated_at` on stuck drafts, making them appear active. Fixed by excluding drafts with `[diagnostic-agent*]` or `MAX_RECOVERIES_EXCEEDED` in `last_error`. Staleness window tightened from 2h to 1h
+3. **131 never-submitted pages:** Bumped IndexNow batch from 30 to 50 URLs per `content-auto-fix-lite` run
+
+**Multi-Site Audit (10 files audited):**
+- 8/10 files fully multi-site compatible (content-builder-create, select-runner, force-publish, topic-research, content-auto-fix, content-auto-fix-lite, london-news, departures)
+- Fixed: news admin page (`/admin/news`) now passes `activeSiteId` to API and cron triggers
+- All DB queries confirmed scoped by `site_id` / `siteId` across all recent changes
+
+### Current Platform Status (March 11, 2026)
+
+**Google Search Console (as of March 11):**
+- 80 pages indexed, 209 not indexed (9 reasons)
+- Sitemap: 115 pages discovered, status "Success", last read today
+- 34 clicks/day, 1,557 impressions, top query at position 3.4
+- Booking.com UK declined CJ affiliate application (normal for new publishers — reapply at 500+ sessions/month)
+
+**Content Pipeline Status:**
+- Pipeline advancing drafts through phases every 15 min ✅
+- Force-publish with skipDedup working (published 2 articles, SEO scores 85/75) ✅
+- Content-builder-create blocked by inflated active count → FIX DEPLOYED (awaiting Vercel build)
+- Normal content-selector may still skip articles with aggressive title dedup → monitor after deploy
+
+---
+
+## System Readiness Assessments (March 11, 2026)
+
+### Design System Readiness: 98% — PRODUCTION READY
+
+**Overall:** 13/13 components complete, audited across 11 rounds, 67 issues fixed. Zero CRITICAL/HIGH issues remaining.
+
+| Component | Status | Multi-Site |
+|-----------|--------|-----------|
+| Design Hub Dashboard (`/admin/design`) | ✅ Ready | ✅ All 6 sites |
+| Brand Provider (`lib/design/brand-provider.ts`) | ✅ Ready | ✅ All 6 sites |
+| Email Builder + Sender (SMTP/Resend/SendGrid) | ✅ Ready | ✅ All 6 sites |
+| PDF Generation (Puppeteer) | ✅ Ready | ✅ All 6 sites |
+| Video Studio (Remotion, 2 templates) | ✅ Ready | ✅ All 6 sites |
+| Rich Text Editor (Tiptap) | ✅ Ready | ✅ All 6 sites |
+| Brand Kit Generator (ZIP export) | ✅ Ready | ✅ All 6 sites |
+| Content Engine Agent 1: Researcher | ✅ Ready | ✅ All 6 sites |
+| Content Engine Agent 2: Ideator | ✅ Ready | ✅ All 6 sites |
+| Content Engine Agent 3: Scripter | ✅ Ready | ✅ All 6 sites |
+| Content Engine Agent 4: Analyst | ✅ Ready | ✅ All 6 sites |
+| Email Campaign Manager | ✅ Ready | ✅ All 6 sites |
+| Social Media Calendar | ✅ Ready | ✅ All 6 sites |
+
+**To deploy:** Run `npx prisma migrate deploy` (8 new models), add email provider env vars (SMTP/Resend/SendGrid — at least one).
+
+**Key files:** `lib/design/brand-provider.ts` (unified brand), `lib/content-engine/*.ts` (4 AI agents), `lib/email/sender.ts` (multi-provider), `lib/video/render-engine.ts` (Remotion), `lib/pdf/html-to-pdf.ts` (Puppeteer)
+
+### Website Builder Readiness: 95% — PRODUCTION READY
+
+**The new-site wizard (`/admin/cockpit/new-site`) can launch a new website without code deployment.**
+
+| Step | Feature | Status |
+|------|---------|--------|
+| 1 | Site type selection (travel blog, yacht, custom) | ✅ |
+| 2 | Brand identity (name, tagline, languages) | ✅ |
+| 3 | Visual identity (5 colors via picker) | ✅ |
+| 4 | Domain + site ID validation (checks DB + config) | ✅ |
+| 5 | Content strategy (topics, audience, tone) | ✅ |
+| 6 | SEO configuration | ✅ |
+| 7 | Affiliate setup | ✅ |
+| 8 | Review + create | ✅ |
+
+**What it does:** Creates `Site` DB record, seeds 30 topic proposals, sets up SiteSettings for 5 categories (affiliates, email, social, workflow, general). Content pipeline automatically picks up new site.
+
+**What still requires code deployment:**
+- Adding site to `config/sites.ts` SITES array (domain mapping, system prompts)
+- Adding domain to `middleware.ts` domain router
+- Adding domain to Vercel project settings
+- DNS pointing to Vercel
+
+**Key files:** `lib/new-site/builder.ts`, `app/api/admin/new-site/route.ts`, `app/admin/cockpit/new-site/page.tsx`
+
+### Social Media Creation & Integration Readiness: 70% — PARTIALLY READY
+
+**Scheduling and content creation are fully built. Auto-publishing is limited to Twitter/X only. Other platforms require manual copy-paste from dashboard.**
+
+| Platform | Scheduling | Auto-Publish | Engagement Tracking |
+|----------|-----------|-------------|-------------------|
+| Twitter/X | ✅ Ready | ✅ Ready (needs API keys) | ❌ Not built |
+| Instagram | ✅ Ready | ❌ Requires app approval (6-8 weeks) | ❌ Not built |
+| TikTok | ✅ Ready | ❌ Requires official partnership | ❌ Not built |
+| LinkedIn | ✅ Ready | ❌ Requires app review (3-6 months) | ❌ Not built |
+| Facebook | ✅ Ready | ⚠️ Possible (Graph API, needs app review) | ❌ Not built |
+
+**What works now:**
+- Social Calendar UI (`/admin/social-calendar`) — week/month views, create/reschedule/delete ✅
+- Social cron (every 15 min) — auto-publishes Twitter, flags others as "pending manual" ✅
+- Social Scheduler library (`lib/social/scheduler.ts`) — full lifecycle management ✅
+- Content Engine Scripter agent generates platform-specific social posts ✅
+- Credential storage (encrypted, per-site) ✅
+
+**What's missing:**
+- OAuth flow UI for self-service account linking (currently requires API calls)
+- Engagement metrics (likes, shares, reach) from any platform
+- Multi-platform simultaneous publishing (posts go to one platform at a time)
+- Instagram/TikTok/LinkedIn auto-publishing (API restrictions, not code limitations)
+
+**Current workflow for non-Twitter platforms:**
+1. Content Engine generates social posts (or Khaled writes them)
+2. Posts scheduled in Social Calendar
+3. Cron flags them as "pending manual"
+4. Khaled opens dashboard → sees pending posts → copy-pastes to platform → taps "Mark Published"
+
+**To enable Twitter auto-publishing:** Add 4 env vars: `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`
+
+**Key files:** `lib/social/scheduler.ts`, `app/api/cron/social/route.ts`, `app/admin/social-calendar/page.tsx`
+
+---
+
+### Critical Rules Learned (March 11 Session)
+
+57. **Diagnostic-agent touching `updated_at` inflates active draft count** — always exclude drafts with `[diagnostic-agent*]` or `MAX_RECOVERIES_EXCEEDED` in `last_error` when counting "active" pipeline drafts.
+58. **Crons that fire at the same minute compete for connection pool** — stagger by 15-30 minutes. `diagnostic-sweep` at `:00`, `schedule-executor` at `:15`, `content-auto-fix-lite` at `:30`.
+59. **News admin page must pass siteId to API** — use `?site_id=` query param, not `x-site-id` header (matches cockpit pattern).
+60. **Social media auto-publishing is only possible for Twitter/X** — Instagram, TikTok, LinkedIn APIs require business partnerships or months-long app review. Design for manual copy-paste with dashboard tracking as the primary workflow.
+61. **New site wizard creates DB records but still requires code deployment** — `config/sites.ts`, `middleware.ts`, Vercel domain settings, and DNS must be updated manually. The wizard handles database seeding only.

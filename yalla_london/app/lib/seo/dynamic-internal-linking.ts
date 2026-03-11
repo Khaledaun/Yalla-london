@@ -557,7 +557,8 @@ export class DynamicInternalLinking {
           structuredData: {
             not: null
           }
-        }
+        },
+        take: 5000,
       });
 
       let totalLinks = 0;

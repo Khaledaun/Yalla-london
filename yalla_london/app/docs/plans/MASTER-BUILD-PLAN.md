@@ -1,8 +1,27 @@
 # Zenitha.Luxury — Master Build Plan
 
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║   THIS IS THE CANONICAL MASTER PLAN — THE SINGLE SOURCE OF TRUTH     ║
+║                                                                      ║
+║   All other planning docs (FUNCTIONING-ROADMAP, STAGE-A-EXECUTION,   ║
+║   AUDIT-LOG) are SUBORDINATE to this document.                       ║
+║                                                                      ║
+║   If any document contradicts this plan, THIS PLAN WINS.             ║
+║                                                                      ║
+║   Last verified: March 11, 2026 — all contradictions resolved        ║
+║   Companion docs:                                                    ║
+║     - docs/CRITICAL-RULES-INDEX.md (63 rules by domain)             ║
+║     - lib/dev-tasks/plan-registry.ts (170 tasks, 160 tests)         ║
+║     - lib/dev-tasks/live-tests.ts (160 test functions)               ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
 ## Claude Code Session Prompt (Read Before Every Session)
 
-**Version:** March 11, 2026 — v3.2 (Full cron chain + security audit applied)
+**Version:** March 11, 2026 — v3.2 (Full cron chain + security audit applied, contradictions resolved, gaps status-tracked)
 **Platform:** Yalla London v1.0 + Zenitha Yachts
 **Entity:** Zenitha.Luxury LLC (Delaware)
 **Owner:** Khaled N. Aun, Founder
@@ -145,21 +164,21 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 ### Known Gaps (Stage A — Fix Before Building)
 
-|# |Gap                                                             |Severity|Phase|Status|
-|--|----------------------------------------------------------------|--------|-----|------|
-|1 |GA4 dashboard returns 0s (MCP works, need API wiring)           |MEDIUM  |A.1  |Open  |
-|2 |Affiliate click tracking (no JS handler, model exists)          |MEDIUM  |A.1  |Open  |
-|3 |Per-site OG images don't exist (code references `{slug}-og.jpg`)|MEDIUM  |A.1  |Open  |
-|4 |~~Login rate limiting~~ (5/15min + exponential backoff)          |~~MEDIUM~~|~~A.1~~|**DONE**|
-|5 |**CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) |**HIGH**|A.2  |Open  |
-|6 |Arabic SSR (KG-032) — `/ar/` serves English HTML server-side    |MEDIUM  |A.2  |Open  |
-|7 |Feature flags not wired to all runtime behavior                 |LOW     |A.2  |Open  |
-|8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |Open  |
-|9 |~~Cookie consent banner~~ (bilingual, 4 categories, in layout)   |~~MEDIUM~~|~~A.3~~|**DONE**|
-|10|16+ orphan Prisma models                                        |LOW     |A.4  |Open  |
-|11|19 unaudited crons need 8-check rubric — see Cron Audit Table §7.1|MEDIUM  |A.2  |Open  |
-|12|5 crons fire at `:00` (analytics, gsc-sync, seo-orch, seo-agent, content-gen)|MEDIUM|A.2|Open|
-|13|6 orphan cron files not in vercel.json (content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence)|LOW|A.4|Open|
+|# |Gap                                                             |Severity|Phase|Status      |
+|--|----------------------------------------------------------------|--------|-----|------------|
+|1 |GA4 dashboard returns 0s (MCP works, need API wiring)           |MEDIUM  |A.1  |**OPEN**    |
+|2 |~~Affiliate click tracking~~                                     |~~MED~~|~~A.1~~|**DONE** — Server-side redirect + SID tracking via CJ 9-phase|
+|3 |~~Per-site OG images~~                                           |~~MED~~|~~A.1~~|**DONE** — Dynamic OG at `/api/og/route.tsx`|
+|4 |~~Login rate limiting~~                                          |~~MED~~|~~A.1~~|**DONE** — 5/15min + middleware 4 tiers|
+|5 |**CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) |**HIGH**|A.2  |**OPEN — blocks site #2**|
+|6 |Arabic SSR (KG-032) — `/ar/` serves English HTML server-side    |MEDIUM  |A.2  |**OPEN — blocks Arabaldives**|
+|7 |~~Feature flags not wired~~                                      |~~LOW~~|~~A.2~~|**DONE** — `isFeatureFlagEnabled()` + `checkCronEnabled()` on 32+ crons|
+|8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |OPEN        |
+|9 |~~Cookie consent banner~~                                        |~~MED~~|~~A.3~~|**DONE** — Bilingual EN/AR, 4 categories, root layout|
+|10|16+ orphan Prisma models                                        |LOW     |A.4  |OPEN        |
+|11|19 unaudited crons need 8-check rubric — see Cron Audit Table §7.1|MEDIUM|A.2  |OPEN        |
+|12|5 crons fire at `:00` (analytics, gsc-sync, seo-orch, seo-agent, content-gen)|MEDIUM|A.2|OPEN|
+|13|6 orphan cron files not in vercel.json (content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence)|LOW|A.4|OPEN|
 
 -----
 
@@ -363,7 +382,9 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 -----
 
-## 6. CRITICAL ARCHITECTURE RULES (65 Total)
+## 6. CRITICAL ARCHITECTURE RULES (67 Total)
+
+> **Full indexed reference:** `docs/CRITICAL-RULES-INDEX.md` — organized by domain with file cross-references
 
 ### Hard Rules (1-14)
 
@@ -407,6 +428,10 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 ### Operations Rules (57-61)
 
 57: Diagnostic-agent inflates active count — exclude `[diagnostic-agent*]` drafts. 58: Crons at same minute fight for pool — stagger 15-30 min. 59: News admin passes siteId via `?site_id=`. 60: Social = manual copy-paste primary workflow. 61: Site wizard = DB records only, code deploy still needed. 62: `checkCronEnabled(jobName)` is THE standard for feature flag guards — never use manual Prisma queries against FeatureFlag (field names differ). 63: FeatureFlag schema has `name` + `enabled` fields — NOT `key` + `isActive`. 64: Every `bulkInjectAffiliates()` and similar bulk operations MUST accept and filter by siteId — unbounded cross-site queries are CRITICAL vulnerabilities. 65: All new crons MUST be added to `CRON_FLAG_MAP` in `lib/cron-feature-guard.ts`.
+
+### Development Monitor Rules (66-67)
+
+66: Every `testType` in `plan-registry.ts` MUST have a matching function in `live-tests.ts`. 67: Built-feature tests verify real code (readiness 80-100); forward-looking tests check prerequisites (readiness 0-70 with `howToFix`).
 
 -----
 
@@ -511,4 +536,4 @@ Dashboard = reality. Manual steps = won't happen. Business terms first. Status e
 
 -----
 
-*v3.2 — March 11, 2026 — 3 stages, 8 capability workstreams, 65 rules, 33 cron files (12 audited-ready), 16 pre-pub checks, 103+ models, security A+*
+*v3.2 — March 11, 2026 — CANONICAL PLAN. 3 stages, 8 capability workstreams, 67 rules, 170 tasks, 160 tests, 33 cron files (12 audited-ready), 16 pre-pub checks, 103+ models, security A+. All contradictions resolved.*

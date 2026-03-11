@@ -63,7 +63,10 @@ const SITE_KEYWORDS: Record<string, string[]> = {
  */
 export function getKeywordsForSite(siteId?: string): string[] {
   const id = siteId || getDefaultSiteId();
-  return SITE_KEYWORDS[id] || SITE_KEYWORDS["yalla-london"] || [];
+  if (!SITE_KEYWORDS[id]) {
+    console.warn(`[site-keywords] No keywords configured for site "${id}", using default site keywords`);
+  }
+  return SITE_KEYWORDS[id] || SITE_KEYWORDS[getDefaultSiteId()] || [];
 }
 
 /**
@@ -109,7 +112,10 @@ export function getDealCategoriesForSite(siteId?: string): Record<string, string
     },
   };
 
-  return SITE_DEAL_CATEGORIES[id] || SITE_DEAL_CATEGORIES["yalla-london"] || {};
+  if (!SITE_DEAL_CATEGORIES[id]) {
+    console.warn(`[site-keywords] No deal categories configured for site "${id}", using default site categories`);
+  }
+  return SITE_DEAL_CATEGORIES[id] || SITE_DEAL_CATEGORIES[getDefaultSiteId()] || {};
 }
 
 /**
@@ -158,5 +164,8 @@ export function getAdvertiserMapForSite(siteId?: string): Record<string, string[
     },
   };
 
-  return SITE_ADVERTISER_MAPS[id] || SITE_ADVERTISER_MAPS["yalla-london"] || {};
+  if (!SITE_ADVERTISER_MAPS[id]) {
+    console.warn(`[site-keywords] No advertiser map configured for site "${id}", using default site map`);
+  }
+  return SITE_ADVERTISER_MAPS[id] || SITE_ADVERTISER_MAPS[getDefaultSiteId()] || {};
 }

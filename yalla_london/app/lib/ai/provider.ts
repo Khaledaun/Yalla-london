@@ -8,6 +8,11 @@
  *   - Cost efficiency ($0.20/$0.50 per 1M tokens on grok-4-1-fast)
  *   - 2M token context window (largest in the industry)
  *   - Real-time web & X search via Responses API (see grok-live-search.ts)
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #5: Arabic is ~2.5x token-dense — maxTokens: 3500 minimum for Arabic.
+ * - Rule #8: Promise.all with 15+ queries kills PgBouncer pool. Serialize dashboard builders.
+ * - Rule #13: Circuit breaker opens after 3 consecutive failures — 5-min cooldown, half-open probe.
  */
 
 import { prisma } from '@/lib/db';

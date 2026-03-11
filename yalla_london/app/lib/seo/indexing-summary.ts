@@ -144,6 +144,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         last_inspected_at: true,
         updated_at: true,
       },
+      take: 10000,
     });
   } catch (e) { console.warn("[indexing-summary] URLIndexingStatus query failed:", e instanceof Error ? e.message : e); }
 
@@ -359,6 +360,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     const allTracked = await prisma.uRLIndexingStatus.findMany({
       where: { site_id: siteId },
       select: { url: true, status: true },
+      take: 10000,
     });
     const urlStatusMap = new Map<string, string>();
     for (const r of allTracked) {
@@ -469,6 +471,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     const allPosts = await prisma.blogPost.findMany({
       where: { siteId, published: true, deletedAt: null },
       select: { content_en: true },
+      take: 2000,
     });
     const thinCount = allPosts.filter(
       (p) => (p.content_en || "").split(/\s+/).filter(Boolean).length < 800

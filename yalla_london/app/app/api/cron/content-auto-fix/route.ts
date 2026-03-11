@@ -505,12 +505,18 @@ async function handleAutoFix(request: NextRequest) {
         // CampaignItem table may not exist — proceed without filter
       }
 
+      // Only check articles published more than 2 hours ago — freshly created
+      // articles may still be in the enhancement pipeline (campaigns, SEO agent).
+      // Without this guard, a just-published 300-word article could be immediately
+      // unpublished before the expansion pass runs.
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       const allPublished = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
           published: true,
           deletedAt: null,
           content_en: { not: "" },
+          created_at: { lt: twoHoursAgo },
         },
         select: { id: true, slug: true, title_en: true, content_en: true, category_id: true },
         orderBy: { created_at: "asc" },

@@ -76,6 +76,8 @@ There are **3 distinct workstreams** in this repo. They share infrastructure but
 
 | Doc | Purpose |
 |-----|---------|
+| `docs/plans/MASTER-BUILD-PLAN.md` | **Strategic master plan — read at start of every session** |
+| `docs/plans/STAGE-A-EXECUTION-PLAN.md` | Executable implementation plan for infrastructure completion (Stage A) |
 | `docs/business-plans/YACHT-CHARTER-DEVELOPMENT-PLAN.md` | Full technical blueprint for Zenitha Yachts (Prisma models, API routes, phase plan) |
 | `config/sites/zenitha-yachts-med.audit.json` | SEO audit config for yacht site |
 | `public/branding/zenitha-yachts/` | Design & branding assets (upload here) |
@@ -382,16 +384,27 @@ All → Analytics:     Every agent action trackable in GA4/CronJobLog
 
 This is the order in which things must work. Do not jump ahead.
 
-1. **Yalla London produces 1 article/day automatically** (content pipeline end-to-end)
-2. **Articles are indexed by Google** (SEO agent + IndexNow)
-3. **Articles contain affiliate links** (monetization)
-4. **Dashboard shows pipeline status** (Khaled can monitor from phone)
-5. **Scale to 2 articles/day on Yalla London**
-6. ~~**Complete site research for all 5 sites**~~ **(DONE — 5/5 complete)**
-7. **Activate site #2 (Arabaldives)** — Arabic-first Maldives content
-8. **Activate site #3 (Yalla Riviera)** — French Riviera luxury + yacht charters
-9. **Scale across all 5 sites**
-10. **Optimize: CRO, A/B testing, performance tuning**
+**See `docs/plans/MASTER-BUILD-PLAN.md` for the full strategic plan and `docs/plans/STAGE-A-EXECUTION-PLAN.md` for executable details.**
+
+### Stage A: Infrastructure Completion (NOW)
+1. ~~**Yalla London produces 1 article/day automatically**~~ **(DONE — content pipeline end-to-end)**
+2. ~~**Articles are indexed by Google**~~ **(DONE — SEO agent + IndexNow × 3 engines, 80 pages indexed)**
+3. ~~**Articles contain affiliate links**~~ **(DONE — CJ integration with SID tracking)**
+4. ~~**Dashboard shows pipeline status**~~ **(DONE — Cockpit 7 tabs, mobile-first)**
+5. ~~**Complete site research for all 5 sites**~~ **(DONE — 5/5 complete)**
+6. **Revenue visibility** — GA4 dashboard wiring, affiliate click tracking, OG images (Phase A.1)
+7. **Multi-site hardening** — CJ siteId migration, Arabic SSR, feature flags (Phase A.2)
+8. **Compliance** — Cookie consent, GDPR, social/email wiring (Phase A.3)
+9. **Cleanup** — Orphan models, dead buttons, test expansion (Phase A.4)
+
+### Stage B: Site Building (AFTER Stage A is 100%)
+10. **Deploy Zenitha Yachts** (already built — run Prisma migration + DNS)
+11. **Build Zenitha.Luxury** (curated parent brand — NOT auto-generated)
+12. **Activate Arabaldives** (Arabic-first Maldives — requires Arabic SSR)
+13. **Activate Yalla Riviera** (French Riviera + yacht charter affiliates)
+14. **Activate Yalla Istanbul** (highest revenue ceiling)
+15. **Activate Yalla Thailand** (strong GCC pipeline)
+16. **Optimize: CRO, A/B testing, performance tuning**
 
 ## Recent Development History
 

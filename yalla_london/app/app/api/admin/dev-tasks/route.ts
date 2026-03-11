@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
+import { getPlan, getPhases, computePhaseReadiness, computeProjectReadiness } from "@/lib/dev-tasks/plan-registry";
 
 // ── GET: List tasks (filterable by siteId, status, priority, source) ──────────
 
@@ -38,6 +39,70 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   if (sourceFilter) where.source = sourceFilter;
 
   try {
+    // ── Dev-plan grouped response ───────────────────────────────────────
+    if (sourceFilter === "dev-plan") {
+      const tasks = await prisma.devTask.findMany({
+        where: { ...where, source: "dev-plan" },
+        orderBy: [{ created_at: "asc" }],
+        take: 200,
+      });
+
+      // Group by phase (from metadata)
+      const phases: Record<string, { name: string; order: number; tasks: typeof tasks; readiness: number; done: number; total: number }> = {};
+
+      for (const task of tasks) {
+        const meta = (task.metadata || {}) as Record<string, unknown>;
+        const phase = (meta.phase as string) || "Unknown";
+        const phaseOrder = (meta.phaseOrder as number) || 99;
+
+        if (!phases[phase]) {
+          phases[phase] = { name: phase, order: phaseOrder, tasks: [], readiness: 0, done: 0, total: 0 };
+        }
+        phases[phase].tasks.push(task);
+        phases[phase].total++;
+        if (task.status === "completed") phases[phase].done++;
+      }
+
+      // Compute readiness per phase
+      for (const p of Object.values(phases)) {
+        const readinessValues = p.tasks.map((t) => {
+          const m = (t.metadata || {}) as Record<string, unknown>;
+          return (m.readiness as number) || (t.status === "completed" ? 100 : 0);
+        });
+        p.readiness = readinessValues.length > 0
+          ? Math.round(readinessValues.reduce((a, b) => a + b, 0) / readinessValues.length)
+          : 0;
+      }
+
+      const sortedPhases = Object.values(phases).sort((a, b) => a.order - b.order);
+
+      // Project-level stats
+      const allReadiness = tasks.map((t) => {
+        const m = (t.metadata || {}) as Record<string, unknown>;
+        return (m.readiness as number) || (t.status === "completed" ? 100 : 0);
+      });
+      const projectReadiness = allReadiness.length > 0
+        ? Math.round(allReadiness.reduce((a, b) => a + b, 0) / allReadiness.length)
+        : 0;
+
+      // Get project info from first task metadata
+      const firstMeta = tasks[0] ? (tasks[0].metadata as Record<string, unknown>) : {};
+      const project = (firstMeta?.project as string) || "general / march26";
+
+      return NextResponse.json({
+        tasks,
+        phases: sortedPhases,
+        projectStats: {
+          project,
+          totalTasks: tasks.length,
+          completedTasks: tasks.filter((t) => t.status === "completed").length,
+          readiness: projectReadiness,
+          phaseCount: sortedPhases.length,
+        },
+      });
+    }
+
+    // ── Standard task listing ───────────────────────────────────────────
     const [tasks, counts] = await Promise.all([
       prisma.devTask.findMany({
         where,
@@ -211,6 +276,70 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           },
         });
         return NextResponse.json({ success: true, deleted: result.count });
+      }
+
+      case "sync_plan": {
+        const { planId, siteId: syncSiteId } = body;
+        const plan = getPlan(planId || "stage-a");
+        if (!plan) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+
+        const targetSiteId = syncSiteId || request.headers.get("x-site-id") || getDefaultSiteId();
+        let created = 0;
+        let updated = 0;
+
+        for (const task of plan.tasks) {
+          const sourceRef = `plan:${plan.id}/${task.id}`;
+          const existing = await prisma.devTask.findFirst({
+            where: { sourceRef, siteId: targetSiteId },
+          });
+
+          const taskMeta = {
+            ...task,
+            project: plan.project,
+          };
+
+          if (existing) {
+            // Update from plan definition
+            const existingMeta = (existing.metadata || {}) as Record<string, unknown>;
+            await prisma.devTask.update({
+              where: { id: existing.id },
+              data: {
+                title: `${task.id} — ${task.title}`,
+                description: task.description,
+                metadata: { ...existingMeta, ...taskMeta },
+                status: task.status === "done" ? "completed" : task.status === "in-progress" ? "in_progress" : "pending",
+                completedAt: task.status === "done" ? (existing.completedAt || new Date()) : null,
+              },
+            });
+            updated++;
+          } else {
+            await prisma.devTask.create({
+              data: {
+                siteId: targetSiteId,
+                title: `${task.id} — ${task.title}`,
+                description: task.description,
+                category: task.category,
+                priority: task.phaseOrder <= 1 ? "high" : "medium",
+                status: task.status === "done" ? "completed" : "pending",
+                source: "dev-plan",
+                sourceRef,
+                dueDate: task.dueDate ? new Date(task.dueDate) : null,
+                completedAt: task.status === "done" ? new Date() : null,
+                metadata: taskMeta,
+              },
+            });
+            created++;
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          plan: plan.id,
+          project: plan.project,
+          created,
+          updated,
+          total: plan.tasks.length,
+        });
       }
 
       default:

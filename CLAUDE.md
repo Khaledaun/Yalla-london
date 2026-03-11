@@ -44,6 +44,17 @@ These are not suggestions. These are hard rules for every commit:
 
 7. **Test the actual flow, not just the code**: Before declaring any pipeline "fixed," verify that records actually flow from step A → step B → step C in the database. Check the tables.
 
+8. **Development Monitor Standard (MANDATORY)**: Every development plan, feature batch, or multi-task project MUST be registered in `lib/dev-tasks/plan-registry.ts` with:
+   - Structured task definitions (id, phase, testType, due dates, dependencies)
+   - Live test implementations in `lib/dev-tasks/live-tests.ts` that produce **real, visible output** (actual API data, actual rendered images, actual sent emails, actual scan results) — NOT just code file existence checks
+   - Each task MUST have a `testType` that maps to a live test function
+   - Due dates MUST be updated after every commit that affects plan tasks
+   - Plan sync runs automatically on cockpit Tasks tab load via `sync_plan` action
+   - The Development Monitor at `/admin/cockpit` → Tasks tab is the **single source of truth** for project progress. If it's not in the monitor, it's not being tracked.
+   - Test execution endpoint: `POST /api/admin/dev-tasks/test` with `maxDuration: 300` (Vercel Pro 5min limit)
+   - Individual tests get 25s timeout. Test All gets 280s total budget (300s - 20s buffer)
+   - JSON test reports include: task context, test results, evidence, error details (code + message + where + howToFix), dates, phase status, project status
+
 ### Communication Standards
 
 1. **Plain language first**: Explain what's happening in business terms before technical terms. "Articles aren't being created because the topic finder and the article builder aren't connected" — not "TopicProposal records lack site_id foreign key."

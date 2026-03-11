@@ -6606,6 +6606,7 @@ interface DevTask {
   actionLabel?: string;
   actionApi?: string;
   actionPayload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -6620,7 +6621,409 @@ interface TaskSummary {
   dueThisWeek: number;
 }
 
-function TasksTab({ siteId }: { siteId: string }) {
+interface DevPhase {
+  name: string;
+  order: number;
+  tasks: DevTask[];
+  readiness: number;
+  done: number;
+  total: number;
+}
+
+interface TestResult {
+  success: boolean | null;
+  readiness: number;
+  timestamp: string;
+  durationMs: number;
+  plainLanguage: string;
+  json: Record<string, unknown>;
+  evidence?: { type: string; content: unknown };
+  error?: { code: string; message: string; where: string; howToFix: string; envVarsNeeded?: string[] };
+}
+
+// ── Development Monitor Section ──────────────────────────────────────────────
+
+function DevMonitorSection({ siteId }: { siteId: string }) {
+  const [phases, setPhases] = useState<DevPhase[]>([]);
+  const [projectStats, setProjectStats] = useState<{ project: string; totalTasks: number; completedTasks: number; readiness: number; phaseCount: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [testingTask, setTestingTask] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
+  const [testAllRunning, setTestAllRunning] = useState(false);
+  const [testAllProgress, setTestAllProgress] = useState<{ done: number; total: number; passed: number; failed: number; skipped: number } | null>(null);
+  const [copiedJson, setCopiedJson] = useState<string | null>(null);
+
+  const fetchDevPlan = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ siteId: siteId || "all", source: "dev-plan", status: "all" });
+      const res = await fetch(`/api/admin/dev-tasks?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPhases(data.phases || []);
+      setProjectStats(data.projectStats || null);
+
+      // Auto-sync if no dev-plan tasks
+      if (!data.phases || data.phases.length === 0) {
+        await syncPlan();
+      }
+    } catch (err) {
+      console.warn("[dev-monitor] Failed to load:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [siteId]);
+
+  useEffect(() => { fetchDevPlan(); }, [fetchDevPlan]);
+
+  const syncPlan = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/admin/dev-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync_plan", planId: "stage-a", siteId }),
+      });
+      if (res.ok) await fetchDevPlan();
+    } catch (err) {
+      console.warn("[dev-monitor] Sync failed:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const runTest = async (task: DevTask) => {
+    const meta = (task.metadata || {}) as Record<string, unknown>;
+    const testType = meta.testType as string;
+    if (!testType) return;
+
+    setTestingTask(task.id);
+    try {
+      const res = await fetch("/api/admin/dev-tasks/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run_test", testType, taskId: task.id, siteId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTestResults(prev => ({ ...prev, [task.id]: data.result }));
+      }
+    } catch (err) {
+      console.warn("[dev-monitor] Test failed:", err);
+    } finally {
+      setTestingTask(null);
+    }
+  };
+
+  const runTestAll = async () => {
+    setTestAllRunning(true);
+    setTestAllProgress({ done: 0, total: phases.reduce((s, p) => s + p.tasks.length, 0), passed: 0, failed: 0, skipped: 0 });
+    try {
+      const res = await fetch("/api/admin/dev-tasks/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test_all", planId: "stage-a", siteId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Populate individual results
+        const newResults: Record<string, TestResult> = {};
+        for (const r of data.results || []) {
+          // Match taskId from test result to actual DevTask
+          for (const phase of phases) {
+            for (const task of phase.tasks) {
+              const meta = (task.metadata || {}) as Record<string, unknown>;
+              if (meta.id === r.taskId) {
+                newResults[task.id] = r.result;
+              }
+            }
+          }
+        }
+        setTestResults(prev => ({ ...prev, ...newResults }));
+        setTestAllProgress({
+          done: data.summary.total,
+          total: data.summary.total,
+          passed: data.summary.passed,
+          failed: data.summary.failed,
+          skipped: data.summary.skipped,
+        });
+      }
+    } catch (err) {
+      console.warn("[dev-monitor] Test All failed:", err);
+    } finally {
+      setTestAllRunning(false);
+    }
+  };
+
+  const copyJson = (taskId: string, result: TestResult, task: DevTask) => {
+    const meta = (task.metadata || {}) as Record<string, unknown>;
+    const phase = phases.find(p => p.tasks.some(t => t.id === task.id));
+    const jsonReport = {
+      task: { id: meta.id, title: meta.title, phase: meta.phase, project: projectStats?.project },
+      test: { type: meta.testType, success: result.success, readiness: result.readiness, timestamp: result.timestamp, durationMs: result.durationMs },
+      evidence: result.json,
+      plainLanguage: result.plainLanguage,
+      error: result.error || null,
+      dates: { started: meta.startDate, lastTest: result.timestamp, dueDate: meta.dueDate },
+      phase_status: phase ? { name: phase.name, done: `${phase.done}/${phase.total}`, readiness: phase.readiness } : null,
+      project_status: projectStats ? { name: "Stage A: Infrastructure Completion", done: `${projectStats.completedTasks}/${projectStats.totalTasks}`, readiness: projectStats.readiness } : null,
+    };
+    navigator.clipboard.writeText(JSON.stringify(jsonReport, null, 2));
+    setCopiedJson(taskId);
+    setTimeout(() => setCopiedJson(null), 2000);
+  };
+
+  const readinessBarColor = (r: number) => {
+    if (r >= 70) return "bg-green-500";
+    if (r >= 30) return "bg-amber-500";
+    return "bg-red-500";
+  };
+
+  if (loading) return <div className="p-4 text-center text-gray-500 text-sm">Loading development plan...</div>;
+
+  return (
+    <div className="space-y-3">
+      {/* Project Header */}
+      <div className="bg-gradient-to-r from-indigo-900/90 to-violet-900/90 rounded-xl p-4 text-white">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-medium opacity-80">Ongoing Development</div>
+          <div className="flex gap-2">
+            <button
+              onClick={runTestAll}
+              disabled={testAllRunning}
+              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
+            >
+              {testAllRunning ? <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Testing...</> : "Test All"}
+            </button>
+            <button
+              onClick={syncPlan}
+              disabled={syncing}
+              className="px-3 py-1 bg-white/20 hover:bg-white/30 disabled:bg-white/10 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              {syncing ? "Syncing..." : "Sync Plan"}
+            </button>
+          </div>
+        </div>
+
+        {projectStats && (
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-semibold">{projectStats.project} — Stage A</div>
+              <div className="text-lg font-bold">{projectStats.readiness}%</div>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-2">
+              <div className={`${readinessBarColor(projectStats.readiness)} h-2 rounded-full transition-all`} style={{ width: `${projectStats.readiness}%` }} />
+            </div>
+            <div className="text-xs opacity-70 mt-1">{projectStats.completedTasks}/{projectStats.totalTasks} tasks complete</div>
+          </>
+        )}
+
+        {projectStats && projectStats.completedTasks === projectStats.totalTasks && (
+          <div className="mt-2 bg-green-500/30 border border-green-400/50 rounded-lg p-2 text-center text-sm font-medium">
+            PROJECT COMPLETE — all {projectStats.totalTasks} tasks verified
+          </div>
+        )}
+      </div>
+
+      {/* Test All Progress */}
+      {testAllProgress && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Test All Results</span>
+            <span className="text-xs text-gray-500">{testAllProgress.done}/{testAllProgress.total}</span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-2">
+            <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(testAllProgress.done / Math.max(testAllProgress.total, 1)) * 100}%` }} />
+          </div>
+          <div className="flex gap-3 text-xs">
+            <span className="text-green-600">{testAllProgress.passed} pass</span>
+            <span className="text-red-600">{testAllProgress.failed} fail</span>
+            <span className="text-gray-500">{testAllProgress.skipped} skip</span>
+          </div>
+        </div>
+      )}
+
+      {/* Phase List */}
+      {phases.map(phase => {
+        const isExpanded = expandedPhase === phase.name;
+        return (
+          <div key={phase.name} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Phase Header */}
+            <button
+              onClick={() => setExpandedPhase(isExpanded ? null : phase.name)}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-left">
+                <span className="text-xs text-gray-400">{isExpanded ? "▾" : "▸"}</span>
+                <span className="font-medium text-sm text-gray-900 dark:text-white">{phase.name}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                    <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{phase.readiness}%</span>
+                </div>
+              </div>
+            </button>
+
+            {/* Phase Tasks */}
+            {isExpanded && (
+              <div className="border-t border-gray-100 dark:border-gray-800">
+                {phase.tasks.map((task, idx) => {
+                  const meta = (task.metadata || {}) as Record<string, unknown>;
+                  const taskReadiness = (meta.readiness as number) || (task.status === "completed" ? 100 : 0);
+                  const testType = meta.testType as string;
+                  const isTaskExpanded = expandedTask === task.id;
+                  const result = testResults[task.id];
+                  const lastTestResult = (meta.lastTestResult as TestResult) || result;
+                  const isDone = task.status === "completed";
+                  const dueDate = meta.dueDate as string || task.dueDate;
+                  const isOverdue = dueDate && new Date(dueDate) < new Date() && !isDone;
+
+                  return (
+                    <div key={task.id} className="border-b border-gray-50 dark:border-gray-800 last:border-b-0">
+                      {/* Task Row */}
+                      <div className="px-4 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs text-gray-400 font-mono w-4">{idx + 1}</span>
+                            {isDone ? (
+                              <span className="text-green-500 text-sm flex-shrink-0">&#10003;</span>
+                            ) : (
+                              <span className="text-gray-300 text-sm flex-shrink-0">&#9675;</span>
+                            )}
+                            <button
+                              onClick={() => setExpandedTask(isTaskExpanded ? null : task.id)}
+                              className="text-sm text-gray-800 dark:text-gray-200 truncate text-left hover:text-indigo-600 transition-colors"
+                            >
+                              {meta.title as string || task.title}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            {/* Readiness bar */}
+                            <div className="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 hidden sm:block">
+                              <div className={`${readinessBarColor(taskReadiness)} h-1.5 rounded-full`} style={{ width: `${taskReadiness}%` }} />
+                            </div>
+                            <span className="text-xs font-medium text-gray-500 w-8 text-right">{taskReadiness}%</span>
+                            {/* Test button */}
+                            {testType && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); runTest(task); }}
+                                disabled={testingTask === task.id}
+                                className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
+                              >
+                                {testingTask === task.id ? (
+                                  <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                                ) : "Test"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Last test summary (inline) */}
+                        {lastTestResult && !isTaskExpanded && (
+                          <div className={`mt-1 text-xs ml-8 ${lastTestResult.success ? "text-green-600" : lastTestResult.success === false ? "text-red-600" : "text-gray-500"}`}>
+                            {lastTestResult.plainLanguage?.slice(0, 100)}{(lastTestResult.plainLanguage?.length || 0) > 100 ? "..." : ""}
+                            {lastTestResult.timestamp && (
+                              <span className="text-gray-400 ml-2">{new Date(lastTestResult.timestamp).toLocaleString()}</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Overdue indicator */}
+                        {isOverdue && (
+                          <div className="mt-1 ml-8 text-xs text-red-500 animate-pulse">
+                            Overdue — due {new Date(dueDate!).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Expanded Task Details */}
+                      {isTaskExpanded && (
+                        <div className="px-4 pb-3 space-y-2 bg-gray-50/50 dark:bg-gray-800/30">
+                          {/* Description */}
+                          <p className="text-xs text-gray-500 dark:text-gray-400 ml-8">{task.description}</p>
+
+                          {/* Dates row */}
+                          <div className="flex gap-4 text-xs text-gray-400 ml-8 flex-wrap">
+                            {meta.startDate && <span>Started: {new Date(meta.startDate as string).toLocaleDateString()}</span>}
+                            {lastTestResult?.timestamp && <span>Last Test: {new Date(lastTestResult.timestamp).toLocaleString()}</span>}
+                            {dueDate && <span className={isOverdue ? "text-red-500 font-medium" : ""}>Due: {new Date(dueDate).toLocaleDateString()}</span>}
+                          </div>
+
+                          {/* Test Result Panel */}
+                          {(result || lastTestResult) && (() => {
+                            const tr = result || lastTestResult!;
+                            return (
+                              <div className={`ml-8 rounded-lg p-3 border ${tr.success ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : tr.success === false ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800" : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"}`}>
+                                {/* Plain language */}
+                                <p className={`text-sm mb-2 ${tr.success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                                  {tr.plainLanguage}
+                                </p>
+
+                                {/* Error details */}
+                                {tr.error && (
+                                  <div className="bg-red-100 dark:bg-red-900/30 rounded p-2 mb-2 text-xs">
+                                    <div className="font-medium text-red-800 dark:text-red-300 mb-1">Error: {tr.error.code}</div>
+                                    <div className="text-red-700 dark:text-red-400">{tr.error.message}</div>
+                                    <div className="text-red-600 dark:text-red-500 mt-1">Where: {tr.error.where}</div>
+                                    <div className="text-red-600 dark:text-red-500 font-medium mt-1">Fix: {tr.error.howToFix}</div>
+                                    {tr.error.envVarsNeeded && (
+                                      <div className="mt-1 text-red-600 dark:text-red-500">Env vars needed: {tr.error.envVarsNeeded.join(", ")}</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* JSON block */}
+                                <div className="relative">
+                                  <button
+                                    onClick={() => copyJson(task.id, tr, task)}
+                                    className="absolute top-1 right-1 px-2 py-0.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs rounded transition-colors"
+                                  >
+                                    {copiedJson === task.id ? "Copied!" : "Copy JSON"}
+                                  </button>
+                                  <pre className="bg-gray-900 dark:bg-black text-green-400 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
+                                    {JSON.stringify(tr.json, null, 2)}
+                                  </pre>
+                                </div>
+
+                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                  <span>{tr.durationMs}ms</span>
+                                  <span>{new Date(tr.timestamp).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {phases.length === 0 && !loading && (
+        <div className="text-center py-6 text-gray-500">
+          <p className="text-sm mb-2">No development plan synced yet.</p>
+          <button onClick={syncPlan} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">
+            Sync Stage A Plan
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Operational Tasks Section ────────────────────────────────────────────────
+
+function OperationalTasksSection({ siteId }: { siteId: string }) {
   const [tasks, setTasks] = useState<DevTask[]>([]);
   const [summary, setSummary] = useState<TaskSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -6636,7 +7039,9 @@ function TasksTab({ siteId }: { siteId: string }) {
       const res = await fetch(`/api/admin/dev-tasks?${params}`);
       if (!res.ok) return;
       const data = await res.json();
-      setTasks(data.tasks || []);
+      // Filter out dev-plan tasks
+      const opTasks = (data.tasks || []).filter((t: DevTask) => t.source !== "dev-plan");
+      setTasks(opTasks);
       setSummary(data.summary || null);
     } catch (err) {
       console.warn("[tasks] Failed to load:", err);
@@ -6656,18 +7061,10 @@ function TasksTab({ siteId }: { siteId: string }) {
         body: JSON.stringify({ siteId }),
       });
       const data = await res.json();
-      if (data.created > 0) {
-        fetchTasks(); // Refresh
-      }
-      setActionResults(prev => ({
-        ...prev,
-        "scan": { success: true, message: data.message || `${data.created} created` },
-      }));
+      if (data.created > 0) fetchTasks();
+      setActionResults(prev => ({ ...prev, "scan": { success: true, message: data.message || `${data.created} created` } }));
     } catch {
-      setActionResults(prev => ({
-        ...prev,
-        "scan": { success: false, message: "Scan failed" },
-      }));
+      setActionResults(prev => ({ ...prev, "scan": { success: false, message: "Scan failed" } }));
     } finally {
       setScanning(false);
     }
@@ -6683,24 +7080,13 @@ function TasksTab({ siteId }: { siteId: string }) {
         body: JSON.stringify(task.actionPayload || {}),
       });
       const data = await res.json().catch(() => ({}));
-      setActionResults(prev => ({
-        ...prev,
-        [task.id]: { success: res.ok, message: data.message || (res.ok ? "Done" : `HTTP ${res.status}`) },
-      }));
-      // Auto-complete the task on success
+      setActionResults(prev => ({ ...prev, [task.id]: { success: res.ok, message: data.message || (res.ok ? "Done" : `HTTP ${res.status}`) } }));
       if (res.ok) {
-        await fetch("/api/admin/dev-tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "complete", taskId: task.id }),
-        });
+        await fetch("/api/admin/dev-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", taskId: task.id }) });
         fetchTasks();
       }
     } catch (err) {
-      setActionResults(prev => ({
-        ...prev,
-        [task.id]: { success: false, message: err instanceof Error ? err.message : "Failed" },
-      }));
+      setActionResults(prev => ({ ...prev, [task.id]: { success: false, message: err instanceof Error ? err.message : "Failed" } }));
     } finally {
       setExecutingId(null);
     }
@@ -6708,11 +7094,7 @@ function TasksTab({ siteId }: { siteId: string }) {
 
   const dismissTask = async (taskId: string) => {
     try {
-      const res = await fetch("/api/admin/dev-tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "dismiss", taskId }),
-      });
+      const res = await fetch("/api/admin/dev-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "dismiss", taskId }) });
       if (!res.ok) console.warn("[cockpit] dismissTask failed:", res.status);
       fetchTasks();
     } catch (e) {
@@ -6722,11 +7104,7 @@ function TasksTab({ siteId }: { siteId: string }) {
 
   const completeTask = async (taskId: string) => {
     try {
-      const res = await fetch("/api/admin/dev-tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", taskId }),
-      });
+      const res = await fetch("/api/admin/dev-tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", taskId }) });
       if (!res.ok) console.warn("[cockpit] completeTask failed:", res.status);
       fetchTasks();
     } catch (e) {
@@ -6745,147 +7123,80 @@ function TasksTab({ siteId }: { siteId: string }) {
 
   const categoryIcon = (c: string) => {
     switch (c) {
-      case "pipeline": return "⚙️";
-      case "seo": return "🔍";
-      case "automation": return "🤖";
-      case "config": return "🔧";
-      case "content": return "📝";
-      case "security": return "🛡️";
-      case "database": return "🗄️";
-      default: return "📌";
+      case "pipeline": return "P";
+      case "seo": return "S";
+      case "automation": return "A";
+      case "config": return "C";
+      case "content": return "W";
+      default: return "T";
     }
   };
 
-  if (loading) return <div className="p-6 text-center text-gray-500">Loading tasks...</div>;
+  if (loading) return <div className="p-4 text-center text-gray-500 text-sm">Loading operational tasks...</div>;
 
   return (
-    <div className="space-y-4 p-1">
-      {/* Summary Cards */}
-      {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {summary.overdue > 0 && (
-            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 text-center border border-red-200 dark:border-red-800">
-              <div className="text-2xl font-bold text-red-600">{summary.overdue}</div>
-              <div className="text-xs text-red-500">Overdue</div>
-            </div>
-          )}
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center border border-amber-200 dark:border-amber-800">
-            <div className="text-2xl font-bold text-amber-600">{summary.dueToday}</div>
-            <div className="text-xs text-amber-500">Due Today</div>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center border border-blue-200 dark:border-blue-800">
-            <div className="text-2xl font-bold text-blue-600">{summary.pending}</div>
-            <div className="text-xs text-blue-500">Pending</div>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center border border-green-200 dark:border-green-800">
-            <div className="text-2xl font-bold text-green-600">{summary.completed}</div>
-            <div className="text-xs text-green-500">Completed</div>
-          </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Operational Tasks</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={scanForTasks}
+            disabled={scanning}
+            className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 text-white font-medium rounded-lg text-xs transition-colors inline-flex items-center gap-1"
+          >
+            {scanning ? "Scanning..." : "Scan"}
+          </button>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs"
+          >
+            <option value="">Open</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Done</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
         </div>
-      )}
-
-      {/* Actions Bar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <button
-          onClick={scanForTasks}
-          disabled={scanning}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 text-white font-medium rounded-lg text-sm transition-colors inline-flex items-center gap-2"
-        >
-          {scanning ? (
-            <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Scanning...</>
-          ) : (
-            <>🔍 Scan for Tasks</>
-          )}
-        </button>
-
-        {actionResults["scan"] && (
-          <span className={`text-xs ${actionResults["scan"].success ? "text-green-600" : "text-red-600"}`}>
-            {actionResults["scan"].message}
-          </span>
-        )}
-
-        <div className="flex-1" />
-
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
-        >
-          <option value="">Open Tasks</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="dismissed">Dismissed</option>
-        </select>
       </div>
 
-      {/* Task List */}
-      {tasks.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <p className="text-lg mb-2">No tasks found</p>
-          <p className="text-sm">Click &quot;Scan for Tasks&quot; to detect issues that need attention</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {tasks.map(task => (
-            <div key={task.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-start gap-3">
-                <span className="text-lg flex-shrink-0 mt-0.5">{categoryIcon(task.category)}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColor(task.priority)}`}>
-                      {task.priority}
-                    </span>
-                    <span className="font-medium text-sm text-gray-900 dark:text-white">{task.title}</span>
-                  </div>
-                  {task.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{task.description}</p>
-                  )}
-                  {task.dueDate && (
-                    <span className="text-xs text-gray-400">
-                      Due: {new Date(task.dueDate).toLocaleDateString()}
-                    </span>
-                  )}
+      {actionResults["scan"] && (
+        <span className={`text-xs ${actionResults["scan"].success ? "text-green-600" : "text-red-600"}`}>
+          {actionResults["scan"].message}
+        </span>
+      )}
 
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+      {tasks.length === 0 ? (
+        <div className="text-center py-4 text-gray-400 text-xs">No operational tasks. Tap Scan to check.</div>
+      ) : (
+        <div className="space-y-1.5">
+          {tasks.map(task => (
+            <div key={task.id} className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-mono text-gray-400 flex-shrink-0 mt-0.5 w-4 text-center">{categoryIcon(task.category)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${priorityColor(task.priority)}`}>{task.priority}</span>
+                    <span className="font-medium text-xs text-gray-900 dark:text-white truncate">{task.title}</span>
+                  </div>
+                  {task.description && <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1 line-clamp-2">{task.description}</p>}
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {task.actionLabel && task.actionApi && (
-                      <>
-                        {actionResults[task.id] ? (
-                          <span className={`text-xs px-3 py-1 rounded-lg ${
-                            actionResults[task.id].success
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          }`}>
-                            {actionResults[task.id].success ? "✅" : "❌"} {actionResults[task.id].message}
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => executeAction(task)}
-                            disabled={executingId === task.id}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
-                          >
-                            {executingId === task.id ? (
-                              <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Running...</>
-                            ) : (
-                              <>🚀 {task.actionLabel}</>
-                            )}
-                          </button>
-                        )}
-                      </>
+                      actionResults[task.id] ? (
+                        <span className={`text-[10px] px-2 py-0.5 rounded ${actionResults[task.id].success ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {actionResults[task.id].message}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => executeAction(task)}
+                          disabled={executingId === task.id}
+                          className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-[10px] rounded transition-colors"
+                        >
+                          {executingId === task.id ? "..." : task.actionLabel}
+                        </button>
+                      )
                     )}
-                    <button
-                      onClick={() => completeTask(task.id)}
-                      className="px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                    >
-                      ✓ Done
-                    </button>
-                    <button
-                      onClick={() => dismissTask(task.id)}
-                      className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                    >
-                      Dismiss
-                    </button>
+                    <button onClick={() => completeTask(task.id)} className="px-1.5 py-0.5 text-[10px] text-green-600 hover:bg-green-50 rounded">Done</button>
+                    <button onClick={() => dismissTask(task.id)} className="px-1.5 py-0.5 text-[10px] text-gray-400 hover:bg-gray-100 rounded">Dismiss</button>
                   </div>
                 </div>
               </div>
@@ -6893,6 +7204,19 @@ function TasksTab({ siteId }: { siteId: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Combined Tasks Tab ───────────────────────────────────────────────────────
+
+function TasksTab({ siteId }: { siteId: string }) {
+  return (
+    <div className="space-y-6 p-1">
+      <DevMonitorSection siteId={siteId} />
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <OperationalTasksSection siteId={siteId} />
+      </div>
     </div>
   );
 }

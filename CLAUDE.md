@@ -2642,6 +2642,46 @@ Both code fixes (`?lang=ar` redirect + language switcher) are committed and push
 - Fixed: news admin page (`/admin/news`) now passes `activeSiteId` to API and cron triggers
 - All DB queries confirmed scoped by `site_id` / `siteId` across all recent changes
 
+### Session: March 11, 2026 — Development Monitor Test Expansion (83 New Test Functions, 5 Batches)
+
+**Complete Development Monitor test coverage — all 83 missing test functions added to `live-tests.ts` across 5 sequential batches.**
+
+**Problem:** The Development Monitor (`/admin/cockpit` → Tasks tab) is the single source of truth for project progress. Every task in `plan-registry.ts` has a `testType` that maps to a test function in `live-tests.ts`. 77 test functions existed, but 83 `testType` values had no matching function — causing "test not found" errors in the monitor.
+
+**Solution:** Added all 83 missing test functions (after deduplication — some testTypes appear in multiple plans but need exactly ONE function). File grew from 2,082 lines / 77 functions to 3,381 lines / 160 functions.
+
+**Test Classification:**
+- **47 "Built Feature" tests** (verify real code, return readiness 80-100): file existence checks, code pattern scans, Prisma queries, env var checks
+- **36 "Forward-Looking" tests** (check prerequisites, return readiness 0-70): verify if feature infrastructure exists, provide `howToFix` guidance
+
+**Batch 1: Content Pipeline + SEO/Indexing (18 functions):**
+Plans: `CONTENT_PIPELINE_PLAN`, `SEO_INDEXING_PLAN` — built features verifying real code.
+Tests: `content-pipeline-verify`, `prepub-gate-verify`, `content-type-gates-verify`, `pipeline-safety-verify`, `circuit-breaker-verify`, `last-defense-verify`, `ai-cost-tracking-verify`, `diagnostic-agent-verify`, `content-auto-fix-verify`, `campaign-system-verify`, `indexnow-verify`, `sitemap-cache-verify`, `gsc-sync-verify`, `geo-compliance-verify`, `authenticity-compliance-verify`, `title-sanitization-verify`, `master-audit-verify`, `per-page-audit-verify`
+
+**Batch 2: Security + Dashboard + Design System (17 functions):**
+Plans: `SECURITY_PLAN`, `DASHBOARD_PLAN`, `DESIGN_SYSTEM_PLAN` — built features verifying real code and routes.
+Tests: `admin-auth-verify`, `xss-sanitization-verify`, `security-scan-verify`, `race-condition-verify`, `cron-resilience-verify`, `cockpit-verify`, `departures-verify`, `cycle-health-verify`, `affiliate-hq-verify`, `ai-cost-dashboard-verify`, `aggregated-report-verify`, `action-logging-verify`, `site-settings-verify`, `email-system-verify`, `design-tools-verify`, `content-engine-verify`, `social-calendar-verify`
+
+**Batch 3: Yacht + Multi-Site + Design Media Engine (17 functions):**
+Plans: `ZENITHA_YACHTS_PLAN`, `MULTI_SITE_PLAN`, `DESIGN_MEDIA_ENGINE_PLAN` — mix of built (yacht, multi-site) and future (media engine).
+Tests: `yacht-models-verify`, `yacht-pages-verify`, `yacht-admin-verify`, `yacht-seo-verify`, `yacht-isolation-verify`, `site-scoping-verify`, `no-hardcoding-verify`, `new-site-wizard-verify`, `url-hygiene-verify`, `structured-data-verify`, `hero-image-verify`, `social-graphics-verify`, `media-library-verify`, `video-templates-verify`, `prompt-to-video-verify`, `video-render-verify`, `viral-content-verify`
+
+**Batch 4: PDF + Commerce + Website Builder + Social/Email (18 functions):**
+Plans: `PDF_PRINT_PLAN`, `COMMERCE_PAYMENTS_PLAN`, `WEBSITE_BUILDER_PLAN`, `SOCIAL_EMAIL_PLAN` — mostly future features checking readiness/prerequisites.
+Tests: `pdf-export-verify`, `pdf-library-verify`, `stripe-verify`, `mercury-verify`, `financial-dashboard-verify`, `etsy-connection-verify`, `etsy-listing-gen-verify`, `etsy-analytics-verify`, `etsy-bulk-verify`, `auto-config-verify`, `zenitha-luxury-verify`, `authority-pages-verify`, `cross-network-seo-verify`, `auto-repurpose-verify`, `pinterest-verify`, `welcome-sequence-verify`, `deal-alert-verify`, `email-social-analytics-verify`
+
+**Batch 5: Business Intelligence + Dashboard Redesign + Self-Healing (13 functions):**
+Plans: `BUSINESS_INTELLIGENCE_PLAN`, `DASHBOARD_REDESIGN_PLAN`, `SELF_HEALING_PLAN` — mostly future features.
+Tests: `revenue-dashboard-verify`, `knowledge-base-verify`, `weekly-digest-verify`, `keyword-gap-verify`, `partnership-discovery-verify`, `market-opportunity-verify`, `trend-alerts-verify`, `status-indicators-verify`, `contextual-actions-verify`, `content-feedback-verify`, `seo-adaptation-verify`, `error-pattern-verify`, `knowledge-transfer-verify`
+
+**Deduplication:** 9 shared testTypes across plans (e.g., `circuit-breaker-verify` in both CONTENT_PIPELINE_PLAN and SELF_HEALING_PLAN, `diagnostic-agent-verify` in both CONTENT_PIPELINE_PLAN and SELF_HEALING_PLAN) — each registered exactly ONCE in TEST_REGISTRY. The registry lookup handles sharing automatically.
+
+**Result:** Every task in `/admin/cockpit` Tasks tab now has a working "Test" button — zero "test not found" errors. TypeScript: 0 errors.
+
+**Key files:**
+- `lib/dev-tasks/live-tests.ts` — 3,381 lines, 160 test functions
+- `lib/dev-tasks/plan-registry.ts` — all testType values now have matching functions
+
 ### Current Platform Status (March 11, 2026)
 
 **Google Search Console (as of March 11):**
@@ -2753,3 +2793,5 @@ Both code fixes (`?lang=ar` redirect + language switcher) are committed and push
 59. **News admin page must pass siteId to API** — use `?site_id=` query param, not `x-site-id` header (matches cockpit pattern).
 60. **Social media auto-publishing is only possible for Twitter/X** — Instagram, TikTok, LinkedIn APIs require business partnerships or months-long app review. Design for manual copy-paste with dashboard tracking as the primary workflow.
 61. **New site wizard creates DB records but still requires code deployment** — `config/sites.ts`, `middleware.ts`, Vercel domain settings, and DNS must be updated manually. The wizard handles database seeding only.
+62. **Every testType in plan-registry.ts MUST have a matching function in live-tests.ts** — missing functions cause "test not found" errors in the Development Monitor. When adding new plans, always add corresponding test functions. Shared testTypes across plans need exactly ONE function registered once — the registry lookup handles sharing.
+63. **Test functions for built features should verify real code** — check file existence, scan for expected exports/patterns, query DB state. Test functions for future features should check prerequisites and return low readiness (0-70) with `howToFix` guidance describing what needs building.

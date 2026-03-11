@@ -1,8 +1,27 @@
 # Zenitha.Luxury — Master Build Plan
 
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║   THIS IS THE CANONICAL MASTER PLAN — THE SINGLE SOURCE OF TRUTH     ║
+║                                                                      ║
+║   All other planning docs (FUNCTIONING-ROADMAP, STAGE-A-EXECUTION,   ║
+║   AUDIT-LOG) are SUBORDINATE to this document.                       ║
+║                                                                      ║
+║   If any document contradicts this plan, THIS PLAN WINS.             ║
+║                                                                      ║
+║   Last verified: March 11, 2026 — all contradictions resolved        ║
+║   Companion docs:                                                    ║
+║     - docs/CRITICAL-RULES-INDEX.md (63 rules by domain)             ║
+║     - lib/dev-tasks/plan-registry.ts (170 tasks, 160 tests)         ║
+║     - lib/dev-tasks/live-tests.ts (160 test functions)               ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
 ## Claude Code Session Prompt (Read Before Every Session)
 
-**Version:** March 11, 2026 — v3.0
+**Version:** March 11, 2026 — v3.1 (contradictions resolved, gaps status-tracked)
 **Platform:** Yalla London v1.0 + Zenitha Yachts
 **Entity:** Zenitha.Luxury LLC (Delaware)
 **Owner:** Khaled N. Aun, Founder
@@ -138,18 +157,18 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 ### Known Gaps (Stage A — Fix Before Building)
 
-|# |Gap                                                             |Severity|Phase|
-|--|----------------------------------------------------------------|--------|-----|
-|1 |GA4 dashboard returns 0s (MCP works, need API wiring)           |MEDIUM  |A.1  |
-|2 |Affiliate click tracking (no JS handler, model exists)          |MEDIUM  |A.1  |
-|3 |Per-site OG images don't exist (code references `{slug}-og.jpg`)|MEDIUM  |A.1  |
-|4 |Login rate limiting (no brute-force protection)                 |MEDIUM  |A.1  |
-|5 |**CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) |**HIGH**|A.2  |
-|6 |Arabic SSR (KG-032) — `/ar/` serves English HTML server-side    |MEDIUM  |A.2  |
-|7 |Feature flags not wired to all runtime behavior                 |LOW     |A.2  |
-|8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |
-|9 |Cookie consent banner (EU legal)                                |MEDIUM  |A.3  |
-|10|16+ orphan Prisma models                                        |LOW     |A.4  |
+|# |Gap                                                             |Severity|Phase|Status      |
+|--|----------------------------------------------------------------|--------|-----|------------|
+|1 |GA4 dashboard returns 0s (MCP works, need API wiring)           |MEDIUM  |A.1  |**OPEN**    |
+|2 |~~Affiliate click tracking~~                                     |~~MED~~|~~A.1~~|**DONE** — Server-side redirect + SID tracking via CJ 9-phase|
+|3 |~~Per-site OG images~~                                           |~~MED~~|~~A.1~~|**DONE** — Dynamic OG at `/api/og/route.tsx`|
+|4 |~~Login rate limiting~~                                          |~~MED~~|~~A.1~~|**DONE** — 5/15min + middleware 4 tiers|
+|5 |**CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) |**HIGH**|A.2  |**OPEN — blocks site #2**|
+|6 |Arabic SSR (KG-032) — `/ar/` serves English HTML server-side    |MEDIUM  |A.2  |**OPEN — blocks Arabaldives**|
+|7 |~~Feature flags not wired~~                                      |~~LOW~~|~~A.2~~|**DONE** — `isFeatureFlagEnabled()` + `checkCronEnabled()` on 32+ crons|
+|8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |OPEN        |
+|9 |~~Cookie consent banner~~                                        |~~MED~~|~~A.3~~|**DONE** — Bilingual EN/AR, 4 categories, root layout|
+|10|16+ orphan Prisma models                                        |LOW     |A.4  |OPEN        |
 
 -----
 
@@ -351,7 +370,9 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 -----
 
-## 6. CRITICAL ARCHITECTURE RULES (61 Total)
+## 6. CRITICAL ARCHITECTURE RULES (63 Total)
+
+> **Full indexed reference:** `docs/CRITICAL-RULES-INDEX.md` — organized by domain with file cross-references
 
 ### Hard Rules (1-14)
 
@@ -395,6 +416,10 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 ### Operations Rules (57-61)
 
 57: Diagnostic-agent inflates active count — exclude `[diagnostic-agent*]` drafts. 58: Crons at same minute fight for pool — stagger 15-30 min. 59: News admin passes siteId via `?site_id=`. 60: Social = manual copy-paste primary workflow. 61: Site wizard = DB records only, code deploy still needed.
+
+### Development Monitor Rules (62-63)
+
+62: Every `testType` in `plan-registry.ts` MUST have a matching function in `live-tests.ts`. 63: Built-feature tests verify real code (readiness 80-100); forward-looking tests check prerequisites (readiness 0-70 with `howToFix`).
 
 -----
 
@@ -460,4 +485,4 @@ Dashboard = reality. Manual steps = won't happen. Business terms first. Status e
 
 -----
 
-*v3.0 — March 11, 2026 — 3 stages, 8 capability workstreams, 61 rules, 24+ crons, 16 pre-pub checks, 103+ models*
+*v3.1 — March 11, 2026 — CANONICAL PLAN. 3 stages, 8 capability workstreams, 63 rules, 170 tasks, 160 tests, 24+ crons, 16 pre-pub checks, 103+ models. All contradictions resolved.*

@@ -12,6 +12,12 @@
  *
  * All require: Authorization: Bearer <CJ_API_TOKEN>, requestor-cid=7895467
  * Rate limit: 25 requests/minute
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #38: CJ API has NO click/impression data — track clicks locally via CjClickEvent.
+ * - Rule #39: Rate limit 25 req/min — always use the rate limiter. Circuit breaker opens after 3 failures.
+ * - Rule #40: lookupAdvertisers({joined:true}) returns 0 for new accounts — fetch ALL, classify locally.
+ * - Rule #41: Coverage detection must match ALL injection patterns (affiliate-recommendation, rel=sponsored, etc.)
  */
 
 // ---------------------------------------------------------------------------

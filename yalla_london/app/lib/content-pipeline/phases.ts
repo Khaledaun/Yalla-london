@@ -9,6 +9,12 @@
  *
  * Bilingual: EN and AR articles are generated as separate drafts with locale-native prompts.
  * Arabic articles use culturally adapted prompts, Gulf dialect, halal-first framing.
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #5: Arabic is ~2.5x more token-dense — use maxTokens: 3500 minimum.
+ * - Rule #15: Assembly raw fallback triggers at attempts >= 2. Must match diagnostic-agent.ts.
+ * - Rule #26: Assembly budget must use fresh Date.now() AFTER AI call, not stale variable.
+ * - Rule #44: GEO directives (stats, citations, self-contained paragraphs) in research/outline/drafting prompts.
  */
 
 import type { SiteConfig } from "@/config/sites";

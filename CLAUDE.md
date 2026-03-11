@@ -2192,7 +2192,8 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | ~~GA4 Dashboard~~ | ~~Traffic metrics on dashboard still return 0s~~ | ~~MEDIUM~~ | **DONE** — `buildTraffic()` in cockpit calls `fetchGA4Metrics()`, cycle-health checks GA4 connectivity |
 | Social APIs | Engagement stats require platform API integration | LOW | Open |
 | ~~Feature Flags~~ | ~~DB-backed, cron guards wired, but not wired to all runtime behavior~~ | ~~LOW~~ | **DONE** — fully wired (DB + env var, 32+ crons, `isFeatureFlagEnabled()`) |
-| Brand Templates | Only Yalla London template exists for other sites | MEDIUM | Open |
+| ~~Brand Templates~~ | ~~Only Yalla London template exists~~ | ~~MEDIUM~~ | **DONE** — `getBrandProfile()` in `lib/design/brand-provider.ts` returns correct brand for all 6 sites (readiness 95%) |
+| **CJ siteId Migration** | CjCommission, CjClickEvent, CjOffer have NO siteId field — revenue leaks between sites | **HIGH** | **OPEN — blocks Site #2 launch** |
 | ~~OG Images~~ | ~~Per-site OG image files don't exist yet~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG route at `app/api/og/route.tsx` |
 | ~~Login Security~~ | ~~No rate limiting on admin login endpoint~~ | ~~MEDIUM~~ | **DONE** — 5/15min + middleware layer |
 | ~~Cookie Consent~~ | ~~No GDPR cookie consent banner~~ | ~~MEDIUM~~ | **DONE** — bilingual, 4 categories, in root layout |

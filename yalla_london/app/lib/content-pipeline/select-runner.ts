@@ -7,6 +7,14 @@
  *
  * Selects highest-quality articles from the ArticleDraft reservoir
  * and promotes them to published BlogPosts.
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #24: Reservoir promotion uses atomic claiming (updateMany with WHERE current_phase="reservoir")
+ * - Rule #25: BlogPost.create + ArticleDraft.update wrapped in $transaction
+ * - Rule #33: Pre-pub gate receives POST-SANITIZED titles (after cleanTitle())
+ * - Rule #34: Cron schedule staggered 10+ min from other crons writing to BlogPost
+ * - Rule #1: BlogPost uses title_en/title_ar, NEVER "title"
+ * - Rule #3: title_ar/content_ar are REQUIRED — always provide fallback values
  */
 
 import { logCronExecution } from "@/lib/cron-logger";

@@ -7,6 +7,14 @@
  *
  * Selects highest-quality articles from the ArticleDraft reservoir
  * and promotes them to published BlogPosts.
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #24: Reservoir promotion uses atomic claiming (updateMany with WHERE current_phase="reservoir")
+ * - Rule #25: BlogPost.create + ArticleDraft.update wrapped in $transaction
+ * - Rule #33: Pre-pub gate receives POST-SANITIZED titles (after cleanTitle())
+ * - Rule #34: Cron schedule staggered 10+ min from other crons writing to BlogPost
+ * - Rule #1: BlogPost uses title_en/title_ar, NEVER "title"
+ * - Rule #3: title_ar/content_ar are REQUIRED — always provide fallback values
  */
 
 import { logCronExecution } from "@/lib/cron-logger";
@@ -40,19 +48,35 @@ export async function runContentSelector(
     const { prisma } = await import("@/lib/db");
 
     // ── Dedup guard: prevent concurrent content-selector runs ──
-    // Unlike content-builder which has dedup markers, content-selector had none.
-    // Two concurrent Vercel invocations could both promote the same draft.
+    // Write a "started" marker FIRST so concurrent runs can see it immediately.
+    // Previous approach only checked for completed logs (written at END), allowing
+    // two concurrent Vercel invocations to both pass the check.
     const recentRun = await prisma.cronJobLog.findFirst({
       where: {
         job_name: "content-selector",
-        status: { not: "skipped" },
-        started_at: { gte: new Date(Date.now() - 30_000) },
+        status: { in: ["started", "completed"] },
+        started_at: { gte: new Date(Date.now() - 60_000) },
       },
       orderBy: { started_at: "desc" },
     });
     if (recentRun) {
-      console.log("[content-selector] Another run started within 30s — skipping to prevent duplicate promotions");
+      console.log("[content-selector] Another run started within 60s — skipping to prevent duplicate promotions");
       return { success: true, message: "Dedup: skipped (recent run exists)", durationMs: Date.now() - cronStart };
+    }
+    // Write "started" marker immediately so concurrent invocations see it
+    try {
+      await prisma.cronJobLog.create({
+        data: {
+          job_name: "content-selector",
+          status: "started",
+          started_at: new Date(cronStart),
+          duration_ms: 0,
+          items_processed: 0,
+          items_succeeded: 0,
+        },
+      });
+    } catch (err) {
+      console.warn("[content-selector] Failed to write dedup marker:", err instanceof Error ? err.message : String(err));
     }
     const { getActiveSiteIds, SITES, getSiteDomain } = await import("@/config/sites");
     // Import quality gate threshold from centralized SEO standards — single source of truth.

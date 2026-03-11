@@ -1,10 +1,25 @@
 # Functioning Roadmap — Path to Revenue & Multi-Site Launch
 
-> **Purpose:** Single source of truth for every remaining gap, fix, and milestone needed to reach a fully functional, production-grade, multi-site content-to-revenue engine.
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║  ARCHIVED — Last updated Feb 21, 2026 (2.5+ weeks stale)            ║
+║                                                                      ║
+║  THIS DOCUMENT IS NO LONGER THE SOURCE OF TRUTH.                     ║
+║                                                                      ║
+║  The canonical plan is:                                              ║
+║    docs/plans/MASTER-BUILD-PLAN.md (v3.1, March 11, 2026)           ║
+║                                                                      ║
+║  10+ items listed as OPEN below were FIXED in Audits #15-#36.        ║
+║  Do NOT use this document for current status or planning.            ║
+║  Kept for historical reference only.                                 ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+> **Purpose:** ~~Single source of truth~~ **ARCHIVED** — historical reference only. See `docs/plans/MASTER-BUILD-PLAN.md` for current plan.
 >
 > **Updated:** 2026-02-21 — Aligned with Product Readiness Report, Audits #1–#14, and production hotfixes
 >
-> **Previous version:** 2026-02-18 (after 11 audits). This version incorporates fixes from Audits #12–#14 and production hotfixes (robots.txt, blog timeouts, indexing pipeline, duplicate slugs).
+> **Superseded by:** `docs/plans/MASTER-BUILD-PLAN.md` v3.1 (March 11, 2026) — which incorporates Audits #15–#36, design system, CJ affiliate, cockpit, GEO, GSC fixes, content pipeline hardening, and all work from Feb 21 through March 11.
 >
 > **Owner:** Claude Code (CTO/COO/CMO partner) for Khaled / Zenitha.Luxury LLC
 

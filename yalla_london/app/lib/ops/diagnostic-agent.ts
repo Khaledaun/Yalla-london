@@ -9,6 +9,12 @@
  * Called by:
  *   - /api/cron/diagnostic-sweep (every 2 hours)
  *   - Cockpit "Diagnose" button (on-demand)
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #16: Draft lifetime cap = 5 total attempts. Higher causes infinite loops.
+ * - Rule #17: At cap >= 5, REJECT permanently. Never reduce attempts past cap.
+ * - Rule #15: Assembly raw fallback threshold must be >= 2 (match phases.ts).
+ * - Rule #57: Touching updated_at inflates active draft count — exclude [diagnostic-agent*] drafts.
  */
 
 export type DiagnosisCategory =

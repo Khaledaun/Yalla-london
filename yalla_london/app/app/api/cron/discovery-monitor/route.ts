@@ -17,21 +17,16 @@ const BUDGET_MS = 53_000;
 
 async function handler() {
   const cronStart = Date.now();
-  const { prisma } = await import("@/lib/db");
   const activeSiteIds = getActiveSiteIds();
   const results: Record<string, { totalPages: number; totalIssues: number; autoFixed: number; score: number; grade: string }> = {};
 
-  // Check if cron is enabled
+  // Check if cron is enabled via standard guard
   try {
-    const flag = await prisma.featureFlag.findFirst({
-      where: { key: "cron:discovery-monitor" },
-      select: { enabled: true },
-    });
-    if (flag && !flag.enabled) {
-      return NextResponse.json({ status: "disabled", message: "Discovery monitor cron is disabled via feature flag" });
-    }
-  } catch {
-    // FeatureFlag table may not exist — continue
+    const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+    const flagResponse = await checkCronEnabled("discovery-monitor");
+    if (flagResponse) return flagResponse;
+  } catch (err) {
+    console.warn("[discovery-monitor] Feature flag check failed:", err instanceof Error ? err.message : String(err));
   }
 
   for (const siteId of activeSiteIds) {
@@ -115,20 +110,15 @@ async function handler() {
     }
   }
 
-  // Log cron execution
+  // Log cron execution via standard logger
   try {
-    await prisma.cronJobLog.create({
-      data: {
-        job_name: "discovery-monitor",
-        status: "completed",
-        started_at: new Date(cronStart),
-        completed_at: new Date(),
-        duration_ms: Date.now() - cronStart,
-        items_processed: Object.values(results).reduce((s, r) => s + r.totalPages, 0),
-        items_succeeded: Object.values(results).reduce((s, r) => s + r.autoFixed, 0),
-        result_summary: results,
-        sites_processed: Object.keys(results),
-      },
+    const { logCronExecution } = await import("@/lib/cron-logger");
+    await logCronExecution("discovery-monitor", "completed", {
+      durationMs: Date.now() - cronStart,
+      itemsProcessed: Object.values(results).reduce((s, r) => s + r.totalPages, 0),
+      itemsSucceeded: Object.values(results).reduce((s, r) => s + r.autoFixed, 0),
+      resultSummary: results as Record<string, unknown>,
+      sitesProcessed: Object.keys(results),
     });
   } catch (err) {
     console.warn("[discovery-monitor] Failed to log cron execution:", err instanceof Error ? err.message : String(err));

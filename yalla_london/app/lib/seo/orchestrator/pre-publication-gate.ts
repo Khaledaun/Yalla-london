@@ -1,5 +1,5 @@
 /**
- * Pre-Publication Gate
+ * Pre-Publication Gate — 16 checks, fail-closed
  *
  * A safety gate that runs BEFORE content is published to verify the
  * target URL will actually work. This prevents the system from publishing
@@ -7,6 +7,11 @@
  *
  * This directly addresses DISCOVERY.md Gap #8: "No pre-publication gate —
  * content publishes without verifying routes work."
+ *
+ * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
+ * - Rule #22: Authenticity signals check = WARNING, never BLOCKER. AI can't add real first-hand signals.
+ * - Rule #23: Citability/GEO check = WARNING-only. AI can't reliably add real statistics.
+ * - Rule #33: Gate must receive POST-SANITIZED titles (after cleanTitle()), not raw input.
  */
 
 export interface GateResult {

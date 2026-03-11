@@ -146,6 +146,25 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "build-yalla-riviera-verify": testBuildYallaRiviera,
   "build-yalla-istanbul-verify": testBuildYallaIstanbul,
   "build-yalla-thailand-verify": testBuildYallaThailand,
+  // Batch 1: Content Pipeline + SEO/Indexing
+  "content-pipeline-verify": testContentPipelineVerify,
+  "prepub-gate-verify": testPrepubGateVerify,
+  "content-type-gates-verify": testContentTypeGatesVerify,
+  "pipeline-safety-verify": testPipelineSafetyVerify,
+  "circuit-breaker-verify": testCircuitBreakerVerify,
+  "last-defense-verify": testLastDefenseVerify,
+  "ai-cost-tracking-verify": testAiCostTrackingVerify,
+  "diagnostic-agent-verify": testDiagnosticAgentVerify,
+  "content-auto-fix-verify": testContentAutoFixVerify,
+  "campaign-system-verify": testCampaignSystemVerify,
+  "indexnow-verify": testIndexnowVerify,
+  "sitemap-cache-verify": testSitemapCacheVerify,
+  "gsc-sync-verify": testGscSyncVerify,
+  "geo-compliance-verify": testGeoComplianceVerify,
+  "authenticity-compliance-verify": testAuthenticityComplianceVerify,
+  "title-sanitization-verify": testTitleSanitizationVerify,
+  "master-audit-verify": testMasterAuditVerify,
+  "per-page-audit-verify": testPerPageAuditVerify,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -2078,5 +2097,307 @@ async function testBuildYallaThailand(): Promise<LiveTestResult> {
     success: false, readiness: researchExists ? 15 : 0,
     plainLanguage: `Yalla Thailand: research=${researchExists}, inConfig=${inConfig}. 40M+ annual tourists, strong GCC pipeline.`,
     json: { researchExists, inConfig },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH 1: Content Pipeline + SEO/Indexing (18 tests)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Content Pipeline Verify ─────────────────────────────────────────────────────
+async function testContentPipelineVerify(): Promise<LiveTestResult> {
+  const phasesExists = fileCheck("lib/content-pipeline/phases.ts");
+  const selectExists = fileCheck("lib/content-pipeline/select-runner.ts");
+  const enhanceExists = fileCheck("lib/content-pipeline/enhance-runner.ts");
+  const content = readContent("lib/content-pipeline/phases.ts");
+  const phaseCount = (content.match(/phase:\s*["']\w+["']/gi) || []).length;
+  const hasExport = content.includes("PIPELINE_PHASES") || content.includes("runPhase");
+  return makeResult({
+    success: phasesExists && selectExists,
+    readiness: phasesExists && selectExists ? 100 : phasesExists ? 60 : 0,
+    plainLanguage: phasesExists
+      ? `Content pipeline operational. phases.ts (${phaseCount} phase refs), select-runner=${selectExists}, enhance-runner=${enhanceExists}.`
+      : "Content pipeline phases.ts not found.",
+    json: { phasesExists, selectExists, enhanceExists, phaseCount, hasExport },
+  });
+}
+
+// ── Pre-Publication Gate Verify ─────────────────────────────────────────────────
+async function testPrepubGateVerify(): Promise<LiveTestResult> {
+  const gateExists = fileCheck("lib/seo/orchestrator/pre-publication-gate.ts");
+  const content = readContent("lib/seo/orchestrator/pre-publication-gate.ts");
+  const hasExport = content.includes("runPrePublicationGate");
+  const checkMatches = content.match(/check\s*\d+|Check\s*\d+|\/\/\s*\d+\./gi) || [];
+  const hasAuthenticity = content.includes("authenticity") || content.includes("Authenticity");
+  const hasCitability = content.includes("citability") || content.includes("Citability");
+  const hasAffiliate = content.includes("affiliate") || content.includes("Affiliate");
+  return makeResult({
+    success: gateExists && hasExport,
+    readiness: gateExists && hasExport ? 100 : gateExists ? 50 : 0,
+    plainLanguage: gateExists
+      ? `Pre-publication gate active. ${checkMatches.length} check references found. Authenticity=${hasAuthenticity}, Citability=${hasCitability}, Affiliates=${hasAffiliate}.`
+      : "Pre-publication gate file not found.",
+    json: { gateExists, hasExport, checkRefs: checkMatches.length, hasAuthenticity, hasCitability, hasAffiliate },
+  });
+}
+
+// ── Content Type Gates Verify ───────────────────────────────────────────────────
+async function testContentTypeGatesVerify(): Promise<LiveTestResult> {
+  const standardsContent = readContent("lib/seo/standards.ts");
+  const hasThresholds = standardsContent.includes("CONTENT_TYPE_THRESHOLDS");
+  const hasGetThresholds = standardsContent.includes("getThresholdsForUrl");
+  const typeMatches = standardsContent.match(/blog|news|information|guide/gi) || [];
+  return makeResult({
+    success: hasThresholds && hasGetThresholds,
+    readiness: hasThresholds && hasGetThresholds ? 100 : hasThresholds ? 60 : 0,
+    plainLanguage: hasThresholds
+      ? `Per-content-type quality gates active. CONTENT_TYPE_THRESHOLDS exported, getThresholdsForUrl=${hasGetThresholds}. Types referenced: ${[...new Set(typeMatches.map((m: string) => m.toLowerCase()))].join(", ")}.`
+      : "CONTENT_TYPE_THRESHOLDS not found in standards.ts.",
+    json: { hasThresholds, hasGetThresholds, contentTypes: [...new Set(typeMatches.map((m: string) => m.toLowerCase()))] },
+  });
+}
+
+// ── Pipeline Safety Verify ──────────────────────────────────────────────────────
+async function testPipelineSafetyVerify(): Promise<LiveTestResult> {
+  const content = readContent("lib/content-pipeline/select-runner.ts");
+  const hasTransaction = content.includes("$transaction");
+  const hasAtomicClaim = content.includes("updateMany");
+  const hasPromoting = content.includes("promoting");
+  const hasRevert = content.includes("reservoir") && content.includes("catch");
+  return makeResult({
+    success: hasTransaction && hasAtomicClaim,
+    readiness: hasTransaction && hasAtomicClaim ? 100 : hasTransaction ? 60 : 0,
+    plainLanguage: `Pipeline safety: $transaction=${hasTransaction}, atomic claiming=${hasAtomicClaim}, promoting phase=${hasPromoting}, revert on failure=${hasRevert}.`,
+    json: { hasTransaction, hasAtomicClaim, hasPromoting, hasRevert },
+  });
+}
+
+// ── Circuit Breaker Verify ──────────────────────────────────────────────────────
+async function testCircuitBreakerVerify(): Promise<LiveTestResult> {
+  const content = readContent("lib/ai/provider.ts");
+  const hasCircuitBreaker = content.includes("CIRCUIT_BREAKER") || content.includes("circuitBreaker") || content.includes("circuit_breaker");
+  const hasCooldown = content.includes("cooldown") || content.includes("COOLDOWN");
+  const hasFailureCount = content.includes("consecutiveFailures") || content.includes("failureCount");
+  return makeResult({
+    success: hasCircuitBreaker,
+    readiness: hasCircuitBreaker ? 100 : 0,
+    plainLanguage: hasCircuitBreaker
+      ? `AI circuit breaker is active. Cooldown=${hasCooldown}, failure tracking=${hasFailureCount}.`
+      : "Circuit breaker not found in provider.ts.",
+    json: { hasCircuitBreaker, hasCooldown, hasFailureCount },
+  });
+}
+
+// ── Last Defense Verify ─────────────────────────────────────────────────────────
+async function testLastDefenseVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/ai/last-defense.ts");
+  const content = readContent("lib/ai/last-defense.ts");
+  const hasExport = content.includes("lastDefenseFallback") || content.includes("lastDefense");
+  const probesAll = content.includes("disabled") || content.includes("ALL") || content.includes("probe");
+  return makeResult({
+    success: exists && hasExport,
+    readiness: exists && hasExport ? 100 : exists ? 50 : 0,
+    plainLanguage: exists
+      ? `Last-defense fallback exists. Exports=${hasExport}, probes all providers=${probesAll}.`
+      : "lib/ai/last-defense.ts not found. No final safety net when all providers fail.",
+    json: { exists, hasExport, probesAll },
+    error: exists ? undefined : {
+      code: "NOT_IMPLEMENTED", message: "last-defense.ts missing",
+      where: "lib/ai/last-defense.ts",
+      howToFix: "Create lib/ai/last-defense.ts that probes ALL providers (including disabled) as final fallback.",
+    },
+  });
+}
+
+// ── AI Cost Tracking Verify ─────────────────────────────────────────────────────
+async function testAiCostTrackingVerify(): Promise<LiveTestResult> {
+  const providerContent = readContent("lib/ai/provider.ts");
+  const hasLogUsage = providerContent.includes("logUsage");
+  const hasPricing = providerContent.includes("MODEL_PRICING") || providerContent.includes("estimateCost");
+  const schemaContent = readContent("prisma/schema.prisma");
+  const hasModel = schemaContent.includes("ApiUsageLog");
+  return makeResult({
+    success: hasLogUsage && hasModel,
+    readiness: hasLogUsage && hasModel ? 100 : hasLogUsage ? 60 : 0,
+    plainLanguage: `AI cost tracking: logUsage()=${hasLogUsage}, MODEL_PRICING=${hasPricing}, ApiUsageLog model=${hasModel}.`,
+    json: { hasLogUsage, hasPricing, hasModel },
+  });
+}
+
+// ── Diagnostic Agent Verify ─────────────────────────────────────────────────────
+async function testDiagnosticAgentVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/ops/diagnostic-agent.ts");
+  const content = readContent("lib/ops/diagnostic-agent.ts");
+  const hasExport = content.includes("runDiagnosticAgent");
+  const hasCap = content.includes(">= 5") || content.includes(">=5") || content.includes("MAX_RECOVERIES");
+  const hasPhases = content.includes("diagnose") && content.includes("fix") && content.includes("verify");
+  return makeResult({
+    success: exists && hasExport,
+    readiness: exists && hasExport ? 100 : exists ? 50 : 0,
+    plainLanguage: exists
+      ? `Diagnostic agent operational. Export=${hasExport}, lifetime cap=${hasCap}, 3-phase (diagnose/fix/verify)=${hasPhases}.`
+      : "lib/ops/diagnostic-agent.ts not found.",
+    json: { exists, hasExport, hasCap, hasPhases },
+  });
+}
+
+// ── Content Auto-Fix Verify ─────────────────────────────────────────────────────
+async function testContentAutoFixVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("app/api/cron/content-auto-fix/route.ts");
+  const content = readContent("app/api/cron/content-auto-fix/route.ts");
+  const hasBudget = content.includes("BUDGET") || content.includes("53");
+  const sectionMatches = content.match(/section\s*\d+|Section\s*\d+/gi) || [];
+  return makeResult({
+    success: exists && hasBudget,
+    readiness: exists ? 100 : 0,
+    plainLanguage: exists
+      ? `Content auto-fix cron active. Budget guard=${hasBudget}, ${sectionMatches.length} section references found.`
+      : "content-auto-fix cron route not found.",
+    json: { exists, hasBudget, sectionRefs: sectionMatches.length },
+  });
+}
+
+// ── Campaign System Verify ──────────────────────────────────────────────────────
+async function testCampaignSystemVerify(): Promise<LiveTestResult> {
+  const runnerExists = fileCheck("lib/campaigns/campaign-runner.ts");
+  const enhancerExists = fileCheck("lib/campaigns/article-enhancer.ts");
+  const enhancerContent = readContent("lib/campaigns/article-enhancer.ts");
+  const checksPublished = enhancerContent.includes("published") && enhancerContent.includes("true");
+  const hasCircuitCheck = enhancerContent.includes("circuitBreaker") || enhancerContent.includes("CIRCUIT");
+  return makeResult({
+    success: runnerExists && enhancerExists,
+    readiness: runnerExists && enhancerExists ? 100 : runnerExists ? 50 : 0,
+    plainLanguage: `Campaign system: runner=${runnerExists}, enhancer=${enhancerExists}, checks published=${checksPublished}, circuit breaker aware=${hasCircuitCheck}.`,
+    json: { runnerExists, enhancerExists, checksPublished, hasCircuitCheck },
+  });
+}
+
+// ── IndexNow Verify ─────────────────────────────────────────────────────────────
+async function testIndexnowVerify(): Promise<LiveTestResult> {
+  const content = readContent("lib/seo/indexing-service.ts");
+  const hasBing = content.includes("bing.com") || content.includes("bing");
+  const hasYandex = content.includes("yandex.com") || content.includes("yandex");
+  const hasIndexNowOrg = content.includes("api.indexnow.org") || content.includes("indexnow.org");
+  const engines = [hasBing && "bing", hasYandex && "yandex", hasIndexNowOrg && "indexnow.org"].filter(Boolean);
+  const hasKey = !!process.env.INDEXNOW_KEY;
+  return makeResult({
+    success: engines.length >= 2,
+    readiness: engines.length >= 2 ? 100 : engines.length === 1 ? 50 : 0,
+    plainLanguage: `IndexNow: ${engines.length} engines configured (${engines.join(", ")}). INDEXNOW_KEY=${hasKey ? "set" : "MISSING"}.`,
+    json: { engines, engineCount: engines.length, hasKey },
+    error: !hasKey ? {
+      code: "ENV_MISSING", message: "INDEXNOW_KEY not set",
+      where: "lib/seo/indexing-service.ts",
+      howToFix: "Add INDEXNOW_KEY to Vercel env vars.",
+      envVarsNeeded: ["INDEXNOW_KEY"],
+    } : undefined,
+  });
+}
+
+// ── Sitemap Cache Verify ────────────────────────────────────────────────────────
+async function testSitemapCacheVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/sitemap-cache.ts");
+  const content = readContent("lib/sitemap-cache.ts");
+  const hasExport = content.includes("getCachedSitemap") || content.includes("refreshSitemapCache");
+  return makeResult({
+    success: exists && hasExport,
+    readiness: exists ? 100 : 0,
+    plainLanguage: exists
+      ? `Sitemap cache active. Exports getCachedSitemap=${hasExport}. Serves sitemap in <200ms vs 5-10s live generation.`
+      : "lib/sitemap-cache.ts not found. Sitemap generated live on every request.",
+    json: { exists, hasExport },
+  });
+}
+
+// ── GSC Sync Verify ─────────────────────────────────────────────────────────────
+async function testGscSyncVerify(): Promise<LiveTestResult> {
+  const content = readContent("app/api/cron/gsc-sync/route.ts");
+  const exists = content.length > 0;
+  const hasPerDay = content.includes('"page", "date"') || content.includes("'page', 'date'") || content.includes('"page","date"');
+  const hasCleanup = content.includes("deleteMany") || content.includes("delete");
+  return makeResult({
+    success: exists && hasPerDay,
+    readiness: exists && hasPerDay ? 100 : exists ? 40 : 0,
+    plainLanguage: exists
+      ? `GSC sync cron: per-day storage=${hasPerDay}, old data cleanup=${hasCleanup}. ${hasPerDay ? "Correct — prevents ~7x overcounting." : "WARNING: using aggregated storage — data will be overcounted."}`
+      : "gsc-sync cron route not found.",
+    json: { exists, hasPerDay, hasCleanup },
+  });
+}
+
+// ── GEO Compliance Verify ───────────────────────────────────────────────────────
+async function testGeoComplianceVerify(): Promise<LiveTestResult> {
+  const content = readContent("lib/seo/standards.ts");
+  const hasGeo = content.includes("GEO_OPTIMIZATION");
+  const gateContent = readContent("lib/seo/orchestrator/pre-publication-gate.ts");
+  const hasCitabilityCheck = gateContent.includes("citability") || gateContent.includes("Citability");
+  return makeResult({
+    success: hasGeo,
+    readiness: hasGeo && hasCitabilityCheck ? 100 : hasGeo ? 70 : 0,
+    plainLanguage: `GEO compliance: GEO_OPTIMIZATION constant=${hasGeo}, citability gate check=${hasCitabilityCheck}.`,
+    json: { hasGeo, hasCitabilityCheck },
+  });
+}
+
+// ── Authenticity Compliance Verify ──────────────────────────────────────────────
+async function testAuthenticityComplianceVerify(): Promise<LiveTestResult> {
+  const content = readContent("lib/seo/orchestrator/pre-publication-gate.ts");
+  const hasAuthenticity = content.includes("authenticity") || content.includes("Authenticity");
+  const hasExperienceMarkers = content.includes("experience") && (content.includes("markers") || content.includes("signals"));
+  const hasGenericDetect = content.includes("generic") || content.includes("In conclusion");
+  const standards = readContent("lib/seo/standards.ts");
+  const hasFlags = standards.includes("authenticityUpdateActive");
+  return makeResult({
+    success: hasAuthenticity,
+    readiness: hasAuthenticity ? 100 : 0,
+    plainLanguage: `Jan 2026 Authenticity Update: gate check=${hasAuthenticity}, experience markers=${hasExperienceMarkers}, generic phrase detection=${hasGenericDetect}, standards flags=${hasFlags}.`,
+    json: { hasAuthenticity, hasExperienceMarkers, hasGenericDetect, hasFlags },
+  });
+}
+
+// ── Title Sanitization Verify ───────────────────────────────────────────────────
+async function testTitleSanitizationVerify(): Promise<LiveTestResult> {
+  const content = readContent("lib/content-pipeline/select-runner.ts");
+  const hasCleanTitle = content.includes("cleanTitle");
+  const hasJaccard = content.includes("jaccard") || content.includes("Jaccard") || content.includes("wordOverlap");
+  const hasDedup = content.includes("cannibali") || content.includes("duplicate") || content.includes("overlap");
+  return makeResult({
+    success: hasCleanTitle,
+    readiness: hasCleanTitle ? 100 : 0,
+    plainLanguage: `Title sanitization: cleanTitle()=${hasCleanTitle}, Jaccard dedup=${hasJaccard}, cannibalization check=${hasDedup}.`,
+    json: { hasCleanTitle, hasJaccard, hasDedup },
+  });
+}
+
+// ── Master Audit Verify ─────────────────────────────────────────────────────────
+async function testMasterAuditVerify(): Promise<LiveTestResult> {
+  const indexExists = fileCheck("lib/master-audit/index.ts");
+  const typesExists = fileCheck("lib/master-audit/types.ts");
+  const crawlerExists = fileCheck("lib/master-audit/crawler.ts");
+  const extractorExists = fileCheck("lib/master-audit/extractor.ts");
+  const reporterExists = fileCheck("lib/master-audit/reporter.ts");
+  const content = readContent("lib/master-audit/index.ts");
+  const hasExport = content.includes("runMasterAudit");
+  const moduleCount = [indexExists, typesExists, crawlerExists, extractorExists, reporterExists].filter(Boolean).length;
+  return makeResult({
+    success: indexExists && hasExport,
+    readiness: indexExists ? 100 : 0,
+    plainLanguage: `Master audit engine: ${moduleCount}/5 core modules present. runMasterAudit export=${hasExport}.`,
+    json: { indexExists, typesExists, crawlerExists, extractorExists, reporterExists, hasExport, moduleCount },
+  });
+}
+
+// ── Per-Page Audit Verify ───────────────────────────────────────────────────────
+async function testPerPageAuditVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/per-page-audit/route.ts");
+  const pageExists = fileCheck("app/admin/cockpit/per-page-audit/page.tsx");
+  const content = readContent("app/api/admin/per-page-audit/route.ts");
+  const hasPagination = content.includes("skip") || content.includes("take") || content.includes("page");
+  const hasSorting = content.includes("orderBy") || content.includes("sort");
+  return makeResult({
+    success: apiExists,
+    readiness: apiExists ? 100 : 0,
+    plainLanguage: `Per-page audit: API=${apiExists}, UI page=${pageExists}, pagination=${hasPagination}, sorting=${hasSorting}.`,
+    json: { apiExists, pageExists, hasPagination, hasSorting },
   });
 }

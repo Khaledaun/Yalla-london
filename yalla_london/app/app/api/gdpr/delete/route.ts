@@ -112,12 +112,16 @@ export async function POST(request: NextRequest) {
       // Audit log failure is non-fatal — deletion still succeeded
     }
 
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    const domain = getSiteDomain(siteId || getDefaultSiteId());
+    const privacyEmail = `privacy@${domain}`;
+
     return NextResponse.json({
       success: true,
       message:
         "Your data deletion request has been processed. " +
         "Any personal data associated with your email address has been deleted or anonymized. " +
-        "If you have an account, please contact us at privacy@yalla-london.com for account deletion.",
+        `If you have an account, please contact us at ${privacyEmail} for account deletion.`,
       recordsProcessed: deletedCount,
     });
   } catch (err) {
@@ -143,7 +147,7 @@ export async function GET() {
       "Email subscribers will be permanently deleted",
       "Booking inquiries are anonymized (retained for legal compliance)",
       "All deletions are logged for GDPR compliance",
-      "For account deletion, contact privacy@yalla-london.com",
+      "For account deletion, include your siteId in the request and contact the site's privacy team",
     ],
   });
 }

@@ -84,7 +84,7 @@
   "crons": [
     {
       "path": "/api/cron/analytics",
-      "schedule": "0 3 * * *"
+      "schedule": "30 2 * * *"
     },
     {
       "path": "/api/cron/gsc-sync",
@@ -176,7 +176,7 @@
     },
     {
       "path": "/api/cron/google-indexing",
-      "schedule": "15 9 * * *"
+      "schedule": "35 9 * * *"
     },
     {
       "path": "/api/cron/verify-indexing",
@@ -216,7 +216,7 @@
     },
     {
       "path": "/api/cron/daily-seo-audit",
-      "schedule": "30 4 * * *"
+      "schedule": "20 5 * * *"
     },
     {
       "path": "/api/cron/seo-audit-runner",
@@ -228,7 +228,7 @@
     },
     {
       "path": "/api/cron/subscriber-emails",
-      "schedule": "0 10 * * *"
+      "schedule": "0 11 * * *"
     },
     {
       "path": "/api/cron/process-indexing-queue",
@@ -244,7 +244,7 @@
     },
     {
       "path": "/api/affiliate/cron/sync-commissions",
-      "schedule": "0 4 * * *"
+      "schedule": "50 4 * * *"
     },
     {
       "path": "/api/affiliate/cron/discover-deals",

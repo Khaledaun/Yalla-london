@@ -89,7 +89,7 @@ export const adminNavigation: NavItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    href: '/admin/dashboard',
+    href: '/admin/cockpit',
     featureFlag: 'ADMIN_DASHBOARD',
     description: 'KPIs, analytics, automation status'
   },
@@ -209,22 +209,22 @@ export const adminNavigation: NavItem[] = [
         id: 'api-keys',
         label: 'API Keys',
         icon: Key,
-        href: '/admin/settings/api-keys',
         description: 'External service credentials',
-        requiresElevated: true
+        requiresElevated: true,
+        comingSoon: true
       },
       {
         id: 'roles',
         label: 'Roles',
         icon: Users,
-        href: '/admin/settings/roles',
-        description: 'User roles and permissions'
+        description: 'User roles and permissions',
+        comingSoon: true
       },
       {
         id: 'site',
         label: 'Site Settings',
         icon: Globe,
-        href: '/admin/settings/site',
+        href: '/admin/cockpit/new-site',
         description: 'General site configuration'
       }
     ]
@@ -446,15 +446,15 @@ export function PremiumAdminNav({
             <Upload size={16} />
             <span>Upload Media</span>
           </Link>
-          <Link 
-            href="/admin/topics-pipeline/new"
+          <Link
+            href="/admin/topics-pipeline"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
             <TrendingUp size={16} />
             <span>New Topic</span>
           </Link>
-          <Link 
-            href="/admin/prompts/new"
+          <Link
+            href="/admin/prompts"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
             <Brain size={16} />

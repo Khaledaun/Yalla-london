@@ -220,7 +220,7 @@ async function handleAutoFix(request: NextRequest) {
         orderBy: { created_at: "desc" },
         take: 500,
       });
-      const validSlugs = new Set(realPosts.map(p => p.slug));
+      const validSlugs = new Set<string>(realPosts.map(p => p.slug));
 
       // Target articles that actually contain broken links (TOPIC_SLUG or hallucinated slugs)
       // instead of just scanning the 50 newest articles — old articles with placeholders

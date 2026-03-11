@@ -2992,3 +2992,35 @@ Tests: `revenue-dashboard-verify`, `knowledge-base-verify`, `weekly-digest-verif
 76. **Always check vercel.json for cron schedule conflicts before adding new crons** — two crons at the same minute firing simultaneously compete for PgBouncer connection pool slots. Minimum 5-minute stagger between heavy DB-writing crons.
 77. **`comingSoon: true` without `href` prevents 404s for planned-but-unbuilt pages** — the `premium-admin-nav.tsx` renderer uses `item.href && isAvailable` — removing `href` makes the item render as a non-clickable div, avoiding 404s while still surfacing the feature in the nav.
 78. **All `new Set(array)` calls must include the explicit generic** — TypeScript cannot infer the Set generic from `.map()` results. Always write `new Set<string>(array)` or `new Set<SomeType>(array)` to preserve type safety on `.has()`, `.add()`, and spread operations.
+
+### Session: March 11, 2026 — Security Audit: Phase4b Routes + Dead Package Investigation
+
+**Background security audit findings (2 phase4b routes fixed):**
+
+**Investigation:** Security audit agent flagged 5 routes in `/home/user/Yalla-london/app/api/phase4b/` as unauthenticated. Investigation revealed these paths are in a **dead package extraction directory** — a folder with no `package.json`, no `next.config.js`, and no deployment configuration. These files are never executed.
+
+**The 2 real deployed routes were in `/home/user/Yalla-london/yalla_london/app/app/api/phase4b/`:**
+
+1. **`/api/phase4b/topics/research/route.ts`** — calls Perplexity API (external spend); had `aiLimiter()` + feature flags + API key check but **no admin auth**
+2. **`/api/phase4b/content/generate/route.ts`** — stub route with `aiLimiter()` + feature flags but **no admin auth**
+
+**Fix applied to both routes:**
+```typescript
+import { requireAdmin } from '@/lib/admin-middleware';
+
+export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
+  const blocked = aiLimiter(request);
+  if (blocked) return blocked;
+  // ... rest of handler
+}
+```
+
+**Pattern:** `requireAdmin()` FIRST (returns 401/403 immediately for unauthenticated requests), then `aiLimiter()` (returns 429 for rate-exceeded authenticated requests). This ordering ensures unauthenticated requests never consume rate limiter quota.
+
+**Critical Rules Learned (Security Audit):**
+
+79. **Always verify whether "found" routes are in the deployed Next.js app directory** — security tools may surface files in artifact directories, extracted packages, or build caches that are never actually served. Always confirm the route exists under the live Next.js `app/` directory (where `next.config.js` is) before treating it as a vulnerability.
+80. **Feature flag guards and AI rate limiters are NOT substitutes for admin auth** — `aiLimiter()` prevents abuse but does not verify identity. `FEATURE_PHASE4B_ENABLED` checks prevent use but don't authenticate. Any route that performs external API calls, exposes data, or triggers spending MUST have `requireAdmin()` as the FIRST guard — before feature flags, before rate limiting.

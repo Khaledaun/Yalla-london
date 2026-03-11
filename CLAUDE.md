@@ -2800,7 +2800,7 @@ Both code fixes (`?lang=ar` redirect + language switcher) are committed and push
 | `lib/cron-feature-guard.ts` | 4 new CRON_FLAG_MAP entries |
 | `app/api/cron/analytics/route.ts` | POST handler for departures board |
 | `app/api/shop/products/route.ts` | siteId scoping on public query |
-| `docs/plans/MASTER-BUILD-PLAN.md` | v3.1 with all audit findings |
+| `docs/plans/MASTER-BUILD-PLAN.md` | v3.2 with all audit findings + cron chain + security audit |
 
 **Audit Methodology:**
 - 5 parallel audit agents per round covering: cron integrity (8-check rubric), Prisma queries, auth/security, imports/dead code, data flow pipeline
@@ -2820,13 +2820,26 @@ Both code fixes (`?lang=ar` redirect + language switcher) are committed and push
 | 7. onCronFailure | Call in catch block (best-effort) |
 | 8. No empty catches | All catch blocks log with `[job-name]` context |
 
+**Full Cron Chain Audit (33 files analyzed — background agent):**
+- **12 PRODUCTION-READY** (all 8 checks pass): affiliate-injection, analytics, content-auto-fix, content-auto-fix-lite, content-builder, content-builder-create, content-selector, daily-content-generate, diagnostic-sweep, seo-agent, trends-monitor, weekly-topics
+- **19 UNAUDITED**: scheduled-publish, seo-orchestrator, sweeper, seo-audit-runner, seo-deep-review, social, subscriber-emails, schedule-executor, site-health-check, gsc-sync, london-news, reserve-publisher, verify-indexing, content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence
+- **5 schedule collisions** at `:00` minute (analytics, gsc-sync, seo-orchestrator, seo-agent, content-gen)
+- **6 orphan cron files** not in vercel.json (content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence)
+
+**Full Security Audit (background agent) — Grade: A+:**
+- 633/633 admin routes have auth guards (requireAdmin/withAdminAuth/requireAdminOrCron)
+- 0 auth bypasses, 0 XSS vulnerabilities, 0 info disclosure on public APIs
+- Login: 5/15min rate limit + exponential backoff + bcrypt + HTTP-only cookies
+- All public mutation endpoints rate-limited via `withRateLimit()`
+- Only 1 `dangerouslySetInnerHTML` instance found — safe (`JSON.stringify` for structured data)
+
 **Known Gaps Identified (Not Fixed — Future Work):**
 
 | # | Area | Issue | Severity |
 |---|------|-------|----------|
-| 11 | Cron Integrity | ~8 crons still missing 1-2 checks from 8-check rubric | MEDIUM |
-| 12 | Cron Schedule | 3 cron pairs fire within 5 min of each other (pool contention risk) | MEDIUM |
-| 13 | Dead Crons | 2-3 orphan cron route files may exist without vercel.json entries | LOW |
+| 11 | Cron Integrity | 19 crons need 8-check rubric (see MASTER-BUILD-PLAN §7.1) | MEDIUM |
+| 12 | Cron Schedule | 5 crons fire at `:00` minute (pool contention risk) | MEDIUM |
+| 13 | Dead Crons | 6 orphan cron files not in vercel.json — likely dead code | LOW |
 
 ### Critical Rules Learned (March 11 Session — Fragility Audit)
 

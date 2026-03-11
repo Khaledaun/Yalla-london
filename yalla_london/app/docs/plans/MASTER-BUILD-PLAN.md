@@ -2,7 +2,7 @@
 
 ## Claude Code Session Prompt (Read Before Every Session)
 
-**Version:** March 11, 2026 — v3.1 (Round 3 audit applied)
+**Version:** March 11, 2026 — v3.2 (Full cron chain + security audit applied)
 **Platform:** Yalla London v1.0 + Zenitha Yachts
 **Entity:** Zenitha.Luxury LLC (Delaware)
 **Owner:** Khaled N. Aun, Founder
@@ -140,7 +140,8 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 - **Round 1 (10 fixes):** Math.random()→crypto in task-runner, discovery-monitor standardized imports, select-runner dedup marker timing, content-auto-fix skip <2h articles, site-keywords hardcoded fallback, safeHtmlTruncate tag-breaking fix
 - **Round 2 (10 fixes):** /api/sitemap/generate POST auth gap closed, 9 unbounded Prisma queries capped (indexing-summary ×3, content-strategy, dynamic-internal-linking, indexing-service ×3)
 - **Round 3 (7 fixes):** affiliate inject query siteId+take:200, campaign-executor feature flag (wrong field names), campaign-executor onCronFailure hook, cron-feature-guard 4 new entries, analytics POST handler, shop/products siteId scoping
-- **Security audit (Round 3):** 633+ admin routes auth-verified, 0 auth bypasses, 0 XSS, 0 info disclosure on public APIs, all dangerouslySetInnerHTML sanitized. Content pipeline 5/5 critical paths fully hardened.
+- **Security audit (Round 3):** 633+ admin routes auth-verified, 0 auth bypasses, 0 XSS, 0 info disclosure on public APIs, all dangerouslySetInnerHTML sanitized. Content pipeline 5/5 critical paths fully hardened. **Grade: A+ (Excellent)**
+- **Cron chain audit (33 files):** 12/33 fully production-ready (all 8 checks pass), 2 fixed in Round 3 (campaign-executor, analytics), 19 unaudited (need 8-check rubric), 5 schedule collisions at `:00` minute, 6 orphan cron files not scheduled in vercel.json
 
 ### Known Gaps (Stage A — Fix Before Building)
 
@@ -156,9 +157,9 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 |8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |Open  |
 |9 |~~Cookie consent banner~~ (bilingual, 4 categories, in layout)   |~~MEDIUM~~|~~A.3~~|**DONE**|
 |10|16+ orphan Prisma models                                        |LOW     |A.4  |Open  |
-|11|19 unaudited crons (need 8-check rubric validation)             |MEDIUM  |A.2  |Open  |
-|12|5 cron schedule collisions at :00 minute (pool risk)            |MEDIUM  |A.2  |Open  |
-|13|9 orphan cron files (not scheduled, possibly dead code)         |LOW     |A.4  |Open  |
+|11|19 unaudited crons need 8-check rubric — see Cron Audit Table §7.1|MEDIUM  |A.2  |Open  |
+|12|5 crons fire at `:00` (analytics, gsc-sync, seo-orch, seo-agent, content-gen)|MEDIUM|A.2|Open|
+|13|6 orphan cron files not in vercel.json (content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence)|LOW|A.4|Open|
 
 -----
 
@@ -186,9 +187,9 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 |Arabic SSR              |Server-render Arabic HTML at `/ar/` routes                               |Blocks Arabic SEO       |
 |Feature flags completion|Wire remaining to runtime behavior                                        |No                      |
 |Brand templates         |Templates for non-London sites                                           |No                      |
-|Cron schedule stagger   |Eliminate 5-cron :00 collision (analytics, gsc-sync, content-gen, seo)   |No (pool risk)          |
-|Full cron audit         |Audit 19 unaudited crons against 8-check rubric                         |No (operational risk)   |
-|Orphan cron cleanup     |Determine if 9 unscheduled cron files are dead code or intentional       |No                      |
+|Cron schedule stagger   |Move gsc-sync/:00→:05, seo-orch/:00→:10, content-gen/:00→:20 (keep analytics at :00)|No (pool risk)|
+|Full cron audit         |Apply 8-check rubric to 19 unaudited crons (see §7.1 below)             |No (operational risk)   |
+|Orphan cron cleanup     |6 files: content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence — delete or schedule|No|
 
 ### Phase A.3: Compliance & Social
 
@@ -436,6 +437,45 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 **Available:** 2:00, 12:00, 14:00-15:00, 17:00, 19:00, 21:00, 23:00
 
+### 7.1 Cron Audit Status (33 route files — March 11, 2026)
+
+**12 PRODUCTION-READY** (all 8 checks pass): affiliate-injection, analytics, content-auto-fix, content-auto-fix-lite, content-builder, content-builder-create, content-selector, daily-content-generate, diagnostic-sweep, seo-agent, trends-monitor, weekly-topics
+
+**19 UNAUDITED** (need 8-check rubric applied):
+
+|Cron File|In vercel.json?|Priority|
+|---------|:---:|--------|
+|scheduled-publish|✅|HIGH — publishes content|
+|seo-orchestrator|✅|HIGH — weekly SEO sweep|
+|sweeper|✅|HIGH — pipeline cleanup|
+|seo-audit-runner|✅|MEDIUM|
+|seo-deep-review|✅|MEDIUM|
+|social|✅|MEDIUM|
+|subscriber-emails|✅|MEDIUM|
+|schedule-executor|✅|MEDIUM|
+|site-health-check|✅|MEDIUM|
+|gsc-sync|✅|MEDIUM|
+|campaign-executor|✅|DONE (Round 3)|
+|london-news|✅|LOW — already has checkCronEnabled|
+|reserve-publisher|❌ orphan|LOW — assess if needed|
+|verify-indexing|❌ orphan|LOW — assess if needed|
+|content-freshness|❌ orphan|LOW — likely dead code|
+|daily-seo-audit|❌ orphan|LOW — likely dead code|
+|fact-verification|❌ orphan|LOW — likely dead code|
+|google-indexing|❌ orphan|LOW — likely dead code|
+|process-indexing-queue|❌ orphan|LOW — likely dead code|
+|seo-agent-intelligence|❌ orphan|LOW — likely dead code|
+
+**8-CHECK RUBRIC** (every cron must pass all 8):
+1. Budget guard (`BUDGET_MS` + check before expensive ops)
+2. Feature flag (`checkCronEnabled(jobName)`)
+3. CRON_SECRET auth (allow if unset, reject if set+mismatched)
+4. POST handler (for departures board "Do Now")
+5. Dedup guard (check CronJobLog for recent run within 60s)
+6. `logCronExecution()` on both success and failure
+7. `onCronFailure()` in catch block (best-effort)
+8. No empty catch blocks (all log with `[job-name]` context)
+
 -----
 
 ## 8. KEY FILES
@@ -471,4 +511,4 @@ Dashboard = reality. Manual steps = won't happen. Business terms first. Status e
 
 -----
 
-*v3.0 — March 11, 2026 — 3 stages, 8 capability workstreams, 61 rules, 24+ crons, 16 pre-pub checks, 103+ models*
+*v3.2 — March 11, 2026 — 3 stages, 8 capability workstreams, 65 rules, 33 cron files (12 audited-ready), 16 pre-pub checks, 103+ models, security A+*

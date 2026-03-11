@@ -290,6 +290,8 @@ export function getDestinationAnimations(siteId: string): AnimationPreset {
     thailand: "serene",
     caribbean: "dynamic",
     "french-riviera": "luxe",
+    istanbul: "elegant",
+    "zenitha-yachts-med": "luxe",
   };
   return getAnimationPreset(
     (mapping[siteId] || "elegant") as "elegant" | "tropical" | "dynamic" | "serene" | "luxe",

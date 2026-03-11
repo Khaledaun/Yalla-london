@@ -108,7 +108,7 @@ export const TASK_REGISTRY: TaskDefinition[] = [
 
 export async function runTask(input: TaskInput): Promise<TaskOutput> {
   const started = new Date()
-  const runId = `run-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+  const runId = `run-${Date.now()}-${Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b => b.toString(36)).join("").slice(0, 6)}`
   const task = TASK_REGISTRY.find(t => t.id === input.taskId)
   const siteId = input.siteId || getDefaultSiteId()
 

@@ -30,6 +30,15 @@ function countMatches(html: string, pattern: RegExp): number {
   return (html.match(pattern) || []).length;
 }
 
+/** Truncate HTML without breaking tags — finds the last `>` before the limit */
+function safeHtmlTruncate(html: string, maxLen: number): string {
+  if (html.length <= maxLen) return html;
+  const truncated = html.substring(0, maxLen);
+  const lastClose = truncated.lastIndexOf('>');
+  if (lastClose > maxLen * 0.8) return truncated.substring(0, lastClose + 1);
+  return truncated;
+}
+
 const AUTHENTICITY_SIGNALS = [
   /insider tip/i, /when (?:we|i) (?:last )?visited/i, /the atmosphere/i,
   /hidden gem/i, /locals (?:love|recommend|know)/i, /our recommendation/i,
@@ -158,7 +167,7 @@ EXISTING H2 SECTIONS:
 ${sectionList}
 
 ARTICLE EXCERPT (first 3000 chars for context):
-${currentHtml.substring(0, 3000)}
+${safeHtmlTruncate(currentHtml, 3000)}
 
 ${operations.includes('add_internal_links') ? `AVAILABLE INTERNAL LINKS (use 3-5 with natural anchor text):\n${linkOptions}\n` : ''}
 
@@ -207,7 +216,7 @@ OPERATIONS REQUIRED (only do what's listed):
 ${ops}
 
 CURRENT ARTICLE (HTML):
-${currentHtml.substring(0, 8000)}
+${safeHtmlTruncate(currentHtml, 8000)}
 
 ${operations.includes('add_internal_links') ? `AVAILABLE INTERNAL LINKS (use 3-5 with natural anchor text):\n${linkOptions}\n` : ''}
 

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 interface AnalyticsMetrics {
   pageViews: number;
@@ -197,9 +198,12 @@ async function getContentPerformance(): Promise<ContentPerformance[]> {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED || !flags.ANALYTICS_REFRESH) {
       return NextResponse.json(
         { error: 'Analytics refresh feature is disabled' },
@@ -306,18 +310,18 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Analytics refresh error:', error);
+    console.error('[phase4b/analytics/refresh] POST error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to refresh analytics data',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to refresh analytics data' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     

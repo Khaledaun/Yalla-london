@@ -5,8 +5,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     
@@ -49,12 +53,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Topic reordering error:', error);
+    console.error('[phase4b/topics/reorder] POST error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to reorder topics',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to reorder topics' },
       { status: 500 }
     );
   }

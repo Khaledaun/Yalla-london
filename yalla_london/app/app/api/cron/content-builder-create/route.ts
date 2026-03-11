@@ -66,20 +66,25 @@ async function handleCreate(request: NextRequest) {
 
       // Skip if there are already active drafts for this site (builder will advance them)
       // Only count drafts that are genuinely progressing:
-      // - Exclude stuck drafts (no update in 4h)
-      // - Exclude drafts just touched by sweeper/diagnostic (last_error contains recovery messages)
-      //   because sweeper resets updated_at, making stuck drafts look "active"
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      // - Exclude stuck drafts (no update in 1h)
+      // - Exclude drafts touched by diagnostic-agent/sweeper (they set updated_at but draft is still stuck)
+      const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          updated_at: { gte: twoHoursAgo },
-          // Exclude drafts that were recovered by sweeper but may still be stuck
+          updated_at: { gte: oneHourAgo },
+          // Exclude drafts that were only touched by recovery systems — they reset updated_at
+          // but the draft isn't genuinely advancing through the pipeline
           NOT: {
-            last_error: { contains: "Reset phase timer" },
+            OR: [
+              { last_error: { contains: "Reset phase timer" } },
+              { last_error: { startsWith: "[diagnostic-agent" } },
+              { last_error: { startsWith: "[diagnostic-agent-reset]" } },
+              { last_error: { contains: "MAX_RECOVERIES_EXCEEDED" } },
+            ],
           },
         },
       });

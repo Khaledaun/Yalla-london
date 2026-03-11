@@ -276,12 +276,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const publicTags = tags.filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
 
   // noindex articles with empty or extremely thin content — prevents indexing placeholder pages.
-  // Check BOTH languages — an Arabic-only article with substantial content_ar should still be indexed.
+  // Check BOTH languages — an Arabic-only article with substantial content_ar should still be indexed
+  // even when accessed via the English route (/blog/slug). Google uses the hreflang pair to decide
+  // which version to serve; noindexing the English route blocks the whole article from Arabic search.
   const contentEn = post.content_en || "";
   const contentAr = post.content_ar || "";
-  const hasSubstantiveContent = isArabic
-    ? !!(contentAr.trim() && contentAr.trim().length > 100)
-    : !!(contentEn.trim() && contentEn.trim().length > 100);
+  const hasSubstantiveContent =
+    !!(contentEn.trim() && contentEn.trim().length > 100) ||
+    !!(contentAr.trim() && contentAr.trim().length > 100);
 
   // Fetch real author name for E-E-A-T (cached — shared with page component)
   const author = await getAuthorForSite(siteId);

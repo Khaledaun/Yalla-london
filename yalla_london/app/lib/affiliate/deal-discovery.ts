@@ -201,6 +201,7 @@ export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Prom
                 tags: [keyword],
                 isNewArrival: true,
                 isActive: true,
+                siteId: siteId || null,
               },
             });
           }
@@ -227,6 +228,7 @@ export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Prom
         networkId: CJ_NETWORK_ID,
         isActive: true,
         validTo: { lte: sevenDaysFromNow, gte: new Date() },
+        ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}),
       },
     });
     result.expiringSoon = expiring;

@@ -238,8 +238,9 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const offerSiteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
     const recentDeals = await prisma.cjOffer.findMany({
-      where: { networkId: CJ_NETWORK_ID, isActive: true },
+      where: { networkId: CJ_NETWORK_ID, isActive: true, ...offerSiteFilter },
       include: { advertiser: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
       take: 20,

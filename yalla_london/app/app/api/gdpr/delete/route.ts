@@ -53,32 +53,37 @@ export async function POST(request: NextRequest) {
         deletedCount += subResult.count;
         deletionLog.push(`email_subscribers:${subResult.count}`);
       }
-    } catch {
+    } catch (err) {
+      console.warn("[gdpr-delete] EmailSubscriber deletion failed:", err instanceof Error ? err.message : String(err));
       // Table may not exist — non-fatal
     }
 
-    // 2. Delete / anonymize charter inquiries (keep for legal if booking completed)
+    // 2. Anonymize charter inquiries (keep record for legal compliance, scrub PII)
     try {
       const inquiries = await prisma.charterInquiry.findMany({
-        where: { contactEmail: email },
+        where: { email },
         select: { id: true, status: true },
       });
 
       for (const inquiry of inquiries) {
-        // Completed bookings kept for legal compliance — anonymize personal data
+        // Completed bookings kept for legal compliance — anonymize personal data only
         await prisma.charterInquiry.update({
           where: { id: inquiry.id },
           data: {
-            contactEmail: `deleted-${emailHash}@anonymized.local`,
-            contactName: "[Deleted]",
-            phoneNumber: null,
-            notes: null,
+            email: `deleted-${emailHash}@anonymized.local`,
+            firstName: "[Deleted]",
+            lastName: "User",
+            phone: null,
+            whatsappNumber: null,
+            message: null,
+            brokerNotes: null,
           },
         });
         deletedCount++;
         deletionLog.push(`charter_inquiry_anonymized:${inquiry.id.slice(0, 8)}`);
       }
-    } catch {
+    } catch (err) {
+      console.warn("[gdpr-delete] CharterInquiry anonymization failed:", err instanceof Error ? err.message : String(err));
       // Table may not exist (non-yacht site) — non-fatal
     }
 
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
           ipAddress,
           userAgent: request.headers.get("user-agent") || "unknown",
           timestamp: new Date(),
-          metadata: {
+          details: {
             emailHash,
             siteId: siteId || null,
             reason: reason || null,
@@ -102,7 +107,8 @@ export async function POST(request: NextRequest) {
           },
         },
       });
-    } catch {
+    } catch (err) {
+      console.warn("[gdpr-delete] AuditLog write failed:", err instanceof Error ? err.message : String(err));
       // Audit log failure is non-fatal — deletion still succeeded
     }
 

@@ -702,7 +702,7 @@ export default async function BlogPostPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      <BlogPostClient post={clientPost} />
+      <BlogPostClient post={clientPost} serverLocale={locale as 'en' | 'ar'} />
       {/* Related articles stream in after the main content via Suspense.
           This eliminates a DB query from the critical render path —
           the page HTML arrives immediately, related articles load async. */}

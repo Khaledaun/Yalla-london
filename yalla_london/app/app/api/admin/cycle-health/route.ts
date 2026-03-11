@@ -894,6 +894,25 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     console.warn("[cycle-health] News freshness check failed:", err instanceof Error ? err.message : err);
   }
 
+  // ── GA4 analytics health ──
+  try {
+    const { isGA4Configured } = await import("@/lib/seo/ga4-data-api");
+    if (!isGA4Configured()) {
+      issues.push({
+        id: "ga4-not-configured",
+        category: "analytics" as const,
+        severity: "medium" as const,
+        what: "GA4 not configured — no website traffic data",
+        why: "Google Analytics credentials are missing. The cockpit dashboard cannot show sessions, users, or page views.",
+        fix: "Add GA4_PROPERTY_ID, GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL, and GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY to Vercel environment variables.",
+        fixAction: null,
+        evidence: { configured: false },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] GA4 check failed:", err instanceof Error ? err.message : err);
+  }
+
   // ── Calculate grade ──
   let score = 100;
   for (const issue of issues) {

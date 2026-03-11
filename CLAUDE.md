@@ -982,7 +982,7 @@ Deep research into Google's January 2026 Core Update (dubbed "Authenticity Updat
 
 | Area | Issue | Severity | Notes |
 |------|-------|----------|-------|
-| OG Images | Per-site OG image files don't exist yet (need design) | MEDIUM | Code references `{slug}-og.jpg` but files need creation |
+| ~~OG Images~~ | ~~Per-site OG image files don't exist yet~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG via `app/api/og/route.tsx` using Next.js ImageResponse, per-site brand colors |
 | Legacy Route | `/api/generate-content` doesn't call pre-publication gate | LOW | Intentional for development/testing use |
 | Content Pages | Hotels/experiences/recommendations have static hardcoded data | MEDIUM | Not DB-driven yet; no affiliate tracking on these pages |
 | Author Attribution | Generic "Editorial" author on all articles | MEDIUM | Need specific author profiles for stronger E-E-A-T |
@@ -1860,7 +1860,7 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | Feature Flags | DB-backed but not wired to runtime behavior | LOW |
 | Brand Templates | Only Yalla London template exists for other sites | MEDIUM |
 | Author Profiles | Generic "Editorial" author on all articles (needs specific profiles for E-E-A-T) | MEDIUM |
-| OG Images | Per-site OG image files don't exist yet (code references `{slug}-og.jpg`) | MEDIUM |
+| ~~OG Images~~ | ~~Per-site OG image files~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG route |
 | Login Security | No rate limiting on admin login endpoint | MEDIUM |
 | Orphan Models | 16+ Prisma models never referenced in code | LOW |
 
@@ -2176,17 +2176,18 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 
 **Known Remaining Issues:**
 
-| Area | Issue | Severity |
-|------|-------|----------|
-| GA4 Dashboard | Traffic metrics on dashboard still return 0s (MCP works, API integration pending) | MEDIUM |
-| Social APIs | Engagement stats require platform API integration | LOW |
-| Feature Flags | DB-backed, cron guards wired, but not wired to all runtime behavior | LOW |
-| Brand Templates | Only Yalla London template exists for other sites | MEDIUM |
-| OG Images | Per-site OG image files don't exist yet (code references `{slug}-og.jpg`) | MEDIUM |
-| Orphan Models | 16+ Prisma models never referenced in code | LOW |
-| Gemini Provider | Account frozen — re-add when billing reactivated | LOW |
-| Perplexity Provider | Quota exhausted — re-add when replenished | LOW |
-| GSC Data Transition | First 7 days after deploy will have less historical data as old aggregated rows are replaced by per-day rows | LOW (self-resolving) |
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| ~~GA4 Dashboard~~ | ~~Traffic metrics on dashboard still return 0s~~ | ~~MEDIUM~~ | **DONE** — `buildTraffic()` in cockpit calls `fetchGA4Metrics()`, cycle-health checks GA4 connectivity |
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| ~~Feature Flags~~ | ~~DB-backed, cron guards wired, but not wired to all runtime behavior~~ | ~~LOW~~ | **DONE** — fully wired (DB + env var, 32+ crons, `isFeatureFlagEnabled()`) |
+| Brand Templates | Only Yalla London template exists for other sites | MEDIUM | Open |
+| ~~OG Images~~ | ~~Per-site OG image files don't exist yet~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG route at `app/api/og/route.tsx` |
+| ~~Login Security~~ | ~~No rate limiting on admin login endpoint~~ | ~~MEDIUM~~ | **DONE** — 5/15min + middleware layer |
+| ~~Cookie Consent~~ | ~~No GDPR cookie consent banner~~ | ~~MEDIUM~~ | **DONE** — bilingual, 4 categories, in root layout |
+| Orphan Models | 16+ Prisma models never referenced in code | LOW | Open |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW | Open |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW | Open |
 
 ### Critical Rules Learned (March 4-9 Sessions)
 

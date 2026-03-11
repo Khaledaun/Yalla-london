@@ -101,9 +101,22 @@ interface CockpitData {
   };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
   revenue: RevenueSnapshot;
+  traffic: TrafficSnapshot;
   alerts: Alert[];
   sites: SiteSummary[];
   timestamp: string;
+}
+
+interface TrafficSnapshot {
+  sessions7d: number;
+  users7d: number;
+  pageViews7d: number;
+  bounceRate: number;
+  avgSessionDuration: number;
+  topPages: Array<{ path: string; pageViews: number }>;
+  topSources: Array<{ source: string; sessions: number }>;
+  configured: boolean;
+  fetchedAt: string | null;
 }
 
 interface ContentItem {
@@ -1585,6 +1598,76 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           Tap for full indexing details →
         </button>
       </Card>
+
+      {/* Website Traffic (GA4) */}
+      {data?.traffic && (
+        <Card>
+          <SectionTitle>Website Traffic (7d)</SectionTitle>
+          {!data.traffic.configured ? (
+            <div className="text-center py-3">
+              <div className="text-zinc-500 text-xs">GA4 not configured</div>
+              <div className="text-zinc-600 text-[10px] mt-1">Add GA4_PROPERTY_ID to Vercel env vars</div>
+            </div>
+          ) : data.traffic.sessions7d === 0 ? (
+            <div className="text-center py-3">
+              <div className="text-zinc-500 text-xs">No traffic data yet</div>
+              <div className="text-zinc-600 text-[10px] mt-1">GA4 takes 24-48h to report. Check back tomorrow.</div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-zinc-800/50 rounded-lg p-2">
+                  <div className="text-lg font-bold text-blue-400">{data.traffic.sessions7d.toLocaleString()}</div>
+                  <div className="text-[10px] text-zinc-500">Sessions</div>
+                </div>
+                <div className="bg-zinc-800/50 rounded-lg p-2">
+                  <div className="text-lg font-bold text-teal-400">{data.traffic.users7d.toLocaleString()}</div>
+                  <div className="text-[10px] text-zinc-500">Users</div>
+                </div>
+                <div className="bg-zinc-800/50 rounded-lg p-2">
+                  <div className="text-lg font-bold text-violet-400">{data.traffic.pageViews7d.toLocaleString()}</div>
+                  <div className="text-[10px] text-zinc-500">Page Views</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center mt-2">
+                <div className="bg-zinc-800/50 rounded-lg p-1.5">
+                  <div className="text-sm font-bold text-zinc-300">{data.traffic.bounceRate.toFixed(1)}%</div>
+                  <div className="text-[10px] text-zinc-500">Bounce Rate</div>
+                </div>
+                <div className="bg-zinc-800/50 rounded-lg p-1.5">
+                  <div className="text-sm font-bold text-zinc-300">{Math.round(data.traffic.avgSessionDuration)}s</div>
+                  <div className="text-[10px] text-zinc-500">Avg Duration</div>
+                </div>
+              </div>
+              {data.traffic.topPages.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Top Pages</div>
+                  {data.traffic.topPages.slice(0, 3).map((p, i) => (
+                    <div key={i} className="flex justify-between text-[11px] py-0.5">
+                      <span className="text-zinc-400 truncate max-w-[70%]">{p.path}</span>
+                      <span className="text-zinc-500">{p.pageViews}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {data.traffic.topSources.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Top Sources</div>
+                  {data.traffic.topSources.slice(0, 3).map((s, i) => (
+                    <div key={i} className="flex justify-between text-[11px] py-0.5">
+                      <span className="text-zinc-400 truncate max-w-[70%]">{s.source}</span>
+                      <span className="text-zinc-500">{s.sessions}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {data.traffic.fetchedAt && (
+                <div className="mt-1 text-[9px] text-zinc-600 text-center">Fetched: {new Date(data.traffic.fetchedAt).toLocaleString()}</div>
+              )}
+            </>
+          )}
+        </Card>
+      )}
 
       {/* Revenue & Costs */}
       {data?.revenue && (

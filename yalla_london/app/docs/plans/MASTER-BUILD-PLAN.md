@@ -134,18 +134,18 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 ### Known Gaps (Stage A — Fix Before Building)
 
-| # | Gap | Severity | Phase |
-|---|-----|----------|-------|
-| 1 | GA4 dashboard returns 0s (MCP works, need API wiring) | MEDIUM | A.1 |
-| 2 | Affiliate click tracking (no JS handler, model exists) | MEDIUM | A.1 |
-| 3 | Per-site OG images don't exist (code references `{slug}-og.jpg`) | MEDIUM | A.1 |
-| 4 | Login rate limiting (no brute-force protection) | MEDIUM | A.1 |
-| 5 | **CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) | **HIGH** | A.2 |
-| 6 | Arabic SSR (KG-032) — `/ar/` serves English HTML server-side | MEDIUM | A.2 |
-| 7 | Feature flags not wired to all runtime behavior | LOW | A.2 |
-| 8 | Social media APIs (only Twitter auto-publish feasible) | LOW | A.3 |
-| 9 | Cookie consent banner (EU legal) | MEDIUM | A.3 |
-| 10 | 16+ orphan Prisma models | LOW | A.4 |
+| # | Gap | Severity | Phase | Status |
+|---|-----|----------|-------|--------|
+| 1 | GA4 dashboard returns 0s (MCP works, need API wiring) | MEDIUM | A.1 | **OPEN** |
+| 2 | ~~Affiliate click tracking~~ | ~~MEDIUM~~ | ~~A.1~~ | **DONE** — server-side redirect via `/api/affiliate/click` + SID tracking |
+| 3 | Per-site OG images don't exist (code references `{slug}-og.jpg`) | MEDIUM | A.1 | **OPEN** |
+| 4 | ~~Login rate limiting~~ | ~~MEDIUM~~ | ~~A.1~~ | **DONE** — 5/15min + middleware layer |
+| 5 | **CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) | **HIGH** | A.2 | **OPEN** |
+| 6 | Arabic SSR (KG-032) — `/ar/` serves English HTML server-side | MEDIUM | A.2 | **OPEN** |
+| 7 | ~~Feature flags not wired to runtime~~ | ~~LOW~~ | ~~A.2~~ | **DONE** — DB + env var, 32+ crons mapped |
+| 8 | Social media APIs (only Twitter auto-publish feasible) | LOW | A.3 | **OPEN** |
+| 9 | ~~Cookie consent banner~~ | ~~MEDIUM~~ | ~~A.3~~ | **DONE** — bilingual, GDPR-aligned, in root layout |
+| 10 | 16+ orphan Prisma models | LOW | A.4 | **OPEN** |
 
 ---
 
@@ -155,19 +155,17 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 **Goal:** Khaled can see traffic and revenue on his phone.
 
-| Task | What | Existing (DO NOT rebuild) | Verification |
-|------|------|--------------------------|-------------|
-| GA4 dashboard wiring | GA4 Data API → cockpit panels | MCP server works; `scripts/mcp-google-server.ts` | Cockpit Tab 1 shows real traffic numbers |
-| Affiliate click tracking | JS click handler → AffiliateClick DB write | Model exists; CJ has SID tracking | `test-connections.html` Affiliate panel shows clicks |
-| Revenue dashboard panel | Clicks, conversions, earnings per site | Affiliate-HQ has 6 tabs | `/admin/affiliate-hq` Revenue tab shows real data |
-| OG images | 5 branded social sharing images | Path configured in root layout | Share URL on social → shows branded image |
-| Login rate limiting | DB/Redis throttle on admin login | Rate limiting middleware exists (4 tiers) | `test-connections.html` auth panel + smoke test |
+| Task | What | Status | Verification |
+|------|------|--------|-------------|
+| GA4 dashboard wiring | GA4 Data API → cockpit panels | **OPEN** | Cockpit Tab 1 shows real traffic numbers |
+| ~~Affiliate click tracking~~ | Server-side redirect + SID tracking | **DONE** | `/api/affiliate/click` redirects + logs to CjClickEvent |
+| ~~Revenue dashboard panel~~ | Clicks, conversions, earnings per site | **DONE** | Affiliate-HQ 6 tabs + cockpit revenue cards |
+| OG images | Dynamic branded social sharing images | **OPEN** | `/api/og?siteId=yalla-london` returns branded image |
+| ~~Login rate limiting~~ | 5/15min + middleware layer | **DONE** | 429 after 5 rapid attempts |
 
-**Testability for Phase A.1:**
-- GA4: `/api/admin/cockpit` returns non-zero `traffic.sessions` → cycle-health check detects "GA4 not connected" if 0
-- Clicks: New smoke test verifying `AffiliateClick.create()` schema fields exist
-- OG: `curl -I https://www.yalla-london.com/images/yalla-london-og.jpg` returns 200
-- Rate limit: Smoke test verifying login endpoint returns 429 after N attempts
+**Remaining work for Phase A.1:**
+- GA4: Wire `fetchGA4Metrics()` from `lib/seo/ga4-data-api.ts` into cockpit `buildTraffic()` builder
+- OG: Create `/api/og/route.tsx` using `next/og` ImageResponse with site brand colors
 
 ### Phase A.2: Multi-Site Hardening
 
@@ -177,7 +175,7 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 |------|------|----------|-------------|
 | CJ schema migration | Add siteId to CjCommission, CjClickEvent, CjOffer | **YES — blocks site #2** | `npx prisma validate` + smoke test for CJ siteId |
 | Arabic SSR | Server-render Arabic HTML at `/ar/` routes | Blocks Arabic SEO | `curl https://www.yalla-london.com/ar/about` returns Arabic HTML |
-| Feature flags completion | Wire remaining to runtime behavior | No | Feature flags page shows real toggle effects |
+| ~~Feature flags completion~~ | ~~Wire remaining to runtime behavior~~ | **DONE** | DB + env var fallback, 32+ crons, `isFeatureFlagEnabled()` |
 | Brand templates | Templates for non-London sites | No | `/api/admin/brand-kit?siteId=arabaldives` returns valid kit |
 | Connection pool audit | Verify no cron collisions remain | No | 24h cron log shows 0 pool exhaustion errors |
 
@@ -185,7 +183,7 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 | Task | What | Verification |
 |------|------|-------------|
-| Cookie consent banner | EU/UK legal requirement | All public pages show consent banner |
+| ~~Cookie consent banner~~ | ~~EU/UK legal requirement~~ | **DONE** — bilingual, GDPR-aligned, in root layout |
 | GDPR deletion flow | Data deletion endpoint | POST `/api/admin/gdpr/delete` returns success |
 | Twitter/X auto-publish | Wire API keys | Social calendar shows "Published" status after cron |
 | SendGrid integration | Wire email campaigns | `/admin/cockpit` email center shows "Provider: Active" |

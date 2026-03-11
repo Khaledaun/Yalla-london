@@ -25,18 +25,10 @@ async function handler(request: Request) {
     }
   }
 
-  // ── Feature flag guard ───────────────────────────────────────────
-  try {
-    const { prisma } = await import('@/lib/db');
-    const flag = await prisma.featureFlag.findFirst({
-      where: { key: 'campaign-executor', isActive: false },
-    });
-    if (flag) {
-      return NextResponse.json({ skipped: true, reason: 'Feature flag disabled' });
-    }
-  } catch {
-    // Continue if flag check fails
-  }
+  // ── Feature flag guard (standard pattern) ────────────────────────
+  const { checkCronEnabled } = await import('@/lib/cron-feature-guard');
+  const flagResponse = await checkCronEnabled('campaign-executor');
+  if (flagResponse) return flagResponse;
 
   const results: Array<{ campaignId: string; name: string; result: unknown }> = [];
 
@@ -135,8 +127,17 @@ async function handler(request: Request) {
           completed_at: new Date(),
         },
       });
+    } catch (logErr) {
+      console.warn('[campaign-executor] CronJobLog failure write failed:', logErr instanceof Error ? logErr.message : logErr);
+    }
+
+    // Notify via failure hook (email alert + dashboard visibility)
+    try {
+      const { onCronFailure } = await import('@/lib/ops/failure-hooks');
+      onCronFailure({ jobName: 'campaign-executor', error: message })
+        .catch(hookErr => console.warn('[campaign-executor] onCronFailure hook failed:', hookErr instanceof Error ? hookErr.message : hookErr));
     } catch {
-      // Don't throw from error logging
+      // Best-effort — don't let hook import failure mask the original error
     }
 
     return NextResponse.json({ error: message, duration_ms: Date.now() - cronStart }, { status: 500 });

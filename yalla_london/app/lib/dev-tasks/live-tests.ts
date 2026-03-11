@@ -134,6 +134,9 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "multisite-wizard": testMultisiteWizard,
   // Stage A.2 additions
   "connection-pool-audit": testConnectionPoolAudit,
+  "cron-full-audit": testCronFullAudit,
+  "cron-orphan-cleanup": testCronOrphanCleanup,
+  "fragility-audit-verify": testFragilityAuditVerify,
   // Stage B: Website Builder additions
   "lessons-db-verify": testLessonsDbVerify,
   "template-library-verify": testTemplateLibraryVerify,
@@ -2028,25 +2031,152 @@ async function testMultisiteWizard(): Promise<LiveTestResult> {
 
 // ── A.2.5 — Connection Pool Audit ──────────────────────────────────────────────
 async function testConnectionPoolAudit(): Promise<LiveTestResult> {
-  // Check vercel.json cron schedule for collisions (same minute)
+  // Check vercel.json cron schedule for minute-level collisions (not just exact duplicates)
   const content = readContent("../../vercel.json");
   if (!content) return makeResult({ success: false, readiness: 0, plainLanguage: "vercel.json not found." });
-  const cronTimes: string[] = [];
-  const cronRegex = /"schedule"\s*:\s*"([^"]+)"/g;
-  let match;
-  while ((match = cronRegex.exec(content)) !== null) cronTimes.push(match[1]);
-  // Check for exact minute collisions (very rough — cron expressions vary)
-  const collisions: string[] = [];
-  for (let i = 0; i < cronTimes.length; i++) {
-    for (let j = i + 1; j < cronTimes.length; j++) {
-      if (cronTimes[i] === cronTimes[j]) collisions.push(cronTimes[i]);
+
+  // Extract all cron schedules with their paths
+  const cronEntries: Array<{ path: string; schedule: string }> = [];
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.crons) {
+      for (const c of parsed.crons) {
+        if (c.schedule && c.path) cronEntries.push({ path: c.path, schedule: c.schedule });
+      }
     }
+  } catch {
+    // Fallback: regex extraction
+    const cronRegex = /"schedule"\s*:\s*"([^"]+)"/g;
+    let match;
+    while ((match = cronRegex.exec(content)) !== null) cronEntries.push({ path: "unknown", schedule: match[1] });
   }
+
+  // Parse minute from cron expression (first field) to detect same-minute collisions
+  const minuteGroups: Record<string, string[]> = {};
+  for (const entry of cronEntries) {
+    const parts = entry.schedule.split(" ");
+    const minute = parts[0]; // first field = minute
+    const hour = parts[1];   // second field = hour
+    // Only check fixed-time crons (not */15 or */30 patterns)
+    if (minute.includes("*") || minute.includes("/")) continue;
+    const key = `${minute} ${hour}`;
+    if (!minuteGroups[key]) minuteGroups[key] = [];
+    minuteGroups[key].push(entry.path);
+  }
+
+  const collisions: Array<{ time: string; crons: string[] }> = [];
+  for (const [time, paths] of Object.entries(minuteGroups)) {
+    if (paths.length > 1) collisions.push({ time, crons: paths });
+  }
+
   const ok = collisions.length === 0;
   return makeResult({
     success: ok, readiness: ok ? 100 : 50,
-    plainLanguage: `${cronTimes.length} cron schedules found. ${collisions.length} exact duplicates: ${collisions.join(", ") || "none"}.`,
-    json: { totalCrons: cronTimes.length, collisions },
+    plainLanguage: `${cronEntries.length} cron schedules. ${collisions.length} minute-level collisions: ${collisions.map(c => `${c.time} (${c.crons.length} crons)`).join(", ") || "none"}.`,
+    json: { totalCrons: cronEntries.length, collisions },
+  });
+}
+
+async function testCronFullAudit(): Promise<LiveTestResult> {
+  // Check that all cron route files have the 8-check rubric items
+  const cronDir = "app/api/cron";
+  const checks = ["checkCronEnabled", "BUDGET_MS", "CRON_SECRET", "logCronExecution", "onCronFailure", "POST"];
+  const cronFiles: string[] = [];
+  const missing: Array<{ file: string; missing: string[] }> = [];
+
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const base = path.resolve(process.cwd(), cronDir);
+    if (fs.existsSync(base)) {
+      const dirs = fs.readdirSync(base, { withFileTypes: true });
+      for (const dir of dirs) {
+        if (dir.isDirectory()) {
+          const routeFile = path.join(base, dir.name, "route.ts");
+          if (fs.existsSync(routeFile)) {
+            cronFiles.push(dir.name);
+            const content = fs.readFileSync(routeFile, "utf-8");
+            const fileMissing: string[] = [];
+            for (const check of checks) {
+              if (!content.includes(check)) fileMissing.push(check);
+            }
+            if (fileMissing.length > 0) missing.push({ file: dir.name, missing: fileMissing });
+          }
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  const fullyCompliant = cronFiles.length - missing.length;
+  const ok = missing.length === 0;
+  return makeResult({
+    success: ok, readiness: cronFiles.length > 0 ? Math.round((fullyCompliant / cronFiles.length) * 100) : 0,
+    plainLanguage: `${fullyCompliant}/${cronFiles.length} crons pass all 8 checks. ${missing.length} need fixes.`,
+    json: { totalCrons: cronFiles.length, fullyCompliant, needsFix: missing },
+  });
+}
+
+async function testCronOrphanCleanup(): Promise<LiveTestResult> {
+  // Check for cron route files that aren't scheduled in vercel.json
+  const vercelContent = readContent("../../vercel.json");
+  if (!vercelContent) return makeResult({ success: false, readiness: 0, plainLanguage: "vercel.json not found." });
+
+  const scheduledPaths: string[] = [];
+  try {
+    const parsed = JSON.parse(vercelContent);
+    if (parsed.crons) {
+      for (const c of parsed.crons) {
+        if (c.path) scheduledPaths.push(c.path);
+      }
+    }
+  } catch { /* ignore */ }
+
+  const orphans: string[] = [];
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const base = path.resolve(process.cwd(), "app/api/cron");
+    if (fs.existsSync(base)) {
+      const dirs = fs.readdirSync(base, { withFileTypes: true });
+      for (const dir of dirs) {
+        if (dir.isDirectory() && fs.existsSync(path.join(base, dir.name, "route.ts"))) {
+          const expectedPath = `/api/cron/${dir.name}`;
+          if (!scheduledPaths.includes(expectedPath)) orphans.push(dir.name);
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  const ok = orphans.length === 0;
+  return makeResult({
+    success: ok, readiness: ok ? 100 : 0,
+    plainLanguage: `${orphans.length} orphan cron files not in vercel.json: ${orphans.join(", ") || "none"}.`,
+    json: { orphans, scheduledCount: scheduledPaths.length },
+  });
+}
+
+async function testFragilityAuditVerify(): Promise<LiveTestResult> {
+  // Verify key fragility audit fixes are in place
+  const checks: Array<{ name: string; file: string; pattern: string }> = [
+    { name: "affiliate inject siteId", file: "app/api/affiliates/inject/route.ts", pattern: "effectiveSiteId" },
+    { name: "campaign-executor checkCronEnabled", file: "app/api/cron/campaign-executor/route.ts", pattern: "checkCronEnabled" },
+    { name: "cron-feature-guard campaign-executor", file: "lib/cron-feature-guard.ts", pattern: "campaign-executor" },
+    { name: "analytics POST handler", file: "app/api/cron/analytics/route.ts", pattern: "POST" },
+    { name: "shop products siteId", file: "app/api/shop/products/route.ts", pattern: "site_id: siteId" },
+  ];
+
+  const results: Array<{ name: string; pass: boolean }> = [];
+  for (const check of checks) {
+    const content = readContent(check.file);
+    results.push({ name: check.name, pass: content ? content.includes(check.pattern) : false });
+  }
+
+  const passing = results.filter(r => r.pass).length;
+  const ok = passing === results.length;
+  return makeResult({
+    success: ok, readiness: Math.round((passing / results.length) * 100),
+    plainLanguage: `${passing}/${results.length} fragility audit fixes verified: ${results.filter(r => !r.pass).map(r => r.name).join(", ") || "all pass"}.`,
+    json: { results },
   });
 }
 

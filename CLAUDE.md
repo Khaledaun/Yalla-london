@@ -2794,5 +2794,99 @@ Tests: `revenue-dashboard-verify`, `knowledge-base-verify`, `weekly-digest-verif
 59. **News admin page must pass siteId to API** — use `?site_id=` query param, not `x-site-id` header (matches cockpit pattern).
 60. **Social media auto-publishing is only possible for Twitter/X** — Instagram, TikTok, LinkedIn APIs require business partnerships or months-long app review. Design for manual copy-paste with dashboard tracking as the primary workflow.
 61. **New site wizard creates DB records but still requires code deployment** — `config/sites.ts`, `middleware.ts`, Vercel domain settings, and DNS must be updated manually. The wizard handles database seeding only.
-62. **Every testType in plan-registry.ts MUST have a matching function in live-tests.ts** — missing functions cause "test not found" errors in the Development Monitor. When adding new plans, always add corresponding test functions. Shared testTypes across plans need exactly ONE function registered once — the registry lookup handles sharing.
-63. **Test functions for built features should verify real code** — check file existence, scan for expected exports/patterns, query DB state. Test functions for future features should check prerequisites and return low readiness (0-70) with `howToFix` guidance describing what needs building.
+
+### Session: March 11, 2026 — Deep Fragility Audit (3 Rounds, 27 Fixes)
+
+**Systematic 3-round deep fragility audit of the entire codebase, targeting security, data integrity, multi-site isolation, cron resilience, and pipeline correctness.**
+
+**Round 1 — Foundation Fragilities (10 fixes, commit `375d0075`):**
+
+1. **`lib/content-pipeline/select-runner.ts`**: Added dedup guard — checks `CronJobLog` for recent content-selector run within 60s. Vercel can invoke the same cron twice near-simultaneously
+2. **`app/api/cron/content-auto-fix/route.ts`**: Skip articles published <2h ago in thin-content unpublish section — prevents race with just-published articles still being enhanced
+3. **`app/api/cron/content-auto-fix/route.ts`**: Skip articles published <2h ago in duplicate detection section
+4. **`lib/seo/discovery/scanner.ts`**: Fixed 3 wrong import paths (`@/lib/seo/indexing-service` → correct paths)
+5. **`app/api/cron/discovery-monitor/route.ts`**: Fixed import of `scanSiteDiscovery` (was importing from wrong path)
+6. **`scripts/smoke-test.ts`**: Replaced 4 `Math.random()` instances with `crypto.getRandomValues()` for ID generation
+7. **`scripts/consolidate-duplicates.ts`**: Replaced `Math.random()` with `crypto.getRandomValues()`
+8. **`lib/content-pipeline/select-runner.ts`**: Enhanced dedup guard logging with run count visibility
+9. **`app/api/cron/content-auto-fix/route.ts`**: Added time-based skip logging for transparency
+10. **Discovery monitor**: Fixed circular import chain that caused runtime crash
+
+**Round 2 — Auth & Unbounded Queries (10 fixes, commit `1de2f197`):**
+
+1. **`app/api/admin/sitemap/generate/route.ts`**: Added `requireAdmin` auth guard — was publicly accessible mutation endpoint
+2. **9 unbounded Prisma queries capped** across multiple files:
+   - `app/api/admin/seo-audit/route.ts`: 3 queries capped (`take: 200`, `take: 500`, `take: 100`)
+   - `app/api/admin/aggregated-report/route.ts`: 2 queries capped (`take: 500`, `take: 200`)
+   - `app/api/cron/gsc-sync/route.ts`: 2 queries capped (`take: 1000`)
+   - `app/api/admin/content-indexing/route.ts`: 1 query capped (`take: 500`)
+   - `app/api/admin/per-page-audit/route.ts`: 1 query capped (`take: 500`)
+
+**Round 3 — Cron Integrity, Multi-Site Scoping & Feature Flags (7 fixes):**
+
+1. **CRITICAL: `app/api/affiliates/inject/route.ts`** — `bulkInjectAffiliates()` had NO siteId scoping and NO take limit. Cross-site affiliate contamination + OOM risk on large datasets. Added `siteId` parameter with `getDefaultSiteId()` fallback and `take: 200`
+2. **CRITICAL: `app/api/cron/campaign-executor/route.ts`** — Feature flag guard used wrong field names (`key` instead of `name`, `isActive` instead of `enabled`). Query never matched any records, making the flag unenforceable. Replaced with standard `checkCronEnabled('campaign-executor')` pattern
+3. **HIGH: `app/api/cron/campaign-executor/route.ts`** — Missing `onCronFailure` hook in catch block. Added hook + fixed empty catch block with descriptive logging
+4. **MEDIUM: `lib/cron-feature-guard.ts`** — 4 missing entries in `CRON_FLAG_MAP`: `campaign-executor`, `daily-seo-audit`, `process-indexing-queue`, `discovery-monitor`. Crons without flag map entries can't be disabled via feature flags
+5. **MEDIUM: `app/api/cron/analytics/route.ts`** — Missing POST handler. Departures board "Do Now" button would fail with 405 Method Not Allowed. Added `POST` handler delegating to `GET`
+6. **MEDIUM: `app/api/shop/products/route.ts`** — No siteId scoping on public DigitalProduct query. Added siteId from query param / `x-site-id` header / `getDefaultSiteId()` fallback
+7. **Documentation: `docs/plans/MASTER-BUILD-PLAN.md`** — Updated to v3.1 with all 27 fixes documented, 3 new known gaps added, 4 new architecture rules
+
+**Files Modified (Round 3):**
+
+| File | Change |
+|------|--------|
+| `app/api/affiliates/inject/route.ts` | siteId scoping + take:200 on bulkInjectAffiliates |
+| `app/api/cron/campaign-executor/route.ts` | Standard feature flag + onCronFailure hook + catch logging |
+| `lib/cron-feature-guard.ts` | 4 new CRON_FLAG_MAP entries |
+| `app/api/cron/analytics/route.ts` | POST handler for departures board |
+| `app/api/shop/products/route.ts` | siteId scoping on public query |
+| `docs/plans/MASTER-BUILD-PLAN.md` | v3.2 with all audit findings + cron chain + security audit |
+
+**Audit Methodology:**
+- 5 parallel audit agents per round covering: cron integrity (8-check rubric), Prisma queries, auth/security, imports/dead code, data flow pipeline
+- Manual verification of agent findings before applying fixes (caught 2 false positives: london-news and content-selector already had guards)
+- Each round builds on previous — Round 1 fixed foundations, Round 2 capped unbounded queries, Round 3 closed multi-site and feature flag gaps
+
+**Cron 8-Check Rubric Applied:**
+
+| Check | Standard |
+|-------|----------|
+| 1. Budget guard | `BUDGET_MS` constant, checked before expensive ops |
+| 2. Feature flag | `checkCronEnabled(jobName)` from `@/lib/cron-feature-guard` |
+| 3. CRON_SECRET auth | Allow if unset, reject only if set and doesn't match |
+| 4. POST handler | Every cron must support both GET and POST |
+| 5. Dedup guard | Check `CronJobLog` for recent run within 60s |
+| 6. logCronExecution | Call on both success and failure |
+| 7. onCronFailure | Call in catch block (best-effort) |
+| 8. No empty catches | All catch blocks log with `[job-name]` context |
+
+**Full Cron Chain Audit (33 files analyzed — background agent):**
+- **12 PRODUCTION-READY** (all 8 checks pass): affiliate-injection, analytics, content-auto-fix, content-auto-fix-lite, content-builder, content-builder-create, content-selector, daily-content-generate, diagnostic-sweep, seo-agent, trends-monitor, weekly-topics
+- **19 UNAUDITED**: scheduled-publish, seo-orchestrator, sweeper, seo-audit-runner, seo-deep-review, social, subscriber-emails, schedule-executor, site-health-check, gsc-sync, london-news, reserve-publisher, verify-indexing, content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence
+- **5 schedule collisions** at `:00` minute (analytics, gsc-sync, seo-orchestrator, seo-agent, content-gen)
+- **6 orphan cron files** not in vercel.json (content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence)
+
+**Full Security Audit (background agent) — Grade: A+:**
+- 633/633 admin routes have auth guards (requireAdmin/withAdminAuth/requireAdminOrCron)
+- 0 auth bypasses, 0 XSS vulnerabilities, 0 info disclosure on public APIs
+- Login: 5/15min rate limit + exponential backoff + bcrypt + HTTP-only cookies
+- All public mutation endpoints rate-limited via `withRateLimit()`
+- Only 1 `dangerouslySetInnerHTML` instance found — safe (`JSON.stringify` for structured data)
+
+**Known Gaps Identified (Not Fixed — Future Work):**
+
+| # | Area | Issue | Severity |
+|---|------|-------|----------|
+| 11 | Cron Integrity | 19 crons need 8-check rubric (see MASTER-BUILD-PLAN §7.1) | MEDIUM |
+| 12 | Cron Schedule | 5 crons fire at `:00` minute (pool contention risk) | MEDIUM |
+| 13 | Dead Crons | 6 orphan cron files not in vercel.json — likely dead code | LOW |
+
+### Critical Rules Learned (March 11 Session — Fragility Audit)
+
+62. **Feature flag guard MUST use `checkCronEnabled()` from `@/lib/cron-feature-guard`** — never write manual Prisma queries against FeatureFlag. The standard function handles the flag map, env var fallback, and correct field names.
+63. **FeatureFlag schema uses `name` + `enabled` fields** — NOT `key` + `isActive`. Code using wrong field names compiles but silently never matches any records, making flags unenforceable.
+64. **Every bulk operation on tenant data MUST accept and use `siteId`** — `bulkInjectAffiliates()`, `bulkPublish()`, `bulkGenerate()`, etc. Without siteId, multi-site deployments contaminate data across sites.
+65. **Every new cron MUST be registered in `CRON_FLAG_MAP`** in `lib/cron-feature-guard.ts` — crons without entries can't be disabled via feature flags. The map key is the cron job name, the value is the feature flag key (e.g., `"campaign-executor": "CRON_CAMPAIGN_EXECUTOR"`).
+66. **Every testType in plan-registry.ts MUST have a matching function in live-tests.ts** — missing functions cause "test not found" errors in the Development Monitor. When adding new plans, always add corresponding test functions. Shared testTypes across plans need exactly ONE function registered once — the registry lookup handles sharing.
+67. **Test functions for built features should verify real code** — check file existence, scan for expected exports/patterns, query DB state. Test functions for future features should check prerequisites and return low readiness (0-70) with `howToFix` guidance describing what needs building.

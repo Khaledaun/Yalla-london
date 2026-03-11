@@ -73,30 +73,30 @@ export const STAGE_A_PLAN: DevPlan = {
       dueDate: "2026-03-04", startDate: "2026-03-04", category: "config",
     },
 
-    // ── Phase A.2: Multi-Site Hardening (5 tasks) ────────────────────────────
+    // ── Phase A.2: Multi-Site Hardening (8 tasks) ────────────────────────────
     {
-      id: "A.2.1", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 1, taskTotal: 5,
+      id: "A.2.1", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 1, taskTotal: 8,
       title: "CJ Schema Migration",
       description: "Add siteId to CjCommission, CjClickEvent, CjOffer. YES — blocks site #2. Revenue data leaks between sites without this.",
       testType: "cj-schema-check", testable: true, status: "todo", readiness: 0,
       dueDate: "2026-03-18", startDate: "2026-03-11", category: "pipeline",
     },
     {
-      id: "A.2.2", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 2, taskTotal: 5,
+      id: "A.2.2", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 2, taskTotal: 8,
       title: "Arabic SSR",
       description: "Server-render Arabic HTML at /ar/ routes so Google indexes Arabic content properly. Currently returns English HTML. Blocks Arabic SEO.",
       testType: "arabic-ssr-check", testable: true, status: "todo", readiness: 0,
       dueDate: "2026-03-20", startDate: "2026-03-11", category: "seo",
     },
     {
-      id: "A.2.3", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 3, taskTotal: 5,
+      id: "A.2.3", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 3, taskTotal: 8,
       title: "Feature Flags Runtime Wiring",
       description: "lib/feature-flags.ts with isFeatureFlagEnabled() + 60s cache. lib/cron-feature-guard.ts maps 32+ crons.",
       testType: "feature-flags-verify", testable: true, status: "done", readiness: 100,
       dueDate: "2026-03-04", startDate: "2026-03-04", category: "config",
     },
     {
-      id: "A.2.4", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 4, taskTotal: 5,
+      id: "A.2.4", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 4, taskTotal: 8,
       title: "Brand Templates for Non-London Sites",
       description: "getBrandProfile() returns correct colors, fonts, and names for all 6 sites. Brand kit generator produces per-site output.",
       testType: "brand-kit-test",
@@ -108,11 +108,32 @@ export const STAGE_A_PLAN: DevPlan = {
       category: "content",
     },
     {
-      id: "A.2.5", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 5, taskTotal: 5,
-      title: "Connection Pool Audit",
-      description: "Verify no cron collisions remain. Crons at same minute fight for PgBouncer pool. Stagger 15-30 min apart.",
+      id: "A.2.5", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 5, taskTotal: 8,
+      title: "Cron Schedule Stagger (5 Collisions)",
+      description: "5 crons fire at :00 (analytics, gsc-sync, seo-orchestrator, seo-agent, content-gen). Move gsc-sync→:05, seo-orch→:10, content-gen→:20. Prevents PgBouncer pool exhaustion.",
       testType: "connection-pool-audit", testable: true, status: "todo", readiness: 0,
       dueDate: "2026-03-20", startDate: "2026-03-11", category: "config",
+    },
+    {
+      id: "A.2.6", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 6, taskTotal: 8,
+      title: "Full Cron 8-Check Audit (19 Unaudited)",
+      description: "Apply 8-check rubric to 19 unaudited crons: scheduled-publish, seo-orchestrator, sweeper, seo-audit-runner, seo-deep-review, social, subscriber-emails, schedule-executor, site-health-check, gsc-sync, london-news, reserve-publisher, verify-indexing + 6 orphans. See MASTER-BUILD-PLAN §7.1.",
+      testType: "cron-full-audit", testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-03-20", startDate: "2026-03-11", category: "config",
+    },
+    {
+      id: "A.2.7", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 7, taskTotal: 8,
+      title: "Orphan Cron Cleanup (6 Files)",
+      description: "6 cron files not in vercel.json: content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence. Delete or schedule each.",
+      testType: "cron-orphan-cleanup", testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-03-25", startDate: "2026-03-11", category: "config",
+    },
+    {
+      id: "A.2.8", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 8, taskTotal: 8,
+      title: "Fragility Audit Rounds 1-3 (27 Fixes)",
+      description: "DONE: Round 1 (10 fixes: Math.random→crypto, dedup markers, skip <2h articles), Round 2 (10 fixes: auth gap, 9 unbounded queries), Round 3 (7 fixes: affiliate siteId, campaign-executor flag, cron-feature-guard entries).",
+      testType: "fragility-audit-verify", testable: true, status: "done", readiness: 100,
+      dueDate: "2026-03-11", startDate: "2026-03-11", category: "config",
     },
 
     // ── Phase A.3: Compliance & Social (4 tasks) ─────────────────────────────
@@ -150,16 +171,16 @@ export const STAGE_A_PLAN: DevPlan = {
       category: "config",
     },
 
-    // ── Phase A.4: Cleanup (3 tasks) ─────────────────────────────────────────
+    // ── Phase A.4: Cleanup (4 tasks) ─────────────────────────────────────────
     {
-      id: "A.4.1", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 1, taskTotal: 3,
+      id: "A.4.1", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 1, taskTotal: 4,
       title: "Orphan Prisma Models Audit",
       description: "Remove unused Prisma models with 0 references outside schema.prisma.",
       testType: "prisma-orphan-scan", testable: true, status: "todo", readiness: 0,
       dueDate: "2026-03-28", startDate: "2026-03-11", category: "config",
     },
     {
-      id: "A.4.2", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 2, taskTotal: 3,
+      id: "A.4.2", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 2, taskTotal: 4,
       title: "Dead Admin Buttons",
       description: "Find and wire all non-functional buttons in admin pages. Down from 50+ to ~10 remaining.",
       testType: "dead-buttons-scan",
@@ -171,15 +192,27 @@ export const STAGE_A_PLAN: DevPlan = {
       category: "content",
     },
     {
-      id: "A.4.3", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 3, taskTotal: 3,
+      id: "A.4.3", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 3, taskTotal: 4,
       title: "Test Suite Expansion",
-      description: "Smoke tests at 104+ tests across 20 categories. Target: 120+.",
+      description: "Smoke tests at 84+ tests across 14+ categories (including 13 fragility tests). Target: 120+.",
       testType: "smoke-test-run",
       testable: true,
       status: "in-progress",
-      readiness: 87,
-      dueDate: "2026-03-15",
+      readiness: 70,
+      dueDate: "2026-03-20",
       startDate: "2026-03-04",
+      category: "config",
+    },
+    {
+      id: "A.4.4", phase: "A.4 Cleanup", phaseOrder: 4, taskOrder: 4, taskTotal: 4,
+      title: "Orphan Prisma Models + Cron Files Cleanup",
+      description: "16+ unused Prisma models + 6 orphan cron files (content-freshness, daily-seo-audit, fact-verification, google-indexing, process-indexing-queue, seo-agent-intelligence). Delete or justify each.",
+      testType: "prisma-orphan-scan",
+      testable: true,
+      status: "todo",
+      readiness: 0,
+      dueDate: "2026-03-28",
+      startDate: "2026-03-11",
       category: "config",
     },
   ],
@@ -438,9 +471,9 @@ export const FEATURE_VALIDATION_PLAN: DevPlan = {
     {
       id: "F.6.5", phase: "F.6 Cron Infrastructure", phaseOrder: 6, taskOrder: 5, taskTotal: 5,
       title: "Cron Schedule (vercel.json)",
-      description: "33 cron routes, staggered timing. No collisions at same minute. All registered in vercel.json.",
-      testType: "cron-schedule-check", testable: true, status: "done", readiness: 100,
-      dueDate: "2026-03-11", startDate: "2026-02-18", category: "config",
+      description: "33 cron route files exist. 12/33 fully audited. 5 collisions at :00 minute need staggering. 6 orphan files not scheduled. See MASTER-BUILD-PLAN §7.1.",
+      testType: "cron-schedule-check", testable: true, status: "in-progress", readiness: 60,
+      dueDate: "2026-03-20", startDate: "2026-02-18", category: "config",
     },
 
     // ── Phase F.7: Design & Media (4 tasks) ─────────────────────────────────

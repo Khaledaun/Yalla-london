@@ -220,6 +220,20 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "welcome-sequence-verify": testWelcomeSequenceVerify,
   "deal-alert-verify": testDealAlertVerify,
   "email-social-analytics-verify": testEmailSocialAnalyticsVerify,
+  // Batch 5: BI + Dashboard Redesign + Self-Healing
+  "revenue-dashboard-verify": testRevenueDashboardVerify,
+  "knowledge-base-verify": testKnowledgeBaseVerify,
+  "weekly-digest-verify": testWeeklyDigestVerify,
+  "keyword-gap-verify": testKeywordGapVerify,
+  "partnership-discovery-verify": testPartnershipDiscoveryVerify,
+  "market-opportunity-verify": testMarketOpportunityVerify,
+  "trend-alerts-verify": testTrendAlertsVerify,
+  "status-indicators-verify": testStatusIndicatorsVerify,
+  "contextual-actions-verify": testContextualActionsVerify,
+  "content-feedback-verify": testContentFeedbackVerify,
+  "seo-adaptation-verify": testSeoAdaptationVerify,
+  "error-pattern-verify": testErrorPatternVerify,
+  "knowledge-transfer-verify": testKnowledgeTransferVerify,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -3202,5 +3216,166 @@ async function testEmailSocialAnalyticsVerify(): Promise<LiveTestResult> {
     plainLanguage: `Email + social analytics: email center=${emailCenter}, social calendar=${socialCalendar}. Unified analytics dashboard (open rates, click rates, engagement, follower growth) not yet built.`,
     json: { emailCenter, socialCalendar, status: "future" },
     error: { code: "NOT_IMPLEMENTED", message: "Email/social analytics dashboard not built", where: "app/admin/", howToFix: "Build unified analytics: email open/click rates, social engagement metrics, cross-channel performance comparison." },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH 5: BI + Dashboard Redesign + Self-Healing (13 tests)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Revenue Dashboard Verify ────────────────────────────────────────────────────
+async function testRevenueDashboardVerify(): Promise<LiveTestResult> {
+  const aiCosts = fileCheck("app/admin/ai-costs/page.tsx");
+  const affiliateHq = fileCheck("app/admin/affiliate-hq/page.tsx");
+  const commercePage = fileCheck("app/admin/cockpit/commerce/page.tsx");
+  return makeResult({
+    success: false, readiness: aiCosts && affiliateHq ? 25 : 0,
+    plainLanguage: `Revenue dashboard: AI costs page=${aiCosts}, affiliate HQ=${affiliateHq}, commerce page=${commercePage}. Unified revenue view (affiliate + ads + products) not yet built.`,
+    json: { aiCosts, affiliateHq, commercePage, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Unified revenue dashboard not built", where: "app/admin/", howToFix: "Build single-view revenue dashboard combining CJ commissions, ad revenue, and product sales with trend charts." },
+  });
+}
+
+// ── Knowledge Base Verify ───────────────────────────────────────────────────────
+async function testKnowledgeBaseVerify(): Promise<LiveTestResult> {
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: "Knowledge base system not yet built. Would centralize insights from analytics, SEO audits, and content performance into searchable knowledge base.",
+    json: { status: "not_started" },
+    error: { code: "NOT_IMPLEMENTED", message: "Knowledge base not built", where: "lib/intelligence/", howToFix: "Build knowledge base: ingest insights from GA4, GSC, CJ, content performance → structured storage → searchable API → dashboard display." },
+  });
+}
+
+// ── Weekly Digest Verify ────────────────────────────────────────────────────────
+async function testWeeklyDigestVerify(): Promise<LiveTestResult> {
+  const senderExists = fileCheck("lib/email/sender.ts");
+  const aggReport = fileCheck("app/api/admin/aggregated-report/route.ts");
+  return makeResult({
+    success: false, readiness: senderExists && aggReport ? 20 : 0,
+    plainLanguage: `Weekly digest: email sender=${senderExists}, aggregated report API=${aggReport}. Automated weekly email digest to owner not yet built.`,
+    json: { senderExists, aggReport, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Weekly digest email not built", where: "app/api/cron/", howToFix: "Build weekly cron that generates aggregated report → formats as email → sends to owner. All components exist, just needs wiring." },
+  });
+}
+
+// ── Keyword Gap Verify ──────────────────────────────────────────────────────────
+async function testKeywordGapVerify(): Promise<LiveTestResult> {
+  const topicResearch = fileCheck("app/api/admin/topic-research/route.ts");
+  const gscSync = fileCheck("app/api/cron/gsc-sync/route.ts");
+  return makeResult({
+    success: false, readiness: topicResearch && gscSync ? 20 : 0,
+    plainLanguage: `Keyword gap analysis: topic research API=${topicResearch}, GSC sync=${gscSync}. Automated keyword gap detection (what competitors rank for that we don't) not yet built.`,
+    json: { topicResearch, gscSync, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Keyword gap analysis not built", where: "lib/seo/", howToFix: "Build keyword gap tool: compare GSC keywords vs competitor keywords (from Grok/Perplexity research) → identify opportunities → feed to topic generation." },
+  });
+}
+
+// ── Partnership Discovery Verify ────────────────────────────────────────────────
+async function testPartnershipDiscoveryVerify(): Promise<LiveTestResult> {
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: "Partnership discovery not yet built. Would scan for potential affiliate, content, and advertising partnerships based on site traffic and content themes.",
+    json: { status: "not_started" },
+    error: { code: "NOT_IMPLEMENTED", message: "Partnership discovery not built", where: "lib/intelligence/", howToFix: "Build partnership scanner: analyze content themes + traffic → match with potential partners → outreach templates → CRM tracking." },
+  });
+}
+
+// ── Market Opportunity Verify ───────────────────────────────────────────────────
+async function testMarketOpportunityVerify(): Promise<LiveTestResult> {
+  const trendsMonitor = fileCheck("app/api/cron/trends-monitor/route.ts");
+  return makeResult({
+    success: false, readiness: trendsMonitor ? 15 : 0,
+    plainLanguage: `Market opportunity scanner: trends monitor=${trendsMonitor} (detects trending topics). Full market opportunity analysis (search volume trends, competitor gaps, seasonal patterns) not yet built.`,
+    json: { trendsMonitor, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Market opportunity scanner not built", where: "lib/intelligence/", howToFix: "Build market scanner: seasonal travel trends + search volume analysis + competitor content gaps → prioritized opportunity list." },
+  });
+}
+
+// ── Trend Alerts Verify ─────────────────────────────────────────────────────────
+async function testTrendAlertsVerify(): Promise<LiveTestResult> {
+  const trendsMonitor = fileCheck("app/api/cron/trends-monitor/route.ts");
+  const senderExists = fileCheck("lib/email/sender.ts");
+  return makeResult({
+    success: false, readiness: trendsMonitor ? 15 : 0,
+    plainLanguage: `Trend alerts: trends monitor=${trendsMonitor}, email sender=${senderExists}. Push notifications for trending topics not yet built.`,
+    json: { trendsMonitor, senderExists, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Trend alert system not built", where: "lib/intelligence/", howToFix: "Wire trends-monitor cron to email sender: when high-confidence trend detected → format alert → email to owner → add to topic queue." },
+  });
+}
+
+// ── Status Indicators Verify ────────────────────────────────────────────────────
+async function testStatusIndicatorsVerify(): Promise<LiveTestResult> {
+  const cockpitPage = fileCheck("app/admin/cockpit/page.tsx");
+  const content = readContent("app/admin/cockpit/page.tsx");
+  const hasStatusBadges = content.includes("badge") || content.includes("Badge") || content.includes("status");
+  const hasColorCoding = content.includes("green") || content.includes("red") || content.includes("amber") || content.includes("bg-");
+  return makeResult({
+    success: cockpitPage && hasStatusBadges,
+    readiness: cockpitPage && hasStatusBadges ? 40 : cockpitPage ? 20 : 0,
+    plainLanguage: `Status indicators: cockpit=${cockpitPage}, badges=${hasStatusBadges}, color coding=${hasColorCoding}. Basic indicators exist. Enhanced contextual status system (animated, predictive) not yet built.`,
+    json: { cockpitPage, hasStatusBadges, hasColorCoding, status: "partial" },
+  });
+}
+
+// ── Contextual Actions Verify ───────────────────────────────────────────────────
+async function testContextualActionsVerify(): Promise<LiveTestResult> {
+  const cockpitContent = readContent("app/admin/cockpit/page.tsx");
+  const hasQuickActions = cockpitContent.includes("Quick Action") || cockpitContent.includes("quickAction");
+  const hasDoNow = cockpitContent.includes("Do Now") || cockpitContent.includes("doNow");
+  const hasBottomSheet = fileCheck("components/shared/bottom-sheet.tsx");
+  return makeResult({
+    success: hasQuickActions,
+    readiness: hasQuickActions ? 40 : 0,
+    plainLanguage: `Contextual actions: quick actions=${hasQuickActions}, Do Now buttons=${hasDoNow}, bottom sheet=${hasBottomSheet}. Basic actions exist. AI-suggested contextual actions not yet built.`,
+    json: { hasQuickActions, hasDoNow, hasBottomSheet, status: "partial" },
+  });
+}
+
+// ── Content Feedback Verify ─────────────────────────────────────────────────────
+async function testContentFeedbackVerify(): Promise<LiveTestResult> {
+  const gscSync = fileCheck("app/api/cron/gsc-sync/route.ts");
+  const autoFix = fileCheck("app/api/cron/content-auto-fix/route.ts");
+  return makeResult({
+    success: false, readiness: gscSync && autoFix ? 20 : 0,
+    plainLanguage: `Content feedback loop: GSC sync=${gscSync}, auto-fix cron=${autoFix}. Automated cycle (measure performance → identify weak content → auto-improve → re-measure) not yet complete.`,
+    json: { gscSync, autoFix, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Content feedback loop not complete", where: "lib/content-pipeline/", howToFix: "Wire GSC performance data → identify articles with declining CTR/position → auto-trigger enhancement campaign → track improvement." },
+  });
+}
+
+// ── SEO Adaptation Verify ───────────────────────────────────────────────────────
+async function testSeoAdaptationVerify(): Promise<LiveTestResult> {
+  const standards = fileCheck("lib/seo/standards.ts");
+  const policyMonitor = fileCheck("scripts/weekly-policy-monitor.ts");
+  return makeResult({
+    success: false, readiness: policyMonitor ? 20 : 0,
+    plainLanguage: `SEO adaptation: standards file=${standards}, weekly policy monitor=${policyMonitor}. Auto-adaptation (detect Google algorithm changes → update standards → re-audit content) not yet built.`,
+    json: { standards, policyMonitor, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "SEO auto-adaptation not built", where: "lib/seo/", howToFix: "Wire weekly-policy-monitor to auto-update standards.ts when Google changes detected, then trigger content re-audit." },
+  });
+}
+
+// ── Error Pattern Verify ────────────────────────────────────────────────────────
+async function testErrorPatternVerify(): Promise<LiveTestResult> {
+  const diagnosticAgent = fileCheck("lib/ops/diagnostic-agent.ts");
+  const errorInterpreter = fileCheck("lib/error-interpreter.ts");
+  return makeResult({
+    success: false, readiness: diagnosticAgent && errorInterpreter ? 30 : 0,
+    plainLanguage: `Error pattern recognition: diagnostic agent=${diagnosticAgent}, error interpreter=${errorInterpreter}. Basic pattern matching exists. ML-based error prediction and proactive prevention not yet built.`,
+    json: { diagnosticAgent, errorInterpreter, status: "partial" },
+    error: { code: "NOT_IMPLEMENTED", message: "Advanced error pattern recognition not built", where: "lib/ops/", howToFix: "Build error pattern DB: aggregate CronJobLog errors → detect recurring patterns → predict failures → alert before they happen." },
+  });
+}
+
+// ── Knowledge Transfer Verify ───────────────────────────────────────────────────
+async function testKnowledgeTransferVerify(): Promise<LiveTestResult> {
+  const claudeMd = fileCheck("CLAUDE.md");
+  const auditLog = fileCheck("docs/AUDIT-LOG.md");
+  const roadmap = fileCheck("docs/FUNCTIONING-ROADMAP.md");
+  return makeResult({
+    success: false, readiness: claudeMd && auditLog ? 25 : 0,
+    plainLanguage: `Knowledge transfer: CLAUDE.md=${claudeMd}, AUDIT-LOG.md=${auditLog}, FUNCTIONING-ROADMAP.md=${roadmap}. Manual docs exist. Automated session-to-session knowledge persistence not yet built.`,
+    json: { claudeMd, auditLog, roadmap, status: "partial" },
+    error: { code: "NOT_IMPLEMENTED", message: "Automated knowledge transfer not built", where: "lib/intelligence/", howToFix: "Build automated knowledge persistence: extract key decisions/fixes from each session → structured DB → context injection for next session." },
   });
 }

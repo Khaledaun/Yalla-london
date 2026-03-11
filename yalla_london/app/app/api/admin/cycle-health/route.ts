@@ -900,7 +900,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     if (!isGA4Configured()) {
       issues.push({
         id: "ga4-not-configured",
-        category: "analytics" as const,
+        category: "seo" as const,
         severity: "medium" as const,
         what: "GA4 not configured — no website traffic data",
         why: "Google Analytics credentials are missing. The cockpit dashboard cannot show sessions, users, or page views.",

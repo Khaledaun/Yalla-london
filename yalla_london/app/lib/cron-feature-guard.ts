@@ -52,6 +52,10 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "affiliate-sync-commissions": "CRON_AFFILIATE_SYNC_COMMISSIONS",
   "affiliate-discover-deals": "CRON_AFFILIATE_DISCOVER_DEALS",
   "affiliate-refresh-links": "CRON_AFFILIATE_REFRESH_LINKS",
+  "campaign-executor": "CRON_CAMPAIGN_EXECUTOR",
+  "daily-seo-audit": "CRON_DAILY_SEO_AUDIT",
+  "process-indexing-queue": "CRON_PROCESS_INDEXING_QUEUE",
+  "discovery-monitor": "CRON_DISCOVERY_MONITOR",
 };
 
 /**

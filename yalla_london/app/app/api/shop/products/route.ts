@@ -18,8 +18,10 @@ export async function GET(request: NextRequest) {
     const featured = searchParams.get("featured");
     const search = searchParams.get("search");
 
-    // Build filter
-    const where: Record<string, unknown> = { is_active: true };
+    // Build filter — scope by siteId
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+    const where: Record<string, unknown> = { is_active: true, site_id: siteId };
 
     if (category && category !== "all") {
       where.product_type = category;

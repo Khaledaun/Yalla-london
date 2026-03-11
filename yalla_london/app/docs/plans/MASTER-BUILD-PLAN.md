@@ -2,7 +2,7 @@
 
 ## Claude Code Session Prompt (Read Before Every Session)
 
-**Version:** March 11, 2026 — v3.0
+**Version:** March 11, 2026 — v3.1 (Round 3 audit applied)
 **Platform:** Yalla London v1.0 + Zenitha Yachts
 **Entity:** Zenitha.Luxury LLC (Delaware)
 **Owner:** Khaled N. Aun, Founder
@@ -134,22 +134,31 @@ Site-Specific Cautions:
 
 ### What's Working End-to-End ✅
 
-Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with affiliates), pre-publication gate (16 checks), per-content-type quality gates, SEO agent (IndexNow ×3 engines), AI reliability (circuit breaker + last-defense + phase-aware budgets), AI cost tracking, cockpit mission control (7 tabs, mobile-first), departures board, per-page audit, cycle health analyzer (grade A-F), system health audit (47 checks), cache-first sitemap (<200ms), unified indexing status, crawl freshness validator, per-site activation controller, cron resilience (feature flags + alerting + rate limiting), named author profiles (E-E-A-T), title sanitization + cannibalization detection, content-auto-fix (orphan resolution, thin unpublish, duplicate detection, broken links, never-submitted catch-up), GEO optimization (all prompts + citability gate), CJ affiliate (9-phase hardened with SID tracking), GSC sync (per-day, no overcounting), aggregated report v2 (6-component scoring), topic diversification (60-70% general + 30-40% niche), `?lang=ar` → `/ar/` 301 redirect, URL-based language switcher, SEO URL hygiene (full audit clean), news pipeline (multi-site, budget-guarded), design system (98%, 13/13 components), website builder wizard (95%), Zenitha Yachts (68+ files, hermetically separated, built—pending deploy).
+Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with affiliates), pre-publication gate (16 checks), per-content-type quality gates, SEO agent (IndexNow ×3 engines), AI reliability (circuit breaker + last-defense + phase-aware budgets), AI cost tracking, cockpit mission control (7 tabs, mobile-first), departures board, per-page audit, cycle health analyzer (grade A-F), system health audit (47 checks), cache-first sitemap (<200ms), unified indexing status, crawl freshness validator, per-site activation controller, cron resilience (feature flags + alerting + rate limiting), named author profiles (E-E-A-T), title sanitization + cannibalization detection, content-auto-fix (orphan resolution, thin unpublish, duplicate detection, broken links, never-submitted catch-up), GEO optimization (all prompts + citability gate), CJ affiliate (9-phase hardened with SID tracking), GSC sync (per-day, no overcounting), aggregated report v2 (6-component scoring), topic diversification (60-70% general + 30-40% niche), `?lang=ar` → `/ar/` 301 redirect, URL-based language switcher, SEO URL hygiene (full audit clean), news pipeline (multi-site, budget-guarded), design system (98%, 13/13 components), website builder wizard (95%), Zenitha Yachts (68+ files, hermetically separated, built—pending deploy), login rate limiting (5/15min + exponential backoff), cookie consent banner (bilingual, 4 categories).
+
+**Fragility Audit Rounds (Mar 11, 3 rounds, 27 fixes total):**
+- **Round 1 (10 fixes):** Math.random()→crypto in task-runner, discovery-monitor standardized imports, select-runner dedup marker timing, content-auto-fix skip <2h articles, site-keywords hardcoded fallback, safeHtmlTruncate tag-breaking fix
+- **Round 2 (10 fixes):** /api/sitemap/generate POST auth gap closed, 9 unbounded Prisma queries capped (indexing-summary ×3, content-strategy, dynamic-internal-linking, indexing-service ×3)
+- **Round 3 (7 fixes):** affiliate inject query siteId+take:200, campaign-executor feature flag (wrong field names), campaign-executor onCronFailure hook, cron-feature-guard 4 new entries, analytics POST handler, shop/products siteId scoping
+- **Security audit (Round 3):** 633+ admin routes auth-verified, 0 auth bypasses, 0 XSS, 0 info disclosure on public APIs, all dangerouslySetInnerHTML sanitized. Content pipeline 5/5 critical paths fully hardened.
 
 ### Known Gaps (Stage A — Fix Before Building)
 
-|# |Gap                                                             |Severity|Phase|
-|--|----------------------------------------------------------------|--------|-----|
-|1 |GA4 dashboard returns 0s (MCP works, need API wiring)           |MEDIUM  |A.1  |
-|2 |Affiliate click tracking (no JS handler, model exists)          |MEDIUM  |A.1  |
-|3 |Per-site OG images don't exist (code references `{slug}-og.jpg`)|MEDIUM  |A.1  |
-|4 |Login rate limiting (no brute-force protection)                 |MEDIUM  |A.1  |
-|5 |**CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) |**HIGH**|A.2  |
-|6 |Arabic SSR (KG-032) — `/ar/` serves English HTML server-side    |MEDIUM  |A.2  |
-|7 |Feature flags not wired to all runtime behavior                 |LOW     |A.2  |
-|8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |
-|9 |Cookie consent banner (EU legal)                                |MEDIUM  |A.3  |
-|10|16+ orphan Prisma models                                        |LOW     |A.4  |
+|# |Gap                                                             |Severity|Phase|Status|
+|--|----------------------------------------------------------------|--------|-----|------|
+|1 |GA4 dashboard returns 0s (MCP works, need API wiring)           |MEDIUM  |A.1  |Open  |
+|2 |Affiliate click tracking (no JS handler, model exists)          |MEDIUM  |A.1  |Open  |
+|3 |Per-site OG images don't exist (code references `{slug}-og.jpg`)|MEDIUM  |A.1  |Open  |
+|4 |~~Login rate limiting~~ (5/15min + exponential backoff)          |~~MEDIUM~~|~~A.1~~|**DONE**|
+|5 |**CJ models lack siteId** (CjCommission, CjClickEvent, CjOffer) |**HIGH**|A.2  |Open  |
+|6 |Arabic SSR (KG-032) — `/ar/` serves English HTML server-side    |MEDIUM  |A.2  |Open  |
+|7 |Feature flags not wired to all runtime behavior                 |LOW     |A.2  |Open  |
+|8 |Social media APIs (only Twitter auto-publish feasible)          |LOW     |A.3  |Open  |
+|9 |~~Cookie consent banner~~ (bilingual, 4 categories, in layout)   |~~MEDIUM~~|~~A.3~~|**DONE**|
+|10|16+ orphan Prisma models                                        |LOW     |A.4  |Open  |
+|11|19 unaudited crons (need 8-check rubric validation)             |MEDIUM  |A.2  |Open  |
+|12|5 cron schedule collisions at :00 minute (pool risk)            |MEDIUM  |A.2  |Open  |
+|13|9 orphan cron files (not scheduled, possibly dead code)         |LOW     |A.4  |Open  |
 
 -----
 
@@ -171,13 +180,15 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 **Goal:** Engine is safe for multiple active sites.
 
-|Task                    |What                                             |Blocker?                |
-|------------------------|-------------------------------------------------|------------------------|
-|CJ schema migration     |Add siteId to CjCommission, CjClickEvent, CjOffer|**YES — blocks site #2**|
-|Arabic SSR              |Server-render Arabic HTML at `/ar/` routes       |Blocks Arabic SEO       |
-|Feature flags completion|Wire remaining to runtime behavior               |No                      |
-|Brand templates         |Templates for non-London sites                   |No                      |
-|Connection pool audit   |Verify no cron collisions remain                 |No                      |
+|Task                    |What                                                                     |Blocker?                |
+|------------------------|-------------------------------------------------------------------------|------------------------|
+|CJ schema migration     |Add siteId to CjCommission, CjClickEvent, CjOffer                       |**YES — blocks site #2**|
+|Arabic SSR              |Server-render Arabic HTML at `/ar/` routes                               |Blocks Arabic SEO       |
+|Feature flags completion|Wire remaining to runtime behavior                                        |No                      |
+|Brand templates         |Templates for non-London sites                                           |No                      |
+|Cron schedule stagger   |Eliminate 5-cron :00 collision (analytics, gsc-sync, content-gen, seo)   |No (pool risk)          |
+|Full cron audit         |Audit 19 unaudited crons against 8-check rubric                         |No (operational risk)   |
+|Orphan cron cleanup     |Determine if 9 unscheduled cron files are dead code or intentional       |No                      |
 
 ### Phase A.3: Compliance & Social
 
@@ -351,7 +362,7 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 -----
 
-## 6. CRITICAL ARCHITECTURE RULES (61 Total)
+## 6. CRITICAL ARCHITECTURE RULES (65 Total)
 
 ### Hard Rules (1-14)
 
@@ -394,7 +405,7 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 ### Operations Rules (57-61)
 
-57: Diagnostic-agent inflates active count — exclude `[diagnostic-agent*]` drafts. 58: Crons at same minute fight for pool — stagger 15-30 min. 59: News admin passes siteId via `?site_id=`. 60: Social = manual copy-paste primary workflow. 61: Site wizard = DB records only, code deploy still needed.
+57: Diagnostic-agent inflates active count — exclude `[diagnostic-agent*]` drafts. 58: Crons at same minute fight for pool — stagger 15-30 min. 59: News admin passes siteId via `?site_id=`. 60: Social = manual copy-paste primary workflow. 61: Site wizard = DB records only, code deploy still needed. 62: `checkCronEnabled(jobName)` is THE standard for feature flag guards — never use manual Prisma queries against FeatureFlag (field names differ). 63: FeatureFlag schema has `name` + `enabled` fields — NOT `key` + `isActive`. 64: Every `bulkInjectAffiliates()` and similar bulk operations MUST accept and filter by siteId — unbounded cross-site queries are CRITICAL vulnerabilities. 65: All new crons MUST be added to `CRON_FLAG_MAP` in `lib/cron-feature-guard.ts`.
 
 -----
 

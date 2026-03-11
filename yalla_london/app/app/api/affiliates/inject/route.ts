@@ -276,10 +276,10 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
-    const { contentId, content, mode = "preview", category } = body;
+    const { contentId, content, mode = "preview", category, siteId } = body;
 
     if (mode === "bulk") {
-      return await bulkInjectAffiliates();
+      return await bulkInjectAffiliates(siteId || request.headers.get("x-site-id") || undefined);
     }
 
     if (contentId) {
@@ -501,16 +501,19 @@ async function injectIntoPost(postId: string, mode: string) {
 /**
  * Bulk inject affiliates into all published posts
  */
-async function bulkInjectAffiliates() {
+async function bulkInjectAffiliates(siteId?: string) {
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
+  const effectiveSiteId = siteId || getDefaultSiteId();
 
   const posts = await prisma.blogPost.findMany({
     where: {
       published: true,
-      
+      siteId: effectiveSiteId,
       content_en: { not: "" },
     },
     select: { id: true, content_en: true, content_ar: true, slug: true },
+    take: 200,
   });
 
   let injectedCount = 0;

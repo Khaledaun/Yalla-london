@@ -243,3 +243,8 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// POST handler for departures board "Do Now" compatibility
+export async function POST(request: NextRequest) {
+  return GET(request);
+}

@@ -132,6 +132,20 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "multisite-middleware": testMultisiteMiddleware,
   "multisite-db-scoping": testMultisiteDbScoping,
   "multisite-wizard": testMultisiteWizard,
+  // Stage A.2 additions
+  "connection-pool-audit": testConnectionPoolAudit,
+  // Stage B: Website Builder additions
+  "lessons-db-verify": testLessonsDbVerify,
+  "template-library-verify": testTemplateLibraryVerify,
+  "preflight-checklist-verify": testPreflightChecklistVerify,
+  "post-launch-watchdog-verify": testPostLaunchWatchdogVerify,
+  // Stage C: Site Building
+  "deploy-zenitha-yachts-verify": testDeployZenithaYachts,
+  "deploy-zenitha-luxury-verify": testDeployZenithaLuxury,
+  "build-arabaldives-verify": testBuildArabaldives,
+  "build-yalla-riviera-verify": testBuildYallaRiviera,
+  "build-yalla-istanbul-verify": testBuildYallaIstanbul,
+  "build-yalla-thailand-verify": testBuildYallaThailand,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -1921,5 +1935,148 @@ async function testMultisiteWizard(): Promise<LiveTestResult> {
     success: all, readiness: all ? 100 : 0,
     plainLanguage: `New site wizard: page=${pageExists}, API=${apiExists}, builder=${builderExists}.`,
     json: { pageExists, apiExists, builderExists },
+  });
+}
+
+// ── A.2.5 — Connection Pool Audit ──────────────────────────────────────────────
+async function testConnectionPoolAudit(): Promise<LiveTestResult> {
+  // Check vercel.json cron schedule for collisions (same minute)
+  const content = readContent("../../vercel.json");
+  if (!content) return makeResult({ success: false, readiness: 0, plainLanguage: "vercel.json not found." });
+  const cronTimes: string[] = [];
+  const cronRegex = /"schedule"\s*:\s*"([^"]+)"/g;
+  let match;
+  while ((match = cronRegex.exec(content)) !== null) cronTimes.push(match[1]);
+  // Check for exact minute collisions (very rough — cron expressions vary)
+  const collisions: string[] = [];
+  for (let i = 0; i < cronTimes.length; i++) {
+    for (let j = i + 1; j < cronTimes.length; j++) {
+      if (cronTimes[i] === cronTimes[j]) collisions.push(cronTimes[i]);
+    }
+  }
+  const ok = collisions.length === 0;
+  return makeResult({
+    success: ok, readiness: ok ? 100 : 50,
+    plainLanguage: `${cronTimes.length} cron schedules found. ${collisions.length} exact duplicates: ${collisions.join(", ") || "none"}.`,
+    json: { totalCrons: cronTimes.length, collisions },
+  });
+}
+
+// ── WB.1.1 — Encoded Lessons Database ──────────────────────────────────────────
+async function testLessonsDbVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/new-site/lessons-db.ts");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: exists ? "Lessons database file exists." : "lib/new-site/lessons-db.ts not built yet.",
+    json: { exists },
+  });
+}
+
+// ── WB.1.3 — Site Template Library ─────────────────────────────────────────────
+async function testTemplateLibraryVerify(): Promise<LiveTestResult> {
+  // Check for template files or a template registry
+  const exists = fileCheck("lib/new-site/templates.ts") || fileCheck("lib/new-site/template-library.ts");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: exists ? "Template library exists." : "No site template library built yet.",
+    json: { exists },
+  });
+}
+
+// ── WB.1.4 — Automated Pre-Flight Checklist ────────────────────────────────────
+async function testPreflightChecklistVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/new-site/preflight.ts") || fileCheck("lib/new-site/preflight-checklist.ts");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: exists ? "Pre-flight checklist module exists." : "No automated pre-flight checklist built yet.",
+    json: { exists },
+  });
+}
+
+// ── WB.1.5 — Post-Launch 48h Watchdog ──────────────────────────────────────────
+async function testPostLaunchWatchdogVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/new-site/watchdog.ts") || fileCheck("lib/new-site/post-launch-monitor.ts");
+  return makeResult({
+    success: exists, readiness: exists ? 100 : 0,
+    plainLanguage: exists ? "Post-launch watchdog module exists." : "No post-launch watchdog built yet.",
+    json: { exists },
+  });
+}
+
+// ── SC.1.1 — Deploy Zenitha Yachts ─────────────────────────────────────────────
+async function testDeployZenithaYachts(): Promise<LiveTestResult> {
+  // Check if yacht models exist in schema + migration exists
+  const schemaContent = readContent("../../prisma/schema.prisma");
+  const hasYachtModel = schemaContent.includes("model Yacht ");
+  const migrationExists = fileCheck("../../prisma/migrations/20260221_add_yacht_charter_models/migration.sql");
+  const siteShellExists = fileCheck("components/site-shell.tsx");
+  const headerExists = fileCheck("components/zenitha/zenitha-header.tsx");
+  const all = hasYachtModel && siteShellExists && headerExists;
+  return makeResult({
+    success: all, readiness: all ? 90 : (hasYachtModel ? 70 : 0),
+    plainLanguage: `Zenitha Yachts: schema=${hasYachtModel}, migration=${migrationExists}, shell=${siteShellExists}, header=${headerExists}. Deploy requires: Prisma migrate + DNS + Vercel env vars.`,
+    json: { hasYachtModel, migrationExists, siteShellExists, headerExists },
+  });
+}
+
+// ── SC.1.2 — Deploy Zenitha.Luxury ─────────────────────────────────────────────
+async function testDeployZenithaLuxury(): Promise<LiveTestResult> {
+  // Check if the site is configured
+  const sitesContent = readContent("config/sites.ts");
+  const configured = sitesContent.includes("zenitha-luxury") || sitesContent.includes("zenitha.luxury");
+  return makeResult({
+    success: false, readiness: configured ? 20 : 0,
+    plainLanguage: configured
+      ? "zenitha.luxury is in config but site not built yet (Stage B.5)."
+      : "zenitha.luxury not in config/sites.ts. Needs Stage B.5 (Website Builder) first.",
+    json: { configured },
+  });
+}
+
+// ── SC.2.1 — Build Arabaldives ─────────────────────────────────────────────────
+async function testBuildArabaldives(): Promise<LiveTestResult> {
+  const researchExists = fileCheck("docs/site-research/02-arabaldives.md");
+  const sitesContent = readContent("config/sites.ts");
+  const inConfig = sitesContent.includes("arabaldives");
+  return makeResult({
+    success: false, readiness: researchExists ? 15 : 0,
+    plainLanguage: `Arabaldives: research=${researchExists}, inConfig=${inConfig}. REQUIRES Arabic SSR (A.2.2) fixed first.`,
+    json: { researchExists, inConfig },
+  });
+}
+
+// ── SC.2.2 — Build Yalla Riviera ───────────────────────────────────────────────
+async function testBuildYallaRiviera(): Promise<LiveTestResult> {
+  const researchExists = fileCheck("docs/site-research/03-yalla-riviera.md");
+  const sitesContent = readContent("config/sites.ts");
+  const inConfig = sitesContent.includes("french-riviera") || sitesContent.includes("yalla-riviera");
+  return makeResult({
+    success: false, readiness: researchExists ? 15 : 0,
+    plainLanguage: `Yalla Riviera: research=${researchExists}, inConfig=${inConfig}. Yacht charter commissions 20% — high value.`,
+    json: { researchExists, inConfig },
+  });
+}
+
+// ── SC.2.3 — Build Yalla Istanbul ──────────────────────────────────────────────
+async function testBuildYallaIstanbul(): Promise<LiveTestResult> {
+  const researchExists = fileCheck("docs/site-research/05-yalla-istanbul.md");
+  const sitesContent = readContent("config/sites.ts");
+  const inConfig = sitesContent.includes("istanbul");
+  return makeResult({
+    success: false, readiness: researchExists ? 15 : 0,
+    plainLanguage: `Yalla Istanbul: research=${researchExists}, inConfig=${inConfig}. Highest revenue ceiling per site research.`,
+    json: { researchExists, inConfig },
+  });
+}
+
+// ── SC.2.4 — Build Yalla Thailand ──────────────────────────────────────────────
+async function testBuildYallaThailand(): Promise<LiveTestResult> {
+  const researchExists = fileCheck("docs/site-research/04-yalla-thailand.md");
+  const sitesContent = readContent("config/sites.ts");
+  const inConfig = sitesContent.includes("thailand");
+  return makeResult({
+    success: false, readiness: researchExists ? 15 : 0,
+    plainLanguage: `Yalla Thailand: research=${researchExists}, inConfig=${inConfig}. 40M+ annual tourists, strong GCC pipeline.`,
+    json: { researchExists, inConfig },
   });
 }

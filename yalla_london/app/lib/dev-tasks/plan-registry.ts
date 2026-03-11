@@ -73,30 +73,30 @@ export const STAGE_A_PLAN: DevPlan = {
       dueDate: "2026-03-04", startDate: "2026-03-04", category: "config",
     },
 
-    // ── Phase A.2: Multi-Site Hardening (4 tasks) ────────────────────────────
+    // ── Phase A.2: Multi-Site Hardening (5 tasks) ────────────────────────────
     {
-      id: "A.2.1", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 1, taskTotal: 4,
+      id: "A.2.1", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 1, taskTotal: 5,
       title: "CJ Schema Migration",
-      description: "Add siteId to CJ models (CjCommission, CjClickEvent, CjOffer) so revenue data doesn't leak between sites.",
+      description: "Add siteId to CjCommission, CjClickEvent, CjOffer. YES — blocks site #2. Revenue data leaks between sites without this.",
       testType: "cj-schema-check", testable: true, status: "todo", readiness: 0,
       dueDate: "2026-03-18", startDate: "2026-03-11", category: "pipeline",
     },
     {
-      id: "A.2.2", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 2, taskTotal: 4,
+      id: "A.2.2", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 2, taskTotal: 5,
       title: "Arabic SSR",
-      description: "Server-render Arabic HTML at /ar/ routes so Google indexes Arabic content properly. Currently returns English HTML.",
+      description: "Server-render Arabic HTML at /ar/ routes so Google indexes Arabic content properly. Currently returns English HTML. Blocks Arabic SEO.",
       testType: "arabic-ssr-check", testable: true, status: "todo", readiness: 0,
       dueDate: "2026-03-20", startDate: "2026-03-11", category: "seo",
     },
     {
-      id: "A.2.3", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 3, taskTotal: 4,
+      id: "A.2.3", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 3, taskTotal: 5,
       title: "Feature Flags Runtime Wiring",
       description: "lib/feature-flags.ts with isFeatureFlagEnabled() + 60s cache. lib/cron-feature-guard.ts maps 32+ crons.",
       testType: "feature-flags-verify", testable: true, status: "done", readiness: 100,
       dueDate: "2026-03-04", startDate: "2026-03-04", category: "config",
     },
     {
-      id: "A.2.4", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 4, taskTotal: 4,
+      id: "A.2.4", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 4, taskTotal: 5,
       title: "Brand Templates for Non-London Sites",
       description: "getBrandProfile() returns correct colors, fonts, and names for all 6 sites. Brand kit generator produces per-site output.",
       testType: "brand-kit-test",
@@ -106,6 +106,13 @@ export const STAGE_A_PLAN: DevPlan = {
       dueDate: "2026-03-11",
       startDate: "2026-03-04",
       category: "content",
+    },
+    {
+      id: "A.2.5", phase: "A.2 Multi-Site Hardening", phaseOrder: 2, taskOrder: 5, taskTotal: 5,
+      title: "Connection Pool Audit",
+      description: "Verify no cron collisions remain. Crons at same minute fight for PgBouncer pool. Stagger 15-30 min apart.",
+      testType: "connection-pool-audit", testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-03-20", startDate: "2026-03-11", category: "config",
     },
 
     // ── Phase A.3: Compliance & Social (4 tasks) ─────────────────────────────
@@ -1177,7 +1184,7 @@ export const DESIGN_MEDIA_ENGINE_PLAN: DevPlan = {
       phase: "DME.2 Video & Viral Content",
       phaseOrder: 2, taskOrder: 3, taskTotal: 4,
       title: "Video Render Infrastructure",
-      description: "Remotion render-engine.ts can't run in Vercel (60s timeout). Set up: Remotion Lambda for cloud rendering OR external render service. Return download URL to dashboard.",
+      description: "CAUTION: Video rendering CANNOT run in Vercel (60s). Options: Remotion Cloud ($), external worker on Railway/Render, or pre-render and cache. Return download URL to dashboard.",
       testType: "video-render-verify",
       testable: true, status: "todo", readiness: 10,
       dueDate: "2026-05-10", startDate: "2026-04-15", category: "config",
@@ -1284,8 +1291,8 @@ export const COMMERCE_PAYMENTS_PLAN: DevPlan = {
       id: "COM.2.1",
       phase: "COM.2 Etsy Commerce",
       phaseOrder: 2, taskOrder: 1, taskTotal: 4,
-      title: "Etsy OAuth Connection in Production",
-      description: "Set ETSY_API_KEY, ETSY_SHARED_SECRET, ETSY_REDIRECT_URI in Vercel. OAuth2 PKCE flow already built. Test connection + shop lookup + listing creation end-to-end.",
+      title: "Etsy OAuth Connection (Build from Scratch)",
+      description: "NOTE: Old etsy-sync cron was deleted as orphan. Build NEW client: OAuth, listings CRUD, inventory sync. Set ETSY_API_KEY, ETSY_SHARED_SECRET, ETSY_REDIRECT_URI. Do NOT resurrect old code.",
       testType: "etsy-connection-verify",
       testable: true, status: "todo", readiness: 70,
       dueDate: "2026-03-22", startDate: "2026-03-12", category: "config",
@@ -1334,23 +1341,23 @@ export const WEBSITE_BUILDER_PLAN: DevPlan = {
   project: "general / march26",
   title: "Website Builder Enhancement & Zenitha.Luxury Launch",
   tasks: [
-    // ── Phase WB.1: Builder Enhancement (3 tasks) ───────────────────────────
+    // ── Phase WB.1: Builder Enhancement (5 tasks) ───────────────────────────
     {
       id: "WB.1.1",
       phase: "WB.1 Builder Enhancement",
-      phaseOrder: 1, taskOrder: 1, taskTotal: 3,
-      title: "Encoded Lessons Database",
-      description: "Build lib/new-site/lessons-db.ts: structured lessons from 14+ audits, 61 architecture rules, 47 known gaps. Builder checks lessons before each step. Prevents repeating mistakes.",
-      testType: "new-site-wizard-verify",
+      phaseOrder: 1, taskOrder: 1, taskTotal: 5,
+      title: "Encoded Error Knowledge Base",
+      description: "Encode all 61 critical rules as automated checks that run during site build. SiteShell pattern, CSS custom properties for tokens (not Tailwind config), language switcher = URL nav, Arabic SSR, siteId on all queries, zenitha.luxury excluded from crons, video can't run in Vercel.",
+      testType: "lessons-db-verify",
       testable: true, status: "todo", readiness: 20,
       dueDate: "2026-03-28", startDate: "2026-03-15", category: "pipeline",
     },
     {
       id: "WB.1.2",
       phase: "WB.1 Builder Enhancement",
-      phaseOrder: 1, taskOrder: 2, taskTotal: 3,
+      phaseOrder: 1, taskOrder: 2, taskTotal: 5,
       title: "Auto-Config Generation",
-      description: "Builder auto-generates: config/sites.ts entry, middleware.ts domain mapping, next.config.js image/CORS entries, vercel.json cron entries. Currently these all require manual code deploy.",
+      description: "Builder auto-generates: config/sites.ts entry, middleware.ts domain mapping, next.config.js image/CORS entries. Currently these all require manual code deploy.",
       testType: "auto-config-verify",
       testable: true, status: "todo", readiness: 0,
       dueDate: "2026-04-10", startDate: "2026-03-25", category: "pipeline",
@@ -1358,12 +1365,33 @@ export const WEBSITE_BUILDER_PLAN: DevPlan = {
     {
       id: "WB.1.3",
       phase: "WB.1 Builder Enhancement",
-      phaseOrder: 1, taskOrder: 3, taskTotal: 3,
-      title: "Post-Build Audit Runner",
-      description: "After building a new site: auto-runs 6-dimension audit (imports, APIs, Prisma, SEO, auth, siteId), smoke tests, schema validation. Reports findings in wizard UI before going live.",
-      testType: "post-build-audit-verify",
+      phaseOrder: 1, taskOrder: 3, taskTotal: 5,
+      title: "Site Template Library",
+      description: "Create site archetypes: travel blog, yacht platform, curated portfolio, e-commerce. Wizard pulls from research reports to pre-fill prompts, keywords, affiliate partners.",
+      testType: "template-library-verify",
       testable: true, status: "todo", readiness: 0,
-      dueDate: "2026-04-15", startDate: "2026-04-05", category: "pipeline",
+      dueDate: "2026-04-15", startDate: "2026-04-01", category: "content",
+    },
+    {
+      id: "WB.1.4",
+      phase: "WB.1 Builder Enhancement",
+      phaseOrder: 1, taskOrder: 4, taskTotal: 5,
+      title: "Automated Pre-Flight Checklist",
+      description: "DNS check, SSL verify, sitemap test, IndexNow ping, sample content generation, SEO audit. All automated — no manual steps for Khaled.",
+      testType: "preflight-checklist-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-04-20", startDate: "2026-04-10", category: "pipeline",
+      dependsOn: ["WB.1.1"],
+    },
+    {
+      id: "WB.1.5",
+      phase: "WB.1 Builder Enhancement",
+      phaseOrder: 1, taskOrder: 5, taskTotal: 5,
+      title: "Post-Launch 48h Watchdog",
+      description: "First-48h monitoring: cron health, content generation, indexing submission, error rates. Auto-alerts on failures. Replaces manual post-build audit.",
+      testType: "post-launch-watchdog-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-04-25", startDate: "2026-04-15", category: "pipeline",
       dependsOn: ["WB.1.1"],
     },
 
@@ -1373,7 +1401,7 @@ export const WEBSITE_BUILDER_PLAN: DevPlan = {
       phase: "WB.2 Zenitha.Luxury Website",
       phaseOrder: 2, taskOrder: 1, taskTotal: 3,
       title: "Zenitha.Luxury Portfolio Site Design",
-      description: "Parent brand website for authority. CURATED content (NOT auto-generated). Showcases: network of sites, content quality, team, partnerships. Premium design with entity config branding.",
+      description: "CURATED parent brand — NOT auto-generated. EXCLUDE from: weekly-topics, daily-content-generate, trends-monitor, content-builder, content-selector, affiliate-injection, content-auto-fix. Pages: Home, About, Portfolio, Team, Press/Media, Contact, Legal. Premium editorial design (Condé Nast Traveller inspiration). Organization schema + brand authority backlinks to all child sites.",
       testType: "zenitha-luxury-verify",
       testable: true, status: "todo", readiness: 0,
       dueDate: "2026-04-25", startDate: "2026-04-10", category: "content",
@@ -1712,6 +1740,84 @@ export const SELF_HEALING_PLAN: DevPlan = {
   ],
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// STAGE C: SITE BUILDING (after Stage B capabilities ready)
+// Deploy and build new sites on the proven, fully-capable engine.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SITE_BUILDING_PLAN: DevPlan = {
+  id: "site-building",
+  project: "general / march26",
+  title: "Stage C: Site Building & Deployment",
+  tasks: [
+    // ── Phase SC.1: Deploy Built Sites (2 tasks) ──────────────────────────
+    {
+      id: "SC.1.1",
+      phase: "SC.1 Deploy Built Sites",
+      phaseOrder: 1, taskOrder: 1, taskTotal: 2,
+      title: "Deploy Zenitha Yachts",
+      description: "Already built (68+ files). Run Prisma migration (8 yacht models), add Vercel env vars (GA4, GSC, Google Verify for zenitha-yachts-med), point zenithayachts.com DNS to Vercel.",
+      testType: "deploy-zenitha-yachts-verify",
+      testable: true, status: "todo", readiness: 90,
+      dueDate: "2026-04-01", startDate: "2026-03-20", category: "config",
+    },
+    {
+      id: "SC.1.2",
+      phase: "SC.1 Deploy Built Sites",
+      phaseOrder: 1, taskOrder: 2, taskTotal: 2,
+      title: "Deploy Zenitha.Luxury",
+      description: "Built in Stage B.5. CURATED — EXCLUDED from ALL auto-generation crons. Point zenitha.luxury DNS to Vercel. Organization schema linking all child sites.",
+      testType: "deploy-zenitha-luxury-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-05-15", startDate: "2026-05-01", category: "config",
+      dependsOn: ["WB.2.1"],
+    },
+
+    // ── Phase SC.2: Build New Sites (4 tasks) ─────────────────────────────
+    {
+      id: "SC.2.1",
+      phase: "SC.2 Build New Sites",
+      phaseOrder: 2, taskOrder: 1, taskTotal: 4,
+      title: "Build & Launch Arabaldives",
+      description: "Arabic-first Maldives. REQUIRES Arabic SSR (A.2.2) fixed first. Research report: docs/site-research/02-arabaldives.md (670 lines). Halal resort reviews, atoll guides, HalalBooking affiliate priority.",
+      testType: "build-arabaldives-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-06-01", startDate: "2026-05-15", category: "content",
+      dependsOn: ["A.2.2"],
+    },
+    {
+      id: "SC.2.2",
+      phase: "SC.2 Build New Sites",
+      phaseOrder: 2, taskOrder: 2, taskTotal: 4,
+      title: "Build & Launch Yalla Riviera",
+      description: "French Riviera / Côte d'Azur. Research: docs/site-research/03-yalla-riviera.md (712 lines). $75B+ GCC spending. Yacht charter commissions 20% on $5K-50K — HIGH VALUE. Boatbookings affiliate.",
+      testType: "build-yalla-riviera-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-06-15", startDate: "2026-06-01", category: "content",
+    },
+    {
+      id: "SC.2.3",
+      phase: "SC.2 Build New Sites",
+      phaseOrder: 2, taskOrder: 3, taskTotal: 4,
+      title: "Build & Launch Yalla Istanbul",
+      description: "HIGHEST REVENUE CEILING per site research. Research: docs/site-research/05-yalla-istanbul.md (782 lines). $35B Turkish tourism, Ottoman+modern design, Bosphorus luxury positioning, bazaar culture.",
+      testType: "build-yalla-istanbul-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-07-01", startDate: "2026-06-15", category: "content",
+    },
+    {
+      id: "SC.2.4",
+      phase: "SC.2 Build New Sites",
+      phaseOrder: 2, taskOrder: 4, taskTotal: 4,
+      title: "Build & Launch Yalla Thailand",
+      description: "Strong GCC travel pipeline, 40M+ annual tourists. Research: docs/site-research/04-yalla-thailand.md (664 lines). Emerald + golden amber brand, island/temple/wellness/halal focus.",
+      testType: "build-yalla-thailand-verify",
+      testable: true, status: "todo", readiness: 0,
+      dueDate: "2026-07-15", startDate: "2026-07-01", category: "content",
+    },
+  ],
+};
+
 // ── Registry Functions ─────────────────────────────────────────────────────────
 
 const ALL_PLANS: DevPlan[] = [
@@ -1725,7 +1831,7 @@ const ALL_PLANS: DevPlan[] = [
   DESIGN_SYSTEM_PLAN,
   ZENITHA_YACHTS_PLAN,
   MULTI_SITE_PLAN,
-  // Forward-looking (Khaled's 10 priorities)
+  // Stage B: Capability building (Khaled's priorities)
   DESIGN_MEDIA_ENGINE_PLAN,
   PDF_PRINT_PLAN,
   COMMERCE_PAYMENTS_PLAN,
@@ -1734,6 +1840,8 @@ const ALL_PLANS: DevPlan[] = [
   BUSINESS_INTELLIGENCE_PLAN,
   DASHBOARD_REDESIGN_PLAN,
   SELF_HEALING_PLAN,
+  // Stage C: Site building
+  SITE_BUILDING_PLAN,
 ];
 
 export function getAllPlans(): DevPlan[] {

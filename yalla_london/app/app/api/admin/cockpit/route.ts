@@ -156,6 +156,18 @@ interface RevenueSnapshot {
   aiCostWeekUsd: number;
 }
 
+interface TrafficSnapshot {
+  sessions7d: number;
+  users7d: number;
+  pageViews7d: number;
+  bounceRate: number;
+  avgSessionDuration: number;
+  topPages: Array<{ path: string; pageViews: number }>;
+  topSources: Array<{ source: string; sessions: number }>;
+  configured: boolean;
+  fetchedAt: string | null;
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -282,6 +294,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       indexing: emptyIndexing(),
       cronHealth: emptyCronHealth(),
       revenue: emptyRevenue(),
+      traffic: emptyTraffic(),
       alerts,
       sites: [],
       timestamp: new Date().toISOString(),
@@ -328,6 +341,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   const cronHealth = await withErrorTracking(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth");
   const sites = await withErrorTracking(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites");
   const revenue = await withErrorTracking(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue");
+  const traffic = await withErrorTracking(buildTraffic(), BUILDER_TIMEOUT, emptyTraffic(), "buildTraffic");
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({
@@ -366,12 +380,32 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     });
   }
 
+  // GA4 traffic alerts
+  if (traffic.configured && traffic.sessions7d === 0) {
+    alerts.push({
+      severity: "warning",
+      code: "GA4_ZERO_SESSIONS",
+      message: "GA4 configured but reporting 0 sessions",
+      detail: "Google Analytics credentials are set but no traffic data was returned for the last 7 days. This could be a data delay (GA4 takes 24-48h) or a configuration issue.",
+      fix: "Check GA4 property ID matches your live site. Verify the service account has Viewer access. Wait 48h after initial setup.",
+    });
+  } else if (!traffic.configured) {
+    alerts.push({
+      severity: "info",
+      code: "GA4_NOT_CONFIGURED",
+      message: "GA4 not configured — no traffic data",
+      detail: "Add GA4_PROPERTY_ID and service account credentials to see website traffic on the dashboard.",
+      fix: "Add GA4_PROPERTY_ID, GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL, and GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY to Vercel environment variables.",
+    });
+  }
+
   const responseBody = {
     system,
     pipeline,
     indexing,
     cronHealth,
     revenue,
+    traffic,
     alerts,
     sites,
     builderErrors: builderErrors.length > 0 ? builderErrors : undefined,
@@ -968,6 +1002,10 @@ function emptyRevenue(): RevenueSnapshot {
   return { affiliateClicksToday: 0, affiliateClicksWeek: 0, conversionsWeek: 0, revenueWeekUsd: 0, topPartner: null, aiCostWeekUsd: 0 };
 }
 
+function emptyTraffic(): TrafficSnapshot {
+  return { sessions7d: 0, users7d: 0, pageViews7d: 0, bounceRate: 0, avgSessionDuration: 0, topPages: [], topSources: [], configured: false, fetchedAt: null };
+}
+
 // ─────────────────────────────────────────────
 // Revenue snapshot
 // ─────────────────────────────────────────────
@@ -1051,3 +1089,32 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
   return snapshot;
 }
 
+// ─────────────────────────────────────────────
+// Traffic snapshot (GA4 Data API)
+// ─────────────────────────────────────────────
+
+async function buildTraffic(): Promise<TrafficSnapshot> {
+  const snapshot = emptyTraffic();
+
+  try {
+    const { fetchGA4Metrics, isGA4Configured } = await import("@/lib/seo/ga4-data-api");
+    if (!isGA4Configured()) return snapshot;
+
+    snapshot.configured = true;
+    const report = await fetchGA4Metrics("7daysAgo", "today");
+    if (!report) return snapshot;
+
+    snapshot.sessions7d = report.metrics.sessions;
+    snapshot.users7d = report.metrics.totalUsers;
+    snapshot.pageViews7d = report.metrics.pageViews;
+    snapshot.bounceRate = report.metrics.bounceRate;
+    snapshot.avgSessionDuration = report.metrics.avgSessionDuration;
+    snapshot.topPages = report.topPages.slice(0, 5).map((p) => ({ path: p.path, pageViews: p.pageViews }));
+    snapshot.topSources = report.topSources.slice(0, 5);
+    snapshot.fetchedAt = report.fetchedAt;
+  } catch (err) {
+    console.warn("[cockpit] traffic fetch failed:", err instanceof Error ? err.message : err);
+  }
+
+  return snapshot;
+}

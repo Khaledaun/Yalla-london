@@ -245,7 +245,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = rawDescription.length > 160
     ? rawDescription.slice(0, 157) + "..."
     : rawDescription;
-  const image = post.featured_image || `${baseUrl}/images/${siteSlug}-og.jpg`;
+  const ogTitle = title.length > 60 ? title.slice(0, 59).trimEnd() + "\u2026" : title;
+  const image = post.featured_image || `${baseUrl}/api/og?siteId=${siteSlug}&title=${encodeURIComponent(ogTitle)}`;
   const createdAt =
     post.created_at instanceof Date
       ? post.created_at.toISOString()
@@ -469,7 +470,7 @@ function generateStructuredData(
     "@type": "Article",
     headline,
     description: schemaDescription,
-    image: post.featured_image || "",
+    image: post.featured_image || `${baseUrl}/api/og?siteId=${siteSlug}&title=${encodeURIComponent((post.title_en || post.title || "").slice(0, 60))}`,
     datePublished: createdAt,
     dateModified: updatedAt,
     author: author ? {

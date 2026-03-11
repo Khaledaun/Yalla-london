@@ -52,85 +52,21 @@ Work through phases in order. Each task follows the mandatory build cycle: Plan 
 
 ---
 
-### A.1.2 — Affiliate Click Tracking
+### A.1.2 — Affiliate Click Tracking — **DONE**
 
-**What:** When a visitor clicks an affiliate link on any article, log it to the database so we can track revenue attribution.
-
-**Current state:**
-- `AffiliateClick` Prisma model EXISTS
-- CJ SID tracking EXISTS (server-side link decoration)
-- No client-side click handler exists
-
-**Files to create/modify:**
-1. `components/affiliate-click-tracker.tsx` — NEW: Client component
-   - Intercepts clicks on `[data-affiliate-id]` and `[rel*="sponsored"]` links
-   - POSTs to `/api/affiliate/track-click` with: articleSlug, affiliatePartner, destinationUrl, siteId
-   - Fire-and-forget (don't block navigation)
-   - Uses `navigator.sendBeacon()` for reliability (works even on page unload)
-2. `app/api/affiliate/track-click/route.ts` — NEW: Public endpoint (no auth — visitor action)
-   - Rate limited (100/min per IP)
-   - Validates referrer is own domain
-   - Creates `AffiliateClick` record with siteId, articleSlug, partner, timestamp
-3. `app/blog/[slug]/page.tsx` — Add `<AffiliateClickTracker />` component
-4. `app/api/admin/affiliate-hq/route.ts` — Revenue tab queries real `AffiliateClick` data
-
-**Verify:**
-- `test-connections.html` → Affiliate panel → "Click Tracking" test returns OK
-- Open any article → click affiliate link → check DB has new AffiliateClick record
-- Affiliate HQ Revenue tab shows click counts per article
-- Smoke test: verify AffiliateClick schema fields exist
-
-**Dashboard impact:** Affiliate HQ → Revenue tab shows real click data per article.
+**Status:** ALREADY IMPLEMENTED. Server-side redirect tracking via `/api/affiliate/click/route.ts` + `lib/affiliate/link-tracker.ts` trackClick(). CTA blocks with SID tracking injected by `lib/affiliate/content-processor.ts`. Revenue data flows through `CjClickEvent` table to Affiliate HQ dashboard.
 
 ---
 
-### A.1.3 — Per-Site OG Images
+### A.1.3 — Per-Site OG Images — **DONE**
 
-**What:** When someone shares a Yalla London URL on WhatsApp/Twitter/LinkedIn, they see a branded preview image instead of a broken image.
-
-**Current state:**
-- Root layout references `${baseUrl}/images/${siteConfig.slug}-og.jpg`
-- No actual image files exist at those paths
-
-**Files to create:**
-1. `public/images/yalla-london-og.jpg` — 1200×630px, navy/gold brand, "Yalla London" text + tagline
-2. `public/images/arabaldives-og.jpg` — Turquoise/coral, Maldives imagery
-3. `public/images/french-riviera-og.jpg` — Mediterranean navy/champagne
-4. `public/images/istanbul-og.jpg` — Burgundy/copper, Bosphorus
-5. `public/images/thailand-og.jpg` — Emerald/golden amber
-6. `public/images/zenitha-yachts-med-og.jpg` — Navy/gold/aegean, yacht
-
-**Approach:** Use the Design System's `brand-kit-generator.ts` to generate SVG logos, then create OG images from brand colors + text overlay. Alternatively, create simple branded images with site name + tagline using HTML-to-image.
-
-**Verify:**
-- `curl -I https://www.yalla-london.com/images/yalla-london-og.jpg` → 200
-- Share URL in Slack/WhatsApp → preview shows branded image
-- Facebook Debugger tool confirms OG image loads
-
-**Dashboard impact:** Shared links look professional → better click-through from social/messaging.
+**Status:** ALREADY IMPLEMENTED. Dynamic OG image generator at `app/api/og/route.tsx` using Next.js `ImageResponse` (edge runtime). Accepts `?siteId=` and `?title=` params, uses brand colors from `config/sites.ts`. Root layout references `/api/og?siteId=${siteId}` for both OpenGraph and Twitter card images. All 6 sites supported via `getSiteConfig()` color lookup.
 
 ---
 
-### A.1.4 — Login Rate Limiting
+### A.1.4 — Login Rate Limiting — **DONE**
 
-**What:** Prevent brute-force attacks on admin login.
-
-**Current state:**
-- Rate limiting middleware exists with 4 tiers
-- Login endpoint has NO rate limiting
-
-**Files to modify:**
-1. `app/api/admin/login/route.ts` — Add rate limiter (10 attempts per IP per 15 min)
-   - On limit exceeded: return 429 with "Too many login attempts. Try again in X minutes."
-   - Log blocked attempts to `AuditLog`
-2. `lib/rate-limiter.ts` — If not DB-backed, add DB-backed variant using `RateLimitEntry` or similar
-
-**Verify:**
-- Smoke test: 11 rapid POST to `/api/admin/login` → 11th returns 429
-- `test-connections.html` → Auth panel shows rate limit status
-- AuditLog shows blocked attempts
-
-**Dashboard impact:** Security hardened — no more unlimited login attempts.
+**Status:** ALREADY IMPLEMENTED. Login route has 5 attempts/15min with progressive delays (1-4s). Middleware adds 5 req/15min on auth routes. Returns 429 with Retry-After header.
 
 ---
 
@@ -182,27 +118,9 @@ Work through phases in order. Each task follows the mandatory build cycle: Plan 
 
 ---
 
-### A.2.3 — Feature Flags Runtime Wiring
+### A.2.3 — Feature Flags Runtime Wiring — **DONE**
 
-**What:** Connect stored feature flags to actual runtime behavior.
-
-**Current state:**
-- FeatureFlag DB table exists with real flags
-- `checkCronEnabled()` works for cron jobs
-- Other runtime checks don't read from DB
-
-**Files to modify:**
-1. `lib/feature-flags.ts` — NEW: `isFeatureEnabled(flagKey, siteId?)` with 60s cache
-2. Key integration points:
-   - Content pipeline: check `content_pipeline_enabled` before processing
-   - Affiliate injection: check `affiliate_injection_enabled` before injecting
-   - Social posting: check `social_auto_publish_enabled` before posting
-   - Email campaigns: check `email_campaigns_enabled` before sending
-
-**Verify:**
-- Feature flags page → toggle a flag → runtime behavior changes within 60s
-- Smoke test: `isFeatureEnabled()` reads from DB, returns boolean
-- Cockpit shows flag state per feature
+**Status:** ALREADY IMPLEMENTED. `lib/feature-flags.ts` exports `isFeatureFlagEnabled()` with 60s cache, DB + env var fallback. `lib/cron-feature-guard.ts` maps 32+ crons. All cron routes call `checkCronEnabled()` at start.
 
 ---
 
@@ -223,24 +141,9 @@ Work through phases in order. Each task follows the mandatory build cycle: Plan 
 
 ## Phase A.3: Compliance & Social
 
-### A.3.1 — Cookie Consent Banner
+### A.3.1 — Cookie Consent Banner — **DONE**
 
-**What:** EU/UK GDPR requires cookie consent before setting non-essential cookies.
-
-**Files to create:**
-1. `components/cookie-consent.tsx` — NEW: Banner component
-   - Shows on first visit, remembers choice in localStorage
-   - "Accept All" / "Essential Only" buttons
-   - Links to privacy policy
-   - Blocks GA4 + social tracking scripts until consent given
-2. `app/layout.tsx` — Add `<CookieConsent />` to root layout
-3. `lib/consent.ts` — NEW: `hasConsent(category)` helper for conditional script loading
-
-**Verify:**
-- Visit site in incognito → banner appears
-- Click "Accept" → banner disappears, GA4 loads
-- Click "Essential Only" → banner disappears, GA4 does NOT load
-- Return visit → no banner (choice remembered)
+**Status:** ALREADY IMPLEMENTED. `components/cookie-consent-banner.tsx` rendered in root layout. Bilingual EN/AR, 4 cookie categories (Necessary/Analytics/Functional/Marketing), localStorage-persisted, auto-applied on load.
 
 ---
 

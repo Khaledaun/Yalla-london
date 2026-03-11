@@ -756,6 +756,46 @@ test("CJ Affiliate", "Budget guards in all 4 affiliate cron routes", () => {
     : { status: WARN, details: `Missing budget guard in: ${missing.join(", ")}` };
 });
 
+// ==================== CATEGORY 18: GA4 Dashboard Wiring ====================
+
+test("GA4 Wiring", "ga4-data-api exports fetchGA4Metrics and isGA4Configured", () => {
+  if (!fileExists("lib/seo/ga4-data-api.ts")) return { status: FAIL, details: "Missing lib/seo/ga4-data-api.ts" };
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/seo/ga4-data-api.ts"), "utf-8");
+  const hasFetch = content.includes("fetchGA4Metrics");
+  const hasConfig = content.includes("isGA4Configured");
+  return hasFetch && hasConfig
+    ? { status: PASS, details: "Both fetchGA4Metrics and isGA4Configured exported" }
+    : { status: FAIL, details: `fetchGA4Metrics=${hasFetch}, isGA4Configured=${hasConfig}` };
+});
+
+test("GA4 Wiring", "cockpit route has buildTraffic function", () => {
+  return fileContains("app/api/admin/cockpit/route.ts", "buildTraffic")
+    ? { status: PASS, details: "buildTraffic wired into cockpit API" }
+    : { status: FAIL, details: "Missing buildTraffic in cockpit route" };
+});
+
+test("GA4 Wiring", "cycle-health checks GA4 connectivity", () => {
+  return fileContains("app/api/admin/cycle-health/route.ts", "ga4-not-configured") || fileContains("app/api/admin/cycle-health/route.ts", "GA4 not configured")
+    ? { status: PASS, details: "GA4 health check present in cycle-health" }
+    : { status: FAIL, details: "Missing GA4 connectivity check in cycle-health" };
+});
+
+// ==================== CATEGORY 19: OG Image Route ====================
+
+test("OG Image", "app/api/og/route.tsx exists", () => {
+  return fileExists("app/api/og/route.tsx")
+    ? { status: PASS, details: "OG image route exists" }
+    : { status: FAIL, details: "Missing app/api/og/route.tsx" };
+});
+
+test("OG Image", "OG route uses site config for brand colors", () => {
+  if (!fileExists("app/api/og/route.tsx")) return { status: FAIL, details: "Missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/og/route.tsx"), "utf-8");
+  return content.includes("getSiteConfig") && content.includes("primaryColor")
+    ? { status: PASS, details: "Uses getSiteConfig for per-site brand colors" }
+    : { status: FAIL, details: "Not using site config for colors" };
+});
+
 // ==================== PRINT RESULTS ====================
 
 console.log("\n" + "=".repeat(80));

@@ -183,6 +183,24 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "design-tools-verify": testDesignToolsVerify,
   "content-engine-verify": testContentEngineVerify,
   "social-calendar-verify": testSocialCalendarVerify,
+  // Batch 3: Yacht + Multi-Site + Design Media Engine
+  "yacht-models-verify": testYachtModelsVerify,
+  "yacht-pages-verify": testYachtPagesVerify,
+  "yacht-admin-verify": testYachtAdminVerify,
+  "yacht-seo-verify": testYachtSeoVerify,
+  "yacht-isolation-verify": testYachtIsolationVerify,
+  "site-scoping-verify": testSiteScopingVerify,
+  "no-hardcoding-verify": testNoHardcodingVerify,
+  "new-site-wizard-verify": testNewSiteWizardVerify,
+  "url-hygiene-verify": testUrlHygieneVerify,
+  "structured-data-verify": testStructuredDataVerify,
+  "hero-image-verify": testHeroImageVerify,
+  "social-graphics-verify": testSocialGraphicsVerify,
+  "media-library-verify": testMediaLibraryVerify,
+  "video-templates-verify": testVideoTemplatesVerify,
+  "prompt-to-video-verify": testPromptToVideoVerify,
+  "video-render-verify": testVideoRenderVerify,
+  "viral-content-verify": testViralContentVerify,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -2675,5 +2693,269 @@ async function testSocialCalendarVerify(): Promise<LiveTestResult> {
     readiness: pageExists && schedulerExists ? 100 : schedulerExists ? 50 : 0,
     plainLanguage: `Social calendar: page=${pageExists}, scheduler=${schedulerExists}, schedule=${hasSchedule}, publish=${hasPublish}.`,
     json: { pageExists, schedulerExists, hasSchedule, hasPublish },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH 3: Yacht + Multi-Site + Design Media Engine (17 tests)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Yacht Models Verify ─────────────────────────────────────────────────────────
+async function testYachtModelsVerify(): Promise<LiveTestResult> {
+  const schema = readContent("prisma/schema.prisma");
+  const models = ["Yacht", "YachtDestination", "CharterItinerary", "CharterInquiry", "BrokerPartner", "YachtAvailability", "YachtAmenity", "YachtImage"];
+  const found = models.filter(m => schema.includes(`model ${m}`));
+  return makeResult({
+    success: found.length === models.length,
+    readiness: Math.round((found.length / models.length) * 100),
+    plainLanguage: `Yacht Prisma models: ${found.length}/${models.length} present. ${found.length < models.length ? `Missing: ${models.filter(m => !found.includes(m)).join(", ")}` : "All models defined."}`,
+    json: { found, missing: models.filter(m => !found.includes(m)), total: models.length },
+  });
+}
+
+// ── Yacht Pages Verify ──────────────────────────────────────────────────────────
+async function testYachtPagesVerify(): Promise<LiveTestResult> {
+  const pages = [
+    { path: "app/yachts/page.tsx", name: "Yacht Search" },
+    { path: "app/yachts/[slug]/page.tsx", name: "Yacht Detail" },
+    { path: "app/destinations/page.tsx", name: "Destinations Hub" },
+    { path: "app/destinations/[slug]/page.tsx", name: "Destination Detail" },
+    { path: "app/itineraries/page.tsx", name: "Itineraries Hub" },
+    { path: "app/itineraries/[slug]/page.tsx", name: "Itinerary Detail" },
+    { path: "app/charter-planner/page.tsx", name: "Charter Planner" },
+    { path: "app/inquiry/page.tsx", name: "Inquiry Form" },
+  ];
+  const found = pages.filter(p => fileCheck(p.path));
+  return makeResult({
+    success: found.length >= 6,
+    readiness: Math.round((found.length / pages.length) * 100),
+    plainLanguage: `Yacht public pages: ${found.length}/${pages.length} present. ${found.map(p => p.name).join(", ")}.`,
+    json: { found: found.map(p => p.name), missing: pages.filter(p => !fileCheck(p.path)).map(p => p.name) },
+  });
+}
+
+// ── Yacht Admin Verify ──────────────────────────────────────────────────────────
+async function testYachtAdminVerify(): Promise<LiveTestResult> {
+  const pages = ["app/admin/yachts/page.tsx", "app/admin/yachts/new/page.tsx", "app/admin/yachts/inquiries/page.tsx", "app/admin/yachts/destinations/page.tsx", "app/admin/yachts/itineraries/page.tsx", "app/admin/yachts/brokers/page.tsx", "app/admin/yachts/analytics/page.tsx", "app/admin/yachts/sync/page.tsx"];
+  const apis = ["app/api/admin/yachts/route.ts", "app/api/admin/yachts/inquiries/route.ts", "app/api/admin/yachts/destinations/route.ts"];
+  const foundPages = pages.filter(fileCheck);
+  const foundApis = apis.filter(fileCheck);
+  return makeResult({
+    success: foundPages.length >= 5 && foundApis.length >= 2,
+    readiness: Math.round(((foundPages.length + foundApis.length) / (pages.length + apis.length)) * 100),
+    plainLanguage: `Yacht admin: ${foundPages.length}/${pages.length} pages, ${foundApis.length}/${apis.length} API routes.`,
+    json: { foundPages: foundPages.length, foundApis: foundApis.length, totalPages: pages.length, totalApis: apis.length },
+  });
+}
+
+// ── Yacht SEO Verify ────────────────────────────────────────────────────────────
+async function testYachtSeoVerify(): Promise<LiveTestResult> {
+  const sitemapContent = readContent("app/sitemap.ts");
+  const hasYachtUrls = sitemapContent.includes("yacht") || sitemapContent.includes("Yacht");
+  const llmsContent = readContent("app/llms.txt/route.ts");
+  const hasLlmsYacht = llmsContent.includes("zenitha") || llmsContent.includes("yacht");
+  return makeResult({
+    success: hasYachtUrls,
+    readiness: hasYachtUrls && hasLlmsYacht ? 100 : hasYachtUrls ? 70 : 0,
+    plainLanguage: `Yacht SEO: sitemap yacht URLs=${hasYachtUrls}, llms.txt yacht content=${hasLlmsYacht}.`,
+    json: { hasYachtUrls, hasLlmsYacht },
+  });
+}
+
+// ── Yacht Isolation Verify ──────────────────────────────────────────────────────
+async function testYachtIsolationVerify(): Promise<LiveTestResult> {
+  const shellExists = fileCheck("components/site-shell.tsx");
+  const content = readContent("components/site-shell.tsx");
+  const hasSiteDetection = content.includes("siteId") || content.includes("site-id");
+  const hasZenithaHeader = content.includes("ZenithaHeader") || content.includes("zenitha-header");
+  const headerExists = fileCheck("components/zenitha/zenitha-header.tsx");
+  const footerExists = fileCheck("components/zenitha/zenitha-footer.tsx");
+  return makeResult({
+    success: shellExists && hasSiteDetection,
+    readiness: shellExists && hasZenithaHeader ? 100 : shellExists ? 60 : 0,
+    plainLanguage: `Yacht isolation: SiteShell=${shellExists}, siteId detection=${hasSiteDetection}, ZenithaHeader=${headerExists}, ZenithaFooter=${footerExists}.`,
+    json: { shellExists, hasSiteDetection, hasZenithaHeader, headerExists, footerExists },
+  });
+}
+
+// ── Site Scoping Verify ─────────────────────────────────────────────────────────
+async function testSiteScopingVerify(): Promise<LiveTestResult> {
+  const keyFiles = [
+    "app/api/cron/content-builder-create/route.ts",
+    "lib/content-pipeline/select-runner.ts",
+    "app/api/cron/weekly-topics/route.ts",
+    "app/api/cron/seo-agent/route.ts",
+  ];
+  const scoped = keyFiles.filter(f => {
+    const c = readContent(f);
+    return c.includes("site_id") || c.includes("siteId");
+  });
+  return makeResult({
+    success: scoped.length === keyFiles.length,
+    readiness: Math.round((scoped.length / keyFiles.length) * 100),
+    plainLanguage: `Site scoping: ${scoped.length}/${keyFiles.length} key pipeline files have siteId in queries.`,
+    json: { scoped: scoped.length, total: keyFiles.length, files: keyFiles },
+  });
+}
+
+// ── No Hardcoding Verify ────────────────────────────────────────────────────────
+async function testNoHardcodingVerify(): Promise<LiveTestResult> {
+  const filesToCheck = [
+    "app/api/cron/content-builder-create/route.ts",
+    "lib/content-pipeline/select-runner.ts",
+    "app/api/cron/seo-agent/route.ts",
+    "middleware.ts",
+    "lib/seo/indexing-service.ts",
+  ];
+  const hardcoded: string[] = [];
+  for (const f of filesToCheck) {
+    const c = readContent(f);
+    // Check for hardcoded "yalla-london" that's NOT in a comment or import
+    const lines = c.split("\n").filter(l => !l.trim().startsWith("//") && !l.trim().startsWith("*") && l.includes('"yalla-london"'));
+    if (lines.length > 0) hardcoded.push(f);
+  }
+  return makeResult({
+    success: hardcoded.length === 0,
+    readiness: hardcoded.length === 0 ? 100 : Math.max(0, 100 - hardcoded.length * 20),
+    plainLanguage: hardcoded.length === 0
+      ? `No hardcoded "yalla-london" found in ${filesToCheck.length} key files. All use config-driven siteId.`
+      : `Found hardcoded "yalla-london" in ${hardcoded.length} files: ${hardcoded.join(", ")}.`,
+    json: { hardcoded, checkedFiles: filesToCheck.length },
+  });
+}
+
+// ── New Site Wizard Verify ──────────────────────────────────────────────────────
+async function testNewSiteWizardVerify(): Promise<LiveTestResult> {
+  const builderExists = fileCheck("lib/new-site/builder.ts");
+  const pageExists = fileCheck("app/admin/cockpit/new-site/page.tsx");
+  const apiExists = fileCheck("app/api/admin/new-site/route.ts");
+  const content = readContent("lib/new-site/builder.ts");
+  const hasValidate = content.includes("validateNewSite") || content.includes("validate");
+  const hasBuild = content.includes("buildNewSite") || content.includes("build");
+  return makeResult({
+    success: builderExists && pageExists,
+    readiness: builderExists && pageExists ? 100 : builderExists ? 60 : 0,
+    plainLanguage: `New site wizard: builder=${builderExists}, page=${pageExists}, API=${apiExists}, validate=${hasValidate}, build=${hasBuild}.`,
+    json: { builderExists, pageExists, apiExists, hasValidate, hasBuild },
+  });
+}
+
+// ── URL Hygiene Verify ──────────────────────────────────────────────────────────
+async function testUrlHygieneVerify(): Promise<LiveTestResult> {
+  const mwContent = readContent("middleware.ts");
+  const hasLangRedirect = mwContent.includes("lang=ar") || mwContent.includes("lang%3Dar");
+  const hasWwwRedirect = mwContent.includes("www") && mwContent.includes("redirect");
+  const hasTrailingSlash = readContent("next.config.js").includes("trailingSlash");
+  return makeResult({
+    success: hasLangRedirect,
+    readiness: hasLangRedirect ? 100 : 40,
+    plainLanguage: `URL hygiene: ?lang=ar→/ar/ redirect=${hasLangRedirect}, www redirect=${hasWwwRedirect}, trailingSlash config=${hasTrailingSlash}.`,
+    json: { hasLangRedirect, hasWwwRedirect, hasTrailingSlash },
+  });
+}
+
+// ── Structured Data Verify ──────────────────────────────────────────────────────
+async function testStructuredDataVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("components/structured-data.tsx");
+  const content = readContent("components/structured-data.tsx");
+  const types = ["breadcrumb", "organization", "article", "product", "faq"].filter(t => content.toLowerCase().includes(t));
+  return makeResult({
+    success: exists && types.length >= 2,
+    readiness: exists ? 100 : 0,
+    plainLanguage: `Structured data component: exists=${exists}, types supported: ${types.join(", ") || "none detected"}.`,
+    json: { exists, types, typeCount: types.length },
+  });
+}
+
+// ── Hero Image Verify ───────────────────────────────────────────────────────────
+async function testHeroImageVerify(): Promise<LiveTestResult> {
+  const ogRouteExists = fileCheck("app/api/og/route.tsx");
+  const designHub = fileCheck("app/admin/design/page.tsx");
+  return makeResult({
+    success: false, readiness: ogRouteExists ? 30 : 0,
+    plainLanguage: `Hero image generator: OG route exists=${ogRouteExists} (partial — generates OG images, not hero images). Design hub=${designHub}. Full hero image AI generator not yet built.`,
+    json: { ogRouteExists, designHub, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Hero image AI generator not yet built", where: "lib/design/", howToFix: "Build AI-powered hero image generator using DALL-E or Stability AI integration." },
+  });
+}
+
+// ── Social Graphics Verify ──────────────────────────────────────────────────────
+async function testSocialGraphicsVerify(): Promise<LiveTestResult> {
+  const designHub = fileCheck("app/admin/design/page.tsx");
+  const brandKit = fileCheck("lib/design/brand-kit-generator.ts");
+  return makeResult({
+    success: false, readiness: brandKit ? 25 : 0,
+    plainLanguage: `Social graphics: brand kit generator=${brandKit} (generates brand assets, not social-specific templates). Design hub=${designHub}. Dedicated social graphics generator not yet built.`,
+    json: { designHub, brandKit, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Social graphics generator not yet built", where: "lib/design/", howToFix: "Build social media template generator with platform-specific dimensions (1080x1080, 1200x630, 1080x1920)." },
+  });
+}
+
+// ── Media Library Verify ────────────────────────────────────────────────────────
+async function testMediaLibraryVerify(): Promise<LiveTestResult> {
+  const pickerExists = fileCheck("components/shared/media-picker.tsx");
+  const content = readContent("components/shared/media-picker.tsx");
+  const hasUpload = content.includes("upload") || content.includes("Upload");
+  const hasUnsplash = content.includes("unsplash") || content.includes("Unsplash");
+  const hasTabs = content.includes("tab") || content.includes("Tab");
+  return makeResult({
+    success: pickerExists,
+    readiness: pickerExists ? 100 : 0,
+    plainLanguage: `Media library: picker=${pickerExists}, upload=${hasUpload}, Unsplash=${hasUnsplash}, tabs=${hasTabs}.`,
+    json: { pickerExists, hasUpload, hasUnsplash, hasTabs },
+  });
+}
+
+// ── Video Templates Verify ──────────────────────────────────────────────────────
+async function testVideoTemplatesVerify(): Promise<LiveTestResult> {
+  const dir1 = fileCheck("lib/video/templates/destination-highlight.tsx");
+  const dir2 = fileCheck("lib/video/templates/hotel-showcase.tsx");
+  const renderEngine = fileCheck("lib/video/render-engine.ts");
+  const templateCount = [dir1, dir2].filter(Boolean).length;
+  return makeResult({
+    success: templateCount >= 1,
+    readiness: templateCount >= 1 ? 60 : 0,
+    plainLanguage: `Video templates: ${templateCount}/2 Remotion templates present. Render engine=${renderEngine}. CAUTION: Video rendering cannot run in Vercel 60s limit.`,
+    json: { templateCount, renderEngine, templates: { destinationHighlight: dir1, hotelShowcase: dir2 } },
+  });
+}
+
+// ── Prompt-to-Video Verify ──────────────────────────────────────────────────────
+async function testPromptToVideoVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/video/prompt-to-video.ts");
+  const content = readContent("lib/video/prompt-to-video.ts");
+  const hasExport = content.includes("export");
+  return makeResult({
+    success: exists,
+    readiness: exists ? 50 : 0,
+    plainLanguage: `Prompt-to-video: file=${exists}${exists ? ", exports present" : ""}. Pipeline: AI prompt → video config → Remotion render. CAUTION: Vercel 60s limit blocks server-side rendering.`,
+    json: { exists, hasExport, vercelLimitation: "60s max — video rendering requires external service or local CLI" },
+  });
+}
+
+// ── Video Render Verify ─────────────────────────────────────────────────────────
+async function testVideoRenderVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/video/render-engine.ts");
+  const content = readContent("lib/video/render-engine.ts");
+  const hasExport = content.includes("export");
+  return makeResult({
+    success: exists,
+    readiness: exists ? 40 : 0,
+    plainLanguage: `Video render engine: file=${exists}. WARNING: Cannot run in Vercel (60s limit). Requires Lambda, dedicated server, or Remotion Cloud for production rendering.`,
+    json: { exists, hasExport, productionReady: false, reason: "Vercel 60s timeout prevents video rendering" },
+    error: exists ? undefined : { code: "NOT_IMPLEMENTED", message: "Video render engine missing", where: "lib/video/render-engine.ts", howToFix: "Create render engine with Remotion bundler. Note: requires external compute for production." },
+  });
+}
+
+// ── Viral Content Verify ────────────────────────────────────────────────────────
+async function testViralContentVerify(): Promise<LiveTestResult> {
+  const scripterContent = readContent("lib/content-engine/scripter.ts");
+  const hasViral = scripterContent.includes("viral") || scripterContent.includes("Viral");
+  const hasShareable = scripterContent.includes("shareable") || scripterContent.includes("engagement");
+  return makeResult({
+    success: false, readiness: hasViral ? 20 : 0,
+    plainLanguage: `Viral content tools: scripter viral references=${hasViral}, shareable content=${hasShareable}. Dedicated viral generator not yet built (quiz makers, name generators, calculators).`,
+    json: { hasViral, hasShareable, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Viral generator tools not yet built", where: "lib/content-engine/", howToFix: "Build interactive viral tools: quiz makers, name generators, travel calculators with social sharing." },
   });
 }

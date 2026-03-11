@@ -323,6 +323,7 @@ export async function analyzeContentDiversity(
       created_at: true,
       page_type: true,
     },
+    take: 2000,
   });
 
   const totalPublished = allPosts.length;

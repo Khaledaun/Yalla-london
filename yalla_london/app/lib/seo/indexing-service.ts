@@ -957,6 +957,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string, inc
       const yachts = await prisma.yacht.findMany({
         where: { siteId, status: "active" },
         select: { slug: true },
+        take: 500,
       });
       for (const yacht of yachts) {
         enUrls.push(`${baseUrl}/yachts/${yacht.slug}`);
@@ -966,6 +967,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string, inc
       const destinations = await prisma.yachtDestination.findMany({
         where: { siteId, status: "active" },
         select: { slug: true },
+        take: 200,
       });
       for (const dest of destinations) {
         enUrls.push(`${baseUrl}/destinations/${dest.slug}`);
@@ -975,6 +977,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string, inc
       const itineraries = await prisma.charterItinerary.findMany({
         where: { siteId, status: "active" },
         select: { slug: true },
+        take: 200,
       });
       for (const itin of itineraries) {
         enUrls.push(`${baseUrl}/itineraries/${itin.slug}`);
@@ -1017,6 +1020,7 @@ export async function syncAllUrlsToTracking(siteId: string, siteUrl: string): Pr
   const existing = await prisma.uRLIndexingStatus.findMany({
     where: { site_id: siteId },
     select: { url: true },
+    take: 10000,
   });
   const existingSet = new Set(existing.map((r: { url: string }) => r.url));
 

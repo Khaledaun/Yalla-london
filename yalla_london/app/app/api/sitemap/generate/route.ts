@@ -7,8 +7,11 @@ import { prisma } from '@/lib/db';
 import { getBaseUrl } from '@/lib/url-utils';
 
 
-// Generate comprehensive sitemaps
+// Generate comprehensive sitemaps — admin-only (expensive DB queries + GSC submission)
 export async function POST(request: NextRequest) {
+  const { requireAdmin } = await import("@/lib/admin-middleware");
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
   try {
     const { type } = await request.json();
 

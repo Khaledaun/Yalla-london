@@ -6643,11 +6643,23 @@ interface TestResult {
 
 // ── Development Monitor Section ──────────────────────────────────────────────
 
+interface DevPlanGroup {
+  planId: string;
+  planTitle: string;
+  project: string;
+  phases: DevPhase[];
+  totalTasks: number;
+  completedTasks: number;
+  readiness: number;
+}
+
 function DevMonitorSection({ siteId }: { siteId: string }) {
+  const [plans, setPlans] = useState<DevPlanGroup[]>([]);
   const [phases, setPhases] = useState<DevPhase[]>([]);
-  const [projectStats, setProjectStats] = useState<{ project: string; totalTasks: number; completedTasks: number; readiness: number; phaseCount: number } | null>(null);
+  const [projectStats, setProjectStats] = useState<{ project: string; totalTasks: number; completedTasks: number; readiness: number; phaseCount: number; planCount?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [testingTask, setTestingTask] = useState<string | null>(null);
@@ -6663,9 +6675,10 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
       if (!res.ok) return;
       const data = await res.json();
       setPhases(data.phases || []);
+      setPlans(data.plans || []);
       setProjectStats(data.projectStats || null);
 
-      // Auto-sync if no dev-plan tasks
+      // Auto-sync ALL plans if no dev-plan tasks exist
       if (!data.phases || data.phases.length === 0) {
         await syncPlan();
       }
@@ -6684,7 +6697,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
       const res = await fetch("/api/admin/dev-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync_plan", planId: "stage-a", siteId }),
+        body: JSON.stringify({ action: "sync_all_plans", siteId }),
       });
       if (res.ok) await fetchDevPlan();
     } catch (err) {
@@ -6719,20 +6732,25 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
 
   const runTestAll = async () => {
     setTestAllRunning(true);
-    setTestAllProgress({ done: 0, total: phases.reduce((s, p) => s + p.tasks.length, 0), passed: 0, failed: 0, skipped: 0 });
+    const allTasks = plans.length > 0
+      ? plans.reduce((s, p) => s + p.phases.reduce((s2, ph) => s2 + ph.tasks.length, 0), 0)
+      : phases.reduce((s, p) => s + p.tasks.length, 0);
+    setTestAllProgress({ done: 0, total: allTasks, passed: 0, failed: 0, skipped: 0 });
     try {
       const res = await fetch("/api/admin/dev-tasks/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "test_all", planId: "stage-a", siteId }),
+        body: JSON.stringify({ action: "test_all", siteId }),
       });
       if (res.ok) {
         const data = await res.json();
         // Populate individual results
         const newResults: Record<string, TestResult> = {};
+        const allPhases = plans.length > 0
+          ? plans.flatMap(p => p.phases)
+          : phases;
         for (const r of data.results || []) {
-          // Match taskId from test result to actual DevTask
-          for (const phase of phases) {
+          for (const phase of allPhases) {
             for (const task of phase.tasks) {
               const meta = (task.metadata || {}) as Record<string, unknown>;
               if (meta.id === r.taskId) {
@@ -6759,7 +6777,16 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
 
   const copyJson = (taskId: string, result: TestResult, task: DevTask) => {
     const meta = (task.metadata || {}) as Record<string, unknown>;
-    const phase = phases.find(p => p.tasks.some(t => t.id === task.id));
+    // Find containing phase and plan
+    let phase: DevPhase | undefined;
+    let containingPlan: DevPlanGroup | undefined;
+    for (const p of plans) {
+      for (const ph of p.phases) {
+        if (ph.tasks.some(t => t.id === task.id)) { phase = ph; containingPlan = p; break; }
+      }
+      if (phase) break;
+    }
+    if (!phase) phase = phases.find(p => p.tasks.some(t => t.id === task.id));
     const jsonReport = {
       task: { id: meta.id, title: meta.title, phase: meta.phase, project: projectStats?.project },
       test: { type: meta.testType, success: result.success, readiness: result.readiness, timestamp: result.timestamp, durationMs: result.durationMs },
@@ -6768,7 +6795,9 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
       error: result.error || null,
       dates: { started: meta.startDate, lastTest: result.timestamp, dueDate: meta.dueDate },
       phase_status: phase ? { name: phase.name, done: `${phase.done}/${phase.total}`, readiness: phase.readiness } : null,
-      project_status: projectStats ? { name: "Stage A: Infrastructure Completion", done: `${projectStats.completedTasks}/${projectStats.totalTasks}`, readiness: projectStats.readiness } : null,
+      project_status: containingPlan
+        ? { name: containingPlan.planTitle, done: `${containingPlan.completedTasks}/${containingPlan.totalTasks}`, readiness: containingPlan.readiness }
+        : projectStats ? { name: projectStats.project, done: `${projectStats.completedTasks}/${projectStats.totalTasks}`, readiness: projectStats.readiness } : null,
     };
     navigator.clipboard.writeText(JSON.stringify(jsonReport, null, 2));
     setCopiedJson(taskId);
@@ -6802,7 +6831,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
               disabled={syncing}
               className="px-3 py-1 bg-white/20 hover:bg-white/30 disabled:bg-white/10 text-white text-xs font-medium rounded-lg transition-colors"
             >
-              {syncing ? "Syncing..." : "Sync Plan"}
+              {syncing ? "Syncing..." : "Sync Plans"}
             </button>
           </div>
         </div>
@@ -6810,19 +6839,19 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
         {projectStats && (
           <>
             <div className="flex items-center justify-between mb-1">
-              <div className="text-sm font-semibold">{projectStats.project} — Stage A</div>
+              <div className="text-sm font-semibold">{projectStats.project} — {plans.length} plan{plans.length !== 1 ? "s" : ""}</div>
               <div className="text-lg font-bold">{projectStats.readiness}%</div>
             </div>
             <div className="w-full bg-white/20 rounded-full h-2">
               <div className={`${readinessBarColor(projectStats.readiness)} h-2 rounded-full transition-all`} style={{ width: `${projectStats.readiness}%` }} />
             </div>
-            <div className="text-xs opacity-70 mt-1">{projectStats.completedTasks}/{projectStats.totalTasks} tasks complete</div>
+            <div className="text-xs opacity-70 mt-1">{projectStats.completedTasks}/{projectStats.totalTasks} tasks complete across {projectStats.planCount || plans.length} plans</div>
           </>
         )}
 
-        {projectStats && projectStats.completedTasks === projectStats.totalTasks && (
+        {projectStats && projectStats.completedTasks === projectStats.totalTasks && projectStats.totalTasks > 0 && (
           <div className="mt-2 bg-green-500/30 border border-green-400/50 rounded-lg p-2 text-center text-sm font-medium">
-            PROJECT COMPLETE — all {projectStats.totalTasks} tasks verified
+            ALL PLANS COMPLETE — all {projectStats.totalTasks} tasks verified
           </div>
         )}
       </div>
@@ -6845,159 +6874,178 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
         </div>
       )}
 
-      {/* Phase List */}
-      {phases.map(phase => {
-        const isExpanded = expandedPhase === phase.name;
+      {/* Plan-Grouped View */}
+      {plans.length > 0 ? plans.map(plan => {
+        const isPlanExpanded = expandedPlan === plan.planId;
         return (
-          <div key={phase.name} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {/* Phase Header */}
+          <div key={plan.planId} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Plan Header */}
             <button
-              onClick={() => setExpandedPhase(isExpanded ? null : phase.name)}
+              onClick={() => setExpandedPlan(isPlanExpanded ? null : plan.planId)}
               className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
             >
               <div className="flex items-center gap-2 text-left">
-                <span className="text-xs text-gray-400">{isExpanded ? "▾" : "▸"}</span>
-                <span className="font-medium text-sm text-gray-900 dark:text-white">{phase.name}</span>
+                <span className="text-xs text-gray-400">{isPlanExpanded ? "▾" : "▸"}</span>
+                <div>
+                  <span className="font-semibold text-sm text-gray-900 dark:text-white">{plan.planTitle}</span>
+                  {plan.project && <span className="text-xs text-gray-400 ml-2">{plan.project}</span>}
+                </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
+                <span className="text-xs text-gray-500">{plan.completedTasks}/{plan.totalTasks}</span>
                 <div className="flex items-center gap-1.5">
                   <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                    <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
+                    <div className={`${readinessBarColor(plan.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${plan.readiness}%` }} />
                   </div>
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{phase.readiness}%</span>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{plan.readiness}%</span>
                 </div>
               </div>
             </button>
 
-            {/* Phase Tasks */}
-            {isExpanded && (
+            {/* Plan Phases */}
+            {isPlanExpanded && (
               <div className="border-t border-gray-100 dark:border-gray-800">
-                {phase.tasks.map((task, idx) => {
-                  const meta = (task.metadata || {}) as Record<string, unknown>;
-                  const taskReadiness = (meta.readiness as number) || (task.status === "completed" ? 100 : 0);
-                  const testType = meta.testType as string;
-                  const isTaskExpanded = expandedTask === task.id;
-                  const result = testResults[task.id];
-                  const lastTestResult = (meta.lastTestResult as TestResult) || result;
-                  const isDone = task.status === "completed";
-                  const dueDate = meta.dueDate as string || task.dueDate;
-                  const isOverdue = dueDate && new Date(dueDate) < new Date() && !isDone;
-
+                {plan.phases.map(phase => {
+                  const isPhaseExp = expandedPhase === `${plan.planId}:${phase.name}`;
                   return (
-                    <div key={task.id} className="border-b border-gray-50 dark:border-gray-800 last:border-b-0">
-                      {/* Task Row */}
-                      <div className="px-4 py-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs text-gray-400 font-mono w-4">{idx + 1}</span>
-                            {isDone ? (
-                              <span className="text-green-500 text-sm flex-shrink-0">&#10003;</span>
-                            ) : (
-                              <span className="text-gray-300 text-sm flex-shrink-0">&#9675;</span>
-                            )}
-                            <button
-                              onClick={() => setExpandedTask(isTaskExpanded ? null : task.id)}
-                              className="text-sm text-gray-800 dark:text-gray-200 truncate text-left hover:text-indigo-600 transition-colors"
-                            >
-                              {meta.title as string || task.title}
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            {/* Readiness bar */}
-                            <div className="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 hidden sm:block">
-                              <div className={`${readinessBarColor(taskReadiness)} h-1.5 rounded-full`} style={{ width: `${taskReadiness}%` }} />
+                    <div key={phase.name} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                      {/* Phase Header */}
+                      <button
+                        onClick={() => setExpandedPhase(isPhaseExp ? null : `${plan.planId}:${phase.name}`)}
+                        className="w-full px-6 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 text-left">
+                          <span className="text-xs text-gray-400">{isPhaseExp ? "▾" : "▸"}</span>
+                          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">{phase.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                              <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
                             </div>
-                            <span className="text-xs font-medium text-gray-500 w-8 text-right">{taskReadiness}%</span>
-                            {/* Test button */}
-                            {testType && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); runTest(task); }}
-                                disabled={testingTask === task.id}
-                                className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
-                              >
-                                {testingTask === task.id ? (
-                                  <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
-                                ) : "Test"}
-                              </button>
-                            )}
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{phase.readiness}%</span>
                           </div>
                         </div>
+                      </button>
 
-                        {/* Last test summary (inline) */}
-                        {lastTestResult && !isTaskExpanded && (
-                          <div className={`mt-1 text-xs ml-8 ${lastTestResult.success ? "text-green-600" : lastTestResult.success === false ? "text-red-600" : "text-gray-500"}`}>
-                            {lastTestResult.plainLanguage?.slice(0, 100)}{(lastTestResult.plainLanguage?.length || 0) > 100 ? "..." : ""}
-                            {lastTestResult.timestamp && (
-                              <span className="text-gray-400 ml-2">{new Date(lastTestResult.timestamp).toLocaleString()}</span>
-                            )}
-                          </div>
-                        )}
+                      {/* Phase Tasks */}
+                      {isPhaseExp && (
+                        <div className="bg-gray-50/30 dark:bg-gray-800/20">
+                          {phase.tasks.map((task, idx) => {
+                            const meta = (task.metadata || {}) as Record<string, unknown>;
+                            const taskReadiness = (meta.readiness as number) || (task.status === "completed" ? 100 : 0);
+                            const testType = meta.testType as string;
+                            const isTaskExpanded = expandedTask === task.id;
+                            const result = testResults[task.id];
+                            const lastTestResult = (meta.lastTestResult as TestResult) || result;
+                            const isDone = task.status === "completed";
+                            const dueDate = meta.dueDate as string || task.dueDate;
+                            const isOverdue = dueDate && new Date(dueDate) < new Date() && !isDone;
 
-                        {/* Overdue indicator */}
-                        {isOverdue && (
-                          <div className="mt-1 ml-8 text-xs text-red-500 animate-pulse">
-                            Overdue — due {new Date(dueDate!).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Expanded Task Details */}
-                      {isTaskExpanded && (
-                        <div className="px-4 pb-3 space-y-2 bg-gray-50/50 dark:bg-gray-800/30">
-                          {/* Description */}
-                          <p className="text-xs text-gray-500 dark:text-gray-400 ml-8">{task.description}</p>
-
-                          {/* Dates row */}
-                          <div className="flex gap-4 text-xs text-gray-400 ml-8 flex-wrap">
-                            {meta.startDate && <span>Started: {new Date(meta.startDate as string).toLocaleDateString()}</span>}
-                            {lastTestResult?.timestamp && <span>Last Test: {new Date(lastTestResult.timestamp).toLocaleString()}</span>}
-                            {dueDate && <span className={isOverdue ? "text-red-500 font-medium" : ""}>Due: {new Date(dueDate).toLocaleDateString()}</span>}
-                          </div>
-
-                          {/* Test Result Panel */}
-                          {(result || lastTestResult) && (() => {
-                            const tr = result || lastTestResult!;
                             return (
-                              <div className={`ml-8 rounded-lg p-3 border ${tr.success ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : tr.success === false ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800" : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"}`}>
-                                {/* Plain language */}
-                                <p className={`text-sm mb-2 ${tr.success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
-                                  {tr.plainLanguage}
-                                </p>
+                              <div key={task.id} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                                <div className="px-6 py-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                      <span className="text-xs text-gray-400 font-mono w-4">{idx + 1}</span>
+                                      {isDone ? (
+                                        <span className="text-green-500 text-sm flex-shrink-0">&#10003;</span>
+                                      ) : (
+                                        <span className="text-gray-300 text-sm flex-shrink-0">&#9675;</span>
+                                      )}
+                                      <button
+                                        onClick={() => setExpandedTask(isTaskExpanded ? null : task.id)}
+                                        className="text-sm text-gray-800 dark:text-gray-200 truncate text-left hover:text-indigo-600 transition-colors"
+                                      >
+                                        {meta.title as string || task.title}
+                                      </button>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                      <div className="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 hidden sm:block">
+                                        <div className={`${readinessBarColor(taskReadiness)} h-1.5 rounded-full`} style={{ width: `${taskReadiness}%` }} />
+                                      </div>
+                                      <span className="text-xs font-medium text-gray-500 w-8 text-right">{taskReadiness}%</span>
+                                      {testType && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); runTest(task); }}
+                                          disabled={testingTask === task.id}
+                                          className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
+                                        >
+                                          {testingTask === task.id ? (
+                                            <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                                          ) : "Test"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
 
-                                {/* Error details */}
-                                {tr.error && (
-                                  <div className="bg-red-100 dark:bg-red-900/30 rounded p-2 mb-2 text-xs">
-                                    <div className="font-medium text-red-800 dark:text-red-300 mb-1">Error: {tr.error.code}</div>
-                                    <div className="text-red-700 dark:text-red-400">{tr.error.message}</div>
-                                    <div className="text-red-600 dark:text-red-500 mt-1">Where: {tr.error.where}</div>
-                                    <div className="text-red-600 dark:text-red-500 font-medium mt-1">Fix: {tr.error.howToFix}</div>
-                                    {tr.error.envVarsNeeded && (
-                                      <div className="mt-1 text-red-600 dark:text-red-500">Env vars needed: {tr.error.envVarsNeeded.join(", ")}</div>
-                                    )}
+                                  {lastTestResult && !isTaskExpanded && (
+                                    <div className={`mt-1 text-xs ml-8 ${lastTestResult.success ? "text-green-600" : lastTestResult.success === false ? "text-red-600" : "text-gray-500"}`}>
+                                      {lastTestResult.plainLanguage?.slice(0, 100)}{(lastTestResult.plainLanguage?.length || 0) > 100 ? "..." : ""}
+                                      {lastTestResult.timestamp && (
+                                        <span className="text-gray-400 ml-2">{new Date(lastTestResult.timestamp).toLocaleString()}</span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {isOverdue && (
+                                    <div className="mt-1 ml-8 text-xs text-red-500 animate-pulse">
+                                      Overdue — due {new Date(dueDate!).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {isTaskExpanded && (
+                                  <div className="px-6 pb-3 space-y-2 bg-gray-50/50 dark:bg-gray-800/30">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 ml-8">{task.description}</p>
+                                    <div className="flex gap-4 text-xs text-gray-400 ml-8 flex-wrap">
+                                      {meta.startDate && <span>Started: {new Date(meta.startDate as string).toLocaleDateString()}</span>}
+                                      {lastTestResult?.timestamp && <span>Last Test: {new Date(lastTestResult.timestamp).toLocaleString()}</span>}
+                                      {dueDate && <span className={isOverdue ? "text-red-500 font-medium" : ""}>Due: {new Date(dueDate).toLocaleDateString()}</span>}
+                                    </div>
+
+                                    {(result || lastTestResult) && (() => {
+                                      const tr = result || lastTestResult!;
+                                      return (
+                                        <div className={`ml-8 rounded-lg p-3 border ${tr.success ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : tr.success === false ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800" : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"}`}>
+                                          <p className={`text-sm mb-2 ${tr.success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                                            {tr.plainLanguage}
+                                          </p>
+                                          {tr.error && (
+                                            <div className="bg-red-100 dark:bg-red-900/30 rounded p-2 mb-2 text-xs">
+                                              <div className="font-medium text-red-800 dark:text-red-300 mb-1">Error: {tr.error.code}</div>
+                                              <div className="text-red-700 dark:text-red-400">{tr.error.message}</div>
+                                              <div className="text-red-600 dark:text-red-500 mt-1">Where: {tr.error.where}</div>
+                                              <div className="text-red-600 dark:text-red-500 font-medium mt-1">Fix: {tr.error.howToFix}</div>
+                                              {tr.error.envVarsNeeded && (
+                                                <div className="mt-1 text-red-600 dark:text-red-500">Env vars needed: {tr.error.envVarsNeeded.join(", ")}</div>
+                                              )}
+                                            </div>
+                                          )}
+                                          <div className="relative">
+                                            <button
+                                              onClick={() => copyJson(task.id, tr, task)}
+                                              className="absolute top-1 right-1 px-2 py-0.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs rounded transition-colors"
+                                            >
+                                              {copiedJson === task.id ? "Copied!" : "Copy JSON"}
+                                            </button>
+                                            <pre className="bg-gray-900 dark:bg-black text-green-400 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
+                                              {JSON.stringify(tr.json, null, 2)}
+                                            </pre>
+                                          </div>
+                                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                            <span>{tr.durationMs}ms</span>
+                                            <span>{new Date(tr.timestamp).toLocaleString()}</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 )}
-
-                                {/* JSON block */}
-                                <div className="relative">
-                                  <button
-                                    onClick={() => copyJson(task.id, tr, task)}
-                                    className="absolute top-1 right-1 px-2 py-0.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs rounded transition-colors"
-                                  >
-                                    {copiedJson === task.id ? "Copied!" : "Copy JSON"}
-                                  </button>
-                                  <pre className="bg-gray-900 dark:bg-black text-green-400 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
-                                    {JSON.stringify(tr.json, null, 2)}
-                                  </pre>
-                                </div>
-
-                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                                  <span>{tr.durationMs}ms</span>
-                                  <span>{new Date(tr.timestamp).toLocaleString()}</span>
-                                </div>
                               </div>
                             );
-                          })()}
+                          })}
                         </div>
                       )}
                     </div>
@@ -7007,13 +7055,40 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
             )}
           </div>
         );
-      })}
+      }) : phases.length > 0 ? (
+        /* Fallback: flat phase list if API returns old format without plans */
+        phases.map(phase => {
+          const isExpanded = expandedPhase === phase.name;
+          return (
+            <div key={phase.name} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <button
+                onClick={() => setExpandedPhase(isExpanded ? null : phase.name)}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              >
+                <div className="flex items-center gap-2 text-left">
+                  <span className="text-xs text-gray-400">{isExpanded ? "▾" : "▸"}</span>
+                  <span className="font-medium text-sm text-gray-900 dark:text-white">{phase.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                      <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
+                    </div>
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{phase.readiness}%</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          );
+        })
+      ) : null}
 
-      {phases.length === 0 && !loading && (
+      {plans.length === 0 && phases.length === 0 && !loading && (
         <div className="text-center py-6 text-gray-500">
-          <p className="text-sm mb-2">No development plan synced yet.</p>
+          <p className="text-sm mb-2">No development plans synced yet.</p>
           <button onClick={syncPlan} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">
-            Sync Stage A Plan
+            Sync All Plans
           </button>
         </div>
       )}

@@ -165,6 +165,24 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "title-sanitization-verify": testTitleSanitizationVerify,
   "master-audit-verify": testMasterAuditVerify,
   "per-page-audit-verify": testPerPageAuditVerify,
+  // Batch 2: Security + Dashboard + Design System
+  "admin-auth-verify": testAdminAuthVerify,
+  "xss-sanitization-verify": testXssSanitizationVerify,
+  "security-scan-verify": testSecurityScanVerify,
+  "race-condition-verify": testRaceConditionVerify,
+  "cron-resilience-verify": testCronResilienceVerify,
+  "cockpit-verify": testCockpitVerify,
+  "departures-verify": testDeparturesVerify,
+  "cycle-health-verify": testCycleHealthVerify,
+  "affiliate-hq-verify": testAffiliateHqVerify,
+  "ai-cost-dashboard-verify": testAiCostDashboardVerify,
+  "aggregated-report-verify": testAggregatedReportVerify,
+  "action-logging-verify": testActionLoggingVerify,
+  "site-settings-verify": testSiteSettingsVerify,
+  "email-system-verify": testEmailSystemVerify,
+  "design-tools-verify": testDesignToolsVerify,
+  "content-engine-verify": testContentEngineVerify,
+  "social-calendar-verify": testSocialCalendarVerify,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -2399,5 +2417,263 @@ async function testPerPageAuditVerify(): Promise<LiveTestResult> {
     readiness: apiExists ? 100 : 0,
     plainLanguage: `Per-page audit: API=${apiExists}, UI page=${pageExists}, pagination=${hasPagination}, sorting=${hasSorting}.`,
     json: { apiExists, pageExists, hasPagination, hasSorting },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BATCH 2: Security + Dashboard + Design System (17 tests)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Admin Auth Verify ───────────────────────────────────────────────────────────
+async function testAdminAuthVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/admin-middleware.ts");
+  const content = readContent("lib/admin-middleware.ts");
+  const hasRequireAdmin = content.includes("requireAdmin");
+  const hasWithAdminAuth = content.includes("withAdminAuth");
+  const hasRequireAdminOrCron = content.includes("requireAdminOrCron");
+  const exports = [hasRequireAdmin && "requireAdmin", hasWithAdminAuth && "withAdminAuth", hasRequireAdminOrCron && "requireAdminOrCron"].filter(Boolean);
+  return makeResult({
+    success: exists && hasRequireAdmin,
+    readiness: exists && hasRequireAdmin ? 100 : 0,
+    plainLanguage: `Admin auth middleware: file=${exists}, exports: ${exports.join(", ") || "none"}.`,
+    json: { exists, hasRequireAdmin, hasWithAdminAuth, hasRequireAdminOrCron, exports },
+  });
+}
+
+// ── XSS Sanitization Verify ─────────────────────────────────────────────────────
+async function testXssSanitizationVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("lib/html-sanitizer.ts");
+  const content = readContent("lib/html-sanitizer.ts");
+  const hasSanitizeHtml = content.includes("sanitizeHtml");
+  const hasSanitizeSvg = content.includes("sanitizeSvg");
+  const hasDomPurify = content.includes("DOMPurify") || content.includes("dompurify") || content.includes("isomorphic-dompurify");
+  return makeResult({
+    success: exists && hasSanitizeHtml,
+    readiness: exists && hasSanitizeHtml ? 100 : exists ? 50 : 0,
+    plainLanguage: `XSS sanitization: sanitizer=${exists}, sanitizeHtml=${hasSanitizeHtml}, sanitizeSvg=${hasSanitizeSvg}, DOMPurify=${hasDomPurify}.`,
+    json: { exists, hasSanitizeHtml, hasSanitizeSvg, hasDomPurify },
+  });
+}
+
+// ── Security Scan Verify ────────────────────────────────────────────────────────
+async function testSecurityScanVerify(): Promise<LiveTestResult> {
+  const exists = fileCheck("scripts/smoke-test.ts");
+  const content = readContent("scripts/smoke-test.ts");
+  const hasCatchTests = content.includes("catch") && content.includes("empty");
+  const hasInfoDisclosure = content.includes("info") && content.includes("disclosure");
+  const hasXssTests = content.includes("XSS") || content.includes("xss") || content.includes("sanitiz");
+  const testMatches = content.match(/PASS|FAIL|WARN/g) || [];
+  return makeResult({
+    success: exists,
+    readiness: exists ? 100 : 0,
+    plainLanguage: `Security smoke tests: file=${exists}, catch-block tests=${hasCatchTests}, info-disclosure=${hasInfoDisclosure}, XSS=${hasXssTests}, ~${testMatches.length} test result refs.`,
+    json: { exists, hasCatchTests, hasInfoDisclosure, hasXssTests, testResultRefs: testMatches.length },
+  });
+}
+
+// ── Race Condition Verify ───────────────────────────────────────────────────────
+async function testRaceConditionVerify(): Promise<LiveTestResult> {
+  const selectContent = readContent("lib/content-pipeline/select-runner.ts");
+  const hasTransaction = selectContent.includes("$transaction");
+  const hasAtomicClaim = selectContent.includes("updateMany");
+  const builderContent = readContent("app/api/cron/content-builder-create/route.ts");
+  const hasDedupMarker = builderContent.includes("dedup") || builderContent.includes("marker") || builderContent.includes("started");
+  const hasEnArTransaction = builderContent.includes("$transaction");
+  return makeResult({
+    success: hasTransaction && hasAtomicClaim,
+    readiness: hasTransaction && hasAtomicClaim ? 100 : hasTransaction ? 60 : 0,
+    plainLanguage: `Race condition guards: select-runner $transaction=${hasTransaction}, atomic claim=${hasAtomicClaim}, builder dedup=${hasDedupMarker}, EN+AR pair transaction=${hasEnArTransaction}.`,
+    json: { hasTransaction, hasAtomicClaim, hasDedupMarker, hasEnArTransaction },
+  });
+}
+
+// ── Cron Resilience Verify ──────────────────────────────────────────────────────
+async function testCronResilienceVerify(): Promise<LiveTestResult> {
+  const guardExists = fileCheck("lib/cron-feature-guard.ts");
+  const content = readContent("lib/cron-feature-guard.ts");
+  const hasCheckEnabled = content.includes("checkCronEnabled");
+  const hasFeatureFlag = content.includes("FeatureFlag") || content.includes("featureFlag");
+  const failureHooksExists = fileCheck("lib/ops/failure-hooks.ts");
+  return makeResult({
+    success: guardExists && hasCheckEnabled,
+    readiness: guardExists && hasCheckEnabled ? 100 : guardExists ? 50 : 0,
+    plainLanguage: `Cron resilience: feature guard=${guardExists}, checkCronEnabled=${hasCheckEnabled}, FeatureFlag DB=${hasFeatureFlag}, failure-hooks=${failureHooksExists}.`,
+    json: { guardExists, hasCheckEnabled, hasFeatureFlag, failureHooksExists },
+  });
+}
+
+// ── Cockpit Verify ──────────────────────────────────────────────────────────────
+async function testCockpitVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/cockpit/route.ts");
+  const pageExists = fileCheck("app/admin/cockpit/page.tsx");
+  const content = readContent("app/admin/cockpit/page.tsx");
+  const tabMatches = content.match(/tab/gi) || [];
+  const hasMobileFirst = content.includes("375") || content.includes("mobile") || content.includes("sm:");
+  return makeResult({
+    success: apiExists && pageExists,
+    readiness: apiExists && pageExists ? 100 : apiExists ? 60 : 0,
+    plainLanguage: `Cockpit: API=${apiExists}, page=${pageExists}, ~${Math.min(tabMatches.length, 20)} tab refs, mobile-first=${hasMobileFirst}.`,
+    json: { apiExists, pageExists, tabRefs: tabMatches.length, hasMobileFirst },
+  });
+}
+
+// ── Departures Verify ───────────────────────────────────────────────────────────
+async function testDeparturesVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/departures/route.ts");
+  const pageExists = fileCheck("app/admin/departures/page.tsx");
+  const content = readContent("app/api/admin/departures/route.ts");
+  const hasKnownCrons = content.includes("KNOWN_CRONS");
+  const hasDoNow = content.includes("POST") || content.includes("post");
+  return makeResult({
+    success: apiExists,
+    readiness: apiExists ? 100 : 0,
+    plainLanguage: `Departures board: API=${apiExists}, page=${pageExists}, KNOWN_CRONS whitelist=${hasKnownCrons}, Do Now POST=${hasDoNow}.`,
+    json: { apiExists, pageExists, hasKnownCrons, hasDoNow },
+  });
+}
+
+// ── Cycle Health Verify ─────────────────────────────────────────────────────────
+async function testCycleHealthVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/cycle-health/route.ts");
+  const pageExists = fileCheck("app/admin/cockpit/health/page.tsx");
+  const content = readContent("app/api/admin/cycle-health/route.ts");
+  const hasFixActions = content.includes("FixAction") || content.includes("fixAction") || content.includes("fix");
+  const checkMatches = content.match(/check\s*\d+|Check\s*\d+/gi) || [];
+  return makeResult({
+    success: apiExists,
+    readiness: apiExists ? 100 : 0,
+    plainLanguage: `Cycle health: API=${apiExists}, UI=${pageExists}, fix actions=${hasFixActions}, ~${checkMatches.length} check refs.`,
+    json: { apiExists, pageExists, hasFixActions, checkRefs: checkMatches.length },
+  });
+}
+
+// ── Affiliate HQ Verify ─────────────────────────────────────────────────────────
+async function testAffiliateHqVerify(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/affiliate-hq/page.tsx");
+  const apiExists = fileCheck("app/api/admin/affiliate-hq/route.ts");
+  const content = readContent("app/admin/affiliate-hq/page.tsx");
+  const tabMatches = content.match(/tab/gi) || [];
+  return makeResult({
+    success: pageExists && apiExists,
+    readiness: pageExists && apiExists ? 100 : pageExists ? 60 : 0,
+    plainLanguage: `Affiliate HQ: page=${pageExists}, API=${apiExists}, ~${Math.min(tabMatches.length, 20)} tab refs.`,
+    json: { pageExists, apiExists, tabRefs: tabMatches.length },
+  });
+}
+
+// ── AI Cost Dashboard Verify ────────────────────────────────────────────────────
+async function testAiCostDashboardVerify(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/ai-costs/page.tsx");
+  const apiExists = fileCheck("app/api/admin/ai-costs/route.ts");
+  const schemaContent = readContent("prisma/schema.prisma");
+  const hasModel = schemaContent.includes("ApiUsageLog");
+  return makeResult({
+    success: pageExists && apiExists,
+    readiness: pageExists && apiExists ? 100 : apiExists ? 60 : 0,
+    plainLanguage: `AI cost dashboard: page=${pageExists}, API=${apiExists}, ApiUsageLog model=${hasModel}.`,
+    json: { pageExists, apiExists, hasModel },
+  });
+}
+
+// ── Aggregated Report Verify ────────────────────────────────────────────────────
+async function testAggregatedReportVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/aggregated-report/route.ts");
+  const content = readContent("app/api/admin/aggregated-report/route.ts");
+  const sectionMatches = content.match(/section\s*\d+|Section\s*\d+/gi) || [];
+  const hasDiscovery = content.includes("discovery") || content.includes("Discovery");
+  const hasPublicAudit = content.includes("publicWebsite") || content.includes("public_website") || content.includes("Public Website");
+  return makeResult({
+    success: apiExists,
+    readiness: apiExists ? 100 : 0,
+    plainLanguage: `Aggregated report: API=${apiExists}, ~${sectionMatches.length} section refs, discovery audit=${hasDiscovery}, public website audit=${hasPublicAudit}.`,
+    json: { apiExists, sectionRefs: sectionMatches.length, hasDiscovery, hasPublicAudit },
+  });
+}
+
+// ── Action Logging Verify ───────────────────────────────────────────────────────
+async function testActionLoggingVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/action-logs/route.ts");
+  const content = readContent("app/api/admin/action-logs/route.ts");
+  const hasGet = content.includes("GET");
+  const hasPost = content.includes("POST");
+  return makeResult({
+    success: apiExists,
+    readiness: apiExists ? 100 : 0,
+    plainLanguage: `Action logging: API=${apiExists}, GET=${hasGet}, POST=${hasPost}.`,
+    json: { apiExists, hasGet, hasPost },
+  });
+}
+
+// ── Site Settings Verify ────────────────────────────────────────────────────────
+async function testSiteSettingsVerify(): Promise<LiveTestResult> {
+  const apiExists = fileCheck("app/api/admin/site-settings/route.ts");
+  const content = readContent("app/api/admin/site-settings/route.ts");
+  const categories = ["affiliates", "email", "social", "workflow", "general"].filter(c => content.includes(c));
+  return makeResult({
+    success: apiExists,
+    readiness: apiExists ? 100 : 0,
+    plainLanguage: `Site settings: API=${apiExists}, ${categories.length}/5 categories found (${categories.join(", ")}).`,
+    json: { apiExists, categories, categoryCount: categories.length },
+  });
+}
+
+// ── Email System Verify ─────────────────────────────────────────────────────────
+async function testEmailSystemVerify(): Promise<LiveTestResult> {
+  const senderExists = fileCheck("lib/email/sender.ts");
+  const rendererExists = fileCheck("lib/email/renderer.ts");
+  const senderContent = readContent("lib/email/sender.ts");
+  const providers = ["smtp", "resend", "sendgrid"].filter(p => senderContent.toLowerCase().includes(p));
+  return makeResult({
+    success: senderExists && rendererExists,
+    readiness: senderExists && rendererExists ? 100 : senderExists ? 60 : 0,
+    plainLanguage: `Email system: sender=${senderExists}, renderer=${rendererExists}, providers: ${providers.join(", ") || "none detected"}.`,
+    json: { senderExists, rendererExists, providers },
+  });
+}
+
+// ── Design Tools Verify ─────────────────────────────────────────────────────────
+async function testDesignToolsVerify(): Promise<LiveTestResult> {
+  const brandProvider = fileCheck("lib/design/brand-provider.ts");
+  const distribution = fileCheck("lib/design/distribution.ts");
+  const svgExporter = fileCheck("lib/design/svg-exporter.ts");
+  const brandKit = fileCheck("lib/design/brand-kit-generator.ts");
+  const content = readContent("lib/design/brand-provider.ts");
+  const hasExport = content.includes("getBrandProfile");
+  const moduleCount = [brandProvider, distribution, svgExporter, brandKit].filter(Boolean).length;
+  return makeResult({
+    success: brandProvider && hasExport,
+    readiness: brandProvider ? 100 : 0,
+    plainLanguage: `Design tools: ${moduleCount}/4 modules present. getBrandProfile=${hasExport}.`,
+    json: { brandProvider, distribution, svgExporter, brandKit, hasExport, moduleCount },
+  });
+}
+
+// ── Content Engine Verify ───────────────────────────────────────────────────────
+async function testContentEngineVerify(): Promise<LiveTestResult> {
+  const researcher = fileCheck("lib/content-engine/researcher.ts");
+  const ideator = fileCheck("lib/content-engine/ideator.ts");
+  const scripter = fileCheck("lib/content-engine/scripter.ts");
+  const analyst = fileCheck("lib/content-engine/analyst.ts");
+  const agentCount = [researcher, ideator, scripter, analyst].filter(Boolean).length;
+  return makeResult({
+    success: agentCount === 4,
+    readiness: agentCount === 4 ? 100 : Math.round((agentCount / 4) * 100),
+    plainLanguage: `Content engine: ${agentCount}/4 AI agents present. Researcher=${researcher}, Ideator=${ideator}, Scripter=${scripter}, Analyst=${analyst}.`,
+    json: { researcher, ideator, scripter, analyst, agentCount },
+  });
+}
+
+// ── Social Calendar Verify ──────────────────────────────────────────────────────
+async function testSocialCalendarVerify(): Promise<LiveTestResult> {
+  const pageExists = fileCheck("app/admin/social-calendar/page.tsx");
+  const schedulerExists = fileCheck("lib/social/scheduler.ts");
+  const content = readContent("lib/social/scheduler.ts");
+  const hasSchedule = content.includes("schedule") || content.includes("Schedule");
+  const hasPublish = content.includes("publish") || content.includes("Publish");
+  return makeResult({
+    success: pageExists && schedulerExists,
+    readiness: pageExists && schedulerExists ? 100 : schedulerExists ? 50 : 0,
+    plainLanguage: `Social calendar: page=${pageExists}, scheduler=${schedulerExists}, schedule=${hasSchedule}, publish=${hasPublish}.`,
+    json: { pageExists, schedulerExists, hasSchedule, hasPublish },
   });
 }

@@ -2936,3 +2936,59 @@ Tests: `revenue-dashboard-verify`, `knowledge-base-verify`, `weekly-digest-verif
 71. **Empty catch blocks in GDPR/compliance code are especially dangerous** — if deletion fails silently, the endpoint reports success while data remains. Always log the actual error to distinguish expected failures (table not found) from unexpected crashes (wrong field name).
 72. **When a function accepts a parameter but tests show it has no effect, the parameter is not wired** — `runDealDiscovery(budgetMs, siteId?)` accepted siteId but the create call didn't use it. Always trace all call paths from parameter to storage.
 73. **`hasSubstantiveContent` for bilingual articles must check BOTH languages with OR** — a noindex on the English URL can suppress the Arabic hreflang pair from Google's Arabic index. Index if ANY language version has substantial content.
+
+### Session: March 11, 2026 — Audit #15: 4-Agent Deep Platform Audit (6 issues fixed)
+
+**4 parallel agents audited: (1) Prisma schema consistency + pipeline data flow, (2) Security + auth gaps, (3) Multi-site scoping, (4) Operations + reliability**
+
+**Bug #1 (CRITICAL): Cockpit buildRevenue() — CJ queries completely unscoped**
+- `CjClickEvent.count()` and `CjCommission.aggregate()` in `buildRevenue()` had NO siteId filter
+- **Impact:** Revenue card in cockpit showed data from ALL sites globally — cross-site financial data leakage. Once Site #2 goes live, both sites see identical combined revenue totals.
+- **Fix:** Added `cjSiteFilter = { OR: [{ siteId: { in: activeSiteIds } }, { siteId: null }] }` to all CJ queries in `buildRevenue()`. Same `OR` pattern used in affiliate-hq for consistency.
+
+**Bug #2 (CRITICAL — compliance): GDPR endpoint hardcoded email**
+- `privacy@yalla-london.com` hardcoded in both the success response (line 120) and GET instructions (line 146)
+- **Impact:** Multi-site GDPR deletion endpoint sent Zenitha Yachts users to Yalla London's privacy email. GDPR compliance issue — right-to-erasure instructions referenced wrong company.
+- **Fix:** Dynamic `privacy@${getSiteDomain(siteId || getDefaultSiteId())}` in success response. GET instructions updated to say "contact the site's privacy team".
+
+**Bug #3 (HIGH — connection pool): 5 cron schedule conflicts**
+- Multiple crons firing simultaneously caused PgBouncer connection pool exhaustion
+- **Conflicts fixed in `vercel.json`:**
+  - `analytics`: `0 3` → `30 2` (clears discovery-monitor at 3:00)
+  - `sync-commissions`: `0 4` → `50 4` (clears gsc-sync + weekly-topics at 4:00)
+  - `daily-seo-audit`: `30 4` → `20 5` (clears content-auto-fix-lite at 4:30 + gsc-sync cluster)
+  - `subscriber-emails`: `0 10` → `0 11` (clears social at 10:00)
+  - `google-indexing`: `15 9` → `35 9` (clears scheduled-publish at 9:15)
+
+**Bug #4 (HIGH — UX 404s): 6 broken sidebar navigation links**
+- `premium-admin-nav.tsx` had links pointing to non-existent pages
+- **Fixes:**
+  - `/admin/dashboard` → `/admin/cockpit` (cockpit IS the mission control dashboard)
+  - `/admin/settings/api-keys` → `comingSoon: true` (no href — renders as non-clickable)
+  - `/admin/settings/roles` → `comingSoon: true`
+  - `/admin/settings/site` → `/admin/cockpit/new-site` (wizard exists here)
+  - Quick action "New Topic" → `/admin/topics-pipeline` (not `/admin/topics-pipeline/new`)
+  - Quick action "New Prompt" → `/admin/prompts` (not `/admin/prompts/new`)
+
+**Bug #5 (MEDIUM — type safety): `Set` generic inference loss in content-auto-fix**
+- `new Set(realPosts.map(p => p.slug))` inferred as `Set<unknown>` instead of `Set<string>`
+- **Fix:** `new Set<string>(...)` — explicit generic restores `.has()` type safety
+
+**Confirmed clean (no issues found):**
+- Catch blocks: 0 empty violations — 712+ catch blocks all have logging ✅
+- Circuit breaker: 3-state machine, 3-failure threshold, 30s cooldown, budget caps ✅
+- Budget guards on 5 critical crons: all have BUDGET_MS + break on threshold ✅
+- Math.random() fake data: 0 instances — all 9 remaining uses are legitimate ✅
+- Dead buttons: 0 empty onClick handlers in admin pages ✅
+- Mock data: 0 hardcoded fake data arrays in admin pages ✅
+- Pipeline phase names: consistent across phases.ts, builder-create, select-runner ✅
+- All 40 cron route files verified to exist (no vercel.json → missing route gaps) ✅
+- GDPR field names (post-fix): all correct (details:, email:, firstName:, phone:) ✅
+
+**Critical Rules Learned (Audit #15):**
+
+74. **`buildRevenue()` and any financial aggregate must include siteId scoping** — revenue data is the most sensitive cross-site leak. Always use `OR: [{ siteId: { in: activeSiteIds } }, { siteId: null }]` for both scoped and legacy records.
+75. **GDPR endpoints must use dynamic per-site contact information** — a multi-site platform must route GDPR requests to the correct site's privacy contact. Never hardcode a single site's email address in a platform-wide endpoint.
+76. **Always check vercel.json for cron schedule conflicts before adding new crons** — two crons at the same minute firing simultaneously compete for PgBouncer connection pool slots. Minimum 5-minute stagger between heavy DB-writing crons.
+77. **`comingSoon: true` without `href` prevents 404s for planned-but-unbuilt pages** — the `premium-admin-nav.tsx` renderer uses `item.href && isAvailable` — removing `href` makes the item render as a non-clickable div, avoiding 404s while still surfacing the feature in the nav.
+78. **All `new Set(array)` calls must include the explicit generic** — TypeScript cannot infer the Set generic from `.map()` results. Always write `new Set<string>(array)` or `new Set<SomeType>(array)` to preserve type safety on `.has()`, `.add()`, and spread operations.

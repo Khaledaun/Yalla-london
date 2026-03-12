@@ -536,11 +536,16 @@ export async function lookupAdvertisers(opts: {
   const websiteId = getWebsiteId();
   if (websiteId) params["website-id"] = websiteId;
 
-  if (opts.joined !== undefined) {
-    params["joined"] = opts.joined ? "true" : "false";
-  }
+  // CJ API uses `advertiser-ids` param for filtering. Special values:
+  // - "joined" = all advertisers with active relationship
+  // - "notjoined" = all advertisers without relationship
+  // - comma-separated IDs = specific advertisers
+  // NOTE: Empty requests (no advertiser-ids, no keywords) return ZERO results.
   if (opts.advertiserIds?.length) {
     params["advertiser-ids"] = opts.advertiserIds.join(",");
+  } else if (opts.joined !== undefined) {
+    // Legacy boolean interface — convert to advertiser-ids keyword
+    params["advertiser-ids"] = opts.joined ? "joined" : "notjoined";
   }
   if (opts.keywords) {
     params["keywords"] = opts.keywords;
@@ -549,7 +554,7 @@ export async function lookupAdvertisers(opts: {
   params["records-per-page"] = String(opts.recordsPerPage || 100);
 
   // Log request params for debugging
-  console.log(`[cj-client] lookupAdvertisers request: website-id=${params["website-id"] || "none"}, joined=${params["joined"] || "unset"}, page=${params["page-number"]}, cid=${getPublisherCid()?.substring(0, 4)}...`);
+  console.log(`[cj-client] lookupAdvertisers request: website-id=${params["website-id"] || "none"}, advertiser-ids=${params["advertiser-ids"] || "NONE"}, keywords=${params["keywords"] || "none"}, page=${params["page-number"]}, cid=${getPublisherCid()?.substring(0, 4)}...`);
 
   const xml = await cjFetch(ADVERTISER_LOOKUP_URL, params);
   const result = parsePaginatedResponse(xml, "advertiser", parseAdvertiser);

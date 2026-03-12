@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Star, MapPin, Phone, Globe, Search } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
+import { getPageAffiliateLink, type AffiliateCategory } from '@/lib/affiliate/page-affiliate-links'
 
 const recommendations = [
   {
@@ -311,26 +312,45 @@ export default function RecommendationsPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 pt-4 border-t border-sand">
-                  {item.phone && (
-                    <a
-                      href={`tel:${item.phone}`}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-sand rounded-lg text-sm text-stone hover:bg-cream-100 transition-colors"
-                    >
-                      <Phone className="h-4 w-4" />
-                      {locale === 'en' ? 'Call' : 'اتصل'}
-                    </a>
-                  )}
-                  <a
-                    href={item.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors"
-                  >
-                    <Globe className="h-4 w-4" />
-                    {locale === 'en' ? 'Visit Website' : 'زيارة الموقع'}
-                  </a>
-                </div>
+                {(() => {
+                  const itemName = locale === 'en' ? item.name_en : item.name_ar;
+                  const affLink = getPageAffiliateLink(item.name_en, item.type as AffiliateCategory, 'yalla-london', 'recommendations');
+                  return (
+                  <div className="flex flex-col gap-2 pt-4 border-t border-sand">
+                    <div className="flex items-center gap-2">
+                      {item.phone && (
+                        <a
+                          href={`tel:${item.phone}`}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-sand rounded-lg text-sm text-stone hover:bg-cream-100 transition-colors"
+                        >
+                          <Phone className="h-4 w-4" />
+                          {locale === 'en' ? 'Call' : 'اتصل'}
+                        </a>
+                      )}
+                      <a
+                        href={item.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-sand rounded-lg text-sm text-stone hover:bg-cream-100 transition-colors"
+                      >
+                        <Globe className="h-4 w-4" />
+                        {locale === 'en' ? 'Official Site' : 'الموقع الرسمي'}
+                      </a>
+                    </div>
+                    {affLink && (
+                      <a
+                        href={affLink.url}
+                        target="_blank"
+                        rel="noopener sponsored"
+                        className={`${affLink.trackingClass} flex items-center justify-center gap-2 px-4 py-2.5 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 transition-colors`}
+                        data-affiliate-partner={affLink.partner}
+                      >
+                        {affLink.label} →
+                      </a>
+                    )}
+                  </div>
+                  );
+                })()}
               </div>
             </div>
           ))}

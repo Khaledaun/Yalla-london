@@ -12,6 +12,7 @@ import { motion } from 'framer-motion'
 import { NewsCarousel } from '@/components/news-carousel'
 import { NewsTicker } from '@/components/news-ticker'
 import { FollowUs } from '@/components/follow-us'
+import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 
 interface YallaHomepageProps {
   locale?: 'en' | 'ar'
@@ -698,21 +699,37 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <div className="max-w-6xl mx-auto px-6">
           <SectionHeader title={t.topExperiences} href="/experiences" linkText={t.viewAll} icon={Star} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {experiences[locale].map((exp) => (
-              <Link key={exp.id} href="/experiences" className="group">
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 shadow-card group-hover:shadow-luxury transition-all">
-                  <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-transparent to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="font-bold text-white text-sm group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
+            {experiences[locale].map((exp) => {
+              const expAffLink = getPageAffiliateLink(exp.title, 'experience', 'yalla-london', 'homepage');
+              return (
+              <div key={exp.id}>
+                <Link href="/experiences" className="group">
+                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 shadow-card group-hover:shadow-luxury transition-all">
+                    <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="font-bold text-white text-sm group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-bold text-charcoal">{exp.price}</span>
-                  <span className="text-xs font-semibold text-london-600 group-hover:underline">{t.bookNow}</span>
-                </div>
-              </Link>
-            ))}
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-sm font-bold text-charcoal">{exp.price}</span>
+                    <span className="text-xs font-semibold text-london-600 group-hover:underline">{t.bookNow}</span>
+                  </div>
+                </Link>
+                {expAffLink && (
+                  <a
+                    href={expAffLink.url}
+                    target="_blank"
+                    rel="noopener sponsored"
+                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-london-600/90 text-white text-xs font-semibold rounded-lg hover:bg-london-700 transition-colors`}
+                    data-affiliate-partner={expAffLink.partner}
+                  >
+                    {expAffLink.label}
+                  </a>
+                )}
+              </div>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -724,8 +741,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <div className="max-w-6xl mx-auto px-6">
           <SectionHeader title={t.luxuryHotels} href="/hotels" linkText={t.viewAll} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {hotels[locale].map((hotel) => (
-              <Link key={hotel.id} href="/hotels" className="group">
+            {hotels[locale].map((hotel) => {
+              const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'homepage');
+              return (
+              <div key={hotel.id} className="group">
+                <Link href="/hotels">
                 <div className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
                   <div className="relative h-52">
                     <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -744,8 +764,21 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     </div>
                   </div>
                 </div>
-              </Link>
-            ))}
+                </Link>
+                {affLink && (
+                  <a
+                    href={affLink.url}
+                    target="_blank"
+                    rel="noopener sponsored"
+                    className={`${affLink.trackingClass} mt-2 block text-center py-2.5 bg-london-600 text-white text-sm font-semibold rounded-xl hover:bg-london-700 transition-colors`}
+                    data-affiliate-partner={affLink.partner}
+                  >
+                    {affLink.label} →
+                  </a>
+                )}
+              </div>
+              );
+            })}
           </div>
         </div>
       </section>

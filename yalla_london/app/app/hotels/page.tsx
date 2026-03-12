@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Star, MapPin, Search } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
+import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 
 const hotels = {
   en: [
@@ -432,14 +433,22 @@ export default function HotelsPage() {
                     <span className="text-2xl font-bold text-charcoal">£{hotel.price}</span>
                     <span className="text-sm text-stone">{t.perNight}</span>
                   </div>
-                  <a
-                    href={hotel.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors"
-                  >
-                    {t.bookNow}
-                  </a>
+                  {(() => {
+                    const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'hotels-page');
+                    const href = affLink?.url || hotel.website;
+                    const rel = affLink ? 'noopener sponsored' : 'noopener noreferrer';
+                    return (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel={rel}
+                        className={`${affLink ? 'affiliate-page-link' : ''} px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors`}
+                        data-affiliate-partner={affLink?.partner || undefined}
+                      >
+                        {affLink ? affLink.label : t.bookNow}
+                      </a>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

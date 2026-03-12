@@ -343,22 +343,59 @@ function isValidAffiliateUrl(url: string): boolean {
   }
 }
 
-function findMatches(content: string, siteId: string, limit = 4, dbRules?: AffiliateRule[] | null) {
+// Categories where commercial affiliate links are inappropriate
+const SUPPRESS_AFFILIATES_KEYWORDS = [
+  "mosque", "masjid", "ramadan", "prayer", "timetable", "eid", "islamic heritage",
+  "مسجد", "رمضان", "صلاة", "عيد",
+  "obituary", "memorial", "charity", "donation",
+];
+
+// Minimum keyword occurrences to qualify a category (prevents false positives)
+const MIN_KEYWORD_OCCURRENCES = 2;
+
+function findMatches(content: string, siteId: string, limit = 4, dbRules?: AffiliateRule[] | null, title?: string) {
   const lower = content.toLowerCase();
+  const titleLower = (title || "").toLowerCase();
   const rules = dbRules || getAffiliateRulesForSite(siteId);
+
+  // Check if article is about a non-commercial topic — suppress all affiliates
+  const combinedText = titleLower + " " + lower;
+  const suppressCount = SUPPRESS_AFFILIATES_KEYWORDS.filter(k => combinedText.includes(k)).length;
+  if (suppressCount >= 2) {
+    // Article is primarily about mosque/prayer/ramadan etc — skip affiliate injection
+    return [];
+  }
+
   const matches: Array<{ keyword: string; name: string; url: string; param: string; category: string; score: number }> = [];
 
   for (const rule of rules) {
+    let categoryScore = 0;
+    let bestKeyword = "";
+
     for (const keyword of rule.keywords) {
-      if (lower.includes(keyword.toLowerCase())) {
-        for (const aff of rule.affiliates) {
-          // Skip affiliates with empty tracking params (env var not set)
-          if (aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) continue;
-          if (!matches.some((m) => m.name === aff.name)) {
-            const occurrences = (lower.match(new RegExp(keyword.toLowerCase(), "g")) || []).length;
-            matches.push({ keyword, ...aff, score: Math.min(occurrences * 10, 50) });
-          }
-        }
+      const kw = keyword.toLowerCase();
+
+      // Title matches count 5x (article is ABOUT this topic)
+      const titleMatch = titleLower.includes(kw) ? 5 : 0;
+
+      // Body keyword occurrences
+      const bodyOccurrences = (lower.match(new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length;
+
+      const kwScore = titleMatch + bodyOccurrences;
+      if (kwScore > categoryScore) {
+        categoryScore = kwScore;
+        bestKeyword = keyword;
+      }
+    }
+
+    // Require minimum relevance: either title match OR 2+ body mentions
+    if (categoryScore < MIN_KEYWORD_OCCURRENCES) continue;
+
+    for (const aff of rule.affiliates) {
+      // Skip affiliates with empty tracking params (env var not set)
+      if (aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) continue;
+      if (!matches.some((m) => m.name === aff.name)) {
+        matches.push({ keyword: bestKeyword, ...aff, score: Math.min(categoryScore * 10, 100) });
       }
     }
   }
@@ -366,8 +403,8 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[] | null): { content: string; count: number; partners: string[] } {
-  const matches = findMatches(html, siteId, 4, dbRules);
+function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[] | null, title?: string): { content: string; count: number; partners: string[] } {
+  const matches = findMatches(html, siteId, 4, dbRules, title);
   if (matches.length === 0) return { content: html, count: 0, partners: [] };
 
   let result = html;
@@ -489,8 +526,8 @@ async function handleAffiliateInjection(request: NextRequest) {
       }
       const dbRules = dbRulesCache.get(postSiteId) ?? null;
 
-      const enResult = injectAffiliates(post.content_en || "", postSiteId, dbRules);
-      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, dbRules) : { content: post.content_ar || "", count: 0, partners: [] };
+      const enResult = injectAffiliates(post.content_en || "", postSiteId, dbRules, post.title_en);
+      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, dbRules, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({

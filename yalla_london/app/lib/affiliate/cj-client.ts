@@ -543,9 +543,8 @@ export async function lookupAdvertisers(opts: {
 }): Promise<CjPaginatedResponse<CjAdvertiserRecord>> {
   const params: Record<string, string> = {};
 
-  // website-id is required for CJ to scope results to this publisher property
-  const websiteId = getWebsiteId();
-  if (websiteId) params["website-id"] = websiteId;
+  // NOTE: website-id is NOT a valid parameter for advertiser-lookup API.
+  // CJ scopes results via requestor-cid (set in cjFetch).
 
   // CJ API uses `advertiser-ids` param for filtering. Special values:
   // - "joined" = all advertisers with active relationship
@@ -565,7 +564,7 @@ export async function lookupAdvertisers(opts: {
   params["records-per-page"] = String(opts.recordsPerPage || 100);
 
   // Log request params for debugging
-  console.log(`[cj-client] lookupAdvertisers request: website-id=${params["website-id"] || "none"}, advertiser-ids=${params["advertiser-ids"] || "NONE"}, keywords=${params["keywords"] || "none"}, page=${params["page-number"]}, cid=${getPublisherCid()?.substring(0, 4)}...`);
+  console.log(`[cj-client] lookupAdvertisers request: advertiser-ids=${params["advertiser-ids"] || "NONE"}, keywords=${params["keywords"] || "none"}, page=${params["page-number"]}, cid=${getPublisherCid()?.substring(0, 4)}...`);
 
   const xml = await cjFetch(ADVERTISER_LOOKUP_URL, params);
   const result = parsePaginatedResponse(xml, "advertiser", parseAdvertiser);

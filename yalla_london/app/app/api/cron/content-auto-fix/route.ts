@@ -673,9 +673,58 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 15. WORD COUNT ARTIFACT CLEANUP — strip "(248 words)" from published content ──
+  // AI models echo word counts from prompt instructions into article body text.
+  // Visible to readers as "(248 words)", "(212 words)" etc.
+  let wordCountArtifactsCleaned = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
+      // Find published posts containing word count patterns
+      const postsWithArtifacts = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          deletedAt: null,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: " words)" } },
+            { content_ar: { contains: " words)" } },
+          ],
+        },
+        select: { id: true, content_en: true, content_ar: true, slug: true },
+        take: 50,
+      });
+
+      for (const post of postsWithArtifacts) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        const cleanEn = sanitizeContentBody(post.content_en || "");
+        const cleanAr = sanitizeContentBody(post.content_ar || "");
+        // Only update if content actually changed
+        if (cleanEn !== post.content_en || cleanAr !== post.content_ar) {
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: {
+              ...(cleanEn !== post.content_en ? { content_en: cleanEn } : {}),
+              ...(cleanAr !== post.content_ar ? { content_ar: cleanAr } : {}),
+            },
+          });
+          wordCountArtifactsCleaned++;
+          console.log(`[content-auto-fix] Stripped word count artifacts from: ${post.slug}`);
+        }
+      }
+      if (wordCountArtifactsCleaned > 0) {
+        console.log(`[content-auto-fix] Cleaned word count artifacts from ${wordCountArtifactsCleaned} articles`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`word-count-cleanup: ${msg}`);
+      console.warn("[content-auto-fix] Word count cleanup failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility

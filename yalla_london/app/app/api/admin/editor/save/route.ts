@@ -72,7 +72,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       .filter(Boolean)
       .map((url: string) => ({ url, title: "", sourceDomain: "" }));
 
-    const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
+    const { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
     const cleanedTitle = sanitizeTitle(title);
     const computedSlug = slug || cleanedTitle.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
 
@@ -81,8 +81,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         title_en: cleanedTitle,
         title_ar: titleAr || cleanedTitle,
         slug: computedSlug,
-        content_en: content,
-        content_ar: content, // Same content until Arabic version is created
+        content_en: sanitizeContentBody(content),
+        content_ar: sanitizeContentBody(content), // Same content until Arabic version is created
         excerpt_en: excerpt || content.substring(0, 157) + '...',
         excerpt_ar: excerpt || content.substring(0, 157) + '...',
         meta_title_en: sanitizeTitle(title),

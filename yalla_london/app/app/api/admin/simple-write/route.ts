@@ -282,13 +282,13 @@ async function handlePost(request: NextRequest) {
     }, { status: 400 });
   }
 
-  const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
+  const { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
   const data = {
     title_en: sanitizeTitle(titleEn),
     title_ar: body.titleAr || titleEn, // Required field — fallback to English title
     slug,
-    content_en: contentEn,
-    content_ar: body.contentAr || contentEn, // Required field — fallback to English content
+    content_en: sanitizeContentBody(contentEn),
+    content_ar: sanitizeContentBody(body.contentAr || contentEn), // Required field — fallback to English content
     meta_title_en: sanitizeTitle(body.metaTitleEn || titleEn.substring(0, 60)),
     meta_description_en: sanitizeMetaDescription(body.metaDescriptionEn || contentEn.replace(/<[^>]+>/g, " ").trim().substring(0, 155)),
     meta_title_ar: body.metaTitleAr || null,

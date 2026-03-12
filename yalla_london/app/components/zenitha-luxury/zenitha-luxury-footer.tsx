@@ -56,6 +56,7 @@ export function ZenithaLuxuryFooter() {
             { label: 'Contact', href: '/contact' },
             { label: 'Privacy Policy', href: '/privacy' },
             { label: 'Terms of Service', href: '/terms' },
+            { label: 'Affiliate Disclosure', href: '/affiliate-disclosure' },
           ].map((link) => (
             <Link
               key={link.href}

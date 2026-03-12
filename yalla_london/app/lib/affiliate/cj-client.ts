@@ -371,6 +371,15 @@ export function getCircuitBreakerState(): { failures: number; isOpen: boolean; o
   return { failures: _circuitFailures, isOpen: isCircuitOpen(), openedAt: _circuitOpenedAt };
 }
 
+/**
+ * Reset circuit breaker manually — allows retrying after fixing the root cause.
+ */
+export function resetCircuitBreaker(): void {
+  _circuitFailures = 0;
+  _circuitOpenedAt = 0;
+  console.log("[cj-client] Circuit breaker manually reset");
+}
+
 let _rateLimiter: RateLimiter | null = null;
 
 function getRateLimiter(): RateLimiter {

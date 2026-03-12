@@ -404,6 +404,19 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      case "reset_circuit_breaker": {
+        const { resetCircuitBreaker, getCircuitBreakerState: getCBState } = await import("@/lib/affiliate/cj-client");
+        resetCircuitBreaker();
+        return NextResponse.json({
+          success: true,
+          action,
+          result: {
+            message: "Circuit breaker reset — you can now retry sync",
+            circuitBreaker: getCBState(),
+          },
+        });
+      }
+
       case "toggle_flag": {
         const { prisma } = await import("@/lib/db");
         const { flagName, enabled } = body;

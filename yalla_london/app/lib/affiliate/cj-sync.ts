@@ -111,7 +111,9 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
         // Stop if we got fewer than a full page
         if (response.recordsReturned < 100 || response.records.length < 100) break;
       } catch (err) {
-        console.warn(`[cj-sync] Failed to fetch joined advertiser page ${page}:`, err instanceof Error ? err.message : String(err));
+        const errMsg = err instanceof Error ? err.message : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) : String(err);
+        console.warn(`[cj-sync] Failed to fetch joined advertiser page ${page}:`, errMsg);
+        result.errors.push(`CJ API (joined, page ${page}): ${errMsg}`);
         break;
       }
     }
@@ -131,7 +133,9 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
         }
         console.log(`[cj-sync] Keyword search added ${keywordResponse.records.length} more advertisers (total: ${allRecords.size})`);
       } catch (err) {
-        console.warn("[cj-sync] Keyword advertiser search failed (non-critical):", err instanceof Error ? err.message : String(err));
+        const errMsg = err instanceof Error ? err.message : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) : String(err);
+        console.warn("[cj-sync] Keyword advertiser search failed:", errMsg);
+        result.errors.push(`CJ API (keywords): ${errMsg}`);
       }
     }
 

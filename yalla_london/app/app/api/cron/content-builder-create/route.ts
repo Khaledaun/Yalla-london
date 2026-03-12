@@ -64,10 +64,14 @@ async function handleCreate(request: NextRequest) {
         continue;
       }
 
-      // Skip if there are already active drafts for this site (builder will advance them)
-      // Only count drafts that are genuinely progressing:
-      // - Exclude stuck drafts (no update in 1h)
-      // - Exclude drafts touched by diagnostic-agent/sweeper (they set updated_at but draft is still stuck)
+      // Skip if there are already active drafts being processed for this site.
+      // Count only drafts genuinely progressing through the pipeline:
+      // - Must have been updated within 1 hour (not stale/stuck)
+      // - Exclude diagnostic-agent/sweeper-touched drafts (they no longer set updated_at,
+      //   but older drafts may still have these markers from before the fix)
+      // - Lowered from >= 4 to >= 2: builder processes ~1 draft per 15-min run.
+      //   With 4 active, queue depth balloons to 100+ drafts waiting 25h+ each.
+      //   At 2, fresh drafts enter regularly while existing ones advance.
       const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
@@ -76,8 +80,6 @@ async function handleCreate(request: NextRequest) {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           updated_at: { gte: oneHourAgo },
-          // Exclude drafts that were only touched by recovery systems — they reset updated_at
-          // but the draft isn't genuinely advancing through the pipeline
           NOT: {
             OR: [
               { last_error: { contains: "Reset phase timer" } },
@@ -88,7 +90,7 @@ async function handleCreate(request: NextRequest) {
           },
         },
       });
-      if (activeDrafts >= 4) {
+      if (activeDrafts >= 2) {
         skippedSites.push(`${siteId}(${activeDrafts} active)`);
         console.log(`[builder-create] Site ${siteId} has ${activeDrafts} active drafts — skipping creation`);
         continue;

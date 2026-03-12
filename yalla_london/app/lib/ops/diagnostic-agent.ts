@@ -14,7 +14,8 @@
  * - Rule #16: Draft lifetime cap = 5 total attempts. Higher causes infinite loops.
  * - Rule #17: At cap >= 5, REJECT permanently. Never reduce attempts past cap.
  * - Rule #15: Assembly raw fallback threshold must be >= 2 (match phases.ts).
- * - Rule #57: Touching updated_at inflates active draft count — exclude [diagnostic-agent*] drafts.
+ * - Rule #57: Do NOT set updated_at in diagnostic fixes — inflates active draft count.
+ * - Rule #81: Never diagnose drafts with phase_attempts=0 — they're queued, not stuck.
  */
 
 export type DiagnosisCategory =
@@ -70,17 +71,27 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
   const diagnoses: Diagnosis[] = [];
 
   try {
-    // Find drafts stuck in the same phase for 3+ attempts or >2 hours
-    // Increased from take:20 to take:50 to process more stuck drafts per sweep.
-    // With 64 stuck drafts, 20 per sweep meant 3+ sweeps to clear the backlog.
+    // Find drafts that are genuinely stuck — NOT merely queued.
+    // Rule #81: Never diagnose drafts with phase_attempts=0. With 100+ drafts in
+    // the pipeline, each waits ~25h between runs. Treating queued drafts as "stuck"
+    // creates a hamster wheel where diagnostic-agent endlessly "fixes" non-broken drafts,
+    // inflates updated_at (making them appear "active"), and blocks new draft creation.
+    // Only diagnose: (a) 3+ failed attempts, or (b) has a stale processing lock
+    // (phase_started_at set and >2h old) AND has been attempted at least once.
     const stuckDrafts = await prisma.articleDraft.findMany({
       where: {
         current_phase: {
           in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
         },
+        phase_attempts: { gte: 1 },
         OR: [
           { phase_attempts: { gte: 3 } },
-          { phase_started_at: { lt: new Date(Date.now() - 2 * 60 * 60 * 1000) } },
+          {
+            phase_started_at: {
+              not: null,
+              lt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+            },
+          },
         ],
       },
       select: {
@@ -115,13 +126,13 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
       });
       for (const pd of stuckPromoting) {
         const ageMin = Math.round((Date.now() - new Date(pd.updated_at).getTime()) / 60_000);
+        // Do NOT set updated_at — diagnostic touches must not inflate active draft counts.
         await prisma.articleDraft.update({
           where: { id: pd.id },
           data: {
             current_phase: "reservoir",
             phase_started_at: null,
             last_error: `[diagnostic-agent] Reverted from stuck "promoting" (${ageMin}min) back to reservoir`,
-            updated_at: new Date(),
           },
         });
         console.log(`[diagnostic-agent] Reverted stuck "promoting" draft ${pd.id} (${pd.keyword}) back to reservoir after ${ageMin}min`);
@@ -244,6 +255,7 @@ async function applyCronFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
     // 1. Content-builder / content-auto-fix failures → unlock stuck drafts
     if (["content-builder", "content-auto-fix", "daily-content-generate"].includes(cronName)) {
       // Find drafts with stale phase_started_at locks (>30 min old = crashed mid-processing)
+      // Do NOT set updated_at — diagnostic touches must not inflate active draft counts.
       const stuckByLock = await prisma.articleDraft.updateMany({
         where: {
           current_phase: { notIn: ["reservoir", "rejected", "published"] },
@@ -252,7 +264,6 @@ async function applyCronFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
         data: {
           phase_started_at: null,
           last_error: `[diagnostic-agent] Unlocked after ${cronName} crash — lock was stale >30min`,
-          updated_at: new Date(),
         },
       });
       if (stuckByLock.count > 0) {
@@ -415,7 +426,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
               phase_attempts: newAttempts,
               phase_started_at: null,
               last_error: `[diagnostic-agent] Assembly timeout — raw fallback will fire (attempts=${newAttempts})`,
-              updated_at: new Date(),
             },
           });
           return {
@@ -437,7 +447,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             data: {
               current_phase: "rejected",
               last_error: "MAX_RECOVERIES_EXCEEDED",
-              updated_at: new Date(),
             },
           });
           return {
@@ -456,7 +465,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             data: {
               phase_started_at: null,
               last_error: `[diagnostic-agent] Cleared stale lock from ${diagnosis.category} (0 attempts, lock was stale)`,
-              updated_at: new Date(),
             },
           });
           return {
@@ -475,7 +483,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             phase_attempts: reducedAttempts,
             phase_started_at: null,
             last_error: `[diagnostic-agent-reset] Reduced from ${diagnosis.category} — was ${diagnosis.attempts} attempts, now ${reducedAttempts}`,
-            updated_at: new Date(),
           },
         });
         return {
@@ -499,18 +506,16 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           rawHtml += "</article>";
           const wordCount = rawHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 
+          // Do NOT set updated_at — diagnostic touches must not inflate active draft counts.
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {
               current_phase: "images",
-              // Don't reset to 0 — preserve lifetime history. New phase gets a fresh start
-              // but the total attempt count is remembered for the permanent cap.
               phase_attempts: Math.max((draft.phase_attempts || 0) - 2, 0),
               phase_started_at: null,
               assembled_html: rawHtml,
               word_count: wordCount,
               last_error: `[diagnostic-agent] Force-advanced from assembly via raw fallback after ${diagnosis.attempts} attempts`,
-              updated_at: new Date(),
             },
           });
           return {
@@ -531,7 +536,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
               current_phase: "rejected",
               rejection_reason: `[diagnostic-agent] Stuck in "${draft.current_phase}" for ${diagnosis.attempts} attempts — needs manual review`,
               completed_at: new Date(),
-              updated_at: new Date(),
             },
           });
           return {
@@ -551,7 +555,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             phase_attempts: loopReducedAttempts,
             phase_started_at: null,
             last_error: `[diagnostic-agent-reset] Reduced stuck_loop from ${draft.phase_attempts} to ${loopReducedAttempts}`,
-            updated_at: new Date(),
           },
         });
         return {
@@ -570,14 +573,14 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         if (bdAttempts >= 5) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
-            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED", updated_at: new Date() },
+            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
           });
           return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: bdAttempts } };
         }
 
         // Try to repair JSON fields
         let repaired = false;
-        const updateData: Record<string, unknown> = { updated_at: new Date() };
+        const updateData: Record<string, unknown> = {};
 
         if (draft.current_phase === "drafting" || draft.current_phase === "assembly") {
           const sections = draft.sections_data;
@@ -600,7 +603,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         const bdReduced = Math.max(bdAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: bdReduced, phase_started_at: null, updated_at: new Date() },
+          data: { phase_attempts: bdReduced, phase_started_at: null },
         });
         return { diagnosis, fixApplied: "reduce_attempts_bad_data", success: true, before, after: { phase: draft.current_phase, attempts: bdReduced } };
       }
@@ -611,7 +614,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         if (pdAttempts >= 5) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
-            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED", updated_at: new Date() },
+            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
           });
           return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: pdAttempts } };
         }
@@ -619,7 +622,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         const pdReduced = Math.max(pdAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: pdReduced, phase_started_at: null, updated_at: new Date() },
+          data: { phase_attempts: pdReduced, phase_started_at: null },
         });
         return { diagnosis, fixApplied: "reduce_for_provider_retry", success: true, before, after: { phase: draft.current_phase, attempts: pdReduced } };
       }
@@ -635,7 +638,6 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             current_phase: "rejected",
             rejection_reason: `[diagnostic-agent] Schema mismatch — requires code fix: ${diagnosis.details}`,
             completed_at: new Date(),
-            updated_at: new Date(),
           },
         });
         return {
@@ -653,21 +655,19 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         if (unkAttempts >= 5) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
-            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED", updated_at: new Date() },
+            data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
           });
           return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: unkAttempts } };
         }
 
         // If attempts=0 but draft is stuck (stale phase_started_at lock >2h),
-        // just clear the lock — no need to "reduce" attempts. Previously this
-        // was a no-op (Math.max(0-2, 0) = 0) generating 25+ useless log entries.
+        // just clear the lock — no need to "reduce" attempts.
         if (unkAttempts === 0 && draft.phase_started_at) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {
               phase_started_at: null,
               last_error: `[diagnostic-agent] Cleared stale lock (was ${Math.round((Date.now() - new Date(draft.phase_started_at).getTime()) / 60000)}min old, 0 attempts)`,
-              updated_at: new Date(),
             },
           });
           return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: 0, phase_started_at: null } };
@@ -676,7 +676,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         const unkReduced = Math.max(unkAttempts - 2, 0);
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: unkReduced, phase_started_at: null, updated_at: new Date() },
+          data: { phase_attempts: unkReduced, phase_started_at: null },
         });
         return { diagnosis, fixApplied: "reduce_attempts_generic", success: true, before, after: { phase: draft.current_phase, attempts: unkReduced } };
       }
@@ -762,11 +762,14 @@ async function logDiagnostic(verification: DiagnosticVerification, siteId: strin
 export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticResult> {
   const start = Date.now();
 
-  // Phase 0: Aggressive cleanup — reject drafts stuck >48h regardless of attempts.
-  // These have been through multiple diagnostic cycles without recovery — they're never
-  // going to publish. Clear them to make room for fresh content.
+  // Phase 0: Aggressive cleanup — two sweeps:
+  // (a) Reject drafts stuck >48h regardless of attempts (never going to publish)
+  // (b) Batch-reject drafts at permanent cap (phase_attempts >= 5) that somehow weren't
+  //     caught by fix handlers — clears the backlog immediately instead of one-by-one.
   try {
     const { prisma: p0 } = await import("@/lib/db");
+
+    // 0a: Stuck >48h
     const rejectedOld = await p0.articleDraft.updateMany({
       where: {
         current_phase: {
@@ -777,11 +780,25 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       data: {
         current_phase: "rejected",
         last_error: "[diagnostic-agent] Auto-rejected: stuck >48h without progress",
-        updated_at: new Date(),
       },
     });
-    if (rejectedOld.count > 0) {
-      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} drafts stuck >48h`);
+
+    // 0b: At permanent cap (5+ attempts) — these will never succeed
+    const rejectedCapped = await p0.articleDraft.updateMany({
+      where: {
+        current_phase: {
+          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+        },
+        phase_attempts: { gte: 5 },
+      },
+      data: {
+        current_phase: "rejected",
+        last_error: "MAX_RECOVERIES_EXCEEDED",
+      },
+    });
+
+    if (rejectedOld.count > 0 || rejectedCapped.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >48h, ${rejectedCapped.count} at permanent cap`);
     }
   } catch (p0err) {
     console.warn("[diagnostic-agent] Phase 0 cleanup failed:", p0err instanceof Error ? p0err.message : p0err);

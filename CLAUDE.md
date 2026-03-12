@@ -216,6 +216,7 @@ All → Dashboard:      Every pipeline reports to admin dashboard
 6. **ESLint**: Do not add `@typescript-eslint/*` rules
 7. **Deps**: Use `--legacy-peer-deps` when npm complains
 8. **Env vars**: `INDEXNOW_KEY` (not INDEXNOW_API_KEY), check `.env.example` for all
+9. **CJ Affiliate env vars** (configured in Vercel March 10, 2026): `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID` — all 3 set. Vrbo affiliate approved through CJ network.
 
 ## Content Pipeline (Critical Path to Revenue)
 
@@ -2193,7 +2194,8 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | Social APIs | Engagement stats require platform API integration | LOW | Open |
 | ~~Feature Flags~~ | ~~DB-backed, cron guards wired, but not wired to all runtime behavior~~ | ~~LOW~~ | **DONE** — fully wired (DB + env var, 32+ crons, `isFeatureFlagEnabled()`) |
 | ~~Brand Templates~~ | ~~Only Yalla London template exists~~ | ~~MEDIUM~~ | **DONE** — `getBrandProfile()` in `lib/design/brand-provider.ts` returns correct brand for all 6 sites (readiness 95%) |
-| **CJ siteId Migration** | CjCommission, CjClickEvent, CjOffer have NO siteId field — revenue leaks between sites | **HIGH** | **OPEN — blocks Site #2 launch** |
+| ~~CJ siteId Migration~~ | ~~CjCommission, CjClickEvent, CjOffer have NO siteId field~~ | ~~HIGH~~ | **DONE** — siteId added to all 3 models (migration `20260311_add_siteid_to_cj_models`), backfill from SID |
+| **CJ Credentials** | CJ Publisher account activated, Vrbo approved via CJ. Env vars configured in Vercel: `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID` | **INFO** | **ACTIVE** — March 12, 2026 |
 | ~~OG Images~~ | ~~Per-site OG image files don't exist yet~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG route at `app/api/og/route.tsx` |
 | ~~Login Security~~ | ~~No rate limiting on admin login endpoint~~ | ~~MEDIUM~~ | **DONE** — 5/15min + middleware layer |
 | ~~Cookie Consent~~ | ~~No GDPR cookie consent banner~~ | ~~MEDIUM~~ | **DONE** — bilingual, 4 categories, in root layout |
@@ -3024,3 +3026,17 @@ export async function POST(request: NextRequest) {
 
 79. **Always verify whether "found" routes are in the deployed Next.js app directory** — security tools may surface files in artifact directories, extracted packages, or build caches that are never actually served. Always confirm the route exists under the live Next.js `app/` directory (where `next.config.js` is) before treating it as a vulnerability.
 80. **Feature flag guards and AI rate limiters are NOT substitutes for admin auth** — `aiLimiter()` prevents abuse but does not verify identity. `FEATURE_PHASE4B_ENABLED` checks prevent use but don't authenticate. Any route that performs external API calls, exposes data, or triggers spending MUST have `requireAdmin()` as the FIRST guard — before feature flags, before rate limiting.
+
+### Session: March 12, 2026 — CJ Affiliate Activation & Vrbo Approval
+
+**CJ Publisher Account Fully Activated:**
+- Khaled received CJ activation email — full access to advertiser network
+- All 3 env vars already configured in Vercel (added March 10): `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID`
+- Vrbo (Expedia family) affiliate program approved through CJ network
+- Google Search Console: 87 pages indexed (up from 80), 207 not indexed, growth trend visible
+
+**Status:** CJ integration is code-complete and credentials are live. Crons will automatically sync advertisers, inject tracking links, and attribute revenue. Vrbo links will be included once the `sync-advertisers` cron runs and pulls approved advertisers from CJ API.
+
+**Next steps for Khaled (in CJ dashboard):**
+- Apply to more advertisers: Booking.com, Hotels.com, GetYourGuide, Viator, HalalBooking, Agoda
+- Monitor approvals in Affiliate HQ dashboard (`/admin/affiliate-hq`)

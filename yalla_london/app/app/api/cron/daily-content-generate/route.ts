@@ -758,7 +758,7 @@ async function generateWithAI(
         arabicDirectives = "\n\n" + getArabicCopywritingDirectives({
           destination: site.destination,
           contentType: topic.authorityLinks?.contentType || "guide",
-          audience: "international",
+          audience: "general",
         });
       } catch (arErr) {
         console.warn(`[daily-content-generate] Arabic copywriting directives unavailable:`, arErr instanceof Error ? arErr.message : arErr);

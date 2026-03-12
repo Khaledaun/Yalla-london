@@ -115,7 +115,8 @@ export interface CjApiError {
 // ---------------------------------------------------------------------------
 
 function extractXmlText(xml: string, tag: string): string {
-  const regex = new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, "i");
+  // Use lookahead to ensure exact tag match (e.g., <advertiser-id> not <advertiser-idx>)
+  const regex = new RegExp(`<${tag}(?=[\\s>])[^>]*>([^<]*)</${tag}>`, "i");
   const match = xml.match(regex);
   return match ? match[1].trim() : "";
 }
@@ -130,8 +131,21 @@ function extractXmlBoolean(xml: string, tag: string): boolean {
   return extractXmlText(xml, tag).toLowerCase() === "true";
 }
 
+/**
+ * Extract an XML attribute value from the first element matching the tag.
+ * e.g., extractXmlAttribute(xml, "advertisers", "total-matched") for <advertisers total-matched="5">
+ */
+function extractXmlAttribute(xml: string, tag: string, attr: string): string {
+  const regex = new RegExp(`<${tag}[^>]*\\s${attr}="([^"]*)"`, "i");
+  const match = xml.match(regex);
+  return match ? match[1].trim() : "";
+}
+
 function extractAllElements(xml: string, tag: string): string[] {
-  const regex = new RegExp(`<${tag}[^>]*>[\\s\\S]*?</${tag}>`, "gi");
+  // CRITICAL: Use lookahead (?=[\s>]) to prevent <advertiser> from matching <advertisers>
+  // Without this, the regex captures the wrapper element instead of individual elements,
+  // causing 0 parsed records despite valid API responses.
+  const regex = new RegExp(`<${tag}(?=[\\s>])[^>]*>[\\s\\S]*?</${tag}>`, "gi");
   return xml.match(regex) || [];
 }
 
@@ -217,16 +231,42 @@ function parsePaginatedResponse<T>(
   elementTag: string,
   parser: (el: string) => T
 ): CjPaginatedResponse<T> {
-  const totalMatched = extractXmlNumber(xml, "total-matched") || 0;
-  const recordsReturned = extractXmlNumber(xml, "records-returned") || 0;
-  const pageNumber = extractXmlNumber(xml, "page-number") || 1;
+  // CJ API puts pagination info as ATTRIBUTES on the wrapper element, not child elements.
+  // e.g., <advertisers total-matched="5" page-number="1" records-per-page="100">
+  // Try attribute extraction first, fall back to child element extraction.
+  const wrapperTag = elementTag + "s"; // "advertiser" → "advertisers", "link" → "links", etc.
+
+  let totalMatched = parseInt(extractXmlAttribute(xml, wrapperTag, "total-matched"), 10) || 0;
+  let recordsReturned = parseInt(extractXmlAttribute(xml, wrapperTag, "records-returned"), 10) || 0;
+  let pageNumber = parseInt(extractXmlAttribute(xml, wrapperTag, "page-number"), 10) || 1;
+
+  // Fallback: try child element extraction (some CJ endpoints may use this format)
+  if (totalMatched === 0) {
+    totalMatched = extractXmlNumber(xml, "total-matched") || 0;
+  }
+  if (recordsReturned === 0) {
+    recordsReturned = extractXmlNumber(xml, "records-returned") || 0;
+  }
+
   const elements = extractAllElements(xml, elementTag);
   const records = elements.map(parser);
 
+  // If parser found records but recordsReturned was 0 (attribute extraction failed),
+  // use the actual count
+  if (records.length > 0 && recordsReturned === 0) {
+    recordsReturned = records.length;
+  }
+  if (records.length > 0 && totalMatched === 0) {
+    totalMatched = records.length;
+  }
+
   // Diagnostic: warn if CJ says records exist but parser found none (tag mismatch)
   if (recordsReturned > 0 && records.length === 0) {
-    console.warn(`[cj-client] XML tag mismatch? CJ says ${recordsReturned} records but parser found 0 <${elementTag}> elements. XML preview: ${xml.substring(0, 300)}`);
+    console.warn(`[cj-client] XML tag mismatch? CJ says ${recordsReturned} records but parser found 0 <${elementTag}> elements. XML preview: ${xml.substring(0, 500)}`);
   }
+
+  // Log parse results for debugging
+  console.log(`[cj-client] parsePaginatedResponse<${elementTag}>: totalMatched=${totalMatched}, recordsReturned=${recordsReturned}, parsed=${records.length}, page=${pageNumber}`);
 
   return { records, totalMatched, recordsReturned, pageNumber };
 }
@@ -285,7 +325,9 @@ class RateLimiter {
 // CJ API Client — Singleton
 // ---------------------------------------------------------------------------
 
-const CJ_PUBLISHER_CID = "7895467";
+// Fallback CID — only used if CJ_PUBLISHER_CID env var is not set.
+// In production, CJ_PUBLISHER_CID MUST be set in Vercel (configured March 10, 2026).
+const CJ_PUBLISHER_CID_FALLBACK = "7895467";
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
 
@@ -349,7 +391,7 @@ function getApiToken(): string {
 }
 
 function getPublisherCid(): string {
-  return process.env.CJ_PUBLISHER_CID || CJ_PUBLISHER_CID;
+  return process.env.CJ_PUBLISHER_CID || CJ_PUBLISHER_CID_FALLBACK;
 }
 
 async function cjFetch(
@@ -423,6 +465,15 @@ async function cjFetch(
 
     const text = await response.text();
     recordCjSuccess();
+
+    // Log response format for debugging (first sync runs)
+    const trimmed = text.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      console.warn(`[cj-client] CJ returned JSON instead of XML. First 300 chars: ${trimmed.substring(0, 300)}`);
+    } else if (!trimmed.startsWith("<?xml") && !trimmed.startsWith("<")) {
+      console.warn(`[cj-client] CJ returned unexpected format. First 300 chars: ${trimmed.substring(0, 300)}`);
+    }
+
     return text;
   } catch (err) {
     if (err && typeof err === "object" && "isRateLimit" in err) { recordCjFailure(); throw err; }
@@ -497,14 +548,19 @@ export async function lookupAdvertisers(opts: {
   params["page-number"] = String(opts.pageNumber || 1);
   params["records-per-page"] = String(opts.recordsPerPage || 100);
 
+  // Log request params for debugging
+  console.log(`[cj-client] lookupAdvertisers request: website-id=${params["website-id"] || "none"}, joined=${params["joined"] || "unset"}, page=${params["page-number"]}, cid=${getPublisherCid()?.substring(0, 4)}...`);
+
   const xml = await cjFetch(ADVERTISER_LOOKUP_URL, params);
   const result = parsePaginatedResponse(xml, "advertiser", parseAdvertiser);
 
-  // Diagnostic: log API response metadata for debugging
-  console.log(`[cj-client] lookupAdvertisers: totalMatched=${result.totalMatched}, recordsReturned=${result.recordsReturned}, parsed=${result.records.length}, page=${result.pageNumber}`);
-  if (result.totalMatched === 0 && result.records.length === 0) {
-    // Log first 500 chars of response to diagnose empty results
-    console.warn(`[cj-client] Empty advertiser response. XML preview: ${xml.substring(0, 500)}`);
+  if (result.records.length === 0) {
+    // Log first 800 chars of response to diagnose empty results
+    console.warn(`[cj-client] Empty advertiser response. XML preview (800 chars): ${xml.substring(0, 800)}`);
+  } else {
+    // Log first advertiser found for confirmation
+    const first = result.records[0];
+    console.log(`[cj-client] First advertiser: ${first.advertiserName} (ID: ${first.advertiserId}, status: ${first.relationshipStatus})`);
   }
 
   return result;

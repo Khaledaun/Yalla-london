@@ -533,6 +533,7 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
   checked: number;
   newlyApproved: string[];
   linksSynced: number;
+  result?: SyncResult; // expose sync details for dashboard diagnostic
 }> {
   const { prisma } = await import("@/lib/db");
   const checkStart = Date.now();
@@ -571,6 +572,7 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
     checked: totalInDb,
     newlyApproved,
     linksSynced,
+    result: syncResult, // expose for dashboard diagnostic
   };
 }
 

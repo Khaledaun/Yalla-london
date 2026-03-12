@@ -142,10 +142,49 @@ export default function AffiliateHQPage() {
         body: JSON.stringify({ action, ...extra }),
       });
       const json = await res.json();
-      setActionResult(json.success ? `${action} completed` : json.error || "Action failed");
+
+      // Build detailed result message for visibility
+      if (json.success && json.result) {
+        const r = json.result;
+        const lines: string[] = [`${action} completed`];
+
+        // Sync advertisers details
+        if (r.checked !== undefined) lines.push(`Checked: ${r.checked}`);
+        if (r.newlyApproved?.length) lines.push(`Newly approved: ${r.newlyApproved.join(", ")}`);
+        if (r.linksSynced !== undefined) lines.push(`Links synced: ${r.linksSynced}`);
+
+        // Generic sync result details
+        if (r.result?.processed !== undefined) {
+          lines.push(`Processed: ${r.result.processed}, Created: ${r.result.created}, Updated: ${r.result.updated}`);
+          if (r.result.errors?.length) lines.push(`Errors: ${r.result.errors.slice(0, 3).join(" | ")}`);
+        }
+
+        // Duration
+        if (r.durationMs) lines.push(`Duration: ${(r.durationMs / 1000).toFixed(1)}s`);
+
+        // If skipped
+        if (r.skipped) lines.push(`⚠ Skipped: ${r.message || "not configured"}`);
+
+        // If error in result
+        if (r.error) lines.push(`❌ Error: ${r.error}`);
+
+        // Diagnostic info (env vars, circuit breaker)
+        if (r.diagnostic) {
+          const d = r.diagnostic;
+          lines.push(`--- Diagnostic ---`);
+          lines.push(`API Token: ${d.apiTokenSet ? "✓ Set" : "✗ NOT SET"}`);
+          lines.push(`Publisher CID: ${d.publisherCid || "NOT SET"}`);
+          lines.push(`Website ID: ${d.websiteId || "NOT SET"}`);
+          if (d.circuitBreaker?.isOpen) lines.push(`⚠ Circuit breaker: OPEN (${d.circuitBreaker.failures} failures)`);
+        }
+
+        setActionResult(lines.join("\n"));
+      } else {
+        setActionResult(json.success ? `${action} completed` : json.error || "Action failed");
+      }
       if (json.success) setTimeout(fetchData, 2000);
     } catch {
-      setActionResult(`${action} failed`);
+      setActionResult(`${action} failed — network error`);
     } finally {
       setActionLoading(null);
     }
@@ -188,21 +227,32 @@ export default function AffiliateHQPage() {
         </div>
       </div>
 
-      {/* Action result toast */}
+      {/* Action result toast — shows detailed sync results */}
       {actionResult && (
         <div
           style={{
-            padding: "0.5rem 1rem",
+            padding: "0.75rem 1rem",
             marginBottom: "0.75rem",
             borderRadius: 8,
-            background: actionResult.includes("failed") ? "#fef2f2" : "#f0fdf4",
-            color: actionResult.includes("failed") ? "#dc2626" : "#16a34a",
-            fontSize: "0.85rem",
+            background: actionResult.includes("failed") || actionResult.includes("Error") ? "#fef2f2" : "#f0fdf4",
+            color: actionResult.includes("failed") || actionResult.includes("Error") ? "#dc2626" : "#16a34a",
+            fontSize: "0.8rem",
+            lineHeight: 1.5,
+            whiteSpace: "pre-wrap",
+            fontFamily: "monospace",
+            position: "relative",
           }}
         >
           {actionResult}
-          <button onClick={() => setActionResult(null)} style={{ marginLeft: "0.5rem", cursor: "pointer", border: "none", background: "none", fontSize: "0.85rem" }}>
-            x
+          <button
+            onClick={() => setActionResult(null)}
+            style={{
+              position: "absolute", top: 4, right: 8,
+              cursor: "pointer", border: "none", background: "none",
+              fontSize: "1rem", fontWeight: 700,
+            }}
+          >
+            ×
           </button>
         </div>
       )}

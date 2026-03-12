@@ -44,7 +44,21 @@ export async function GET(request: NextRequest) {
       resultSummary: result as unknown as Record<string, unknown>,
     }).catch((err: Error) => console.warn("[affiliate-sync-advertisers] log failed:", err.message));
 
-    return NextResponse.json({ success: true, ...result, durationMs: Date.now() - startTime });
+    // Include diagnostic info for dashboard visibility
+    const { getWebsiteId, getCircuitBreakerState } = await import("@/lib/affiliate/cj-client");
+    const diagnostic = {
+      websiteId: getWebsiteId(),
+      publisherCid: process.env.CJ_PUBLISHER_CID ? `${process.env.CJ_PUBLISHER_CID.substring(0, 4)}...` : "NOT SET",
+      apiTokenSet: !!process.env.CJ_API_TOKEN,
+      circuitBreaker: getCircuitBreakerState(),
+    };
+
+    return NextResponse.json({
+      success: true,
+      ...result,
+      diagnostic,
+      durationMs: Date.now() - startTime,
+    });
   } catch (error) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
     await onCronFailure({ jobName: "affiliate-sync-advertisers", error }).catch((err: Error) => console.warn("[affiliate-sync-advertisers] failure hook failed:", err.message));

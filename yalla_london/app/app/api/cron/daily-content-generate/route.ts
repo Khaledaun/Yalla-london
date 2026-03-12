@@ -758,7 +758,7 @@ async function generateWithAI(
         arabicDirectives = "\n\n" + getArabicCopywritingDirectives({
           destination: site.destination,
           contentType: topic.authorityLinks?.contentType || "guide",
-          audience: "gulf",
+          audience: "general",
         });
       } catch (arErr) {
         console.warn(`[daily-content-generate] Arabic copywriting directives unavailable:`, arErr instanceof Error ? arErr.message : arErr);
@@ -793,7 +793,7 @@ Content Requirements (all mandatory — articles failing these will be rejected 
 Structure Requirements:
 - Use 4–6 H2 headings and H3 subheadings where appropriate. Never skip heading levels (no H1→H3).
 - Include 3+ internal links to other ${site.name} pages using descriptive anchor text (link to /blog/*, /hotels, /experiences, /restaurants, etc.)
-- Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, HalalBooking where relevant) with natural anchor text — never "click here"
+- Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, Klook) with natural anchor text — never "click here"
 - End with a "Key Takeaways" section (3–5 bullet points) and a clear call-to-action
 
 CRITICAL FACTUAL ACCURACY RULE:
@@ -812,7 +812,7 @@ Return JSON with these exact fields:
   "title": "Compelling article title with focus keyword (50-60 chars)",
   "titleTranslation": "Arabic translation of the title — must be natural Arabic, not machine-translated",
   "body": "Full HTML article content with h2, h3, p, ul/ol, a[href] tags. Must include internal links and affiliate links. MINIMUM 1,500 words.",
-  "bodyTranslation": "Full Arabic translation of the article body in HTML (h2, h3, p, ul/ol, a[href] tags). Must be a COMPLETE translation, not a summary. Minimum 1,000 words in Arabic. Use Modern Standard Arabic appropriate for Gulf Arab readers.",
+  "bodyTranslation": "Full Arabic translation of the article body in HTML (h2, h3, p, ul/ol, a[href] tags). Must be a COMPLETE translation, not a summary. Minimum 1,000 words in Arabic. Use Modern Standard Arabic.",
   "excerpt": "Engaging excerpt (120-160 chars)",
   "excerptTranslation": "Arabic translation of the excerpt",
   "metaTitle": "SEO meta title with keyword near start (50-60 chars)",
@@ -837,7 +837,7 @@ Return JSON with these exact fields:
 متطلبات الهيكل:
 - استخدم 4–6 عناوين H2 وعناوين H3 فرعية حسب الحاجة
 - أضف 3+ روابط داخلية لصفحات ${site.name} الأخرى بنص وصفي
-- أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، HalalBooking حيث يناسب) بنص طبيعي
+- أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، Viator، Klook) بنص طبيعي
 - اختم بقسم "النقاط الرئيسية" (3–5 نقاط) ودعوة واضحة للعمل
 
 قاعدة الدقة الواقعية (حرجة):
@@ -1278,7 +1278,7 @@ Trustworthiness:
 
 MULTI-ENGINE DISCOVERY REQUIREMENTS (articles that fail these are blocked from publishing):
 - DIRECT ANSWER: The first 80 words MUST directly answer the implied question of the title. No preamble, no "In this guide we will explore...". Start with a definitive statement. This is extracted by Google AI Overviews, ChatGPT, and Perplexity for citation.
-- QUESTION H2s: At least 2 of your H2 headings MUST be phrased as questions (e.g., "What are the best halal restaurants in Mayfair?", "How much does afternoon tea cost in London?"). AI engines extract these as Q&A pairs.
+- QUESTION H2s: At least 2 of your H2 headings MUST be phrased as questions (e.g., "What are the best restaurants in Mayfair?", "How much does afternoon tea cost in London?"). AI engines extract these as Q&A pairs.
 - CITABLE DATA: Include at least 5 specific, citable data points: prices (£45 per person), dates (open since March 2024), ratings (4.8/5 on Google), distances (5-minute walk from Green Park station), capacities (seats 120 guests). AI engines cite articles with specific data over vague descriptions.
 - KEY TAKEAWAYS: Include a "Key Takeaways" or "Quick Answer" section within the first 300 words — a 3-5 bullet summary of the article's main points. This is the primary extraction target for AI Overviews.
 - STRUCTURED LISTS: Use at least 1 numbered list OR comparison table. AI engines strongly prefer structured, scannable content they can extract and display.

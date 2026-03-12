@@ -1,11 +1,16 @@
 import { headers } from "next/headers";
-import { getDefaultSiteId, isYachtSite } from "@/config/sites";
+import { getDefaultSiteId, isYachtSite, isParentBrandSite } from "@/config/sites";
 import AboutYallaLondon from "./about-yalla-london";
 import AboutZenithaYachts from "./about-zenitha-yachts";
+import { ZenithaLuxuryAbout } from "@/components/zenitha-luxury/zenitha-luxury-about";
 
 export default async function AboutPage() {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+
+  if (isParentBrandSite(siteId)) {
+    return <ZenithaLuxuryAbout />;
+  }
 
   if (isYachtSite(siteId)) {
     return <AboutZenithaYachts />;

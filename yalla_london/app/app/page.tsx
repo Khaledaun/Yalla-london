@@ -8,10 +8,12 @@ import {
   getSiteTagline,
   getSiteNameAr,
   isYachtSite,
+  isParentBrandSite,
 } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import { YallaHomepage } from "@/components/home/yalla-homepage";
 import { ZenithaHomepage } from "@/components/zenitha/zenitha-homepage";
+import { ZenithaLuxuryHomepage } from "@/components/zenitha-luxury/zenitha-luxury-homepage";
 
 // Force dynamic rendering so headers() always returns the real request hostname.
 // Without this, Next.js may statically generate the homepage at build time when
@@ -33,6 +35,31 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteSlug = siteConfig?.slug || "yalla-london";
   const siteName = siteConfig?.name || "Yalla London";
   const siteNameAr = getSiteNameAr(siteId);
+
+  if (isParentBrandSite(siteId)) {
+    const title = "Zenitha.Luxury — The Art of Exceptional Travel";
+    const description = "A portfolio of luxury travel brands by Zenitha.Luxury LLC. London, Mediterranean yachts, Maldives, French Riviera, Istanbul, and Thailand.";
+    return {
+      title,
+      description,
+      alternates: { canonical: baseUrl },
+      openGraph: {
+        title,
+        description,
+        url: baseUrl,
+        siteName: "Zenitha.Luxury",
+        locale: "en_US",
+        type: "website",
+        images: [{ url: `${baseUrl}/api/og?siteId=${siteId}`, width: 1200, height: 630, alt: title }],
+      },
+      twitter: { card: "summary_large_image", title, description },
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: { index: true, follow: true, "max-video-preview": -1, "max-image-preview": "large", "max-snippet": -1 },
+      },
+    };
+  }
 
   if (isYachtSite(siteId)) {
     // Title: 59 chars — concise, Mediterranean + Gulf, no GCC-only framing.
@@ -146,6 +173,15 @@ export default async function Home() {
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
   const baseUrl = await getBaseUrl();
+
+  if (isParentBrandSite(siteId)) {
+    return (
+      <>
+        <StructuredData type="organization" siteId={siteId} />
+        <ZenithaLuxuryHomepage />
+      </>
+    );
+  }
 
   if (isYachtSite(siteId)) {
     return (

@@ -77,20 +77,20 @@ export const SITES: Record<string, SiteConfig> = {
     primaryColor: "#1C1917",
     secondaryColor: "#C8322B",
     systemPromptEN:
-      `You are a senior luxury travel content writer for Yalla London, a premium bilingual platform covering London's finest experiences for international visitors with special expertise in serving Arab and Gulf travelers. You combine first-hand London expertise with SEO mastery.
+      `You are a senior travel content writer for Yalla London, a premium London travel blog for all visitors — tourists, families, couples, solo travellers, and anyone planning a trip to London. You combine first-hand London expertise with SEO mastery.
 
-AUDIENCE STRATEGY (critical for topic selection and content):
-- PRIMARY audience: All international luxury travelers visiting London (broadest reach for SEO)
-- SECONDARY audience: Arab and Gulf travelers (our niche differentiator — add halal dining tips, Arabic-speaking service notes, prayer facility info WHERE RELEVANT to the topic)
-- DO NOT force Arab/Islamic angles on general topics. "Best Afternoon Tea in London" should be a universal guide. "Best Hotels in London" can mention Arabic-speaking staff as a bonus, not the main angle.
-- When the topic IS specifically about Arab travelers (e.g., "halal restaurants", "Ramadan in London"), go deep on that niche.
+AUDIENCE: All travellers visiting London. Write for a universal international audience. Cover London's attractions, hotels, restaurants, itineraries, neighbourhoods, day trips, nightlife, shopping, and seasonal events.
+- 80% of content should target general travel topics (highest search volume, broadest authority)
+- 20% can cover halal dining, Arab-friendly services, or Ramadan/Eid events (our niche differentiator with low competition)
+- For general topics: write for everyone, do NOT force any cultural angle
+- For niche topics: go deep on the specific angle
 
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
 - TIMELESS TITLES: Never include the year in article titles. Use "Best Luxury Hotels in London" not "Best Luxury Hotels London 2026". Years in titles cause automatic staleness. Use years only in body text for current facts (e.g., "As of 2026, rates start at £450/night").
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
 - Include 3+ internal links to other Yalla London pages (e.g., /blog/*, /hotels, /experiences, /restaurants).
-- Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, HalalBooking where relevant) with descriptive anchor text — never "click here".
+- Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, Klook) with descriptive anchor text — never "click here".
 - Meta title: 50–60 characters with focus keyword near the start. Never include years in meta titles.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
@@ -114,13 +114,15 @@ GEO Citability (AI search engines — ChatGPT, Perplexity, Gemini, Google AI Ove
 - Open the article with a 40–80 word "answer capsule" that directly answers the core question before any context or background.
 Always respond with valid JSON.`,
     systemPromptAR:
-      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا لندن، منصة ثنائية اللغة متميزة تغطي أفضل تجارب لندن للزوار الدوليين. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
+      `أنت كاتب محتوى سفر متمرس لمنصة يالا لندن، مدونة سفر متميزة تغطي أفضل تجارب لندن لجميع الزوار والسياح. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
+
+الجمهور: جميع المسافرين الذين يزورون لندن — سياح، عائلات، أزواج، مسافرون بمفردهم. اكتب لجمهور دولي عام دون استهداف أي مجموعة عرقية أو دينية أو ثقافية محددة.
 
 معايير المحتوى (إلزامية):
 - اكتب 1,500–2,000 كلمة كحد أدنى.
 - استخدم تسلسل عناوين صحيح: H1 واحد (العنوان فقط)، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
 - أضف 3+ روابط داخلية لصفحات يالا لندن الأخرى.
-- أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، HalalBooking حيث يناسب) بنص وصفي.
+- أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، Viator، Klook) بنص وصفي.
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
@@ -132,261 +134,269 @@ Always respond with valid JSON.`,
 - لا تستخدم عبارات ذكاء اصطناعي عامة: "في عالم اليوم"، "تجدر الإشارة"، "سواء كنت X أو Y"، "في الختام"، "لا داعي للبحث أكثر".
 
 تحسين الذكاء الاصطناعي (Google AI Overview):
-- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
-- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا.
 - استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
-      // ─── General luxury London topics (broadest audience) ─────────
+      // ─── Core Attractions ─────────────────────────────────────────
       {
-        keyword: "best luxury hotels in London",
-        longtails: [
-          "best 5 star hotels London",
-          "luxury boutique hotels Mayfair",
-          "luxury hotels near Hyde Park",
-        ],
-        questions: [
-          "What are the most luxurious hotels in London?",
-          "Which London hotels have the best views?",
-        ],
-        pageType: "guide",
-      },
-      {
-        keyword: "best Michelin star restaurants London",
-        longtails: [
-          "fine dining Knightsbridge Mayfair",
-          "Michelin star tasting menus London",
-          "best restaurants Soho Covent Garden",
-        ],
-        questions: [
-          "What are the best Michelin-star restaurants in London?",
-          "Where are the finest dining spots in Mayfair?",
-        ],
-        pageType: "list",
-      },
-      {
-        keyword: "best things to do in London",
-        longtails: [
-          "unique experiences London",
-          "hidden gems London tourists miss",
-          "London bucket list experiences",
-        ],
-        questions: [
-          "What are the most unique things to do in London?",
-          "What hidden gems should tourists visit in London?",
-        ],
+        keyword: "things to do in London",
+        longtails: ["things to do in london for first timers", "unusual and quirky things to do in london", "places to visit in london in 3 days"],
+        questions: ["What are the best things to do in London for first time visitors?", "What are unusual things to do in London?"],
         pageType: "listicle",
       },
       {
-        keyword: "London luxury shopping guide",
-        longtails: [
-          "Harrods shopping guide",
-          "luxury brands Oxford Street Bond Street",
-          "VAT refund London tourist shopping",
-        ],
-        questions: [
-          "What are the best luxury shopping areas in London?",
-          "How do tourists get VAT refunds in London?",
-        ],
+        keyword: "tower of london tickets",
+        longtails: ["best things to see at the tower of london", "tower of london guided tour", "tower of london crown jewels tips"],
+        questions: ["How much are Tower of London tickets?", "What are the best things to see at the Tower of London?"],
         pageType: "guide",
       },
       {
-        keyword: "best afternoon tea in London",
-        longtails: [
-          "afternoon tea Ritz Claridges Savoy",
-          "best afternoon tea with champagne London",
-          "themed afternoon tea London",
-        ],
-        questions: [
-          "Which hotel has the best afternoon tea in London?",
-          "How much does afternoon tea cost at The Ritz?",
-        ],
+        keyword: "big ben and houses of parliament tour",
+        longtails: ["best time to visit big ben", "big ben and houses of parliament guided tour", "big ben photography tips"],
+        questions: ["Can you go inside Big Ben?", "What is the best time to visit Big Ben?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "tower bridge glass floor tickets",
+        longtails: ["tower bridge vs london bridge difference", "tower bridge exhibition tickets", "tower bridge photo spots"],
+        questions: ["What is the difference between Tower Bridge and London Bridge?", "How much are Tower Bridge tickets?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "buckingham palace tour tickets",
+        longtails: ["buckingham palace changing of the guard time", "buckingham palace state rooms tour tickets", "buckingham palace summer opening"],
+        questions: ["When is the Changing of the Guard at Buckingham Palace?", "Can you tour Buckingham Palace?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "london eye tickets fast track",
+        longtails: ["best time of day for london eye views", "london eye at night vs day", "london eye skip the line tickets"],
+        questions: ["What is the best time to ride the London Eye?", "Is the London Eye worth it?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "british museum highlights self guided tour",
+        longtails: ["how many hours at british museum", "british museum must see exhibits", "british museum free entry guide"],
+        questions: ["How long should I spend at the British Museum?", "What are the must-see exhibits at the British Museum?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "natural history museum london",
+        longtails: ["best things to see at natural history museum london", "natural history museum london free entry guide", "natural history museum with kids"],
+        questions: ["Is the Natural History Museum in London free?", "What are the best exhibits at the Natural History Museum?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "harry potter studio tour from london",
+        longtails: ["how to get to harry potter studios from london", "harry potter studio tour from london with transport", "harry potter studio tour tickets price"],
+        questions: ["How do I get to Harry Potter Studios from London?", "How much are Harry Potter Studio Tour tickets?"],
+        pageType: "guide",
+      },
+      // ─── Itineraries ──────────────────────────────────────────────
+      {
+        keyword: "3 day london itinerary",
+        longtails: ["3 days in london first time itinerary", "3 day london itinerary with kids and stroller", "3 day london itinerary on a budget"],
+        questions: ["How should I spend 3 days in London?", "What is the best 3-day London itinerary for first timers?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "4 day london itinerary",
+        longtails: ["4 days in london itinerary for couples", "4 day london itinerary on a budget", "4 day london itinerary with day trips"],
+        questions: ["What should I do in London for 4 days?", "What is a good 4-day London itinerary for couples?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "7 days in london itinerary",
+        longtails: ["1 week london itinerary without car", "7 day london itinerary with day trips by train", "7 days in london and surrounds"],
+        questions: ["How should I plan a week in London?", "What day trips can I take from London by train?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "london travel tips first time visitors",
+        longtails: ["things to know before going to london", "london travel tips for americans", "london travel mistakes to avoid"],
+        questions: ["What should first-time visitors know about London?", "What mistakes do tourists make in London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "london on a budget",
+        longtails: ["cheap and free things to do in london", "how to visit london on a budget", "london budget travel tips"],
+        questions: ["How can I visit London on a budget?", "What free things can I do in London?"],
+        pageType: "guide",
+      },
+      // ─── Areas & Stays ────────────────────────────────────────────
+      {
+        keyword: "best areas to stay in london for tourists",
+        longtails: ["where to stay in london first time", "best area to stay in london with kids", "best neighborhoods in london for tourists"],
+        questions: ["Where should I stay in London as a tourist?", "What are the best areas to stay in London with family?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "best budget hotels in central london",
+        longtails: ["family friendly hotels in central london", "cheap hotels near london attractions", "best value hotels london zone 1"],
+        questions: ["What are the best budget hotels in central London?", "Which family-friendly hotels are in central London?"],
         pageType: "list",
       },
       {
-        keyword: "London weekend break itinerary",
-        longtails: [
-          "3 day London itinerary luxury",
-          "London weekend trip planning",
-          "what to do in London for 2 days",
-        ],
-        questions: [
-          "How should I plan a luxury weekend in London?",
-          "What is the best 3-day London itinerary?",
-        ],
+        keyword: "best day trips from london by train",
+        longtails: ["london to stonehenge day trip tour", "day trips from london to bath and cotswolds", "best day trips from london in summer"],
+        questions: ["What are the best day trips from London by train?", "How do I get from London to Stonehenge?"],
+        pageType: "listicle",
+      },
+      {
+        keyword: "coolest neighborhoods in london",
+        longtails: ["best london neighborhoods for nightlife and bars", "trendy areas in london to explore", "london hidden gem neighborhoods"],
+        questions: ["What are the coolest neighbourhoods in London?", "Which London areas are best for nightlife?"],
+        pageType: "guide",
+      },
+      // ─── Themes ───────────────────────────────────────────────────
+      {
+        keyword: "best restaurants in london for first time visitors",
+        longtails: ["where to eat in london on a budget", "best restaurants in london for couples", "best restaurants soho covent garden"],
+        questions: ["Where should first-time visitors eat in London?", "What are the best cheap restaurants in London?"],
+        pageType: "listicle",
+      },
+      {
+        keyword: "london nightlife guide for tourists",
+        longtails: ["best traditional pubs in london for real ale", "free things to do in london after dark", "best rooftop bars london"],
+        questions: ["What is the nightlife like in London for tourists?", "What are the best traditional pubs in London?"],
         pageType: "guide",
       },
       {
-        keyword: "London private tours and exclusive experiences",
-        longtails: [
-          "private guided tours London",
-          "VIP London experiences",
-          "exclusive after-hours museum tours London",
-        ],
-        questions: [
-          "Can you book private tours of Buckingham Palace?",
-          "What exclusive experiences are available in London?",
-        ],
+        keyword: "best places to shop in london",
+        longtails: ["oxford street vs regent street which is better for shopping", "best markets in london", "london shopping guide for tourists"],
+        questions: ["What are the best shopping areas in London?", "Is Oxford Street or Regent Street better for shopping?"],
         pageType: "guide",
       },
       {
-        keyword: "best London spas and wellness retreats",
-        longtails: [
-          "luxury spa treatments London",
-          "best day spas London",
-          "couples spa experience London",
-        ],
-        questions: [
-          "Which London spas offer the best luxury treatments?",
-          "Where are the best wellness retreats near London?",
-        ],
+        keyword: "free things to do in london",
+        longtails: ["free museums in london list", "free things to do in london after dark", "free walking tours london"],
+        questions: ["What free things can I do in London?", "Which museums in London are free?"],
+        pageType: "listicle",
+      },
+      {
+        keyword: "best things to do in london with kids",
+        longtails: ["london itinerary with kids 3 days", "family friendly museums london", "london with toddlers tips"],
+        questions: ["What are the best things to do in London with kids?", "Is London good for a family holiday?"],
+        pageType: "listicle",
+      },
+      {
+        keyword: "romantic things to do in london for couples",
+        longtails: ["most romantic hotels in london for couples", "romantic weekend in london itinerary", "romantic restaurants london"],
+        questions: ["What are the most romantic things to do in London?", "What are the best romantic hotels in London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "solo travel london tips",
+        longtails: ["solo london itinerary 3 days", "is london safe for solo female travellers at night", "best hostels for solo travellers london"],
+        questions: ["Is London safe for solo female travellers?", "What is a good solo travel itinerary for London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "things to do in london at christmas",
+        longtails: ["best christmas markets in london", "london christmas lights guide", "winter wonderland london tips"],
+        questions: ["What are the best things to do in London at Christmas?", "Where are the best Christmas markets in London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "things to do in london in summer",
+        longtails: ["outdoor things to do in london in summer", "london parks in summer guide", "summer events london"],
+        questions: ["What are the best things to do in London in summer?", "What outdoor activities are there in London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "london oyster card vs travelcard",
+        longtails: ["london oyster card vs travelcard which is cheaper", "how to use oyster card london", "london transport tips for tourists"],
+        questions: ["Is Oyster Card or Travelcard better for tourists?", "How does the Oyster Card work in London?"],
+        pageType: "comparison",
+      },
+      {
+        keyword: "best afternoon tea in london",
+        longtails: ["afternoon tea at the ritz london", "best afternoon tea with champagne london", "themed afternoon tea london"],
+        questions: ["Where is the best afternoon tea in London?", "How much does afternoon tea cost at The Ritz?"],
         pageType: "list",
       },
-      {
-        keyword: "London Premier League match day experience",
-        longtails: [
-          "VIP football tickets London",
-          "Arsenal Emirates hospitality",
-          "Chelsea Stamford Bridge tour",
-        ],
-        questions: [
-          "How can I get VIP hospitality tickets for Premier League matches?",
-          "Which London football stadiums offer the best tours?",
-        ],
-        pageType: "guide",
-      },
-      // ─── Arab traveler niche topics (our differentiator) ──────────
+      // ─── Niche (20% of content mix) ───────────────────────────────
       {
         keyword: "halal restaurants in London",
-        longtails: [
-          "best halal fine dining London",
-          "halal restaurants Knightsbridge Mayfair",
-          "halal steak restaurants London",
-        ],
-        questions: [
-          "Where are the best halal restaurants in London?",
-          "Which Michelin restaurants in London serve halal food?",
-        ],
+        longtails: ["best halal fine dining London", "halal restaurants Knightsbridge Mayfair", "halal steak restaurants London"],
+        questions: ["Where are the best halal restaurants in London?", "Which Michelin restaurants in London serve halal food?"],
         pageType: "list",
       },
       {
         keyword: "Arab friendly hotels in London",
-        longtails: [
-          "hotels with Arabic speaking staff London",
-          "halal friendly hotels London",
-          "best hotels for Gulf tourists London",
-        ],
-        questions: [
-          "Which London hotels cater to Arab guests?",
-          "What hotels in London have Arabic-speaking concierge?",
-        ],
+        longtails: ["hotels with Arabic speaking staff London", "halal friendly hotels London", "best hotels for Gulf tourists London"],
+        questions: ["Which London hotels cater to Arab guests?", "What hotels in London have Arabic-speaking concierge?"],
         pageType: "guide",
       },
       {
-        keyword: "family-friendly luxury London experiences",
-        longtails: [
-          "London with kids luxury activities",
-          "best family hotels London",
-          "child friendly fine dining London",
-        ],
-        questions: [
-          "What luxury activities can families enjoy in London?",
-          "Which London hotels offer the best kids clubs?",
-        ],
+        keyword: "halal afternoon tea London",
+        longtails: ["halal afternoon tea Knightsbridge", "halal high tea London", "alcohol free afternoon tea London"],
+        questions: ["Where can I find halal afternoon tea in London?", "Which London hotels offer halal afternoon tea?"],
+        pageType: "list",
+      },
+      {
+        keyword: "Ramadan in London guide",
+        longtails: ["iftar restaurants London", "Ramadan events London", "best iftar buffets London"],
+        questions: ["Where are the best iftar spots in London?", "What Ramadan events happen in London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "Eid celebrations in London",
+        longtails: ["Eid events London", "Eid shopping London", "Eid family activities London"],
+        questions: ["What Eid celebrations happen in London?", "Where to celebrate Eid in London?"],
+        pageType: "guide",
+      },
+      {
+        keyword: "mosques near London tourist areas",
+        longtails: ["prayer rooms central London", "mosques near Oxford Street", "Friday prayer London tourist areas"],
+        questions: ["Where are the closest mosques to London tourist areas?", "Are there prayer rooms in central London?"],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
-        keyword: "دليل التسوق الفاخر في لندن 2026",
-        longtails: [
-          "أفضل محلات لندن الفاخرة",
-          "تسوق هارودز دليل عربي",
-          "استرداد ضريبة القيمة المضافة لندن",
-        ],
-        questions: [
-          "ما هي أفضل مناطق التسوق الفاخرة في لندن؟",
-          "كيف يمكن للسياح العرب استرداد ضريبة القيمة المضافة؟",
-        ],
+        keyword: "أفضل الأماكن السياحية في لندن",
+        longtails: ["أماكن سياحية في لندن للمبتدئين", "أشهر المعالم في لندن", "أماكن يجب زيارتها في لندن"],
+        questions: ["ما هي أفضل الأماكن السياحية في لندن؟", "ماذا تزور في لندن لأول مرة؟"],
+        pageType: "listicle",
+      },
+      {
+        keyword: "برنامج سياحي في لندن 3 أيام",
+        longtails: ["جدول سياحي لندن ثلاث أيام", "خطة سفر لندن للعائلات", "زيارة لندن في 3 أيام"],
+        questions: ["كيف أخطط لزيارة لندن في 3 أيام؟", "ما هو أفضل برنامج سياحي في لندن؟"],
         pageType: "guide",
       },
       {
-        keyword: "أفضل الفنادق الفاخرة في لندن للعائلات العربية",
-        longtails: [
-          "فنادق لندن حلال",
-          "فنادق خمس نجوم لندن عائلية",
-          "أجنحة فندقية فاخرة لندن",
-        ],
-        questions: [
-          "ما هي أفضل الفنادق في لندن التي تقدم خدمات باللغة العربية؟",
-          "أي فنادق لندن مناسبة للعائلات العربية؟",
-        ],
+        keyword: "أفضل فنادق لندن",
+        longtails: ["فنادق وسط لندن", "فنادق لندن للعائلات", "فنادق رخيصة في لندن"],
+        questions: ["ما هي أفضل الفنادق في لندن؟", "أين أفضل مكان للإقامة في لندن؟"],
         pageType: "guide",
       },
       {
-        keyword: "المطاعم الحلال الفاخرة في لندن",
-        longtails: [
-          "مطاعم حلال نايتسبريدج",
-          "أفضل مطاعم عربية لندن",
-          "مطاعم فاخرة حلال مايفير",
-        ],
-        questions: [
-          "أين أجد أفضل المطاعم الحلال الفاخرة في لندن؟",
-          "ما هي المطاعم العربية المميزة في لندن؟",
-        ],
-        pageType: "list",
+        keyword: "أفضل مطاعم لندن",
+        longtails: ["مطاعم رخيصة في لندن", "أفضل مطاعم لندن للعشاء", "مطاعم مشهورة في لندن"],
+        questions: ["أين أفضل مكان للأكل في لندن؟", "ما هي أشهر المطاعم في لندن؟"],
+        pageType: "listicle",
       },
       {
-        keyword: "أنشطة عائلية في لندن للعرب",
-        longtails: [
-          "لندن مع الأطفال أنشطة",
-          "أماكن ترفيه عائلية لندن",
-          "حدائق لندن للعائلات",
-        ],
-        questions: [
-          "ما هي أفضل الأنشطة العائلية في لندن؟",
-          "أين يمكن أخذ الأطفال في لندن؟",
-        ],
+        keyword: "التسوق في لندن دليل شامل",
+        longtails: ["أفضل أسواق لندن", "شارع أكسفورد لندن تسوق", "أماكن تسوق رخيصة في لندن"],
+        questions: ["ما هي أفضل أماكن التسوق في لندن؟", "هل التسوق في لندن غالي؟"],
         pageType: "guide",
       },
       {
-        keyword: "جولات خاصة وتجارب حصرية في لندن",
-        longtails: [
-          "جولات VIP لندن",
-          "تجارب فاخرة حصرية لندن 2026",
-          "زيارة قصر باكنغهام خاص",
-        ],
-        questions: [
-          "هل يمكن حجز جولات خاصة في لندن؟",
-          "ما هي التجارب الحصرية المتاحة في لندن؟",
-        ],
+        keyword: "نصائح السفر إلى لندن",
+        longtails: ["نصائح لأول مرة في لندن", "المواصلات في لندن للسياح", "تكلفة السفر إلى لندن"],
+        questions: ["ما أهم نصائح السفر إلى لندن؟", "كيف تعمل بطاقة أويستر في لندن؟"],
         pageType: "guide",
       },
       {
-        keyword: "السياحة العلاجية والسبا في لندن",
-        longtails: [
-          "أفضل سبا لندن للنساء",
-          "حمام تركي لندن",
-          "مراكز تجميل فاخرة لندن",
-        ],
-        questions: [
-          "أين أجد أفضل مراكز السبا في لندن للنساء؟",
-          "ما هي أفضل تجارب الحمام التركي في لندن؟",
-        ],
-        pageType: "list",
-      },
-      {
-        keyword: "تجربة مباريات الدوري الإنجليزي في لندن",
-        longtails: [
-          "تذاكر كرة قدم لندن VIP",
-          "جولة ملعب أرسنال",
-          "تجربة ضيافة تشيلسي",
-        ],
-        questions: [
-          "كيف أحصل على تذاكر VIP لمباريات الدوري الإنجليزي؟",
-          "ما هي أفضل ملاعب كرة القدم للزيارة في لندن؟",
-        ],
-        pageType: "guide",
+        keyword: "رحلات يومية من لندن",
+        longtails: ["رحلة يومية من لندن إلى ستونهنج", "أفضل رحلات يومية بالقطار من لندن", "زيارة باث من لندن"],
+        questions: ["ما هي أفضل الرحلات اليومية من لندن؟", "كيف أصل من لندن إلى ستونهنج؟"],
+        pageType: "listicle",
       },
     ],
     affiliateCategories: [
@@ -398,25 +408,32 @@ Always respond with valid JSON.`,
       "transport",
     ],
     primaryKeywordsEN: [
-      // General luxury London travel (broadest audience)
-      "luxury hotels london",
-      "best restaurants london",
+      // General (80%) — high-volume travel queries
       "things to do in london",
       "london travel guide",
-      "london weekend breaks",
-      "best afternoon tea london",
+      "best hotels london",
+      "best restaurants london",
+      "london itinerary",
+      "day trips from london",
+      "london with kids",
+      "london on a budget",
+      "london nightlife",
       "london shopping guide",
-      // Arab traveler niche (our differentiator)
-      "london guide for arabs",
+      "london attractions tickets",
+      "best afternoon tea london",
+      "tower of london tickets",
+      "london eye tickets",
+      "harry potter studio tour london",
+      // Niche (20%) — differentiator with lower competition
       "halal restaurants london",
       "arab friendly hotels london",
-      "london for arab families",
+      "halal afternoon tea london",
     ],
     primaryKeywordsAR: [
-      "دليل لندن للعرب",
       "السياحة في لندن",
-      "حلال لندن",
-      "لندن للعائلات العربية",
+      "أفضل فنادق لندن",
+      "أماكن سياحية في لندن",
+      "برنامج سياحي لندن",
     ],
     categoryName: { en: "London Guide", ar: "دليل لندن" },
     authors: [
@@ -1803,6 +1820,38 @@ Always respond with valid JSON.`,
       twitter: "https://x.com/zenithayachts",
     },
   },
+
+  // ─── Zenitha.Luxury — Parent Brand Portfolio Site ─────────────────
+  "zenitha-luxury": {
+    id: "zenitha-luxury",
+    name: "Zenitha.Luxury",
+    slug: "zenitha-luxury",
+    domain: "zenitha.luxury",
+    locale: "en",
+    direction: "ltr",
+    status: "development",
+    destination: "Global",
+    country: "US",
+    currency: "USD",
+    primaryColor: "#0A0A0A",
+    secondaryColor: "#C4A96C",
+    systemPromptEN: `You are a corporate content writer for Zenitha.Luxury LLC, the parent holding company for a portfolio of luxury travel brands. Write in a refined, authoritative corporate-luxury tone. No exclamation marks.
+Always respond with valid JSON.`,
+    systemPromptAR: `أنت كاتب محتوى مؤسسي لشركة Zenitha.Luxury LLC، الشركة الأم لمجموعة من علامات السفر الفاخرة. اكتب بأسلوب مؤسسي راقٍ وموثوق. بدون علامات تعجب.
+أجب دائماً بـ JSON صالح.`,
+    topicsEN: [],
+    topicsAR: [],
+    affiliateCategories: [],
+    primaryKeywordsEN: ["luxury travel", "zenitha luxury", "travel brands"],
+    primaryKeywordsAR: ["سفر فاخر", "زينيثا لوكشري"],
+    categoryName: { en: "Luxury Travel", ar: "السفر الفاخر" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder & CEO", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/zenithaluxury",
+    },
+  },
 };
 
 /** Get all configured site IDs (all sites, any status) */
@@ -1879,6 +1928,11 @@ export function isYachtSite(siteId: string): boolean {
   return siteId === "zenitha-yachts-med";
 }
 
+/** Check if a site is the parent brand portfolio site */
+export function isParentBrandSite(siteId: string): boolean {
+  return siteId === "zenitha-luxury";
+}
+
 // ─── Per-site SEO metadata helpers ──────────────────────────────────
 // These provide site-specific tagline, description, and Arabic name for
 // generateMetadata() so each domain gets correct metadata, not the Yalla
@@ -1926,6 +1980,13 @@ const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: st
     nameAr: "يالا تايلاند",
     description: "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
     descriptionAr: "يالا تايلاند يربط المسافرين العرب بأفخم منتجعات تايلاند والمطاعم الحلال.",
+  },
+  "zenitha-luxury": {
+    tagline: "The Art of Exceptional Travel",
+    taglineAr: "فن السفر الاستثنائي",
+    nameAr: "زينيثا لوكشري",
+    description: "Zenitha.Luxury LLC is the parent company behind a portfolio of luxury travel brands spanning London, the Maldives, the Mediterranean, Istanbul, and beyond.",
+    descriptionAr: "شركة Zenitha.Luxury LLC هي الشركة الأم لمجموعة من علامات السفر الفاخرة.",
   },
 };
 

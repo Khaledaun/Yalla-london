@@ -20,20 +20,18 @@ import { logCronExecution } from "@/lib/cron-logger";
  * - Seasonal trend patterns
  */
 
-// Target keywords to monitor (reduced from 10 to 6 to prevent timeout)
+// Target keywords to monitor — neutral, high-volume travel queries
 const MONITORED_KEYWORDS = [
-  // General luxury keywords (highest search volume)
-  "luxury hotels london",
+  "things to do in london",
+  "best hotels london",
   "best restaurants london",
-  "things to do london",
   "london travel guide",
-  // Niche keywords (our differentiator)
-  "halal restaurants london",
-  "arab friendly london",
-]; // 6 keywords — balanced general + niche
+  "london attractions tickets",
+  "day trips from london",
+]; // 6 keywords — all general, high-volume
 
-// Arabic keywords for GCC audience
-const ARABIC_KEYWORDS = ["سياحة لندن", "فنادق لندن", "أفضل مطاعم لندن", "حلال لندن"];
+// Arabic keywords for Arabic content generation
+const ARABIC_KEYWORDS = ["السياحة في لندن", "أفضل فنادق لندن", "أماكن سياحية في لندن", "برنامج سياحي لندن"];
 
 interface TrendData {
   keyword: string;

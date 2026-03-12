@@ -8,7 +8,7 @@
  * Pipeline: research → outline → drafting → assembly → images → seo → scoring → reservoir
  *
  * Bilingual: EN and AR articles are generated as separate drafts with locale-native prompts.
- * Arabic articles use culturally adapted prompts, Gulf dialect, halal-first framing.
+ * Arabic articles use Modern Standard Arabic with original (not translated) content.
  *
  * CRITICAL RULES (see docs/CRITICAL-RULES-INDEX.md):
  * - Rule #5: Arabic is ~2.5x more token-dense — use maxTokens: 3500 minimum.
@@ -68,8 +68,8 @@ const isArabic = (locale: string) => locale === "ar";
 
 /**
  * Returns locale-specific system prompt additions for Arabic content.
- * Arabic articles are NOT translations — they are original content with
- * Gulf-first cultural adaptation, Arabic sentence structure, and halal framing.
+ * Arabic articles are NOT translations — they are original content
+ * in Modern Standard Arabic with proper Arabic sentence structure.
  */
 function getLocaleDirectives(locale: string, site: SiteConfig): string {
   if (!isArabic(locale)) return "";
@@ -79,8 +79,8 @@ function getLocaleDirectives(locale: string, site: SiteConfig): string {
 CRITICAL: Write ORIGINAL Arabic content — do NOT translate from English.
 Use these mandatory Arabic content directives:
 
-اللهجة: استخدم العربية الفصحى المعاصرة مع مصطلحات شائعة في الخليج.
-العملة: اذكر الأسعار بالجنيه الاسترليني والدرهم الإماراتي (£150 / 690 د.إ تقريباً).
+اللهجة: استخدم العربية الفصحى المعاصرة.
+العملة: اذكر الأسعار بالجنيه الاسترليني (£150).
 
 قواعد المحتوى العربي:
 1. اكتب محتوى أصلياً — لا تترجم من الإنجليزية
@@ -89,15 +89,8 @@ Use these mandatory Arabic content directives:
 4. استخدم علامات الترقيم العربية: ، ؛ ؟ ! « »
 5. اكتب الأرقام بالصيغة الغربية للأسعار (£150) والعربية للترتيب (الخيار ١)
 
-التكيف الثقافي لـ ${site.destination}:
-- اذكر خيارات الطعام الحلال وشهادات الاعتماد (HMC, HFA)
-- أشر إلى قرب المساجد ومرافق الصلاة
-- ركز على الخيارات المناسبة للعائلات
-- تجنب ذكر الكحول — استبدل بالبدائل (مشروبات، عصائر طازجة، شاي فاخر)
-- اذكر خيارات الملابس المحتشمة عند الحاجة
-
 أسلوب الكتابة:
-- نبرة فاخرة وموثوقة تليق بالجمهور المستهدف
+- نبرة موثوقة واحترافية لجمهور دولي عام
 - استخدم صوراً حسية (ما تراه، تشمه، تتذوقه) لوصف التجارب
 - أضف "نصيحة من الداخل" واحدة على الأقل في كل قسم
 - اختم بدعوة واضحة للعمل بالعربية
@@ -105,7 +98,7 @@ Use these mandatory Arabic content directives:
 إشارات المصداقية (مطلوبة — تحديث جوجل يناير 2026):
 - استخدم عبارات تدل على التجربة المباشرة: "زرنا"، "جربنا"، "خلال زيارتنا الأخيرة"، "من تجربتنا"
 - أضف 2-3 "نصيحة" أو "نصيحتنا" في كل مقال — معلومات لا يعرفها إلا من زار المكان
-- اذكر تفاصيل حسية محددة: "رائحة الهيل تملأ المكان"، "أجواء المطعم كانت..."
+- اذكر تفاصيل حسية محددة: "أجواء المطعم كانت..."، "المنظر من الجسر..."
 - اذكر جانباً سلبياً أو ملاحظة صريحة واحدة على الأقل — الصدق يعزز المصداقية
 - لا تستخدم: "في عالم اليوم"، "في الختام"، "في هذا الدليل الشامل"، "سواء كنت... أو"
 
@@ -145,9 +138,9 @@ export async function phaseResearch(
   const { generateJSON } = await import("@/lib/ai/provider");
   const lang = getLocaleLabel(draft.locale);
 
-  const prompt = `You are an SEO research analyst for "${site.name}" (${site.destination} luxury travel for international visitors, with special expertise for Arab and Gulf travelers).
+  const prompt = `You are an SEO research analyst for "${site.name}" (${site.destination} travel blog for all visitors and tourists).
 
-Analyze the keyword "${draft.keyword}" and provide comprehensive research data for writing a high-quality ${lang} article. If the keyword is a general travel topic, research it broadly for all travelers. If it's a niche Arab/halal topic, go deep on that angle.
+Analyze the keyword "${draft.keyword}" and provide comprehensive research data for writing a high-quality ${lang} article. Research it for a broad international audience. If the keyword is a niche halal/Arab topic, go deep on that angle.
 
 Return JSON:
 {
@@ -171,7 +164,7 @@ Return JSON:
   "contentStrategy": {
     "recommendedWordCount": 1800,
     "recommendedHeadings": 8,
-    "toneGuidance": "luxury, authoritative, helpful for Arab travelers",
+    "toneGuidance": "authoritative, helpful, insider knowledge",
     "uniqueAngle": "what makes this article stand out from competitors",
     "affiliateOpportunities": ["opp1", "opp2"]
   },
@@ -185,7 +178,7 @@ Return JSON:
   try {
     const researchTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const research = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel SEO researcher for the ${site.destination} market targeting international luxury travelers (with special expertise for Arab and Gulf visitors). Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a travel SEO researcher for the ${site.destination} market targeting all international visitors and tourists. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,
@@ -244,7 +237,7 @@ export async function phaseOutline(
     }`
     : "";
 
-  const prompt = `You are a content architect for "${site.name}" (${site.destination} luxury travel for Arab travelers).
+  const prompt = `You are a content architect for "${site.name}" (${site.destination} travel blog for all visitors).
 
 Based on this research data, create a detailed article outline for a ${lang} article on "${draft.keyword}".${enrichment}
 
@@ -497,7 +490,7 @@ CRITICAL JSON RULES:
         const timeoutCap = isArabic(draft.locale) ? 55_000 : 48_000;
         const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
-          systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
+          systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2000 : 1500),
           temperature: 0.7,
           timeoutMs: sectionTimeout,

@@ -728,9 +728,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </a>
                 )}
               </div>
-              );
-            }
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>

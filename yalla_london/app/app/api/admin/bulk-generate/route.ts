@@ -790,7 +790,7 @@ async function publishArticle(
   try {
     const prisma = prismaInstance || (await import("@/lib/db")).prisma;
 
-    const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
+    const { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
     const titleEn = sanitizeTitle((content.title as string) || article.keyword);
     let slug = titleEn
       .toLowerCase()
@@ -875,8 +875,8 @@ async function publishArticle(
         title_ar: (content.titleTranslation as string) || titleEn,
         excerpt_en: (content.excerpt as string) || null,
         excerpt_ar: (content.excerptTranslation as string) || null,
-        content_en: bodyHtml,
-        content_ar: (content.bodyTranslation as string) || bodyHtml,
+        content_en: sanitizeContentBody(bodyHtml),
+        content_ar: sanitizeContentBody((content.bodyTranslation as string) || bodyHtml),
         meta_title_en: sanitizeTitle((content.metaTitle as string) || titleEn.substring(0, 60)),
         meta_description_en: sanitizeMetaDescription((content.metaDescription as string) || ""),
         meta_title_ar: (content.metaTitleTranslation as string) || null,

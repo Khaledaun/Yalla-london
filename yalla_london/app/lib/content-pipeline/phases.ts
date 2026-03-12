@@ -412,7 +412,7 @@ export async function phaseDrafting(
 
     const prompt = useMinimalPrompt
       ? `Write a ${writeLang} section about "${section.heading}" for an article on "${draft.keyword}".
-${minWordsPerSection}+ words. Use HTML tags (p, ul, li, strong). ${isArabic(draft.locale) ? "Use Arabic punctuation." : ""}
+${minWordsPerSection}+ words. Use HTML tags (p, ul, li, strong). ${isArabic(draft.locale) ? "Use Arabic punctuation." : ""} Do NOT include "(X words)" in the content.
 Return JSON: {"heading":"${section.heading}","content":"<p>...</p>","wordCount":${minWordsPerSection},"keywords_used":[]}`
       : `You are a luxury travel content writer for "${site.name}" (${site.destination}).
 
@@ -466,6 +466,7 @@ Return JSON:
 
 Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.
 IMPORTANT: Use SINGLE QUOTES for ALL HTML attributes (e.g., <a href='https://...'> NOT <a href="https://...">). Double quotes in HTML attributes will break JSON parsing.${isArabic(draft.locale) ? '\nUse Arabic punctuation (، ؛ ؟). Do NOT add dir="rtl" or lang attributes to any HTML element — the outer wrapper adds them automatically.' : ""}
+NEVER include word counts in the content text. Do NOT write "(248 words)" or "(X words)" anywhere in the HTML content. The wordCount field in JSON is sufficient.
 
 CRITICAL JSON RULES:
 - Return ONLY valid JSON. No markdown fences, no comments.
@@ -677,6 +678,8 @@ ${isArabic(draft.locale) ? "10. Wrap the entire article in <article dir='rtl' la
 
 Internal link targets: ${JSON.stringify(internalLinkPlan).substring(0, 500)}
 
+IMPORTANT: Do NOT include "(X words)" or any word count text in the HTML content body. The wordCount field in JSON is the only place for word counts.
+
 Return JSON:
 {
   "html": "<article${rtlAttr}>...full polished HTML...</article>",
@@ -703,7 +706,8 @@ Return JSON:
       calledFrom: "phases/assembly",
     });
 
-    const assembledHtml = (result.html as string) || rawHtml;
+    const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
+    const assembledHtml = sanitizeContentBody((result.html as string) || rawHtml);
     let assembledWordCount = (result.wordCount as number) || totalWords;
 
     // Verify actual word count (AI sometimes lies about wordCount in JSON)

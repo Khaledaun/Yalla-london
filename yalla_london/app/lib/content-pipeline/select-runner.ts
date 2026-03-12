@@ -21,7 +21,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
-import { sanitizeTitle, sanitizeMetaDescription } from "@/lib/content-pipeline/title-sanitizer";
+import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 2;
@@ -1058,8 +1058,8 @@ export async function promoteToBlogPost(
     slug,
     excerpt_en: enMetaDesc,
     excerpt_ar: arMetaDesc || enMetaDesc || "",
-    content_en: enHtml,
-    content_ar: arHtml || enHtml || "",
+    content_en: sanitizeContentBody(enHtml),
+    content_ar: sanitizeContentBody(arHtml || enHtml || ""),
     meta_title_en: enMetaTitle,
     meta_title_ar: arMetaTitle,
     meta_description_en: enMetaDesc,

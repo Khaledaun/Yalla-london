@@ -117,6 +117,61 @@ export function sanitizeMetaDescription(desc: string): string {
   return cleaned;
 }
 
+// ─── Content Body Sanitizer ──────────────────────────────────────────────────
+
+// AI models echo word counts from prompt instructions into content body.
+// Patterns: "(248 words)", "(212 words)", "(1,200 words)", standalone or end-of-paragraph.
+const WORD_COUNT_INLINE = /\s*\(\d[\d,]*\s*words?\)/gi;
+// Also catches: "(Word count: 248)", "(Total: 1,200 words)"
+const WORD_COUNT_LABELED = /\s*\((?:word count|total|approx(?:imately)?)[:\s]*\d[\d,]*\s*words?\)/gi;
+// Standalone paragraph containing only a word count: <p>(248 words)</p>
+const WORD_COUNT_PARAGRAPH = /<p[^>]*>\s*\(\d[\d,]*\s*words?\)\s*<\/p>/gi;
+// Section word counts at end: "... content here. (248 words)"
+const WORD_COUNT_TRAILING = /\.\s*\(\d[\d,]*\s*words?\)\s*(?=<\/p>|<\/div>|<\/li>|$)/gi;
+
+/**
+ * Strip AI-generated word count artifacts from article HTML content.
+ *
+ * Called by: select-runner.ts (before BlogPost.create),
+ *           daily-content-generate (before BlogPost.create),
+ *           content-auto-fix (DB cleanup),
+ *           phases.ts (after section drafting)
+ */
+export function sanitizeContentBody(html: string): string {
+  if (!html) return html;
+
+  let cleaned = html;
+
+  // Remove standalone word count paragraphs first (most visible to readers)
+  cleaned = cleaned.replace(WORD_COUNT_PARAGRAPH, "");
+
+  // Remove trailing word counts before closing tags: "... text. (248 words)</p>"
+  cleaned = cleaned.replace(WORD_COUNT_TRAILING, ".");
+
+  // Remove inline word counts: "... text (248 words) more text..."
+  cleaned = cleaned.replace(WORD_COUNT_INLINE, "");
+
+  // Remove labeled word counts: "(Word count: 248)"
+  cleaned = cleaned.replace(WORD_COUNT_LABELED, "");
+
+  // Clean up any resulting empty paragraphs
+  cleaned = cleaned.replace(/<p[^>]*>\s*<\/p>/gi, "");
+
+  // Collapse double spaces
+  cleaned = cleaned.replace(/\s{2,}/g, " ");
+
+  return cleaned;
+}
+
+/**
+ * Check if content contains word count artifacts.
+ * Useful for DB audit queries.
+ */
+export function hasWordCountArtifacts(html: string): boolean {
+  if (!html) return false;
+  return WORD_COUNT_INLINE.test(html) || WORD_COUNT_PARAGRAPH.test(html) || WORD_COUNT_LABELED.test(html);
+}
+
 /**
  * Check if a title contains artifacts that should be cleaned.
  * Useful for DB audit queries.

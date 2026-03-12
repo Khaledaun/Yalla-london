@@ -463,7 +463,7 @@ async function generateArticle(
     }
   }
 
-  const { sanitizeTitle, sanitizeMetaDescription } = await import("@/lib/content-pipeline/title-sanitizer");
+  const { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
   // Demote <h1> to <h2> in body content — the blog page template already provides
   // the H1 via the article title. Multiple H1s cause SEO audit failures.
   const demoteH1 = (html: string) => html.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
@@ -488,8 +488,8 @@ async function generateArticle(
         primaryLanguage === "ar"
           ? content.excerpt
           : content.excerptTranslation || "",
-      content_en: bodyEn,
-      content_ar: bodyAr,
+      content_en: sanitizeContentBody(bodyEn),
+      content_ar: sanitizeContentBody(bodyAr),
       meta_title_en: sanitizeTitle(
         primaryLanguage === "en"
           ? content.metaTitle
@@ -804,6 +804,8 @@ CRITICAL FACTUAL ACCURACY RULE:
 - For lists (hotels, restaurants, spas): include the real address or website URL for each venue
 - Violation of this rule makes the entire article unusable and harmful to site trust
 ${topic.questions?.length ? `\nAnswer these questions within the article (use as H2 or H3 headings):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
+
+CRITICAL: Do NOT include "(X words)" or any word count text inside the article body or any text field. Word counts belong ONLY in the JSON metadata, never in the visible content.
 
 Return JSON with these exact fields:
 {

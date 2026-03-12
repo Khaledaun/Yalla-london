@@ -149,6 +149,22 @@ const config: Config = {
         },
         'warm-charcoal': '#1C1917',
         'warm-gray': '#78716C',
+        // Zenitha.Luxury — Parent Brand
+        'zl-obsidian': '#0A0A0A',
+        'zl-midnight': '#141414',
+        'zl-charcoal': '#2A2A2A',
+        'zl-smoke': '#4A4A4A',
+        'zl-mist': '#8A8A8A',
+        'zl-platinum': '#D6D0C4',
+        'zl-cream': '#F5F0E8',
+        'zl-ivory': '#FDFCF9',
+        'zl-gold': {
+          DEFAULT: '#C4A96C',
+          light: '#E2CBA0',
+          deep: '#9A7A42',
+        },
+        'zl-champagne': '#EAD9BB',
+        'zl-brass': '#B8934A',
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -37,11 +37,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteNameAr = getSiteNameAr(siteId);
 
   if (isParentBrandSite(siteId)) {
-    const title = "Zenitha.Luxury — The Art of Exceptional Travel";
-    const description = "A portfolio of luxury travel brands by Zenitha.Luxury LLC. London, Mediterranean yachts, Maldives, French Riviera, Istanbul, and Thailand.";
+    const title = "Zenitha.Luxury — Luxury Travel Brands & Destination Expertise";
+    const description = "Zenitha.Luxury LLC builds and operates a portfolio of luxury travel brands spanning London, the Mediterranean, Maldives, French Riviera, Istanbul, and Thailand. Six destinations, six brands, one uncompromising standard.";
     return {
       title,
       description,
+      keywords: ["luxury travel", "travel brands", "Zenitha", "destination expertise", "luxury travel portfolio", "Mediterranean yachts", "London travel", "Maldives resorts"],
       alternates: { canonical: baseUrl },
       openGraph: {
         title,

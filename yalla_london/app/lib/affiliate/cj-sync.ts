@@ -79,21 +79,23 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
   const syncStart = Date.now();
 
   try {
-    // ── Step 1: Fetch ALL advertisers (no joined filter) with pagination ──
-    // Previously only fetched joined=true, which returns 0 when no applications
-    // have been approved yet. Now fetches everything: joined, pending, not-joined.
+    // ── Step 1: Fetch advertisers with pagination ──
+    // CRITICAL: CJ API returns ZERO results for empty requests (no filters).
+    // Must pass `advertiser-ids=joined` to get active advertisers.
+    // See: https://developers.cj.com/docs/rest-apis/advertiser-lookup
     const allRecords = new Map<string, CjAdvertiserRecord>();
     const MAX_PAGES = 5; // Safety cap: 500 advertisers max
 
+    // Fetch joined advertisers first (this is the primary use case)
     for (let page = 1; page <= MAX_PAGES; page++) {
-      if (Date.now() - syncStart > budgetMs * 0.5) {
-        console.warn("[cj-sync] Budget >50% used during fetch, stopping pagination");
+      if (Date.now() - syncStart > budgetMs * 0.4) {
+        console.warn("[cj-sync] Budget >40% used during joined fetch, stopping pagination");
         break;
       }
 
       try {
-        // No `joined` filter — fetches ALL relationship statuses
         const response = await lookupAdvertisers({
+          advertiserIds: ["joined"], // CJ special keyword: returns all joined advertisers
           recordsPerPage: 100,
           pageNumber: page,
         });
@@ -104,11 +106,32 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
           }
         }
 
+        console.log(`[cj-sync] Joined page ${page}: ${response.records.length} records (total so far: ${allRecords.size})`);
+
         // Stop if we got fewer than a full page
-        if (response.recordsReturned < 100) break;
+        if (response.recordsReturned < 100 || response.records.length < 100) break;
       } catch (err) {
-        console.warn(`[cj-sync] Failed to fetch advertiser page ${page}:`, err instanceof Error ? err.message : String(err));
+        console.warn(`[cj-sync] Failed to fetch joined advertiser page ${page}:`, err instanceof Error ? err.message : String(err));
         break;
+      }
+    }
+
+    // Also try fetching by keyword to catch pending/not-joined (CJ requires SOME filter)
+    if (Date.now() - syncStart < budgetMs * 0.6) {
+      try {
+        const keywordResponse = await lookupAdvertisers({
+          keywords: "travel hotel vacation",
+          recordsPerPage: 100,
+          pageNumber: 1,
+        });
+        for (const rec of keywordResponse.records) {
+          if (rec.advertiserId && !allRecords.has(rec.advertiserId)) {
+            allRecords.set(rec.advertiserId, rec);
+          }
+        }
+        console.log(`[cj-sync] Keyword search added ${keywordResponse.records.length} more advertisers (total: ${allRecords.size})`);
+      } catch (err) {
+        console.warn("[cj-sync] Keyword advertiser search failed (non-critical):", err instanceof Error ? err.message : String(err));
       }
     }
 

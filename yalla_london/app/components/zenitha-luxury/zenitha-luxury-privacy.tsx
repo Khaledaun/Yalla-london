@@ -231,8 +231,9 @@ export function ZenithaLuxuryPrivacy() {
             We will respond within 30 days.
           </P>
           <P>
-            You may also submit a data deletion request at{' '}
-            <a href="/api/gdpr/delete" style={{ color: C.gold }}>our GDPR deletion endpoint</a>.
+            You may also submit a data deletion request by emailing{' '}
+            <a href="mailto:legal@zenitha.luxury" style={{ color: C.gold }}>legal@zenitha.luxury</a> with
+            the subject line &ldquo;Data Deletion Request.&rdquo;
           </P>
 
           <SectionTitle>8. Data Security</SectionTitle>

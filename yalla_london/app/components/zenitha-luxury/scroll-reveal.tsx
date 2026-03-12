@@ -36,13 +36,13 @@ export function ScrollReveal({
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el) return undefined;
 
     // Respect prefers-reduced-motion
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) {
       setIsVisible(true);
-      return;
+      return undefined;
     }
 
     const observer = new IntersectionObserver(

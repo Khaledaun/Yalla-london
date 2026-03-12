@@ -67,34 +67,40 @@ async function handlePost(request: NextRequest) {
       ? `\n\nFOCUS AREA: "${focusArea}" — prioritize topics related to this theme, but include a few broader topics too.`
       : "";
 
-    const prompt = `You are an SEO strategist for "${site.name}", a luxury travel blog covering ${destination}'s finest experiences for international visitors, with special expertise serving Arab and Gulf travelers.
+    const prompt = `You are an SEO strategist for "${site.name}", a travel blog covering ${destination} for all visitors — tourists, families, couples, solo travellers, and anyone planning a trip.
 
 RESEARCH TASK: Find ${count} high-potential blog topics for this site that will rank well in Google and attract qualified traffic.
 
 SITE CONTEXT:
 - Destination: ${destination}
-- Primary audience: International luxury travelers (broadest search volume)
-- Secondary audience: Arab travelers, Gulf tourists, halal-conscious travelers (niche differentiator)
-- Monetization: Affiliate links (hotels, restaurants, experiences, tours)
-- Content style: First-hand experience, insider tips, luxury positioning
+- Audience: All travellers and tourists visiting ${destination} — universal, no demographic targeting
+- Monetization: Affiliate links (hotels, restaurants, experiences, tours, tickets)
+- Content style: First-hand experience, insider tips, practical advice
 - Existing topics (avoid duplicates): ${existingTopics}${focusClause}
 
-CRITICAL TOPIC MIX (mandatory balance):
-- 60-70% GENERAL luxury travel topics: "best hotels in ${destination}", "top restaurants", "things to do", "weekend itinerary", "shopping guide", "spa experiences", "nightlife", "day trips" — these have the highest search volume
-- 30-40% NICHE Arab/halal/Gulf topics: "halal restaurants", "Arab-friendly hotels", "Ramadan events", "prayer facilities" — these are our differentiator with less competition
+TOPIC MIX (mandatory — 80% general, 20% niche):
+- 80% GENERAL travel topics: attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport, family, solo, couples, budget — these have the highest search volume
+- 20% NICHE topics: halal restaurants, Arab-friendly hotels, Ramadan events, prayer facilities, Eid celebrations — lower competition, our differentiator
+
+TOPIC CLUSTERS TO COVER:
+- Core attractions: Top landmarks, museums, iconic experiences, tickets and tours
+- Itineraries: 3-day, 4-day, 7-day plans for different traveller types (first-timers, families, couples, budget, solo)
+- Areas & stays: Best neighbourhoods, hotels (budget to luxury), Airbnb tips, day trips
+- Food & drink: Restaurant guides, budget dining, nightlife, pubs, afternoon tea
+- Themes: Shopping, free activities, family, romantic, solo, Christmas, summer, transport tips
 
 RESEARCH CRITERIA — For each topic:
-1. **Search demand**: Focus on keywords with real search volume. Prioritize long-tail keywords (3-6 words) that have clear intent. General luxury terms typically have 10-50x more search volume than Arab-specific variants.
+1. **Search demand**: Focus on keywords with real search volume. Prioritize long-tail keywords (3-6 words) that have clear intent.
 2. **Trend analysis**: Flag topics that are RISING in search interest (seasonal events, new openings, upcoming holidays, travel trends).
-3. **Competition**: For general topics, find underserved angles. For niche topics, we often own the SERP.
-4. **Revenue potential**: Topics that naturally lead to hotel bookings, restaurant reservations, tour bookings, or experience purchases.
-5. **Topical authority**: Topics that build the site's authority cluster around ${destination} luxury travel.
+3. **Competition**: Find underserved angles and gaps in existing SERP coverage.
+4. **Revenue potential**: Topics that naturally lead to hotel bookings, restaurant reservations, tour bookings, or ticket purchases.
+5. **Topical authority**: Topics that build the site's authority cluster around ${destination} travel.
 
 MIX REQUIREMENTS:
 - 5-7 evergreen topics (year-round relevance)
 - 3-5 seasonal/timely topics (upcoming events, holidays, seasons)
 - 3-5 comparison/listicle topics ("best X in ${destination}", "top 10 Y")
-- 2-3 practical guide topics (how-to, planning, budgeting)
+- 2-3 practical guide topics (how-to, planning, budgeting, transport)
 - 2-3 niche/underserved topics (gaps in existing content)
 
 Return JSON array of ${count} topics, ordered by potential impact (highest first):
@@ -117,7 +123,7 @@ Return JSON array of ${count} topics, ordered by potential impact (highest first
 ]`;
 
     const result = await generateJSON<ResearchedTopic[]>(prompt, {
-      systemPrompt: `You are an expert SEO researcher specializing in luxury travel content. Your primary focus is high-volume general travel keywords, supplemented by Arab/halal niche topics where the site has competitive advantage. Return only valid JSON arrays. Base your search volume estimates on realistic ranges for travel keywords. Be specific about trend evidence — cite actual events, seasons, or data points.`,
+      systemPrompt: `You are an expert SEO researcher specializing in travel content. Focus on high-volume general travel keywords (80%) covering attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, and seasonal events. Include 20% niche halal/Arab-traveller topics as a differentiator. Return only valid JSON arrays. Base your search volume estimates on realistic ranges for travel keywords. Be specific about trend evidence — cite actual events, seasons, or data points.`,
       maxTokens: 4000,
       temperature: 0.7,
       timeoutMs: BUDGET_MS - 5_000,

@@ -342,11 +342,19 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
         <div style={{ marginBottom: "1rem" }}>
           <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Top Articles by Clicks</h3>
           {revenue.topArticlesByClicks.slice(0, 5).map((a, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "0.35rem 0", borderBottom: "1px solid #f3f4f6" }}>
-              <span style={{ fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.35rem 0", borderBottom: "1px solid #f3f4f6" }}>
+              <span style={{ fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
                 {a.url.replace(/^https?:\/\/[^/]+/, "")}
               </span>
-              <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{a.clicks} clicks</span>
+              <span style={{ fontSize: "0.8rem", fontWeight: 600, whiteSpace: "nowrap" }}>{a.clicks}</span>
+              <a
+                href={a.url.startsWith("http") ? a.url : `/blog${a.url.startsWith("/") ? a.url : `/${a.url}`}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ padding: "3px 8px", background: "#1e3a5f", color: "#fff", borderRadius: 6, fontSize: "0.65rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                View
+              </a>
             </div>
           ))}
         </div>
@@ -510,9 +518,19 @@ function CoverageTab({ data, onAction, actionLoading }: { data: AffiliateHQData;
         <div>
           <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Articles Without Affiliate Links</h3>
           {coverage.uncoveredArticles.map((a) => (
-            <div key={a.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #f3f4f6" }}>
-              <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>{a.title}</div>
-              <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>/{a.slug}</div>
+            <div key={a.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>{a.title}</div>
+                <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>/{a.slug}</div>
+              </div>
+              <a
+                href={`/blog/${a.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ marginLeft: "0.5rem", padding: "4px 10px", background: "#1e3a5f", color: "#fff", borderRadius: 6, fontSize: "0.7rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                View Page
+              </a>
             </div>
           ))}
         </div>

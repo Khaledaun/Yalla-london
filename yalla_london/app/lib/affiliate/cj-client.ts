@@ -450,8 +450,10 @@ async function cjFetch(
     }
 
     if (response.status === 401 || response.status === 403) {
+      const authBody = await response.text().catch(() => "");
+      console.error(`[cj-client] Auth failed (${response.status}): ${authBody.substring(0, 500)}`);
       throw createCjError(
-        "CJ API authentication failed — check CJ_API_TOKEN",
+        `CJ API auth failed (${response.status}): ${authBody.substring(0, 200) || "no details"}`,
         response.status
       );
     }

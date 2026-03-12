@@ -100,6 +100,36 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
       orderBy: { phase_attempts: "desc" },
     });
 
+    // Also recover drafts stuck in "promoting" (content-selector crashed mid-promotion).
+    // These are invisible to content-builder and content-selector — they hang forever.
+    // Revert them back to "reservoir" so content-selector can try again.
+    try {
+      const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const stuckPromoting = await prisma.articleDraft.findMany({
+        where: {
+          current_phase: "promoting",
+          updated_at: { lt: thirtyMinsAgo },
+        },
+        select: { id: true, keyword: true, updated_at: true },
+        take: 10,
+      });
+      for (const pd of stuckPromoting) {
+        const ageMin = Math.round((Date.now() - new Date(pd.updated_at).getTime()) / 60_000);
+        await prisma.articleDraft.update({
+          where: { id: pd.id },
+          data: {
+            current_phase: "reservoir",
+            phase_started_at: null,
+            last_error: `[diagnostic-agent] Reverted from stuck "promoting" (${ageMin}min) back to reservoir`,
+            updated_at: new Date(),
+          },
+        });
+        console.log(`[diagnostic-agent] Reverted stuck "promoting" draft ${pd.id} (${pd.keyword}) back to reservoir after ${ageMin}min`);
+      }
+    } catch (promotingErr) {
+      console.warn("[diagnostic-agent] Promoting recovery failed:", promotingErr instanceof Error ? promotingErr.message : promotingErr);
+    }
+
     for (const draft of stuckDrafts) {
       const ageHours = draft.phase_started_at
         ? (Date.now() - new Date(draft.phase_started_at).getTime()) / (60 * 60 * 1000)

@@ -312,10 +312,25 @@ async function defenseDrafting(
   const lang = draft.locale === "ar" ? "Arabic" : "English";
   const sectionHeadings = sectionsNeeded.map((s, i) => `${i + 1}. ${s.heading}`).join("\n");
 
-  // ONE-SHOT: generate all remaining sections in a single prompt
-  const result = await generateCompletion([{
-    role: "user",
-    content: `Write the following ${sectionsNeeded.length} sections for a ${lang} article about "${draft.keyword}" (${site.destination} luxury travel).
+  // STUB FALLBACK helper: generates placeholder sections from outline data alone.
+  // Used when ALL AI providers fail (timeout/down). Produces minimal content that
+  // content-auto-fix cron can expand later. Draft advances to assembly so it doesn't
+  // stay stuck in "drafting" indefinitely.
+  const makeStubSections = (): Array<Record<string, unknown>> =>
+    sectionsNeeded.map((s) => ({
+      heading: s.heading || "Section",
+      content: `<p>${site.destination} is a remarkable destination for ${draft.keyword || "luxury travel"}. This section covers ${(s.heading as string || "key information")} in detail.</p><p>For the latest information and expert recommendations, consult our complete guide below.</p>`,
+      wordCount: 40,
+      keywords_used: [],
+    }));
+
+  let newSections: Array<Record<string, unknown>>;
+
+  try {
+    // ONE-SHOT: generate all remaining sections in a single prompt
+    const result = await generateCompletion([{
+      role: "user",
+      content: `Write the following ${sectionsNeeded.length} sections for a ${lang} article about "${draft.keyword}" (${site.destination} luxury travel).
 
 Sections to write:
 ${sectionHeadings}
@@ -325,36 +340,41 @@ For EACH section, write 200-300 words with HTML formatting (use <p>, <ul>, <li>,
 Return JSON array: [{"heading":"Section Title","content":"<p>HTML content...</p>","wordCount":250,"keywords_used":[]}]
 
 Write real, practical travel content. No placeholder text.`,
-  }], {
-    provider: provider.provider as import("@/lib/ai/provider").AIProvider,
-    maxTokens: Math.min(sectionsNeeded.length * 600, 3500),
-    temperature: 0.6,
-    timeoutMs: timeout,
-    siteId: draft.site_id,
-    taskType: "last_defense_drafting",
-    calledFrom: "last-defense/drafting",
-  });
+    }], {
+      provider: provider.provider as import("@/lib/ai/provider").AIProvider,
+      maxTokens: Math.min(sectionsNeeded.length * 600, 3500),
+      temperature: 0.6,
+      timeoutMs: timeout,
+      siteId: draft.site_id,
+      taskType: "last_defense_drafting",
+      calledFrom: "last-defense/drafting",
+    });
 
-  let newSections: Array<Record<string, unknown>>;
-  try {
-    let cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    // Handle case where AI wraps array in an object
-    if (cleaned.startsWith("{")) {
-      const parsed = JSON.parse(cleaned);
-      newSections = Array.isArray(parsed.sections) ? parsed.sections : [parsed];
-    } else {
-      newSections = JSON.parse(cleaned);
+    try {
+      let cleaned = result.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      // Handle case where AI wraps array in an object
+      if (cleaned.startsWith("{")) {
+        const parsed = JSON.parse(cleaned);
+        newSections = Array.isArray(parsed.sections) ? parsed.sections : [parsed];
+      } else {
+        newSections = JSON.parse(cleaned);
+      }
+      if (!Array.isArray(newSections)) newSections = [newSections];
+    } catch {
+      // JSON parse failed — extract text content and wrap in sections
+      const rawContent = result.content;
+      newSections = sectionsNeeded.map((s) => ({
+        heading: s.heading,
+        content: `<p>${rawContent.substring(0, 500)}</p>`,
+        wordCount: 100,
+        keywords_used: [],
+      }));
     }
-    if (!Array.isArray(newSections)) newSections = [newSections];
-  } catch {
-    // Extract text content and create sections manually
-    const rawContent = result.content;
-    newSections = sectionsNeeded.map((s) => ({
-      heading: s.heading,
-      content: `<p>${rawContent.substring(0, 500)}</p>`,
-      wordCount: 100,
-      keywords_used: [],
-    }));
+  } catch (aiErr) {
+    // ALL AI providers failed (timeout, rate limit, network) — use stub sections.
+    // The draft advances to assembly, then content-auto-fix expands it.
+    console.warn(`[LAST-DEFENSE/drafting] All providers failed for draft ${draft.id}: ${aiErr instanceof Error ? aiErr.message : aiErr}. Using stub sections.`);
+    newSections = makeStubSections();
   }
 
   const allSections = [...existingSections, ...newSections];
@@ -363,7 +383,6 @@ Write real, practical travel content. No placeholder text.`,
       sections_data: allSections,
       sections_completed: allSections.length,
     },
-    aiModelUsed: result.model,
     durationMs: Date.now() - start,
   });
 }

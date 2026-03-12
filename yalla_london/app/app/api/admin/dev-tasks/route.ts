@@ -28,12 +28,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     where.siteId = { in: activeSiteIds };
   }
 
-  if (statusFilter) {
+  if (statusFilter && statusFilter !== "all") {
     where.status = statusFilter;
-  } else {
+  } else if (!statusFilter) {
     // Default: show open tasks (exclude completed/dismissed)
     where.status = { in: ["pending", "in_progress"] };
   }
+  // statusFilter === "all" → no status filter, return everything
 
   if (priorityFilter) where.priority = priorityFilter;
   if (sourceFilter) where.source = sourceFilter;

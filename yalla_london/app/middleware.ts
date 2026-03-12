@@ -84,6 +84,17 @@ const DOMAIN_TO_SITE: Record<
     siteName: "Zenitha Yachts",
     locale: "en",
   },
+  // Zenitha.Luxury (Parent Brand)
+  "zenitha.luxury": {
+    siteId: "zenitha-luxury",
+    siteName: "Zenitha.Luxury",
+    locale: "en",
+  },
+  "www.zenitha.luxury": {
+    siteId: "zenitha-luxury",
+    siteName: "Zenitha.Luxury",
+    locale: "en",
+  },
   // Legacy/deprecated domains (redirect to main brands)
   "gulfmaldives.com": {
     siteId: "arabaldives",

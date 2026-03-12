@@ -1820,6 +1820,38 @@ Always respond with valid JSON.`,
       twitter: "https://x.com/zenithayachts",
     },
   },
+
+  // ─── Zenitha.Luxury — Parent Brand Portfolio Site ─────────────────
+  "zenitha-luxury": {
+    id: "zenitha-luxury",
+    name: "Zenitha.Luxury",
+    slug: "zenitha-luxury",
+    domain: "zenitha.luxury",
+    locale: "en",
+    direction: "ltr",
+    status: "development",
+    destination: "Global",
+    country: "US",
+    currency: "USD",
+    primaryColor: "#0A0A0A",
+    secondaryColor: "#C4A96C",
+    systemPromptEN: `You are a corporate content writer for Zenitha.Luxury LLC, the parent holding company for a portfolio of luxury travel brands. Write in a refined, authoritative corporate-luxury tone. No exclamation marks.
+Always respond with valid JSON.`,
+    systemPromptAR: `أنت كاتب محتوى مؤسسي لشركة Zenitha.Luxury LLC، الشركة الأم لمجموعة من علامات السفر الفاخرة. اكتب بأسلوب مؤسسي راقٍ وموثوق. بدون علامات تعجب.
+أجب دائماً بـ JSON صالح.`,
+    topicsEN: [],
+    topicsAR: [],
+    affiliateCategories: [],
+    primaryKeywordsEN: ["luxury travel", "zenitha luxury", "travel brands"],
+    primaryKeywordsAR: ["سفر فاخر", "زينيثا لوكشري"],
+    categoryName: { en: "Luxury Travel", ar: "السفر الفاخر" },
+    authors: [
+      { name: "Khaled N. Aun", role: "Founder & CEO", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/zenithaluxury",
+    },
+  },
 };
 
 /** Get all configured site IDs (all sites, any status) */
@@ -1896,6 +1928,11 @@ export function isYachtSite(siteId: string): boolean {
   return siteId === "zenitha-yachts-med";
 }
 
+/** Check if a site is the parent brand portfolio site */
+export function isParentBrandSite(siteId: string): boolean {
+  return siteId === "zenitha-luxury";
+}
+
 // ─── Per-site SEO metadata helpers ──────────────────────────────────
 // These provide site-specific tagline, description, and Arabic name for
 // generateMetadata() so each domain gets correct metadata, not the Yalla
@@ -1943,6 +1980,13 @@ const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: st
     nameAr: "يالا تايلاند",
     description: "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
     descriptionAr: "يالا تايلاند يربط المسافرين العرب بأفخم منتجعات تايلاند والمطاعم الحلال.",
+  },
+  "zenitha-luxury": {
+    tagline: "The Art of Exceptional Travel",
+    taglineAr: "فن السفر الاستثنائي",
+    nameAr: "زينيثا لوكشري",
+    description: "Zenitha.Luxury LLC is the parent company behind a portfolio of luxury travel brands spanning London, the Maldives, the Mediterranean, Istanbul, and beyond.",
+    descriptionAr: "شركة Zenitha.Luxury LLC هي الشركة الأم لمجموعة من علامات السفر الفاخرة.",
   },
 };
 

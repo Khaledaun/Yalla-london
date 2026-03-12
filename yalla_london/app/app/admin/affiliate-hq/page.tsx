@@ -168,6 +168,9 @@ export default function AffiliateHQPage() {
         // If error in result
         if (r.error) lines.push(`❌ Error: ${r.error}`);
 
+        // Simple message result (reset_circuit_breaker, etc.)
+        if (r.message && !r.skipped) lines.push(r.message);
+
         // Diagnostic info (env vars, circuit breaker)
         if (r.diagnostic) {
           const d = r.diagnostic;
@@ -712,6 +715,13 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
             loading={actionLoading === "test_connection"}
             onClick={() => onAction("test_connection")}
           />
+          <ActionCard
+            label="Reset Circuit Breaker"
+            desc="Clear API failure lockout to retry"
+            color="#dc2626"
+            loading={actionLoading === "reset_circuit_breaker"}
+            onClick={() => onAction("reset_circuit_breaker")}
+          />
         </div>
       </div>
 
@@ -916,6 +926,9 @@ function SystemTab({ data, onAction, actionLoading }: { data: AffiliateHQData; o
         </button>
         <button onClick={() => onAction("refresh_links")} disabled={!!actionLoading} style={btnStyle("#3b82f6")}>
           {actionLoading === "refresh_links" ? "..." : "Refresh Links"}
+        </button>
+        <button onClick={() => onAction("reset_circuit_breaker")} disabled={!!actionLoading} style={btnStyle("#dc2626")}>
+          {actionLoading === "reset_circuit_breaker" ? "..." : "Reset Circuit Breaker"}
         </button>
       </div>
     </div>

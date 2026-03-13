@@ -570,7 +570,7 @@ export async function expandArabicContent(
         siteId: post.siteId,
         taskType: 'campaign-arabic-expand',
         calledFrom: 'campaign-agent',
-        timeoutMs: Math.min(budgetMs - 3000, 30_000),
+        timeoutMs: Math.max(Math.min(budgetMs - 3000, 30_000), 25_000),
         phaseBudgetHint: 'heavy',
       },
     );

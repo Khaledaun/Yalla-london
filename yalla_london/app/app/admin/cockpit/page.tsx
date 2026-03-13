@@ -6495,7 +6495,12 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                   <p className="text-emerald-400">+ {migrationResult.foreignKeysCreated!.length} foreign key(s) created</p>
                 )}
                 {(migrationResult.errors?.length ?? 0) > 0 && (
-                  <p className="text-red-400">{migrationResult.errors!.length} errors — check logs</p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-red-400 font-medium">{migrationResult.errors!.length} error(s):</p>
+                    {migrationResult.errors!.map((err, i) => (
+                      <p key={i} className="text-red-300/80 text-[11px] bg-red-950/20 rounded px-2 py-1 break-words">{err}</p>
+                    ))}
+                  </div>
                 )}
               </>
             )}

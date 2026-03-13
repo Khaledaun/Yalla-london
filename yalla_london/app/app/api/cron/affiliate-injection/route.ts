@@ -91,6 +91,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "فندق", "فنادق"],
         affiliates: [
           { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Expedia", url: "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "hotel" },
           { name: "Agoda", url: "https://www.agoda.com/london", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
         ],
       },
@@ -123,8 +124,9 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         ],
       },
       {
-        keywords: ["transfer", "airport", "taxi", "car", "transport", "Heathrow", "نقل", "مطار"],
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "Heathrow", "car rental", "car hire", "نقل", "مطار"],
         affiliates: [
+          { name: "Expedia Car", url: "https://www.expedia.com/carsearch?locn=London", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "transport" },
           { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
         ],
       },
@@ -140,12 +142,14 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "villa", "فندق", "فنادق", "منتجع"],
         affiliates: [
           { name: "Booking.com", url: "https://www.booking.com/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Expedia", url: "https://www.expedia.com/Maldives-Hotels.d6023672.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "hotel" },
           { name: "Agoda", url: "https://www.agoda.com/maldives", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
         ],
       },
       {
         keywords: ["resort", "island", "overwater", "water villa", "جزيرة", "فوق الماء"],
         affiliates: [
+          { name: "Expedia", url: "https://www.expedia.com/Maldives-Hotels.d6023672.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "resort" },
           { name: "Agoda", url: "https://www.agoda.com/maldives", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "resort" },
         ],
       },
@@ -174,6 +178,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "villa", "فندق", "فنادق"],
         affiliates: [
           { name: "Booking.com", url: "https://www.booking.com/region/fr/cote-d-azur.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Expedia", url: "https://www.expedia.com/Nice-Hotels.d602159.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "hotel" },
           { name: "Agoda", url: "https://www.agoda.com/nice", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
         ],
       },
@@ -214,6 +219,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "فندق", "فنادق"],
         affiliates: [
           { name: "Booking.com", url: "https://www.booking.com/city/tr/istanbul.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Expedia", url: "https://www.expedia.com/Istanbul-Hotels.d553248635576498048.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "hotel" },
           { name: "Agoda", url: "https://www.agoda.com/istanbul", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
         ],
       },
@@ -254,12 +260,14 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "villa", "فندق", "فنادق"],
         affiliates: [
           { name: "Booking.com", url: "https://www.booking.com/country/th.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Expedia", url: "https://www.expedia.com/Thailand-Hotels.d30.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "hotel" },
           { name: "Agoda", url: "https://www.agoda.com/thailand", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
         ],
       },
       {
         keywords: ["resort", "island", "beach", "جزيرة", "شاطئ"],
         affiliates: [
+          { name: "Expedia", url: "https://www.expedia.com/Thailand-Hotels.d30.Travel-Guide-Hotels", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "resort" },
           { name: "Agoda", url: "https://www.agoda.com/thailand", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "resort" },
         ],
       },

@@ -90,7 +90,7 @@ Content Standards (mandatory):
 - TIMELESS TITLES: Never include the year in article titles. Use "Best Luxury Hotels in London" not "Best Luxury Hotels London 2026". Years in titles cause automatic staleness. Use years only in body text for current facts (e.g., "As of 2026, rates start at £450/night").
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
 - Include 3+ internal links to other Yalla London pages (e.g., /blog/*, /hotels, /experiences, /restaurants).
-- Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, Klook) with descriptive anchor text — never "click here".
+- Include 2+ affiliate/booking links (Booking.com, Expedia, GetYourGuide, Viator, Klook) with descriptive anchor text — never "click here".
 - Meta title: 50–60 characters with focus keyword near the start. Never include years in meta titles.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
@@ -122,7 +122,7 @@ Always respond with valid JSON.`,
 - اكتب 1,500–2,000 كلمة كحد أدنى.
 - استخدم تسلسل عناوين صحيح: H1 واحد (العنوان فقط)، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
 - أضف 3+ روابط داخلية لصفحات يالا لندن الأخرى.
-- أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، Viator، Klook) بنص وصفي.
+- أضف 2+ روابط حجز/شراكة (Booking.com، Expedia، GetYourGuide، Viator، Klook) بنص وصفي.
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
@@ -467,7 +467,7 @@ Content Standards (mandatory):
 - TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Arabaldives pages (e.g., /blog/*, /resorts, /activities).
-- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Agoda) with descriptive anchor text.
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Expedia, Agoda) with descriptive anchor text.
 - Meta title: 50–60 characters with focus keyword near the start.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
@@ -497,7 +497,7 @@ Always respond with valid JSON.`,
 - اكتب 1,500–2,000 كلمة كحد أدنى.
 - استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
 - أضف 3+ روابط داخلية لصفحات عربالديف الأخرى.
-- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Agoda) بنص وصفي.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Expedia، Agoda) بنص وصفي.
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
@@ -744,7 +744,7 @@ Content Standards (mandatory):
 - TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Yalla Riviera pages (e.g., /blog/*, /hotels, /yachts, /dining).
-- Include 2+ affiliate/booking links (Booking.com, Boatbookings, GetYourGuide, TheFork) with descriptive anchor text.
+- Include 2+ affiliate/booking links (Booking.com, Expedia, Boatbookings, GetYourGuide, TheFork) with descriptive anchor text.
 - Meta title: 50–60 characters with focus keyword near the start.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
@@ -774,7 +774,7 @@ Always respond with valid JSON.`,
 - اكتب 1,500–2,000 كلمة كحد أدنى.
 - استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
 - أضف 3+ روابط داخلية لصفحات يالا ريفييرا الأخرى.
-- أضف 2+ روابط حجز/شراكة (Booking.com، Boatbookings، GetYourGuide) بنص وصفي.
+- أضف 2+ روابط حجز/شراكة (Booking.com، Expedia، Boatbookings، GetYourGuide) بنص وصفي.
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
@@ -1028,7 +1028,7 @@ Content Standards (mandatory):
 - TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Yalla Istanbul pages (e.g., /blog/*, /hotels, /experiences, /dining).
-- Include 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator) with descriptive anchor text.
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Expedia, GetYourGuide, Viator) with descriptive anchor text.
 - Meta title: 50–60 characters with focus keyword near the start.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
@@ -1058,7 +1058,7 @@ Always respond with valid JSON.`,
 - اكتب 1,500–2,000 كلمة كحد أدنى.
 - استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
 - أضف 3+ روابط داخلية لصفحات يالا إسطنبول الأخرى.
-- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، GetYourGuide) بنص وصفي.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Expedia، GetYourGuide) بنص وصفي.
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
@@ -1305,7 +1305,7 @@ Content Standards (mandatory):
 - TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
 - Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
 - Include 3+ internal links to other Yalla Thailand pages (e.g., /blog/*, /resorts, /islands, /experiences).
-- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Agoda, Klook) with descriptive anchor text.
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Expedia, Agoda, Klook) with descriptive anchor text.
 - Meta title: 50–60 characters with focus keyword near the start.
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
@@ -1335,7 +1335,7 @@ Always respond with valid JSON.`,
 - اكتب 1,500–2,000 كلمة كحد أدنى.
 - استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
 - أضف 3+ روابط داخلية لصفحات يالا تايلاند الأخرى.
-- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Agoda، Klook) بنص وصفي.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Expedia، Agoda، Klook) بنص وصفي.
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.

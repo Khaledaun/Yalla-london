@@ -135,7 +135,7 @@ export function getAdvertiserMapForSite(siteId?: string): Record<string, string[
       shopping: ["Harrods", "Selfridges", "Net-A-Porter"],
     },
     arabaldives: {
-      hotel: ["Booking.com", "Agoda", "HalalBooking", "Luxury Escapes"],
+      hotel: ["Booking.com", "Expedia", "Agoda", "HalalBooking", "Luxury Escapes"],
       experience: ["GetYourGuide", "Viator", "Klook"],
       transport: ["Kiwi.com", "Skyscanner"],
     },
@@ -146,13 +146,13 @@ export function getAdvertiserMapForSite(siteId?: string): Record<string, string[
       yacht: ["Boatbookings", "Click&Boat"],
     },
     istanbul: {
-      hotel: ["Booking.com", "HalalBooking", "Agoda"],
+      hotel: ["Booking.com", "Expedia", "HalalBooking", "Agoda"],
       experience: ["GetYourGuide", "Viator", "Klook"],
       dining: ["TheFork"],
       transport: ["Omio", "Blacklane"],
     },
     thailand: {
-      hotel: ["Booking.com", "Agoda", "HalalBooking"],
+      hotel: ["Booking.com", "Expedia", "Agoda", "HalalBooking"],
       experience: ["GetYourGuide", "Viator", "Klook"],
       wellness: ["Booking.com", "Agoda"],
       transport: ["Kiwi.com", "12Go Asia"],

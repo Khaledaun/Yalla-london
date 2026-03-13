@@ -458,39 +458,25 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // If attempts=0, just clear stale lock — reducing 0 by 2 is a no-op
-        if ((draft.phase_attempts || 0) === 0 && draft.phase_started_at) {
-          await prisma.articleDraft.update({
-            where: { id: draft.id },
-            data: {
-              phase_started_at: null,
-              last_error: `[diagnostic-agent] Cleared stale lock from ${diagnosis.category} (0 attempts, lock was stale)`,
-            },
-          });
-          return {
-            diagnosis,
-            fixApplied: "unlock_stale_lock",
-            success: true,
-            before,
-            after: { phase: draft.current_phase, attempts: 0, phase_started_at: null },
-          };
-        }
-
-        const reducedAttempts = Math.max((draft.phase_attempts || 0) - 2, 0);
+        // Just clear the stale lock — DO NOT reduce attempts.
+        // Reducing attempts (e.g. 1→0) defeats the lifetime cap because with 50+ drafts
+        // content-builder takes hours to circle back, by which time diagnostic has already
+        // reset the counter. Attempts never accumulate to 5 → infinite loop.
+        // Let attempts grow naturally: 1→2→3→4→5→rejected.
+        const currentAttempts = draft.phase_attempts || 0;
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
-            phase_attempts: reducedAttempts,
             phase_started_at: null,
-            last_error: `[diagnostic-agent-reset] Reduced from ${diagnosis.category} — was ${diagnosis.attempts} attempts, now ${reducedAttempts}`,
+            last_error: `[diagnostic-agent] Cleared stale lock from ${diagnosis.category} (attempts=${currentAttempts}, preserved)`,
           },
         });
         return {
           diagnosis,
-          fixApplied: "reduce_attempts_and_unlock",
+          fixApplied: "unlock_stale_lock",
           success: true,
           before,
-          after: { phase: draft.current_phase, attempts: reducedAttempts, phase_started_at: null },
+          after: { phase: draft.current_phase, attempts: currentAttempts, phase_started_at: null },
         };
       }
 
@@ -511,7 +497,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             where: { id: draft.id },
             data: {
               current_phase: "images",
-              phase_attempts: Math.max((draft.phase_attempts || 0) - 2, 0),
+              phase_attempts: 0, // Reset to 0 for images phase (new phase, fresh start)
               phase_started_at: null,
               assembled_html: rawHtml,
               word_count: wordCount,
@@ -547,22 +533,21 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // Otherwise, reduce attempts by 2 for retry (not reset to 0 — prevents infinite loops)
-        const loopReducedAttempts = Math.max((draft.phase_attempts || 0) - 2, 0);
+        // Just clear the lock — don't reduce attempts. Let them accumulate to cap.
+        const loopCurrentAttempts = draft.phase_attempts || 0;
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
-            phase_attempts: loopReducedAttempts,
             phase_started_at: null,
-            last_error: `[diagnostic-agent-reset] Reduced stuck_loop from ${draft.phase_attempts} to ${loopReducedAttempts}`,
+            last_error: `[diagnostic-agent] Cleared stuck_loop lock (attempts=${loopCurrentAttempts}, preserved)`,
           },
         });
         return {
           diagnosis,
-          fixApplied: "reduce_attempts",
+          fixApplied: "unlock_stale_lock",
           success: true,
           before,
-          after: { phase: draft.current_phase, attempts: loopReducedAttempts },
+          after: { phase: draft.current_phase, attempts: loopCurrentAttempts },
         };
       }
 
@@ -588,8 +573,8 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
             updateData.sections_data = [];
             updateData.sections_completed = 0;
             updateData.current_phase = "drafting";
-            // Reduce by 2 instead of resetting to 0 — preserves lifetime history
-            updateData.phase_attempts = Math.max(bdAttempts - 2, 0);
+            // Preserve attempts — let them accumulate to cap naturally
+            updateData.phase_attempts = bdAttempts;
             repaired = true;
           }
         }
@@ -599,13 +584,12 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           return { diagnosis, fixApplied: "repair_json_data", success: true, before, after: updateData };
         }
 
-        // Can't auto-repair — reduce by 2 for retry (NOT reset to 0)
-        const bdReduced = Math.max(bdAttempts - 2, 0);
+        // Can't auto-repair — just clear the lock, let attempts accumulate to cap
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: bdReduced, phase_started_at: null },
+          data: { phase_started_at: null, last_error: `[diagnostic-agent] Cleared bad_data lock (attempts=${bdAttempts}, preserved)` },
         });
-        return { diagnosis, fixApplied: "reduce_attempts_bad_data", success: true, before, after: { phase: draft.current_phase, attempts: bdReduced } };
+        return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: bdAttempts } };
       }
 
       case "provider_down": {
@@ -618,13 +602,12 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           });
           return { diagnosis, fixApplied: "permanently_rejected_at_cap", success: true, before, after: { phase: "rejected", attempts: pdAttempts } };
         }
-        // Reduce by 2 instead of resetting to 0 — preserves lifetime history
-        const pdReduced = Math.max(pdAttempts - 2, 0);
+        // Just clear the lock — let attempts accumulate to cap naturally
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: pdReduced, phase_started_at: null },
+          data: { phase_started_at: null, last_error: `[diagnostic-agent] Cleared provider_down lock (attempts=${pdAttempts}, preserved)` },
         });
-        return { diagnosis, fixApplied: "reduce_for_provider_retry", success: true, before, after: { phase: draft.current_phase, attempts: pdReduced } };
+        return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: pdAttempts } };
       }
 
       case "schema_mismatch": {
@@ -673,12 +656,12 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: 0, phase_started_at: null } };
         }
 
-        const unkReduced = Math.max(unkAttempts - 2, 0);
+        // Just clear the lock — let attempts accumulate to cap naturally
         await prisma.articleDraft.update({
           where: { id: draft.id },
-          data: { phase_attempts: unkReduced, phase_started_at: null },
+          data: { phase_started_at: null, last_error: `[diagnostic-agent] Cleared unknown lock (attempts=${unkAttempts}, preserved)` },
         });
-        return { diagnosis, fixApplied: "reduce_attempts_generic", success: true, before, after: { phase: draft.current_phase, attempts: unkReduced } };
+        return { diagnosis, fixApplied: "unlock_stale_lock", success: true, before, after: { phase: draft.current_phase, attempts: unkAttempts } };
       }
     }
   } catch (err) {

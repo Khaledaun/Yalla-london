@@ -86,14 +86,15 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       let draftToPublish = draft as Record<string, unknown>;
 
       if (wordCount < 1000) {
-        log(`[force-publish] Word count ${wordCount} < 1000 — enhancing...`);
+        log(`[force-publish] Word count ${wordCount} < 1000 — attempting enhancement...`);
         const enhResult = await enhanceReservoirDraft(draft as Record<string, unknown>);
         if (!enhResult.success) {
-          logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: `Enhancement failed for draft`, error: `Enhancement failed: ${enhResult.error}`, fix: "AI provider may be down. Check AI Config tab.", durationMs: Date.now() - start }).catch(() => {});
-          return NextResponse.json({ success: false, error: `Enhancement failed: ${enhResult.error}` }, { status: 500 });
+          log(`[force-publish] Enhancement failed: ${enhResult.error} — publishing as-is (force-publish overrides)`);
+          // Force-publish means publish regardless — don't skip the article
+        } else {
+          const refreshed = await prisma.articleDraft.findUnique({ where: { id: specificDraftId } });
+          if (refreshed) draftToPublish = refreshed as Record<string, unknown>;
         }
-        const refreshed = await prisma.articleDraft.findUnique({ where: { id: specificDraftId } });
-        if (refreshed) draftToPublish = refreshed as Record<string, unknown>;
       }
 
       try {
@@ -148,21 +149,21 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         let draftToPublish = draft as Record<string, unknown>;
 
         if (wordCount < 1000) {
-          log(`[force-publish] Word count ${wordCount} < 1000 — enhancing with Grok...`);
+          log(`[force-publish] Word count ${wordCount} < 1000 — attempting enhancement...`);
           const enhResult = await enhanceReservoirDraft(draft as Record<string, unknown>);
           if (!enhResult.success) {
-            log(`[force-publish] Enhancement failed for "${keyword}": ${enhResult.error} — skipping`);
-            skipped.push({ draftId, keyword, reason: `Enhancement failed: ${enhResult.error}`, locale: lang });
-            continue;
+            log(`[force-publish] Enhancement failed for "${keyword}": ${enhResult.error} — publishing as-is (force-publish overrides)`);
+            // Force-publish means publish regardless — don't skip the article
+          } else {
+            log(`[force-publish] Enhanced "${keyword}": score ${enhResult.previousScore}→${enhResult.newScore}`);
+            // Re-fetch enhanced draft
+            const refreshed = await prisma.articleDraft.findUnique({ where: { id: draftId } });
+            if (!refreshed) {
+              skipped.push({ draftId, keyword, reason: "Draft disappeared after enhancement", locale: lang });
+              continue;
+            }
+            draftToPublish = refreshed as Record<string, unknown>;
           }
-          log(`[force-publish] Enhanced "${keyword}": score ${enhResult.previousScore}→${enhResult.newScore}`);
-          // Re-fetch enhanced draft
-          const refreshed = await prisma.articleDraft.findUnique({ where: { id: draftId } });
-          if (!refreshed) {
-            skipped.push({ draftId, keyword, reason: "Draft disappeared after enhancement", locale: lang });
-            continue;
-          }
-          draftToPublish = refreshed as Record<string, unknown>;
         }
 
         // ── Step 2: Promote to BlogPost — admin override skips pre-pub gate ────

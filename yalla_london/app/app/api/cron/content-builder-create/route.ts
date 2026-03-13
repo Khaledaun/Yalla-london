@@ -66,11 +66,11 @@ async function handleCreate(request: NextRequest) {
 
       // Skip if there are already active drafts being processed for this site.
       // Count only drafts GENUINELY advancing through the pipeline:
-      // - Updated within 30 minutes (not stale — build-runner updates on every phase advance)
+      // - Updated within 15 minutes (not stale — build-runner completes phases in <5min)
       // - Exclude drafts with 3+ attempts (they're failing, not advancing)
       // - Exclude drafts touched by recovery agents
       // - Exclude garbage/permanently-failed drafts
-      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const thirtyMinAgo = new Date(Date.now() - 15 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
@@ -90,7 +90,7 @@ async function handleCreate(request: NextRequest) {
           },
         },
       });
-      if (activeDrafts >= 4) {
+      if (activeDrafts >= 8) {
         // Log detailed breakdown so pipeline-health can diagnose WHY creation is blocked
         const activeDetails = await prisma.articleDraft.findMany({
           where: {
@@ -111,7 +111,7 @@ async function handleCreate(request: NextRequest) {
           minsAgo: Math.round((Date.now() - new Date(d.updated_at).getTime()) / 60_000),
           excluded: d.phase_attempts >= 3 || (d.last_error || "").includes("MAX_RECOVERIES") || (d.last_error || "").includes("[diagnostic-agent"),
         }));
-        console.log(`[builder-create] Site ${siteId}: ${activeDrafts} active (cap=4), ${activeDetails.length} total in 30min window. Breakdown: ${JSON.stringify(breakdown)}`);
+        console.log(`[builder-create] Site ${siteId}: ${activeDrafts} active (cap=8), ${activeDetails.length} total in 30min window. Breakdown: ${JSON.stringify(breakdown)}`);
         skippedSites.push(`${siteId}(${activeDrafts} active)`);
         continue;
       }

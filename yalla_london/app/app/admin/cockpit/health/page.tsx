@@ -131,6 +131,10 @@ export default function CycleHealthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Server error (${res.status}): ${errText.substring(0, 100)}`);
+      }
       const json = await res.json();
       setFixResults((prev) => ({
         ...prev,
@@ -165,6 +169,10 @@ export default function CycleHealthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "fix_all", siteId }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Server error (${res.status}): ${errText.substring(0, 100)}`);
+      }
       const json = await res.json();
       setFixAllResult({
         fixedCount: json.fixedCount || 0,

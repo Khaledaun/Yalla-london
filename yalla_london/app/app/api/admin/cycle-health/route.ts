@@ -913,6 +913,131 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     console.warn("[cycle-health] GA4 check failed:", err instanceof Error ? err.message : err);
   }
 
+  // ── Check 20: Pipeline stall — drafts recycling but not reaching reservoir ──
+  try {
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rejectedLast24h = await prisma.articleDraft.count({
+      where: { site_id: siteId, current_phase: "rejected", updated_at: { gte: last24h } },
+    });
+    const reservoirLast24h = await prisma.articleDraft.count({
+      where: { site_id: siteId, current_phase: "reservoir", updated_at: { gte: last24h } },
+    });
+    const publishedLast24h = await prisma.blogPost.count({
+      where: { siteId, published: true, publishedAt: { gte: last24h } },
+    });
+
+    if (rejectedLast24h > 5 && reservoirLast24h === 0 && publishedLast24h === 0) {
+      issues.push({
+        id: "pipeline-stall",
+        category: "pipeline",
+        severity: "critical" as const,
+        what: "Pipeline is stalled — drafts being rejected but none reaching reservoir or publishing",
+        why: `${rejectedLast24h} drafts rejected in 24h, but 0 reached reservoir and 0 published. Recovery agents may be recycling the same failing drafts endlessly.`,
+        fix: "Check pipeline-health cron logs for recycling rate. Run sweeper to clean garbage drafts. Run Diagnose to reject beyond-repair drafts.",
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/admin/cycle-health",
+          payload: { action: "diagnose", siteId },
+          label: "Diagnose Pipeline",
+          description: "Run diagnostic agent to identify and fix stuck drafts",
+        },
+        evidence: { rejectedLast24h, reservoirLast24h, publishedLast24h },
+      });
+    } else if (rejectedLast24h > reservoirLast24h * 3 && rejectedLast24h > 3) {
+      issues.push({
+        id: "pipeline-high-recycling",
+        category: "pipeline",
+        severity: "warning" as const,
+        what: `High recycling rate — ${rejectedLast24h} rejected vs ${reservoirLast24h} reaching reservoir`,
+        why: "More drafts are being rejected than completing. This may indicate AI provider issues, bad topic quality, or recovery agent conflicts.",
+        fix: "Check AI cost dashboard for timeout rates. Review rejected draft keywords for garbage entries.",
+        fixAction: null,
+        evidence: { rejectedLast24h, reservoirLast24h, publishedLast24h, ratio: rejectedLast24h / Math.max(reservoirLast24h, 1) },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Pipeline stall check failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Check 21: Recovery agent conflict — multiple agents touching same drafts ──
+  try {
+    const last4h = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const recoveryLogs = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: { in: ["sweeper-agent", "failure-hook", "diagnostic-sweep"] },
+        started_at: { gte: last4h },
+        status: "completed",
+      },
+      select: { job_name: true, result_summary: true },
+      take: 200,
+    });
+    const draftTouches = new Map<string, Set<string>>();
+    for (const log of recoveryLogs) {
+      const summary = log.result_summary as Record<string, unknown> | null;
+      if (summary?.target && typeof summary.target === "string" && !summary.target.startsWith("garbage-") && !summary.target.startsWith("topic-")) {
+        if (!draftTouches.has(summary.target)) draftTouches.set(summary.target, new Set<string>());
+        draftTouches.get(summary.target)!.add(log.job_name);
+      }
+    }
+    const conflictCount = [...draftTouches.values()].filter(agents => agents.size >= 2).length;
+    if (conflictCount >= 3) {
+      issues.push({
+        id: "recovery-conflicts",
+        category: "pipeline",
+        severity: "warning" as const,
+        what: `${conflictCount} drafts touched by multiple recovery agents in last 4h`,
+        why: "Sweeper, diagnostic-agent, and failure-hooks are fighting over the same drafts. This wastes compute and inflates attempt counters.",
+        fix: "Review pipeline-health cron logs for specific conflicts. Stagger cron schedules. Ensure recovery agents check for recent recoveries before acting.",
+        fixAction: null,
+        evidence: { conflictCount, period: "4h" },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Recovery conflict check failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Check 22: Content-builder-create blocked — unable to create new drafts ──
+  try {
+    const last12h = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const createLogs = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: "content-builder-create",
+        started_at: { gte: last12h },
+        status: "completed",
+      },
+      select: { result_summary: true },
+      take: 24,
+      orderBy: { started_at: "desc" },
+    });
+    const skippedRuns = createLogs.filter(log => {
+      const summary = log.result_summary as Record<string, unknown> | null;
+      if (!summary) return false;
+      const created = (summary.draftsCreated as number) || 0;
+      return created === 0;
+    }).length;
+
+    if (skippedRuns >= 6 && createLogs.length >= 6) {
+      issues.push({
+        id: "builder-create-blocked",
+        category: "pipeline",
+        severity: "critical" as const,
+        what: `Content-builder-create blocked — ${skippedRuns}/${createLogs.length} runs created 0 drafts in last 12h`,
+        why: "The active draft count or reservoir cap is preventing new draft creation. Old/stuck drafts may be inflating the active count.",
+        fix: "Check pipeline-health logs for active count breakdown. Run sweeper to reject garbage drafts. Run Diagnose to clear stuck drafts.",
+        fixAction: {
+          method: "POST",
+          endpoint: "/api/cron/sweeper",
+          payload: {},
+          label: "Run Sweeper",
+          description: "Clean up garbage and stuck drafts to unblock creation",
+        },
+        evidence: { skippedRuns, totalRuns: createLogs.length, period: "12h" },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Builder-create blocked check failed:", err instanceof Error ? err.message : err);
+  }
+
   // ── Calculate grade ──
   let score = 100;
   for (const issue of issues) {

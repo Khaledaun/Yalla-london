@@ -79,7 +79,7 @@ async function handleRequest(request: NextRequest) {
         where: {
           siteId,
           published: true,
-          publishedAt: { gte: fourHoursAgo },
+          updated_at: { gte: fourHoursAgo },
         },
       });
       const draftsRejectedLast4h = await prisma.articleDraft.count({

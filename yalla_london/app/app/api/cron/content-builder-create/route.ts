@@ -65,32 +65,32 @@ async function handleCreate(request: NextRequest) {
       }
 
       // Skip if there are already active drafts being processed for this site.
-      // Count only drafts genuinely progressing through the pipeline:
-      // - Must have been updated within 1 hour (not stale/stuck)
-      // - Exclude diagnostic-agent/sweeper-touched drafts (they no longer set updated_at,
-      //   but older drafts may still have these markers from before the fix)
-      // - Lowered from >= 4 to >= 2: builder processes ~1 draft per 15-min run.
-      //   With 4 active, queue depth balloons to 100+ drafts waiting 25h+ each.
-      //   At 2, fresh drafts enter regularly while existing ones advance.
-      const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+      // Count only drafts GENUINELY advancing through the pipeline:
+      // - Updated within 30 minutes (not stale — build-runner updates on every phase advance)
+      // - Exclude drafts with 3+ attempts (they're failing, not advancing)
+      // - Exclude drafts touched by recovery agents
+      // - Exclude garbage/permanently-failed drafts
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          updated_at: { gte: oneHourAgo },
+          updated_at: { gte: thirtyMinAgo },
+          phase_attempts: { lt: 3 },
           NOT: {
             OR: [
               { last_error: { contains: "Reset phase timer" } },
               { last_error: { startsWith: "[diagnostic-agent" } },
               { last_error: { startsWith: "[diagnostic-agent-reset]" } },
               { last_error: { contains: "MAX_RECOVERIES_EXCEEDED" } },
+              { last_error: { contains: "[sweeper]" } },
             ],
           },
         },
       });
-      if (activeDrafts >= 2) {
+      if (activeDrafts >= 4) {
         skippedSites.push(`${siteId}(${activeDrafts} active)`);
         console.log(`[builder-create] Site ${siteId} has ${activeDrafts} active drafts — skipping creation`);
         continue;

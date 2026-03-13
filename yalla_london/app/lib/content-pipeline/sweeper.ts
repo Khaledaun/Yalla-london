@@ -37,8 +37,9 @@ export interface SweeperAction {
   newPhase: string;
 }
 
-const STUCK_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes (reduced from 1h — drafts stuck in budget-exhaustion loops need faster recovery)
-const MAX_RECOVERIES_PER_RUN = 50; // Raised from 10 — need to handle 28+ stuck drafts in one sweep
+const STUCK_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours — give drafts time to advance naturally between cron runs (every 15min) before flagging as stuck
+const MAX_RECOVERIES_PER_RUN = 10; // Lowered from 50 — processing too many inflates active draft count and blocks new creation
+const MAX_STUCK_PER_RUN = 5; // Separate limit for stuck drafts to prevent flooding the active count
 
 export async function runSweeper(): Promise<SweeperResult> {
   const start = Date.now();
@@ -204,6 +205,9 @@ export async function runSweeper(): Promise<SweeperResult> {
     }
 
     // ── 2. Find stuck drafts (no update for >2 hours) ──────────────
+    // CRITICAL: Do NOT set updated_at on stuck drafts. Setting updated_at makes them
+    // appear "active" in content-builder-create's 1-hour window, which blocks new draft
+    // creation. Only clear phase_started_at (the lock) so build-runner picks them up.
     let stuckDrafts: Array<Record<string, unknown>> = [];
     try {
       stuckDrafts = await prisma.articleDraft.findMany({
@@ -213,9 +217,13 @@ export async function runSweeper(): Promise<SweeperResult> {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           updated_at: { lt: new Date(Date.now() - STUCK_THRESHOLD_MS) },
-          phase_attempts: { lt: 5 }, // Must match maxAttempts for drafting phase in build-runner.ts
+          phase_attempts: { lt: 5 },
+          // Skip garbage keyword drafts — they'll be cleaned up in Section 8
+          NOT: {
+            last_error: "MAX_RECOVERIES_EXCEEDED",
+          },
         },
-        take: MAX_RECOVERIES_PER_RUN,
+        take: MAX_STUCK_PER_RUN,
       });
     } catch (stuckErr) {
       console.warn("[sweeper] Stuck drafts query failed:", stuckErr instanceof Error ? stuckErr.message : stuckErr);
@@ -232,12 +240,12 @@ export async function runSweeper(): Promise<SweeperResult> {
       const hoursStuck = Math.round((Date.now() - updatedAt.getTime()) / 3_600_000);
 
       try {
-        // Reset the phase timer so content-builder picks it up again
+        // Only clear the lock — do NOT set updated_at. This lets build-runner pick
+        // it up without inflating the active draft count in content-builder-create.
         await prisma.articleDraft.update({
           where: { id: draftId },
           data: {
-            phase_started_at: new Date(),
-            updated_at: new Date(),
+            phase_started_at: null,
             last_error: null,
           },
         });
@@ -247,8 +255,8 @@ export async function runSweeper(): Promise<SweeperResult> {
           keyword,
           locale,
           problem: `Stuck in "${phase}" for ${hoursStuck}h with no progress`,
-          diagnosis: "Draft appears abandoned by content-builder. Timer reset.",
-          fix: `Reset phase timer — content-builder will pick it up on next run`,
+          diagnosis: "Draft appears abandoned by content-builder. Lock cleared.",
+          fix: `Cleared phase lock — content-builder will pick it up on next run`,
           previousPhase: phase,
           newPhase: phase,
         });
@@ -313,9 +321,9 @@ export async function runSweeper(): Promise<SweeperResult> {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           phase_attempts: { gte: 3 },
-          // Not yet rejected (about to be on next run)
+          last_error: { not: "MAX_RECOVERIES_EXCEEDED" },
         },
-        take: MAX_RECOVERIES_PER_RUN,
+        take: MAX_STUCK_PER_RUN,
       });
     } catch (failErr) {
       console.warn("[sweeper] Failing drafts query failed:", failErr instanceof Error ? failErr.message : failErr);
@@ -579,6 +587,75 @@ export async function runSweeper(): Promise<SweeperResult> {
       }
     } catch (orphanErr) {
       console.warn("[sweeper] Non-fatal: URLIndexingStatus orphan cleanup failed:", orphanErr instanceof Error ? orphanErr.message : orphanErr);
+    }
+
+    // ── 8. Reject garbage keyword drafts ──────────────────────────────
+    // Old drafts with slug-format keywords ("best-luxury-hotels-london-winter-2024"),
+    // single vague words ("spring", "contact"), or empty keywords will never produce
+    // good content. Reject them to free up active slots.
+    try {
+      const garbageDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          current_phase: {
+            in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"],
+          },
+          last_error: { not: "MAX_RECOVERIES_EXCEEDED" },
+        },
+        select: { id: true, keyword: true, locale: true, current_phase: true },
+        take: 200,
+      });
+
+      const GARBAGE_KEYWORDS = new Set([
+        "spring", "contact", "summer", "winter", "autumn", "fall",
+        "test", "example", "untitled", "draft", "new", "temp",
+      ]);
+
+      const garbageIds: string[] = [];
+      for (const draft of garbageDrafts) {
+        const kw = (draft.keyword || "").trim();
+        // Empty keyword
+        if (!kw) {
+          garbageIds.push(draft.id);
+          continue;
+        }
+        // Single vague word
+        if (GARBAGE_KEYWORDS.has(kw.toLowerCase())) {
+          garbageIds.push(draft.id);
+          continue;
+        }
+        // Slug-format keyword (all lowercase, hyphens, looks like a URL slug)
+        if (/^[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+){2,}$/.test(kw) && kw.length > 30) {
+          garbageIds.push(draft.id);
+          continue;
+        }
+      }
+
+      if (garbageIds.length > 0) {
+        const result = await prisma.articleDraft.updateMany({
+          where: { id: { in: garbageIds } },
+          data: {
+            current_phase: "rejected",
+            rejection_reason: "[sweeper] Garbage keyword — not suitable for content generation",
+            last_error: "MAX_RECOVERIES_EXCEEDED",
+            completed_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+        console.log(`[sweeper] Rejected ${result.count} garbage keyword draft(s): ${garbageIds.length} identified`);
+        recovered.push({
+          draftId: `garbage-${garbageIds.length}`,
+          keyword: `${garbageIds.length} garbage keyword draft(s)`,
+          locale: "all",
+          problem: `${garbageIds.length} drafts with slug-format, empty, or vague keywords`,
+          diagnosis: "These drafts will never produce good content — clearing them to free active slots",
+          fix: `Rejected ${garbageIds.length} garbage keyword drafts`,
+          previousPhase: "various",
+          newPhase: "rejected",
+        });
+      }
+    } catch (garbageErr) {
+      console.warn("[sweeper] Non-fatal: garbage keyword cleanup failed:", garbageErr instanceof Error ? garbageErr.message : garbageErr);
     }
 
     const durationMs = Date.now() - start;

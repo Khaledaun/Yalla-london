@@ -1,7 +1,7 @@
 /**
  * Content Pipeline — Phase Implementations
  *
- * Each phase runs independently within a single cron invocation (~53s budget).
+ * Each phase runs independently within a single cron invocation (~280s budget on Vercel Pro).
  * Results are saved to the ArticleDraft table after each phase.
  * If a phase fails, it can be retried without re-running previous phases.
  *
@@ -366,15 +366,20 @@ export async function phaseDrafting(
     console.warn("[phases/drafting] Workflow settings load failed:", wfErr instanceof Error ? wfErr.message : wfErr);
   }
 
-  // Cap to 1 section per invocation — each AI call takes ~30s,
-  // and the cron has a 53s budget. 3 sections × 30s = 90s > 60s Vercel limit.
-  // Build-runner picks up the draft again on next run for the next section.
-  const maxSectionsThisRun = Math.min(1, sections.length - currentIndex);
+  // Budget-aware section cap: maxDuration is 300s (5 min on Vercel Pro).
+  // Each AI call takes ~15-35s depending on provider and locale.
+  // With 280s usable budget, we can reliably process 3-4 sections per run.
+  // The loop below also checks remaining budget before each section,
+  // so we'll stop early if time runs out.
+  const remainingSections = sections.length - currentIndex;
+  const maxSectionsThisRun = budgetRemainingMs !== undefined
+    ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / 45_000)))
+    : Math.min(remainingSections, 3);
   let sectionsWritten = 0;
 
   for (let i = 0; i < maxSectionsThisRun; i++) {
-    // Check time budget — leave 10s buffer for DB save
-    if (budgetRemainingMs !== undefined && budgetRemainingMs < 15_000) break;
+    // Check time budget — need at least 20s for AI call + 5s for DB save
+    if (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) break;
     const sectionStart = Date.now();
 
     const sectionIdx = currentIndex + i;

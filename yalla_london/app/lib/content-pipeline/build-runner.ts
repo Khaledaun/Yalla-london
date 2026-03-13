@@ -114,7 +114,7 @@ export async function runContentBuilder(
 
     // Step 2: No in-progress draft — defer creation to content-builder-create cron.
     // Draft creation is handled by /api/cron/content-builder-create (runs every 30min).
-    // Keeping build-runner focused on phase advancement maximizes AI budget (53s).
+    // Keeping build-runner focused on phase advancement maximizes AI budget (280s).
     // Safety net: if content-builder-create hasn't run in 2+ hours, we still skip — the
     // departures board and cron log will surface the issue for Khaled.
     if (!draft) {
@@ -313,7 +313,7 @@ export async function runContentBuilder(
     // so we can process 2-3 per run when budget allows. Heavy phases (drafting, assembly)
     // need 30s+ and are never batched.
     const LIGHT_PHASES = new Set(["research", "outline", "images", "seo", "scoring"]);
-    const MAX_ADDITIONAL_DRAFTS = 2;
+    const MAX_ADDITIONAL_DRAFTS = 4;
     const additionalResults: Array<{ draftId: string; phase: string; success: boolean }> = [];
 
     if (result.success && deadline.remainingMs() > 60_000) {

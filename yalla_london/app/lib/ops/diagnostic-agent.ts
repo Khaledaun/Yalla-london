@@ -752,17 +752,32 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
   try {
     const { prisma: p0 } = await import("@/lib/db");
 
-    // 0a: Stuck >48h
+    // 0a: Stuck >24h (reduced from 48h — if it hasn't progressed in 24h, it won't)
     const rejectedOld = await p0.articleDraft.updateMany({
       where: {
         current_phase: {
           in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
         },
-        updated_at: { lt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+        updated_at: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
       data: {
         current_phase: "rejected",
-        last_error: "[diagnostic-agent] Auto-rejected: stuck >48h without progress",
+        last_error: "[diagnostic-agent] Auto-rejected: stuck >24h without progress",
+      },
+    });
+
+    // 0a2: Stuck >12h with 2+ attempts — repeated failures, not worth retrying
+    const rejectedStuckRetries = await p0.articleDraft.updateMany({
+      where: {
+        current_phase: {
+          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+        },
+        updated_at: { lt: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+        phase_attempts: { gte: 2 },
+      },
+      data: {
+        current_phase: "rejected",
+        last_error: "[diagnostic-agent] Auto-rejected: stuck >12h with 2+ failed attempts",
       },
     });
 
@@ -814,8 +829,8 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       });
     }
 
-    if (rejectedOld.count > 0 || rejectedCapped.count > 0 || rejectedGarbage.count > 0) {
-      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >48h, ${rejectedCapped.count} at permanent cap, ${rejectedGarbage.count} garbage keywords`);
+    if (rejectedOld.count > 0 || rejectedStuckRetries.count > 0 || rejectedCapped.count > 0 || rejectedGarbage.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >24h, ${rejectedStuckRetries.count} stuck >12h w/2+ attempts, ${rejectedCapped.count} at permanent cap, ${rejectedGarbage.count} garbage keywords`);
     }
   } catch (p0err) {
     console.warn("[diagnostic-agent] Phase 0 cleanup failed:", p0err instanceof Error ? p0err.message : p0err);

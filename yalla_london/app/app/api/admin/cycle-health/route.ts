@@ -1227,6 +1227,7 @@ async function executeFixAll(request: NextRequest, siteId: string): Promise<Next
 
   const results: Array<{ issueId: string; what: string; success: boolean; detail: string }> = [];
 
+  const fixAllStart = Date.now();
   for (const issue of fixableIssues) {
     try {
       const fixResult = await executeFix(request, issue.id, resolvedSiteId);
@@ -1247,7 +1248,7 @@ async function executeFixAll(request: NextRequest, siteId: string): Promise<Next
     }
 
     // Budget guard — don't spend more than 45s on fix_all
-    if (Date.now() > Date.now() + 45_000) break;
+    if (Date.now() - fixAllStart > 45_000) break;
   }
 
   return NextResponse.json({

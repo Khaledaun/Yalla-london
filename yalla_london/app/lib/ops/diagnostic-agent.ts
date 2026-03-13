@@ -107,7 +107,7 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
         outline_data: true,
         research_data: true,
       },
-      take: 50,
+      take: 20,
       orderBy: { phase_attempts: "desc" },
     });
 
@@ -797,8 +797,42 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       },
     });
 
-    if (rejectedOld.count > 0 || rejectedCapped.count > 0) {
-      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >48h, ${rejectedCapped.count} at permanent cap`);
+    // 0c: Reject garbage keyword drafts (slug-format, empty, single vague words)
+    const GARBAGE_KEYWORDS = ["spring", "contact", "summer", "winter", "autumn", "fall", "test", "example", "untitled", "draft", "new", "temp"];
+    const garbageCandidates = await p0.articleDraft.findMany({
+      where: {
+        current_phase: {
+          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"],
+        },
+        last_error: { not: "MAX_RECOVERIES_EXCEEDED" },
+      },
+      select: { id: true, keyword: true },
+      take: 200,
+    });
+    const garbageIds = garbageCandidates
+      .filter((d: { id: string; keyword: string | null }) => {
+        const kw = (d.keyword || "").trim();
+        if (!kw) return true;
+        if (GARBAGE_KEYWORDS.includes(kw.toLowerCase())) return true;
+        if (/^[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+){2,}$/.test(kw) && kw.length > 30) return true;
+        return false;
+      })
+      .map((d: { id: string }) => d.id);
+    let rejectedGarbage = { count: 0 };
+    if (garbageIds.length > 0) {
+      rejectedGarbage = await p0.articleDraft.updateMany({
+        where: { id: { in: garbageIds } },
+        data: {
+          current_phase: "rejected",
+          last_error: "MAX_RECOVERIES_EXCEEDED",
+          rejection_reason: "[diagnostic-agent] Garbage keyword — not suitable for content generation",
+          completed_at: new Date(),
+        },
+      });
+    }
+
+    if (rejectedOld.count > 0 || rejectedCapped.count > 0 || rejectedGarbage.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0: Rejected ${rejectedOld.count} stuck >48h, ${rejectedCapped.count} at permanent cap, ${rejectedGarbage.count} garbage keywords`);
     }
   } catch (p0err) {
     console.warn("[diagnostic-agent] Phase 0 cleanup failed:", p0err instanceof Error ? p0err.message : p0err);

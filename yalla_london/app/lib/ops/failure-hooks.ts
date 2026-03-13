@@ -579,11 +579,13 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
         const currentAttempts = draft.phase_attempts ?? 0;
 
         // Stop recovering drafts that have already been retried too many times
-        if (currentAttempts >= 8) {
-          console.warn(`[failure-hook] Sweep skipping draft ${draft.id} — ${currentAttempts} total attempts`);
+        // Must match diagnostic-agent cap of 5 (not 8)
+        if (currentAttempts >= 5) {
+          console.warn(`[failure-hook] Sweep skipping draft ${draft.id} — ${currentAttempts} total attempts (cap=5)`);
           continue;
         }
 
+        // Don't set updated_at — inflates active draft count in content-builder-create
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
@@ -592,8 +594,7 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
             last_error: null,
             rejection_reason: null,
             completed_at: null,
-            phase_started_at: new Date(),
-            updated_at: new Date(),
+            phase_started_at: null,
           },
         });
         recovered++;

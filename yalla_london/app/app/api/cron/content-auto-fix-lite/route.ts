@@ -71,14 +71,25 @@ async function handleAutoFixLite(request: NextRequest) {
 
   // ── 1. STUCK DRAFT RECOVERY ────────────────────────────────────────────
   try {
+    // Drafting phase legitimately takes multiple cron runs (1 section per run,
+    // 6-10 sections per article). Use a longer staleness window for drafting
+    // to avoid resetting drafts that are making normal progress.
+    // Other phases complete in a single run — 1h is genuinely stuck.
     const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
     const stuckDrafts = await withPoolRetry(async () => prisma.articleDraft.findMany({
       where: {
         site_id: { in: activeSiteIds },
         current_phase: {
           in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
         },
-        updated_at: { lt: oneHourAgo },
+        OR: [
+          // Drafting phase: only stuck if no update for 3+ hours
+          // (multi-section articles legitimately take 2+ hours across runs)
+          { current_phase: "drafting", updated_at: { lt: threeHoursAgo } },
+          // All other phases: stuck after 1 hour (they should complete in 1 run)
+          { current_phase: { not: "drafting" }, updated_at: { lt: oneHourAgo } },
+        ],
       },
       select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
       take: 20,

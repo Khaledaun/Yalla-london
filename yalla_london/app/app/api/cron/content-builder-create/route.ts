@@ -91,8 +91,28 @@ async function handleCreate(request: NextRequest) {
         },
       });
       if (activeDrafts >= 4) {
+        // Log detailed breakdown so pipeline-health can diagnose WHY creation is blocked
+        const activeDetails = await prisma.articleDraft.findMany({
+          where: {
+            site_id: siteId,
+            current_phase: {
+              in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+            },
+            updated_at: { gte: thirtyMinAgo },
+          },
+          select: { id: true, keyword: true, current_phase: true, phase_attempts: true, last_error: true, updated_at: true },
+          take: 10,
+        });
+        const breakdown = activeDetails.map(d => ({
+          id: d.id.substring(0, 8),
+          kw: (d.keyword || "?").substring(0, 30),
+          phase: d.current_phase,
+          attempts: d.phase_attempts,
+          minsAgo: Math.round((Date.now() - new Date(d.updated_at).getTime()) / 60_000),
+          excluded: d.phase_attempts >= 3 || (d.last_error || "").includes("MAX_RECOVERIES") || (d.last_error || "").includes("[diagnostic-agent"),
+        }));
+        console.log(`[builder-create] Site ${siteId}: ${activeDrafts} active (cap=4), ${activeDetails.length} total in 30min window. Breakdown: ${JSON.stringify(breakdown)}`);
         skippedSites.push(`${siteId}(${activeDrafts} active)`);
-        console.log(`[builder-create] Site ${siteId} has ${activeDrafts} active drafts — skipping creation`);
         continue;
       }
 

@@ -7415,6 +7415,22 @@ function CockpitPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              href="/admin/cockpit/activity"
+              className="px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                backgroundColor: 'var(--neu-bg, #EDE9E1)',
+                color: '#6366F1',
+                boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)',
+              }}
+            >
+              📋 FEED
+            </Link>
+            <Link
               href="/admin/cockpit/write"
               className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
               style={{

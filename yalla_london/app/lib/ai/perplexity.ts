@@ -52,7 +52,7 @@ export async function queryPerplexity(
     temperature?: number;
   } = {}
 ): Promise<PerplexityResponse> {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
+  const apiKey = process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY;
   if (!apiKey) {
     throw new Error("PERPLEXITY_API_KEY not configured");
   }

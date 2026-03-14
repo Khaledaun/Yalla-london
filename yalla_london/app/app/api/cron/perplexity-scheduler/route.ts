@@ -42,7 +42,7 @@ async function handleScheduler(request: NextRequest) {
   }
 
   try {
-    const { processDueSchedules } = await import('@/lib/perplexity-computer')
+    const { processDueSchedules, listSchedules, createSchedule, TASK_TEMPLATES } = await import('@/lib/perplexity-computer')
     const { logCronExecution } = await import('@/lib/cron-logger')
 
     const elapsed = () => Date.now() - start
@@ -50,18 +50,53 @@ async function handleScheduler(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, reason: 'Budget exceeded before start' })
     }
 
+    // Auto-seed: if no schedules exist, seed recommended templates (launch-and-forget)
+    let seeded = 0
+    try {
+      const existing = await listSchedules()
+      if (existing.length === 0) {
+        const scheduledTemplates = TASK_TEMPLATES.filter(t => t.schedule)
+        for (const template of scheduledTemplates) {
+          if (elapsed() > BUDGET_MS - 5000) break // Leave 5s buffer
+          try {
+            await createSchedule({
+              category: template.category,
+              taskType: template.taskType,
+              title: template.title,
+              promptTemplate: template.promptTemplate,
+              cronExpression: template.schedule!,
+              siteId: 'yalla-london',
+              priority: template.priority,
+              estimatedCredits: template.estimatedCredits,
+              tags: [...template.tags, `template:${template.id}`, 'auto-seeded'],
+              metadata: { templateId: template.id, autoSeeded: true },
+            })
+            seeded++
+          } catch (seedErr) {
+            console.warn('[perplexity-scheduler] Failed to seed template:', template.id, seedErr instanceof Error ? seedErr.message : seedErr)
+          }
+        }
+        if (seeded > 0) {
+          console.log(`[perplexity-scheduler] Auto-seeded ${seeded} recommended schedules`)
+        }
+      }
+    } catch (seedCheckErr) {
+      console.warn('[perplexity-scheduler] Auto-seed check failed:', seedCheckErr instanceof Error ? seedCheckErr.message : seedCheckErr)
+    }
+
     const result = await processDueSchedules()
 
     // Log to CronJobLog
     await logCronExecution('perplexity-scheduler', 'completed', {
       durationMs: elapsed(),
-      itemsProcessed: result.created,
-      resultSummary: { created: result.created, errors: result.errors },
+      itemsProcessed: result.created + seeded,
+      resultSummary: { created: result.created, seeded, errors: result.errors },
     }).catch(err => console.warn('[perplexity-scheduler] log failed:', err instanceof Error ? err.message : err))
 
     return NextResponse.json({
       success: true,
       ...result,
+      seeded,
       durationMs: elapsed(),
     })
   } catch (err) {

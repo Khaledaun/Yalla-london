@@ -2737,6 +2737,78 @@ model Invoice {
   @@map("invoices")
 }
 
+/// PerplexityTask — Tracks tasks for Perplexity Computer execution
+model PerplexityTask {
+  id              String   @id @default(cuid())
+  siteId          String?
+  category        String   @default("research") // registration, email, social, seo, development, design, content, intelligence, ai-monitoring, strategy
+  taskType        String   @default("general") // affiliate-registration, competitor-analysis, content-audit, etc.
+  title           String
+  prompt          String
+  priority        String   @default("medium") // critical, high, medium, low
+  status          String   @default("queued") // queued, ready, running, completed, failed, cancelled
+  scheduledFor    DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  resultSummary   String?
+  resultData      Json?
+  errorMessage    String?
+  retryCount      Int      @default(0)
+  maxRetries      Int      @default(2)
+  estimatedCredits Int     @default(10)
+  actualCredits   Int?
+  parentTaskId    String?
+  tags            String[] @default([])
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Self-relation for task chains
+  parent          PerplexityTask?  @relation("TaskChain", fields: [parentTaskId], references: [id])
+  subtasks        PerplexityTask[] @relation("TaskChain")
+
+  // Schedule relation
+  scheduleId      String?
+  schedule        PerplexitySchedule? @relation(fields: [scheduleId], references: [id])
+
+  @@index([status])
+  @@index([siteId])
+  @@index([category])
+  @@index([scheduledFor])
+  @@index([createdAt])
+  @@index([parentTaskId])
+  @@index([scheduleId])
+  @@map("perplexity_tasks")
+}
+
+/// PerplexitySchedule — Recurring task schedules for Perplexity Computer
+model PerplexitySchedule {
+  id              String   @id @default(cuid())
+  siteId          String?
+  category        String
+  taskType        String
+  title           String
+  promptTemplate  String
+  cronExpression  String   // e.g., "0 2 * * 1" for weekly Monday 2am
+  enabled         Boolean  @default(true)
+  priority        String   @default("medium")
+  estimatedCredits Int     @default(10)
+  tags            String[] @default([])
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  runCount        Int      @default(0)
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relation
+  tasks           PerplexityTask[]
+
+  @@index([enabled])
+  @@index([nextRunAt])
+  @@map("perplexity_schedules")
+}
+
 /// ArticleDraft — Incremental content generation pipeline (Reservoir + Builder)
 /// Articles are built phase-by-phase, each phase completing within a single cron invocation.
 /// Only articles passing quality threshold are promoted to BlogPost for publishing.

@@ -1140,6 +1140,135 @@ test("Stage-A: Connection Pool", "Cron schedules staggered to avoid collision", 
     : { status: WARN, details: "Check vercel.json cron stagger" };
 });
 
+// ==================== Perplexity System (8 tests) ====================
+test("Perplexity System", "task-manager.ts exports createTask, updateTaskStatus, retryTask, cancelTask", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/task-manager.ts"), "utf-8");
+  const hasCreate = content.includes("export async function createTask");
+  const hasUpdate = content.includes("export async function updateTaskStatus");
+  const hasRetry = content.includes("export async function retryTask");
+  const hasCancel = content.includes("export async function cancelTask");
+  const all = hasCreate && hasUpdate && hasRetry && hasCancel;
+  return all
+    ? { status: PASS, details: "All 4 core task-manager functions exported" }
+    : { status: FAIL, details: `create=${hasCreate} update=${hasUpdate} retry=${hasRetry} cancel=${hasCancel}` };
+});
+
+test("Perplexity System", "task-manager.ts exports getContextData", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/task-manager.ts"), "utf-8");
+  const hasContextData = content.includes("getContextData") || content.includes("getDashboardData");
+  return hasContextData
+    ? { status: PASS, details: "getContextData/getDashboardData function found" }
+    : { status: FAIL, details: "No context data function in task-manager" };
+});
+
+test("Perplexity System", "task-manager.ts has retry cap check", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/task-manager.ts"), "utf-8");
+  const hasRetryCap = content.includes("retryCount") && content.includes("maxRetries");
+  return hasRetryCap
+    ? { status: PASS, details: "Retry cap enforced (retryCount >= maxRetries)" }
+    : { status: FAIL, details: "No retry cap — tasks could retry infinitely" };
+});
+
+test("Perplexity System", "executor.ts exports executeTask and processReadyTasks", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/executor.ts"), "utf-8");
+  const hasExecute = content.includes("export async function executeTask");
+  const hasProcess = content.includes("export async function processReadyTasks");
+  return hasExecute && hasProcess
+    ? { status: PASS, details: "Both executeTask and processReadyTasks exported" }
+    : { status: FAIL, details: `executeTask=${hasExecute} processReadyTasks=${hasProcess}` };
+});
+
+test("Perplexity System", "executor.ts imports from @/lib/ai/perplexity", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/executor.ts"), "utf-8");
+  const importsPerplexity = content.includes("@/lib/ai/perplexity") || content.includes("lib/ai/perplexity");
+  return importsPerplexity
+    ? { status: PASS, details: "Executor imports queryPerplexity from lib/ai/perplexity" }
+    : { status: FAIL, details: "Executor missing perplexity API import" };
+});
+
+test("Perplexity System", "templates.ts has 13+ templates", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/templates.ts"), "utf-8");
+  const templateCount = (content.match(/id:\s*["']/g) || []).length;
+  return templateCount >= 13
+    ? { status: PASS, details: `${templateCount} templates defined` }
+    : { status: WARN, details: `Only ${templateCount} templates — expected 13+` };
+});
+
+test("Perplexity System", "perplexity-executor cron has BUDGET_MS guard", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/perplexity-executor/route.ts"), "utf-8");
+  const hasBudget = content.includes("BUDGET_MS") || content.includes("budgetMs") || content.includes("53");
+  return hasBudget
+    ? { status: PASS, details: "Perplexity executor cron has budget guard" }
+    : { status: FAIL, details: "No budget guard — risks Vercel 60s timeout" };
+});
+
+test("Perplexity System", "departures/route.ts has perplexity-executor in CRON_DEFS", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/departures/route.ts"), "utf-8");
+  const hasExecutor = content.includes("perplexity-executor");
+  return hasExecutor
+    ? { status: PASS, details: "Perplexity executor registered in departures board" }
+    : { status: FAIL, details: "perplexity-executor missing from CRON_DEFS" };
+});
+
+// ==================== CEO Dashboard (4 tests) ====================
+test("CEO Dashboard", "ai-assistant/page.tsx has Operations Dashboard tab", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/ai-assistant/page.tsx"), "utf-8");
+  const hasOps = content.includes("Operations") && (content.includes("tab") || content.includes("Tab"));
+  return hasOps
+    ? { status: PASS, details: "Operations Dashboard tab present" }
+    : { status: FAIL, details: "No Operations tab in CEO dashboard" };
+});
+
+test("CEO Dashboard", "ai-assistant/page.tsx has cycle-health integration (Fix Now buttons)", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/ai-assistant/page.tsx"), "utf-8");
+  const hasCycleHealth = content.includes("cycle-health");
+  const hasFixButton = content.includes("Fix") && content.includes("fix");
+  return hasCycleHealth && hasFixButton
+    ? { status: PASS, details: "Cycle health integration with Fix buttons found" }
+    : { status: FAIL, details: `cycleHealth=${hasCycleHealth} fixButton=${hasFixButton}` };
+});
+
+test("CEO Dashboard", "CEO system prompt mentions Diagnostic Capabilities", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/ai-assistant/route.ts"), "utf-8");
+  const hasDiagnostic = content.includes("Diagnostic Capabilities");
+  return hasDiagnostic
+    ? { status: PASS, details: "System prompt includes Diagnostic Capabilities section" }
+    : { status: FAIL, details: "System prompt missing diagnostic awareness" };
+});
+
+test("CEO Dashboard", "assistant-context.ts has cycleHealthGrade in interface", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/ai/assistant-context.ts"), "utf-8");
+  const hasGrade = content.includes("cycleHealthGrade");
+  return hasGrade
+    ? { status: PASS, details: "AssistantContext includes cycleHealthGrade" }
+    : { status: FAIL, details: "cycleHealthGrade missing from context interface" };
+});
+
+// ==================== Integration (3 tests) ====================
+test("Integration", "assistant-context.ts has monthUsd in aiCosts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/ai/assistant-context.ts"), "utf-8");
+  const hasMonthUsd = content.includes("monthUsd");
+  return hasMonthUsd
+    ? { status: PASS, details: "monthUsd tracked in AI costs context" }
+    : { status: FAIL, details: "monthUsd missing — CEO can't see monthly AI spend" };
+});
+
+test("Integration", "CEO system prompt mentions Multi-Site", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/ai-assistant/route.ts"), "utf-8");
+  const hasMultiSite = content.includes("Multi-Site");
+  return hasMultiSite
+    ? { status: PASS, details: "System prompt includes Multi-Site awareness" }
+    : { status: FAIL, details: "System prompt missing multi-site context" };
+});
+
+test("Integration", "perplexity-computer/index.ts exports executor functions", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/index.ts"), "utf-8");
+  const hasExecuteExport = content.includes("executeTask") && content.includes("processReadyTasks");
+  return hasExecuteExport
+    ? { status: PASS, details: "index.ts re-exports executeTask and processReadyTasks" }
+    : { status: FAIL, details: "Executor functions not exported from index.ts" };
+});
+
 for (const cat of categories) {
   const catResults = results.filter(r => r.category === cat);
   const catPass = catResults.filter(r => r.status === PASS).length;

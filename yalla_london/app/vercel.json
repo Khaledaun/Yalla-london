@@ -257,6 +257,14 @@
     {
       "path": "/api/affiliate/cron/refresh-links",
       "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/perplexity-scheduler",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/perplexity-executor",
+      "schedule": "15,45 * * * *"
     }
   ]
 }

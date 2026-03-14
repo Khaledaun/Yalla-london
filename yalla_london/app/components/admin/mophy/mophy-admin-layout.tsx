@@ -110,6 +110,7 @@ const navigation = [
     items: [
       { label: 'Task Runner',       href: '/admin/ai-studio' },
       { label: 'Coding Assistant',  href: '/admin/ai-assistant' },
+      { label: 'Perplexity Computer', href: '/admin/perplexity-computer' },
     ],
   },
   {

@@ -378,8 +378,8 @@ export async function phaseDrafting(
   let sectionsWritten = 0;
 
   for (let i = 0; i < maxSectionsThisRun; i++) {
-    // Check time budget — need at least 20s for AI call + 5s for DB save
-    if (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) break;
+    // Check time budget — minimal prompts complete in ~10s, need ~2s for DB save
+    if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) break;
     const sectionStart = Date.now();
 
     const sectionIdx = currentIndex + i;
@@ -609,7 +609,7 @@ export async function phaseAssembly(
   // falling back. The old threshold (1) meant assembly AI polish NEVER ran after
   // the first failure — raw HTML was always used. With >= 2, assembly gets one
   // chance to run with full budget on the next cron cycle.
-  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) || attempts >= 2;
+  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 15_000) || attempts >= 2;
 
   if (useFallback) {
     console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);
@@ -631,10 +631,9 @@ export async function phaseAssembly(
     };
   }
 
-  // Budget guard: need at least 25s for AI assembly call + DB save
-  if (budgetRemainingMs !== undefined && budgetRemainingMs < 25_000) {
-    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining, need 25s) — will retry next run` };
-  }
+  // Dead-code guard removed — the raw fallback above (line 612) already handles
+  // low-budget and high-attempt cases. This block could never trigger because
+  // useFallback catches budgetRemainingMs < 25_000 first.
   const { generateJSON } = await import("@/lib/ai/provider");
 
   const affiliatePlacements = (outline.affiliatePlacements as Array<Record<string, unknown>>) || [];

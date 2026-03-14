@@ -155,8 +155,8 @@ export async function runContentBuilder(
     // skip this run for heavy phases — they need at least 30s to succeed.
     // The draft will be picked up on the next cron run with a fresh budget.
     const heavyPhasesForBudget = ["assembly", "drafting"];
-    if (heavyPhasesForBudget.includes(currentPhase) && deadline.remainingMs() < 30_000) {
-      console.warn(`[content-builder] Skipping heavy phase "${currentPhase}" — only ${Math.round(deadline.remainingMs() / 1000)}s remaining (need 30s+). Will retry next cron run.`);
+    if (heavyPhasesForBudget.includes(currentPhase) && deadline.remainingMs() < 15_000) {
+      console.warn(`[content-builder] Skipping heavy phase "${currentPhase}" — only ${Math.round(deadline.remainingMs() / 1000)}s remaining (need 15s+). Will retry next cron run.`);
       return {
         success: true,
         message: `Budget too low for heavy phase "${currentPhase}" (${Math.round(deadline.remainingMs() / 1000)}s remaining) — deferred to next run`,

@@ -67,10 +67,7 @@ interface PhaseGroup {
   drafts: PhaseDraft[];
 }
 
-async function handleGet(request: NextRequest) {
-  const authError = await withAdminAuth(request);
-  if (authError) return authError;
-
+export const GET = withAdminAuth(async (request: NextRequest) => {
   const { prisma } = await import("@/lib/db");
   const siteId = request.nextUrl.searchParams.get("siteId") || null;
   const phaseFilter = request.nextUrl.searchParams.get("phase") || null;
@@ -202,12 +199,9 @@ async function handleGet(request: NextRequest) {
     },
     siteId: siteId || "all",
   });
-}
+});
 
-async function handlePost(request: NextRequest) {
-  const authError = await withAdminAuth(request);
-  if (authError) return authError;
-
+export const POST = withAdminAuth(async (request: NextRequest) => {
   const { prisma } = await import("@/lib/db");
   const body = await request.json();
   const { action, draftId, phase, siteId } = body;
@@ -327,12 +321,4 @@ async function handlePost(request: NextRequest) {
     default:
       return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
   }
-}
-
-export async function GET(request: NextRequest) {
-  return handleGet(request);
-}
-
-export async function POST(request: NextRequest) {
-  return handlePost(request);
-}
+});

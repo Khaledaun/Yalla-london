@@ -129,6 +129,15 @@ export const adminNavigation: NavItem[] = [
     description: '8 validators, 6 hard gates, per-page results'
   },
   {
+    id: 'pipeline-phases',
+    label: 'Pipeline Phases',
+    icon: TrendingUp,
+    href: '/admin/pipeline-phases',
+    badgeText: 'Live',
+    badgeVariant: 'default',
+    description: 'Per-phase view of content pipeline — advance, retry, delete'
+  },
+  {
     id: 'topics-pipeline',
     label: 'Topics & Pipeline',
     icon: TrendingUp,

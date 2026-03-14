@@ -3266,6 +3266,59 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   "updated_at" TIMESTAMP(3) NOT NULL
 )`,
   },
+  {
+    table: "perplexity_tasks",
+    model: "PerplexityTask",
+    sql: `CREATE TABLE IF NOT EXISTS "perplexity_tasks" (
+  "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT,
+  "category" TEXT NOT NULL DEFAULT 'research',
+  "taskType" TEXT NOT NULL DEFAULT 'general',
+  "title" TEXT NOT NULL,
+  "prompt" TEXT NOT NULL,
+  "priority" TEXT NOT NULL DEFAULT 'medium',
+  "status" TEXT NOT NULL DEFAULT 'queued',
+  "scheduledFor" TIMESTAMP(3),
+  "startedAt" TIMESTAMP(3),
+  "completedAt" TIMESTAMP(3),
+  "resultSummary" TEXT,
+  "resultData" JSONB,
+  "errorMessage" TEXT,
+  "retryCount" INTEGER NOT NULL DEFAULT 0,
+  "maxRetries" INTEGER NOT NULL DEFAULT 2,
+  "estimatedCredits" INTEGER NOT NULL DEFAULT 10,
+  "actualCredits" INTEGER,
+  "parentTaskId" TEXT,
+  "scheduleId" TEXT,
+  "tags" TEXT[] DEFAULT '{}',
+  "metadata" JSONB DEFAULT '{}',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
+  {
+    table: "perplexity_schedules",
+    model: "PerplexitySchedule",
+    sql: `CREATE TABLE IF NOT EXISTS "perplexity_schedules" (
+  "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT,
+  "category" TEXT NOT NULL,
+  "taskType" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "promptTemplate" TEXT NOT NULL,
+  "cronExpression" TEXT NOT NULL,
+  "enabled" BOOLEAN NOT NULL DEFAULT true,
+  "priority" TEXT NOT NULL DEFAULT 'medium',
+  "estimatedCredits" INTEGER NOT NULL DEFAULT 10,
+  "tags" TEXT[] DEFAULT '{}',
+  "lastRunAt" TIMESTAMP(3),
+  "nextRunAt" TIMESTAMP(3),
+  "runCount" INTEGER NOT NULL DEFAULT 0,
+  "metadata" JSONB DEFAULT '{}',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -3888,6 +3941,18 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "JobRun_job_type_idx" ON "JobRun"("job_type")',
     'CREATE INDEX IF NOT EXISTS "JobRun_status_idx" ON "JobRun"("status")',
     'CREATE INDEX IF NOT EXISTS "JobRun_next_run_at_idx" ON "JobRun"("next_run_at")',
+  ],
+  perplexity_tasks: [
+    'CREATE INDEX IF NOT EXISTS "perplexity_tasks_status_idx" ON "perplexity_tasks"("status")',
+    'CREATE INDEX IF NOT EXISTS "perplexity_tasks_siteId_idx" ON "perplexity_tasks"("siteId")',
+    'CREATE INDEX IF NOT EXISTS "perplexity_tasks_category_idx" ON "perplexity_tasks"("category")',
+    'CREATE INDEX IF NOT EXISTS "perplexity_tasks_scheduledFor_idx" ON "perplexity_tasks"("scheduledFor")',
+    'CREATE INDEX IF NOT EXISTS "perplexity_tasks_createdAt_idx" ON "perplexity_tasks"("createdAt")',
+    'CREATE INDEX IF NOT EXISTS "perplexity_tasks_parentTaskId_idx" ON "perplexity_tasks"("parentTaskId")',
+  ],
+  perplexity_schedules: [
+    'CREATE INDEX IF NOT EXISTS "perplexity_schedules_enabled_idx" ON "perplexity_schedules"("enabled")',
+    'CREATE INDEX IF NOT EXISTS "perplexity_schedules_nextRunAt_idx" ON "perplexity_schedules"("nextRunAt")',
   ],
 };
 

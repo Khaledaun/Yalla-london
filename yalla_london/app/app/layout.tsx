@@ -103,6 +103,8 @@ export default async function RootLayout({
   const locale = (headersList.get("x-locale") || "en") as Language;
   const dir = locale === "ar" ? "rtl" : "ltr";
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const pathname = headersList.get("x-pathname") || "";
+  const isAdminRoute = pathname.startsWith("/admin");
   const currentSiteConfig = getSiteConfig(siteId);
 
   // Geo-targeting coordinates per destination
@@ -217,7 +219,7 @@ export default async function RootLayout({
                 <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
                   Skip to content
                 </a>
-                <SiteShell siteId={siteId}>
+                <SiteShell siteId={siteId} isAdmin={isAdminRoute}>
                   {children}
                 </SiteShell>
                 <CookieConsentBanner />

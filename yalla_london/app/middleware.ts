@@ -392,6 +392,8 @@ export function middleware(request: NextRequest) {
   // Locale headers for i18n — read by LanguageProvider via layout
   response.headers.set("x-locale", locale);
   response.headers.set("x-direction", locale === "ar" ? "rtl" : "ltr");
+  // Pathname header — used by root layout to detect admin routes and skip public chrome
+  response.headers.set("x-pathname", effectivePathname);
 
   // Cloudflare CDN: Vary by site for correct multi-tenant caching
   // Without this, Cloudflare may serve Site A's cached page to Site B

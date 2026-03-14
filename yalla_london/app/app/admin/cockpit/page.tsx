@@ -15,7 +15,7 @@
  *  7. Settings    — env vars, testing tools, feature flags
  */
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ChevronDown } from "lucide-react";
@@ -297,19 +297,29 @@ function statusBadge(status: string): { label: string; color: string } {
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-zinc-900 border border-zinc-800 rounded-xl p-4 ${className}`}>
+    <div className={`rounded-2xl p-4 sm:p-5 ${className}`}
+         style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised, 6px 6px 12px #CAC5BC, -6px -6px 12px #FFFFFF)' }}>
       {children}
     </div>
   );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">{children}</h3>;
+  return (
+    <h3 className="mb-3" style={{
+      fontFamily: "'IBM Plex Mono', monospace",
+      fontSize: 11,
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '1.5px',
+      color: '#78716C',
+    }}>{children}</h3>
+  );
 }
 
 function StatusDot({ ok, title }: { ok: boolean; title: string }) {
   return (
-    <span title={title} className={`inline-block w-2 h-2 rounded-full ${ok ? "bg-emerald-400" : "bg-red-500"}`} />
+    <span title={title} className={`inline-block w-2.5 h-2.5 rounded-full ring-2 ${ok ? "bg-emerald-500 ring-emerald-200" : "bg-red-500 ring-red-200"}`} />
   );
 }
 
@@ -328,19 +338,25 @@ function ActionButton({
   children: React.ReactNode;
   className?: string;
 }) {
-  const variants = {
-    default: "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-zinc-700",
-    danger: "bg-red-900/40 hover:bg-red-900/70 text-red-300 border-red-800",
-    success: "bg-emerald-900/40 hover:bg-emerald-900/70 text-emerald-300 border-emerald-800",
-    amber: "bg-amber-900/40 hover:bg-amber-900/70 text-amber-300 border-amber-800",
+  const variantStyles: Record<string, React.CSSProperties> = {
+    default: { backgroundColor: 'var(--neu-bg, #EDE9E1)', color: '#1C1917', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)' },
+    danger: { backgroundColor: '#C8322B', color: '#FAF8F4', boxShadow: '3px 3px 8px rgba(200,50,43,0.3), -2px -2px 6px rgba(255,255,255,0.1)' },
+    success: { backgroundColor: '#16A34A', color: '#FAF8F4', boxShadow: '3px 3px 8px rgba(22,163,74,0.3), -2px -2px 6px rgba(255,255,255,0.1)' },
+    amber: { backgroundColor: '#D97706', color: '#FAF8F4', boxShadow: '3px 3px 8px rgba(217,119,6,0.3), -2px -2px 6px rgba(255,255,255,0.1)' },
   };
   return (
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 active:scale-[0.97] ${className}`}
+      style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 11,
+        letterSpacing: '0.5px',
+        ...variantStyles[variant],
+      }}
     >
-      {loading ? "⏳ …" : children}
+      {loading ? "⏳ Working…" : children}
     </button>
   );
 }
@@ -1248,7 +1264,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
   if (!data) {
     return (
       <div className="flex items-center justify-center h-48">
-        <p className="text-zinc-500 text-sm">Loading mission control…</p>
+        <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: '2px' }}>Loading mission control…</p>
       </div>
     );
   }
@@ -1268,31 +1284,31 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
       <Card>
         <SectionTitle>System Status</SectionTitle>
         <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2">
             <StatusDot ok={system.db.connected} title={system.db.error ?? "DB connected"} />
-            <span className="text-zinc-300">Database</span>
-            {system.db.latencyMs > 0 && <span className="text-zinc-500 text-xs">{system.db.latencyMs}ms</span>}
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>Database</span>
+            {system.db.latencyMs > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{system.db.latencyMs}ms</span>}
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2">
             <StatusDot ok={system.ai.configured} title={system.ai.activeProviders.join(", ") || "No AI key"} />
-            <span className="text-zinc-300">AI</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>AI</span>
             {system.ai.activeProviders.length > 0 ? (
-              <span className="text-zinc-500 text-xs">{system.ai.activeProviders.join(", ")}</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{system.ai.activeProviders.join(", ")}</span>
             ) : (
-              <span className="text-red-400 text-xs font-medium">No keys configured</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#C8322B', fontWeight: 600 }}>No keys</span>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2">
             <StatusDot ok={system.indexNow.configured} title="IndexNow" />
-            <span className="text-zinc-300">IndexNow</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>IndexNow</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2">
             <StatusDot ok={system.gsc.configured} title="Google Search Console" />
-            <span className="text-zinc-300">GSC</span>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>GSC</span>
           </div>
         </div>
         {!system.db.connected && system.db.error && (
-          <p className="mt-2 text-xs text-red-400">{system.db.error}</p>
+          <p className="mt-2" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B' }}>{system.db.error}</p>
         )}
       </Card>
 
@@ -1300,19 +1316,19 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
       {alerts.length > 0 && (
         <div className="space-y-2">
           {alerts.map((alert) => (
-            <Card key={alert.code} className={`border-l-4 ${
-              alert.severity === "critical" ? "border-l-red-500 bg-red-950/20" :
-              alert.severity === "warning" ? "border-l-amber-500 bg-amber-950/20" :
-              "border-l-blue-500 bg-blue-950/20"
-            }`}>
-              <div className="flex items-start justify-between gap-2">
+            <div key={alert.code} className="rounded-2xl p-4 border-l-4" style={{
+              backgroundColor: alert.severity === "critical" ? 'rgba(200,50,43,0.06)' : alert.severity === "warning" ? 'rgba(217,119,6,0.06)' : 'rgba(74,123,168,0.06)',
+              borderLeftColor: alert.severity === "critical" ? '#C8322B' : alert.severity === "warning" ? '#D97706' : '#4A7BA8',
+              boxShadow: 'var(--neu-raised, 6px 6px 12px #CAC5BC, -6px -6px 12px #FFFFFF)',
+            }}>
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className={`font-medium text-sm ${
-                    alert.severity === "critical" ? "text-red-300" :
-                    alert.severity === "warning" ? "text-amber-300" : "text-blue-300"
-                  }`}>{alert.message}</p>
-                  <p className="text-zinc-400 text-xs mt-0.5">{alert.detail}</p>
-                  <p className="text-zinc-500 text-xs mt-1">Fix: {alert.fix}</p>
+                  <p style={{
+                    fontFamily: "'Anybody', sans-serif", fontWeight: 700, fontSize: 13,
+                    color: alert.severity === "critical" ? '#C8322B' : alert.severity === "warning" ? '#92400E' : '#1E3A5F',
+                  }}>{alert.message}</p>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#57534E', marginTop: 4 }}>{alert.detail}</p>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', marginTop: 6 }}>Fix: {alert.fix}</p>
                 </div>
                 {alert.action && (
                   <ActionButton
@@ -1320,68 +1336,76 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                     loading={actionLoading === alert.code}
                     variant={alert.severity === "critical" ? "danger" : "amber"}
                   >
-                    Fix →
+                    Fix
                   </ActionButton>
                 )}
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Pipeline Flow — each counter is a tap target that jumps to the relevant tab */}
+      {/* Pipeline Flow */}
       <Card>
-        <SectionTitle>Pipeline</SectionTitle>
-        <div className="flex items-center gap-2 flex-wrap text-sm">
-          <button onClick={() => onSwitchTab("pipeline")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
-            <div className="text-lg font-bold text-blue-400">{pipeline.topicsReady}</div>
-            <div className="text-xs text-zinc-500">Topics</div>
-          </button>
-          <span className="text-zinc-600">→</span>
-          <button onClick={() => onSwitchTab("pipeline")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
-            <div className="text-lg font-bold text-amber-400">{pipeline.draftsActive}</div>
-            <div className="text-xs text-zinc-500">Building</div>
-          </button>
-          <span className="text-zinc-600">→</span>
-          <button onClick={() => onSwitchTab("content")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
-            <div className="text-lg font-bold text-blue-400">{pipeline.reservoir}</div>
-            <div className="text-xs text-zinc-500">Reservoir</div>
-          </button>
-          <span className="text-zinc-600">→</span>
-          <button onClick={() => onSwitchTab("content")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
-            <div className="text-lg font-bold text-emerald-400">{pipeline.publishedTotal}</div>
-            <div className="text-xs text-zinc-500">Live</div>
-          </button>
-        </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
-          {Object.entries(pipeline.byPhase).map(([phase, count]) => (
-            <div key={phase} className="bg-zinc-800/60 rounded px-2 py-1">
-              <div className="font-semibold text-zinc-300">{count}</div>
-              <div className="text-zinc-600 capitalize">{phase}</div>
-            </div>
+        <SectionTitle>Content Pipeline</SectionTitle>
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          {[
+            { label: "Topics", value: pipeline.topicsReady, color: "#4A7BA8", tab: "pipeline" as TabId },
+            { label: "Building", value: pipeline.draftsActive, color: "#D97706", tab: "pipeline" as TabId },
+            { label: "Ready", value: pipeline.reservoir, color: "#7C3AED", tab: "content" as TabId },
+            { label: "Live", value: pipeline.publishedTotal, color: "#16A34A", tab: "content" as TabId },
+          ].map((step, i) => (
+            <React.Fragment key={step.label}>
+              {i > 0 && <span style={{ color: '#D6D3D1', fontSize: 16, fontWeight: 300 }}>→</span>}
+              <button
+                onClick={() => onSwitchTab(step.tab)}
+                className="rounded-xl px-3 sm:px-4 py-2.5 text-center min-w-[68px] transition-all active:scale-[0.97]"
+                style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)' }}
+              >
+                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 20, color: step.color }}>{step.value}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2 }}>{step.label}</div>
+              </button>
+            </React.Fragment>
           ))}
         </div>
+        {Object.keys(pipeline.byPhase).length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {Object.entries(pipeline.byPhase).map(([phase, count]) => (
+              <span key={phase} className="rounded-lg px-2.5 py-1" style={{
+                backgroundColor: 'rgba(120,113,108,0.08)',
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10,
+                color: '#78716C',
+              }}>
+                <strong style={{ color: '#44403C' }}>{count}</strong> {phase}
+              </span>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Today's stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="text-center">
-          <div className="text-2xl font-bold text-emerald-400">{pipeline.publishedToday}</div>
-          <div className="text-xs text-zinc-500 mt-1">Published Today</div>
+          <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: '#16A34A' }}>{pipeline.publishedToday}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>Published Today</div>
         </Card>
         <button
           onClick={() => setShowIndexPanel(true)}
-          className="rounded-xl border border-zinc-800 bg-zinc-900 text-center p-3 hover:bg-zinc-800 hover:border-blue-700 transition-colors group w-full"
+          className="rounded-2xl text-center p-4 sm:p-5 transition-all active:scale-[0.97] w-full"
+          style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised, 6px 6px 12px #CAC5BC, -6px -6px 12px #FFFFFF)' }}
           title="View indexing status for all articles"
         >
-          <div className="text-2xl font-bold text-blue-400">{indexing.indexed}</div>
-          <div className="text-xs text-zinc-500 mt-1 group-hover:text-blue-400 transition-colors">Indexed 🔍</div>
+          <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: '#4A7BA8' }}>{indexing.indexed}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>Indexed</div>
         </button>
         <Card className="text-center">
-          <div className={`text-2xl font-bold ${cronHealth.failedLast24h > 0 ? "text-red-400" : "text-emerald-400"}`}>
-            {cronHealth.failedLast24h > 0 ? `${cronHealth.failedLast24h} ❌` : "OK ✅"}
+          <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: cronHealth.failedLast24h > 0 ? '#C8322B' : '#16A34A' }}>
+            {cronHealth.failedLast24h > 0 ? cronHealth.failedLast24h : "OK"}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Cron Status</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>
+            {cronHealth.failedLast24h > 0 ? "Failed Crons" : "All Systems"}
+          </div>
         </Card>
       </div>
 
@@ -1395,42 +1419,25 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         </button>
 
         {/* Rate + Velocity Row */}
-        <div className="grid grid-cols-4 gap-2 text-center text-xs">
-          <div className="bg-zinc-800/50 rounded-lg p-2">
-            <div className={`text-lg font-bold ${indexing.rate >= 80 ? "text-emerald-400" : indexing.rate >= 50 ? "text-amber-400" : "text-red-400"}`}>
-              {indexing.rate}%
+        <div className="grid grid-cols-4 gap-2 text-center">
+          {[
+            { value: `${indexing.rate}%`, label: "Indexed", color: indexing.rate >= 80 ? '#16A34A' : indexing.rate >= 50 ? '#D97706' : '#C8322B' },
+            { value: String(indexing.velocity7d ?? 0), label: "This Week", color: (indexing.velocity7d ?? 0) > 0 ? '#4A7BA8' : '#A8A29E', extra: typeof indexing.velocity7dPrevious === "number" && (indexing.velocity7d ?? 0) !== indexing.velocity7dPrevious ? `${(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "▲" : "▼"} was ${indexing.velocity7dPrevious}` : undefined },
+            { value: String(indexing.submitted), label: "Pending", color: indexing.submitted > 0 ? '#7C3AED' : '#A8A29E' },
+            { value: String(indexing.errors > 0 ? indexing.errors : "0"), label: "Errors", color: indexing.errors > 0 ? '#C8322B' : '#16A34A' },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
+              <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: stat.color }}>{stat.value}</div>
+              {stat.extra && <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E', marginTop: 1 }}>{stat.extra}</div>}
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{stat.label}</div>
             </div>
-            <div className="text-zinc-500 text-[10px]">Indexed</div>
-          </div>
-          <div className="bg-zinc-800/50 rounded-lg p-2">
-            <div className={`text-lg font-bold ${(indexing.velocity7d ?? 0) > 0 ? "text-blue-400" : "text-zinc-500"}`}>
-              {indexing.velocity7d ?? 0}
-              {typeof indexing.velocity7dPrevious === "number" && (indexing.velocity7d ?? 0) !== indexing.velocity7dPrevious && (
-                <span className={`text-[10px] ml-1 ${(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "text-emerald-400" : "text-red-400"}`}>
-                  {(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "▲" : "▼"} was {indexing.velocity7dPrevious}
-                </span>
-              )}
-            </div>
-            <div className="text-zinc-500 text-[10px]">This Week</div>
-          </div>
-          <div className="bg-zinc-800/50 rounded-lg p-2">
-            <div className={`text-lg font-bold ${indexing.submitted > 0 ? "text-purple-400" : "text-zinc-600"}`}>
-              {indexing.submitted}
-            </div>
-            <div className="text-zinc-500 text-[10px]">Pending</div>
-          </div>
-          <div className="bg-zinc-800/50 rounded-lg p-2">
-            <div className={`text-lg font-bold ${indexing.errors > 0 ? "text-red-400" : "text-emerald-400"}`}>
-              {indexing.errors > 0 ? indexing.errors : "0"}
-            </div>
-            <div className="text-zinc-500 text-[10px]">Errors</div>
-          </div>
+          ))}
         </div>
 
         {/* Progress bar — all segments sum to indexing.total (single source of truth) */}
         {indexing.total > 0 && (
           <div className="mt-2">
-            <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex">
+            <div className="h-3 rounded-full overflow-hidden flex" style={{ backgroundColor: 'rgba(120,113,108,0.12)' }}>
               {indexing.indexed > 0 && (
                 <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(indexing.indexed / indexing.total) * 100}%` }} title={`${indexing.indexed} indexed`} />
               )}
@@ -1447,14 +1454,14 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 <div className="h-full bg-zinc-600 transition-all" style={{ width: `${((indexing.neverSubmitted ?? 0) / indexing.total) * 100}%` }} title={`${indexing.neverSubmitted} never submitted`} />
               )}
             </div>
-            <div className="flex justify-between mt-1 text-[9px] text-zinc-600">
+            <div className="flex justify-between mt-1" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E' }}>
               <span>{indexing.indexed} indexed</span>
               <span>{indexing.submitted} pending</span>
               <span>{indexing.discovered ?? 0} discovered</span>
               <span>{indexing.neverSubmitted ?? 0} untracked</span>
             </div>
-            <div className="mt-2 px-2 py-1.5 bg-zinc-800/50 rounded text-[10px] text-zinc-500 leading-relaxed">
-              These numbers count tracked blog articles only. Google Search Console shows higher totals because it also counts /ar/ Arabic pages, static pages, and historically discovered URLs.
+            <div className="mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(120,113,108,0.06)', fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', lineHeight: '1.5' }}>
+              Blog articles only. GSC counts /ar/ pages, static pages, and old URLs too.
             </div>
             {(indexing.discovered ?? 0) > 0 && (
               <button
@@ -1559,33 +1566,33 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         {/* GSC Search Performance — real clicks/impressions from gsc-sync */}
         {(indexing.gscTotalClicks7d > 0 || indexing.gscTotalImpressions7d > 0) && (
           <div className="mt-3">
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">GSC Performance (7d)</div>
-            <div className="grid grid-cols-2 gap-2 text-center text-xs">
-              <div className="bg-zinc-800/50 rounded-lg p-2">
-                <div className="text-lg font-bold text-cyan-400">
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8 }}>Google Search (7d)</div>
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
+                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 20, color: '#0891B2' }}>
                   {indexing.gscTotalClicks7d.toLocaleString()}
                   {indexing.gscClicksTrend != null && (
-                    <span className={`text-[10px] ml-1 ${indexing.gscClicksTrend > 0 ? "text-emerald-400" : indexing.gscClicksTrend < 0 ? "text-red-400" : "text-zinc-500"}`}>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, marginLeft: 4, color: indexing.gscClicksTrend > 0 ? '#16A34A' : indexing.gscClicksTrend < 0 ? '#C8322B' : '#A8A29E' }}>
                       {indexing.gscClicksTrend > 0 ? "▲" : indexing.gscClicksTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscClicksTrend)}%
                     </span>
                   )}
                 </div>
-                <div className="text-zinc-500 text-[10px]">Clicks</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Clicks</div>
               </div>
-              <div className="bg-zinc-800/50 rounded-lg p-2">
-                <div className="text-lg font-bold text-violet-400">
+              <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
+                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 20, color: '#7C3AED' }}>
                   {indexing.gscTotalImpressions7d.toLocaleString()}
                   {indexing.gscImpressionsTrend != null && (
-                    <span className={`text-[10px] ml-1 ${indexing.gscImpressionsTrend > 0 ? "text-emerald-400" : indexing.gscImpressionsTrend < 0 ? "text-red-400" : "text-zinc-500"}`}>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, marginLeft: 4, color: indexing.gscImpressionsTrend > 0 ? '#16A34A' : indexing.gscImpressionsTrend < 0 ? '#C8322B' : '#A8A29E' }}>
                       {indexing.gscImpressionsTrend > 0 ? "▲" : indexing.gscImpressionsTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscImpressionsTrend)}%
                     </span>
                   )}
                 </div>
-                <div className="text-zinc-500 text-[10px]">Impressions</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Impressions</div>
               </div>
             </div>
             {indexing.lastGscSync && (
-              <div className="mt-1 text-[9px] text-zinc-600 text-center">Last GSC sync: {indexing.lastGscSync}</div>
+              <div className="mt-1.5 text-center" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E' }}>Last sync: {indexing.lastGscSync}</div>
             )}
           </div>
         )}
@@ -1605,64 +1612,38 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <SectionTitle>Website Traffic (7d)</SectionTitle>
           {!data.traffic.configured ? (
             <div className="text-center py-3">
-              <div className="text-zinc-500 text-xs">GA4 not configured</div>
-              <div className="text-zinc-600 text-[10px] mt-1">Add GA4_PROPERTY_ID to Vercel env vars</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#78716C' }}>GA4 not configured</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', marginTop: 4 }}>Add GA4_PROPERTY_ID to Vercel env vars</div>
             </div>
           ) : data.traffic.sessions7d === 0 ? (
             <div className="text-center py-3">
-              <div className="text-zinc-500 text-xs">No traffic data yet</div>
-              <div className="text-zinc-600 text-[10px] mt-1">GA4 takes 24-48h to report. Check back tomorrow.</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#78716C' }}>No traffic data yet</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', marginTop: 4 }}>GA4 takes 24-48h to report</div>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-zinc-800/50 rounded-lg p-2">
-                  <div className="text-lg font-bold text-blue-400">{data.traffic.sessions7d.toLocaleString()}</div>
-                  <div className="text-[10px] text-zinc-500">Sessions</div>
-                </div>
-                <div className="bg-zinc-800/50 rounded-lg p-2">
-                  <div className="text-lg font-bold text-teal-400">{data.traffic.users7d.toLocaleString()}</div>
-                  <div className="text-[10px] text-zinc-500">Users</div>
-                </div>
-                <div className="bg-zinc-800/50 rounded-lg p-2">
-                  <div className="text-lg font-bold text-violet-400">{data.traffic.pageViews7d.toLocaleString()}</div>
-                  <div className="text-[10px] text-zinc-500">Page Views</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-center mt-2">
-                <div className="bg-zinc-800/50 rounded-lg p-1.5">
-                  <div className="text-sm font-bold text-zinc-300">{data.traffic.bounceRate.toFixed(1)}%</div>
-                  <div className="text-[10px] text-zinc-500">Bounce Rate</div>
-                </div>
-                <div className="bg-zinc-800/50 rounded-lg p-1.5">
-                  <div className="text-sm font-bold text-zinc-300">{Math.round(data.traffic.avgSessionDuration)}s</div>
-                  <div className="text-[10px] text-zinc-500">Avg Duration</div>
-                </div>
+                {[
+                  { value: data.traffic.sessions7d, label: "Sessions", color: "#4A7BA8" },
+                  { value: data.traffic.users7d, label: "Users", color: "#0891B2" },
+                  { value: data.traffic.pageViews7d, label: "Views", color: "#7C3AED" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
+                    <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value.toLocaleString()}</div>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{s.label}</div>
+                  </div>
+                ))}
               </div>
               {data.traffic.topPages.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Top Pages</div>
+                <div className="mt-3">
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Top Pages</div>
                   {data.traffic.topPages.slice(0, 3).map((p, i) => (
-                    <div key={i} className="flex justify-between text-[11px] py-0.5">
-                      <span className="text-zinc-400 truncate max-w-[70%]">{p.path}</span>
-                      <span className="text-zinc-500">{p.pageViews}</span>
+                    <div key={i} className="flex justify-between py-1">
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#57534E' }} className="truncate max-w-[70%]">{p.path}</span>
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, color: '#78716C' }}>{p.pageViews}</span>
                     </div>
                   ))}
                 </div>
-              )}
-              {data.traffic.topSources.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Top Sources</div>
-                  {data.traffic.topSources.slice(0, 3).map((s, i) => (
-                    <div key={i} className="flex justify-between text-[11px] py-0.5">
-                      <span className="text-zinc-400 truncate max-w-[70%]">{s.source}</span>
-                      <span className="text-zinc-500">{s.sessions}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {data.traffic.fetchedAt && (
-                <div className="mt-1 text-[9px] text-zinc-600 text-center">Fetched: {new Date(data.traffic.fetchedAt).toLocaleString()}</div>
               )}
             </>
           )}
@@ -1674,22 +1655,20 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         <Card>
           <SectionTitle>Revenue & Costs (7d)</SectionTitle>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-zinc-800/50 rounded-lg p-2">
-              <div className="text-lg font-bold text-amber-400">{data.revenue.affiliateClicksToday}</div>
-              <div className="text-[10px] text-zinc-500">Clicks Today</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded-lg p-2">
-              <div className="text-lg font-bold text-emerald-400">{data.revenue.conversionsWeek}</div>
-              <div className="text-[10px] text-zinc-500">Conversions</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded-lg p-2">
-              <div className="text-lg font-bold text-emerald-300">${data.revenue.revenueWeekUsd.toFixed(2)}</div>
-              <div className="text-[10px] text-zinc-500">Commission</div>
-            </div>
+            {[
+              { value: String(data.revenue.affiliateClicksToday), label: "Clicks Today", color: "#D97706" },
+              { value: String(data.revenue.conversionsWeek), label: "Conversions", color: "#16A34A" },
+              { value: `$${data.revenue.revenueWeekUsd.toFixed(2)}`, label: "Commission", color: "#16A34A" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
+                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
+          <div className="mt-2 flex items-center justify-between" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>
             <span>{data.revenue.affiliateClicksWeek} clicks this week{data.revenue.topPartner ? ` · Top: ${data.revenue.topPartner}` : ""}</span>
-            <span className="text-red-400">AI: ${data.revenue.aiCostWeekUsd.toFixed(2)}</span>
+            <span style={{ color: '#C8322B', fontWeight: 600 }}>AI: ${data.revenue.aiCostWeekUsd.toFixed(2)}</span>
           </div>
         </Card>
       )}
@@ -1700,45 +1679,51 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
       {/* Quick Actions */}
       <Card>
         <SectionTitle>Quick Actions</SectionTitle>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <ActionButton
             onClick={() => triggerAction("/api/admin/launch-sequence", {}, "Launch")}
             loading={actionLoading === "Launch"}
             variant="success"
-            className="col-span-2 py-3 text-sm font-bold"
+            className="col-span-2 py-3.5"
           >
-            {actionLoading === "Launch" ? "Publishing all ready articles..." : "🚀 LAUNCH — Publish Everything Ready"}
+            {actionLoading === "Launch" ? "Publishing…" : "LAUNCH — Publish All Ready"}
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/weekly-topics", {}, "Topics")} loading={actionLoading === "Topics"}>
-            🔬 Generate Topics
+            Generate Topics
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/content-builder", {}, "Content")} loading={actionLoading === "Content"}>
-            ✍️ Build Content
+            Build Content
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2 }, "Publish")} loading={actionLoading === "Publish"} variant="success">
-            📤 Force Publish (2)
+            Force Publish (2)
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2, skipDedup: true }, "Fix & Publish")} loading={actionLoading === "Fix & Publish"} variant="amber">
-            🔧 Fix & Publish
+            Fix & Publish
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
-            🔍 Submit to Google
+            Submit to Google
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/gsc-sync", {}, "GSC Sync")} loading={actionLoading === "GSC Sync"}>
-            📡 Sync GSC Data
+            Sync GSC Data
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/content-auto-fix-lite", {}, "Auto-Fix")} loading={actionLoading === "Auto-Fix"}>
-            🧹 Auto-Fix Lite
+            Auto-Fix Lite
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/admin/content-cleanup", { action: "fix_all" }, "Cleanup")} loading={actionLoading === "Cleanup"} variant="amber">
-            🔧 Clean Artifacts + Dedup
+            Clean + Dedup
           </ActionButton>
-          <Link href="/admin/cockpit/validator" className="col-span-2 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-center block">
-            🩺 System Validator
+          <Link href="/admin/cockpit/validator" className="col-span-2 rounded-xl text-center block py-2.5 transition-all active:scale-[0.97]"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: '#78716C', backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)' }}>
+            System Validator
           </Link>
         </div>
         {actionResult && (
-          <p className={`mt-3 text-xs p-2 rounded-lg ${actionResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+          <p className="mt-3 px-3 py-2.5 rounded-xl" style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            backgroundColor: actionResult.startsWith("✅") ? 'rgba(22,163,74,0.08)' : 'rgba(200,50,43,0.08)',
+            color: actionResult.startsWith("✅") ? '#16A34A' : '#C8322B',
+          }}>
             {actionResult}
           </p>
         )}
@@ -1746,18 +1731,18 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
 
       {/* Site Health Quick Link */}
       <Link href="/admin/site-health" className="block">
-        <Card className="hover:border-zinc-600 transition-colors cursor-pointer">
+        <Card className="transition-all active:scale-[0.98]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4 text-indigo-400" />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-inset, inset 3px 3px 6px #CAC5BC, inset -3px -3px 6px #FFFFFF)' }}>
+                <ShieldCheck className="w-4 h-4" style={{ color: '#4A7BA8' }} />
               </div>
               <div>
-                <div className="text-xs font-medium text-zinc-200">Site Health Monitor</div>
-                <div className="text-[10px] text-zinc-500">SEO audit, issues, health score</div>
+                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>Site Health Monitor</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>SEO audit, issues, health score</div>
               </div>
             </div>
-            <ChevronDown className="w-4 h-4 text-zinc-500 -rotate-90" />
+            <ChevronDown className="w-4 h-4 -rotate-90" style={{ color: '#A8A29E' }} />
           </div>
         </Card>
       </Link>
@@ -1767,22 +1752,22 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         <SectionTitle>Recent Activity</SectionTitle>
         <div className="space-y-2">
           {cronHealth.recentJobs.slice(0, 6).map((job, i) => (
-            <div key={i} className="flex items-start justify-between gap-2 text-xs">
+            <div key={i} className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <span className={job.status === "success" ? "text-emerald-400" : job.status === "failed" ? "text-red-400" : "text-amber-400"}>
+                <span className="flex-shrink-0" style={{ fontSize: 12 }}>
                   {job.status === "success" ? "✅" : job.status === "failed" ? "❌" : "⏱"}
                 </span>
-                <span className="text-zinc-300 truncate">{job.name}</span>
-                {job.itemsProcessed > 0 && <span className="text-zinc-500">{job.itemsProcessed} items</span>}
+                <span className="truncate" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 500, color: '#44403C' }}>{job.name}</span>
+                {job.itemsProcessed > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{job.itemsProcessed}</span>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-zinc-500">{formatDuration(job.durationMs)}</span>
-                <span className="text-zinc-600">{timeAgo(job.startedAt)}</span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{formatDuration(job.durationMs)}</span>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#D6D3D1' }}>{timeAgo(job.startedAt)}</span>
               </div>
             </div>
           ))}
           {cronHealth.recentJobs.length === 0 && (
-            <p className="text-zinc-500 text-xs text-center py-4">No cron runs in last 24h</p>
+            <p className="text-center py-4" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#A8A29E' }}>No cron runs in last 24h</p>
           )}
         </div>
       </Card>
@@ -7318,7 +7303,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function CockpitPageWrapper() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-zinc-950"><p className="text-zinc-500 text-sm">Loading cockpit…</p></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)' }}><p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: '2px' }}>Loading HQ…</p></div>}>
       <CockpitPage />
     </Suspense>
   );
@@ -7397,17 +7382,28 @@ function CockpitPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', color: '#1C1917' }}>
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-sm border-b border-zinc-800">
+      <div className="sticky top-0 z-30 backdrop-blur-md" style={{ backgroundColor: 'rgba(237,233,225,0.92)', borderBottom: '1px solid rgba(120,113,108,0.15)' }}>
         <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-base font-bold text-white">🚀 Cockpit</h1>
+            <h1 style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: '#1C1917', letterSpacing: '-0.3px' }}>
+              HQ
+            </h1>
             {cockpitData && activeSiteId && (
               <select
                 value={activeSiteId}
                 onChange={(e) => setActiveSiteId(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-300 focus:outline-none"
+                className="rounded-xl px-3 py-1.5 text-xs focus:outline-none appearance-none"
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: '#78716C',
+                  backgroundColor: 'var(--neu-bg, #EDE9E1)',
+                  boxShadow: 'var(--neu-inset, inset 3px 3px 6px #CAC5BC, inset -3px -3px 6px #FFFFFF)',
+                  border: 'none',
+                }}
               >
                 <option value="all">All Sites</option>
                 {cockpitData.sites.map((s) => (
@@ -7419,19 +7415,30 @@ function CockpitPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/admin/cockpit/write"
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
+              className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                backgroundColor: '#C8322B',
+                color: '#FAF8F4',
+                boxShadow: '3px 3px 8px rgba(200,50,43,0.3), -1px -1px 4px rgba(200,50,43,0.2)',
+              }}
             >
-              + Write
+              + WRITE
             </Link>
             {lastRefresh && (
-              <span className="text-xs text-zinc-600 hidden sm:block">
-                Updated {timeAgo(lastRefresh.toISOString())}
+              <span className="hidden sm:block" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E', letterSpacing: '0.5px' }}>
+                {timeAgo(lastRefresh.toISOString())}
               </span>
             )}
             <button
               onClick={fetchCockpit}
               disabled={cockpitLoading}
-              className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs disabled:opacity-50"
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 active:scale-[0.95]"
+              style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)', color: '#78716C' }}
               title="Refresh"
             >
               {cockpitLoading ? "⏳" : "↻"}
@@ -7440,16 +7447,21 @@ function CockpitPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex overflow-x-auto scrollbar-hide border-t border-zinc-800">
+        <div className="flex overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid rgba(120,113,108,0.1)' }}>
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-shrink-0 px-3 sm:px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors border-b-2 ${
-                activeTab === tab.id
-                  ? "border-blue-500 text-blue-400"
-                  : "border-transparent text-zinc-500 hover:text-zinc-300"
-              }`}
+              className="flex-shrink-0 px-3 sm:px-4 py-2.5 whitespace-nowrap transition-all border-b-2"
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10,
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                color: activeTab === tab.id ? '#C8322B' : '#A8A29E',
+                borderBottomColor: activeTab === tab.id ? '#C8322B' : 'transparent',
+              }}
             >
               {tab.label}
             </button>
@@ -7459,14 +7471,16 @@ function CockpitPage() {
 
       {/* Error banner */}
       {cockpitError && (
-        <div className="bg-red-950/60 border-b border-red-800 px-4 py-2 text-xs text-red-300 flex items-center justify-between gap-2">
-          <span>⚠️ Dashboard data failed to load: {cockpitError}</span>
-          <button onClick={fetchCockpit} className="underline hover:text-red-200">Retry</button>
+        <div className="px-4 py-3 flex items-center justify-between gap-2" style={{ backgroundColor: 'rgba(200,50,43,0.08)', borderBottom: '1px solid rgba(200,50,43,0.2)' }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B' }}>
+            Dashboard data failed to load: {cockpitError}
+          </span>
+          <button onClick={fetchCockpit} className="underline" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B', fontWeight: 600 }}>Retry</button>
         </div>
       )}
 
       {/* Content */}
-      <main className="max-w-screen-xl mx-auto px-4 py-4 pb-20">
+      <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20">
         {activeTab === "mission" && (
           <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />
         )}

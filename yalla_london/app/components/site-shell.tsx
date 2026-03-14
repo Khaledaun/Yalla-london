@@ -17,14 +17,24 @@ import { isYachtSite as checkYacht, isParentBrandSite as checkParent } from '@/c
  * SiteShell — Renders the correct header/footer based on siteId.
  * This is the hermetic separation boundary between sites.
  * Each site gets its own navigation, branding, and footer.
+ *
+ * Admin routes (/admin/*) get NO public header/footer — the admin layout
+ * (MophyAdminLayout) provides its own sidebar, header, and bottom nav.
  */
 export function SiteShell({
   siteId,
   children,
+  isAdmin = false,
 }: {
   siteId: string;
   children: React.ReactNode;
+  isAdmin?: boolean;
 }) {
+  // Admin pages: no public chrome — MophyAdminLayout handles its own layout
+  if (isAdmin) {
+    return <>{children}</>;
+  }
+
   if (checkParent(siteId)) {
     return (
       <div className="min-h-screen flex flex-col">

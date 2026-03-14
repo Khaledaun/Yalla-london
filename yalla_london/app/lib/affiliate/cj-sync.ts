@@ -19,6 +19,19 @@ import {
 } from "./cj-client";
 
 // ---------------------------------------------------------------------------
+// Error message extraction — handles Error instances, API response objects, and primitives
+// ---------------------------------------------------------------------------
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null) {
+    if ("message" in err) return String((err as { message: unknown }).message);
+    try { return JSON.stringify(err); } catch { return "[unserializable object]"; }
+  }
+  return String(err);
+}
+
+// ---------------------------------------------------------------------------
 // Ensure AffiliateNetwork record exists (auto-seed on first use)
 // ---------------------------------------------------------------------------
 
@@ -111,7 +124,7 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
         // Stop if we got fewer than a full page
         if (response.recordsReturned < 100 || response.records.length < 100) break;
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) : String(err);
+        const errMsg = getErrorMessage(err);
         console.warn(`[cj-sync] Failed to fetch joined advertiser page ${page}:`, errMsg);
         result.errors.push(`CJ API (joined, page ${page}): ${errMsg}`);
         break;
@@ -133,7 +146,7 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
         }
         console.log(`[cj-sync] Keyword search added ${keywordResponse.records.length} more advertisers (total: ${allRecords.size})`);
       } catch (err) {
-        const errMsg = err instanceof Error ? err.message : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) : String(err);
+        const errMsg = getErrorMessage(err);
         console.warn("[cj-sync] Keyword advertiser search failed:", errMsg);
         result.errors.push(`CJ API (keywords): ${errMsg}`);
       }
@@ -205,12 +218,12 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
         }
       } catch (err) {
         result.errors.push(
-          `Failed to sync advertiser ${rec.advertiserId}: ${err instanceof Error ? err.message : String(err)}`
+          `Failed to sync advertiser ${rec.advertiserId}: ${getErrorMessage(err)}`
         );
       }
     }
   } catch (err) {
-    result.errors.push(`Advertiser sync failed: ${err instanceof Error ? err.message : String(err)}`);
+    result.errors.push(`Advertiser sync failed: ${getErrorMessage(err)}`);
   }
 
   // Log sync
@@ -286,7 +299,7 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
           result.created++;
         } catch (err) {
           result.errors.push(
-            `Failed to sync link ${rec.linkId}: ${err instanceof Error ? err.message : String(err)}`
+            `Failed to sync link ${rec.linkId}: ${getErrorMessage(err)}`
           );
         }
       }
@@ -295,7 +308,7 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
       pageNumber++;
     }
   } catch (err) {
-    result.errors.push(`Link sync failed: ${err instanceof Error ? err.message : String(err)}`);
+    result.errors.push(`Link sync failed: ${getErrorMessage(err)}`);
   }
 
   await logSync("LINKS", result);
@@ -396,18 +409,18 @@ export async function syncProducts(
             }
           } catch (err) {
             result.errors.push(
-              `Failed to sync product ${rec.adId}: ${err instanceof Error ? err.message : String(err)}`
+              `Failed to sync product ${rec.adId}: ${getErrorMessage(err)}`
             );
           }
         }
       } catch (err) {
         result.errors.push(
-          `Product search for "${keyword}" failed: ${err instanceof Error ? err.message : String(err)}`
+          `Product search for "${keyword}" failed: ${getErrorMessage(err)}`
         );
       }
     }
   } catch (err) {
-    result.errors.push(`Product sync failed: ${err instanceof Error ? err.message : String(err)}`);
+    result.errors.push(`Product sync failed: ${getErrorMessage(err)}`);
   }
 
   await logSync("PRODUCTS", result);
@@ -514,7 +527,7 @@ export async function syncCommissions(
           result.created++;
         } catch (err) {
           result.errors.push(
-            `Failed to sync commission ${rec.actionId}: ${err instanceof Error ? err.message : String(err)}`
+            `Failed to sync commission ${rec.actionId}: ${getErrorMessage(err)}`
           );
         }
       }
@@ -523,7 +536,7 @@ export async function syncCommissions(
       pageNumber++;
     }
   } catch (err) {
-    result.errors.push(`Commission sync failed: ${err instanceof Error ? err.message : String(err)}`);
+    result.errors.push(`Commission sync failed: ${getErrorMessage(err)}`);
   }
 
   await logSync("COMMISSIONS", result);
@@ -661,6 +674,6 @@ async function logSync(syncType: string, result: SyncResult): Promise<void> {
       },
     });
   } catch (err) {
-    console.warn("[cj-sync] Failed to log sync:", err instanceof Error ? err.message : String(err));
+    console.warn("[cj-sync] Failed to log sync:", getErrorMessage(err));
   }
 }

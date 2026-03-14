@@ -94,6 +94,15 @@ export const adminNavigation: NavItem[] = [
     description: 'KPIs, analytics, automation status'
   },
   {
+    id: 'activity-feed',
+    label: 'Activity Feed',
+    icon: Activity,
+    href: '/admin/cockpit/activity',
+    badgeText: 'Live',
+    badgeVariant: 'default',
+    description: 'Timeline, self-healing, learning, observations'
+  },
+  {
     id: 'articles',
     label: 'Articles',
     icon: FileText,

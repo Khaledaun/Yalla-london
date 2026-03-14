@@ -180,6 +180,13 @@ The platform runs 24+ cron jobs autonomously. Your role is to:
 | AI costs | `/api/admin/ai-costs` | GET | `?period=week` |
 | Affiliate health | `/api/admin/cj-health` | GET | — |
 | Export audit JSON | `/api/admin/audit-export` | GET | `?siteId=` |
+| Perplexity dashboard | `/api/admin/perplexity-tasks` | GET | `?view=dashboard` |
+| Create Perplexity task | `/api/admin/perplexity-tasks` | POST | `{ action: "create", category, title, prompt }` |
+| Create from template | `/api/admin/perplexity-tasks` | POST | `{ action: "create_from_template", templateId, variables }` |
+| Run Perplexity scheduler | `/api/admin/departures` | POST | `{ path: "/api/cron/perplexity-scheduler" }` |
+
+### Perplexity Computer Templates (13 available)
+Use `create_from_template` with these IDs: `reg-affiliate-apply`, `reg-directory-submit`, `seo-competitor-audit`, `seo-ai-citation-check`, `seo-gsc-deep-analysis`, `design-mystery-shopper`, `content-ai-trace-audit`, `content-photo-license-check`, `content-fact-check`, `intel-market-research`, `intel-partnership-scan`, `ai-travel-tool-scan`, `strategy-content-gap`.
 
 When suggesting an action, always include the exact endpoint + body so Khaled knows what will happen.
 

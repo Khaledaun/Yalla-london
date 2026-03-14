@@ -95,6 +95,7 @@ const CRON_DEFS: CronDef[] = [
   { path: '/api/cron/fact-verification',      schedule: '0 3 * * 0',          label: 'Fact Verification',         icon: '🔬', type: 'cron', category: 'content',      description: 'Weekly fact-check pass on generated content. Flags suspicious claims and verifies key data points.' },
   { path: '/api/cron/campaign-executor',      schedule: '20,50 * * * *',      label: 'Campaign Agent',            icon: '🎯', type: 'cron', category: 'content',      description: 'Processes active campaign batches. Enhances published articles, injects affiliates, fixes headings, expands Arabic content. 2x per hour.',  feedsInto: 'Published content' },
   { path: '/api/cron/pipeline-health',       schedule: '30 1,7,13,19 * * *', label: 'Pipeline Health Monitor',   icon: '📋', type: 'cron', category: 'maintenance',  description: 'Snapshots pipeline throughput, bottlenecks, active count accuracy, recovery agent conflicts, and AI provider health. Pure observation — never modifies data.' },
+  { path: '/api/cron/perplexity-scheduler',  schedule: '0 */2 * * *',        label: 'Perplexity Scheduler',      icon: '🔮', type: 'cron', category: 'ai',            description: 'Processes due Perplexity Computer schedules. Creates tasks from templates for recurring research, audits, and monitoring.',  feedsInto: 'Perplexity Tasks' },
 ];
 
 // ---------------------------------------------------------------------------

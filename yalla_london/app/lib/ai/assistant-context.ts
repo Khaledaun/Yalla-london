@@ -44,6 +44,13 @@ export interface AssistantContext {
     topProvider: string; topTask: string
   }
 
+  // CEO-level: Perplexity Computer
+  perplexityStatus: {
+    tasksQueued: number; tasksRunning: number
+    tasksFailed24h: number; tasksCompleted24h: number
+    creditsUsed7d: number; activeSchedules: number
+  }
+
   // CEO-level: Alerts
   activeAlerts: Array<{ severity: string; message: string; area: string }>
 }
@@ -74,6 +81,7 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
     revenueSnapshot: { clicks7d: 0, commissions7d: 0, commissions30d: 0, affiliateCoverage: 0, cjSyncHealthy: false },
     cronHealth: { total: 0, healthy: 0, failed24h: 0, overdueCrons: [] },
     aiCosts: { todayUsd: 0, weekUsd: 0, topProvider: '', topTask: '' },
+    perplexityStatus: { tasksQueued: 0, tasksRunning: 0, tasksFailed24h: 0, tasksCompleted24h: 0, creditsUsed7d: 0, activeSchedules: 0 },
     activeAlerts: [],
   }
 
@@ -303,6 +311,12 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
           topTask: topTasks.length > 0 ? String((topTasks[0] as PrismaAny).taskType || '') : '',
         }
       }, context.aiCosts),
+
+      // [8] Perplexity Computer status
+      withTimeout(async () => {
+        const { getContextData } = await import('@/lib/perplexity-computer')
+        return await getContextData()
+      }, context.perplexityStatus),
     ])
 
     // Assign results
@@ -314,6 +328,7 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
     if (results[5].status === 'fulfilled') context.revenueSnapshot = results[5].value
     if (results[6].status === 'fulfilled') context.cronHealth = results[6].value
     if (results[7].status === 'fulfilled') context.aiCosts = results[7].value
+    if (results[8].status === 'fulfilled') context.perplexityStatus = results[8].value
 
     // Site config
     try {
@@ -337,6 +352,7 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
       'FeatureFlag', 'ModelProvider', 'ModelRoute', 'User', 'AuditLog',
       'CjCommission', 'CjClickEvent', 'CjAdvertiser', 'CjLink', 'CjOffer',
       'Yacht', 'CharterInquiry', 'SiteSettings', 'AutoFixLog', 'TeamMember',
+      'PerplexityTask', 'PerplexitySchedule',
     ]
 
     // Generate alerts from gathered data
@@ -382,6 +398,14 @@ function generateAlerts(ctx: AssistantContext): AssistantContext['activeAlerts']
   // Cron alerts
   if (ctx.cronHealth.failed24h > 3) {
     alerts.push({ severity: 'critical', message: `${ctx.cronHealth.failed24h} cron failures in 24h`, area: 'operations' })
+  }
+
+  // Perplexity alerts
+  if (ctx.perplexityStatus.tasksFailed24h > 2) {
+    alerts.push({ severity: 'warning', message: `${ctx.perplexityStatus.tasksFailed24h} Perplexity tasks failed in 24h`, area: 'perplexity' })
+  }
+  if (ctx.perplexityStatus.tasksQueued > 20) {
+    alerts.push({ severity: 'info', message: `${ctx.perplexityStatus.tasksQueued} Perplexity tasks queued — check credit budget`, area: 'perplexity' })
   }
 
   // Error alerts
@@ -437,6 +461,14 @@ export function formatContextForPrompt(ctx: AssistantContext): string {
   text += `- AI costs: $${ctx.aiCosts.todayUsd.toFixed(2)} today / $${ctx.aiCosts.weekUsd.toFixed(2)} week`
   if (ctx.aiCosts.topProvider) text += ` (top: ${ctx.aiCosts.topProvider}, task: ${ctx.aiCosts.topTask})`
   text += '\n\n'
+
+  // Perplexity Computer
+  const px = ctx.perplexityStatus
+  if (px.tasksQueued > 0 || px.tasksRunning > 0 || px.tasksCompleted24h > 0 || px.tasksFailed24h > 0) {
+    text += '### Perplexity Computer\n'
+    text += `- Queued: ${px.tasksQueued} | Running: ${px.tasksRunning} | Completed 24h: ${px.tasksCompleted24h} | Failed 24h: ${px.tasksFailed24h}\n`
+    text += `- Credits used 7d: ${px.creditsUsed7d} | Active schedules: ${px.activeSchedules}\n\n`
+  }
 
   // Cron logs (last 5)
   if (ctx.recentCronLogs.length > 0) {

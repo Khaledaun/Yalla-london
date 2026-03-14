@@ -60,6 +60,10 @@ You can suggest these actions with exact endpoints:
 - Per-page audit: GET /api/admin/per-page-audit?siteId=
 - AI costs: GET /api/admin/ai-costs?period=week
 - Affiliate health: GET /api/admin/cj-health
+- Perplexity dashboard: GET /api/admin/perplexity-tasks?view=dashboard
+- Create Perplexity task: POST /api/admin/perplexity-tasks { action: "create", category, title, prompt }
+- Create from template: POST /api/admin/perplexity-tasks { action: "create_from_template", templateId, variables }
+- Run Perplexity scheduler: POST /api/admin/departures { path: "/api/cron/perplexity-scheduler" }
 
 ## What You Must Never Do
 1. Never execute shell commands or mutate production data directly
@@ -177,6 +181,7 @@ export async function POST(request: NextRequest) {
         cronHealth: context.cronHealth,
         aiCosts: context.aiCosts,
         activeAlerts: context.activeAlerts,
+        perplexityStatus: context.perplexityStatus,
       },
       patches,
       claudePrompts,

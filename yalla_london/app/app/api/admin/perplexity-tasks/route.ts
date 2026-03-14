@@ -179,6 +179,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true })
       }
 
+      case 'execute': {
+        const { executeTask } = await import('@/lib/perplexity-computer/executor')
+        const result = await executeTask(payload.taskId, payload.budgetMs || 45000)
+        return NextResponse.json({ success: result.success, ...result })
+      }
+
       case 'seed_recommended': {
         // Seed the recommended schedules from templates
         const { TASK_TEMPLATES } = await import('@/lib/perplexity-computer')

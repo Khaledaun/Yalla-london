@@ -40,9 +40,13 @@ export interface AssistantContext {
 
   // CEO-level: AI Costs
   aiCosts: {
-    todayUsd: number; weekUsd: number
+    todayUsd: number; weekUsd: number; monthUsd: number
     topProvider: string; topTask: string
   }
+
+  // CEO-level: Cycle Health (from cycle-health API)
+  cycleHealthGrade: string
+  cycleHealthIssueCount: number
 
   // CEO-level: Perplexity Computer
   perplexityStatus: {
@@ -80,7 +84,9 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
     seoHealth: { indexed: 0, submitted: 0, errors: 0, neverSubmitted: 0, indexingRate: 0, avgSeoScore: 0, articlesBelow70: 0 },
     revenueSnapshot: { clicks7d: 0, commissions7d: 0, commissions30d: 0, affiliateCoverage: 0, cjSyncHealthy: false },
     cronHealth: { total: 0, healthy: 0, failed24h: 0, overdueCrons: [] },
-    aiCosts: { todayUsd: 0, weekUsd: 0, topProvider: '', topTask: '' },
+    aiCosts: { todayUsd: 0, weekUsd: 0, monthUsd: 0, topProvider: '', topTask: '' },
+    cycleHealthGrade: '?',
+    cycleHealthIssueCount: 0,
     perplexityStatus: { tasksQueued: 0, tasksRunning: 0, tasksFailed24h: 0, tasksCompleted24h: 0, creditsUsed7d: 0, activeSchedules: 0 },
     activeAlerts: [],
   }
@@ -257,36 +263,68 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
         }
       }, context.revenueSnapshot),
 
-      // [6] Cron health
+      // [6] Cron health + overdue detection
       withTimeout(async () => {
         const allLogs = await (db as PrismaModel<'cronJobLog'>).cronJobLog.findMany({
           where: { startedAt: { gte: oneDayAgo } },
-          select: { jobName: true, status: true },
+          select: { jobName: true, status: true, startedAt: true },
         })
-        const jobStatuses = new Map<string, string>()
+
+        // Track latest run per cron job
+        const jobLatest = new Map<string, { status: string; startedAt: Date }>()
         for (const log of allLogs) {
-          jobStatuses.set(String((log as PrismaAny).jobName), String((log as PrismaAny).status))
+          const name = String((log as PrismaAny).jobName)
+          const started = new Date(String((log as PrismaAny).startedAt))
+          const existing = jobLatest.get(name)
+          if (!existing || started > existing.startedAt) {
+            jobLatest.set(name, { status: String((log as PrismaAny).status), startedAt: started })
+          }
         }
-        const total = jobStatuses.size
+
+        const total = jobLatest.size
         let healthy = 0, failed = 0
         const overdueCrons: string[] = []
-        for (const [, status] of jobStatuses) {
-          if (status === 'completed' || status === 'success') healthy++
-          else if (status === 'failed' || status === 'error') failed++
+
+        // Expected intervals (hours) for key crons
+        const expectedIntervals: Record<string, number> = {
+          'content-builder': 0.5, 'content-builder-create': 1, 'content-selector': 6,
+          'seo-agent': 8, 'content-auto-fix': 12, 'content-auto-fix-lite': 6,
+          'diagnostic-sweep': 2, 'perplexity-executor': 1, 'perplexity-scheduler': 2,
         }
+
+        for (const [name, info] of jobLatest) {
+          if (info.status === 'completed' || info.status === 'success') healthy++
+          else if (info.status === 'failed' || info.status === 'error') failed++
+
+          // Check overdue
+          const expectedHours = expectedIntervals[name]
+          if (expectedHours) {
+            const hoursSinceRun = (Date.now() - info.startedAt.getTime()) / (60 * 60 * 1000)
+            if (hoursSinceRun > expectedHours * 2) {
+              overdueCrons.push(`${name} (last: ${Math.round(hoursSinceRun)}h ago, expected: every ${expectedHours}h)`)
+            }
+          }
+        }
+
         return { total: Math.max(total, 24), healthy, failed24h: failed, overdueCrons }
       }, context.cronHealth),
 
       // [7] AI costs
       withTimeout(async () => {
-        const todayLogs = await (db as PrismaModel<'apiUsageLog'>).apiUsageLog.aggregate({
-          where: { createdAt: { gte: todayStart }, success: true },
-          _sum: { estimatedCostUsd: true },
-        }).catch(() => ({ _sum: { estimatedCostUsd: 0 } }))
-        const weekLogs = await (db as PrismaModel<'apiUsageLog'>).apiUsageLog.aggregate({
-          where: { createdAt: { gte: sevenDaysAgo }, success: true },
-          _sum: { estimatedCostUsd: true },
-        }).catch(() => ({ _sum: { estimatedCostUsd: 0 } }))
+        const [todayLogs, weekLogs, monthLogs] = await Promise.all([
+          (db as PrismaModel<'apiUsageLog'>).apiUsageLog.aggregate({
+            where: { createdAt: { gte: todayStart }, success: true },
+            _sum: { estimatedCostUsd: true },
+          }).catch(() => ({ _sum: { estimatedCostUsd: 0 } })),
+          (db as PrismaModel<'apiUsageLog'>).apiUsageLog.aggregate({
+            where: { createdAt: { gte: sevenDaysAgo }, success: true },
+            _sum: { estimatedCostUsd: true },
+          }).catch(() => ({ _sum: { estimatedCostUsd: 0 } })),
+          (db as PrismaModel<'apiUsageLog'>).apiUsageLog.aggregate({
+            where: { createdAt: { gte: thirtyDaysAgo }, success: true },
+            _sum: { estimatedCostUsd: true },
+          }).catch(() => ({ _sum: { estimatedCostUsd: 0 } })),
+        ])
 
         // Top provider and task
         const topProviders = await (db as PrismaModel<'apiUsageLog'>).apiUsageLog.groupBy({
@@ -307,6 +345,7 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
         return {
           todayUsd: Number(((todayLogs as PrismaAny)._sum as PrismaAny)?.estimatedCostUsd || 0),
           weekUsd: Number(((weekLogs as PrismaAny)._sum as PrismaAny)?.estimatedCostUsd || 0),
+          monthUsd: Number(((monthLogs as PrismaAny)._sum as PrismaAny)?.estimatedCostUsd || 0),
           topProvider: topProviders.length > 0 ? String((topProviders[0] as PrismaAny).provider || '') : '',
           topTask: topTasks.length > 0 ? String((topTasks[0] as PrismaAny).taskType || '') : '',
         }
@@ -329,6 +368,37 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
     if (results[6].status === 'fulfilled') context.cronHealth = results[6].value
     if (results[7].status === 'fulfilled') context.aiCosts = results[7].value
     if (results[8].status === 'fulfilled') context.perplexityStatus = results[8].value
+
+    // Compute cycle health grade from gathered data
+    try {
+      let score = 100
+      // Pipeline health
+      if (context.contentVelocity.stuck > 5) score -= 15
+      else if (context.contentVelocity.stuck > 0) score -= 5
+      if (context.contentVelocity.publishedToday === 0 && context.contentVelocity.reservoir === 0) score -= 10
+      // SEO health
+      if (context.seoHealth.indexingRate < 50) score -= 15
+      else if (context.seoHealth.indexingRate < 70) score -= 5
+      if (context.seoHealth.errors > 10) score -= 10
+      else if (context.seoHealth.errors > 5) score -= 5
+      // Operations health
+      if (context.cronHealth.failed24h > 5) score -= 15
+      else if (context.cronHealth.failed24h > 2) score -= 5
+      if (context.cronHealth.overdueCrons.length > 3) score -= 10
+      else if (context.cronHealth.overdueCrons.length > 0) score -= 5
+      // Revenue health
+      if (!context.revenueSnapshot.cjSyncHealthy) score -= 5
+      if (context.revenueSnapshot.affiliateCoverage < 30) score -= 5
+      // Alerts penalty
+      const criticalAlerts = context.activeAlerts.filter(a => a.severity === 'critical').length
+      score -= criticalAlerts * 5
+
+      score = Math.max(0, Math.min(100, score))
+      context.cycleHealthGrade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F'
+      context.cycleHealthIssueCount = context.activeAlerts.length + context.cronHealth.overdueCrons.length
+    } catch {
+      console.warn('[assistant-context] Failed to compute cycle health grade')
+    }
 
     // Site config
     try {
@@ -413,6 +483,16 @@ function generateAlerts(ctx: AssistantContext): AssistantContext['activeAlerts']
     alerts.push({ severity: 'warning', message: `${ctx.recentErrors.length} API errors in 24h`, area: 'operations' })
   }
 
+  // Health grade alert
+  if (ctx.cycleHealthGrade === 'D' || ctx.cycleHealthGrade === 'F') {
+    alerts.push({ severity: 'critical', message: `Platform health grade is ${ctx.cycleHealthGrade} — immediate attention needed`, area: 'operations' })
+  }
+
+  // Overdue crons alert
+  if (ctx.cronHealth.overdueCrons.length > 0) {
+    alerts.push({ severity: 'warning', message: `${ctx.cronHealth.overdueCrons.length} overdue cron(s): ${ctx.cronHealth.overdueCrons.slice(0, 3).map(c => c.split(' (')[0]).join(', ')}`, area: 'operations' })
+  }
+
   return alerts
 }
 
@@ -455,10 +535,18 @@ export function formatContextForPrompt(ctx: AssistantContext): string {
   text += `- Affiliate coverage: ${ctx.revenueSnapshot.affiliateCoverage}%`
   text += ` | CJ sync: ${ctx.revenueSnapshot.cjSyncHealthy ? 'healthy' : 'UNHEALTHY'}\n\n`
 
+  // Platform Health
+  text += '### Platform Health\n'
+  text += `- Grade: ${ctx.cycleHealthGrade} | Issues: ${ctx.cycleHealthIssueCount}\n`
+  if (ctx.cronHealth.overdueCrons.length > 0) {
+    text += `- Overdue crons: ${ctx.cronHealth.overdueCrons.join('; ')}\n`
+  }
+  text += '\n'
+
   // Operations
   text += '### Operations\n'
   text += `- Crons: ${ctx.cronHealth.healthy}/${ctx.cronHealth.total} healthy | Failed 24h: ${ctx.cronHealth.failed24h}\n`
-  text += `- AI costs: $${ctx.aiCosts.todayUsd.toFixed(2)} today / $${ctx.aiCosts.weekUsd.toFixed(2)} week`
+  text += `- AI costs: $${ctx.aiCosts.todayUsd.toFixed(2)} today / $${ctx.aiCosts.weekUsd.toFixed(2)} week / $${ctx.aiCosts.monthUsd.toFixed(2)} month`
   if (ctx.aiCosts.topProvider) text += ` (top: ${ctx.aiCosts.topProvider}, task: ${ctx.aiCosts.topTask})`
   text += '\n\n'
 

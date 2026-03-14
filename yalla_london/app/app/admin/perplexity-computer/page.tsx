@@ -226,6 +226,11 @@ export default function PerplexityComputerPage() {
     if (result) { showToast('Task retried'); fetchTasks() }
   }
 
+  async function handleExecute(taskId: string) {
+    const result = await postAction('execute', { taskId })
+    if (result) { showToast(result.success ? 'Task executed successfully' : `Execution failed: ${result.error || 'Unknown'}`); fetchTasks() }
+  }
+
   async function handleToggleSchedule(scheduleId: string, enabled: boolean) {
     const result = await postAction('toggle_schedule', { scheduleId, enabled: !enabled })
     if (result) { showToast(`Schedule ${enabled ? 'disabled' : 'enabled'}`); fetchSchedules() }
@@ -402,10 +407,12 @@ export default function PerplexityComputerPage() {
                           </div>
                         </div>
                         <div className="flex gap-1 ml-2">
-                          {(task.status === 'queued' || task.status === 'ready') && (
+                          {(task.status === 'queued' || task.status === 'ready') && (<>
+                            <button onClick={() => handleExecute(task.id)} disabled={actionLoading === 'execute'}
+                              className="text-xs px-2 py-1 bg-violet-50 text-violet-700 rounded hover:bg-violet-100 font-medium">⚡ Execute</button>
                             <button onClick={() => handleCancel(task.id)} disabled={actionLoading === 'cancel'}
                               className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100">Cancel</button>
-                          )}
+                          </>)}
                           {task.status === 'failed' && (
                             <button onClick={() => handleRetry(task.id)} disabled={actionLoading === 'retry'}
                               className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">Retry</button>

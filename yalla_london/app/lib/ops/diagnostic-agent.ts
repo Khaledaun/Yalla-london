@@ -107,7 +107,7 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
         outline_data: true,
         research_data: true,
       },
-      take: 20,
+      take: 50,
       orderBy: { phase_attempts: "desc" },
     });
 
@@ -780,6 +780,25 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
         last_error: "[diagnostic-agent] Auto-rejected: stuck >12h with 2+ failed attempts",
       },
     });
+
+    // 0a3: Drafting backlog — reject drafts stuck in drafting for >36h based on
+    // created_at (not updated_at, which gets refreshed by build-runner every run).
+    // With 200+ drafts queued, each gets ~1 run per 55h cycle. If they can't complete
+    // drafting within 36h of creation, they never will — reject and clear the backlog.
+    const rejectedDraftingBacklog = await p0.articleDraft.updateMany({
+      where: {
+        current_phase: "drafting",
+        created_at: { lt: new Date(Date.now() - 36 * 60 * 60 * 1000) },
+        phase_attempts: { gte: 1 },
+      },
+      data: {
+        current_phase: "rejected",
+        last_error: "[diagnostic-agent] Auto-rejected: stuck in drafting >36h — backlog clearance",
+      },
+    });
+    if (rejectedDraftingBacklog.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0a3: Rejected ${rejectedDraftingBacklog.count} drafting-backlog drafts (>36h old)`);
+    }
 
     // 0b: At permanent cap (5+ attempts) — these will never succeed
     const rejectedCapped = await p0.articleDraft.updateMany({

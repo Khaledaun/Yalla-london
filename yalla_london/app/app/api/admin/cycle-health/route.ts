@@ -894,6 +894,30 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     console.warn("[cycle-health] News freshness check failed:", err instanceof Error ? err.message : err);
   }
 
+  // ── Check 20: Drafting backlog — too many drafts stuck in drafting phase ──
+  try {
+    const draftingCount = await prisma.articleDraft.count({
+      where: {
+        current_phase: "drafting",
+        site_id: siteId,
+      },
+    });
+    if (draftingCount > 50) {
+      issues.push({
+        id: "pipeline-drafting-backlog",
+        category: "pipeline",
+        severity: draftingCount > 150 ? "critical" as const : "warning" as const,
+        what: `${draftingCount} drafts stuck in drafting phase`,
+        why: "Content builder processes ONE drafting draft per 15-min run. At this backlog size, each draft waits days for its turn. Most will never complete.",
+        fix: "The diagnostic agent will auto-reject drafts stuck >36h. To clear immediately: reject old drafts and create fresh ones from topic research.",
+        fixAction: { method: "POST", endpoint: "/api/admin/departures", payload: { path: "/api/cron/diagnostic-sweep" }, label: "Run Diagnostic", description: "Clear stuck drafting backlog" },
+        evidence: { draftingCount, estimatedClearTimeHours: Math.round(draftingCount * 15 / 60) },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Drafting backlog check failed:", err instanceof Error ? err.message : err);
+  }
+
   // ── GA4 analytics health ──
   try {
     const { isGA4Configured } = await import("@/lib/seo/ga4-data-api");

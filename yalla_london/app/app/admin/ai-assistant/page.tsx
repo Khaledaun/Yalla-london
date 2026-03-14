@@ -158,23 +158,76 @@ export default function CEOOperationsDashboard() {
         fetch('/api/admin/action-logs?limit=10&type=auto_fix').then(r => r.ok ? r.json() : null),
       ])
 
-      // Extract context from cockpit
+      // Extract context from cockpit — transform cockpit API shape to CEOContext shape
       if (cockpitRes.status === 'fulfilled' && cockpitRes.value) {
         const d = cockpitRes.value
+        // Cockpit returns: pipeline, indexing, cronHealth, revenue, traffic, alerts, sites
+        // CEO Operations expects: contentVelocity, seoHealth, revenueSnapshot, cronHealth, aiCosts, activeAlerts, perplexityStatus
+        const pipeline = d.pipeline
+        const indexing = d.indexing
+        const crons = d.cronHealth
+        const revenue = d.revenue
+
+        // Count unique completed crons in last 24h from recent jobs
+        const uniqueCompletedCrons = new Set<string>(
+          (crons?.recentJobs || [])
+            .filter((j: { status: string }) => j.status === 'completed')
+            .map((j: { name: string }) => j.name)
+        )
+
         setContext({
-          contentVelocity: d.content || d.contentVelocity,
-          seoHealth: d.seo || d.seoHealth,
-          revenueSnapshot: d.revenue || d.revenueSnapshot,
-          cronHealth: d.crons || d.cronHealth,
-          aiCosts: d.costs || d.aiCosts,
-          activeAlerts: d.alerts || d.activeAlerts || [],
+          contentVelocity: d.content || d.contentVelocity || (pipeline ? {
+            publishedToday: pipeline.publishedToday ?? 0,
+            publishedTotal: pipeline.publishedTotal ?? 0,
+            reservoir: pipeline.reservoir ?? 0,
+            stuck: pipeline.stuckDrafts?.length ?? 0,
+            activeInPipeline: pipeline.draftsActive ?? 0,
+          } : undefined),
+          seoHealth: d.seo || d.seoHealth || (indexing ? {
+            indexed: indexing.indexed ?? 0,
+            submitted: indexing.submitted ?? 0,
+            errors: indexing.errors ?? 0,
+            neverSubmitted: indexing.neverSubmitted ?? 0,
+            indexingRate: indexing.rate ?? 0,
+            avgSeoScore: 0,
+          } : undefined),
+          revenueSnapshot: d.revenueSnapshot || (revenue ? {
+            clicks7d: revenue.affiliateClicksWeek ?? 0,
+            commissions7d: revenue.revenueWeekUsd ?? 0,
+            commissions30d: 0,
+            affiliateCoverage: 0,
+            cjSyncHealthy: true,
+          } : undefined),
+          cronHealth: d.crons || (crons ? {
+            total: 24,
+            healthy: uniqueCompletedCrons.size,
+            failed24h: crons.failedLast24h ?? 0,
+            overdueCrons: [],
+          } : undefined),
+          aiCosts: d.costs || d.aiCosts || (revenue ? {
+            todayUsd: 0,
+            weekUsd: revenue.aiCostWeekUsd ?? 0,
+            monthUsd: 0,
+          } : undefined),
+          activeAlerts: (d.alerts || d.activeAlerts || []).map((a: { severity: string; code?: string; message: string }) => ({
+            severity: a.severity,
+            message: a.message,
+            area: a.code || 'system',
+          })),
           perplexityStatus: d.perplexity || d.perplexityStatus,
         })
       }
 
-      // Issues from cycle-health
+      // Issues from cycle-health — transform field names (API returns what/why/fix, UI expects title/description)
       if (healthRes.status === 'fulfilled' && healthRes.value?.issues) {
-        setIssues(healthRes.value.issues)
+        setIssues(healthRes.value.issues.map((issue: { id: string; category: string; severity: string; what?: string; why?: string; title?: string; description?: string; fixAction?: CycleIssue['fixAction'] }) => ({
+          id: issue.id,
+          category: issue.category,
+          severity: issue.severity,
+          title: issue.title || issue.what || issue.id,
+          description: issue.description || issue.why || '',
+          fixAction: issue.fixAction,
+        })))
       }
 
       // Auto-fixes

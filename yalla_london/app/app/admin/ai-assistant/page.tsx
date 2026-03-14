@@ -194,7 +194,7 @@ export default function CEOOperationsDashboard() {
 
   // Auto-refresh every 60s on Operations tab
   useEffect(() => {
-    if (activeTab !== 'Operations') return
+    if (activeTab !== 'Operations') return undefined
     const interval = setInterval(fetchOpsData, 60_000)
     return () => clearInterval(interval)
   }, [activeTab, fetchOpsData])

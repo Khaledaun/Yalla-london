@@ -61,7 +61,46 @@ export async function GET(request: NextRequest) {
     const data = await getDashboardData(siteId)
     return NextResponse.json({ success: true, ...data })
   } catch (err) {
-    console.error('[perplexity-tasks] GET error:', err instanceof Error ? err.message : err)
+    const errMsg = err instanceof Error ? err.message : String(err)
+    console.error('[perplexity-tasks] GET error:', errMsg)
+
+    // Graceful degradation when PerplexityTask/PerplexitySchedule tables don't exist yet
+    // Prisma throws P2021 ("table does not exist") or similar when migration hasn't been run
+    const isTableMissing = errMsg.includes('does not exist') || errMsg.includes('P2021') || errMsg.includes('relation') || errMsg.includes('UndefinedTable')
+    if (isTableMissing) {
+      // Return empty dashboard data so the page renders with zeros instead of crashing
+      if (view === 'dashboard' || !view) {
+        return NextResponse.json({
+          success: true,
+          tablesExist: false,
+          migrationNeeded: true,
+          summary: {
+            totalTasks: 0, queued: 0, running: 0, completed24h: 0, failed24h: 0,
+            creditsUsed7d: 0, creditsEstimatedQueued: 0, successRate7d: 0, avgDurationMs: 0,
+          },
+          recentTasks: [],
+          schedules: [],
+          categoryBreakdown: {},
+          upcomingTasks: [],
+        })
+      }
+      if (view === 'list') {
+        return NextResponse.json({ success: true, tablesExist: false, tasks: [], total: 0 })
+      }
+      if (view === 'schedules') {
+        return NextResponse.json({ success: true, tablesExist: false, schedules: [] })
+      }
+      if (view === 'templates') {
+        const { TASK_TEMPLATES, getCategorySummary } = await import('@/lib/perplexity-computer')
+        return NextResponse.json({ success: true, tablesExist: false, templates: TASK_TEMPLATES, categories: getCategorySummary() })
+      }
+      return NextResponse.json({
+        success: true, tablesExist: false, migrationNeeded: true,
+        summary: { totalTasks: 0, queued: 0, running: 0, completed24h: 0, failed24h: 0, creditsUsed7d: 0, creditsEstimatedQueued: 0, successRate7d: 0, avgDurationMs: 0 },
+        recentTasks: [], schedules: [], categoryBreakdown: {}, upcomingTasks: [],
+      })
+    }
+
     return NextResponse.json({ success: false, error: 'Failed to fetch data' }, { status: 500 })
   }
 }
@@ -218,7 +257,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 })
     }
   } catch (err) {
-    console.error('[perplexity-tasks] POST error:', err instanceof Error ? err.message : err)
+    const errMsg = err instanceof Error ? err.message : String(err)
+    console.error('[perplexity-tasks] POST error:', errMsg)
+
+    // Graceful degradation when tables don't exist
+    const isTableMissing = errMsg.includes('does not exist') || errMsg.includes('P2021') || errMsg.includes('relation') || errMsg.includes('UndefinedTable')
+    if (isTableMissing) {
+      return NextResponse.json({
+        success: false,
+        tablesExist: false,
+        migrationNeeded: true,
+        error: 'Perplexity Computer tables have not been created yet. Run prisma migrate deploy to set up the database.',
+      }, { status: 503 })
+    }
+
     return NextResponse.json({ success: false, error: 'Action failed' }, { status: 500 })
   }
 }

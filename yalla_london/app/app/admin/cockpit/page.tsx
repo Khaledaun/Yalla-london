@@ -105,6 +105,7 @@ interface CockpitData {
   alerts: Alert[];
   sites: SiteSummary[];
   timestamp: string;
+  builderErrors?: string[];
 }
 
 interface TrafficSnapshot {
@@ -7476,6 +7477,22 @@ function CockpitPage() {
             Dashboard data failed to load: {cockpitError}
           </span>
           <button onClick={fetchCockpit} className="underline" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B', fontWeight: 600 }}>Retry</button>
+        </div>
+      )}
+
+      {/* Builder errors — some dashboard sections returned zeros due to DB/timeout issues */}
+      {cockpitData?.builderErrors && cockpitData.builderErrors.length > 0 && (
+        <div className="px-4 py-3" style={{ backgroundColor: 'rgba(217,119,6,0.06)', borderBottom: '1px solid rgba(217,119,6,0.15)' }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#D97706', fontWeight: 600 }}>
+            Some dashboard sections may show incomplete data:
+          </span>
+          <ul className="mt-1 space-y-0.5">
+            {cockpitData.builderErrors.map((err, i) => (
+              <li key={i} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#92400E' }}>
+                • {err}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

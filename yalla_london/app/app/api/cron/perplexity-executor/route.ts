@@ -72,15 +72,23 @@ async function handleExecutor(request: NextRequest) {
     })
   } catch (err) {
     const elapsedMs = Date.now() - start
-    console.error('[perplexity-executor] Error:', err instanceof Error ? err.message : err)
+    const errMsg = err instanceof Error ? err.message : String(err)
+    console.error('[perplexity-executor] Error:', errMsg)
+
+    // Graceful skip when tables don't exist (migration not run yet)
+    const isTableMissing = errMsg.includes('does not exist') || errMsg.includes('P2021') || errMsg.includes('relation') || errMsg.includes('UndefinedTable')
+    if (isTableMissing) {
+      console.warn('[perplexity-executor] PerplexityTask/PerplexitySchedule tables not created — skipping')
+      return NextResponse.json({ success: true, skipped: true, reason: 'Tables not created — run prisma migrate deploy', durationMs: elapsedMs })
+    }
 
     // Log failure
     try {
       const { logCronExecution } = await import('@/lib/cron-logger')
       await logCronExecution('perplexity-executor', 'failed', {
         durationMs: elapsedMs,
-        errorMessage: err instanceof Error ? err.message : String(err),
-      }).catch(() => {})
+        errorMessage: errMsg,
+      }).catch(logErr => console.warn('[perplexity-executor] log failed:', logErr instanceof Error ? logErr.message : logErr))
     } catch {
       // Ignore logging failure
     }

@@ -80,6 +80,7 @@ export default function PerplexityComputerPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [migrationNeeded, setMigrationNeeded] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterCategory, setFilterCategory] = useState('')
@@ -103,9 +104,14 @@ export default function PerplexityComputerPage() {
   const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/perplexity-tasks?view=dashboard')
+      const data = await res.json().catch(() => null)
+      if (data?.migrationNeeded) {
+        setMigrationNeeded(true)
+        setDashboard(data)
+        return
+      }
       if (!res.ok) throw new Error('Failed to fetch dashboard')
-      const data = await res.json()
-      if (data.success) setDashboard(data)
+      if (data?.success) setDashboard(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
     }
@@ -179,9 +185,12 @@ export default function PerplexityComputerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, ...payload }),
       })
-      if (!res.ok) throw new Error('Action failed')
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error || 'Action failed')
+      const data = await res.json().catch(() => ({ success: false, error: 'Invalid response' }))
+      if (data.migrationNeeded) {
+        showToast('Database tables not created yet — run prisma migrate deploy')
+        return null
+      }
+      if (!res.ok || !data.success) throw new Error(data.error || 'Action failed')
       return data
     } catch (err) {
       showToast(`Error: ${err instanceof Error ? err.message : 'Unknown'}`)
@@ -269,7 +278,15 @@ export default function PerplexityComputerPage() {
         ))}
       </div>
 
-      {error && (
+      {migrationNeeded && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-800 px-4 py-3 rounded-lg mb-4 text-sm">
+          <strong>Database tables not created yet.</strong> The PerplexityTask and PerplexitySchedule tables need to be created.
+          Run <code className="bg-amber-100 px-1.5 py-0.5 rounded text-xs font-mono">npx prisma migrate deploy</code> on your database to set them up.
+          The dashboard will show empty data until then.
+        </div>
+      )}
+
+      {error && !migrationNeeded && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
           {error} <button onClick={() => setError(null)} className="ml-2 underline">Dismiss</button>
         </div>

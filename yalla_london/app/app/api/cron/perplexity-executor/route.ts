@@ -42,6 +42,11 @@ async function handleExecutor(request: NextRequest) {
   }
 
   try {
+    // Early API key check — don't waste DB queries if key is missing
+    if (!process.env.PERPLEXITY_API_KEY && !process.env.PPLX_API_KEY) {
+      return NextResponse.json({ success: true, skipped: true, reason: 'PERPLEXITY_API_KEY not configured' })
+    }
+
     const { processReadyTasks } = await import('@/lib/perplexity-computer/executor')
     const { logCronExecution } = await import('@/lib/cron-logger')
 

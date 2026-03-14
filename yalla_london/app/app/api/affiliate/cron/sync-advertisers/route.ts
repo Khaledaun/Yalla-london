@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
     await logCronExecution("affiliate-sync-advertisers", "completed", {
       durationMs: Date.now() - startTime,
       itemsProcessed: result.checked,
+      itemsSucceeded: (result.result?.created ?? 0) + (result.result?.updated ?? 0),
+      itemsFailed: result.result?.errors?.length ?? 0,
       resultSummary: result as unknown as Record<string, unknown>,
     }).catch((err: Error) => console.warn("[affiliate-sync-advertisers] log failed:", err.message));
 

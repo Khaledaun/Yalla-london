@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     await logCronExecution("affiliate-discover-deals", "completed", {
       durationMs: Date.now() - startTime,
       itemsProcessed: totalDeals,
+      itemsSucceeded: totalDeals,
       resultSummary: { sites: Object.keys(results), totalDeals, results },
     }).catch((err: Error) => console.warn("[affiliate-discover-deals] log failed:", err.message));
 

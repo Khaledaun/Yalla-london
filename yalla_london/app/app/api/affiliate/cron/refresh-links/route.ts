@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
           errors.push(...result.errors);
         }
       } catch (err) {
-        errors.push(`Failed for ${adv.name}: ${err instanceof Error ? err.message : String(err)}`);
+        const errMsg = err instanceof Error ? err.message : (typeof err === "object" && err !== null ? JSON.stringify(err) : String(err));
+        errors.push(`Failed for ${adv.name}: ${errMsg}`);
       }
     }
 
@@ -61,6 +62,8 @@ export async function GET(request: NextRequest) {
     await logCronExecution("affiliate-refresh-links", "completed", {
       durationMs: Date.now() - startTime,
       itemsProcessed: joinedAdvertisers.length,
+      itemsSucceeded: joinedAdvertisers.length - errors.length,
+      itemsFailed: errors.length,
       resultSummary: { advertisersProcessed: joinedAdvertisers.length, linksCreated: totalLinksCreated, errors },
     }).catch((err: Error) => console.warn("[affiliate-refresh-links] log failed:", err.message));
 

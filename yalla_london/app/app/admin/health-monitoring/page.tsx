@@ -12,7 +12,6 @@ import Link from 'next/link';
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   ArrowUpRight,
   Bell,
   BookOpen,
@@ -30,13 +29,22 @@ import {
   Search,
   Send,
   Server,
-  Settings,
-  Shield,
   Terminal,
   Wrench,
   XCircle,
   Zap,
 } from 'lucide-react';
+import {
+  AdminPageHeader,
+  AdminCard,
+  AdminButton,
+  AdminAlertBanner,
+  AdminStatusBadge,
+  AdminKPICard,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminSectionLabel,
+} from '@/components/admin/admin-ui';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -568,16 +576,8 @@ export default function HealthMonitoringPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
-            <RefreshCw size={24} className="animate-spin" style={{ color:'#C8322B' }} />
-          </div>
-          <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:'#78716C', textTransform:'uppercase', letterSpacing:2 }}>
-            Loading health data…
-          </p>
-        </div>
+      <div className="admin-page p-4 md:p-6">
+        <AdminLoadingState label="Loading health data…" />
       </div>
     );
   }
@@ -593,118 +593,109 @@ export default function HealthMonitoringPage() {
         : 'healthy';
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="admin-page p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/admin"
-                className="p-2 rounded-xl transition-all"
-                style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 2px rgba(28,25,23,0.04)', border:'1px solid rgba(214,208,196,0.4)', color:'#78716C' }}>
-            <ArrowLeft size={16} />
-          </Link>
-          <div>
-            <h1 style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:24, color:'#1C1917', letterSpacing:-0.5 }}>
-              Health Monitor
-            </h1>
-            <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:'#78716C', letterSpacing:0, marginTop:2 }}>
-              مراقبة الصحة · {health?.timestamp ? `Updated ${timeAgo(health.timestamp)}` : 'Loading…'}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/admin/cron-logs"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
-                style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 2px rgba(28,25,23,0.04)', border:'1px solid rgba(214,208,196,0.4)', fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color:'#4A7BA8' }}>
-            <FileText size={12} />
-            <span className="hidden sm:inline">Cron Logs</span>
-          </Link>
-            <button
+      <AdminPageHeader
+        title="Health Monitor"
+        subtitle={health?.timestamp ? `Updated ${timeAgo(health.timestamp)}` : 'Loading…'}
+        backHref="/admin/cockpit"
+        action={
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/cron-logs"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: '#FFFFFF',
+                border: '1px solid rgba(214,208,196,0.8)',
+                boxShadow: '0 1px 3px rgba(28,25,23,0.06)',
+                fontFamily: 'var(--font-system)',
+                fontSize: 9,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                color: '#3B7EA1',
+              }}
+            >
+              <FileText size={12} />
+              <span className="hidden sm:inline">Cron Logs</span>
+            </Link>
+            <AdminButton
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
-              style={{ backgroundColor: autoRefresh?'rgba(45,90,61,0.04)':'#FAF8F4', boxShadow: autoRefresh?'none':'0 1px 2px rgba(28,25,23,0.04)', border: autoRefresh?'1px solid rgba(45,90,61,0.12)':'1px solid rgba(214,208,196,0.4)', fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color: autoRefresh?'#2D5A3D':'#78716C' }}
+              variant={autoRefresh ? 'success' : 'ghost'}
+              size="sm"
             >
               <Activity size={12} />
               {autoRefresh ? 'Live' : 'Paused'}
-            </button>
-
-            <button
+            </AdminButton>
+            <AdminButton
               onClick={() => fetchData(true)}
-              disabled={refreshing}
-              className="p-2.5 rounded-xl transition-all"
-              style={{ backgroundColor: refreshing?'rgba(200,50,43,0.04)':'#FAF8F4', boxShadow: refreshing?'none':'0 1px 2px rgba(28,25,23,0.04)', border: refreshing?'1px solid rgba(200,50,43,0.12)':'1px solid rgba(214,208,196,0.4)', color:'#78716C' }}
+              loading={refreshing}
+              variant="secondary"
+              size="sm"
             >
-              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-            </button>
-
-            <button
+              <RefreshCw size={14} />
+            </AdminButton>
+            <AdminButton
               onClick={triggerAlertCheck}
-              disabled={sendingAlert}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
-              style={{ backgroundColor:'#C8322B', color:'#FAF8F4', fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, boxShadow:'0 2px 8px rgba(200,50,43,0.25)', opacity: sendingAlert?0.7:1 }}
+              loading={sendingAlert}
+              variant="primary"
+              size="sm"
             >
-              {sendingAlert ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
+              <Send size={12} />
               <span className="hidden sm:inline">Alert Check</span>
-            </button>
+            </AdminButton>
           </div>
-        </div>
+        }
+      />
       {/* ── Content ─────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {/* Alert sent feedback */}
         {alertSent && (
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Bell className="h-5 w-5 text-blue-400" />
-              <span className="text-sm text-blue-300">{alertSent}</span>
-            </div>
-            <button onClick={() => setAlertSent(null)} className="text-blue-500 hover:text-blue-400">
-              <XCircle className="h-4 w-4" />
-            </button>
-          </div>
+          <AdminAlertBanner
+            severity="info"
+            message={alertSent}
+            onDismiss={() => setAlertSent(null)}
+          />
         )}
 
         {/* Retrigger result */}
         {retriggerResult && (
-          <div className={`${retriggerResult.ok ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'} border rounded-xl p-4 flex items-center justify-between`}>
-            <div className="flex items-center gap-3">
-              {retriggerResult.ok ? (
-                <CheckCircle className="h-5 w-5 text-emerald-400" />
-              ) : (
-                <XCircle className="h-5 w-5 text-red-400" />
-              )}
-              <span className={`text-sm ${retriggerResult.ok ? 'text-emerald-300' : 'text-red-300'}`}>
-                {retriggerResult.msg}
-              </span>
-            </div>
-            <button onClick={() => setRetriggerResult(null)} className="text-gray-500 hover:text-gray-400">
-              <XCircle className="h-4 w-4" />
-            </button>
-          </div>
+          <AdminAlertBanner
+            severity={retriggerResult.ok ? 'info' : 'critical'}
+            message={retriggerResult.msg}
+            onDismiss={() => setRetriggerResult(null)}
+          />
         )}
 
         {/* Error banner */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
-            <span className="text-sm text-red-300">{error}</span>
-            <button
-              onClick={() => fetchData(true)}
-              className="ml-auto text-sm text-red-400 hover:text-red-300 font-medium"
-            >
-              Retry
-            </button>
-          </div>
+          <AdminAlertBanner
+            severity="critical"
+            message={error}
+            action={
+              <AdminButton onClick={() => fetchData(true)} variant="danger" size="sm">
+                Retry
+              </AdminButton>
+            }
+          />
         )}
 
         {/* ── CRITICAL ALERT BANNER ── */}
         {(criticalAlerts.length > 0 || !db?.connected) && (
-          <div className="bg-red-500/10 border-2 border-red-500/30 rounded-2xl p-5 space-y-4 animate-pulse-slow">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+          <AdminCard accent accentColor="red">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(200,50,43,0.08)' }}
+              >
+                <AlertTriangle size={20} style={{ color: '#C8322B' }} />
               </div>
               <div>
-                <h2 className="font-bold text-red-300">Immediate Attention Required</h2>
-                <p className="text-xs text-red-400/70">
+                <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#C8322B' }}>
+                  Immediate Attention Required
+                </p>
+                <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 2 }}>
                   {!db?.connected ? 'Database is disconnected. ' : ''}
                   {criticalAlerts.length > 0 ? `${criticalAlerts.length} critical alert(s) in the last 24h.` : ''}
                 </p>
@@ -716,40 +707,54 @@ export default function HealthMonitoringPage() {
               <FixGuidePanel guide={DB_FIX_GUIDE} onAction={handleAction} retriggeringJob={retriggeringJob} />
             )}
 
-            {/* Critical alert summaries — show ALL alerts, not just those with fix guides */}
+            {/* Critical alert summaries */}
             {criticalAlerts.slice(0, 5).map((alert) => {
               const guide = getErrorFixGuide(alert.error, alert.jobName);
               return (
-                <div key={alert.id} className="space-y-2">
-                  {/* Always show the raw alert */}
-                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                <div key={alert.id} className="space-y-2 mt-3">
+                  <div
+                    className="rounded-lg p-3"
+                    style={{ backgroundColor: 'rgba(200,50,43,0.04)', border: '1px solid rgba(200,50,43,0.12)' }}
+                  >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold text-red-300 uppercase">{alert.jobName}</span>
-                      <span className="text-[10px] text-red-400/60">{new Date(alert.timestamp).toLocaleString()}</span>
+                      <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 700, color: '#C8322B', textTransform: 'uppercase' }}>
+                        {alert.jobName}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E' }}>
+                        {new Date(alert.timestamp).toLocaleString()}
+                      </span>
                     </div>
-                    <p className="text-sm text-red-200 break-words">{alert.error}</p>
+                    <p style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }} className="break-words">
+                      {alert.error}
+                    </p>
                     {alert.itemsFailed > 0 && (
-                      <p className="text-[10px] text-red-400/70 mt-1">{alert.itemsProcessed} processed, {alert.itemsFailed} failed</p>
+                      <p style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#78716C', marginTop: 4 }}>
+                        {alert.itemsProcessed} processed, {alert.itemsFailed} failed
+                      </p>
                     )}
                   </div>
-                  {/* Show fix guide as bonus if available */}
                   {guide && <FixGuidePanel guide={guide} onAction={handleAction} retriggeringJob={retriggeringJob} />}
                 </div>
               );
             })}
-          </div>
+          </AdminCard>
         )}
 
         {/* ── FAILED CRON QUICK-FIX PANEL ── */}
         {failedCrons.length > 0 && db?.connected && criticalAlerts.length === 0 && (
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
-                <Wrench className="h-5 w-5 text-amber-400" />
+          <AdminCard accent accentColor="gold">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(196,154,42,0.08)' }}
+              >
+                <Wrench size={20} style={{ color: '#C49A2A' }} />
               </div>
               <div>
-                <h2 className="font-bold text-amber-300">Failed Jobs — Fix Guide</h2>
-                <p className="text-xs text-amber-400/70">
+                <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#7a5a10' }}>
+                  Failed Jobs — Fix Guide
+                </p>
+                <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 2 }}>
                   {failedCrons.length} cron job(s) need attention. Expand for instructions.
                 </p>
               </div>
@@ -757,18 +762,23 @@ export default function HealthMonitoringPage() {
             {failedCrons.map((cron) => {
               const guide = CRON_FIX_GUIDE[cron.jobName];
               return (
-                <div key={cron.jobName} className="space-y-2">
-                  {/* Always show the raw error */}
-                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-3">
+                <div key={cron.jobName} className="space-y-2 mt-3">
+                  <div
+                    className="rounded-lg p-3"
+                    style={{ backgroundColor: 'rgba(196,154,42,0.04)', border: '1px solid rgba(196,154,42,0.12)' }}
+                  >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold text-amber-300 uppercase">{cron.jobName}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cron.status === "failed" ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"}`}>
-                        {cron.status}
+                      <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 700, color: '#7a5a10', textTransform: 'uppercase' }}>
+                        {cron.jobName}
                       </span>
+                      <AdminStatusBadge status={cron.status === 'failed' ? 'failed' : 'warning'} />
                     </div>
-                    {cron.error && <p className="text-sm text-amber-200/80 break-words">{cron.error}</p>}
+                    {cron.error && (
+                      <p style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }} className="break-words">
+                        {cron.error}
+                      </p>
+                    )}
                   </div>
-                  {/* Show fix guide as bonus if available */}
                   {guide && (
                     <FixGuidePanel
                       guide={guide}
@@ -780,262 +790,228 @@ export default function HealthMonitoringPage() {
                 </div>
               );
             })}
-          </div>
+          </AdminCard>
         )}
 
         {/* Status banner */}
-        <div
-          className={`rounded-2xl p-6 ${
-            overallStatus === 'healthy'
-              ? 'bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20'
-              : overallStatus === 'degraded'
-                ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20'
-                : 'bg-gradient-to-r from-red-500/10 to-pink-500/10 border border-red-500/20'
-          }`}
-        >
+        <AdminCard accent accentColor={overallStatus === 'healthy' ? 'green' : overallStatus === 'degraded' ? 'gold' : 'red'}>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                  overallStatus === 'healthy'
-                    ? 'bg-emerald-500/20'
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{
+                  backgroundColor: overallStatus === 'healthy'
+                    ? 'rgba(45,90,61,0.08)'
                     : overallStatus === 'degraded'
-                      ? 'bg-amber-500/20'
-                      : 'bg-red-500/20'
-                }`}
+                      ? 'rgba(196,154,42,0.08)'
+                      : 'rgba(200,50,43,0.08)',
+                }}
               >
                 {overallStatus === 'healthy' ? (
-                  <CheckCircle className="h-7 w-7 text-emerald-400" />
+                  <CheckCircle size={28} style={{ color: '#2D5A3D' }} />
                 ) : overallStatus === 'degraded' ? (
-                  <AlertTriangle className="h-7 w-7 text-amber-400" />
+                  <AlertTriangle size={28} style={{ color: '#C49A2A' }} />
                 ) : (
-                  <XCircle className="h-7 w-7 text-red-400" />
+                  <XCircle size={28} style={{ color: '#C8322B' }} />
                 )}
               </div>
               <div>
-                <h2 className="text-xl font-bold">
+                <p style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
                   {overallStatus === 'healthy'
                     ? 'All Systems Operational'
                     : overallStatus === 'degraded'
                       ? 'Degraded Performance'
                       : 'System Down'}
-                </h2>
-                <p className="text-sm text-gray-400 mt-0.5">
+                </p>
+                <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 2 }}>
                   {summary?.totalSites ?? 0} sites monitored &middot;{' '}
                   {summary?.errorsLast24h ?? 0} errors in last 24h
                 </p>
               </div>
             </div>
             <div className="flex gap-6 text-center">
-              <div>
-                <div className="text-2xl font-bold text-emerald-400">{summary?.healthySites ?? 0}</div>
-                <div className="text-xs text-gray-500">Healthy</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-amber-400">{summary?.degradedSites ?? 0}</div>
-                <div className="text-xs text-gray-500">Degraded</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-red-400">{summary?.downSites ?? 0}</div>
-                <div className="text-xs text-gray-500">Down</div>
-              </div>
+              <AdminKPICard value={summary?.healthySites ?? 0} label="Healthy" color="#2D5A3D" />
+              <AdminKPICard value={summary?.degradedSites ?? 0} label="Degraded" color="#C49A2A" />
+              <AdminKPICard value={summary?.downSites ?? 0} label="Down" color="#C8322B" />
             </div>
           </div>
-        </div>
+        </AdminCard>
 
         {/* Top row: DB + Alert Summary + Crons */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Database Connection */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <AdminCard>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <Database className="h-5 w-5 text-cyan-400" />
-                <h3 className="font-semibold">Database</h3>
+                <Database size={18} style={{ color: '#3B7EA1' }} />
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                  Database
+                </span>
               </div>
               {!db?.connected && (
                 <button
                   onClick={() => setShowDbGuide(!showDbGuide)}
-                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                  className="flex items-center gap-1"
+                  style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#C8322B', fontWeight: 600 }}
                 >
-                  <Wrench className="h-3.5 w-3.5" />
+                  <Wrench size={12} />
                   Fix Guide
                 </button>
               )}
             </div>
             <div className="flex items-center gap-3 mb-3">
               <div
-                className={`w-3 h-3 rounded-full ${
-                  db?.connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'
-                }`}
+                className={`w-3 h-3 rounded-full ${db?.connected ? 'animate-pulse' : ''}`}
+                style={{ backgroundColor: db?.connected ? '#2D5A3D' : '#C8322B' }}
               />
-              <span className={db?.connected ? 'text-emerald-400' : 'text-red-400'}>
+              <span style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: db?.connected ? '#2D5A3D' : '#C8322B', fontWeight: 600 }}>
                 {db?.connected ? 'Connected' : 'Disconnected'}
               </span>
             </div>
             {db?.connected && db.latencyMs !== null && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Latency</span>
-                <span
-                  className={
-                    db.latencyMs < 100
-                      ? 'text-emerald-400'
-                      : db.latencyMs < 500
-                        ? 'text-amber-400'
-                        : 'text-red-400'
-                  }
-                >
+              <div className="flex items-center justify-between">
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>Latency</span>
+                <span style={{
+                  fontFamily: 'var(--font-system)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: db.latencyMs < 100 ? '#2D5A3D' : db.latencyMs < 500 ? '#C49A2A' : '#C8322B',
+                }}>
                   {db.latencyMs}ms
                 </span>
               </div>
             )}
             {db?.error && (
-              <p className="text-xs text-red-400 mt-2 break-all">{db.error.slice(0, 200)}</p>
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#C8322B', marginTop: 8 }} className="break-all">
+                {db.error.slice(0, 200)}
+              </p>
             )}
             {!db?.connected && showDbGuide && (
-              <div className="mt-3 pt-3 border-t border-gray-800">
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}>
                 <FixGuidePanel guide={DB_FIX_GUIDE} onAction={handleAction} retriggeringJob={retriggeringJob} compact />
               </div>
             )}
-          </div>
+          </AdminCard>
 
           {/* Alert Summary */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <AdminCard>
             <div className="flex items-center gap-3 mb-4">
-              <Bell className="h-5 w-5 text-amber-400" />
-              <h3 className="font-semibold">Alerts (24h)</h3>
+              <Bell size={18} style={{ color: '#C49A2A' }} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                Alerts (24h)
+              </span>
             </div>
             {alerts ? (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Critical</span>
-                  <span
-                    className={`text-sm font-mono font-bold ${
-                      alerts.summary.critical > 0 ? 'text-red-400' : 'text-gray-600'
-                    }`}
-                  >
-                    {alerts.summary.critical}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Warning</span>
-                  <span
-                    className={`text-sm font-mono font-bold ${
-                      alerts.summary.warning > 0 ? 'text-amber-400' : 'text-gray-600'
-                    }`}
-                  >
-                    {alerts.summary.warning}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Total</span>
-                  <span className="text-sm font-mono font-bold text-gray-300">
-                    {alerts.summary.total}
-                  </span>
-                </div>
+                {[
+                  { label: 'Critical', value: alerts.summary.critical, color: alerts.summary.critical > 0 ? '#C8322B' : '#A8A29E' },
+                  { label: 'Warning', value: alerts.summary.warning, color: alerts.summary.warning > 0 ? '#C49A2A' : '#A8A29E' },
+                  { label: 'Total', value: alerts.summary.total, color: '#1C1917' },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between">
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{row.label}</span>
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 12, fontWeight: 700, color: row.color }}>
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No alert data</p>
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>No alert data</p>
             )}
-          </div>
+          </AdminCard>
 
           {/* Cron Jobs Summary */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <AdminCard>
             <div className="flex items-center gap-3 mb-4">
-              <Zap className="h-5 w-5 text-purple-400" />
-              <h3 className="font-semibold">Cron Jobs</h3>
+              <Zap size={18} style={{ color: '#7C3AED' }} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                Cron Jobs
+              </span>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Monitored</span>
-                <span className="text-sm font-mono font-bold text-gray-300">
-                  {summary?.totalCronJobs ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Failed</span>
-                <span
-                  className={`text-sm font-mono font-bold ${
-                    (summary?.failedCronJobs ?? 0) > 0 ? 'text-red-400' : 'text-gray-600'
-                  }`}
-                >
-                  {summary?.failedCronJobs ?? 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Passing</span>
-                <span className="text-sm font-mono font-bold text-emerald-400">
-                  {(summary?.totalCronJobs ?? 0) - (summary?.failedCronJobs ?? 0)}
-                </span>
-              </div>
+              {[
+                { label: 'Monitored', value: summary?.totalCronJobs ?? 0, color: '#1C1917' },
+                { label: 'Failed', value: summary?.failedCronJobs ?? 0, color: (summary?.failedCronJobs ?? 0) > 0 ? '#C8322B' : '#A8A29E' },
+                { label: 'Passing', value: (summary?.totalCronJobs ?? 0) - (summary?.failedCronJobs ?? 0), color: '#2D5A3D' },
+              ].map((row) => (
+                <div key={row.label} className="flex items-center justify-between">
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{row.label}</span>
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 12, fontWeight: 700, color: row.color }}>
+                    {row.value}
+                  </span>
+                </div>
+              ))}
             </div>
-          </div>
+          </AdminCard>
         </div>
 
         {/* ── GOOGLE INDEXING STATUS ── */}
         <IndexingPanel indexing={health?.indexing ?? null} />
 
         {/* Quick Actions Bar */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+        <AdminCard>
           <div className="flex items-center gap-3 mb-3">
-            <Terminal className="h-4 w-4 text-gray-400" />
-            <h3 className="font-semibold text-sm text-gray-300">Quick Actions</h3>
+            <Terminal size={14} style={{ color: '#78716C' }} />
+            <AdminSectionLabel>Quick Actions</AdminSectionLabel>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/settings"
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium transition-colors"
-            >
-              <Settings className="h-3.5 w-3.5 text-gray-400" />
-              Platform Settings
-            </Link>
-            <Link
-              href="/admin/content"
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium transition-colors"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-gray-400" />
-              Content Manager
-            </Link>
-            <Link
-              href="/admin/seo"
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium transition-colors"
-            >
-              <Globe className="h-3.5 w-3.5 text-gray-400" />
-              SEO Dashboard
-            </Link>
-            <Link
-              href="/admin/analytics"
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium transition-colors"
-            >
-              <Activity className="h-3.5 w-3.5 text-gray-400" />
-              Analytics
-            </Link>
-            <a
-              href="https://vercel.com/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium transition-colors"
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
-              Vercel Dashboard
-            </a>
-            <a
-              href="https://supabase.com/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium transition-colors"
-            >
-              <Database className="h-3.5 w-3.5 text-gray-400" />
-              Supabase Dashboard
-            </a>
+            {[
+              { href: '/admin/cockpit', icon: <BookOpen size={12} />, label: 'Content Manager', internal: true },
+              { href: '/admin/seo', icon: <Globe size={12} />, label: 'SEO Dashboard', internal: true },
+              { href: '/admin/analytics', icon: <Activity size={12} />, label: 'Analytics', internal: true },
+              { href: 'https://vercel.com/dashboard', icon: <ExternalLink size={12} />, label: 'Vercel Dashboard', internal: false },
+              { href: 'https://supabase.com/dashboard', icon: <Database size={12} />, label: 'Supabase Dashboard', internal: false },
+            ].map((item) =>
+              item.internal ? (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              ) : (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all hover:shadow-sm"
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textDecoration: 'none',
+                  }}
+                >
+                  {item.icon}
+                  {item.label}
+                </a>
+              )
+            )}
           </div>
-        </div>
+        </AdminCard>
 
         {/* Sites Grid */}
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Globe className="h-5 w-5 text-blue-400" />
-            Site Health
-          </h2>
+          <div className="flex items-center gap-2 mb-4">
+            <Globe size={18} style={{ color: '#3B7EA1' }} />
+            <AdminSectionLabel>Site Health</AdminSectionLabel>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(health?.sites ?? []).map((site) => (
               <SiteCard key={site.siteId} site={site} />
@@ -1045,12 +1021,12 @@ export default function HealthMonitoringPage() {
 
         {/* Cron Jobs Table */}
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Server className="h-5 w-5 text-purple-400" />
-            Cron Job Status
-          </h2>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <div className="divide-y divide-gray-800">
+          <div className="flex items-center gap-2 mb-4">
+            <Server size={18} style={{ color: '#7C3AED' }} />
+            <AdminSectionLabel>Cron Job Status</AdminSectionLabel>
+          </div>
+          <AdminCard className="overflow-hidden !p-0">
+            <div className="divide-y" style={{ borderColor: 'rgba(214,208,196,0.4)' }}>
               {(health?.cronJobs ?? []).map((cron) => (
                 <CronJobRow
                   key={cron.jobName}
@@ -1069,23 +1045,21 @@ export default function HealthMonitoringPage() {
 
         {/* Recent Errors */}
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-400" />
-            Recent Errors (24h)
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle size={18} style={{ color: '#C8322B' }} />
+            <AdminSectionLabel>Recent Errors (24h)</AdminSectionLabel>
             {(health?.recentErrors?.length ?? 0) > 0 && (
-              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-mono">
-                {health?.recentErrors.length}
-              </span>
+              <AdminStatusBadge status="error" label={String(health?.recentErrors.length)} />
             )}
-          </h2>
+          </div>
           {(health?.recentErrors?.length ?? 0) === 0 ? (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
-              <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
-              <p className="text-gray-400 text-sm">No errors in the last 24 hours</p>
-            </div>
+            <AdminEmptyState
+              icon={CheckCircle}
+              title="No errors in the last 24 hours"
+            />
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="divide-y divide-gray-800">
+            <AdminCard className="overflow-hidden !p-0">
+              <div className="divide-y" style={{ borderColor: 'rgba(214,208,196,0.4)' }}>
                 {(health?.recentErrors ?? []).slice(0, 20).map((err) => (
                   <ErrorRow
                     key={err.id}
@@ -1099,7 +1073,7 @@ export default function HealthMonitoringPage() {
                   />
                 ))}
               </div>
-            </div>
+            </AdminCard>
           )}
         </div>
 
@@ -1122,6 +1096,7 @@ export default function HealthMonitoringPage() {
         />
       </div>
     </div>
+    </div>
   );
 }
 
@@ -1139,39 +1114,26 @@ function ContentAuditPanel({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5 text-blue-400" />
-          Content & Indexing Audit
-        </h2>
-        <button
-          onClick={onRun}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-        >
-          {loading ? (
-            <RefreshCw className="h-4 w-4 animate-spin" />
-          ) : (
-            <Search className="h-4 w-4" />
-          )}
+        <div className="flex items-center gap-2">
+          <FileText size={18} style={{ color: '#3B7EA1' }} />
+          <AdminSectionLabel>Content & Indexing Audit</AdminSectionLabel>
+        </div>
+        <AdminButton onClick={onRun} loading={loading} variant="primary" size="sm">
+          <Search size={14} />
           {loading ? 'Scanning...' : data ? 'Re-scan' : 'Run Audit'}
-        </button>
+        </AdminButton>
       </div>
 
       {!data && !loading && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
-          <FileText className="h-8 w-8 text-gray-700 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">Click &quot;Run Audit&quot; to scan content & indexing status</p>
-          <p className="text-xs text-gray-600 mt-1">
-            Checks published posts, indexing coverage, stuck pages, and untracked URLs
-          </p>
-        </div>
+        <AdminEmptyState
+          icon={FileText}
+          title="Run Audit"
+          description="Click &quot;Run Audit&quot; to scan content & indexing status. Checks published posts, indexing coverage, stuck pages, and untracked URLs."
+        />
       )}
 
       {data?.error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
-          <span className="text-sm text-red-300">{data.error}</span>
-        </div>
+        <AdminAlertBanner severity="critical" message={data.error} />
       )}
 
       {data?.summary && (
@@ -1179,86 +1141,85 @@ function ContentAuditPanel({
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             {[
-              { label: 'Total Posts', value: data.summary.totalPosts, color: 'text-gray-300' },
-              { label: 'Published', value: data.summary.totalPublished, color: 'text-emerald-400' },
-              { label: 'Drafts', value: data.summary.totalDrafts, color: 'text-amber-400' },
-              { label: 'Tracked', value: data.summary.totalTrackedUrls, color: 'text-blue-400' },
-              { label: 'Indexed', value: data.summary.totalIndexed, color: 'text-emerald-400' },
-              { label: 'Submitted', value: data.summary.totalSubmittedPending, color: 'text-cyan-400' },
-              { label: 'Errors', value: data.summary.totalErrors, color: data.summary.totalErrors > 0 ? 'text-red-400' : 'text-gray-600' },
-              { label: 'Untracked', value: data.summary.totalUntracked, color: data.summary.totalUntracked > 0 ? 'text-amber-400' : 'text-gray-600' },
+              { label: 'Total Posts', value: data.summary.totalPosts, color: '#1C1917' },
+              { label: 'Published', value: data.summary.totalPublished, color: '#2D5A3D' },
+              { label: 'Drafts', value: data.summary.totalDrafts, color: '#C49A2A' },
+              { label: 'Tracked', value: data.summary.totalTrackedUrls, color: '#3B7EA1' },
+              { label: 'Indexed', value: data.summary.totalIndexed, color: '#2D5A3D' },
+              { label: 'Submitted', value: data.summary.totalSubmittedPending, color: '#3B7EA1' },
+              { label: 'Errors', value: data.summary.totalErrors, color: data.summary.totalErrors > 0 ? '#C8322B' : '#A8A29E' },
+              { label: 'Untracked', value: data.summary.totalUntracked, color: data.summary.totalUntracked > 0 ? '#C49A2A' : '#A8A29E' },
             ].map((stat) => (
-              <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-                <div className={`text-lg font-bold font-mono ${stat.color}`}>{stat.value}</div>
-                <div className="text-xs text-gray-500">{stat.label}</div>
-              </div>
+              <AdminKPICard key={stat.label} value={stat.value} label={stat.label} color={stat.color} />
             ))}
           </div>
 
           {/* Index rate */}
           {data.summary.totalTrackedUrls > 0 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <AdminCard>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Content Index Rate</span>
-                <span className={`text-lg font-bold font-mono ${
-                  data.summary.indexRate >= 70 ? 'text-emerald-400' :
-                  data.summary.indexRate >= 40 ? 'text-amber-400' : 'text-red-400'
-                }`}>
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>Content Index Rate</span>
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: data.summary.indexRate >= 70 ? '#2D5A3D' : data.summary.indexRate >= 40 ? '#C49A2A' : '#C8322B',
+                }}>
                   {data.summary.indexRate}%
                 </span>
               </div>
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(214,208,196,0.4)' }}>
                 <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    data.summary.indexRate >= 70 ? 'bg-emerald-500' :
-                    data.summary.indexRate >= 40 ? 'bg-amber-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${data.summary.indexRate}%` }}
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${data.summary.indexRate}%`,
+                    backgroundColor: data.summary.indexRate >= 70 ? '#2D5A3D' : data.summary.indexRate >= 40 ? '#C49A2A' : '#C8322B',
+                  }}
                 />
               </div>
-            </div>
+            </AdminCard>
           )}
 
           {/* Per-site breakdown */}
           {data.perSite?.length > 0 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-800">
-                <h3 className="font-semibold text-sm text-gray-300">Per-Site Breakdown</h3>
+            <AdminCard className="overflow-hidden !p-0">
+              <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(214,208,196,0.4)' }}>
+                <AdminSectionLabel>Per-Site Breakdown</AdminSectionLabel>
               </div>
-              <div className="divide-y divide-gray-800">
+              <div className="divide-y" style={{ borderColor: 'rgba(214,208,196,0.4)' }}>
                 {data.perSite.map((site: any) => (
                   <div key={site.siteId} className="px-5 py-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-cyan-400" />
-                        <span className="font-medium text-sm">{site.siteName || site.siteId}</span>
+                        <Globe size={14} style={{ color: '#3B7EA1' }} />
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>
+                          {site.siteName || site.siteId}
+                        </span>
                         {site.domain && (
-                          <span className="text-xs text-gray-600">{site.domain}</span>
+                          <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>{site.domain}</span>
                         )}
                       </div>
-                      <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
-                        site.indexing.indexRate >= 70
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : site.indexing.indexRate >= 40
-                            ? 'bg-amber-500/10 text-amber-400'
-                            : 'bg-red-500/10 text-red-400'
-                      }`}>
-                        {site.indexing.indexRate}% indexed
-                      </span>
+                      <AdminStatusBadge
+                        status={site.indexing.indexRate >= 70 ? 'success' : site.indexing.indexRate >= 40 ? 'warning' : 'error'}
+                        label={`${site.indexing.indexRate}% indexed`}
+                      />
                     </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs">
-                      <div><span className="text-gray-500">Posts:</span> <span className="font-mono">{site.totalPosts}</span></div>
-                      <div><span className="text-gray-500">Published:</span> <span className="font-mono text-emerald-400">{site.published}</span></div>
-                      <div><span className="text-gray-500">Drafts:</span> <span className="font-mono text-amber-400">{site.drafts}</span></div>
-                      <div><span className="text-gray-500">Tracked:</span> <span className="font-mono">{site.indexing.total}</span></div>
-                      <div><span className="text-gray-500">Indexed:</span> <span className="font-mono text-emerald-400">{site.indexing.indexed}</span></div>
-                      <div><span className="text-gray-500">Errors:</span> <span className={`font-mono ${site.indexing.error > 0 ? 'text-red-400' : 'text-gray-600'}`}>{site.indexing.error}</span></div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" style={{ fontFamily: 'var(--font-system)', fontSize: 10 }}>
+                      <div><span style={{ color: '#78716C' }}>Posts:</span> <span style={{ fontWeight: 600 }}>{site.totalPosts}</span></div>
+                      <div><span style={{ color: '#78716C' }}>Published:</span> <span style={{ fontWeight: 600, color: '#2D5A3D' }}>{site.published}</span></div>
+                      <div><span style={{ color: '#78716C' }}>Drafts:</span> <span style={{ fontWeight: 600, color: '#C49A2A' }}>{site.drafts}</span></div>
+                      <div><span style={{ color: '#78716C' }}>Tracked:</span> <span style={{ fontWeight: 600 }}>{site.indexing.total}</span></div>
+                      <div><span style={{ color: '#78716C' }}>Indexed:</span> <span style={{ fontWeight: 600, color: '#2D5A3D' }}>{site.indexing.indexed}</span></div>
+                      <div><span style={{ color: '#78716C' }}>Errors:</span> <span style={{ fontWeight: 600, color: site.indexing.error > 0 ? '#C8322B' : '#A8A29E' }}>{site.indexing.error}</span></div>
                     </div>
-                    {/* Not-indexed reasons */}
                     {site.notIndexedReasons?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {site.notIndexedReasons.slice(0, 5).map((r: any, i: number) => (
-                          <span key={i} className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+                          <span
+                            key={i}
+                            className="px-2 py-0.5 rounded-full"
+                            style={{ fontFamily: 'var(--font-system)', fontSize: 9, backgroundColor: 'rgba(214,208,196,0.3)', color: '#78716C' }}
+                          >
                             {r.reason}: {r.count}
                           </span>
                         ))}
@@ -1267,89 +1228,91 @@ function ContentAuditPanel({
                   </div>
                 ))}
               </div>
-            </div>
+            </AdminCard>
           )}
 
           {/* Stuck pages */}
           {data.stuckPages?.length > 0 && (
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
+            <AdminCard accent accentColor="gold">
               <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="h-4 w-4 text-amber-400" />
-                <span className="font-semibold text-sm text-amber-300">
+                <AlertTriangle size={14} style={{ color: '#C49A2A' }} />
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#7a5a10' }}>
                   {data.stuckPages.length} Stuck Page{data.stuckPages.length !== 1 ? 's' : ''} (submitted &gt;7 days, not indexed)
                 </span>
               </div>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {data.stuckPages.map((p: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between text-xs bg-black/20 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-gray-400 truncate max-w-xs">{p.slug || p.url}</span>
-                    </div>
+                  <div
+                    key={i}
+                    className="flex items-center justify-between rounded-lg px-3 py-2"
+                    style={{ backgroundColor: 'rgba(214,208,196,0.2)', fontFamily: 'var(--font-system)', fontSize: 10 }}
+                  >
+                    <span style={{ color: '#44403C' }} className="truncate max-w-xs">{p.slug || p.url}</span>
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      {p.coverageState && (
-                        <span className="text-amber-400">{p.coverageState}</span>
-                      )}
-                      <span className="text-gray-500">
-                        {p.attempts} attempt{p.attempts !== 1 ? 's' : ''}
-                      </span>
+                      {p.coverageState && <span style={{ color: '#C49A2A' }}>{p.coverageState}</span>}
+                      <span style={{ color: '#78716C' }}>{p.attempts} attempt{p.attempts !== 1 ? 's' : ''}</span>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </AdminCard>
           )}
 
           {/* Untracked posts */}
           {data.untrackedPosts?.length > 0 && (
-            <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4">
+            <AdminCard accent accentColor="blue">
               <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="h-4 w-4 text-blue-400" />
-                <span className="font-semibold text-sm text-blue-300">
+                <Lightbulb size={14} style={{ color: '#3B7EA1' }} />
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1e5a7a' }}>
                   {data.untrackedPosts.length} Published Post{data.untrackedPosts.length !== 1 ? 's' : ''} Not Being Tracked
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mb-2">
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', marginBottom: 8 }}>
                 These posts are published but have no entry in the URL indexing tracker. Run the SEO agent to pick them up.
               </p>
               <div className="space-y-1 max-h-36 overflow-y-auto">
                 {data.untrackedPosts.map((p: any, i: number) => (
-                  <div key={i} className="text-xs text-gray-400 flex items-center gap-2">
-                    <span className="text-gray-600 font-mono w-4">{i + 1}.</span>
+                  <div key={i} className="flex items-center gap-2" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#44403C' }}>
+                    <span style={{ color: '#A8A29E', fontWeight: 600, width: 16, flexShrink: 0 }}>{i + 1}.</span>
                     <span className="truncate">{p.title || p.slug}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </AdminCard>
           )}
 
           {/* URL errors */}
           {data.urlErrors?.length > 0 && (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
+            <AdminCard accent accentColor="red">
               <div className="flex items-center gap-2 mb-3">
-                <XCircle className="h-4 w-4 text-red-400" />
-                <span className="font-semibold text-sm text-red-300">
+                <XCircle size={14} style={{ color: '#C8322B' }} />
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#C8322B' }}>
                   {data.urlErrors.length} URL Error{data.urlErrors.length !== 1 ? 's' : ''}
                 </span>
               </div>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {data.urlErrors.map((e: any, i: number) => (
-                  <div key={i} className="text-xs bg-black/20 rounded-lg px-3 py-2">
+                  <div
+                    key={i}
+                    className="rounded-lg px-3 py-2"
+                    style={{ backgroundColor: 'rgba(200,50,43,0.04)', fontFamily: 'var(--font-system)', fontSize: 10 }}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 truncate max-w-xs">{e.slug || e.url}</span>
-                      <span className="text-red-400 ml-2 flex-shrink-0">{e.coverageState}</span>
+                      <span style={{ color: '#44403C' }} className="truncate max-w-xs">{e.slug || e.url}</span>
+                      <span style={{ color: '#C8322B', marginLeft: 8, flexShrink: 0 }}>{e.coverageState}</span>
                     </div>
                     {e.error && (
-                      <p className="text-red-300/70 mt-1 truncate">{e.error}</p>
+                      <p style={{ color: '#C8322B', opacity: 0.7, marginTop: 4 }} className="truncate">{e.error}</p>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
+            </AdminCard>
           )}
 
           {/* Timestamp */}
           {data.timestamp && (
-            <p className="text-xs text-gray-600 text-right">
+            <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textAlign: 'right' }}>
               Scanned: {timeAgo(data.timestamp)}
             </p>
           )}

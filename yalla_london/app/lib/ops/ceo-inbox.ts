@@ -297,7 +297,7 @@ export async function retestCronJob(
       success: false,
       message: `Retest error: ${err instanceof Error ? err.message : String(err)}`,
     };
-    await updateInboxEntry(entryId, { status: "failed", retestResult }).catch(() => {});
+    await updateInboxEntry(entryId, { status: "failed", retestResult }).catch((e) => console.warn("[ceo-inbox] Retest update failed:", e instanceof Error ? e.message : e));
     return retestResult;
   }
 }

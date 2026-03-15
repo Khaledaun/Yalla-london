@@ -248,7 +248,7 @@
     },
     {
       "path": "/api/affiliate/cron/sync-commissions",
-      "schedule": "50 4 * * *"
+      "schedule": "40 4 * * *"
     },
     {
       "path": "/api/affiliate/cron/discover-deals",

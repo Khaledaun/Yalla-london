@@ -919,7 +919,7 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
         await prisma.uRLIndexingStatus.updateMany({
           where: { site_id: siteId, url: { in: newlyTracked } },
           data: { submitted_indexnow: true, last_submitted_at: new Date() },
-        }).catch(() => {});
+        }).catch(err => console.warn("[seo-agent] URLIndexingStatus update failed:", err instanceof Error ? err.message : String(err)));
         fixes.push(`Submitted ${indexNowSubmitted} URLs to IndexNow immediately`);
       } catch (indexNowErr) {
         console.warn("[seo-agent] Immediate IndexNow submission failed (seo/cron will retry):", indexNowErr instanceof Error ? indexNowErr.message : indexNowErr);

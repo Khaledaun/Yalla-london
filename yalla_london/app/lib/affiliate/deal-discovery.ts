@@ -172,6 +172,8 @@ export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Prom
                   previousPrice: existing.price,
                   isPriceDropped: true,
                   isNewArrival: false,
+                  // Backfill siteId on existing offers that predate migration
+                  ...(siteId && !existing.siteId ? { siteId } : {}),
                 },
               });
             } else {
@@ -180,6 +182,8 @@ export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Prom
                 data: {
                   price: currentPrice,
                   isNewArrival: false,
+                  // Backfill siteId on existing offers that predate migration
+                  ...(siteId && !existing.siteId ? { siteId } : {}),
                 },
               });
             }
@@ -260,7 +264,7 @@ export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Prom
 /**
  * Get hot deals: price drops, new arrivals, expiring soon.
  */
-export async function getHotDeals(limit = 20): Promise<{
+export async function getHotDeals(limit = 20, siteId?: string): Promise<{
   priceDrops: Array<{ id: string; title: string; price: number | null; previousPrice: number | null; affiliateUrl: string; imageUrl: string | null; category: string; advertiserName: string }>;
   newArrivals: Array<{ id: string; title: string; price: number | null; affiliateUrl: string; imageUrl: string | null; category: string; advertiserName: string }>;
   expiringSoon: Array<{ id: string; title: string; validTo: Date | null; affiliateUrl: string; category: string; advertiserName: string }>;
@@ -270,15 +274,18 @@ export async function getHotDeals(limit = 20): Promise<{
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
+  // Scope by siteId — include both site-specific AND legacy unscoped (null) records
+  const siteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
+
   const [priceDrops, newArrivals, expiringSoon] = await Promise.all([
     prisma.cjOffer.findMany({
-      where: { networkId: CJ_NETWORK_ID, isActive: true, isPriceDropped: true },
+      where: { networkId: CJ_NETWORK_ID, isActive: true, isPriceDropped: true, ...siteFilter },
       include: { advertiser: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
       take: limit,
     }),
     prisma.cjOffer.findMany({
-      where: { networkId: CJ_NETWORK_ID, isActive: true, isNewArrival: true },
+      where: { networkId: CJ_NETWORK_ID, isActive: true, isNewArrival: true, ...siteFilter },
       include: { advertiser: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -288,6 +295,7 @@ export async function getHotDeals(limit = 20): Promise<{
         networkId: CJ_NETWORK_ID,
         isActive: true,
         validTo: { lte: sevenDaysFromNow, gte: new Date() },
+        ...siteFilter,
       },
       include: { advertiser: { select: { name: true } } },
       orderBy: { validTo: "asc" },

@@ -357,107 +357,115 @@ export default function ApiKeysSafe() {
 
       {activeTab === 'usage' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Usage Logs</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tokens</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {usageLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{getProviderIcon(log.provider)}</span>
-                          <span className="text-sm font-medium text-gray-900 capitalize">{log.provider}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{log.model}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{log.promptType}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {log.tokensIn} → {log.tokensOut}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${log.costEst.toFixed(4)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          log.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {log.success ? 'Success' : 'Failed'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </td>
+          {usageLogs.length === 0 ? (
+            <AdminEmptyState icon={Activity} title="No usage logs" description="Usage data will appear here once AI providers are called. View real-time costs at /admin/ai-costs." />
+          ) : (
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Usage Logs</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tokens</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {usageLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getProviderIcon(log.provider)}</span>
+                            <span className="text-sm font-medium text-gray-900 capitalize">{log.provider}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{log.model}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{log.promptType}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {log.tokensIn} → {log.tokensOut}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${log.costEst.toFixed(4)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            log.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {log.success ? 'Success' : 'Failed'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       {activeTab === 'providers' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {providers.map((provider) => (
-              <div key={provider.name} className="bg-white p-6 rounded-lg border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{getProviderIcon(provider.name)}</span>
+          {providers.length === 0 ? (
+            <AdminEmptyState icon={Database} title="No providers configured" description="AI provider configuration is managed in the Cockpit AI Config tab." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {providers.map((provider) => (
+                <div key={provider.name} className="bg-white p-6 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{getProviderIcon(provider.name)}</span>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{provider.displayName}</h3>
+                        <p className="text-sm text-gray-600">{provider.name}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(provider.status)}`}>
+                      {provider.status}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
                     <div>
-                      <h3 className="font-medium text-gray-900">{provider.displayName}</h3>
-                      <p className="text-sm text-gray-600">{provider.name}</p>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Rate Limits</h4>
+                      <div className="text-sm text-gray-600">
+                        <div>{provider.rateLimits.requestsPerMinute} requests/min</div>
+                        <div>{provider.rateLimits.tokensPerMinute.toLocaleString()} tokens/min</div>
+                      </div>
                     </div>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(provider.status)}`}>
-                    {provider.status}
-                  </span>
-                </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Rate Limits</h4>
-                    <div className="text-sm text-gray-600">
-                      <div>{provider.rateLimits.requestsPerMinute} requests/min</div>
-                      <div>{provider.rateLimits.tokensPerMinute.toLocaleString()} tokens/min</div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Available Models</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {provider.models.map((model) => (
+                          <span key={model} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            {model}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Available Models</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {provider.models.map((model) => (
-                        <span key={model} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                          {model}
-                        </span>
-                      ))}
+                    <div className="flex items-center gap-2 pt-2">
+                      <button className="flex-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200">
+                        Configure
+                      </button>
+                      <button className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
+                        <ExternalLink className="h-4 w-4" />
+                      </button>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2">
-                    <button className="flex-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200">
-                      Configure
-                    </button>
-                    <button className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
-                      <ExternalLink className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

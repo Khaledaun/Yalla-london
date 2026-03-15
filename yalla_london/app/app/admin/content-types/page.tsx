@@ -667,6 +667,8 @@ export default function ContentTypesPage() {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Edit/Create Modal */}
       {(isEditing || isCreating) && (

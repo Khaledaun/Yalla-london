@@ -108,7 +108,7 @@ export default function AffiliateHQPage() {
     try {
       const res = await fetch("/api/admin/affiliate-hq");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success) {
         setData(json);
         setError(null);
@@ -141,7 +141,7 @@ export default function AffiliateHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
 
       // Build detailed result message for visibility
       if (json.success && json.result) {
@@ -640,7 +640,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "diagnose" }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setDiagResult(json.result);
     } catch { /* handled by parent */ }
   };
@@ -653,7 +653,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "search_products", keywords: searchQuery }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setSearchResults(json.result.products || []);
     } catch { setSearchResults([]); }
   };
@@ -667,7 +667,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "full_sync" }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setFullSyncResult(json.result);
     } catch { /* handled by parent */ }
   };

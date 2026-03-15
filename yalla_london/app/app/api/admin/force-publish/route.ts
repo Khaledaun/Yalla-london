@@ -112,8 +112,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           try {
             const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
             const domain = getSiteDomain(siteId);
-            ensureUrlTracked(`https://${domain}/blog/${result.slug}`, siteId, `blog/${result.slug}`).catch(e => console.warn("[force-publish] URL tracking failed:", e instanceof Error ? e.message : e));
-            ensureUrlTracked(`https://${domain}/ar/blog/${result.slug}`, siteId, `ar/blog/${result.slug}`).catch(e => console.warn("[force-publish] AR URL tracking failed:", e instanceof Error ? e.message : e));
+            const bp = await prisma.blogPost.findUnique({ where: { id: result.blogPostId }, select: { slug: true } });
+            if (bp?.slug) {
+              ensureUrlTracked(`https://${domain}/blog/${bp.slug}`, siteId, `blog/${bp.slug}`).catch(e => console.warn("[force-publish] URL tracking failed:", e instanceof Error ? e.message : e));
+              ensureUrlTracked(`https://${domain}/ar/blog/${bp.slug}`, siteId, `ar/blog/${bp.slug}`).catch(e => console.warn("[force-publish] AR URL tracking failed:", e instanceof Error ? e.message : e));
+            }
           } catch { /* non-fatal */ }
           logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: true, summary: `Published "${keyword}" → BlogPost ${result.blogPostId}`, durationMs: Date.now() - start, details: { blogPostId: result.blogPostId, keyword, locale: draft.locale, score } }).catch(() => {});
           return NextResponse.json({ success: true, published: [{ ...result, locale: draft.locale }], skipped: [], durationMs: Date.now() - start, logs });
@@ -197,8 +200,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             try {
               const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
               const domain = getSiteDomain(siteId);
-              ensureUrlTracked(`https://${domain}/blog/${result.slug}`, siteId, `blog/${result.slug}`).catch(e => console.warn("[force-publish] URL tracking failed:", e instanceof Error ? e.message : e));
-              ensureUrlTracked(`https://${domain}/ar/blog/${result.slug}`, siteId, `ar/blog/${result.slug}`).catch(e => console.warn("[force-publish] AR URL tracking failed:", e instanceof Error ? e.message : e));
+              const bp = await prisma.blogPost.findUnique({ where: { id: result.blogPostId }, select: { slug: true } });
+              if (bp?.slug) {
+                ensureUrlTracked(`https://${domain}/blog/${bp.slug}`, siteId, `blog/${bp.slug}`).catch(e => console.warn("[force-publish] URL tracking failed:", e instanceof Error ? e.message : e));
+                ensureUrlTracked(`https://${domain}/ar/blog/${bp.slug}`, siteId, `ar/blog/${bp.slug}`).catch(e => console.warn("[force-publish] AR URL tracking failed:", e instanceof Error ? e.message : e));
+              }
             } catch { /* non-fatal */ }
           } else {
             log(`[force-publish] promoteToBlogPost returned null for "${keyword}" — slug collision or missing content`);

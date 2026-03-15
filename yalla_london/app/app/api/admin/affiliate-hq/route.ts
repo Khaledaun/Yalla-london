@@ -25,6 +25,13 @@ const EMPTY_LINKS = {
   total: 0, active: 0, inactive: 0,
   byType: {} as Record<string, number>,
   recentDeals: [] as Array<{ id: string; title: string; advertiser: string; price: number | null; previousPrice: number | null; isPriceDrop: boolean; isNewArrival: boolean; category: string; validTo: Date | null }>,
+  linksList: [] as Array<{
+    id: string; name: string; advertiser: string; category: string | null;
+    destinationUrl: string; affiliateUrl: string; linkType: string; isActive: boolean;
+    clicks: number; impressions: number; ctr: number; revenue: number; sales: number;
+    pages: Array<{ url: string; clicks: number }>;
+    lastClickAt: Date | null;
+  }>,
 };
 
 const EMPTY_SYSTEM_HEALTH = {
@@ -246,6 +253,62 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
+    // Fetch detailed link list with advertiser info + click/revenue aggregation
+    const allLinks = await prisma.cjLink.findMany({
+      where: { advertiser: { networkId: CJ_NETWORK_ID } },
+      include: {
+        advertiser: { select: { name: true, category: true } },
+        clickEvents: {
+          select: { pageUrl: true },
+          take: 200,
+        },
+        commissions: {
+          select: { commissionAmount: true, saleAmount: true, status: true },
+        },
+      },
+      orderBy: { clicks: "desc" },
+      take: 100,
+    });
+
+    const linksList = allLinks.map((link) => {
+      // Aggregate clicks per page from CjClickEvent
+      const pageCounts = new Map<string, number>();
+      for (const ev of link.clickEvents) {
+        const clean = ev.pageUrl.replace(/\?.*$/, ""); // strip query params
+        pageCounts.set(clean, (pageCounts.get(clean) || 0) + 1);
+      }
+      const pages = [...pageCounts.entries()]
+        .map(([url, clicks]) => ({ url, clicks }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 10);
+
+      // Revenue & sales from commissions (only APPROVED/LOCKED count)
+      const approvedCommissions = link.commissions.filter(
+        (c) => c.status === "APPROVED" || c.status === "LOCKED"
+      );
+      const revenue = approvedCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+      const sales = approvedCommissions.length;
+      const ctr = link.impressions > 0 ? (link.clicks / link.impressions) * 100 : 0;
+
+      return {
+        id: link.id,
+        name: link.name,
+        advertiser: link.advertiser.name,
+        category: link.category || link.advertiser.category,
+        destinationUrl: link.destinationUrl,
+        affiliateUrl: link.affiliateUrl,
+        linkType: link.linkType,
+        isActive: link.isActive,
+        clicks: link.clicks,
+        impressions: link.impressions,
+        ctr: Math.round(ctr * 100) / 100,
+        revenue: Math.round(revenue * 100) / 100,
+        sales,
+        pages,
+        lastClickAt: link.lastClickAt,
+      };
+    });
+
     links = {
       total: totalLinksCount,
       active: activeLinksCount,
@@ -256,6 +319,7 @@ export async function GET(request: NextRequest) {
         price: d.price, previousPrice: d.previousPrice, isPriceDrop: d.isPriceDropped,
         isNewArrival: d.isNewArrival, category: d.category, validTo: d.validTo,
       })),
+      linksList,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

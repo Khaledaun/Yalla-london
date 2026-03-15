@@ -66,6 +66,23 @@ interface AffiliateHQData {
       category: string;
       validTo: string | null;
     }>;
+    linksList: Array<{
+      id: string;
+      name: string;
+      advertiser: string;
+      category: string | null;
+      destinationUrl: string;
+      affiliateUrl: string;
+      linkType: string;
+      isActive: boolean;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      revenue: number;
+      sales: number;
+      pages: Array<{ url: string; clicks: number }>;
+      lastClickAt: string | null;
+    }>;
   };
   systemHealth: {
     circuitBreaker: { failures: number; isOpen: boolean; openedAt: number };
@@ -553,67 +570,198 @@ function CoverageTab({ data, onAction, actionLoading }: { data: AffiliateHQData;
 
 function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
   const { links } = data;
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "sales" | "ctr" | "name">("clicks");
+  const linksList = links.linksList || [];
+
+  const sorted = [...linksList].sort((a, b) => {
+    if (sortBy === "name") return a.advertiser.localeCompare(b.advertiser);
+    return (b[sortBy] as number) - (a[sortBy] as number);
+  });
+
+  // Totals
+  const totalClicks = linksList.reduce((s, l) => s + l.clicks, 0);
+  const totalRevenue = linksList.reduce((s, l) => s + l.revenue, 0);
+  const totalSales = linksList.reduce((s, l) => s + l.sales, 0);
 
   return (
     <div>
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "0.5rem", marginBottom: "1rem" }}>
+      {/* Summary KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))", gap: "0.5rem", marginBottom: "1rem" }}>
         <KpiCard label="Total Links" value={String(links.total)} />
-        <KpiCard label="Active" value={String(links.active)} />
-        <KpiCard label="Inactive" value={String(links.inactive)} />
+        <KpiCard label="Clicks" value={String(totalClicks)} />
+        <KpiCard label="Sales" value={String(totalSales)} />
+        <KpiCard label="Revenue" value={totalRevenue > 0 ? `$${totalRevenue.toFixed(2)}` : "$0"} />
       </div>
 
-      {/* By Type */}
-      {Object.keys(links.byType).length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Links by Type</h3>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {Object.entries(links.byType).map(([type, count]) => (
-              <span key={type} style={{ padding: "0.25rem 0.75rem", background: "#f3f4f6", borderRadius: 12, fontSize: "0.75rem" }}>
-                {type}: {count}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Sort Controls */}
+      <div style={{ display: "flex", gap: "0.25rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
+        {(["clicks", "revenue", "sales", "ctr", "name"] as const).map((key) => (
+          <button
+            key={key}
+            onClick={() => setSortBy(key)}
+            style={{
+              padding: "0.25rem 0.6rem", borderRadius: 6, border: "1px solid #e5e7eb",
+              fontSize: "0.7rem", fontWeight: sortBy === key ? 700 : 400, cursor: "pointer",
+              background: sortBy === key ? "#1f2937" : "#fff",
+              color: sortBy === key ? "#fff" : "#374151",
+            }}
+          >
+            {key === "ctr" ? "CTR" : key.charAt(0).toUpperCase() + key.slice(1)}
+          </button>
+        ))}
+      </div>
 
-      {/* Recent Deals */}
-      {links.recentDeals.length > 0 && (
-        <div>
-          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Recent Deals & Offers</h3>
-          {links.recentDeals.slice(0, 10).map((d) => (
-            <div key={d.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #f3f4f6" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ maxWidth: "70%" }}>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>{d.title}</div>
-                  <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>
-                    {d.advertiser} | {d.category}
-                    {d.isPriceDrop && <span style={{ color: "#16a34a", fontWeight: 700, marginLeft: 4 }}> PRICE DROP</span>}
-                    {d.isNewArrival && <span style={{ color: "#3b82f6", fontWeight: 700, marginLeft: 4 }}> NEW</span>}
+      {/* Links List */}
+      {sorted.length === 0 ? (
+        <div style={{ padding: "2rem 1rem", textAlign: "center", color: "#9ca3af", fontSize: "0.85rem" }}>
+          No affiliate links yet. Tap <strong>Sync Advertisers</strong> in the Actions tab to generate deep links for approved partners.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {sorted.map((link) => {
+            const isExpanded = expandedId === link.id;
+            const shortDest = link.destinationUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+            return (
+              <div
+                key={link.id}
+                style={{
+                  background: "#fff", borderRadius: 10,
+                  border: `1px solid ${isExpanded ? "#C49A2A" : "#e5e7eb"}`,
+                  overflow: "hidden",
+                }}
+              >
+                {/* Link Row — tappable */}
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : link.id)}
+                  style={{ padding: "0.6rem 0.75rem", cursor: "pointer" }}
+                >
+                  {/* Top line: Advertiser + Status */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>
+                      {link.advertiser}
+                    </div>
+                    <span style={{
+                      fontSize: "0.65rem", fontWeight: 600, padding: "0.15rem 0.5rem", borderRadius: 10,
+                      background: link.isActive ? "#dcfce7" : "#fee2e2",
+                      color: link.isActive ? "#166534" : "#991b1b",
+                    }}>
+                      {link.isActive ? "ACTIVE" : "OFF"}
+                    </span>
+                  </div>
+
+                  {/* Second line: Category + destination domain */}
+                  <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: "0.4rem" }}>
+                    {link.category || "uncategorized"} &middot; {shortDest}
+                  </div>
+
+                  {/* Stats row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.25rem" }}>
+                    <StatCell label="Clicks" value={String(link.clicks)} />
+                    <StatCell label="CTR" value={link.ctr > 0 ? `${link.ctr}%` : "—"} />
+                    <StatCell label="Sales" value={String(link.sales)} highlight={link.sales > 0} />
+                    <StatCell label="Revenue" value={link.revenue > 0 ? `$${link.revenue.toFixed(2)}` : "—"} highlight={link.revenue > 0} />
                   </div>
                 </div>
-                {d.price && (
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>${d.price.toFixed(2)}</div>
-                    {d.previousPrice && d.isPriceDrop && (
-                      <div style={{ fontSize: "0.7rem", color: "#dc2626", textDecoration: "line-through" }}>${d.previousPrice.toFixed(2)}</div>
+
+                {/* Expanded Detail */}
+                {isExpanded && (
+                  <div style={{ padding: "0.5rem 0.75rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8" }}>
+                    {/* Link name */}
+                    <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: "0.4rem" }}>
+                      <strong>Link:</strong> {link.name}
+                    </div>
+
+                    {/* Destination URL */}
+                    <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: "0.4rem", wordBreak: "break-all" }}>
+                      <strong>Destination:</strong> {link.destinationUrl}
+                    </div>
+
+                    {/* Tracking URL (truncated) */}
+                    <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: "0.6rem", wordBreak: "break-all" }}>
+                      <strong>Tracking:</strong> {link.affiliateUrl.length > 80 ? link.affiliateUrl.substring(0, 80) + "..." : link.affiliateUrl}
+                    </div>
+
+                    {/* Pages where this link was clicked */}
+                    {link.pages.length > 0 ? (
+                      <div>
+                        <div style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.3rem" }}>Pages with clicks</div>
+                        {link.pages.map((p) => {
+                          const slug = p.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "") || "/";
+                          return (
+                            <div key={p.url} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", fontSize: "0.7rem", color: "#374151" }}>
+                              <span style={{ maxWidth: "75%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{slug}</span>
+                              <span style={{ fontWeight: 600 }}>{p.clicks} clicks</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "0.7rem", color: "#9ca3af", fontStyle: "italic" }}>
+                        No click data yet — clicks will appear here once visitors tap this link on your articles.
+                      </div>
+                    )}
+
+                    {/* Last click */}
+                    {link.lastClickAt && (
+                      <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: "0.4rem" }}>
+                        Last click: {new Date(link.lastClickAt).toLocaleDateString()}
+                      </div>
                     )}
                   </div>
                 )}
               </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+        <button onClick={() => onAction("refresh_links")} disabled={actionLoading === "refresh_links"} style={btnStyle("#1f2937")}>
+          {actionLoading === "refresh_links" ? "Syncing..." : "Refresh Links"}
+        </button>
+        <button onClick={() => onAction("refresh_deals")} disabled={actionLoading === "refresh_deals"} style={btnStyle("#C49A2A")}>
+          {actionLoading === "refresh_deals" ? "Discovering..." : "Discover Deals"}
+        </button>
+      </div>
+
+      {/* Recent Deals (collapsed section) */}
+      {links.recentDeals.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h3 style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Recent Deals & Offers</h3>
+          {links.recentDeals.slice(0, 5).map((d) => (
+            <div key={d.id} style={{ padding: "0.4rem 0", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ maxWidth: "70%" }}>
+                <div style={{ fontSize: "0.8rem", fontWeight: 500 }}>{d.title}</div>
+                <div style={{ fontSize: "0.65rem", color: "#6b7280" }}>
+                  {d.advertiser} &middot; {d.category}
+                  {d.isPriceDrop && <span style={{ color: "#16a34a", fontWeight: 700, marginLeft: 4 }}>PRICE DROP</span>}
+                  {d.isNewArrival && <span style={{ color: "#3b82f6", fontWeight: 700, marginLeft: 4 }}>NEW</span>}
+                </div>
+              </div>
+              {d.price != null && (
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.8rem" }}>${d.price.toFixed(2)}</div>
+                  {d.previousPrice != null && d.isPriceDrop && (
+                    <div style={{ fontSize: "0.65rem", color: "#dc2626", textDecoration: "line-through" }}>${d.previousPrice.toFixed(2)}</div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
 
-      <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
-        <button onClick={() => onAction("refresh_deals")} disabled={actionLoading === "refresh_deals"} style={btnStyle("#C49A2A")}>
-          {actionLoading === "refresh_deals" ? "Discovering..." : "Discover Deals"}
-        </button>
-        <button onClick={() => onAction("refresh_links")} disabled={actionLoading === "refresh_links"} style={btnStyle("#6b7280")}>
-          {actionLoading === "refresh_links" ? "Refreshing..." : "Refresh Links"}
-        </button>
-      </div>
+/** Compact stat cell for link cards */
+function StatCell({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontSize: "0.6rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.03em" }}>{label}</div>
+      <div style={{ fontSize: "0.8rem", fontWeight: 600, color: highlight ? "#16a34a" : "#111827" }}>{value}</div>
     </div>
   );
 }

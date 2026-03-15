@@ -220,9 +220,10 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
         // Create tracking records
         for (const p of unsubmitted) {
+          const fullUrl = `https://${domain}/blog/${p.slug}`;
           await prisma.uRLIndexingStatus.upsert({
-            where: { url: `https://${domain}/blog/${p.slug}` },
-            create: { url: `https://${domain}/blog/${p.slug}`, slug: p.slug, site_id: siteId, status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() },
+            where: { site_id_url: { site_id: siteId, url: fullUrl } },
+            create: { url: fullUrl, slug: p.slug, site_id: siteId, status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() },
             update: { status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() },
           });
         }

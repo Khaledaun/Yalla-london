@@ -2,11 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSiteId } from '@/components/site-provider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminKPICard,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 import {
   Route,
   Plus,
@@ -88,9 +94,9 @@ const INITIAL_FORM: ItineraryForm = {
 }
 
 const DIFFICULTIES = [
-  { value: 'EASY', label: 'Easy', color: 'bg-green-100 text-green-800' },
-  { value: 'MODERATE', label: 'Moderate', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'ADVANCED', label: 'Advanced', color: 'bg-red-100 text-red-800' },
+  { value: 'EASY', label: 'Easy', status: 'success' as const },
+  { value: 'MODERATE', label: 'Moderate', status: 'warning' as const },
+  { value: 'ADVANCED', label: 'Advanced', status: 'error' as const },
 ]
 
 const SEASONS = ['Spring (Mar–May)', 'Summer (Jun–Aug)', 'Autumn (Sep–Nov)', 'Winter (Dec–Feb)', 'Year-round']
@@ -113,6 +119,68 @@ const formatPrice = (value: number | null, currency = 'EUR') =>
   value != null
     ? new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
     : '—'
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-system)',
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#44403C',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+  marginBottom: 4,
+  display: 'block',
+}
+
+const inputStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-system)',
+  fontSize: 13,
+  color: '#1C1917',
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid rgba(214,208,196,0.8)',
+  backgroundColor: '#FFFFFF',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+}
+
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  appearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2378716C'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+  paddingRight: 32,
+}
+
+const textareaStyle: React.CSSProperties = {
+  ...inputStyle,
+  minHeight: 80,
+  resize: 'vertical' as const,
+}
+
+const tableHeaderStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-system)',
+  fontSize: 9,
+  fontWeight: 700,
+  color: '#78716C',
+  textTransform: 'uppercase',
+  letterSpacing: '1.2px',
+  padding: '10px 12px',
+  textAlign: 'left',
+}
+
+const tableCellStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-system)',
+  fontSize: 12,
+  color: '#44403C',
+  padding: '12px',
+  borderBottom: '1px solid rgba(214,208,196,0.4)',
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -313,190 +381,161 @@ export default function ItinerariesAdminPage() {
   })
 
   // -----------------------------------------------------------------------
+  // KPI calculations
+  // -----------------------------------------------------------------------
+
+  const totalCount = itineraries.length
+  const activeCount = itineraries.filter(i => i.status === 'active').length
+  const avgDuration = totalCount > 0 ? Math.round(itineraries.reduce((s, i) => s + i.duration, 0) / totalCount) : 0
+  const destCount = new Set(itineraries.map(i => i.destinationId)).size
+
+  // -----------------------------------------------------------------------
   // JSX
   // -----------------------------------------------------------------------
 
-  const difficultyBadge = (d: string) => {
-    const cfg = DIFFICULTIES.find(x => x.value === d) ?? DIFFICULTIES[0]
-    return <Badge className={cfg.color}>{cfg.label}</Badge>
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Charter Itineraries</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage multi-day sailing routes and itinerary templates</p>
-        </div>
-        <Button className="bg-blue-600 hover:bg-blue-700" onClick={openCreateForm}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Itinerary
-        </Button>
-      </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Charter Itineraries"
+        subtitle="Manage multi-day sailing routes and itinerary templates"
+        backHref="/admin/yachts"
+        action={
+          <AdminButton variant="primary" onClick={openCreateForm}>
+            <Plus size={14} />
+            New Itinerary
+          </AdminButton>
+        }
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800 text-sm">{error}</p>
-        </div>
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{itineraries.length}</p>
-              </div>
-              <Route className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-green-600">{itineraries.filter(i => i.status === 'active').length}</p>
-              </div>
-              <MapPin className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Avg Duration</p>
-                <p className="text-2xl font-bold text-indigo-600">
-                  {itineraries.length > 0
-                    ? Math.round(itineraries.reduce((s, i) => s + i.duration, 0) / itineraries.length)
-                    : 0}d
-                </p>
-              </div>
-              <Clock className="h-8 w-8 text-indigo-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Destinations</p>
-                <p className="text-2xl font-bold text-amber-600">
-                  {new Set(itineraries.map(i => i.destinationId)).size}
-                </p>
-              </div>
-              <Mountain className="h-8 w-8 text-amber-500" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard value={totalCount} label="Total" color="#3B7EA1" />
+        <AdminKPICard value={activeCount} label="Active" color="#2D5A3D" />
+        <AdminKPICard value={`${avgDuration}d`} label="Avg Duration" color="#C49A2A" />
+        <AdminKPICard value={destCount} label="Destinations" color="#C8322B" />
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input placeholder="Search itineraries..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
-              </div>
-            </div>
-            <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Difficulty" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Levels</SelectItem>
-                {DIFFICULTIES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterDestination} onValueChange={setFilterDestination}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="Destination" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Destinations</SelectItem>
-                {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-32"><SelectValue placeholder="Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+      <AdminCard className="mb-6">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex-1 min-w-[200px] relative">
+            <Search
+              size={14}
+              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#A8A29E' }}
+            />
+            <input
+              style={{ ...inputStyle, paddingLeft: 34 }}
+              placeholder="Search itineraries..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
           </div>
-        </CardContent>
-      </Card>
+          <select
+            style={{ ...selectStyle, width: 140 }}
+            value={filterDifficulty}
+            onChange={e => setFilterDifficulty(e.target.value)}
+          >
+            <option value="All">All Levels</option>
+            {DIFFICULTIES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+          </select>
+          <select
+            style={{ ...selectStyle, width: 170 }}
+            value={filterDestination}
+            onChange={e => setFilterDestination(e.target.value)}
+          >
+            <option value="All">All Destinations</option>
+            {destinations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select
+            style={{ ...selectStyle, width: 120 }}
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+          >
+            <option value="All">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </AdminCard>
 
       {/* Create/Edit Form */}
       {showForm && (
-        <Card className="border-blue-200">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{editingId ? 'Edit Itinerary' : 'New Itinerary'}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setEditingId(null) }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <AdminCard accent accentColor="blue" className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <p
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: 16,
+                color: '#1C1917',
+              }}
+            >
+              {editingId ? 'Edit Itinerary' : 'New Itinerary'}
+            </p>
+            <AdminButton variant="ghost" size="sm" onClick={() => { setShowForm(false); setEditingId(null) }}>
+              <X size={14} />
+            </AdminButton>
+          </div>
+          <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Title (English) *</label>
-                <Input value={form.title_en} onChange={e => updateField('title_en', e.target.value)} placeholder="e.g. Greek Islands Explorer" />
+                <label style={labelStyle}>
+                  Title (English) *
+                </label>
+                <input style={inputStyle} value={form.title_en} onChange={e => updateField('title_en', e.target.value)} placeholder="e.g. Greek Islands Explorer" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Slug * {autoSlug && <Badge variant="outline" className="ml-2 text-xs">Auto</Badge>}
+                <label style={labelStyle}>
+                  Slug *
+                  {autoSlug && (
+                    <AdminStatusBadge status="active" label="Auto" />
+                  )}
                 </label>
-                <Input value={form.slug} onChange={e => { setAutoSlug(false); updateField('slug', slugify(e.target.value)) }} placeholder="greek-islands-explorer" />
+                <input style={inputStyle} value={form.slug} onChange={e => { setAutoSlug(false); updateField('slug', slugify(e.target.value)) }} placeholder="greek-islands-explorer" />
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Title (Arabic)</label>
-              <Input dir="rtl" value={form.title_ar} onChange={e => updateField('title_ar', e.target.value)} placeholder="العنوان بالعربية" />
+              <label style={labelStyle}>Title (Arabic)</label>
+              <input style={inputStyle} dir="rtl" value={form.title_ar} onChange={e => updateField('title_ar', e.target.value)} placeholder="العنوان بالعربية" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Destination *</label>
-                <Select value={form.destinationId} onValueChange={v => updateField('destinationId', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <label style={labelStyle}>Destination *</label>
+                <select style={selectStyle} value={form.destinationId} onChange={e => updateField('destinationId', e.target.value)}>
+                  <option value="">Select</option>
+                  {destinations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Duration (days)</label>
-                <Input type="number" min="1" max="30" value={form.duration} onChange={e => updateField('duration', e.target.value)} />
+                <label style={labelStyle}>Duration (days)</label>
+                <input style={inputStyle} type="number" min="1" max="30" value={form.duration} onChange={e => updateField('duration', e.target.value)} />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Difficulty</label>
-                <Select value={form.difficulty} onValueChange={v => updateField('difficulty', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DIFFICULTIES.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <label style={labelStyle}>Difficulty</label>
+                <select style={selectStyle} value={form.difficulty} onChange={e => updateField('difficulty', e.target.value)}>
+                  {DIFFICULTIES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Status</label>
-                <Select value={form.status} onValueChange={v => updateField('status', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label style={labelStyle}>Status</label>
+                <select style={selectStyle} value={form.status} onChange={e => updateField('status', e.target.value)}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Description (English)</label>
+              <label style={labelStyle}>Description (English)</label>
               <textarea
-                className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={textareaStyle}
                 value={form.description_en}
                 onChange={e => updateField('description_en', e.target.value)}
                 placeholder="Describe the itinerary route, highlights, and what makes it special..."
@@ -504,142 +543,151 @@ export default function ItinerariesAdminPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Estimated Cost</label>
-                <Input type="number" min="0" step="100" value={form.estimatedCost} onChange={e => updateField('estimatedCost', e.target.value)} placeholder="5000" />
+                <label style={labelStyle}>Estimated Cost</label>
+                <input style={inputStyle} type="number" min="0" step="100" value={form.estimatedCost} onChange={e => updateField('estimatedCost', e.target.value)} placeholder="5000" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Currency</label>
-                <Select value={form.currency} onValueChange={v => updateField('currency', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <label style={labelStyle}>Currency</label>
+                <select style={selectStyle} value={form.currency} onChange={e => updateField('currency', e.target.value)}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Best Season</label>
-                <Select value={form.bestSeason} onValueChange={v => updateField('bestSeason', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select season" /></SelectTrigger>
-                  <SelectContent>
-                    {SEASONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <label style={labelStyle}>Best Season</label>
+                <select style={selectStyle} value={form.bestSeason} onChange={e => updateField('bestSeason', e.target.value)}>
+                  <option value="">Select season</option>
+                  {SEASONS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => { setShowForm(false); setEditingId(null) }}>Cancel</Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
+              <AdminButton variant="secondary" onClick={() => { setShowForm(false); setEditingId(null) }}>Cancel</AdminButton>
+              <AdminButton variant="primary" onClick={handleSave} loading={saving} disabled={saving}>
+                <Save size={12} />
                 {saving ? 'Saving...' : editingId ? 'Update Itinerary' : 'Create Itinerary'}
-              </Button>
+              </AdminButton>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminCard>
       )}
 
       {/* Itineraries Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Itineraries ({filtered.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="animate-pulse flex gap-4 items-center p-3 border rounded-lg">
-                  <div className="h-4 bg-gray-200 rounded w-1/4" />
-                  <div className="h-4 bg-gray-200 rounded w-1/6" />
-                  <div className="h-4 bg-gray-200 rounded w-1/6" />
-                  <div className="h-4 bg-gray-200 rounded w-1/6" />
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <Route className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No itineraries found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {search || filterDifficulty !== 'All' || filterDestination !== 'All'
-                  ? 'Try adjusting your filters.'
-                  : 'Get started by creating your first charter itinerary.'}
-              </p>
-              <Button className="mt-4" onClick={openCreateForm}>
-                <Plus className="h-4 w-4 mr-2" />
+      <AdminCard>
+        <AdminSectionLabel>Itineraries ({filtered.length})</AdminSectionLabel>
+
+        {loading ? (
+          <AdminLoadingState label="Loading itineraries..." />
+        ) : filtered.length === 0 ? (
+          <AdminEmptyState
+            icon={Route}
+            title="No itineraries found"
+            description={
+              search || filterDifficulty !== 'All' || filterDestination !== 'All'
+                ? 'Try adjusting your filters.'
+                : 'Get started by creating your first charter itinerary.'
+            }
+            action={
+              <AdminButton variant="primary" onClick={openCreateForm}>
+                <Plus size={12} />
                 New Itinerary
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-gray-500 font-medium">
-                    <th className="p-3">Title</th>
-                    <th className="p-3">Destination</th>
-                    <th className="p-3">Duration</th>
-                    <th className="p-3">Difficulty</th>
-                    <th className="p-3">Est. Cost</th>
-                    <th className="p-3">Season</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(it => (
-                    <tr key={it.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">
-                        <div>
-                          <span className="font-medium text-gray-900">{it.title_en}</span>
-                          <span className="block text-xs text-gray-400">/{it.slug}</span>
-                        </div>
+              </AdminButton>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto -mx-4 md:mx-0">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(214,208,196,0.6)' }}>
+                  <th style={tableHeaderStyle}>Title</th>
+                  <th style={tableHeaderStyle}>Destination</th>
+                  <th style={tableHeaderStyle}>Duration</th>
+                  <th style={tableHeaderStyle}>Difficulty</th>
+                  <th style={tableHeaderStyle}>Est. Cost</th>
+                  <th style={tableHeaderStyle}>Season</th>
+                  <th style={tableHeaderStyle}>Status</th>
+                  <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(it => {
+                  const diffCfg = DIFFICULTIES.find(x => x.value === it.difficulty) ?? DIFFICULTIES[0]
+                  return (
+                    <tr
+                      key={it.id}
+                      style={{ transition: 'background-color 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(214,208,196,0.08)')}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <td style={tableCellStyle}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 13, color: '#1C1917' }}>
+                          {it.title_en}
+                        </span>
+                        <span style={{ display: 'block', fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', marginTop: 2 }}>
+                          /{it.slug}
+                        </span>
                       </td>
-                      <td className="p-3">
+                      <td style={tableCellStyle}>
                         <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-gray-400" />
+                          <MapPin size={12} color="#A8A29E" />
                           <span>{it.destination?.name || '—'}</span>
                         </div>
                       </td>
-                      <td className="p-3">{it.duration} days</td>
-                      <td className="p-3">{difficultyBadge(it.difficulty)}</td>
-                      <td className="p-3">{formatPrice(it.estimatedCost, it.currency)}</td>
-                      <td className="p-3 text-xs">{it.bestSeason || '—'}</td>
-                      <td className="p-3">
-                        <Badge className={it.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}>
-                          {it.status}
-                        </Badge>
+                      <td style={tableCellStyle}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: '#1C1917' }}>
+                          {it.duration}
+                        </span>
+                        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', marginLeft: 2 }}>days</span>
                       </td>
-                      <td className="p-3 text-right">
+                      <td style={tableCellStyle}>
+                        <AdminStatusBadge status={diffCfg.status} label={diffCfg.label} />
+                      </td>
+                      <td style={tableCellStyle}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600 }}>
+                          {formatPrice(it.estimatedCost, it.currency)}
+                        </span>
+                      </td>
+                      <td style={{ ...tableCellStyle, fontSize: 11 }}>{it.bestSeason || '—'}</td>
+                      <td style={tableCellStyle}>
+                        <AdminStatusBadge status={it.status === 'active' ? 'active' : 'inactive'} />
+                      </td>
+                      <td style={{ ...tableCellStyle, textAlign: 'right' }}>
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openEditForm(it)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(it.id)} className="text-red-500 hover:text-red-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AdminButton variant="ghost" size="sm" onClick={() => openEditForm(it)}>
+                            <Edit size={13} />
+                          </AdminButton>
+                          <AdminButton variant="ghost" size="sm" onClick={() => handleDelete(it.id)}>
+                            <Trash2 size={13} color="#C8322B" />
+                          </AdminButton>
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div
+            className="flex items-center justify-between mt-4 pt-4"
+            style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}
+          >
+            <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <AdminButton variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft size={14} />
+              </AdminButton>
+              <AdminButton variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight size={14} />
+              </AdminButton>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </AdminCard>
     </div>
   )
 }

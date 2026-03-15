@@ -2,10 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSiteId } from '@/components/site-provider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import {
+  AdminPageHeader,
+  AdminCard,
+  AdminKPICard,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 import {
   Handshake,
   UserCheck,
@@ -67,12 +74,6 @@ interface BrokerFormData {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const statusColor: Record<string, string> = {
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-gray-100 text-gray-600',
-  pending: 'bg-yellow-100 text-yellow-800',
-}
 
 const EMPTY_FORM: BrokerFormData = { companyName: '', contactName: '', email: '', phone: '', website: '', commissionRate: '', notes: '' }
 
@@ -180,236 +181,550 @@ export default function BrokersPage() {
   }
 
   // -----------------------------------------------------------------------
-  // Skeleton
+  // Conversion rate color
   // -----------------------------------------------------------------------
 
-  const SkeletonRows = () => (
-    <>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <tr key={i} className="animate-pulse border-b">
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-36" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-12" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-10" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-10" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-14" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-16" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-12" /></td>
-        </tr>
-      ))}
-    </>
-  )
+  const conversionColor = (rate: number) => {
+    if (rate >= 20) return '#2D5A3D'
+    if (rate >= 10) return '#C49A2A'
+    return '#A8A29E'
+  }
 
   // -----------------------------------------------------------------------
   // JSX
   // -----------------------------------------------------------------------
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="admin-page p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Broker Partners</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage charter broker relationships and track performance</p>
-        </div>
-        <Button className="bg-blue-600 hover:bg-blue-700" onClick={openAddForm}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Partner
-        </Button>
+      <AdminPageHeader
+        title="Broker Partners"
+        subtitle="Manage charter broker relationships and track performance"
+        action={
+          <AdminButton variant="primary" onClick={openAddForm}>
+            <Plus size={14} />
+            Add Partner
+          </AdminButton>
+        }
+      />
+
+      {/* Error Banner */}
+      {error && (
+        <AdminAlertBanner
+          severity="critical"
+          message="Error Loading Partners"
+          detail={error}
+          action={
+            <AdminButton variant="secondary" size="sm" onClick={fetchBrokers}>
+              Try Again
+            </AdminButton>
+          }
+          onDismiss={() => setError(null)}
+        />
+      )}
+
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard
+          value={summary.total}
+          label="Total Partners"
+          color="#3B7EA1"
+        />
+        <AdminKPICard
+          value={summary.active}
+          label="Active"
+          color="#2D5A3D"
+        />
+        <AdminKPICard
+          value={summary.totalLeadsSent}
+          label="Leads Sent"
+          color="#C49A2A"
+        />
+        <AdminKPICard
+          value={summary.totalBookings}
+          label="Bookings"
+          color="#C8322B"
+        />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Partners</p>
-                <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
-              </div>
-              <Handshake className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-green-600">{summary.active}</p>
-              </div>
-              <UserCheck className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Leads Sent</p>
-                <p className="text-2xl font-bold text-orange-600">{summary.totalLeadsSent}</p>
-              </div>
-              <Send className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Bookings</p>
-                <p className="text-2xl font-bold text-purple-600">{summary.totalBookings}</p>
-              </div>
-              <CalendarCheck className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Inline form */}
+      {/* Inline Form */}
       {showForm && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{editingId ? 'Edit Partner' : 'New Partner'}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={closeForm}><X className="h-4 w-4" /></Button>
+        <AdminCard elevated className="mb-6" accent accentColor="blue">
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <AdminSectionLabel>
+                {editingId ? 'Edit Partner' : 'New Partner'}
+              </AdminSectionLabel>
+              <AdminButton variant="ghost" size="sm" onClick={closeForm}>
+                <X size={14} />
+              </AdminButton>
             </div>
-          </CardHeader>
-          <CardContent>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
-                <Input value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} placeholder="e.g. Mediterranean Charters Ltd" />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  value={form.companyName}
+                  onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
+                  placeholder="e.g. Mediterranean Charters Ltd"
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
-                <Input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Primary contact person" />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Contact Name
+                </label>
+                <input
+                  type="text"
+                  value={form.contactName}
+                  onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))}
+                  placeholder="Primary contact person"
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="charter@example.com" />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="charter@example.com"
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+33 ..." />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="+33 ..."
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <Input value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} placeholder="https://..." />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Website
+                </label>
+                <input
+                  type="text"
+                  value={form.website}
+                  onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
+                  placeholder="https://..."
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
-                <Input type="number" min="0" max="100" step="0.5" value={form.commissionRate} onChange={e => setForm(f => ({ ...f, commissionRate: e.target.value }))} placeholder="15" />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Commission Rate (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={form.commissionRate}
+                  onChange={e => setForm(f => ({ ...f, commissionRate: e.target.value }))}
+                  placeholder="15"
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Internal notes about this partner..." />
+                <label
+                  className="block mb-1"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#44403C',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Internal notes about this partner..."
+                  className="admin-input"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 13,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={closeForm}>Cancel</Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving || !form.companyName.trim() || !form.email.trim()}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
-              </Button>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <AdminButton variant="secondary" onClick={closeForm}>
+                Cancel
+              </AdminButton>
+              <AdminButton
+                variant="primary"
+                onClick={handleSave}
+                loading={saving}
+                disabled={!form.companyName.trim() || !form.email.trim()}
+              >
+                <Save size={14} />
+                {editingId ? 'Update' : 'Create'}
+              </AdminButton>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminCard>
       )}
 
       {/* Brokers Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Partners ({brokers.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {error ? (
-            <div className="text-center py-12">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-                <p className="text-red-800 font-medium">Error Loading Partners</p>
-                <p className="text-red-600 text-sm mt-2">{error}</p>
-                <Button variant="outline" className="mt-4" onClick={fetchBrokers}>Try Again</Button>
-              </div>
-            </div>
-          ) : !loading && brokers.length === 0 ? (
-            <div className="text-center py-12">
-              <Handshake className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No broker partners yet</h3>
-              <p className="mt-1 text-sm text-gray-500">Add your first broker partner to start managing charter leads.</p>
-              <Button className="mt-4" onClick={openAddForm}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Partner
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-gray-500 font-medium">
-                    <th className="p-3">Company</th>
-                    <th className="p-3">Contact</th>
-                    <th className="p-3">Email</th>
-                    <th className="p-3">Commission</th>
-                    <th className="p-3">Leads</th>
-                    <th className="p-3">Bookings</th>
-                    <th className="p-3">Conversion</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <SkeletonRows />
-                  ) : (
-                    brokers.map(broker => (
-                      <tr key={broker.id} className="border-b hover:bg-gray-50 transition-colors">
+      <AdminCard>
+        <div className="p-5">
+          <AdminSectionLabel>Partners ({brokers.length})</AdminSectionLabel>
+
+          {loading ? (
+            <AdminLoadingState label="Loading partners..." />
+          ) : !error && brokers.length === 0 ? (
+            <AdminEmptyState
+              icon={Handshake}
+              title="No broker partners yet"
+              description="Add your first broker partner to start managing charter leads."
+              action={
+                <AdminButton variant="primary" onClick={openAddForm}>
+                  <Plus size={14} />
+                  Add Partner
+                </AdminButton>
+              }
+            />
+          ) : brokers.length > 0 ? (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full" style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}>
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: '1px solid rgba(214,208,196,0.5)',
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                        color: '#78716C',
+                      }}
+                    >
+                      <th className="text-left p-3">Company</th>
+                      <th className="text-left p-3">Contact</th>
+                      <th className="text-left p-3">Email</th>
+                      <th className="text-left p-3">Commission</th>
+                      <th className="text-left p-3">Leads</th>
+                      <th className="text-left p-3">Bookings</th>
+                      <th className="text-left p-3">Conversion</th>
+                      <th className="text-left p-3">Status</th>
+                      <th className="text-left p-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brokers.map(broker => (
+                      <tr
+                        key={broker.id}
+                        className="transition-colors"
+                        style={{
+                          borderBottom: '1px solid rgba(214,208,196,0.3)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(59,126,161,0.03)')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
                         <td className="p-3">
                           <div>
-                            <span className="font-medium text-gray-900">{broker.companyName}</span>
+                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                              {broker.companyName}
+                            </span>
                             {broker.website && (
-                              <a href={broker.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline mt-0.5">
-                                <Globe className="h-3 w-3" />
+                              <a
+                                href={broker.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 mt-0.5"
+                                style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#3B7EA1' }}
+                              >
+                                <Globe size={10} />
                                 Website
                               </a>
                             )}
                           </div>
                         </td>
-                        <td className="p-3 text-gray-700">{broker.contactName || <span className="text-gray-400">&ndash;</span>}</td>
+                        <td className="p-3" style={{ color: '#44403C' }}>
+                          {broker.contactName || <span style={{ color: '#A8A29E' }}>&ndash;</span>}
+                        </td>
                         <td className="p-3">
                           <div className="flex flex-col gap-0.5">
-                            <span className="flex items-center gap-1 text-gray-700"><Mail className="h-3 w-3 text-gray-400" />{broker.email}</span>
-                            {broker.phone && <span className="flex items-center gap-1 text-gray-500 text-xs"><Phone className="h-3 w-3 text-gray-400" />{broker.phone}</span>}
+                            <span className="flex items-center gap-1" style={{ color: '#44403C', fontSize: 12 }}>
+                              <Mail size={11} color="#A8A29E" />
+                              {broker.email}
+                            </span>
+                            {broker.phone && (
+                              <span className="flex items-center gap-1" style={{ color: '#78716C', fontSize: 10 }}>
+                                <Phone size={10} color="#A8A29E" />
+                                {broker.phone}
+                              </span>
+                            )}
                           </div>
                         </td>
-                        <td className="p-3 text-gray-700 font-medium">{broker.commissionRate}%</td>
-                        <td className="p-3 text-gray-700">{broker.performance?.leadsSent ?? broker.totalLeadsSent ?? 0}</td>
-                        <td className="p-3 text-gray-700">{broker.performance?.bookings ?? broker.totalBookings ?? 0}</td>
+                        <td className="p-3">
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#C49A2A' }}>
+                            {broker.commissionRate}%
+                          </span>
+                        </td>
+                        <td className="p-3" style={{ color: '#44403C' }}>
+                          {broker.performance?.leadsSent ?? broker.totalLeadsSent ?? 0}
+                        </td>
+                        <td className="p-3" style={{ color: '#44403C' }}>
+                          {broker.performance?.bookings ?? broker.totalBookings ?? 0}
+                        </td>
                         <td className="p-3">
                           <span className="flex items-center gap-1">
-                            <TrendingUp className={`h-3.5 w-3.5 ${(broker.performance?.conversionRate ?? 0) >= 20 ? 'text-green-500' : (broker.performance?.conversionRate ?? 0) >= 10 ? 'text-yellow-500' : 'text-gray-400'}`} />
-                            <span className="font-medium">{(broker.performance?.conversionRate ?? 0).toFixed(1)}%</span>
+                            <TrendingUp
+                              size={12}
+                              color={conversionColor(broker.performance?.conversionRate ?? 0)}
+                            />
+                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: conversionColor(broker.performance?.conversionRate ?? 0) }}>
+                              {(broker.performance?.conversionRate ?? 0).toFixed(1)}%
+                            </span>
                           </span>
                         </td>
                         <td className="p-3">
-                          <Badge className={statusColor[broker.status] ?? 'bg-gray-100 text-gray-600'}>
-                            {broker.status.charAt(0).toUpperCase() + broker.status.slice(1)}
-                          </Badge>
+                          <AdminStatusBadge status={broker.status} />
                         </td>
                         <td className="p-3">
-                          <Button variant="ghost" size="sm" onClick={() => openEditForm(broker)}>
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
+                          <AdminButton variant="ghost" size="sm" onClick={() => openEditForm(broker)}>
+                            <Edit size={13} />
+                          </AdminButton>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-3">
+                {brokers.map(broker => (
+                  <AdminCard key={broker.id} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                          {broker.companyName}
+                        </p>
+                        {broker.contactName && (
+                          <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 2 }}>
+                            {broker.contactName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <AdminStatusBadge status={broker.status} />
+                        <AdminButton variant="ghost" size="sm" onClick={() => openEditForm(broker)}>
+                          <Edit size={13} />
+                        </AdminButton>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 mb-3" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                      <span className="flex items-center gap-1">
+                        <Mail size={10} color="#A8A29E" />
+                        {broker.email}
+                      </span>
+                      {broker.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone size={10} color="#A8A29E" />
+                          {broker.phone}
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      className="grid grid-cols-4 gap-2 pt-3"
+                      style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}
+                    >
+                      <div className="text-center">
+                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#C49A2A' }}>
+                          {broker.commissionRate}%
+                        </p>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 8, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Commission
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#1C1917' }}>
+                          {broker.performance?.leadsSent ?? broker.totalLeadsSent ?? 0}
+                        </p>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 8, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Leads
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#1C1917' }}>
+                          {broker.performance?.bookings ?? broker.totalBookings ?? 0}
+                        </p>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 8, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Bookings
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: conversionColor(broker.performance?.conversionRate ?? 0) }}>
+                          {(broker.performance?.conversionRate ?? 0).toFixed(1)}%
+                        </p>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 8, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Conversion
+                        </p>
+                      </div>
+                    </div>
+                  </AdminCard>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </AdminCard>
     </div>
   )
 }

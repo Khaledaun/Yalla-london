@@ -1448,7 +1448,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 <div className="h-full bg-amber-600 transition-all" style={{ width: `${((indexing.discovered ?? 0) / indexing.total) * 100}%` }} title={`${indexing.discovered} discovered`} />
               )}
               {indexing.errors > 0 && (
-                <div className="h-full bg-red-500 transition-all" style={{ width: `${(indexing.errors / indexing.total) * 100}%` }} title={`${indexing.errors} errors`} />
+                <div className="h-full bg-[#C8322B] transition-all" style={{ width: `${(indexing.errors / indexing.total) * 100}%` }} title={`${indexing.errors} errors`} />
               )}
               {(indexing.neverSubmitted ?? 0) > 0 && (
                 <div className="h-full bg-stone-400 transition-all" style={{ width: `${((indexing.neverSubmitted ?? 0) / indexing.total) * 100}%` }} title={`${indexing.neverSubmitted} never submitted`} />
@@ -3822,7 +3822,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   <div
                     className={`h-full rounded-full transition-all ${
                       readiness.percentage >= 80 ? "bg-[#2D5A3D]" :
-                      readiness.percentage >= 50 ? "bg-amber-500" : "bg-red-500"
+                      readiness.percentage >= 50 ? "bg-[#C49A2A]" : "bg-[#C8322B]"
                     }`}
                     style={{ width: `${readiness.percentage}%` }}
                   />
@@ -3956,9 +3956,9 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 info: "bg-stone-100 text-stone-400 border-stone-200",
               };
               const severityDots: Record<string, string> = {
-                critical: "bg-red-500",
+                critical: "bg-[#C8322B]",
                 high: "bg-orange-500",
-                medium: "bg-amber-500",
+                medium: "bg-[#C49A2A]",
                 low: "bg-[#3B7EA1]",
                 info: "bg-stone-400",
               };
@@ -3995,7 +3995,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                           <div
                             className={`h-full rounded-full transition-all ${
                               audit.healthScore >= 70 ? "bg-[#2D5A3D]" :
-                              audit.healthScore >= 40 ? "bg-amber-500" : "bg-red-500"
+                              audit.healthScore >= 40 ? "bg-[#C49A2A]" : "bg-[#C8322B]"
                             }`}
                             style={{ width: `${audit.healthScore}%` }}
                           />
@@ -4127,7 +4127,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                               <span className="text-stone-500">({section.findings.length})</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              {criticals > 0 && <span className="w-2 h-2 rounded-full bg-red-500" />}
+                              {criticals > 0 && <span className="w-2 h-2 rounded-full bg-[#C8322B]" />}
                               {highs > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" />}
                               <span className={`text-[10px] font-bold ${
                                 section.score >= 80 ? "text-[#2D5A3D]" :
@@ -4495,7 +4495,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                             <div className={`text-xl font-bold ${gradeColor}`}>{score}/100</div>
                             <div className="text-[10px] text-stone-500 uppercase tracking-wider">Composite Score</div>
                             <div className="h-1.5 bg-stone-200/50 rounded-full mt-1.5 overflow-hidden">
-                              <div className={`h-full rounded-full ${grade === "A" ? "bg-[#2D5A3D]" : grade === "B" ? "bg-[#3B7EA1]" : grade === "C" ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${score}%` }} />
+                              <div className={`h-full rounded-full ${grade === "A" ? "bg-[#2D5A3D]" : grade === "B" ? "bg-[#3B7EA1]" : grade === "C" ? "bg-[#C49A2A]" : "bg-[#C8322B]"}`} style={{ width: `${score}%` }} />
                             </div>
                           </div>
                         </div>
@@ -6795,9 +6795,9 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
   };
 
   const readinessBarColor = (r: number) => {
-    if (r >= 70) return "bg-green-500";
-    if (r >= 30) return "bg-amber-500";
-    return "bg-red-500";
+    if (r >= 70) return "bg-[#2D5A3D]";
+    if (r >= 30) return "bg-[#C49A2A]";
+    return "bg-[#C8322B]";
   };
 
   if (loading) return <div className="p-4 text-center text-gray-500 text-sm">Loading development plan...</div>;
@@ -6840,7 +6840,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
         )}
 
         {projectStats && projectStats.completedTasks === projectStats.totalTasks && projectStats.totalTasks > 0 && (
-          <div className="mt-2 bg-green-500/30 border border-green-400/50 rounded-lg p-2 text-center text-sm font-medium">
+          <div className="mt-2 bg-[#2D5A3D]/30 border border-green-400/50 rounded-lg p-2 text-center text-sm font-medium">
             ALL PLANS COMPLETE — all {projectStats.totalTasks} tasks verified
           </div>
         )}
@@ -7077,7 +7077,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
       {plans.length === 0 && phases.length === 0 && !loading && (
         <div className="text-center py-6 text-gray-500">
           <p className="text-sm mb-2">No development plans synced yet.</p>
-          <button onClick={syncPlan} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">
+          <button onClick={syncPlan} className="px-4 py-2 bg-[#5B21B6] hover:bg-[#4a1a96] text-white text-sm rounded-lg">
             Sync All Plans
           </button>
         </div>

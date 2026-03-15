@@ -3179,6 +3179,77 @@ Private Key:    GOOGLE_ANALYTICS_PRIVATE_KEY → GOOGLE_SEARCH_CONSOLE_PRIVATE_K
 89. **Never mix CSS design systems** — neumorphic (`var(--neu-*)` shadows), shadcn/ui (Tailwind utility classes), and custom inline styles create visual inconsistency. One system per project. Clean Light replaces all three.
 90. **Dashboard redesign is UI-only** — no API changes, no data model changes, no business logic changes. Strictly visual conversion to maintain zero regression risk.
 
+### Session: March 15, 2026 — CEO Inbox: Automated Incident Response System
+
+**Complete CEO Inbox system — automated cron failure detection, diagnosis, auto-fix, delayed retest, and dashboard alerts.**
+
+**Problem:** When cron jobs failed in production, Khaled had no visibility. Failures were logged in CronJobLog but invisible on his iPhone. He had to wait for someone to notice and tell him. No auto-recovery, no email alerts, no plain-English diagnosis.
+
+**Solution: 5-step automated incident response pipeline:**
+
+| Step | What happens | Where |
+|------|-------------|-------|
+| 1. Detection | Any cron fails → `onCronFailure()` fires | `failure-hooks.ts:170` (via `withCronLog`) |
+| 2. Diagnosis | `interpretError()` converts raw error to plain English + fix suggestion | `ceo-inbox.ts:121` |
+| 3. Auto-fix | Calls mapped fix endpoint (sweeper, diagnostic, sync, etc.) with CRON_SECRET | `ceo-inbox.ts:194` |
+| 4. Delayed retest | Fire-and-forget fetch creates new serverless invocation, waits 2 min, retests | `ceo-inbox/route.ts:72` (maxDuration=300) |
+| 5. Notification | Email to ADMIN_EMAILS + inbox alert in cockpit + follow-up email with retest result | `ceo-inbox.ts:153,289` |
+
+**New Files:**
+- `lib/ops/ceo-inbox.ts` — Core library (~480 lines): `handleCronFailureNotice()`, `retestCronJob()`, `getInboxAlerts()`, `dismissAlert()`, `JOB_FIX_MAP` (12 job-to-fix strategies)
+- `app/api/admin/ceo-inbox/route.ts` — API (GET alerts, POST: delayed-retest/dismiss/retest/mark-read)
+
+**Fix Strategy Map (12 jobs):**
+
+| Job | Fix Endpoint | Pre-step |
+|-----|-------------|----------|
+| content-builder-create | sweeper | — |
+| content-builder | diagnostic-sweep | — |
+| content-selector | content-selector (retry) | — |
+| seo-agent | seo-agent (retry) | — |
+| sync-commissions | sync-commissions | sync-advertisers first |
+| sync-advertisers | sync-advertisers (retry) | — |
+| gsc-sync | gsc-sync (retry) | — |
+| content-auto-fix | content-auto-fix (retry) | — |
+| weekly-topics | weekly-topics (retry) | — |
+| diagnostic-sweep | diagnostic-sweep (retry) | — |
+| scheduled-publish | scheduled-publish (retry) | — |
+| affiliate-injection | affiliate-injection (retry) | — |
+
+**Cockpit UI — CeoInboxPanel:**
+- Red alert banner in Mission Control tab with unread count badge
+- Expandable list of incidents with status badges (NEW/FIXING/RETESTING/RESOLVED/FAILED)
+- Per-incident: plain-English diagnosis, fix result, retest result
+- Retry and Dismiss buttons per alert
+- Auto-hides when no active alerts
+
+**Cycle Health Fix Handlers (3 new):**
+- `builder-create-blocked`: runs sweeper + diagnostic agent
+- `cj-commission-sync-error`: syncs advertisers first, then commissions
+- `pipeline-drafting-backlog`: diagnostic sweep + content builder
+
+**Also Fixed:**
+- `content-builder-create`: `phase_attempts` filter `lt:3` → `lt:5` (stuck drafts 3-4 no longer block creation)
+- `vercel.json`: `sync-commissions` moved to `50 6 * * *` (20 min after sync-advertisers at 6:30)
+
+**Verification Audit (3 bugs caught and fixed):**
+1. Topic generation failures never reached CEO Inbox (returned early before fire-and-forget call) — **FIXED**
+2. `sendRetestEmail` empty catch block — **FIXED** (logs warning)
+3. Two hardcoded `yalla-london.com` fallback URLs in email functions — **FIXED** (dynamic via `getSiteDomain()`)
+
+**Auth Model:**
+- `delayed-retest` action bypasses admin auth (internal fire-and-forget call from `handleCronFailureNotice`)
+- All other actions (dismiss, retest, mark-read) require `requireAdmin()`
+- The actual cron retest uses CRON_SECRET for authentication
+
+### Critical Rules Learned (March 15 Session — CEO Inbox)
+
+91. **`delayed-retest` bypasses admin auth intentionally** — it's an internal self-invocation from `handleCronFailureNotice()`. The actual cron retest validates CRON_SECRET. The worst an attacker can do is consume 2 min of serverless budget (they need a valid entryId UUID).
+92. **CEO Inbox uses CronJobLog, not a new model** — `job_name: "ceo-inbox"`, `job_type: "alert"`, structured `result_summary` JSON. Avoids migration, ships faster.
+93. **All 4 cron failure paths must wire to CEO Inbox** — content crons, SEO crons, topic crons, and generic crons each have their own code path in `onCronFailure()`. Missing any one means those failures are invisible to the CEO. Always check all branches when modifying this function.
+94. **`JOB_FIX_MAP` must be updated when new crons are added** — any cron without a fix strategy gets `null` in the inbox alert (no auto-fix, no retest target). Add a mapping for every new cron job.
+95. **Fire-and-forget pattern: `import().then().catch()`** — the CEO inbox call must never block the failure hook, never crash it, and never consume remaining budget. Dynamic import + `.then()` + `.catch()` achieves all three.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

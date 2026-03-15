@@ -17,11 +17,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { getActiveSiteIds, getDefaultSiteId } from "@/config/sites";
 
-type PeriodKey = "6h" | "24h" | "3d" | "7d";
+type PeriodKey = "1h" | "6h" | "12h" | "24h" | "3d" | "7d";
 
 function periodToMs(period: PeriodKey): number {
   const map: Record<PeriodKey, number> = {
+    "1h": 3_600_000,
     "6h": 21_600_000,
+    "12h": 43_200_000,
     "24h": 86_400_000,
     "3d": 259_200_000,
     "7d": 604_800_000,
@@ -199,11 +201,54 @@ export async function GET(request: NextRequest) {
         error: fix.error,
       });
     }
-  } catch {
-    // AutoFixLog may not exist
+  } catch (err) {
+    console.warn("[ceo-feed] AutoFixLog query failed:", err instanceof Error ? err.message : err);
   }
 
-  // 1c. Manual dashboard actions
+  // 1c. AI calls (from ApiUsageLog — these are half the platform activity)
+  try {
+    const aiWhere: Record<string, unknown> = { createdAt: { gte: cutoff } };
+    if (siteId) aiWhere.siteId = siteId;
+
+    const aiCalls = await prisma.apiUsageLog.findMany({
+      where: aiWhere,
+      orderBy: { createdAt: "desc" },
+      take: 150,
+    });
+
+    for (const call of aiCalls) {
+      const cost = Number(call.estimatedCostUsd) || 0;
+      const tokens = Number(call.totalTokens) || 0;
+      const model = call.model || "unknown";
+      const provider = call.provider || "unknown";
+      const task = call.taskType || call.calledFrom || "ai-call";
+
+      let detail = "";
+      if (call.success) {
+        detail = `${provider}/${model} — ${tokens.toLocaleString()} tokens`;
+        if (cost > 0) detail += ` ($${cost.toFixed(4)})`;
+        if (call.calledFrom) detail += ` — ${formatCalledFrom(call.calledFrom)}`;
+      } else {
+        detail = `${provider}/${model} FAILED`;
+        if (call.errorMessage) detail += `: ${call.errorMessage.substring(0, 100)}`;
+      }
+
+      timeline.push({
+        id: `ai-${call.id}`,
+        time: call.createdAt.toISOString(),
+        icon: "ai",
+        title: formatTaskType(task),
+        detail,
+        status: call.success ? "success" : "failed",
+        category: "ai",
+        siteId: call.siteId,
+      });
+    }
+  } catch (err) {
+    console.warn("[ceo-feed] ApiUsageLog query failed:", err instanceof Error ? err.message : err);
+  }
+
+  // 1d. Manual dashboard actions
   try {
     const manualLogs = await prisma.auditLog.findMany({
       where: {
@@ -227,8 +272,8 @@ export async function GET(request: NextRequest) {
         siteId: null,
       });
     }
-  } catch {
-    // AuditLog may not have manual entries
+  } catch (err) {
+    console.warn("[ceo-feed] AuditLog manual query failed:", err instanceof Error ? err.message : err);
   }
 
   // Sort timeline by time descending
@@ -683,6 +728,40 @@ function formatFixType(fixType: string): string {
 
 function formatActionName(action: string): string {
   return action.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+function formatTaskType(task: string): string {
+  const names: Record<string, string> = {
+    content_generation: "Content Generation",
+    content_research: "Content Research",
+    content_outline: "Content Outline",
+    content_drafting: "Content Drafting",
+    content_assembly: "Content Assembly",
+    content_expansion: "Content Expansion",
+    seo_meta_generation: "SEO Meta Generation",
+    seo_optimization: "SEO Optimization",
+    seo_deep_review: "SEO Deep Review",
+    topic_research: "Topic Research",
+    arabic_translation: "Arabic Translation",
+    article_enhancement: "Article Enhancement",
+    diagnostic: "Diagnostic",
+    image_generation: "Image Generation",
+  };
+  return names[task] || task.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+function formatCalledFrom(caller: string): string {
+  const names: Record<string, string> = {
+    "content-builder": "pipeline",
+    "content-builder-create": "draft creation",
+    "daily-content-generate": "content generator",
+    "seo-agent": "SEO agent",
+    "seo-deep-review": "SEO review",
+    "content-auto-fix": "auto-fix",
+    "weekly-topics": "topic research",
+    "article-enhancer": "campaign enhancer",
+  };
+  return names[caller] || caller;
 }
 
 function summarizeJson(data: Record<string, unknown>): string {

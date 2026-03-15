@@ -45,7 +45,7 @@ function TabContainerInner({ tabs, defaultTab, children, title }: TabContainerPr
   return (
     <div>
       {title && (
-        <h1 className="text-lg font-bold mb-4" style={{ fontFamily: "'Anybody',sans-serif", color: '#1C1917' }}>
+        <h1 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", color: '#1C1917' }}>
           {title}
         </h1>
       )}
@@ -61,14 +61,15 @@ function TabContainerInner({ tabs, defaultTab, children, title }: TabContainerPr
               onClick={() => setTab(tab.id)}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all flex-shrink-0"
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                 fontSize: 10,
                 fontWeight: isActive ? 700 : 500,
                 textTransform: 'uppercase',
                 letterSpacing: 1,
                 color: isActive ? '#FAF8F4' : '#78716C',
-                backgroundColor: isActive ? '#C8322B' : 'var(--neu-bg, #EDE9E1)',
-                boxShadow: isActive ? '3px 3px 8px var(--neu-shadow-dark, #CAC5BC), -1px -1px 4px rgba(200,50,43,0.2)' : 'var(--neu-flat)',
+                backgroundColor: isActive ? '#C8322B' : '#FAF8F4',
+                boxShadow: isActive ? '0 1px 3px rgba(28,25,23,0.08)' : '0 1px 2px rgba(28,25,23,0.04)',
+                border: isActive ? 'none' : '1px solid rgba(214,208,196,0.4)',
                 minHeight: 44, // WCAG 2.2 target size
               }}
             >
@@ -92,8 +93,8 @@ function TabContainerInner({ tabs, defaultTab, children, title }: TabContainerPr
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="w-8 h-8 rounded-lg mx-auto mb-3 flex items-center justify-center animate-pulse"
-                 style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)' }}>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C' }}>...</span>
+                 style={{ backgroundColor: 'rgba(200,50,43,0.04)', border: '1px solid rgba(200,50,43,0.12)' }}>
+              <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C' }}>...</span>
             </div>
           </div>
         </div>

@@ -23,7 +23,7 @@ export function StickyActionBar({ children, className = '' }: StickyActionBarPro
         ${className}
       `}
       style={{
-        backgroundColor: 'var(--neu-bg, #EDE9E1)',
+        backgroundColor: '#FAF8F4',
         boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
         // Desktop: remove mobile shadow
       }}
@@ -67,17 +67,18 @@ export function ActionButton({
         transition-all active:scale-[0.97] disabled:opacity-50
       `}
       style={{
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
         fontSize: 11,
         fontWeight: 700,
         textTransform: 'uppercase',
         letterSpacing: 1,
         minHeight: 48, // WCAG 2.2 target size
         color: isPrimary ? '#FAF8F4' : '#1C1917',
-        backgroundColor: isPrimary ? '#C8322B' : 'var(--neu-bg, #EDE9E1)',
+        backgroundColor: isPrimary ? '#C8322B' : '#FAF8F4',
         boxShadow: isPrimary
-          ? '3px 3px 8px var(--neu-shadow-dark, #CAC5BC), -1px -1px 4px rgba(200,50,43,0.2)'
-          : 'var(--neu-flat)',
+          ? '0 1px 3px rgba(28,25,23,0.08), 0 0 0 1px rgba(200,50,43,0.2)'
+          : '0 1px 2px rgba(28,25,23,0.04)',
+        border: isPrimary ? 'none' : '1px solid rgba(214,208,196,0.4)',
       }}
     >
       {loading ? (

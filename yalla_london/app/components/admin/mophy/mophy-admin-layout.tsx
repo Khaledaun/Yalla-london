@@ -189,13 +189,13 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAF8F4' }}>
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: 'var(--neu-raised)' }}>
-            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>HQ</span>
+               style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.5)', boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}>
+            <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>HQ</span>
           </div>
-          <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>Loading HQ…</p>
+          <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>Loading HQ…</p>
         </div>
       </div>
     )
@@ -207,27 +207,27 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
   // SIDEBAR CONTENT (shared between mobile + desktop)
   // ─────────────────────────────────────────────────────────────────────────────
   const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
-    <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)' }}>
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#FFFFFF' }}>
       {/* Tri-color bar */}
-      <div className="neu-tricolor flex-shrink-0">
-        <div className="neu-tricolor-red" />
-        <div className="neu-tricolor-gold" />
-        <div className="neu-tricolor-stamp" />
+      <div className="flex-shrink-0 h-[3px] flex">
+        <div style={{ flex: 1, background: '#C8322B' }} />
+        <div style={{ flex: 1, background: '#C49A2A' }} />
+        <div style={{ flex: 1, background: '#3B7EA1' }} />
       </div>
 
       {/* Logo + ops chip */}
       <div className="px-5 pt-4 pb-3 flex-shrink-0 flex items-center justify-between">
         <Link href="/admin" onClick={onClose} className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
-            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>HQ</span>
+               style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.5)' }}>
+            <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>HQ</span>
           </div>
           {sidebarOpen && (
             <div>
-              <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 14, color: '#1C1917', letterSpacing: -0.3 }}>
+              <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 14, color: '#1C1917', letterSpacing: -0.3 }}>
                 Zenitha HQ
               </div>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>
+              <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>
                 HQ OPS
               </div>
             </div>
@@ -266,8 +266,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                 onClick={() => toggleMenu(section.id)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all relative"
                 style={{
-                  boxShadow: active ? 'var(--neu-inset)' : undefined,
-                  backgroundColor: 'var(--neu-bg)',
+                  backgroundColor: active ? 'rgba(200,50,43,0.04)' : undefined, border: active ? '1px solid rgba(200,50,43,0.12)' : undefined,
+                  backgroundColor: '#FAF8F4',
                 }}
               >
                 {/* Active indicator */}
@@ -279,8 +279,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                 {/* Icon container */}
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
                      style={{
-                       backgroundColor: 'var(--neu-bg)',
-                       boxShadow: active ? 'var(--neu-inset)' : 'var(--neu-flat)',
+                       backgroundColor: '#FAF8F4',
+                       backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF', border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
                        color: active ? '#C8322B' : '#78716C',
                      }}>
                   <Icon size={15} />
@@ -290,7 +290,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                   <>
                     <div className="flex-1 text-left">
                       <div style={{
-                        fontFamily: "'IBM Plex Mono',monospace",
+                        fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                         fontSize: 10, fontWeight: active ? 600 : 500,
                         textTransform: 'uppercase', letterSpacing: 1,
                         color: active ? '#1C1917' : '#78716C',
@@ -325,12 +325,12 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                         onClick={onClose}
                         className="block px-3 py-2 rounded-lg transition-all"
                         style={{
-                          fontFamily: "'IBM Plex Mono',monospace",
+                          fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                           fontSize: 10, fontWeight: itemActive ? 600 : 400,
                           textTransform: 'uppercase', letterSpacing: 0.8,
                           color: itemActive ? '#C8322B' : '#78716C',
                           backgroundColor: itemActive ? 'rgba(200,50,43,0.05)' : 'transparent',
-                          boxShadow: itemActive ? 'var(--neu-inset)' : undefined,
+                          backgroundColor: itemActive ? 'rgba(200,50,43,0.04)' : undefined,
                         }}
                       >
                         {item.label}
@@ -355,16 +355,16 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
           <div className="flex items-center gap-3">
             {/* Avatar */}
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                 style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
-              <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 14, color: '#C8322B' }}>
+                 style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 14, color: '#C8322B' }}>
                 {session?.user?.name?.charAt(0)?.toUpperCase() || 'A'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 12, color: '#1C1917' }} className="truncate">
+              <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 12, color: '#1C1917' }} className="truncate">
                 {session?.user?.name || 'Admin'}
               </div>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
+              <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
                 Administrator
               </div>
             </div>
@@ -385,14 +385,14 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
   )
 
   return (
-    <div className="min-h-screen admin-neu-body" style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)' }}>
+    <div className="min-h-screen admin-page" style={{ backgroundColor: '#FAF8F4' }}>
 
       {/* ── Mobile Sidebar Overlay ────────────────────────────────────────── */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeMobile} />
           <aside className="absolute inset-y-0 left-0 w-72 flex flex-col overflow-hidden"
-                 style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: '4px 0 30px rgba(28,25,23,0.15)' }}>
+                 style={{ backgroundColor: '#FFFFFF', boxShadow: '4px 0 20px rgba(28,25,23,0.08)' }}>
             <SidebarContent onClose={closeMobile} />
           </aside>
         </div>
@@ -400,7 +400,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
       {/* ── Desktop Sidebar ──────────────────────────────────────────────── */}
       <aside className={`fixed top-0 left-0 z-40 h-full flex-col hidden lg:flex transition-all duration-300 overflow-hidden ${sidebarOpen ? 'w-[270px]' : 'w-[68px]'}`}
-             style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: '4px 0 20px rgba(28,25,23,0.07)' }}>
+             style={{ backgroundColor: '#FFFFFF', borderRight: '1px solid rgba(214,208,196,0.4)' }}>
         {!sidebarOpen && (
           <div className="flex flex-col items-center pt-4 gap-3">
             {/* Tri-color bar slim */}
@@ -412,8 +412,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             {/* Logo icon */}
             <button onClick={() => setSidebarOpen(true)}
                     className="w-10 h-10 rounded-xl flex items-center justify-center mt-1"
-                    style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
-              <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 16, color: '#C8322B' }}>Y</span>
+                    style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 16, color: '#C8322B' }}>Y</span>
             </button>
             {/* Icon-only nav */}
             <div className="flex flex-col gap-1 px-2 mt-2">
@@ -424,8 +424,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                   <Link key={section.id} href={section.items[0]?.href || '/admin'} title={section.label}
                         className="w-11 h-11 rounded-xl flex items-center justify-center transition-all"
                         style={{
-                          backgroundColor: 'var(--neu-bg)',
-                          boxShadow: active ? 'var(--neu-inset)' : 'var(--neu-flat)',
+                          backgroundColor: '#FAF8F4',
+                          backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF', border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
                           color: active ? '#C8322B' : '#78716C',
                         }}>
                     <Icon size={17} />
@@ -440,7 +440,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
       {/* ── Top Header ───────────────────────────────────────────────────── */}
       <header className={`fixed top-0 right-0 z-30 h-14 flex items-center transition-all duration-300 ${sidebarOpen ? 'lg:left-[270px]' : 'lg:left-[68px]'} left-0`}
-              style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: '0 2px 8px rgba(28,25,23,0.06)', borderBottom: '1px solid rgba(120,113,108,0.1)' }}>
+              style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(214,208,196,0.4)' }}>
         {/* Tri-color top bar — very top of header */}
         <div className="absolute top-0 left-0 right-0 h-[3px] flex">
           <div style={{ flex: 1, background: '#C8322B' }} />
@@ -454,17 +454,17 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             {/* Mobile hamburger */}
             <button onClick={() => setMobileMenuOpen(true)}
                     className="lg:hidden p-2 rounded-lg transition-all"
-                    style={{ boxShadow: 'var(--neu-flat)', backgroundColor: 'var(--neu-bg)', color: '#78716C' }}>
+                    style={{ boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', backgroundColor: '#FAF8F4', color: '#78716C' }}>
               <Menu size={18} />
             </button>
             {/* Sidebar toggle (desktop) */}
             <button onClick={() => setSidebarOpen(!sidebarOpen)}
                     className="hidden lg:flex p-2 rounded-lg transition-all"
-                    style={{ boxShadow: 'var(--neu-flat)', backgroundColor: 'var(--neu-bg)', color: '#78716C' }}>
+                    style={{ boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', backgroundColor: '#FAF8F4', color: '#78716C' }}>
               <Menu size={16} />
             </button>
             {pageTitle && (
-              <h1 style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 16, color: '#1C1917' }} className="hidden md:block">
+              <h1 style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 16, color: '#1C1917' }} className="hidden md:block">
                 {pageTitle}
               </h1>
             )}
@@ -475,7 +475,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             {/* Quick new article */}
             <Link href="/admin/articles/new"
                   className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, backgroundColor: '#C8322B', color: '#FAF8F4', boxShadow: '3px 3px 8px var(--neu-shadow-dark,#CAC5BC), -1px -1px 4px rgba(200,50,43,0.2)' }}>
+                  style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, backgroundColor: '#C8322B', color: '#FAF8F4', boxShadow: '0 2px 6px rgba(200,50,43,0.15)' }}>
               <Plus size={12} />
               New Article
             </Link>
@@ -486,10 +486,10 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             <div className="relative">
               <button onClick={() => setUserMenuOpen(!userMenuOpen)}
                       className="flex items-center gap-2 p-1.5 rounded-xl transition-all"
-                      style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)' }}>
+                      style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
                 <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                     style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
-                  <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 11, color: '#C8322B' }}>
+                     style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
+                  <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 11, color: '#C8322B' }}>
                     {session?.user?.name?.charAt(0)?.toUpperCase() || 'A'}
                   </span>
                 </div>
@@ -500,12 +500,12 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl z-50 overflow-hidden"
-                       style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
+                       style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
                     <div className="p-4" style={{ borderBottom: '1px solid rgba(120,113,108,0.12)' }}>
-                      <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                      <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
                         {session?.user?.name || 'Admin'}
                       </div>
-                      <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#78716C', letterSpacing: 0.5 }} className="mt-0.5 truncate">
+                      <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C', letterSpacing: 0.5 }} className="mt-0.5 truncate">
                         {session?.user?.email || ''}
                       </div>
                     </div>
@@ -518,7 +518,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                       ].map(({ label, href, icon: Icon }) => (
                         <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}
                               className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all"
-                              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                              style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
                           <Icon size={13} />
                           {label}
                         </Link>
@@ -527,7 +527,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                     <div className="p-2" style={{ borderTop: '1px solid rgba(120,113,108,0.12)' }}>
                       <button onClick={handleSignOut}
                               className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all"
-                              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, color: '#C8322B' }}>
+                              style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, color: '#C8322B' }}>
                         <LogOut size={13} />
                         Sign Out
                       </button>
@@ -542,7 +542,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
       {/* ── Main Content ─────────────────────────────────────────────────── */}
       <main className={`min-h-screen transition-all duration-300 pt-14 pb-20 lg:pb-0 ${sidebarOpen ? 'lg:ml-[270px]' : 'lg:ml-[68px]'}`}
-            style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)' }}>
+            style={{ backgroundColor: '#FAF8F4' }}>
         <div className="p-4 lg:p-6">
           {children}
         </div>
@@ -550,7 +550,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
       {/* ── Mobile Bottom Nav ─────────────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
-           style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: '0 -3px 12px rgba(28,25,23,0.08)', borderTop: '1px solid rgba(120,113,108,0.1)' }}>
+           style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid rgba(214,208,196,0.4)' }}>
         <div className="flex items-center justify-around h-14 px-2">
           {mobileBottomNav.map((item) => {
             const Icon = item.icon
@@ -563,7 +563,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                         className="flex flex-col items-center gap-0.5 min-w-[44px] py-1"
                         style={{ color: '#78716C' }}>
                   <Icon size={19} />
-                  <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>More</span>
+                  <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>More</span>
                 </button>
               )
             }
@@ -572,7 +572,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
               return (
                 <Link key="new" href={item.href}
                       className="flex items-center justify-center w-11 h-11 -mt-4 rounded-full transition-all"
-                      style={{ backgroundColor: '#C8322B', boxShadow: '4px 4px 10px var(--neu-shadow-dark,#CAC5BC), -2px -2px 6px rgba(200,50,43,0.25)', color: '#FAF8F4' }}>
+                      style={{ backgroundColor: '#C8322B', boxShadow: '0 4px 12px rgba(200,50,43,0.2)', color: '#FAF8F4' }}>
                   <Icon size={20} />
                 </Link>
               )
@@ -583,7 +583,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                     className="flex flex-col items-center gap-0.5 min-w-[44px] py-1 transition-all"
                     style={{ color: active ? '#C8322B' : '#78716C' }}>
                 <Icon size={19} />
-                <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.label}</span>
+                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.label}</span>
               </Link>
             )
           })}

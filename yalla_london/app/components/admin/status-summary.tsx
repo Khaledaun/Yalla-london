@@ -44,7 +44,7 @@ export function StatusSummary({ cards, loading = false }: StatusSummaryProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         {[1, 2, 3].map((i) => (
           <div key={i} className="rounded-xl p-4 animate-pulse"
-               style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-inset)' }}>
+               style={{ backgroundColor: 'rgba(200,50,43,0.04)', border: '1px solid rgba(200,50,43,0.12)' }}>
             <div className="h-3 rounded w-16 mb-3" style={{ backgroundColor: 'rgba(120,113,108,0.15)' }} />
             <div className="h-6 rounded w-12 mb-2" style={{ backgroundColor: 'rgba(120,113,108,0.12)' }} />
             <div className="h-3 rounded w-3/4" style={{ backgroundColor: 'rgba(120,113,108,0.1)' }} />
@@ -63,8 +63,9 @@ export function StatusSummary({ cards, loading = false }: StatusSummaryProps) {
             key={card.heading}
             className="rounded-xl p-4 transition-all"
             style={{
-              backgroundColor: 'var(--neu-bg, #EDE9E1)',
-              boxShadow: 'var(--neu-flat)',
+              backgroundColor: '#FAF8F4',
+              boxShadow: '0 1px 2px rgba(28,25,23,0.04)',
+              border: '1px solid rgba(214,208,196,0.4)',
               borderLeft: `3px solid ${borderColor}`,
             }}
           >
@@ -72,7 +73,7 @@ export function StatusSummary({ cards, loading = false }: StatusSummaryProps) {
             <div className="flex items-center gap-2 mb-2">
               {card.icon}
               <span style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                 fontSize: 9,
                 fontWeight: 700,
                 textTransform: 'uppercase',
@@ -86,7 +87,7 @@ export function StatusSummary({ cards, loading = false }: StatusSummaryProps) {
             {/* Metric */}
             {card.metric !== undefined && (
               <div style={{
-                fontFamily: "'Anybody', sans-serif",
+                fontFamily: "var(--font-display,'Anybody',sans-serif)",
                 fontSize: 28,
                 fontWeight: 800,
                 color: '#1C1917',
@@ -99,7 +100,7 @@ export function StatusSummary({ cards, loading = false }: StatusSummaryProps) {
             {/* Detail */}
             {card.detail && (
               <p style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                 fontSize: 10,
                 color: '#78716C',
                 marginTop: 2,
@@ -124,7 +125,7 @@ export function StatusSummary({ cards, loading = false }: StatusSummaryProps) {
                 onClick={card.action.onClick}
                 className="mt-3 px-3 py-1.5 rounded-lg transition-all active:scale-[0.97]"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                   fontSize: 10,
                   fontWeight: 600,
                   textTransform: 'uppercase',

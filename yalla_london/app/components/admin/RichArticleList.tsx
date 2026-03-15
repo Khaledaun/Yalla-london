@@ -202,11 +202,11 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
         <>
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h2 style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
+              <h2 style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
                 Article Library
               </h2>
               {summary && (
-                <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C' }}>
+                <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#78716C' }}>
                   {summary.published} published · {summary.inProgress} in pipeline · {summary.reservoir} ready
                 </p>
               )}
@@ -214,11 +214,11 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
             <div className="flex gap-2">
               <Link href="/admin/articles/new"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ backgroundColor: '#C8322B', color: '#FAF8F4', fontFamily: "'Anybody',sans-serif", fontWeight: 700 }}>
+                    style={{ backgroundColor: '#C8322B', color: '#FAF8F4', fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700 }}>
                 + New Article
               </Link>
               <button onClick={load} className="p-2 rounded-lg transition-all"
-                      style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                      style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
                 <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
               </button>
             </div>
@@ -234,9 +234,9 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                 { label: 'Index Errors',  val: indexing.error,        color: '#C8322B' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="text-center py-3 rounded-xl"
-                     style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat,1px 1px 3px #CAC5BC)' }}>
-                  <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 22, color }}>{val}</div>
-                  <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+                     style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
+                  <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 22, color }}>{val}</div>
+                  <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -255,7 +255,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search articles..."
             className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
-            style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset,inset 2px 2px 5px #CAC5BC)', fontFamily: "'IBM Plex Mono',monospace", border: 'none', color: '#1C1917' }}
+            style={{ backgroundColor: '#FAF8F4', boxShadow: 'none', fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", border: '1px solid rgba(214,208,196,0.4)', color: '#1C1917' }}
           />
         </div>
 
@@ -265,7 +265,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
             {(['all', 'published', 'drafts'] as const).map((s) => (
               <button key={s} onClick={() => setSourceFilter(s)}
                       className="px-3 py-1.5 rounded-lg text-xs transition-all"
-                      style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, backgroundColor: sourceFilter === s ? '#1C1917' : 'var(--neu-bg)', color: sourceFilter === s ? '#FAF8F4' : '#78716C', boxShadow: sourceFilter === s ? 'none' : 'var(--neu-flat)' }}>
+                      style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, backgroundColor: sourceFilter === s ? '#1C1917' : '#FAF8F4', color: sourceFilter === s ? '#FAF8F4' : '#78716C', boxShadow: sourceFilter === s ? 'none' : '0 1px 2px rgba(28,25,23,0.04)', border: sourceFilter === s ? 'none' : '1px solid rgba(214,208,196,0.4)' }}>
                 {s}
               </button>
             ))}
@@ -275,7 +275,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
         {/* Status filter */}
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-1.5 rounded-lg text-xs outline-none border-none"
-                style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
           <option value="all">All statuses</option>
           <option value="published">Published</option>
           <option value="draft">Draft</option>
@@ -290,8 +290,8 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
              style={{ backgroundColor: 'rgba(200,50,43,0.08)', border: '1px solid rgba(200,50,43,0.15)' }}>
           <AlertTriangle size={14} style={{ color: '#C8322B', flexShrink: 0 }} />
-          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#C8322B', flex: 1 }}>{error}</span>
-          <button onClick={load} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#C8322B', textDecoration: 'underline' }}>Retry</button>
+          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#C8322B', flex: 1 }}>{error}</span>
+          <button onClick={load} style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#C8322B', textDecoration: 'underline' }}>Retry</button>
         </div>
       )}
 
@@ -299,8 +299,8 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
       {submitError && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl"
              style={{ backgroundColor: 'rgba(200,50,43,0.06)', border: '1px solid rgba(200,50,43,0.12)' }}>
-          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#C8322B' }}>{submitError}</span>
-          <button onClick={() => setSubmitError(null)} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#78716C' }}>dismiss</button>
+          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#C8322B' }}>{submitError}</span>
+          <button onClick={() => setSubmitError(null)} style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C' }}>dismiss</button>
         </div>
       )}
 
@@ -308,13 +308,13 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
       {loading && articles.length === 0 ? (
         <div className="text-center py-12">
           <Loader2 size={24} className="mx-auto animate-spin mb-2" style={{ color: '#78716C' }} />
-          <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C' }}>Loading articles...</p>
+          <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#78716C' }}>Loading articles...</p>
         </div>
       ) : articles.length === 0 ? (
         <div className="text-center py-12 rounded-xl"
              style={{ backgroundColor: 'rgba(120,113,108,0.04)', border: '1px dashed rgba(120,113,108,0.2)' }}>
           <FileText size={32} className="mx-auto mb-2" style={{ color: '#A8A29E' }} />
-          <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C' }}>
+          <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#78716C' }}>
             No articles found
           </p>
         </div>
@@ -328,7 +328,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
             return (
               <div key={article.id} className="rounded-xl overflow-hidden"
-                   style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: 'var(--neu-flat,1px 1px 3px #CAC5BC, -1px -1px 3px #FDFAF5)' }}>
+                   style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
                 {/* Main row */}
                 <div className="flex items-start gap-3 p-3 sm:p-4">
                   {/* Type indicator */}
@@ -343,7 +343,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-2 flex-wrap">
-                      <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: compact ? 12 : 13, color: '#1C1917', lineHeight: 1.3 }}
+                      <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: compact ? 12 : 13, color: '#1C1917', lineHeight: 1.3 }}
                             className="flex-1 min-w-0">
                         {article.title}
                       </span>
@@ -353,14 +353,14 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                       {/* Status badge */}
                       <span className="px-1.5 py-0.5 rounded text-xs"
-                            style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, fontWeight: 600, backgroundColor: statusConf.bg, color: statusConf.color }}>
+                            style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, fontWeight: 600, backgroundColor: statusConf.bg, color: statusConf.color }}>
                         {article.phase ? article.phaseLabel : statusConf.label}
                       </span>
 
                       {/* SEO Score */}
                       {article.seoScore !== null && (
                         <span className="flex items-center gap-1"
-                              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: seoScoreColor(article.seoScore) }}>
+                              style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: seoScoreColor(article.seoScore) }}>
                           <TrendingUp size={9} />
                           SEO {article.seoScore}
                         </span>
@@ -368,7 +368,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
                       {/* Word count */}
                       {article.wordCountEn > 0 && (
-                        <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: article.wordCountEn >= 1000 ? '#2D5A3D' : '#C49A2A' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: article.wordCountEn >= 1000 ? '#2D5A3D' : '#C49A2A' }}>
                           <BookOpen size={9} className="inline mr-0.5" />
                           {article.wordCountEn.toLocaleString()} words
                         </span>
@@ -376,7 +376,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
                       {/* Bilingual */}
                       {article.isBilingual && (
-                        <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#4A7BA8' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#4A7BA8' }}>
                           <Languages size={9} className="inline mr-0.5" />
                           Bilingual
                         </span>
@@ -385,21 +385,21 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                       {/* Indexing */}
                       {article.type === 'published' && (
                         <span className="flex items-center gap-0.5"
-                              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: idxConf.color }}>
+                              style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: idxConf.color }}>
                           <IdxIcon size={9} />
                           {idxConf.label}
                         </span>
                       )}
 
                       {/* Date */}
-                      <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#A8A29E' }}>
+                      <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#A8A29E' }}>
                         <Clock size={9} className="inline mr-0.5" />
                         {timeAgo(article.updatedAt)}
                       </span>
 
                       {/* Error flag */}
                       {article.hasError && (
-                        <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#C8322B' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#C8322B' }}>
                           <AlertTriangle size={9} className="inline mr-0.5" />
                           Error
                         </span>
@@ -415,7 +415,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                             <div className="h-full rounded-full transition-all"
                                  style={{ width: `${article.phaseProgress}%`, backgroundColor: article.phaseProgress >= 100 ? '#2D5A3D' : '#C49A2A' }} />
                           </div>
-                          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#A8A29E', flexShrink: 0 }}>
+                          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#A8A29E', flexShrink: 0 }}>
                             {article.phaseProgress}%
                           </span>
                         </div>
@@ -438,26 +438,26 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                     {article.type === 'published' && article.publicUrl && (
                       <a href={article.publicUrl} target="_blank" rel="noreferrer"
                          className="p-1.5 rounded-lg transition-all" title="View public"
-                         style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                         style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
                         <Eye size={12} />
                       </a>
                     )}
                     <Link href={`/admin/editor?id=${article.id}&type=${article.type}`}
                           className="p-1.5 rounded-lg transition-all" title="Edit"
-                          style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                          style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
                       <Edit3 size={12} />
                     </Link>
                     {article.type === 'published' && article.indexingStatus !== 'indexed' && (
                       <button onClick={() => submitToIndexNow(article.id)}
                               disabled={submitting === article.id}
                               className="p-1.5 rounded-lg transition-all" title="Submit to IndexNow"
-                              style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#4A7BA8' }}>
+                              style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#4A7BA8' }}>
                         {submitting === article.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                       </button>
                     )}
                     <button onClick={() => toggleExpanded(article.id)}
                             className="p-1.5 rounded-lg transition-all"
-                            style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                            style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
                       {isExp ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </button>
                   </div>
@@ -481,24 +481,24 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                       ].map(({ label, val }) => (
                         <div key={label} className="py-2 rounded-lg"
                              style={{ backgroundColor: 'rgba(120,113,108,0.06)' }}>
-                          <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 14, color: '#1C1917' }}>{val}</div>
-                          <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</div>
+                          <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 14, color: '#1C1917' }}>{val}</div>
+                          <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</div>
                         </div>
                       ))}
                     </div>
                     {article.error && (
                       <div className="px-3 py-2 rounded-lg text-xs"
-                           style={{ fontFamily: "'IBM Plex Mono',monospace", backgroundColor: 'rgba(200,50,43,0.08)', color: '#C8322B' }}>
+                           style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", backgroundColor: 'rgba(200,50,43,0.08)', color: '#C8322B' }}>
                         Error: {article.error}
                       </div>
                     )}
                     {article.lastSubmittedAt && (
-                      <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                      <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                         Last submitted to IndexNow: {timeAgo(article.lastSubmittedAt)}
                       </div>
                     )}
                     {article.slug && (
-                      <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#A8A29E' }}>
+                      <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#A8A29E' }}>
                         /{article.slug}
                       </div>
                     )}

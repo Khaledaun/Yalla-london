@@ -334,6 +334,11 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
     // Topic generation — check backlog with timeout
     if (ctx.jobName.includes("weekly-topics") || ctx.jobName.includes("topic")) {
       await withTimeout(handleTopicGenerationFailure(errorMsg, detectedAt, category), 4000, undefined);
+
+      // CEO Inbox — fire-and-forget
+      import("@/lib/ops/ceo-inbox")
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
 

@@ -403,7 +403,8 @@ async function sendAlertEmail(
     const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
     if (adminEmails.length === 0) return;
 
-    const baseUrl = getBaseUrlFromEnv() || "https://www.yalla-london.com";
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    const baseUrl = getBaseUrlFromEnv() || `https://www.${getSiteDomain(getDefaultSiteId())}`;
 
     await sendEmail({
       to: adminEmails[0],
@@ -450,7 +451,8 @@ async function sendRetestEmail(
     const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
     if (adminEmails.length === 0) return;
 
-    const baseUrl = getBaseUrlFromEnv() || "https://www.yalla-london.com";
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    const baseUrl = getBaseUrlFromEnv() || `https://www.${getSiteDomain(getDefaultSiteId())}`;
     const emoji = result.success ? "✅" : "❌";
     const color = result.success ? "#2D5A3D" : "#C8322B";
     const bgColor = result.success ? "#F0FDF4" : "#FEF2F2";
@@ -472,7 +474,7 @@ async function sendRetestEmail(
         </div>
       `,
     });
-  } catch {
-    // Best-effort
+  } catch (err) {
+    console.warn("[ceo-inbox] Retest email send failed:", err instanceof Error ? err.message : err);
   }
 }

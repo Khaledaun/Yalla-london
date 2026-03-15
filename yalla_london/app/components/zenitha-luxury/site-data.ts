@@ -3,231 +3,303 @@
  *
  * All content arrays for the homepage sections.
  * Edit these arrays to update content without touching layout code.
- * Items marked with [PLACEHOLDER] should be replaced with real content.
+ * Items marked with TODO should be replaced with real content.
+ *
+ * Content sourced from zenitha-layout-skeleton.html.
  */
 
-// ─── Process Steps ──────────────────────────────────────────────────
+// ─── Navigation ─────────────────────────────────────────────────────
 
-export interface ProcessStep {
-  number: string;
-  title: string;
-  description: string;
-  icon: 'discover' | 'design' | 'build' | 'grow';
+export interface NavItem {
+  label: string;
+  href: string;
 }
 
-export const PROCESS_STEPS: ProcessStep[] = [
-  {
-    number: '01',
-    title: 'Discover',
-    description:
-      'We begin by understanding the destination, the audience, and the opportunity. Deep market research, competitor analysis, and cultural nuance inform every decision before a single line of code is written.',
-    icon: 'discover',
-  },
-  {
-    number: '02',
-    title: 'Design',
-    description:
-      'Each brand receives a bespoke visual identity — typography, color palette, photography direction, and user experience tailored to its specific audience and market position.',
-    icon: 'design',
-  },
-  {
-    number: '03',
-    title: 'Build',
-    description:
-      'Our shared technology platform powers every brand with enterprise-grade SEO, automated content pipelines, affiliate monetization, and analytics — built once, deployed everywhere.',
-    icon: 'build',
-  },
-  {
-    number: '04',
-    title: 'Grow',
-    description:
-      'Continuous optimization through AI-driven content, search performance monitoring, conversion rate testing, and strategic partnerships that compound over time.',
-    icon: 'grow',
-  },
+export const NAV_ITEMS: NavItem[] = [
+  { label: 'About', href: '#about' },
+  { label: 'Services', href: '#services' },
+  { label: 'Yalla London', href: '#yalla-london' },
+  { label: 'Zenitha Yachts', href: '#zenitha-yachts' },
+  { label: 'Coming Soon', href: '#coming-soon' },
 ];
 
-// ─── Values ─────────────────────────────────────────────────────────
+// ─── Hero Stats ─────────────────────────────────────────────────────
 
-export interface Value {
+export interface HeroStat {
+  value: string;
+  label: string;
+}
+
+export const HERO_STATS: HeroStat[] = [
+  { value: 'EN/AR', label: 'Bilingual Focus' },
+  { value: '2', label: 'Live Platforms' },
+  { value: 'Global', label: 'Travel Audience' },
+  { value: '2026', label: 'Growth Year' },
+];
+
+// ─── Pillars (About section) ────────────────────────────────────────
+
+export interface Pillar {
   title: string;
   description: string;
 }
 
-export const VALUES: Value[] = [
+export const PILLARS: Pillar[] = [
   {
-    title: 'Quality Over Quantity',
+    title: 'Technology First',
     description:
-      'Every article, every recommendation, every partnership meets the same uncompromising standard. We would rather publish one exceptional guide than ten mediocre ones.',
+      'Modern web stack (e.g. Next.js, TypeScript, Supabase) for speed, reliability, and global scalability. Actual implementation should align with your existing codebase.',
   },
   {
-    title: 'Authentic Expertise',
+    title: 'Bilingual by Design',
     description:
-      'First-hand experience drives everything we create. Our content reflects genuine knowledge of each destination — the hidden restaurants, the overlooked neighborhoods, the details only locals know.',
+      'English and Arabic baked into every experience — the exact language toggle and i18n system are not defined here and must be handled in your product architecture.',
   },
   {
-    title: 'Technology as Leverage',
+    title: 'Curated Experiences',
     description:
-      'A single powerful platform multiplies the impact of every brand. Shared infrastructure means better SEO, faster content, and more reliable monetization across the entire portfolio.',
+      'Every hotel, itinerary, and recommendation is intentionally selected, not bulk\u2011aggregated. Data sources and partners are not specified in this skeleton.',
   },
   {
-    title: 'Long-Term Thinking',
+    title: 'Privacy & Discretion',
     description:
-      'We build brands designed to last decades, not chase trends. Compounding traffic, deepening authority, and expanding partnerships create sustainable value over time.',
-  },
-  {
-    title: 'Cultural Sensitivity',
-    description:
-      'Serving travelers from the Gulf and beyond requires genuine understanding — of halal needs, family travel preferences, and the luxury standards of our audience.',
-  },
-  {
-    title: 'Radical Transparency',
-    description:
-      'Every recommendation includes clear affiliate disclosure. Our readers trust us because we never compromise editorial integrity for commission.',
+      'Journeys are designed for users who value subtlety and confidentiality. Concrete privacy guarantees and policies should be taken from your legal docs.',
   },
 ];
 
-// ─── Services ───────────────────────────────────────────────────────
+// ─── Service Tabs ───────────────────────────────────────────────────
 
-export interface Service {
+export interface ServiceTab {
+  id: string;
+  label: string;
   title: string;
   description: string;
-  icon: 'brand' | 'web' | 'content' | 'seo' | 'affiliate' | 'analytics' | 'automation' | 'consulting' | 'media';
+  /** Path to image in public/branding/zenitha-luxury/ */
+  image: string;
+  imageAlt: string;
+  items: string[];
+  ctaLabel: string;
+  ctaHref: string;
 }
 
-export const SERVICES: Service[] = [
+export const SERVICE_TABS: ServiceTab[] = [
   {
-    title: 'Brand Creation',
+    id: 'yalla-london',
+    label: 'Yalla London',
+    title: 'Yalla London — Luxury City Discovery',
     description:
-      'Complete destination brand development — from naming and visual identity to positioning and launch strategy.',
-    icon: 'brand',
+      'A bilingual (EN/AR) digital guide to London for luxury travellers. This platform focuses on neighbourhood discovery, hotels, restaurants, and shopping areas that align with high\u2011end tastes.',
+    // TODO: Replace with real Yalla London hero asset.
+    image: '/branding/zenitha-luxury/images/gallery-1.png',
+    imageAlt: 'London Luxury Travel',
+    items: [
+      'Home / landing with hero, sections for hotels, dining, shopping, and seasonal highlights.',
+      'Neighbourhood pages (e.g. Mayfair, Knightsbridge, Chelsea) with bilingual content.',
+      'Hotel collections by area or theme, using card grids and outbound links / affiliate logic defined in product.',
+      'Dining & experience pages for restaurants, afternoon tea, and private tours.',
+      'Seasonal pages (e.g. summer in London, winter shopping, major events).',
+      'Contact / concierge enquiry flows that connect to your own CRM or email systems.',
+    ],
+    ctaLabel: 'View Yalla London Structure',
+    ctaHref: '#yalla-london',
   },
   {
-    title: 'Web Design & Development',
+    id: 'zenitha-yachts',
+    label: 'Zenitha Yachts',
+    title: 'Zenitha Yachts — Charter Journeys',
     description:
-      'High-performance Next.js websites optimized for speed, SEO, and conversion. Mobile-first, accessible, multilingual.',
-    icon: 'web',
-  },
-  {
-    title: 'Content Strategy',
-    description:
-      'AI-augmented editorial pipelines that produce authentic, SEO-optimized travel content at scale — in English and Arabic.',
-    icon: 'content',
-  },
-  {
-    title: 'Search Optimization',
-    description:
-      'Technical SEO, on-page optimization, schema markup, and indexing automation across Google, Bing, and AI search engines.',
-    icon: 'seo',
-  },
-  {
-    title: 'Affiliate Monetization',
-    description:
-      'Revenue infrastructure with tracked affiliate links, commission attribution, and strategic partner selection per destination.',
-    icon: 'affiliate',
-  },
-  {
-    title: 'Analytics & Intelligence',
-    description:
-      'GA4 integration, Google Search Console monitoring, traffic analysis, and data-driven decision-making dashboards.',
-    icon: 'analytics',
-  },
-  {
-    title: 'Marketing Automation',
-    description:
-      'Automated publishing, social media scheduling, email campaigns, and content distribution across multiple channels.',
-    icon: 'automation',
-  },
-  {
-    title: 'Yacht Charter Platform',
-    description:
-      'Purpose-built charter search, AI-powered yacht matching, inquiry CRM, and broker partnership management.',
-    icon: 'consulting',
-  },
-  {
-    title: 'Digital Media',
-    description:
-      'Design systems, brand kits, video production templates, email builders, and social media content generation.',
-    icon: 'media',
+      'A digital front door for yacht charter discovery — focused on itinerary inspiration and enquiry capture across the Mediterranean, Arabian Gulf and Caribbean.',
+    // TODO: Replace with real Zenitha Yachts hero asset.
+    image: '/branding/zenitha-luxury/images/gallery-4.png',
+    imageAlt: 'Yacht Charter Sunset',
+    items: [
+      'Landing page with regions overview and primary charter enquiry CTA.',
+      'Region pages (Mediterranean, Arabian Gulf, Caribbean) with curated content and imagery.',
+      'Itinerary inspiration pages (sample 7\u2011day / 10\u2011day routes).',
+      'Yacht category pages (motor yachts, sailing yachts, superyachts) using card\u2011based layouts.',
+      'Dedicated enquiry forms / modals prepared for later integration with CRM or booking tools.',
+    ],
+    ctaLabel: 'View Yacht Pages',
+    ctaHref: '#zenitha-yachts',
   },
 ];
 
-// ─── Testimonials ───────────────────────────────────────────────────
+// ─── Gallery Items ──────────────────────────────────────────────────
 
-export interface Testimonial {
-  quote: string;
+export interface GalleryItem {
+  /** Path to image in public/branding/zenitha-luxury/ */
+  image: string;
+  alt: string;
+  title: string;
+  subtitle: string;
+}
+
+// TODO: Replace all gallery images with licensed Zenitha assets.
+export const GALLERY_ITEMS: GalleryItem[] = [
+  {
+    image: '/branding/zenitha-luxury/images/gallery-1.png',
+    alt: 'Tower Bridge London',
+    title: 'Tower Bridge',
+    subtitle: 'London',
+  },
+  {
+    image: '/branding/zenitha-luxury/images/gallery-2.png',
+    alt: 'Mediterranean Yacht',
+    title: 'Mediterranean',
+    subtitle: 'Yacht Region',
+  },
+  {
+    image: '/branding/zenitha-luxury/images/gallery-3.png',
+    alt: 'Private Members Club',
+    title: 'Private Members',
+    subtitle: 'London',
+  },
+  {
+    image: '/branding/zenitha-luxury/images/gallery-4.png',
+    alt: 'Luxury Yacht Charter',
+    title: 'Superyacht',
+    subtitle: 'At Sea',
+  },
+  {
+    image: '/branding/zenitha-luxury/images/gallery-5.png',
+    alt: 'White Glove Service',
+    title: 'White Glove',
+    subtitle: 'Hospitality',
+  },
+];
+
+// ─── Coming Soon Cards ──────────────────────────────────────────────
+
+export interface ComingSoonCard {
   name: string;
-  role: string;
-  company: string;
+  tag: string;
+  description: string;
+  /** If true, rendered with reduced opacity and dashed border */
+  faded: boolean;
 }
 
-/* [PLACEHOLDER] Replace with real testimonials when available */
-export const TESTIMONIALS: Testimonial[] = [
+export const COMING_SOON_CARDS: ComingSoonCard[] = [
   {
-    quote:
-      'Zenitha transformed our vision into a digital experience that truly represents luxury travel. The attention to cultural detail and SEO performance has been exceptional.',
-    name: 'Sarah Al-Rashid',
-    role: 'Director of Digital',
-    company: 'GCC Travel Group',
+    name: 'Worldtme',
+    tag: 'Concept — Time & Travel',
+    // TODO: Define actual domain, product scope, and brand story for Worldtme.
+    description:
+      'Placeholder for a future Zenitha experience potentially related to global time, travel planning or similar. This is structural only.',
+    faded: false,
   },
   {
-    quote:
-      'The content quality is outstanding — every article reads like it was written by someone who actually visited these places. That authenticity is what sets Zenitha apart.',
-    name: 'James Whitfield',
-    role: 'Head of Partnerships',
-    company: 'Luxury Hotels Alliance',
+    name: '[Future Site #2]',
+    tag: '',
+    // TODO: Replace with a real project name or remove this card when the roadmap is confirmed.
+    description: 'Generic placeholder card for another Zenitha website in concept stage.',
+    faded: true,
   },
   {
-    quote:
-      'Working with Zenitha has been a masterclass in building travel brands that perform. The technology platform they have built is genuinely impressive.',
-    name: 'Fatima Hassan',
-    role: 'Brand Manager',
-    company: 'Emirates Hospitality',
-  },
-  {
-    quote:
-      'From zero to thousands of monthly organic visitors in weeks. Zenitha understands both the technical and creative sides of travel content.',
-    name: 'Marco Pellegrini',
-    role: 'CEO',
-    company: 'Mediterranean Charters Co.',
+    name: '[Future Site #3]',
+    tag: '',
+    // TODO: Replace with a real project name or remove this card when the roadmap is confirmed.
+    description: 'Generic placeholder card for another Zenitha website in concept stage.',
+    faded: true,
   },
 ];
 
-// ─── FAQ ────────────────────────────────────────────────────────────
+// ─── Detail Sections (Yalla London + Zenitha Yachts) ────────────────
 
-export interface FAQ {
-  question: string;
-  answer: string;
+export interface DetailSection {
+  sectionNumber: string;
+  sectionLabel: string;
+  title: string;
+  description: string;
+  /** Path to image in public/branding/zenitha-luxury/ */
+  image: string;
+  imageAlt: string;
+  bullets: string[];
+  footnote: string;
 }
 
-export const FAQS: FAQ[] = [
+export const YALLA_LONDON_DETAIL: DetailSection = {
+  sectionNumber: '04',
+  sectionLabel: 'Yalla London',
+  title: 'London, Curated',
+  description:
+    'Section skeleton for the Yalla London site structure. The actual routing, components, and CMS bindings should follow this model inside your codebase.',
+  // TODO: Replace with Yalla London brand image.
+  image: '/branding/zenitha-luxury/images/banner.png',
+  imageAlt: 'Yalla London Mayfair',
+  bullets: [
+    'Home / Landing (hero, featured neighbourhoods, hotel & dining highlights).',
+    'Neighbourhood pages (e.g. Mayfair, Knightsbridge, Chelsea) with bilingual content.',
+    'Hotel collection pages by area/theme with grid cards.',
+    'Dining & experiences pages (restaurants, afternoon tea, private tours).',
+    'Seasonal / campaign pages (sales, events, cultural moments).',
+    'Contact / concierge enquiry page.',
+  ],
+  footnote:
+    'This is a content and page\u2011type sketch only. Use it to design Next.js routes, layout components, and CMS schemas (e.g. Neighbourhood, Collection, SeasonalGuide) in your actual application.',
+};
+
+export const ZENITHA_YACHTS_DETAIL: DetailSection = {
+  sectionNumber: '05',
+  sectionLabel: 'Zenitha Yachts',
+  title: 'Journeys at Sea',
+  description:
+    'Section skeleton for the Zenitha Yachts site. Actual yacht inventory, filters, booking flows, and CRMs are not defined here and must be implemented within your stack.',
+  // TODO: Replace with Zenitha Yachts brand image.
+  image: '/branding/zenitha-luxury/images/hero-bg.png',
+  imageAlt: 'Zenitha Yachts',
+  bullets: [
+    'Home / Landing (hero, regions overview, key selling points, primary CTA).',
+    'Region pages (Mediterranean, Arabian Gulf, Caribbean) with hero, summary, and sectioned content.',
+    'Itinerary pages (e.g. "7 days in the Greek Islands") describing sample routes.',
+    'Yacht category pages (motor, sailing, superyachts) using card grids.',
+    'Charter enquiry page or modular form component that can be integrated with your backend.',
+  ],
+  footnote:
+    'Use this skeleton to define your page tree and core components. Data structures for yachts, regions, pricing, and availability should live in your own models and APIs.',
+};
+
+// ─── Contact Ways ───────────────────────────────────────────────────
+
+export interface ContactWay {
+  /** Unicode character used as icon */
+  icon: string;
+  label: string;
+  value: string;
+  href: string;
+}
+
+// TODO: Replace placeholder email and URLs with production details.
+export const CONTACT_WAYS: ContactWay[] = [
   {
-    question: 'What is Zenitha.Luxury and what do you do?',
-    answer:
-      'Zenitha.Luxury LLC is a Delaware-based luxury travel media company. We build and operate a portfolio of destination-specific travel brands — each combining premium editorial content with affiliate monetization. Our brands currently cover London, the Mediterranean (yacht charters), the Maldives, the French Riviera, Istanbul, and Thailand.',
+    icon: '\u2709', // ✉
+    label: 'Email',
+    value: 'info@example.com',
+    href: 'mailto:info@example.com',
   },
   {
-    question: 'How are your travel brands different from typical travel blogs?',
-    answer:
-      'Three things set us apart: First, each brand is purpose-built for a single destination with deep cultural expertise. Second, our technology platform automates SEO, content optimization, and monetization at enterprise scale. Third, we serve the Gulf and Arab travel market specifically — a $75B+ segment most English-language travel sites ignore.',
+    icon: '\u25CA', // ◊
+    label: 'Yalla London',
+    value: 'yalla-london.com (update to production URL)',
+    href: '#',
   },
   {
-    question: 'Do you work with hotels, agencies, or tourism boards?',
-    answer:
-      'Yes. We partner with hotels, charter companies, experience providers, tourism boards, and affiliate networks. Our brands offer targeted reach to high-intent luxury travelers, particularly from the Gulf region. Contact us at hello@zenitha.luxury to discuss partnership opportunities.',
-  },
-  {
-    question: 'What technology powers your platform?',
-    answer:
-      'Our platform is built on Next.js with server-side rendering, deployed on Vercel, with a PostgreSQL database. It includes automated content pipelines, 16-check SEO quality gates, AI-powered content generation, multi-engine IndexNow submission, and a full admin dashboard for monitoring performance across all brands.',
-  },
-  {
-    question: 'Are you hiring or looking for contributors?',
-    answer:
-      'We are always interested in hearing from talented travel writers, photographers, and digital marketing professionals — especially those with first-hand expertise in our destination markets. Reach out at hello@zenitha.luxury with your portfolio.',
+    icon: '\u266B', // ♫
+    label: 'Zenitha Yachts',
+    value: 'zenithayachts.co (update to production URL)',
+    href: '#',
   },
 ];
 
-// ─── Brand Portfolio (used in Portfolio section) ────────────────────
+export const ENQUIRY_TYPES = [
+  'Hotel / Venue Partnership',
+  'Yacht Charter Enquiry',
+  'Affiliate Partnership',
+  'Travel Concierge',
+  'Press / Media',
+  'Other',
+] as const;
+
+// ─── Brand Portfolio (used in Footer) ───────────────────────────────
 
 export interface Brand {
   name: string;
@@ -273,7 +345,7 @@ export const BRANDS: Brand[] = [
     domain: 'yallariviera.com',
     href: 'https://www.yallariviera.com',
     color: '#1E3A5F',
-    destination: "Côte d'Azur, France",
+    destination: "C\u00f4te d'Azur, France",
     status: 'coming',
   },
   {
@@ -294,21 +366,4 @@ export const BRANDS: Brand[] = [
     destination: 'Thailand',
     status: 'coming',
   },
-];
-
-// ─── Navigation ─────────────────────────────────────────────────────
-
-export interface NavItem {
-  label: string;
-  href: string;
-}
-
-export const NAV_ITEMS: NavItem[] = [
-  { label: 'About', href: '#about' },
-  { label: 'Process', href: '#process' },
-  { label: 'Services', href: '#services' },
-  { label: 'Portfolio', href: '#portfolio' },
-  { label: 'Values', href: '#values' },
-  { label: 'Testimonials', href: '#testimonials' },
-  { label: 'Contact', href: '#contact' },
 ];

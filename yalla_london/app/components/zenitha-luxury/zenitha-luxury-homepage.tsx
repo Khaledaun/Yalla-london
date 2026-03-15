@@ -1,41 +1,47 @@
 'use client';
 
 import { HeroSection } from './sections/hero-section';
-import { IntroSection } from './sections/intro-section';
-import { ProcessSection } from './sections/process-section';
-import { ValuesSection } from './sections/values-section';
-import { ServicesSection } from './sections/services-section';
-import { PortfolioSection } from './sections/portfolio-section';
-import { TestimonialsSection } from './sections/testimonials-section';
+import { Divider } from './sections/divider';
+import { AboutSection } from './sections/about-section';
+import { ServicesTabsSection } from './sections/services-tabs-section';
+import { ComingSoonSection } from './sections/coming-soon-section';
+import { YallaLondonSection } from './sections/yalla-london-section';
+import { ZenithaYachtsSection } from './sections/zenitha-yachts-section';
 import { ContactSection } from './sections/contact-section';
-import { FAQSection } from './sections/faq-section';
 
 /**
  * ZenithaLuxuryHomepage — Full single-page scrolling landing page.
- * Nest-inspired editorial layout with alternating dark/darker sections.
+ * Section order matches zenitha-layout-skeleton.html exactly:
  *
- * Section order:
- * 1. Hero (full viewport)
- * 2. Intro / Who We Are (with AEO summary)
- * 3. Process / How We Work (4 steps)
- * 4. Services / What We Build (9 cards)
- * 5. Portfolio / Our Brands (6 brand cards)
- * 6. Values / What We Believe (6 cards)
- * 7. Testimonials (carousel)
- * 8. FAQ (accordion, structured for schema)
- * 9. Contact / CTA (form + company details)
+ * 1. Hero (#top) — Split 2-column
+ * 2. Divider
+ * 3. About (#about) — 2-column with pillars
+ * 4. Divider
+ * 5. Services (#services) — Tabbed panels + gallery strip
+ * 6. Divider
+ * 7. Coming Soon (#coming-soon) — 3-column cards
+ * 8. Divider
+ * 9. Yalla London (#yalla-london) — Detail section
+ * 10. Divider
+ * 11. Zenitha Yachts (#zenitha-yachts) — Detail section (reversed)
+ * 12. Divider
+ * 13. Contact (#contact) — 2-column form
  */
 export function ZenithaLuxuryHomepage() {
   return (
     <div style={{ background: 'var(--zl-obsidian)', color: 'var(--zl-ivory)' }}>
       <HeroSection />
-      <IntroSection />
-      <ProcessSection />
-      <ServicesSection />
-      <PortfolioSection />
-      <ValuesSection />
-      <TestimonialsSection />
-      <FAQSection />
+      <Divider />
+      <AboutSection />
+      <Divider />
+      <ServicesTabsSection />
+      <Divider />
+      <ComingSoonSection />
+      <Divider />
+      <YallaLondonSection />
+      <Divider />
+      <ZenithaYachtsSection />
+      <Divider />
       <ContactSection />
     </div>
   );

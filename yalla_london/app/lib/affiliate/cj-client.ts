@@ -433,7 +433,7 @@ async function cjFetch(
         Authorization: `Bearer ${token}`,
         Accept: "application/xml",
       },
-      signal: AbortSignal.timeout(15_000), // 15s timeout per request
+      signal: AbortSignal.timeout(30_000), // 30s timeout per request (CJ API can be slow)
     });
 
     if (response.status === 429) {

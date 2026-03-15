@@ -182,12 +182,16 @@ export default function AffiliateHQPage() {
         }
 
         setActionResult(lines.join("\n"));
+      } else if (!json.success) {
+        // Show the full error from the cron response
+        const errMsg = json.result?.error || json.error || "Action failed";
+        setActionResult(`${action} failed:\n${errMsg}`);
       } else {
-        setActionResult(json.success ? `${action} completed` : json.error || "Action failed");
+        setActionResult(`${action} completed`);
       }
       if (json.success) setTimeout(fetchData, 2000);
-    } catch {
-      setActionResult(`${action} failed — network error`);
+    } catch (err) {
+      setActionResult(`${action} failed — ${err instanceof Error ? err.message : "network error"}`);
     } finally {
       setActionLoading(null);
     }

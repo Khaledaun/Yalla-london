@@ -65,9 +65,15 @@ export async function GET(request: NextRequest) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
     await onCronFailure({ jobName: "affiliate-sync-advertisers", error }).catch((err: Error) => console.warn("[affiliate-sync-advertisers] failure hook failed:", err.message));
 
+    // Surface the actual error message for dashboard visibility
+    const errorMsg = error instanceof Error ? error.message :
+      (error && typeof error === "object" && "message" in error) ? String((error as { message: string }).message) :
+      String(error);
+    console.error(`[affiliate-sync-advertisers] Failed: ${errorMsg}`);
+
     return NextResponse.json({
       success: false,
-      error: "CJ advertiser sync failed",
+      error: `CJ advertiser sync failed: ${errorMsg.substring(0, 300)}`,
       durationMs: Date.now() - startTime,
     }, { status: 500 });
   }

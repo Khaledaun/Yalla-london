@@ -882,7 +882,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
               <button
                 onClick={submitAll}
                 disabled={submitLoading === "all"}
-                className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-white text-xs font-semibold disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-[#2d6a8a] text-white text-xs font-semibold disabled:opacity-50"
               >
                 {submitLoading === "all" ? "⏳ Submitting…" : "📤 Submit All Unsubmitted"}
               </button>
@@ -1442,7 +1442,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 <div className="h-full bg-[#2D5A3D] transition-all" style={{ width: `${(indexing.indexed / indexing.total) * 100}%` }} title={`${indexing.indexed} indexed`} />
               )}
               {indexing.submitted > 0 && (
-                <div className="h-full bg-blue-500 transition-all" style={{ width: `${(indexing.submitted / indexing.total) * 100}%` }} title={`${indexing.submitted} submitted`} />
+                <div className="h-full bg-[#3B7EA1] transition-all" style={{ width: `${(indexing.submitted / indexing.total) * 100}%` }} title={`${indexing.submitted} submitted`} />
               )}
               {(indexing.discovered ?? 0) > 0 && (
                 <div className="h-full bg-amber-600 transition-all" style={{ width: `${((indexing.discovered ?? 0) / indexing.total) * 100}%` }} title={`${indexing.discovered} discovered`} />
@@ -2049,7 +2049,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         <button
           onClick={() => setContentView("articles")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "articles" ? "bg-blue-600 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+            contentView === "articles" ? "bg-[#3B7EA1] text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
           }`}
         >
           Articles ({data?.summary.total ?? "…"})
@@ -2164,7 +2164,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       )}
                       <button
                         onClick={() => { setContentView("articles"); fetchData(); }}
-                        className="mt-3 px-3 py-1.5 rounded-lg text-xs bg-blue-700 hover:bg-blue-600 text-white"
+                        className="mt-3 px-3 py-1.5 rounded-lg text-xs bg-blue-700 hover:bg-[#2d6a8a] text-white"
                       >
                         View in Articles
                       </button>
@@ -2668,7 +2668,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
                 <span className="text-stone-400 capitalize w-20 shrink-0">{phase}</span>
                 <div className="flex-1 bg-stone-100 rounded-full h-1.5">
                   <div
-                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    className="bg-[#3B7EA1] h-1.5 rounded-full transition-all"
                     style={{ width: `${Math.min(100, ((count as number) / Math.max(1, ...Object.values(byPhase).map(v => Number(v)))) * 100)}%` }}
                   />
                 </div>
@@ -3959,7 +3959,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 critical: "bg-red-500",
                 high: "bg-orange-500",
                 medium: "bg-amber-500",
-                low: "bg-blue-500",
+                low: "bg-[#3B7EA1]",
                 info: "bg-stone-400",
               };
               return (
@@ -4495,7 +4495,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                             <div className={`text-xl font-bold ${gradeColor}`}>{score}/100</div>
                             <div className="text-[10px] text-stone-500 uppercase tracking-wider">Composite Score</div>
                             <div className="h-1.5 bg-stone-200/50 rounded-full mt-1.5 overflow-hidden">
-                              <div className={`h-full rounded-full ${grade === "A" ? "bg-[#2D5A3D]" : grade === "B" ? "bg-blue-500" : grade === "C" ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${score}%` }} />
+                              <div className={`h-full rounded-full ${grade === "A" ? "bg-[#2D5A3D]" : grade === "B" ? "bg-[#3B7EA1]" : grade === "C" ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${score}%` }} />
                             </div>
                           </div>
                         </div>
@@ -5596,7 +5596,7 @@ function WebsiteConfigPanel() {
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleCategory(key); }}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${cat.enabled ? "bg-emerald-600" : "bg-stone-200"}`}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${cat.enabled ? "bg-[#2D5A3D]" : "bg-stone-200"}`}
                   >
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${cat.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
                   </button>
@@ -5698,13 +5698,13 @@ function AffiliatesEditor({ config, onChange }: { config: Record<string, unknown
             <div className="flex items-center gap-2">
               <button
                 onClick={() => togglePartner(i)}
-                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${p.enabled ? "bg-emerald-600" : "bg-stone-200"}`}
+                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${p.enabled ? "bg-[#2D5A3D]" : "bg-stone-200"}`}
               >
                 <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${p.enabled ? "translate-x-3.5" : "translate-x-0.5"}`} />
               </button>
               <span className="text-stone-700 text-xs font-medium">{p.name}</span>
               <span className="text-stone-500 text-[10px]">{p.category}</span>
-              <span className="text-emerald-500 text-[10px] ml-auto">{p.commissionRate}</span>
+              <span className="text-[#2D5A3D] text-[10px] ml-auto">{p.commissionRate}</span>
             </div>
             {p.enabled && (
               <div className="mt-1.5 grid grid-cols-1 gap-1">
@@ -6513,7 +6513,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                 </div>
                 <button
                   onClick={() => toggleFlag(flag.key, flag.enabled)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${flag.enabled ? "bg-emerald-600" : "bg-stone-200"}`}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${flag.enabled ? "bg-[#2D5A3D]" : "bg-stone-200"}`}
                 >
                   <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${flag.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
                 </button>
@@ -6854,7 +6854,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
             <span className="text-xs text-gray-500">{testAllProgress.done}/{testAllProgress.total}</span>
           </div>
           <div className="w-full bg-stone-200 rounded-full h-1.5 mb-2">
-            <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(testAllProgress.done / Math.max(testAllProgress.total, 1)) * 100}%` }} />
+            <div className="bg-[#3B7EA1] h-1.5 rounded-full transition-all" style={{ width: `${(testAllProgress.done / Math.max(testAllProgress.total, 1)) * 100}%` }} />
           </div>
           <div className="flex gap-3 text-xs">
             <span className="text-green-600">{testAllProgress.passed} pass</span>
@@ -6960,7 +6960,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                         <button
                                           onClick={(e) => { e.stopPropagation(); runTest(task); }}
                                           disabled={testingTask === task.id}
-                                          className="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
+                                          className="px-2 py-0.5 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-gray-400 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
                                         >
                                           {testingTask === task.id ? (
                                             <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
@@ -7254,7 +7254,7 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
                         <button
                           onClick={() => executeAction(task)}
                           disabled={executingId === task.id}
-                          className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-[10px] rounded transition-colors"
+                          className="px-2 py-0.5 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-gray-400 text-white text-[10px] rounded transition-colors"
                         >
                           {executingId === task.id ? "..." : task.actionLabel}
                         </button>

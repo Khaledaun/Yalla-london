@@ -19,7 +19,7 @@ export function AdminCard({
   accent = false,
   accentColor = 'red' as 'red' | 'gold' | 'blue' | 'green',
 }: {
-  children: React.ReactNode
+  children?: React.ReactNode
   className?: string
   elevated?: boolean
   accent?: boolean
@@ -101,7 +101,7 @@ export function AdminPageHeader({
 
 // ─── AdminSectionLabel ──────────────────────────────────────────────
 
-export function AdminSectionLabel({ children }: { children: React.ReactNode }) {
+export function AdminSectionLabel({ children }: { children?: React.ReactNode }) {
   return (
     <p
       style={{
@@ -248,7 +248,7 @@ export function AdminButton({
   className = '',
   type = 'button',
 }: {
-  children: React.ReactNode
+  children?: React.ReactNode
   onClick?: () => void
   variant?: ButtonVariant
   loading?: boolean

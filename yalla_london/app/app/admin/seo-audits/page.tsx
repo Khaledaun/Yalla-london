@@ -1,12 +1,18 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
-import { PageHeader } from '@/components/admin/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminKPICard,
+  AdminSectionLabel,
+  AdminAlertBanner,
+  AdminTabs,
+} from '@/components/admin/admin-ui'
 import {
   Search,
   Play,
@@ -64,6 +70,7 @@ export default function SEOAuditsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [auditMessage, setAuditMessage] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('suggestions')
 
   const loadArticles = useCallback(async () => {
     try {
@@ -159,32 +166,29 @@ export default function SEOAuditsPage() {
     return matchesSearch
   })
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-emerald-600 dark:text-emerald-400'
-    if (score >= 70) return 'text-amber-600 dark:text-amber-400'
-    if (score >= 50) return 'text-orange-600 dark:text-orange-400'
-    return 'text-red-600 dark:text-red-400'
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return '#2D5A3D'
+    if (score >= 60) return '#C49A2A'
+    return '#C8322B'
   }
 
-  const getScoreBgColor = (score: number) => {
-    if (score >= 90) return 'bg-emerald-100 dark:bg-emerald-900/30'
-    if (score >= 70) return 'bg-amber-100 dark:bg-amber-900/30'
-    if (score >= 50) return 'bg-orange-100 dark:bg-orange-900/30'
-    return 'bg-red-100 dark:bg-red-900/30'
-  }
-
-  const getIndexingBadge = (status: string) => {
+  const getIndexingStatus = (status: string): string => {
     switch (status) {
-      case 'indexed':
-        return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Indexed</Badge>
-      case 'submitted':
-        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Submitted</Badge>
-      case 'error':
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Error</Badge>
-      case 'not_indexed':
-        return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Not Indexed</Badge>
-      default:
-        return <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Never Submitted</Badge>
+      case 'indexed': return 'indexed'
+      case 'submitted': return 'pending'
+      case 'error': return 'error'
+      case 'not_indexed': return 'warning'
+      default: return 'inactive'
+    }
+  }
+
+  const getIndexingLabel = (status: string): string => {
+    switch (status) {
+      case 'indexed': return 'Indexed'
+      case 'submitted': return 'Submitted'
+      case 'error': return 'Error'
+      case 'not_indexed': return 'Not Indexed'
+      default: return 'Never Submitted'
     }
   }
 
@@ -199,147 +203,105 @@ export default function SEOAuditsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-3 text-gray-600">Loading SEO data...</span>
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader title="SEO Audits" subtitle="Search engine optimization reports" />
+        <AdminLoadingState label="Loading SEO audits..." />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="SEO Audits" description="Analyze and optimize your pages for search engines" breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'SEO Audits' }]} />
-        <Card><CardContent className="p-8 text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium">{error}</p>
-          <Button onClick={loadArticles} className="mt-4">Retry</Button>
-        </CardContent></Card>
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader title="SEO Audits" subtitle="Search engine optimization reports" />
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          action={
+            <AdminButton variant="primary" size="sm" onClick={loadArticles}>
+              Retry
+            </AdminButton>
+          }
+        />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
         title="SEO Audits"
-        description="Analyze and optimize your pages for search engines"
-        breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'SEO Audits' }
-        ]}
-        actions={
-          <Button
+        subtitle="Search engine optimization reports"
+        action={
+          <AdminButton
+            variant="primary"
+            size="md"
             onClick={runFullSiteAudit}
+            loading={isRunningFullAudit}
             disabled={isRunningFullAudit}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
           >
-            {isRunningFullAudit ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Auditing All Pages...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Full Site Audit
-              </>
-            )}
-          </Button>
+            <RefreshCw size={13} />
+            {isRunningFullAudit ? 'Auditing...' : 'Full Site Audit'}
+          </AdminButton>
         }
       />
 
       {/* Audit Result Message */}
       {auditMessage && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-800 dark:text-blue-200">
-          {auditMessage}
-        </div>
+        <AdminAlertBanner
+          severity="info"
+          message={auditMessage}
+          onDismiss={() => setAuditMessage(null)}
+        />
       )}
 
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-blue-200 dark:border-blue-800">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Average SEO Score</p>
-                <p className={`text-3xl font-bold mt-1 ${getScoreColor(summary?.averageScore || 0)}`}>
-                  {summary?.averageScore || 0}%
-                </p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <Target className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 border-emerald-200 dark:border-emerald-800">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Articles Indexed</p>
-                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {summary?.indexed || 0}/{summary?.total || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                <Globe className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/50 dark:to-orange-950/50 border-red-200 dark:border-red-800">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-700 dark:text-red-300">Critical Score (&lt;50)</p>
-                <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{summary?.criticalScore || 0}</p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/50 dark:to-violet-950/50 border-purple-200 dark:border-purple-800">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Needs Audit</p>
-                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-                  {summary?.needsAudit || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <Zap className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard
+          value={`${summary?.averageScore || 0}%`}
+          label="Avg SEO Score"
+          color={getScoreColor(summary?.averageScore || 0)}
+        />
+        <AdminKPICard
+          value={`${summary?.indexed || 0}/${summary?.total || 0}`}
+          label="Indexed"
+          color="#2D5A3D"
+        />
+        <AdminKPICard
+          value={summary?.criticalScore || 0}
+          label="Critical (<50)"
+          color="#C8322B"
+        />
+        <AdminKPICard
+          value={summary?.needsAudit || 0}
+          label="Needs Audit"
+          color="#7C3AED"
+        />
       </div>
 
       {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search articles..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+      <AdminCard className="mb-6">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2"
+                style={{ color: '#A8A29E' }}
+              />
+              <input
+                placeholder="Search articles..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="admin-input w-full pl-9"
+                style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+              />
             </div>
             <select
               value={selectedFilter}
               onChange={(e) => setSelectedFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="admin-input"
+              style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
             >
               <option value="all">All Articles ({articles.length})</option>
               <option value="critical">Critical Score ({articles.filter(a => a.seoScore < 50).length})</option>
@@ -348,261 +310,375 @@ export default function SEOAuditsPage() {
               <option value="not-indexed">Not Indexed ({articles.filter(a => a.indexingStatus !== 'indexed').length})</option>
             </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </AdminCard>
 
       {articles.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <div className="h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
-              <FileText className="h-8 w-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No Published Articles
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-              Publish articles through the content pipeline to see them here for SEO auditing.
-            </p>
-          </CardContent>
-        </Card>
+        <AdminCard>
+          <AdminEmptyState
+            icon={FileText}
+            title="No Published Articles"
+            description="Publish articles through the content pipeline to see them here for SEO auditing."
+          />
+        </AdminCard>
       ) : (
         /* Main Content Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Articles List */}
           <div className="lg:col-span-1">
-            <Card className="h-fit">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Search className="h-4 w-4" />
-                  Articles ({filteredArticles.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[600px] overflow-y-auto">
-                  {filteredArticles.map((article) => (
-                    <div
-                      key={article.id}
-                      className={`p-4 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
-                        selectedArticle?.id === article.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500'
-                          : 'border-l-4 border-l-transparent'
-                      }`}
-                      onClick={() => setSelectedArticle(article)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-sm text-gray-900 dark:text-white truncate">
-                            {article.title}
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-                            {article.url}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getScoreBgColor(article.seoScore)} ${getScoreColor(article.seoScore)}`}>
-                              {article.seoScore}%
-                            </span>
-                            {getIndexingBadge(article.indexingStatus)}
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            {article.wordCount} words · {article.lastAudited ? new Date(article.lastAudited).toLocaleDateString() : 'Never audited'}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            runSingleAudit(article.id)
+            <AdminCard>
+              <div className="p-4 pb-2">
+                <AdminSectionLabel>Articles ({filteredArticles.length})</AdminSectionLabel>
+              </div>
+              <div
+                className="divide-y max-h-[600px] overflow-y-auto"
+                style={{ borderColor: 'rgba(214,208,196,0.4)' }}
+              >
+                {filteredArticles.map((article) => (
+                  <div
+                    key={article.id}
+                    className="p-4 cursor-pointer transition-all duration-200"
+                    style={{
+                      backgroundColor: selectedArticle?.id === article.id
+                        ? 'rgba(59,126,161,0.06)'
+                        : 'transparent',
+                      borderLeft: selectedArticle?.id === article.id
+                        ? '3px solid #3B7EA1'
+                        : '3px solid transparent',
+                    }}
+                    onClick={() => setSelectedArticle(article)}
+                    onMouseEnter={(e) => {
+                      if (selectedArticle?.id !== article.id) {
+                        e.currentTarget.style.backgroundColor = 'rgba(214,208,196,0.12)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedArticle?.id !== article.id) {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="truncate"
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontWeight: 600,
+                            fontSize: 13,
+                            color: '#1C1917',
                           }}
-                          disabled={auditingId === article.id}
-                          className="shrink-0"
                         >
-                          {auditingId === article.id ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Play className="h-4 w-4" />
-                          )}
-                        </Button>
+                          {article.title}
+                        </p>
+                        <p
+                          className="truncate mt-1"
+                          style={{
+                            fontFamily: 'var(--font-system)',
+                            fontSize: 10,
+                            color: '#A8A29E',
+                          }}
+                        >
+                          {article.url}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full"
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: getScoreColor(article.seoScore),
+                              backgroundColor: `${getScoreColor(article.seoScore)}12`,
+                            }}
+                          >
+                            {article.seoScore}%
+                          </span>
+                          <AdminStatusBadge
+                            status={getIndexingStatus(article.indexingStatus)}
+                            label={getIndexingLabel(article.indexingStatus)}
+                          />
+                        </div>
+                        <p
+                          className="mt-2"
+                          style={{
+                            fontFamily: 'var(--font-system)',
+                            fontSize: 10,
+                            color: '#A8A29E',
+                          }}
+                        >
+                          {article.wordCount} words · {article.lastAudited ? new Date(article.lastAudited).toLocaleDateString() : 'Never audited'}
+                        </p>
                       </div>
+                      <AdminButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          runSingleAudit(article.id)
+                        }}
+                        disabled={auditingId === article.id}
+                      >
+                        {auditingId === article.id ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <Play size={14} />
+                        )}
+                      </AdminButton>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                ))}
+              </div>
+            </AdminCard>
           </div>
 
           {/* Article Details */}
           <div className="lg:col-span-2">
             {selectedArticle ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Score Overview */}
-                <Card>
-                  <CardHeader className="pb-4">
+                <AdminCard elevated>
+                  <div className="p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-lg truncate">{selectedArticle.title}</CardTitle>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">{selectedArticle.url}</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          {getIndexingBadge(selectedArticle.indexingStatus)}
-                          <span className="text-xs text-gray-500">{selectedArticle.wordCount} words</span>
+                        <h2
+                          className="truncate"
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontWeight: 700,
+                            fontSize: 16,
+                            color: '#1C1917',
+                          }}
+                        >
+                          {selectedArticle.title}
+                        </h2>
+                        <p
+                          className="truncate mt-1"
+                          style={{
+                            fontFamily: 'var(--font-system)',
+                            fontSize: 11,
+                            color: '#A8A29E',
+                          }}
+                        >
+                          {selectedArticle.url}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <AdminStatusBadge
+                            status={getIndexingStatus(selectedArticle.indexingStatus)}
+                            label={getIndexingLabel(selectedArticle.indexingStatus)}
+                          />
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              color: '#78716C',
+                            }}
+                          >
+                            {selectedArticle.wordCount} words
+                          </span>
                           {!selectedArticle.hasArabicContent && (
-                            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">No Arabic</Badge>
+                            <AdminStatusBadge status="warning" label="No Arabic" />
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className={`text-4xl font-bold ${getScoreColor(selectedArticle.seoScore)}`}>
+                        <div
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontWeight: 800,
+                            fontSize: 36,
+                            color: getScoreColor(selectedArticle.seoScore),
+                            lineHeight: 1,
+                          }}
+                        >
                           {selectedArticle.seoScore}%
                         </div>
                         {selectedArticle.lastAudited && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p
+                            className="mt-1"
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              color: '#A8A29E',
+                            }}
+                          >
                             Audited {new Date(selectedArticle.lastAudited).toLocaleDateString()}
                           </p>
                         )}
                       </div>
                     </div>
-                  </CardHeader>
+                  </div>
                   {Object.keys(selectedArticle.breakdown).length > 0 && (
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                        {Object.entries(selectedArticle.breakdown).map(([key, value]) => {
-                          const meta = breakdownLabels[key]
-                          return (
-                            <div key={key} className="text-center">
-                              <div className={`text-xl font-bold ${getScoreColor(value)}`}>
-                                {value}
+                    <div className="px-5 pb-5">
+                      <div className="admin-card-inset rounded-xl p-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+                          {Object.entries(selectedArticle.breakdown).map(([key, value]) => {
+                            const meta = breakdownLabels[key]
+                            return (
+                              <div key={key} className="text-center">
+                                <div
+                                  style={{
+                                    fontFamily: 'var(--font-display)',
+                                    fontWeight: 800,
+                                    fontSize: 18,
+                                    color: getScoreColor(value),
+                                  }}
+                                >
+                                  {value}
+                                </div>
+                                <div
+                                  className="mt-1"
+                                  style={{
+                                    fontFamily: 'var(--font-system)',
+                                    fontSize: 9,
+                                    color: '#A8A29E',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                  }}
+                                >
+                                  {meta?.label || key}
+                                </div>
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {meta?.label || key}
-                              </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
-                    </CardContent>
+                    </div>
                   )}
-                </Card>
+                </AdminCard>
 
-                <Tabs defaultValue="suggestions" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                    <TabsTrigger value="suggestions" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
-                      Suggestions ({selectedArticle.suggestions.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="quick-fixes" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
-                      Quick Fixes ({selectedArticle.quickFixes.length})
-                    </TabsTrigger>
-                  </TabsList>
+                {/* Tabs */}
+                <AdminTabs
+                  tabs={[
+                    { id: 'suggestions', label: 'Suggestions', count: selectedArticle.suggestions.length },
+                    { id: 'quick-fixes', label: 'Quick Fixes', count: selectedArticle.quickFixes.length },
+                  ]}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                />
 
-                  <TabsContent value="suggestions" className="mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <TrendingUp className="h-4 w-4" />
-                          SEO Improvement Suggestions
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {selectedArticle.suggestions.length > 0 ? (
-                          <div className="space-y-3">
-                            {selectedArticle.suggestions.map((suggestion, idx) => (
-                              <div key={idx} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
-                                <div className="flex items-start gap-3">
-                                  <div className="h-6 w-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{idx + 1}</span>
-                                  </div>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300">{suggestion}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-12">
-                            <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
-                              <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                              No Suggestions
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400">
-                              {selectedArticle.lastAudited
-                                ? 'This article is well optimized. Great work!'
-                                : 'Run an audit to get improvement suggestions.'}
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="quick-fixes" className="mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <Zap className="h-4 w-4" />
-                          Quick Fixes
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {selectedArticle.quickFixes.length > 0 ? (
-                          <div className="space-y-3">
-                            {selectedArticle.quickFixes.map((fix, idx) => {
-                              const fixLabels: Record<string, string> = {
-                                missing_meta_title: 'Missing meta title — will copy from article title',
-                                missing_meta_description: 'Missing meta description — will use excerpt or title',
-                                missing_featured_image: 'Missing featured image — will add placeholder',
-                              }
-                              return (
-                                <div key={idx} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between gap-4">
-                                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                      {fixLabels[fix] || fix}
-                                    </p>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => applyQuickFix(selectedArticle.id, fix)}
-                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shrink-0"
+                {activeTab === 'suggestions' && (
+                  <AdminCard>
+                    <div className="p-4 pb-2">
+                      <AdminSectionLabel>SEO Improvement Suggestions</AdminSectionLabel>
+                    </div>
+                    <div className="px-4 pb-4">
+                      {selectedArticle.suggestions.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedArticle.suggestions.map((suggestion, idx) => (
+                            <div
+                              key={idx}
+                              className="admin-card-inset rounded-xl p-4"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                                  style={{
+                                    backgroundColor: 'rgba(196,154,42,0.12)',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontFamily: 'var(--font-system)',
+                                      fontSize: 9,
+                                      fontWeight: 700,
+                                      color: '#C49A2A',
+                                    }}
                                   >
-                                    <Zap className="h-3 w-3 mr-1" />
-                                    Fix
-                                  </Button>
+                                    {idx + 1}
+                                  </span>
                                 </div>
-                              )
-                            })}
-                          </div>
-                        ) : (
-                          <div className="text-center py-12">
-                            <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
-                              <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                                <p
+                                  style={{
+                                    fontFamily: 'var(--font-system)',
+                                    fontSize: 12,
+                                    color: '#44403C',
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {suggestion}
+                                </p>
+                              </div>
                             </div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                              No Quick Fixes Needed
-                            </h3>
-                            <p className="text-gray-500 dark:text-gray-400">
-                              All basic SEO elements are in place.
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
+                          ))}
+                        </div>
+                      ) : (
+                        <AdminEmptyState
+                          icon={CheckCircle2}
+                          title="No Suggestions"
+                          description={
+                            selectedArticle.lastAudited
+                              ? 'This article is well optimized. Great work!'
+                              : 'Run an audit to get improvement suggestions.'
+                          }
+                        />
+                      )}
+                    </div>
+                  </AdminCard>
+                )}
+
+                {activeTab === 'quick-fixes' && (
+                  <AdminCard>
+                    <div className="p-4 pb-2">
+                      <AdminSectionLabel>Quick Fixes</AdminSectionLabel>
+                    </div>
+                    <div className="px-4 pb-4">
+                      {selectedArticle.quickFixes.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedArticle.quickFixes.map((fix, idx) => {
+                            const fixLabels: Record<string, string> = {
+                              missing_meta_title: 'Missing meta title — will copy from article title',
+                              missing_meta_description: 'Missing meta description — will use excerpt or title',
+                              missing_featured_image: 'Missing featured image — will add placeholder',
+                            }
+                            return (
+                              <div
+                                key={idx}
+                                className="admin-card-inset rounded-xl p-4 flex items-center justify-between gap-4"
+                              >
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  <AlertTriangle size={16} style={{ color: '#C49A2A', flexShrink: 0, marginTop: 2 }} />
+                                  <p
+                                    style={{
+                                      fontFamily: 'var(--font-system)',
+                                      fontSize: 12,
+                                      color: '#44403C',
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    {fixLabels[fix] || fix}
+                                  </p>
+                                </div>
+                                <AdminButton
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => applyQuickFix(selectedArticle.id, fix)}
+                                >
+                                  <Zap size={11} />
+                                  Fix
+                                </AdminButton>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <AdminEmptyState
+                          icon={CheckCircle2}
+                          title="No Quick Fixes Needed"
+                          description="All basic SEO elements are in place."
+                        />
+                      )}
+                    </div>
+                  </AdminCard>
+                )}
               </div>
             ) : (
-              <Card className="h-full min-h-[400px] flex items-center justify-center">
-                <CardContent className="text-center py-12">
-                  <div className="h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                    <Search className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    Select an Article to Audit
-                  </h3>
-                  <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                    Choose an article from the list to view its SEO audit results and optimization suggestions.
-                  </p>
-                </CardContent>
-              </Card>
+              <AdminCard className="min-h-[400px] flex items-center justify-center">
+                <AdminEmptyState
+                  icon={Search}
+                  title="Select an Article to Audit"
+                  description="Choose an article from the list to view its SEO audit results and optimization suggestions."
+                />
+              </AdminCard>
             )}
           </div>
         </div>

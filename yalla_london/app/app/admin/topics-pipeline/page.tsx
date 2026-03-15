@@ -1,12 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminKPICard,
+  AdminSectionLabel,
+  AdminAlertBanner,
+} from '@/components/admin/admin-ui'
 import {
   TrendingUp,
   Plus,
@@ -102,22 +107,6 @@ export default function TopicsPipelinePage() {
   useEffect(() => {
     fetchTopics()
   }, [fetchTopics])
-
-  const statusColors: Record<string, string> = {
-    'planned': 'bg-gray-100 text-gray-800',
-    'queued': 'bg-yellow-100 text-yellow-800',
-    'generated': 'bg-blue-100 text-blue-800',
-    'drafted': 'bg-purple-100 text-purple-800',
-    'ready': 'bg-emerald-100 text-emerald-800',
-    'published': 'bg-green-100 text-green-800'
-  }
-
-  const intentColors: Record<string, string> = {
-    'info': 'bg-blue-100 text-blue-800',
-    'transactional': 'bg-green-100 text-green-800',
-    'navigational': 'bg-purple-100 text-purple-800',
-    'commercial': 'bg-amber-100 text-amber-800'
-  }
 
   // Create topic via API
   const handleCreateTopic = async () => {
@@ -234,177 +223,184 @@ export default function TopicsPipelinePage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Topics & Pipeline</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage content topics and publishing pipeline</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchTopics} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button
-            onClick={() => setIsCreatingTopic(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Topic
-          </Button>
-        </div>
-      </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Topics & Pipeline"
+        subtitle="Topic research and management"
+        action={
+          <div className="flex gap-2">
+            <AdminButton variant="secondary" onClick={fetchTopics} disabled={loading} size="sm">
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              onClick={() => setIsCreatingTopic(true)}
+              size="sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New Topic
+            </AdminButton>
+          </div>
+        }
+      />
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-        </div>
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
       )}
 
       <div className="space-y-6">
-        {/* Pipeline Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Topics</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {loading ? '...' : (stats?.totalBacklog || topics.length)}
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Queued</p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {loading ? '...' : (stats?.queued || 0)}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Ready</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {loading ? '...' : (stats?.ready || 0)}
-                  </p>
-                </div>
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Published</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {loading ? '...' : (stats?.published || 0)}
-                  </p>
-                </div>
-                <Calendar className="h-8 w-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Pipeline Overview KPIs */}
+        <div>
+          <AdminSectionLabel>Pipeline Overview</AdminSectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <AdminKPICard
+              value={loading ? '...' : (stats?.totalBacklog || topics.length)}
+              label="Total Topics"
+              color="#3B7EA1"
+            />
+            <AdminKPICard
+              value={loading ? '...' : (stats?.queued || 0)}
+              label="Queued"
+              color="#C49A2A"
+            />
+            <AdminKPICard
+              value={loading ? '...' : (stats?.ready || 0)}
+              label="Ready"
+              color="#2D5A3D"
+            />
+            <AdminKPICard
+              value={loading ? '...' : (stats?.published || 0)}
+              label="Published"
+              color="#7C3AED"
+            />
+          </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Topics Pipeline
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 mb-6">
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Topics</SelectItem>
-                  <SelectItem value="planned">Planned</SelectItem>
-                  <SelectItem value="queued">Queued</SelectItem>
-                  <SelectItem value="generated">Generated</SelectItem>
-                  <SelectItem value="drafted">Drafted</SelectItem>
-                  <SelectItem value="ready">Ready</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* Topics Pipeline */}
+        <AdminCard>
+          <div className="p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Search className="h-4 w-4" style={{ color: '#78716C' }} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: '#1C1917' }}>
+                Topics Pipeline
+              </span>
+            </div>
+
+            {/* Filter */}
+            <div className="flex gap-3 mb-5">
+              <select className="admin-select" style={{ width: 192 }} value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                <option value="all">All Topics</option>
+                <option value="planned">Planned</option>
+                <option value="queued">Queued</option>
+                <option value="generated">Generated</option>
+                <option value="drafted">Drafted</option>
+                <option value="ready">Ready</option>
+                <option value="published">Published</option>
+              </select>
             </div>
 
             {/* Loading State */}
             {loading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                <span className="ml-2 text-gray-600">Loading topics...</span>
-              </div>
+              <AdminLoadingState label="Loading topics..." />
             )}
 
             {/* Empty State */}
             {!loading && topics.length === 0 && (
-              <div className="text-center py-12">
-                <Brain className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900">No topics found</h3>
-                <p className="text-gray-500 mt-1">Create a new topic to get started</p>
-              </div>
+              <AdminEmptyState
+                icon={Brain}
+                title="No topics found"
+                description="Create a new topic to get started"
+                action={
+                  <AdminButton variant="primary" size="sm" onClick={() => setIsCreatingTopic(true)}>
+                    <Plus className="h-3.5 w-3.5" />
+                    New Topic
+                  </AdminButton>
+                }
+              />
             )}
 
-            {/* Topics Table */}
+            {/* Topics List */}
             {!loading && topics.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {topics.map((topic) => (
-                  <div key={topic.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-gray-900">{topic.title}</h3>
-                          <Badge className={statusColors[topic.status] || 'bg-gray-100 text-gray-800'}>
-                            {topic.status}
-                          </Badge>
-                          <Badge className={intentColors[topic.intent] || 'bg-gray-100 text-gray-800'}>
-                            {topic.intent}
-                          </Badge>
-                          <Badge variant="outline">{topic.locale.toUpperCase()}</Badge>
+                  <div key={topic.id} className="admin-card-inset rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                            {topic.title}
+                          </span>
+                          <AdminStatusBadge status={topic.status} />
+                          <AdminStatusBadge
+                            status={
+                              topic.intent === 'info' ? 'active'
+                              : topic.intent === 'transactional' ? 'success'
+                              : topic.intent === 'navigational' ? 'generating'
+                              : topic.intent === 'commercial' ? 'warning'
+                              : 'inactive'
+                            }
+                            label={topic.intent}
+                          />
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full"
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: '#78716C',
+                              backgroundColor: 'rgba(120,113,108,0.08)',
+                              border: '1px solid rgba(214,208,196,0.5)',
+                              letterSpacing: '0.5px',
+                            }}
+                          >
+                            {topic.locale.toUpperCase()}
+                          </span>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                           <div>
-                            <p className="font-medium text-gray-600 mb-1">Primary Keyword:</p>
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                            <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600, color: '#78716C', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 4 }}>
+                              Primary Keyword
+                            </p>
+                            <span
+                              className="inline-block px-2 py-0.5 rounded"
+                              style={{
+                                fontFamily: 'var(--font-system)',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: '#1e5a7a',
+                                backgroundColor: 'rgba(59,126,161,0.08)',
+                              }}
+                            >
                               {topic.primary_keyword}
                             </span>
                           </div>
 
                           <div>
-                            <p className="font-medium text-gray-600 mb-1">Featured Long-tails:</p>
+                            <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600, color: '#78716C', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 4 }}>
+                              Featured Long-tails
+                            </p>
                             <div className="space-y-1">
                               {(topic.featured_longtails || []).slice(0, 2).map((longtail, index) => (
-                                <p key={index} className="text-gray-700 text-xs">{longtail}</p>
+                                <p key={index} style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#44403C' }}>{longtail}</p>
                               ))}
                             </div>
                           </div>
 
                           <div>
-                            <p className="font-medium text-gray-600 mb-1">Authority Links:</p>
+                            <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600, color: '#78716C', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 4 }}>
+                              Authority Links
+                            </p>
                             <div className="space-y-1">
                               {(topic.authority_links_json || []).slice(0, 2).map((link, index) => (
                                 <a key={index} href={link.url} target="_blank" rel="noopener noreferrer"
-                                   className="text-blue-600 hover:underline text-xs flex items-center gap-1">
+                                   className="flex items-center gap-1 hover:underline"
+                                   style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#3B7EA1' }}>
                                   <ExternalLink className="h-3 w-3" />
                                   {link.title}
                                 </a>
@@ -413,224 +409,223 @@ export default function TopicsPipelinePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                          <span>Type: {topic.suggested_page_type}</span>
+                        <div className="flex items-center gap-4 mt-3 flex-wrap">
+                          <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                            Type: {topic.suggested_page_type}
+                          </span>
                           {topic.planned_at && (
-                            <span>Planned: {new Date(topic.planned_at).toLocaleDateString()}</span>
+                            <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                              Planned: {new Date(topic.planned_at).toLocaleDateString()}
+                            </span>
                           )}
-                          <span>Updated: {new Date(topic.updated_at).toLocaleDateString()}</span>
-                          {topic.evergreen && <Badge variant="outline" className="text-xs">Evergreen</Badge>}
+                          <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                            Updated: {new Date(topic.updated_at).toLocaleDateString()}
+                          </span>
+                          {topic.evergreen && <AdminStatusBadge status="active" label="Evergreen" />}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={topic.status}
-                          onValueChange={(value) => handleStatusChange(topic.id, value)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="planned">Planned</SelectItem>
-                            <SelectItem value="queued">Queued</SelectItem>
-                            <SelectItem value="generated">Generated</SelectItem>
-                            <SelectItem value="drafted">Drafted</SelectItem>
-                            <SelectItem value="ready">Ready</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <select className="admin-select" style={{ width: 128 }} value={topic.status} onChange={(e) => handleStatusChange(topic.id, e.target.value)}>
+                          <option value="planned">Planned</option>
+                          <option value="queued">Queued</option>
+                          <option value="generated">Generated</option>
+                          <option value="drafted">Drafted</option>
+                          <option value="ready">Ready</option>
+                          <option value="published">Published</option>
+                        </select>
 
-                        <Button
-                          variant="default"
+                        <AdminButton
+                          variant="primary"
                           size="sm"
                           onClick={() => handleCreateArticleFromTopic(topic)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          <FileText className="h-4 w-4 mr-1" />
+                          <FileText className="h-3.5 w-3.5" />
                           Create Article
-                        </Button>
+                        </AdminButton>
 
-                        <Button
+                        <AdminButton
                           variant="ghost"
                           size="sm"
                           onClick={() => {
                             window.location.href = `/admin/editor?title=${encodeURIComponent(topic.title)}&keyword=${encodeURIComponent(topic.primary_keyword || '')}`;
                           }}
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                          <Edit className="h-3.5 w-3.5" />
+                        </AdminButton>
 
-                        <Button
+                        <AdminButton
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteTopic(topic.id)}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                          <Trash2 className="h-3.5 w-3.5" style={{ color: '#C8322B' }} />
+                        </AdminButton>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </AdminCard>
 
         {/* Create Topic Modal */}
         {isCreatingTopic && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Create New Topic
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Title *</label>
-                  <Input
-                    value={newTopic.title}
-                    onChange={(e) => setNewTopic(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Enter topic title..."
-                  />
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(28,25,23,0.5)' }}>
+            <AdminCard elevated className="w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+              <div className="p-5 md:p-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <Brain className="h-5 w-5" style={{ color: '#3B7EA1' }} />
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
+                    Create New Topic
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Primary Keyword *</label>
-                  <Input
-                    value={newTopic.primary_keyword}
-                    onChange={(e) => setNewTopic(prev => ({ ...prev, primary_keyword: e.target.value }))}
-                    placeholder="Main keyword for SEO..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Locale *</label>
-                    <Select
-                      value={newTopic.locale}
-                      onValueChange={(value) => setNewTopic(prev => ({ ...prev, locale: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="ar">Arabic</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                      Title *
+                    </label>
+                    <input
+                      className="admin-input w-full"
+                      value={newTopic.title}
+                      onChange={(e) => setNewTopic(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Enter topic title..."
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Intent</label>
-                    <Select
-                      value={newTopic.intent}
-                      onValueChange={(value) => setNewTopic(prev => ({ ...prev, intent: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="info">Informational</SelectItem>
-                        <SelectItem value="transactional">Transactional</SelectItem>
-                        <SelectItem value="navigational">Navigational</SelectItem>
-                        <SelectItem value="commercial">Commercial</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                      Primary Keyword *
+                    </label>
+                    <input
+                      className="admin-input w-full"
+                      value={newTopic.primary_keyword}
+                      onChange={(e) => setNewTopic(prev => ({ ...prev, primary_keyword: e.target.value }))}
+                      placeholder="Main keyword for SEO..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                        Locale *
+                      </label>
+                      <select className="admin-select" value={newTopic.locale} onChange={(e) => setNewTopic(prev => ({ ...prev, locale: e.target.value }))}>
+                        <option value="en">English</option>
+                        <option value="ar">Arabic</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                        Intent
+                      </label>
+                      <select className="admin-select" value={newTopic.intent} onChange={(e) => setNewTopic(prev => ({ ...prev, intent: e.target.value }))}>
+                        <option value="info">Informational</option>
+                        <option value="transactional">Transactional</option>
+                        <option value="navigational">Navigational</option>
+                        <option value="commercial">Commercial</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                        Page Type
+                      </label>
+                      <select className="admin-select" value={newTopic.suggested_page_type} onChange={(e) => setNewTopic(prev => ({ ...prev, suggested_page_type: e.target.value }))}>
+                        <option value="guide">Guide</option>
+                        <option value="list">List</option>
+                        <option value="review">Review</option>
+                        <option value="how-to">How-To</option>
+                        <option value="comparison">Comparison</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Page Type</label>
-                    <Select
-                      value={newTopic.suggested_page_type}
-                      onValueChange={(value) => setNewTopic(prev => ({ ...prev, suggested_page_type: value }))}
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                      Long-tail Keywords (comma-separated)
+                    </label>
+                    <textarea
+                      className="admin-input w-full"
+                      value={newTopic.longtails}
+                      onChange={(e) => setNewTopic(prev => ({ ...prev, longtails: e.target.value }))}
+                      placeholder="long tail phrase 1, long tail phrase 2..."
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                      Featured Long-tails * (exactly 2, comma-separated)
+                    </label>
+                    <input
+                      className="admin-input w-full"
+                      value={newTopic.featured_longtails}
+                      onChange={(e) => setNewTopic(prev => ({ ...prev, featured_longtails: e.target.value }))}
+                      placeholder="featured phrase 1, featured phrase 2"
+                    />
+                    <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', marginTop: 4 }}>
+                      These will be used as H2 headings
+                    </p>
+                  </div>
+
+                  <div>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                      Authority Links * (3-4 URLs, comma-separated)
+                    </label>
+                    <textarea
+                      className="admin-input w-full"
+                      value={newTopic.authority_links}
+                      onChange={(e) => setNewTopic(prev => ({ ...prev, authority_links: e.target.value }))}
+                      placeholder="https://example.com, https://authority.com, https://source.com..."
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }} className="block mb-2">
+                      Planned Date (optional)
+                    </label>
+                    <input
+                      type="date"
+                      className="admin-input w-full"
+                      value={newTopic.planned_at}
+                      onChange={(e) => setNewTopic(prev => ({ ...prev, planned_at: e.target.value }))}
+                    />
+                  </div>
+
+                  {error && (
+                    <AdminAlertBanner
+                      severity="critical"
+                      message={error}
+                    />
+                  )}
+
+                  <div className="admin-section-divider" />
+
+                  <div className="flex justify-end gap-2">
+                    <AdminButton
+                      variant="secondary"
+                      onClick={() => setIsCreatingTopic(false)}
+                      disabled={saving}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="guide">Guide</SelectItem>
-                        <SelectItem value="list">List</SelectItem>
-                        <SelectItem value="review">Review</SelectItem>
-                        <SelectItem value="how-to">How-To</SelectItem>
-                        <SelectItem value="comparison">Comparison</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      Cancel
+                    </AdminButton>
+                    <AdminButton
+                      variant="primary"
+                      onClick={handleCreateTopic}
+                      disabled={!newTopic.title || !newTopic.primary_keyword || saving}
+                      loading={saving}
+                    >
+                      {saving ? 'Creating...' : 'Create Topic'}
+                    </AdminButton>
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Long-tail Keywords (comma-separated)</label>
-                  <Textarea
-                    value={newTopic.longtails}
-                    onChange={(e) => setNewTopic(prev => ({ ...prev, longtails: e.target.value }))}
-                    placeholder="long tail phrase 1, long tail phrase 2..."
-                    rows={2}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Featured Long-tails * (exactly 2, comma-separated)</label>
-                  <Input
-                    value={newTopic.featured_longtails}
-                    onChange={(e) => setNewTopic(prev => ({ ...prev, featured_longtails: e.target.value }))}
-                    placeholder="featured phrase 1, featured phrase 2"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">These will be used as H2 headings</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Authority Links * (3-4 URLs, comma-separated)</label>
-                  <Textarea
-                    value={newTopic.authority_links}
-                    onChange={(e) => setNewTopic(prev => ({ ...prev, authority_links: e.target.value }))}
-                    placeholder="https://example.com, https://authority.com, https://source.com..."
-                    rows={2}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Planned Date (optional)</label>
-                  <Input
-                    type="date"
-                    value={newTopic.planned_at}
-                    onChange={(e) => setNewTopic(prev => ({ ...prev, planned_at: e.target.value }))}
-                  />
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreatingTopic(false)}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleCreateTopic}
-                    disabled={!newTopic.title || !newTopic.primary_keyword || saving}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      'Create Topic'
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </AdminCard>
           </div>
         )}
       </div>

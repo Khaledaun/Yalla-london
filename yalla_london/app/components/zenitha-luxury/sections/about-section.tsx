@@ -30,10 +30,9 @@ export function AboutSection() {
                 zIndex: 0,
               }}
             />
-            {/* TODO: Replace with a Mayfair / brand image from your own assets. */}
             <img
-              src="/branding/zenitha-luxury/images/banner.png"
-              alt="Mayfair London"
+              src="https://images.unsplash.com/photo-1549294413-26f195200c16?w=1280&q=80&auto=format"
+              alt="Luxury Mayfair London"
               className="relative z-10 w-full object-cover"
               style={{ height: '480px' }}
               loading="lazy"
@@ -115,10 +114,10 @@ export function AboutSection() {
                 lineHeight: 1.9,
               }}
             >
-              Zenitha Luxury builds, launches, and scales AI&#8209;powered travel
-              brands — combining proprietary technology with genuine,
-              human&#8209;curated editorial to serve high&#8209;value travellers
-              across multiple markets.
+              We are an AI venture studio focused on travel. We operate
+              multiple products — Yalla London, Zenitha Yachts, and future
+              concepts — and collaborate with partners rather than acting as
+              a classic agency.
             </div>
           </ScrollReveal>
 

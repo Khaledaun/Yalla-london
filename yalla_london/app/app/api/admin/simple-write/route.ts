@@ -274,11 +274,19 @@ async function handlePost(request: NextRequest) {
   const contentEn = body.contentEn || "";
   const wordCount = contentEn.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 
-  // Warn if publishing with low word count
-  if (shouldPublish && wordCount < 300) {
+  // Block publishing with insufficient word count (matches pre-pub gate threshold)
+  if (shouldPublish && wordCount < 1000) {
     return NextResponse.json({
       success: false,
-      error: `Article is only ${wordCount} words. Minimum 300 words to publish. Save as draft instead.`,
+      error: `Article is only ${wordCount} words. Minimum 1,000 words to publish. Save as draft instead.`,
+    }, { status: 400 });
+  }
+
+  // Block publishing with garbage titles (single words, too short)
+  if (shouldPublish && titleEn.trim().length < 15) {
+    return NextResponse.json({
+      success: false,
+      error: `Title "${titleEn}" is too short (${titleEn.trim().length} chars). Minimum 15 characters for SEO.`,
     }, { status: 400 });
   }
 
@@ -352,15 +360,24 @@ async function handlePost(request: NextRequest) {
     }, { status: 500 });
   }
 
-  // If publishing, submit to IndexNow
+  // If publishing, track URL for indexing and submit to IndexNow
   if (shouldPublish) {
     try {
       const { getSiteDomain } = await import("@/config/sites");
       const domain = getSiteDomain(siteId);
       const articleUrl = `https://${domain}/blog/${slug}`;
 
+      // Ensure URL is tracked FIRST (creates URLIndexingStatus record)
+      const { ensureUrlTracked, submitToIndexNow } = await import("@/lib/seo/indexing-service");
+      ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch(e =>
+        console.warn("[simple-write] URL tracking failed:", e instanceof Error ? e.message : e)
+      );
+      // Also track Arabic variant
+      ensureUrlTracked(`https://${domain}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch(e =>
+        console.warn("[simple-write] Arabic URL tracking failed:", e instanceof Error ? e.message : e)
+      );
+
       // Fire-and-forget IndexNow submission
-      const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
       submitToIndexNow([articleUrl]).catch((e: Error) =>
         console.warn("[simple-write] IndexNow submit failed:", e.message)
       );

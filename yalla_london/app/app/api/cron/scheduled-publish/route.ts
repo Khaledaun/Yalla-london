@@ -344,6 +344,14 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
         });
         published++;
         log.trackItem(true);
+
+        // Track URL for indexing (fire-and-forget)
+        try {
+          const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+          const domain = getSiteDomain(siteId);
+          ensureUrlTracked(`https://${domain}/blog/${postData.slug}`, siteId, `blog/${postData.slug}`).catch(e => console.warn("[scheduled-publish-manual] URL tracking failed:", e instanceof Error ? e.message : e));
+          ensureUrlTracked(`https://${domain}/ar/blog/${postData.slug}`, siteId, `ar/blog/${postData.slug}`).catch(e => console.warn("[scheduled-publish-manual] AR URL tracking failed:", e instanceof Error ? e.message : e));
+        } catch { /* non-fatal */ }
       } catch (err) {
         console.error(`[Scheduled Publish Manual] Failed to process ${item.content_id}:`, err);
         log.trackItem(false);

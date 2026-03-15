@@ -97,11 +97,27 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         }
       }
 
+      // Hard floor: even force-publish refuses truly empty content
+      if (wordCount < 200) {
+        logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: false, summary: `Refused: "${keyword}" only has ${wordCount} words (hard floor: 200)`, error: "Content too thin for any publish path", durationMs: Date.now() - start }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Article only has ${wordCount} words. Even force-publish requires at least 200 words. This content would damage the site's SEO.` }, { status: 400 });
+      }
+
       try {
         // Admin explicitly chose this draft — skip the pre-pub gate
         const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true, skipDedup });
         if (result) {
           log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
+          // Track URL for indexing (fire-and-forget)
+          try {
+            const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+            const domain = getSiteDomain(siteId);
+            const bp = await prisma.blogPost.findUnique({ where: { id: result.blogPostId }, select: { slug: true } });
+            if (bp?.slug) {
+              ensureUrlTracked(`https://${domain}/blog/${bp.slug}`, siteId, `blog/${bp.slug}`).catch(e => console.warn("[force-publish] URL tracking failed:", e instanceof Error ? e.message : e));
+              ensureUrlTracked(`https://${domain}/ar/blog/${bp.slug}`, siteId, `ar/blog/${bp.slug}`).catch(e => console.warn("[force-publish] AR URL tracking failed:", e instanceof Error ? e.message : e));
+            }
+          } catch { /* non-fatal */ }
           logManualAction(req, { action: "force-publish", resource: "draft", resourceId: specificDraftId, siteId, success: true, summary: `Published "${keyword}" → BlogPost ${result.blogPostId}`, durationMs: Date.now() - start, details: { blogPostId: result.blogPostId, keyword, locale: draft.locale, score } }).catch(() => {});
           return NextResponse.json({ success: true, published: [{ ...result, locale: draft.locale }], skipped: [], durationMs: Date.now() - start, logs });
         } else {
@@ -166,6 +182,13 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           }
         }
 
+        // Hard floor: even force-publish refuses truly empty content
+        if (wordCount < 200) {
+          log(`[force-publish] REFUSED "${keyword}" — only ${wordCount} words (hard floor: 200)`);
+          skipped.push({ draftId, keyword, reason: `Only ${wordCount} words — hard floor is 200`, locale: lang });
+          continue;
+        }
+
         // ── Step 2: Promote to BlogPost — admin override skips pre-pub gate ────
         try {
           const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true, skipDedup });
@@ -173,6 +196,16 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             published.push({ ...result, locale: lang });
             published_this_locale++;
             log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
+            // Track URL for indexing (fire-and-forget)
+            try {
+              const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+              const domain = getSiteDomain(siteId);
+              const bp = await prisma.blogPost.findUnique({ where: { id: result.blogPostId }, select: { slug: true } });
+              if (bp?.slug) {
+                ensureUrlTracked(`https://${domain}/blog/${bp.slug}`, siteId, `blog/${bp.slug}`).catch(e => console.warn("[force-publish] URL tracking failed:", e instanceof Error ? e.message : e));
+                ensureUrlTracked(`https://${domain}/ar/blog/${bp.slug}`, siteId, `ar/blog/${bp.slug}`).catch(e => console.warn("[force-publish] AR URL tracking failed:", e instanceof Error ? e.message : e));
+              }
+            } catch { /* non-fatal */ }
           } else {
             log(`[force-publish] promoteToBlogPost returned null for "${keyword}" — slug collision or missing content`);
             skipped.push({ draftId, keyword, reason: "Slug collision or missing content (check logs)", locale: lang });

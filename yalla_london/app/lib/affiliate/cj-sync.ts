@@ -257,11 +257,26 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
     let hasMore = true;
 
     while (hasMore) {
-      const response = await searchLinks({
-        advertiserId,
-        pageNumber,
-        recordsPerPage: 100,
-      });
+      let response;
+      try {
+        response = await searchLinks({
+          advertiserId,
+          pageNumber,
+          recordsPerPage: 100,
+        });
+      } catch (searchErr) {
+        // New advertisers may have no promotional links — treat as empty, not error
+        const msg = getErrorMessage(searchErr);
+        if (msg.includes("No results") || msg.includes("records-returned") || msg.includes("0")) {
+          console.warn(`[cj-sync] No links found for advertiser ${advertiserId} — normal for new advertisers`);
+          break;
+        }
+        throw searchErr; // Re-throw real API errors
+      }
+
+      if (!response.records || response.records.length === 0) {
+        break;
+      }
 
       for (const rec of response.records) {
         try {
@@ -455,12 +470,27 @@ export async function syncCommissions(
         break;
       }
 
-      const response = await fetchCommissions({
-        dateFrom,
-        dateTo,
-        pageNumber,
-        recordsPerPage: 100,
-      });
+      let response;
+      try {
+        response = await fetchCommissions({
+          dateFrom,
+          dateTo,
+          pageNumber,
+          recordsPerPage: 100,
+        });
+      } catch (fetchErr) {
+        // New CJ accounts may have no commissions — treat as empty, not error
+        const msg = getErrorMessage(fetchErr);
+        if (msg.includes("No results") || msg.includes("records-returned") || msg.includes("0")) {
+          console.warn(`[cj-sync] No commissions found for ${dateFrom} to ${dateTo} — normal for new accounts`);
+          break;
+        }
+        throw fetchErr;
+      }
+
+      if (!response.records || response.records.length === 0) {
+        break;
+      }
 
       for (const rec of response.records) {
         try {

@@ -34,6 +34,7 @@ export interface EntityConfig {
   contact: {
     legalEmail: string;
     generalEmail: string;
+    adminEmail: string;
     website?: string;
   };
 
@@ -83,8 +84,12 @@ export const ENTITY: EntityConfig = {
   },
 
   contact: {
+    // Primary operational inbox — admin@zenitha.luxury (Outlook)
+    adminEmail: "admin@zenitha.luxury",
+    // Public-facing legal contact (routes to admin@zenitha.luxury)
     legalEmail: "legal@zenitha.luxury",
-    generalEmail: "hello@zenitha.luxury",
+    // Public-facing general contact (routes to info@zenitha.luxury)
+    generalEmail: "info@zenitha.luxury",
     website: "https://zenitha.luxury",
   },
 

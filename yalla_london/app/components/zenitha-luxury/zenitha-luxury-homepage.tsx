@@ -29,7 +29,7 @@ import { ContactSection } from './sections/contact-section';
  */
 export function ZenithaLuxuryHomepage() {
   return (
-    <div style={{ background: 'var(--zl-obsidian)', color: 'var(--zl-ivory)' }}>
+    <main style={{ background: 'var(--zl-obsidian)', color: 'var(--zl-ivory)' }}>
       <HeroSection />
       <Divider />
       <AboutSection />
@@ -43,6 +43,6 @@ export function ZenithaLuxuryHomepage() {
       <ZenithaYachtsSection />
       <Divider />
       <ContactSection />
-    </div>
+    </main>
   );
 }

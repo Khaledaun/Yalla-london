@@ -36,6 +36,9 @@ export function AboutSection() {
               alt="Mayfair London"
               className="relative z-10 w-full object-cover"
               style={{ height: '480px' }}
+              loading="lazy"
+              width={680}
+              height={480}
             />
             {/* Badge overlay */}
             <div
@@ -89,17 +92,18 @@ export function AboutSection() {
             >
               01 — About
             </div>
-            <div
+            <h2
               style={{
                 fontFamily: 'var(--zl-font-display)',
                 fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
                 fontWeight: 400,
                 color: 'var(--zl-ivory)',
                 marginBottom: '0.8rem',
+                margin: '0 0 0.8rem 0',
               }}
             >
               One Standard of Excellence
-            </div>
+            </h2>
             <div
               style={{
                 fontFamily: 'var(--zl-font-body)',

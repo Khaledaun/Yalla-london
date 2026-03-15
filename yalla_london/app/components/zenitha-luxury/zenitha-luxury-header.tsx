@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NAV_ITEMS } from './site-data';
 
+/** Height of the sticky header (px) — used for scroll-padding offset. */
+const HEADER_HEIGHT = 72;
+
 /**
- * ZenithaLuxuryHeader — Sticky header matching skeleton nav.
- * Logo as text "Zenitha .Luxury", nav links, gold "Enquire" CTA.
+ * ZenithaLuxuryHeader — Sticky header with logo image, nav links, gold "Enquire" CTA.
  * Scrolled state: darker background with blur + border.
  * Mobile: hide nav links except CTA, show hamburger.
  */
@@ -15,6 +17,9 @@ export function ZenithaLuxuryHeader() {
   const [activeSection, setActiveSection] = useState('');
 
   useEffect(() => {
+    // Set scroll-padding-top on <html> so anchor scroll accounts for sticky header
+    document.documentElement.style.scrollPaddingTop = `${HEADER_HEIGHT + 16}px`;
+
     function onScroll() {
       setScrolled(window.scrollY > 50);
 
@@ -24,14 +29,17 @@ export function ZenithaLuxuryHeader() {
         const el = document.getElementById(id);
         if (el) {
           const rect = el.getBoundingClientRect();
-          if (rect.top <= 120) current = id;
+          if (rect.top <= HEADER_HEIGHT + 48) current = id;
         }
       }
       setActiveSection(current);
     }
 
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      document.documentElement.style.scrollPaddingTop = '';
+    };
   }, []);
 
   useEffect(() => {
@@ -47,14 +55,17 @@ export function ZenithaLuxuryHeader() {
       return;
     }
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - HEADER_HEIGHT - 16;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   }, []);
 
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
       style={{
-        padding: scrolled ? '0.75rem 3rem' : '1.2rem 3rem',
+        padding: scrolled ? '0.6rem 1.25rem' : '0.9rem 1.25rem',
         background: scrolled
           ? 'rgba(10, 10, 10, 0.95)'
           : 'transparent',
@@ -64,34 +75,22 @@ export function ZenithaLuxuryHeader() {
           : '1px solid transparent',
       }}
     >
-      <div className="flex items-center justify-between max-w-[1360px] mx-auto">
-        {/* Logo */}
+      <div className="flex items-center justify-between max-w-[1360px] mx-auto" style={{ padding: '0 0.5rem' }}>
+        {/* Logo — uses actual brand image */}
         <a
           href="#top"
           onClick={(e) => { e.preventDefault(); scrollTo('#top'); }}
-          className="flex items-center no-underline"
-          style={{ gap: '0.4rem' }}
+          className="flex items-center no-underline shrink-0"
         >
-          <span
+          <img
+            src="/branding/zenitha-luxury/logo/zenitha-logo-light.png"
+            alt="Zenitha Luxury"
             style={{
-              fontFamily: 'var(--zl-font-display)',
-              fontSize: '1.25rem',
-              letterSpacing: '0.06em',
-              color: 'var(--zl-gold)',
+              height: scrolled ? '28px' : '34px',
+              width: 'auto',
+              transition: 'height 0.5s ease',
             }}
-          >
-            Zenitha
-          </span>
-          <em
-            style={{
-              fontFamily: 'var(--zl-font-body)',
-              fontStyle: 'italic',
-              fontSize: '0.9rem',
-              color: 'var(--zl-gold-deep)',
-            }}
-          >
-            .Luxury
-          </em>
+          />
         </a>
 
         {/* Desktop nav */}
@@ -194,6 +193,19 @@ export function ZenithaLuxuryHeader() {
         }}
       >
         <nav className="flex flex-col items-center justify-center h-full gap-1 -mt-[60px]" aria-label="Mobile navigation">
+          {/* Mobile logo */}
+          <img
+            src="/branding/zenitha-luxury/logo/zenitha-logo-light.png"
+            alt="Zenitha Luxury"
+            style={{
+              height: '32px',
+              width: 'auto',
+              marginBottom: '2rem',
+              opacity: mobileOpen ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+            }}
+          />
+
           {NAV_ITEMS.map((item, i) => (
             <a
               key={item.href}

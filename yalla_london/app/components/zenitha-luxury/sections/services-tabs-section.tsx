@@ -58,17 +58,18 @@ export function ServicesTabsSection() {
           >
             02 — Platforms &amp; Services
           </div>
-          <div
+          <h2
             style={{
               fontFamily: 'var(--zl-font-display)',
               fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
               fontWeight: 400,
               color: 'var(--zl-ivory)',
               marginBottom: '0.8rem',
+              margin: '0 0 0.8rem 0',
             }}
           >
             What Zenitha Operates
-          </div>
+          </h2>
           <div
             style={{
               fontFamily: 'var(--zl-font-body)',
@@ -153,6 +154,9 @@ export function ServicesTabsSection() {
               alt={activePanel.imageAlt}
               className="w-full object-cover"
               style={{ height: '350px' }}
+              loading="lazy"
+              width={680}
+              height={350}
             />
           </ScrollReveal>
 

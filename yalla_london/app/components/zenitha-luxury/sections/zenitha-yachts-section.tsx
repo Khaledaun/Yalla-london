@@ -28,17 +28,18 @@ export function ZenithaYachtsSection() {
             >
               {d.sectionNumber} — {d.sectionLabel}
             </div>
-            <div
+            <h2
               style={{
                 fontFamily: 'var(--zl-font-display)',
                 fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
                 fontWeight: 400,
                 color: 'var(--zl-ivory)',
                 marginBottom: '0.8rem',
+                margin: '0 0 0.8rem 0',
               }}
             >
               {d.title}
-            </div>
+            </h2>
             <div
               style={{
                 fontFamily: 'var(--zl-font-body)',
@@ -58,24 +59,37 @@ export function ZenithaYachtsSection() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-center">
             {/* Bullets + footnote (LEFT — reversed from Yalla London) */}
             <div>
-              <div
-                className="flex flex-col"
+              <ul
                 style={{
-                  gap: '0.6rem',
-                  marginBottom: '1.8rem',
-                  fontSize: '0.75rem',
-                  color: 'rgba(245, 240, 232, 0.5)',
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: '0 0 1.8rem 0',
                   fontFamily: 'var(--zl-font-body)',
                 }}
               >
                 {d.bullets.map((bullet, i) => (
-                  <div key={i}>&bull; {bullet}</div>
+                  <li
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.75rem',
+                      fontSize: '0.82rem',
+                      color: 'rgba(245, 240, 232, 0.6)',
+                      lineHeight: 1.7,
+                      padding: '0.4rem 0',
+                      borderBottom: '1px solid rgba(196, 169, 108, 0.04)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--zl-gold-deep)', flexShrink: 0, marginTop: '0.1rem' }}>&mdash;</span>
+                    <span>{bullet}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
               <p
                 style={{
                   fontFamily: 'var(--zl-font-body)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.78rem',
                   color: 'rgba(245, 240, 232, 0.45)',
                   lineHeight: 1.85,
                 }}
@@ -91,6 +105,9 @@ export function ZenithaYachtsSection() {
               alt={d.imageAlt}
               className="w-full object-cover"
               style={{ height: '420px' }}
+              loading="lazy"
+              width={680}
+              height={420}
             />
           </div>
         </ScrollReveal>

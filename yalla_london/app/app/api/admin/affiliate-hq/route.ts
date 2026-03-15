@@ -175,56 +175,124 @@ export async function GET(request: NextRequest) {
     errors.push(`Partners: ${msg}`);
   }
 
-  // ── Tab 3: Content Coverage ──
+  // ── Tab 3: Content Coverage — Per-Page Performance ──
   let coverage = {
     totalArticles: 0, withAffiliates: 0, withoutAffiliates: 0, coveragePercent: 0,
     uncoveredArticles: [] as Array<{ id: string; title: string; slug: string; createdAt: Date }>,
+    pages: [] as Array<{
+      id: string; title: string; slug: string; publishedAt: Date | null;
+      hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number;
+      revenue: number; sales: number; advertisers: string[];
+    }>,
   };
   try {
-    const totalPublished = await prisma.blogPost.count({
+    // Get all published articles with content for link counting
+    const allArticles = await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null, siteId },
+      select: {
+        id: true, title_en: true, slug: true, content_en: true,
+        created_at: true, published_at: true, siteId: true,
+      },
+      orderBy: { published_at: "desc" },
+      take: 200,
     });
 
-    let withAffiliatesCount = 0;
-    if (totalPublished > 0) {
-      withAffiliatesCount = await prisma.blogPost.count({
-        where: {
-          published: true, deletedAt: null, siteId,
-          OR: [
-            { content_en: { contains: 'rel="sponsored' } },
-            { content_en: { contains: "affiliate-cta-block" } },
-            { content_en: { contains: "affiliate-recommendation" } },
-            { content_en: { contains: 'rel="noopener sponsored"' } },
-          ],
-        },
-      });
+    // Get all click events grouped by pageUrl
+    const clickEvents = await prisma.cjClickEvent.findMany({
+      where: siteId ? { OR: [{ siteId }, { siteId: null }] } : {},
+      select: { pageUrl: true, linkId: true },
+    });
+
+    // Build page→clicks map and page→linkIds map
+    const pageClickMap = new Map<string, number>();
+    const pageLinkIdsMap = new Map<string, Set<string>>();
+    for (const ev of clickEvents) {
+      const slug = ev.pageUrl.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "").replace(/^\/blog\//, "");
+      pageClickMap.set(slug, (pageClickMap.get(slug) || 0) + 1);
+      if (!pageLinkIdsMap.has(slug)) pageLinkIdsMap.set(slug, new Set<string>());
+      pageLinkIdsMap.get(slug)!.add(ev.linkId);
     }
 
-    const uncoveredArticles = await prisma.blogPost.findMany({
+    // Get commissions grouped by link for revenue attribution
+    const commissions = await prisma.cjCommission.findMany({
       where: {
-        published: true, deletedAt: null, siteId,
-        NOT: {
-          OR: [
-            { content_en: { contains: 'rel="sponsored' } },
-            { content_en: { contains: "affiliate-cta-block" } },
-            { content_en: { contains: "affiliate-recommendation" } },
-            { content_en: { contains: 'rel="noopener sponsored"' } },
-          ],
-        },
+        status: { in: ["APPROVED", "LOCKED"] },
+        ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}),
       },
-      select: { id: true, title_en: true, slug: true, created_at: true },
-      orderBy: { created_at: "desc" },
-      take: 15,
+      select: { linkId: true, commissionAmount: true, saleAmount: true },
+    });
+    const linkRevenueMap = new Map<string, { revenue: number; sales: number }>();
+    for (const c of commissions) {
+      if (!c.linkId) continue;
+      const existing = linkRevenueMap.get(c.linkId) || { revenue: 0, sales: 0 };
+      existing.revenue += c.commissionAmount;
+      existing.sales += 1;
+      linkRevenueMap.set(c.linkId, existing);
+    }
+
+    // Get CjLink advertiser names for display
+    const cjLinks = await prisma.cjLink.findMany({
+      where: { advertiser: { networkId: CJ_NETWORK_ID } },
+      select: { id: true, advertiser: { select: { name: true } } },
+    });
+    const linkAdvertiserMap = new Map<string, string>();
+    for (const l of cjLinks) linkAdvertiserMap.set(l.id, l.advertiser.name);
+
+    const affiliatePatterns = ['rel="sponsored', "affiliate-cta-block", "affiliate-recommendation", 'rel="noopener sponsored"'];
+
+    let withAffiliatesCount = 0;
+    const uncoveredArticles: Array<{ id: string; title: string; slug: string; createdAt: Date }> = [];
+
+    const pages = allArticles.map((article) => {
+      const content = article.content_en || "";
+      const hasAffiliateLinks = affiliatePatterns.some((p) => content.includes(p));
+      if (hasAffiliateLinks) withAffiliatesCount++;
+      else uncoveredArticles.push({ id: article.id, title: article.title_en, slug: article.slug, createdAt: article.created_at });
+
+      // Count affiliate links in content (approximate by counting rel="sponsored" occurrences)
+      const linkMatches = content.match(/rel="(noopener )?sponsored"/g);
+      const ctaBlocks = content.match(/affiliate-cta-block|affiliate-recommendation/g);
+      const linkCount = (linkMatches?.length || 0) + (ctaBlocks?.length || 0);
+
+      // Clicks for this page
+      const affiliateClicks = pageClickMap.get(article.slug) || 0;
+
+      // Revenue from links clicked on this page
+      const clickedLinkIds = pageLinkIdsMap.get(article.slug);
+      let revenue = 0;
+      let sales = 0;
+      const advertiserNames = new Set<string>();
+      if (clickedLinkIds) {
+        for (const lid of clickedLinkIds) {
+          const rev = linkRevenueMap.get(lid);
+          if (rev) { revenue += rev.revenue; sales += rev.sales; }
+          const advName = linkAdvertiserMap.get(lid);
+          if (advName) advertiserNames.add(advName);
+        }
+      }
+
+      return {
+        id: article.id,
+        title: article.title_en,
+        slug: article.slug,
+        publishedAt: article.published_at,
+        hasAffiliateLinks,
+        linkCount,
+        affiliateClicks,
+        revenue: Math.round(revenue * 100) / 100,
+        sales,
+        advertisers: [...advertiserNames],
+      };
     });
 
+    const totalPublished = allArticles.length;
     coverage = {
       totalArticles: totalPublished,
       withAffiliates: withAffiliatesCount,
       withoutAffiliates: totalPublished - withAffiliatesCount,
       coveragePercent: totalPublished > 0 ? Math.round((withAffiliatesCount / totalPublished) * 100) : 0,
-      uncoveredArticles: uncoveredArticles.map((a) => ({
-        id: a.id, title: a.title_en, slug: a.slug, createdAt: a.created_at,
-      })),
+      uncoveredArticles: uncoveredArticles.slice(0, 15),
+      pages,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

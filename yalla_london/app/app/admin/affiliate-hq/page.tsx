@@ -49,6 +49,18 @@ interface AffiliateHQData {
       slug: string;
       createdAt: string;
     }>;
+    pages: Array<{
+      id: string;
+      title: string;
+      slug: string;
+      publishedAt: string | null;
+      hasAffiliateLinks: boolean;
+      linkCount: number;
+      affiliateClicks: number;
+      revenue: number;
+      sales: number;
+      advertisers: string[];
+    }>;
   };
   links: {
     total: number;
@@ -498,70 +510,177 @@ function PartnersTab({
   );
 }
 
-// ─── Tab 3: Coverage ────────────────────────────────────────────────────────
+// ─── Tab 3: Coverage & Page Performance ─────────────────────────────────────
 
 function CoverageTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
   const { coverage } = data;
+  const [filter, setFilter] = useState<"all" | "covered" | "uncovered">("all");
+  const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "links" | "title">("clicks");
   const barWidth = Math.max(coverage.coveragePercent, 3);
+  const pages = coverage.pages || [];
+
+  const filtered = pages.filter((p) => {
+    if (filter === "covered") return p.hasAffiliateLinks;
+    if (filter === "uncovered") return !p.hasAffiliateLinks;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "title") return a.title.localeCompare(b.title);
+    if (sortBy === "links") return b.linkCount - a.linkCount;
+    if (sortBy === "revenue") return b.revenue - a.revenue;
+    return b.affiliateClicks - a.affiliateClicks;
+  });
+
+  const totalClicks = pages.reduce((s, p) => s + p.affiliateClicks, 0);
+  const totalRevenue = pages.reduce((s, p) => s + p.revenue, 0);
+  const totalSales = pages.reduce((s, p) => s + p.sales, 0);
+  const totalLinks = pages.reduce((s, p) => s + p.linkCount, 0);
+  const barColor = coverage.coveragePercent >= 80 ? "#16a34a" : coverage.coveragePercent >= 50 ? "#f59e0b" : "#dc2626";
 
   return (
     <div>
-      {/* Coverage Meter */}
-      <div style={{ padding: "1rem", background: "#f8fafc", borderRadius: 12, marginBottom: "1rem" }}>
-        <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>Article Coverage</div>
-        <div style={{ background: "#e5e7eb", borderRadius: 8, height: 24, overflow: "hidden", marginBottom: "0.5rem" }}>
-          <div
-            style={{
-              width: `${barWidth}%`,
-              height: "100%",
-              background: coverage.coveragePercent >= 80 ? "#16a34a" : coverage.coveragePercent >= 50 ? "#f59e0b" : "#dc2626",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontSize: "0.75rem",
-              fontWeight: 700,
-            }}
-          >
-            {coverage.coveragePercent}%
-          </div>
+      {/* Coverage meter */}
+      <div style={{ padding: "0.75rem", background: "#f8fafc", borderRadius: 10, marginBottom: "0.75rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.4rem" }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>Page Coverage</span>
+          <span style={{ fontSize: "1.2rem", fontWeight: 800, color: barColor }}>{coverage.coveragePercent}%</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#6b7280" }}>
-          <span>{coverage.withAffiliates} with affiliates</span>
-          <span>{coverage.withoutAffiliates} without</span>
+        <div style={{ background: "#e5e7eb", borderRadius: 6, height: 10, overflow: "hidden", marginBottom: "0.4rem" }}>
+          <div style={{ width: `${barWidth}%`, height: "100%", background: barColor, borderRadius: 6, transition: "width 0.3s" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#6b7280" }}>
+          <span>{coverage.withAffiliates} covered</span>
+          <span>{coverage.withoutAffiliates} uncovered</span>
           <span>{coverage.totalArticles} total</span>
         </div>
       </div>
 
-      {/* Uncovered Articles */}
-      {coverage.uncoveredArticles.length > 0 && (
-        <div>
-          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Articles Without Affiliate Links</h3>
-          {coverage.uncoveredArticles.map((a) => (
-            <div key={a.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "0.85rem", fontWeight: 500 }}>{a.title}</div>
-                <div style={{ fontSize: "0.7rem", color: "#6b7280" }}>/{a.slug}</div>
-              </div>
-              <a
-                href={`/blog/${a.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ marginLeft: "0.5rem", padding: "4px 10px", background: "#1e3a5f", color: "#fff", borderRadius: 6, fontSize: "0.7rem", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
-              >
-                View Page
-              </a>
-            </div>
+      {/* Performance KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.4rem", marginBottom: "0.75rem" }}>
+        <KpiCard label="Active Links" value={String(totalLinks)} />
+        <KpiCard label="Clicks" value={String(totalClicks)} />
+        <KpiCard label="Sales" value={String(totalSales)} />
+        <KpiCard label="Revenue" value={totalRevenue > 0 ? `$${totalRevenue.toFixed(0)}` : "$0"} />
+      </div>
+
+      {/* Filter + Sort */}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "0.2rem" }}>
+          {(["all", "covered", "uncovered"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: "0.2rem 0.5rem", borderRadius: 6, border: "1px solid #e5e7eb", fontSize: "0.65rem",
+                fontWeight: filter === f ? 700 : 400, cursor: "pointer",
+                background: filter === f ? "#1f2937" : "#fff", color: filter === f ? "#fff" : "#374151",
+              }}
+            >
+              {f === "all" ? `All (${pages.length})` : f === "covered" ? `Covered (${coverage.withAffiliates})` : `No Links (${coverage.withoutAffiliates})`}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: "0.2rem" }}>
+          {(["clicks", "revenue", "links", "title"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSortBy(s)}
+              style={{
+                padding: "0.2rem 0.5rem", borderRadius: 6, border: "1px solid #e5e7eb", fontSize: "0.65rem",
+                fontWeight: sortBy === s ? 700 : 400, cursor: "pointer",
+                background: sortBy === s ? "#C49A2A" : "#fff", color: sortBy === s ? "#fff" : "#374151",
+              }}
+            >
+              {s === "links" ? "Links" : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Page List */}
+      {sorted.length === 0 ? (
+        <div style={{ padding: "2rem 1rem", textAlign: "center", color: "#9ca3af", fontSize: "0.85rem" }}>
+          No published articles found.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+          {sorted.map((page) => (
+            <PageRow key={page.id} page={page} />
           ))}
         </div>
       )}
 
-      <div style={{ marginTop: "1rem" }}>
+      {/* Action */}
+      <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
         <button onClick={() => onAction("inject_links")} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
-          {actionLoading === "inject_links" ? "Injecting..." : "Run Affiliate Injection"}
+          {actionLoading === "inject_links" ? "Injecting..." : "Inject Links into Uncovered Pages"}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Per-page row in Coverage tab */
+function PageRow({ page }: { page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[] } }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div
+      style={{
+        background: "#fff", borderRadius: 8, overflow: "hidden",
+        border: `1px solid ${page.hasAffiliateLinks ? "#e5e7eb" : "#fecaca"}`,
+      }}
+    >
+      <div onClick={() => setExpanded(!expanded)} style={{ padding: "0.5rem 0.6rem", cursor: "pointer" }}>
+        {/* Title + coverage badge */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.3rem", marginBottom: "0.2rem" }}>
+          <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#111827", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {page.title || page.slug}
+          </div>
+          <span style={{
+            fontSize: "0.6rem", fontWeight: 600, padding: "0.1rem 0.4rem", borderRadius: 8, whiteSpace: "nowrap",
+            background: page.hasAffiliateLinks ? "#dcfce7" : "#fee2e2",
+            color: page.hasAffiliateLinks ? "#166534" : "#991b1b",
+          }}>
+            {page.hasAffiliateLinks ? `${page.linkCount} link${page.linkCount !== 1 ? "s" : ""}` : "NO LINKS"}
+          </span>
+        </div>
+
+        {/* Slug */}
+        <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginBottom: "0.3rem" }}>/blog/{page.slug}</div>
+
+        {/* Stats row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.2rem" }}>
+          <StatCell label="Clicks" value={String(page.affiliateClicks)} />
+          <StatCell label="Sales" value={String(page.sales)} highlight={page.sales > 0} />
+          <StatCell label="Revenue" value={page.revenue > 0 ? `$${page.revenue.toFixed(2)}` : "—"} highlight={page.revenue > 0} />
+        </div>
+      </div>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div style={{ padding: "0.4rem 0.6rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8", fontSize: "0.7rem", color: "#374151" }}>
+          {page.advertisers.length > 0 && (
+            <div style={{ marginBottom: "0.3rem" }}>
+              <strong>Partners:</strong> {page.advertisers.join(", ")}
+            </div>
+          )}
+          {page.publishedAt && (
+            <div style={{ marginBottom: "0.3rem" }}>
+              <strong>Published:</strong> {new Date(page.publishedAt).toLocaleDateString()}
+            </div>
+          )}
+          <a
+            href={`/blog/${page.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#C49A2A", fontWeight: 600, textDecoration: "none" }}
+          >
+            View Page →
+          </a>
+        </div>
+      )}
     </div>
   );
 }

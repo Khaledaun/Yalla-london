@@ -458,25 +458,27 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // Just clear the stale lock — DO NOT reduce attempts.
-        // Reducing attempts (e.g. 1→0) defeats the lifetime cap because with 50+ drafts
-        // content-builder takes hours to circle back, by which time diagnostic has already
-        // reset the counter. Attempts never accumulate to 5 → infinite loop.
-        // Let attempts grow naturally: 1→2→3→4→5→rejected.
+        // Clear the stale lock AND increment attempts so drafts converge toward the
+        // lifetime cap (5). Without incrementing, drafts at attempt 2-4 loop forever:
+        // timeout → diagnostic clears lock → builder retries → timeout → diagnostic clears...
+        // The builder may not increment attempts if it crashes mid-phase, so diagnostic
+        // must ensure forward progress toward rejection.
         const currentAttempts = draft.phase_attempts || 0;
+        const newAttempts = currentAttempts + 1;
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
             phase_started_at: null,
-            last_error: `[diagnostic-agent] Cleared stale lock from ${diagnosis.category} (attempts=${currentAttempts}, preserved)`,
+            phase_attempts: newAttempts,
+            last_error: `[diagnostic-agent] Cleared stale lock from ${diagnosis.category} (attempts=${currentAttempts}→${newAttempts})`,
           },
         });
         return {
           diagnosis,
-          fixApplied: "unlock_stale_lock",
+          fixApplied: "unlock_stale_lock_and_increment",
           success: true,
           before,
-          after: { phase: draft.current_phase, attempts: currentAttempts, phase_started_at: null },
+          after: { phase: draft.current_phase, attempts: newAttempts, phase_started_at: null },
         };
       }
 

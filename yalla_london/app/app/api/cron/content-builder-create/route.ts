@@ -66,19 +66,21 @@ async function handleCreate(request: NextRequest) {
 
       // Skip if there are already active drafts being processed for this site.
       // Count only drafts GENUINELY advancing through the pipeline:
-      // - Updated within 15 minutes (not stale — build-runner completes phases in <5min)
+      // - Updated within 1 hour (generous window for builder to cycle back)
       // - Exclude drafts with 3+ attempts (they're failing, not advancing)
+      // - Exclude drafts with stale processing locks (phase_started_at > 2h = crashed)
       // - Exclude drafts touched by recovery agents
-      // - Exclude garbage/permanently-failed drafts
-      const thirtyMinAgo = new Date(Date.now() - 15 * 60 * 1000);
+      // - Exclude drafts with persistent timeout/budget errors
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       const activeDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          updated_at: { gte: thirtyMinAgo },
-          phase_attempts: { lt: 5 },
+          updated_at: { gte: oneHourAgo },
+          phase_attempts: { lt: 3 },
           NOT: {
             OR: [
               { last_error: { contains: "Reset phase timer" } },
@@ -86,6 +88,12 @@ async function handleCreate(request: NextRequest) {
               { last_error: { startsWith: "[diagnostic-agent-reset]" } },
               { last_error: { contains: "MAX_RECOVERIES_EXCEEDED" } },
               { last_error: { contains: "[sweeper]" } },
+              { last_error: { contains: "timeout" } },
+              { last_error: { contains: "Timeout" } },
+              { last_error: { contains: "budget" } },
+              { last_error: { contains: "BUDGET" } },
+              // Exclude drafts with stale processing locks (crashed mid-phase)
+              { phase_started_at: { lt: twoHoursAgo } },
             ],
           },
         },
@@ -98,7 +106,7 @@ async function handleCreate(request: NextRequest) {
             current_phase: {
               in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
             },
-            updated_at: { gte: thirtyMinAgo },
+            updated_at: { gte: oneHourAgo },
           },
           select: { id: true, keyword: true, current_phase: true, phase_attempts: true, last_error: true, updated_at: true },
           take: 10,

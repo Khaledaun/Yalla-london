@@ -750,7 +750,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
 
   const statusColor = {
     indexed: "text-[#2D5A3D] bg-[rgba(45,90,61,0.08)] border-[rgba(45,90,61,0.3)]",
-    submitted: "text-blue-400 bg-[rgba(59,126,161,0.08)] border-[rgba(59,126,161,0.3)]",
+    submitted: "text-[#3B7EA1] bg-[rgba(59,126,161,0.08)] border-[rgba(59,126,161,0.3)]",
     not_indexed: "text-[#C49A2A] bg-[rgba(196,154,42,0.08)] border-[rgba(196,154,42,0.3)]",
     error: "text-[#C8322B] bg-[rgba(200,50,43,0.08)] border-[rgba(200,50,43,0.3)]",
     never_submitted: "text-stone-400 bg-stone-100/60 border-stone-200",
@@ -767,8 +767,8 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
 
   const healthColor = {
     healthy: "border-[rgba(45,90,61,0.25)] bg-[rgba(45,90,61,0.06)]",
-    warning: "border-amber-700 bg-[rgba(196,154,42,0.06)]",
-    critical: "border-red-700 bg-[rgba(200,50,43,0.06)]",
+    warning: "border-[rgba(196,154,42,0.25)] bg-[rgba(196,154,42,0.06)]",
+    critical: "border-[rgba(200,50,43,0.25)] bg-[rgba(200,50,43,0.06)]",
     not_started: "border-stone-200 bg-stone-100/30",
   } as const;
 
@@ -811,7 +811,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
         )}
 
         {error && (
-          <div className="rounded-xl border border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.06)] px-4 py-3 text-sm text-red-300">
+          <div className="rounded-xl border border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.06)] px-4 py-3 text-sm text-[#C8322B]">
             ⚠️ {error}
             <button onClick={fetchData} className="ml-3 underline text-xs">Retry</button>
           </div>
@@ -838,7 +838,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
               {[
                 ["Total", data.summary.total, "text-stone-600", "all"],
                 ["Indexed", data.summary.indexed, "text-[#2D5A3D]", "indexed"],
-                ["Submitted", data.summary.submitted, "text-blue-400", "submitted"],
+                ["Submitted", data.summary.submitted, "text-[#3B7EA1]", "submitted"],
                 ["Discovered", data.summary.discovered ?? 0, "text-[#C49A2A]", "discovered"],
                 ["Untracked", data.summary.neverSubmitted, "text-stone-400", "never_submitted"],
                 ["Errors", data.summary.errors, "text-[#C8322B]", "error"],
@@ -860,7 +860,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
 
             {/* Config warnings */}
             {(!data.config.hasIndexNowKey || !data.config.hasGscCredentials) && (
-              <div className="rounded-xl border border-amber-700 bg-[rgba(196,154,42,0.04)] px-4 py-3 text-xs space-y-1">
+              <div className="rounded-xl border border-[rgba(196,154,42,0.25)] bg-[rgba(196,154,42,0.04)] px-4 py-3 text-xs space-y-1">
                 <p className="font-semibold text-[#7a5a10]">⚠️ Indexing Not Fully Configured</p>
                 {!data.config.hasIndexNowKey && <p className="text-[#C49A2A]/80">INDEXNOW_KEY not set — cannot submit to Bing/Yandex</p>}
                 {!data.config.hasGscCredentials && <p className="text-[#C49A2A]/80">Google Search Console credentials not configured</p>}
@@ -889,7 +889,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
               <button
                 onClick={resubmitStuck}
                 disabled={submitLoading === "resubmit-stuck"}
-                className="px-4 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-[#C49A2A] hover:bg-[#b08a22] text-white text-xs font-semibold disabled:opacity-50"
               >
                 {submitLoading === "resubmit-stuck" ? "⏳ Resubmitting…" : "🔄 Resubmit All Stuck"}
               </button>
@@ -951,7 +951,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                             <span className="text-stone-500">👁 — impressions</span>
                           )}
                           {article.gscClicks !== null ? (
-                            <span className="text-cyan-400">🖱 {article.gscClicks.toLocaleString()} clicks</span>
+                            <span className="text-[#3B7EA1]">🖱 {article.gscClicks.toLocaleString()} clicks</span>
                           ) : (
                             <span className="text-stone-500">🖱 — clicks</span>
                           )}
@@ -1077,7 +1077,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                 <p className="text-xs font-semibold text-stone-400">System Issues</p>
                 {data.systemIssues.map((issue, i) => (
                   <div key={i} className={`rounded-xl border px-3 py-2 text-xs ${
-                    issue.severity === "critical" ? "border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.04)] text-red-300" :
+                    issue.severity === "critical" ? "border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.04)] text-[#C8322B]" :
                     issue.severity === "warning" ? "border-[rgba(196,154,42,0.3)] bg-[rgba(196,154,42,0.04)] text-[#7a5a10]" :
                     "border-stone-200 bg-stone-100/30 text-stone-400"
                   }`}>
@@ -1133,7 +1133,7 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
     <Card>
       <div className="flex items-center justify-between mb-3">
         <SectionTitle>London News</SectionTitle>
-        <Link href="/admin/news" className="text-[10px] text-blue-400 hover:text-[#1e5a7a]">View All →</Link>
+        <Link href="/admin/news" className="text-[10px] text-[#3B7EA1] hover:text-[#1e5a7a]">View All →</Link>
       </div>
 
       {loading ? (
@@ -1162,7 +1162,7 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
               <div className="text-[10px] text-stone-500">Published</div>
             </div>
             <div className="bg-stone-100/50 rounded-lg p-2">
-              <div className="text-lg font-bold text-blue-400">{news.draft}</div>
+              <div className="text-lg font-bold text-[#3B7EA1]">{news.draft}</div>
               <div className="text-[10px] text-stone-500">Draft</div>
             </div>
             <div className="bg-stone-100/50 rounded-lg p-2">
@@ -1478,7 +1478,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                     }
                   } catch { /* silently fail — refresh will show current state */ }
                 }}
-                className="mt-2 w-full text-xs bg-amber-700/30 hover:bg-amber-700/50 text-[#7a5a10] border border-amber-700/50 rounded py-1.5 px-3 transition-colors"
+                className="mt-2 w-full text-xs bg-[rgba(196,154,42,0.08)] hover:bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border border-[rgba(196,154,42,0.25)] rounded py-1.5 px-3 transition-colors"
               >
                 Submit {indexing.discovered} discovered article{indexing.discovered === 1 ? "" : "s"} to Google
               </button>
@@ -1491,7 +1491,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
 
         {/* Impression Drop Diagnostic — only shown when impressions are falling */}
         {indexing.impressionDiagnostic && (
-          <div className="mt-3 bg-[rgba(196,154,42,0.04)] border border-[rgba(196,154,42,0.3)]/50 rounded-lg p-3">
+          <div className="mt-3 bg-[rgba(196,154,42,0.04)] border border-[rgba(196,154,42,0.3)] rounded-lg p-3">
             <div className="text-xs font-semibold text-[#7a5a10] mb-2">Why impressions are dropping</div>
             <div className="space-y-1.5 text-[11px] text-stone-600">
               {indexing.impressionDiagnostic.gscDelayNote && (
@@ -1501,7 +1501,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 </div>
               )}
               <div className="flex items-start gap-1.5">
-                <span className="text-blue-400 mt-0.5 shrink-0">#</span>
+                <span className="text-[#3B7EA1] mt-0.5 shrink-0">#</span>
                 <span>Publishing velocity: {indexing.impressionDiagnostic.publishVelocity.thisWeek} this week vs {indexing.impressionDiagnostic.publishVelocity.lastWeek} last week</span>
               </div>
               {indexing.impressionDiagnostic.blockedByGate > 0 && (
@@ -1533,9 +1533,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 key={i}
                 className={`text-[11px] rounded-lg px-2.5 py-1.5 ${
                   blocker.severity === "critical"
-                    ? "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border border-red-900/50"
+                    ? "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border border-[rgba(200,50,43,0.20)]"
                     : blocker.severity === "warning"
-                    ? "bg-[rgba(196,154,42,0.04)] text-[#7a5a10] border border-amber-900/40"
+                    ? "bg-[rgba(196,154,42,0.04)] text-[#7a5a10] border border-[rgba(196,154,42,0.15)]"
                     : "bg-stone-100/40 text-stone-400 border border-stone-200/50"
                 }`}
               >
@@ -1600,7 +1600,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         {/* Tap to see full details */}
         <button
           onClick={() => setShowIndexPanel(true)}
-          className="mt-2 w-full text-center text-[10px] text-blue-400 hover:text-[#1e5a7a] py-1"
+          className="mt-2 w-full text-center text-[10px] text-[#3B7EA1] hover:text-[#1e5a7a] py-1"
         >
           Tap for full indexing details →
         </button>
@@ -1774,7 +1774,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
 
       {/* Stuck drafts */}
       {pipeline.stuckDrafts.length > 0 && (
-        <Card className="border-orange-900/40">
+        <Card className="border-[rgba(217,119,6,0.15)]">
           <div className="flex items-center justify-between gap-2 mb-3">
             <SectionTitle>⚠️ Stuck Drafts ({pipeline.stuckDrafts.length})</SectionTitle>
             <ActionButton
@@ -2023,7 +2023,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const indexColor = (s: string | null) => {
     if (!s) return "text-stone-500";
     if (s === "indexed") return "text-[#2D5A3D]";
-    if (s === "submitted") return "text-blue-400";
+    if (s === "submitted") return "text-[#3B7EA1]";
     if (s === "error") return "text-[#C8322B]";
     return "text-stone-400";
   };
@@ -2057,7 +2057,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         <button
           onClick={() => setContentView("research")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "research" ? "bg-violet-600 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+            contentView === "research" ? "bg-[#5B21B6] text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
           }`}
         >
           Research & Create
@@ -2082,13 +2082,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 placeholder="Focus area (optional): e.g. Ramadan, summer, luxury hotels…"
                 value={focusArea}
                 onChange={(e) => setFocusArea(e.target.value)}
-                className="flex-1 bg-stone-100 border border-stone-200 rounded-lg px-3 py-2 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-violet-500"
+                className="flex-1 bg-stone-100 border border-stone-200 rounded-lg px-3 py-2 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-[#5B21B6]"
               />
               <ActionButton
                 onClick={runTopicResearch}
                 loading={researchLoading}
                 variant="default"
-                className="whitespace-nowrap bg-violet-700 hover:bg-violet-600 border-violet-600 text-white"
+                className="whitespace-nowrap bg-[#5B21B6] hover:bg-[#5B21B6] border-[#5B21B6] text-white"
               >
                 Research Topics
               </ActionButton>
@@ -2102,7 +2102,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           {researchLoading && (
             <Card className="text-center py-8">
               <div className="animate-pulse space-y-2">
-                <p className="text-violet-400 text-sm font-medium">Researching trending topics…</p>
+                <p className="text-[#5B21B6] text-sm font-medium">Researching trending topics…</p>
                 <p className="text-stone-500 text-xs">This takes 20-40 seconds. AI is analyzing search trends, competition, and relevance.</p>
               </div>
             </Card>
@@ -2170,7 +2170,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-red-300 text-sm">{bulkResult.error || "Failed to queue articles"}</p>
+                    <p className="text-[#C8322B] text-sm">{bulkResult.error || "Failed to queue articles"}</p>
                   )}
                 </Card>
               )}
@@ -2186,7 +2186,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       key={topic.rank}
                       className={`cursor-pointer transition-all ${
                         isSelected
-                          ? "border-violet-500 bg-violet-950/20 ring-1 ring-violet-500/30"
+                          ? "border-[rgba(124,58,237,0.4)] bg-[rgba(124,58,237,0.06)] ring-1 ring-[rgba(124,58,237,0.15)]"
                           : atLimit
                           ? "opacity-50 cursor-not-allowed"
                           : "hover:border-stone-300"
@@ -2198,7 +2198,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       >
                         {/* Checkbox */}
                         <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                          isSelected ? "bg-violet-600 border-violet-500" : "border-stone-300"
+                          isSelected ? "bg-[#5B21B6] border-[#5B21B6]" : "border-stone-300"
                         }`}>
                           {isSelected && <span className="text-white text-xs font-bold">✓</span>}
                         </div>
@@ -2252,7 +2252,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
                           {/* Content angle */}
                           {topic.contentAngle && (
-                            <p className="text-violet-400/70 text-[11px] mt-1">
+                            <p className="text-[#5B21B6]/70 text-[11px] mt-1">
                               Angle: {topic.contentAngle}
                             </p>
                           )}
@@ -2295,7 +2295,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   {[
                     ["Total", data.summary.total, "text-stone-600"],
                     ["Published", data.summary.published, "text-[#2D5A3D]"],
-                    ["Reservoir", data.summary.reservoir, "text-blue-400"],
+                    ["Reservoir", data.summary.reservoir, "text-[#3B7EA1]"],
                     ["Pipeline", data.summary.inPipeline, "text-[#C49A2A]"],
                     ["Rejected", data.summary.rejected, "text-[#C8322B]"],
                     ["Stuck", data.summary.stuck, "text-orange-400"],
@@ -2313,7 +2313,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <ActionButton
                   onClick={() => setContentView("research")}
                   variant="default"
-                  className="bg-violet-700 hover:bg-violet-600 border-violet-600 text-white"
+                  className="bg-[#5B21B6] hover:bg-[#5B21B6] border-[#5B21B6] text-white"
                 >
                   Research & Create Topics
                 </ActionButton>
@@ -2352,8 +2352,8 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <ActionButton onClick={fetchData} loading={loading}>
                   Refresh
                 </ActionButton>
-                {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-[#2D5A3D]" : "text-red-300"}`}>{actionResult.__builder}</span>}
-                {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-[#2D5A3D]" : "text-red-300"}`}>{actionResult.__selector}</span>}
+                {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__builder}</span>}
+                {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__selector}</span>}
               </Card>
 
               {/* Filters + Search */}
@@ -2413,7 +2413,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                   {item.title || item.slug || item.id}
                                 </p>
                                 {item.url && (
-                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate block max-w-[280px] text-[10px]">
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#3B7EA1] hover:underline truncate block max-w-[280px] text-[10px]">
                                     {item.url}
                                   </a>
                                 )}
@@ -2421,7 +2421,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                   <p className="text-[#C8322B] mt-0.5 truncate max-w-[280px] text-[10px]" title={item.plainError}>{item.plainError}</p>
                                 )}
                                 {actionResult[item.id] && (
-                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-[#2D5A3D]" : "text-red-300"}`}>
+                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                                     {actionResult[item.id]}
                                   </p>
                                 )}
@@ -2436,7 +2436,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                           <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-stone-100/30" : c.isBlocker ? "bg-[rgba(200,50,43,0.04)]" : "bg-[rgba(196,154,42,0.04)]"}`}>
                                             <span className="shrink-0">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
                                             <div>
-                                              <span className={c.pass ? "text-stone-400" : c.isBlocker ? "text-red-300" : "text-[#7a5a10]"}>{c.label}</span>
+                                              <span className={c.pass ? "text-stone-400" : c.isBlocker ? "text-[#C8322B]" : "text-[#7a5a10]"}>{c.label}</span>
                                               {!c.pass && c.detail && <p className="text-stone-500 mt-0.5">{c.detail}</p>}
                                             </div>
                                           </div>
@@ -2444,7 +2444,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                       </div>
                                     )}
                                     {!checks && !gateLoading && (
-                                      <button onClick={() => runGateCheck(item)} className="text-blue-400 hover:underline">Run gate check</button>
+                                      <button onClick={() => runGateCheck(item)} className="text-[#3B7EA1] hover:underline">Run gate check</button>
                                     )}
                                   </div>
                                 )}
@@ -2924,7 +2924,7 @@ function CronsTab() {
           const isFailed = last.status === "failed" || last.status === "error";
 
           return (
-            <Card key={name} className={isFailed ? "border-red-900/40" : ""}>
+            <Card key={name} className={isFailed ? "border-[rgba(200,50,43,0.15)]" : ""}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -2975,7 +2975,7 @@ function CronsTab() {
         ];
         if (notRunToday.length === 0) return null;
         return (
-          <Card className="border-amber-900/40">
+          <Card className="border-[rgba(196,154,42,0.15)]">
             <SectionTitle>⚠️ Not Run Today ({notRunToday.length})</SectionTitle>
             <div className="space-y-1.5">
               {notRunToday.map((name) => (
@@ -3612,8 +3612,8 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
               {/* Readiness badge */}
               <div className={`text-xs px-2 py-1 rounded-lg border font-medium ${
                 readiness.percentage >= 80 ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] border-[rgba(45,90,61,0.25)]" :
-                readiness.percentage >= 50 ? "bg-amber-900/30 text-[#7a5a10] border-amber-700" :
-                "bg-[rgba(200,50,43,0.06)] text-red-300 border-red-700"
+                readiness.percentage >= 50 ? "bg-[rgba(196,154,42,0.06)] text-[#7a5a10] border-[rgba(196,154,42,0.25)]" :
+                "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border-[rgba(200,50,43,0.25)]"
               }`}>
                 {readiness.percentage}% ready
               </div>
@@ -3621,12 +3621,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* Data load error — show instead of misleading zeros */}
             {site.dataError && (
-              <div className="mt-2 bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)]/50 rounded-lg px-3 py-2 text-xs text-red-300">
+              <div className="mt-2 bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)] rounded-lg px-3 py-2 text-xs text-[#C8322B]">
                 <div className="font-medium mb-1">Data load failed</div>
                 <div className="text-[#C8322B]/80 text-[10px]">{site.dataError}</div>
                 <button
                   onClick={() => onRefresh()}
-                  className="mt-1.5 px-2 py-0.5 rounded bg-[rgba(200,50,43,0.10)] hover:bg-red-800/50 text-red-300 text-[10px] border border-red-700/50"
+                  className="mt-1.5 px-2 py-0.5 rounded bg-[rgba(200,50,43,0.10)] hover:bg-[rgba(200,50,43,0.15)] text-[#C8322B] text-[10px] border border-[rgba(200,50,43,0.25)]"
                 >
                   Tap to retry
                 </button>
@@ -3635,7 +3635,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* Content gap warning */}
             {!site.dataError && daysSincePublish !== null && daysSincePublish > 3 && (
-              <div className="mt-2 bg-[rgba(196,154,42,0.04)] border border-[rgba(196,154,42,0.3)]/50 rounded-lg px-3 py-1.5 text-xs text-[#7a5a10]">
+              <div className="mt-2 bg-[rgba(196,154,42,0.04)] border border-[rgba(196,154,42,0.3)] rounded-lg px-3 py-1.5 text-xs text-[#7a5a10]">
                 {daysSincePublish}d since last publish — content gap detected
               </div>
             )}
@@ -3646,7 +3646,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 <div className="text-stone-500">Published</div>
               </div>
               <div className="bg-stone-100/50 rounded p-2">
-                <div className="font-bold text-blue-400">{site.reservoir}</div>
+                <div className="font-bold text-[#3B7EA1]">{site.reservoir}</div>
                 <div className="text-stone-500">Reservoir</div>
               </div>
               <div className="bg-stone-100/50 rounded p-2">
@@ -3732,7 +3732,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
               </ActionButton>
               <button
                 onClick={() => window.location.href = `/admin/cockpit/health?siteId=${encodeURIComponent(site.id)}`}
-                className="px-2 py-1 rounded text-xs bg-gradient-to-r from-violet-900/50 to-blue-900/50 hover:from-violet-800/50 hover:to-blue-800/50 text-violet-300 border border-violet-700/50 font-medium"
+                className="px-2 py-1 rounded text-xs bg-[rgba(124,58,237,0.08)] hover:bg-[rgba(124,58,237,0.12)] text-[#5B21B6] border border-[rgba(124,58,237,0.25)] font-medium"
               >
                 Health Report
               </button>
@@ -3745,7 +3745,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                     setSeoAuditHistoryOpen(site.id);
                   }
                 }}
-                className="px-2 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-violet-400 border border-stone-200"
+                className="px-2 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-[#5B21B6] border border-stone-200"
               >
                 Reports
               </button>
@@ -3754,14 +3754,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 className={`px-2 py-1 rounded text-xs border font-medium transition-colors ${
                   auditReportsOpen === site.id
                     ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border-[rgba(45,90,61,0.25)]"
-                    : "bg-gradient-to-r from-emerald-900/50 to-teal-900/50 hover:from-emerald-800/50 hover:to-teal-800/50 text-[#2D5A3D] border-[rgba(45,90,61,0.25)]/50"
+                    : "bg-[rgba(45,90,61,0.08)] hover:bg-[rgba(45,90,61,0.12)] text-[#2D5A3D] border-[rgba(45,90,61,0.25)]"
                 }`}
               >
                 {auditReportsLoading === site.id ? "Loading…" : "Audit Reports"}
               </button>
               <button
                 onClick={() => window.location.href = `/admin/cockpit/per-page-audit?siteId=${encodeURIComponent(site.id)}`}
-                className="px-2 py-1 rounded text-xs bg-gradient-to-r from-blue-900/50 to-violet-900/50 hover:from-blue-800/50 hover:to-violet-800/50 text-[#1e5a7a] border border-blue-700/50 font-medium"
+                className="px-2 py-1 rounded text-xs bg-[rgba(59,126,161,0.08)] hover:bg-[rgba(59,126,161,0.12)] text-[#1e5a7a] border border-[rgba(59,126,161,0.25)] font-medium"
               >
                 Per-Page Audit
               </button>
@@ -3769,8 +3769,8 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 onClick={() => loadLatestPublished(site.id)}
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   latestPubSiteId === site.id
-                    ? "bg-cyan-900/50 text-cyan-300 border-cyan-700"
-                    : "bg-stone-100 hover:bg-stone-200 text-cyan-400 border-stone-200"
+                    ? "bg-[rgba(59,126,161,0.10)] text-[#1e5a7a] border-[rgba(59,126,161,0.25)]"
+                    : "bg-stone-100 hover:bg-stone-200 text-[#3B7EA1] border-stone-200"
                 }`}
               >
                 {latestPubLoading === site.id ? "Loading…" : "Latest Published"}
@@ -3779,8 +3779,8 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 onClick={() => openAggReport(site.id)}
                 className={`px-2 py-1 rounded text-xs border font-medium transition-colors ${
                   aggReportSiteId === site.id && aggReportStep !== "idle"
-                    ? "bg-gradient-to-r from-amber-900/50 to-orange-900/50 text-amber-200 border-amber-600"
-                    : "bg-gradient-to-r from-amber-900/40 to-orange-900/40 hover:from-amber-800/50 hover:to-orange-800/50 text-[#7a5a10] border-amber-700/50"
+                    ? "bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border-[rgba(196,154,42,0.3)]"
+                    : "bg-[rgba(196,154,42,0.08)] hover:bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border-[rgba(196,154,42,0.25)]"
                 }`}
               >
                 {aggReportLoading === site.id ? "Generating…" : "Aggregated Report"}
@@ -3905,7 +3905,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
             {seoAuditHistoryOpen === site.id && (
               <div className="mt-3 border-t border-stone-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-violet-400">Previous SEO Audit Reports</p>
+                  <p className="text-xs font-semibold text-[#5B21B6]">Previous SEO Audit Reports</p>
                   <button onClick={() => setSeoAuditHistoryOpen(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
                 {(!seoAuditHistory[site.id] || seoAuditHistory[site.id].length === 0) ? (
@@ -3930,10 +3930,10 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                           </div>
                           <div className="flex gap-1.5">
                             {report.criticalCount > 0 && (
-                              <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-red-300 text-[10px]">{report.criticalCount} critical</span>
+                              <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-[#C8322B] text-[10px]">{report.criticalCount} critical</span>
                             )}
                             {report.highCount > 0 && (
-                              <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-orange-300 text-[10px]">{report.highCount} high</span>
+                              <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-[#92400E] text-[10px]">{report.highCount} high</span>
                             )}
                           </div>
                         </div>
@@ -3949,10 +3949,10 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
             {seoAuditSiteId === site.id && seoAuditResult[site.id] && (() => {
               const audit = seoAuditResult[site.id];
               const severityColors: Record<string, string> = {
-                critical: "bg-[rgba(200,50,43,0.10)] text-red-300 border-red-700",
-                high: "bg-[rgba(217,119,6,0.10)] text-orange-300 border-orange-700",
-                medium: "bg-amber-900/50 text-[#7a5a10] border-amber-700",
-                low: "bg-blue-900/50 text-[#1e5a7a] border-blue-700",
+                critical: "bg-[rgba(200,50,43,0.10)] text-[#C8322B] border-[rgba(200,50,43,0.25)]",
+                high: "bg-[rgba(217,119,6,0.10)] text-[#92400E] border-[rgba(217,119,6,0.25)]",
+                medium: "bg-[rgba(196,154,42,0.10)] text-[#7a5a10] border-[rgba(196,154,42,0.25)]",
+                low: "bg-[rgba(59,126,161,0.10)] text-[#1e5a7a] border-[rgba(59,126,161,0.25)]",
                 info: "bg-stone-100 text-stone-400 border-stone-200",
               };
               const severityDots: Record<string, string> = {
@@ -3963,10 +3963,10 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 info: "bg-stone-400",
               };
               return (
-                <div className="mt-3 border-t border-violet-800/50 pt-3">
+                <div className="mt-3 border-t border-[rgba(124,58,237,0.15)] pt-3">
                   {/* Header */}
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-violet-400">Master SEO Audit</p>
+                    <p className="text-xs font-semibold text-[#5B21B6]">Master SEO Audit</p>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-stone-500">{Math.round(audit.durationMs / 1000)}s</span>
                       <button onClick={() => setSeoAuditSiteId(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
@@ -4004,10 +4004,10 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                     </div>
                     <p className="text-xs text-stone-600 mt-2">{audit.summary}</p>
                     <div className="flex gap-2 mt-2 text-[10px]">
-                      {audit.criticalCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-red-300">{audit.criticalCount} critical</span>}
-                      {audit.highCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-orange-300">{audit.highCount} high</span>}
-                      {audit.mediumCount > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-900/50 text-[#7a5a10]">{audit.mediumCount} medium</span>}
-                      {audit.lowCount > 0 && <span className="px-1.5 py-0.5 rounded bg-blue-900/50 text-[#1e5a7a]">{audit.lowCount} low</span>}
+                      {audit.criticalCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-[#C8322B]">{audit.criticalCount} critical</span>}
+                      {audit.highCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-[#92400E]">{audit.highCount} high</span>}
+                      {audit.mediumCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(196,154,42,0.10)] text-[#7a5a10]">{audit.mediumCount} medium</span>}
+                      {audit.lowCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(59,126,161,0.10)] text-[#1e5a7a]">{audit.lowCount} low</span>}
                     </div>
                   </div>
 
@@ -4020,7 +4020,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                       <div className="text-stone-500 text-[10px]">Indexed</div>
                     </div>
                     <div className="bg-stone-100/50 rounded-lg p-2">
-                      <div className="font-bold text-blue-400">{audit.indexingSummary.submitted}</div>
+                      <div className="font-bold text-[#3B7EA1]">{audit.indexingSummary.submitted}</div>
                       <div className="text-stone-500 text-[10px]">Submitted</div>
                     </div>
                     <div className="bg-stone-100/50 rounded-lg p-2">
@@ -4236,7 +4236,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   {/* Footer */}
                   <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-200">
                     <span>{audit.siteName} — {new Date(audit.timestamp).toLocaleString()}</span>
-                    {audit.reportId && <span className="text-violet-500">Saved</span>}
+                    {audit.reportId && <span className="text-[#5B21B6]">Saved</span>}
                   </div>
                 </div>
               );
@@ -4244,7 +4244,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* ══════ Audit Reports Panel (daily + manual reports with JSON copy) ══════ */}
             {auditReportsOpen === site.id && (
-              <div className="mt-3 border-t border-[rgba(45,90,61,0.3)]/50 pt-3">
+              <div className="mt-3 border-t border-[rgba(45,90,61,0.3)] pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-[#2D5A3D]">Audit Reports</p>
                   <button onClick={() => setAuditReportsOpen(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
@@ -4277,7 +4277,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                                     <span className="text-stone-500">{new Date(report.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                                   </div>
                                   <span className={`text-[9px] px-1 py-0.5 rounded ${
-                                    report.triggeredBy === "scheduled" ? "bg-[rgba(59,126,161,0.08)] text-blue-400" : "bg-stone-200/50 text-stone-400"
+                                    report.triggeredBy === "scheduled" ? "bg-[rgba(59,126,161,0.08)] text-[#3B7EA1]" : "bg-stone-200/50 text-stone-400"
                                   }`}>
                                     {report.triggeredBy === "scheduled" ? "Daily Auto" : "Manual"}
                                   </span>
@@ -4285,10 +4285,10 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                               </div>
                               <div className="flex gap-1">
                                 {report.criticalCount > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-red-300 text-[10px]">{report.criticalCount}C</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-[#C8322B] text-[10px]">{report.criticalCount}C</span>
                                 )}
                                 {report.highCount > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-orange-300 text-[10px]">{report.highCount}H</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-[#92400E] text-[10px]">{report.highCount}H</span>
                                 )}
                                 <span className="text-stone-500 text-[10px]">{isJsonOpen ? "▲" : "▼"}</span>
                               </div>
@@ -4346,7 +4346,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* ══════ Aggregated Report Panel ══════ */}
             {aggReportSiteId === site.id && aggReportStep !== "idle" && (
-              <div className="mt-3 border-t border-[rgba(196,154,42,0.3)]/50 pt-3">
+              <div className="mt-3 border-t border-[rgba(196,154,42,0.3)] pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-[#C49A2A]">Aggregated SEO Report</p>
                   <button onClick={() => { setAggReportSiteId(null); setAggReportStep("idle"); }} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
@@ -4381,7 +4381,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                           <div className="font-medium">{src.sources.indexingData.hasRecent ? "✓" : "~"} Indexing</div>
                         </div>
                         {hasSavedReport && (
-                          <div className="bg-[rgba(59,126,161,0.04)] border-[rgba(59,126,161,0.3)]/30 border rounded-lg px-2.5 py-2 text-blue-400">
+                          <div className="bg-[rgba(59,126,161,0.04)] border-[rgba(59,126,161,0.3)]/30 border rounded-lg px-2.5 py-2 text-[#3B7EA1]">
                             <div className="font-medium">✓ Saved Report</div>
                             <div className="text-[10px] opacity-70">Score: {src.sources.aggregatedReport.score} — {timeAgo(src.sources.aggregatedReport.lastRun!)}</div>
                           </div>
@@ -4393,7 +4393,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         {hasSavedReport && (
                           <button
                             onClick={() => generateAggReport(site.id, true)}
-                            className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-900/50 hover:bg-blue-800/50 text-[#1e5a7a] border border-blue-700/50 transition-colors"
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-[rgba(59,126,161,0.10)] hover:bg-[rgba(59,126,161,0.15)] text-[#1e5a7a] border border-[rgba(59,126,161,0.25)] transition-colors"
                           >
                             Use Saved Report
                           </button>
@@ -4401,14 +4401,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         {src.allSourcesFresh && (
                           <button
                             onClick={() => generateAggReport(site.id, false)}
-                            className="px-3 py-2 rounded-lg text-xs font-medium bg-[rgba(45,90,61,0.10)] hover:bg-emerald-800/50 text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]/50 transition-colors"
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-[rgba(45,90,61,0.10)] hover:bg-[rgba(45,90,61,0.15)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)] transition-colors"
                           >
                             Generate from Recent Data (~{src.estimatedGenerationTimeSec}s)
                           </button>
                         )}
                         <button
                           onClick={() => generateAggReport(site.id, false)}
-                          className="px-3 py-2 rounded-lg text-xs font-medium bg-amber-900/50 hover:bg-amber-800/50 text-[#7a5a10] border border-amber-700/50 transition-colors"
+                          className="px-3 py-2 rounded-lg text-xs font-medium bg-[rgba(196,154,42,0.10)] hover:bg-[rgba(196,154,42,0.15)] text-[#7a5a10] border border-[rgba(196,154,42,0.25)] transition-colors"
                         >
                           Generate Fresh (~{src.estimatedGenerationTimeSec}s)
                         </button>
@@ -4435,7 +4435,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 {/* Step 4: Error */}
                 {aggReportStep === "error" && (
                   <div className="space-y-2">
-                    <div className="bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)]/50 rounded-lg px-3 py-2 text-xs text-red-300">
+                    <div className="bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)] rounded-lg px-3 py-2 text-xs text-[#C8322B]">
                       {aggReportError || "An error occurred"}
                     </div>
                     <button
@@ -4452,8 +4452,8 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   const rpt = aggReportData[site.id];
                   const grade = (rpt.grade as string) || "?";
                   const score = (rpt.compositeScore as number) || 0;
-                  const gradeColor = grade === "A" ? "text-[#2D5A3D]" : grade === "B" ? "text-blue-400" : grade === "C" ? "text-[#C49A2A]" : "text-[#C8322B]";
-                  const gradeBg = grade === "A" ? "from-emerald-900/30 to-emerald-800/20" : grade === "B" ? "from-blue-900/30 to-blue-800/20" : grade === "C" ? "from-amber-900/30 to-amber-800/20" : "from-red-900/30 to-red-800/20";
+                  const gradeColor = grade === "A" ? "text-[#2D5A3D]" : grade === "B" ? "text-[#3B7EA1]" : grade === "C" ? "text-[#C49A2A]" : "text-[#C8322B]";
+                  const gradeBg = grade === "A" ? "bg-[rgba(45,90,61,0.06)]" : grade === "B" ? "bg-[rgba(59,126,161,0.06)]" : grade === "C" ? "bg-[rgba(196,154,42,0.06)]" : "bg-[rgba(200,50,43,0.06)]";
                   const issues = (rpt.issues as Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }>) || [];
                   const fixPlan = (rpt.fixPlan as Array<{ priority: number; action: string; category: string; severity: string; expectedImpact: string }>) || [];
                   const claudePrompt = (rpt.claudePrompt as string) || "";
@@ -4488,7 +4488,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   return (
                     <div className="space-y-3">
                       {/* Grade header */}
-                      <div className={`bg-gradient-to-r ${gradeBg} rounded-xl p-4`}>
+                      <div className={`${gradeBg} rounded-xl p-4`}>
                         <div className="flex items-center gap-4">
                           <div className={`text-4xl font-black ${gradeColor}`}>{grade}</div>
                           <div className="flex-1">
@@ -4512,7 +4512,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         </button>
                         <button
                           onClick={() => copyAggReportSection(claudePrompt, "prompt")}
-                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "prompt" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-violet-900/40 hover:bg-violet-800/40 text-violet-300 border border-violet-700/50"}`}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "prompt" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-[rgba(124,58,237,0.08)] hover:bg-[rgba(124,58,237,0.12)] text-[#5B21B6] border border-[rgba(124,58,237,0.25)]"}`}
                         >
                           {aggReportCopied === "prompt" ? "Copied!" : "Copy Claude Prompt"}
                         </button>
@@ -4526,7 +4526,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                           <button
                             onClick={() => saveAggReport(site.id)}
                             disabled={aggReportSaving}
-                            className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-amber-900/40 hover:bg-amber-800/40 text-[#7a5a10] border border-amber-700/50 transition-colors disabled:opacity-50"
+                            className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-[rgba(196,154,42,0.08)] hover:bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border border-[rgba(196,154,42,0.25)] transition-colors disabled:opacity-50"
                           >
                             {aggReportSaving ? "Saving…" : "Save Report"}
                           </button>
@@ -4547,7 +4547,7 @@ ${claudePrompt}
 The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggregated". If you need the raw data, fetch it from /api/admin/aggregated-report?siteId=${site.id}`;
                             copyAggReportSection(reviewPrompt, "review");
                           }}
-                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "review" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-gradient-to-r from-violet-900/40 to-blue-900/40 hover:from-violet-800/40 hover:to-blue-800/40 text-violet-300 border border-violet-700/50"}`}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "review" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-[rgba(124,58,237,0.08)] hover:bg-[rgba(124,58,237,0.12)] text-[#5B21B6] border border-[rgba(124,58,237,0.25)]"}`}
                         >
                           {aggReportCopied === "review" ? "Copied!" : "Copy Review Prompt"}
                         </button>
@@ -4591,7 +4591,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "gsc" && (
                                     <div className="space-y-2">
                                       <div className="grid grid-cols-4 gap-1.5 text-center">
-                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-blue-400">{gsc.clicks7d}</div><div className="text-stone-500 text-[10px]">Clicks 7d</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-[#3B7EA1]">{gsc.clicks7d}</div><div className="text-stone-500 text-[10px]">Clicks 7d</div></div>
                                         <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-stone-600">{gsc.impressions7d}</div><div className="text-stone-500 text-[10px]">Imp 7d</div></div>
                                         <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-stone-600">{gsc.avgCtr7d}%</div><div className="text-stone-500 text-[10px]">CTR</div></div>
                                         <div className="bg-stone-100/50 rounded p-1.5"><div className={`font-bold ${gsc.avgPosition7d <= 20 ? "text-[#2D5A3D]" : "text-[#C49A2A]"}`}>{gsc.avgPosition7d || "—"}</div><div className="text-stone-500 text-[10px]">Avg Pos</div></div>
@@ -4613,7 +4613,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                     discoveryData ? (
                                       <div className="space-y-2">
                                         <div className="flex items-center gap-3 mb-2">
-                                          <div className={`text-2xl font-black ${discoveryData.overallGrade === "A" ? "text-[#2D5A3D]" : discoveryData.overallGrade === "B" ? "text-blue-400" : discoveryData.overallGrade === "C" ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>
+                                          <div className={`text-2xl font-black ${discoveryData.overallGrade === "A" ? "text-[#2D5A3D]" : discoveryData.overallGrade === "B" ? "text-[#3B7EA1]" : discoveryData.overallGrade === "C" ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>
                                             {discoveryData.overallGrade}
                                           </div>
                                           <div className="text-stone-400 text-[11px]">{discoveryData.overallScore}/100 — {discoveryData.totalPages} pages, {discoveryData.totalIssues} issues</div>
@@ -4622,9 +4622,9 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                         <div className="grid grid-cols-4 gap-1 text-center">
                                           {[
                                             { label: "Published", value: discoveryData.funnel.published, color: "text-stone-600" },
-                                            { label: "Submitted", value: discoveryData.funnel.submitted, color: "text-blue-400" },
+                                            { label: "Submitted", value: discoveryData.funnel.submitted, color: "text-[#3B7EA1]" },
                                             { label: "Indexed", value: discoveryData.funnel.indexed, color: "text-[#2D5A3D]" },
-                                            { label: "Performing", value: discoveryData.funnel.performing, color: "text-violet-400" },
+                                            { label: "Performing", value: discoveryData.funnel.performing, color: "text-[#5B21B6]" },
                                           ].map((f) => (
                                             <div key={f.label} className="bg-stone-100/50 rounded p-1">
                                               <div className={`font-bold text-sm ${f.color}`}>{f.value}</div>
@@ -4651,7 +4651,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                             <p className="text-stone-500 text-[10px] font-medium mb-1">Top Issues</p>
                                             {discoveryData.topIssues.slice(0, 5).map((di, i) => (
                                               <div key={i} className="flex items-start gap-1.5 py-0.5 text-[10px]">
-                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[8px] font-medium uppercase ${di.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-red-300" : di.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-orange-300" : "bg-amber-900/50 text-[#7a5a10]"}`}>{di.severity}</span>
+                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[8px] font-medium uppercase ${di.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-[#C8322B]" : di.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-[#92400E]" : "bg-[rgba(196,154,42,0.10)] text-[#7a5a10]"}`}>{di.severity}</span>
                                                 <span className="text-stone-600">{di.title}</span>
                                               </div>
                                             ))}
@@ -4711,7 +4711,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                       <div className="space-y-3">
                                         <div className="grid grid-cols-4 gap-1.5 text-center">
                                           <div className="bg-stone-100/50 rounded p-1.5">
-                                            <div className={`text-xl font-black ${platformHealthData.grade === "A" ? "text-[#2D5A3D]" : platformHealthData.grade === "B" ? "text-blue-400" : "text-[#C49A2A]"}`}>{platformHealthData.grade}</div>
+                                            <div className={`text-xl font-black ${platformHealthData.grade === "A" ? "text-[#2D5A3D]" : platformHealthData.grade === "B" ? "text-[#3B7EA1]" : "text-[#C49A2A]"}`}>{platformHealthData.grade}</div>
                                             <div className="text-stone-500 text-[10px]">Grade</div>
                                           </div>
                                           <div className="bg-stone-100/50 rounded p-1.5">
@@ -4794,7 +4794,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                       ) : latestArticles.map((a, i) => (
                                         <div key={i} className="flex items-center justify-between text-[10px] py-1 border-b border-stone-200/50 last:border-0">
                                           <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                            <span className={a.indexingStatus === "indexed" ? "text-[#2D5A3D]" : a.indexingStatus === "submitted" ? "text-blue-400" : "text-[#C8322B]"}>
+                                            <span className={a.indexingStatus === "indexed" ? "text-[#2D5A3D]" : a.indexingStatus === "submitted" ? "text-[#3B7EA1]" : "text-[#C8322B]"}>
                                               {a.indexingStatus === "indexed" ? "✓" : a.indexingStatus === "submitted" ? "⟳" : "✗"}
                                             </span>
                                             <span className="text-stone-600 truncate">{a.title}</span>
@@ -4814,14 +4814,14 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                       ) : issues.map((issue, i) => (
                                         <div key={i} className={`rounded-lg px-2.5 py-2 border ${
                                           issue.severity === "critical" ? "bg-[rgba(200,50,43,0.04)] border-[rgba(200,50,43,0.3)]/30" :
-                                          issue.severity === "high" ? "bg-[rgba(217,119,6,0.04)] border-orange-800/30" :
+                                          issue.severity === "high" ? "bg-[rgba(217,119,6,0.04)] border-[rgba(217,119,6,0.25)]/30" :
                                           "bg-[rgba(196,154,42,0.04)] border-[rgba(196,154,42,0.3)]/30"
                                         }`}>
                                           <div className="flex items-center gap-1.5">
                                             <span className={`text-[9px] px-1 py-0.5 rounded font-medium uppercase ${
-                                              issue.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-red-300" :
-                                              issue.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-orange-300" :
-                                              "bg-amber-900/50 text-[#7a5a10]"
+                                              issue.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-[#C8322B]" :
+                                              issue.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-[#92400E]" :
+                                              "bg-[rgba(196,154,42,0.10)] text-[#7a5a10]"
                                             }`}>{issue.severity}</span>
                                             <span className="text-stone-500 text-[10px]">{issue.category}</span>
                                           </div>
@@ -4839,9 +4839,9 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                       ) : fixPlan.map((fp) => (
                                         <div key={fp.priority} className="flex items-start gap-2 text-[11px]">
                                           <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                            fp.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-red-300" :
-                                            fp.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-orange-300" :
-                                            "bg-amber-900/50 text-[#7a5a10]"
+                                            fp.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-[#C8322B]" :
+                                            fp.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-[#92400E]" :
+                                            "bg-[rgba(196,154,42,0.10)] text-[#7a5a10]"
                                           }`}>{fp.priority}</span>
                                           <div>
                                             <div className="text-stone-700">{fp.action}</div>
@@ -4913,9 +4913,9 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
 
             {/* ══════ Latest Published Content Panel ══════ */}
             {latestPubSiteId === site.id && (
-              <div className="mt-3 border-t border-cyan-800/50 pt-3">
+              <div className="mt-3 border-t border-[rgba(59,126,161,0.15)] pt-3">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-semibold text-cyan-400">Latest Published Content</p>
+                  <p className="text-xs font-semibold text-[#3B7EA1]">Latest Published Content</p>
                   <button onClick={() => setLatestPubSiteId(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
                 {latestPubLoading === site.id ? (
@@ -4933,7 +4933,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                       return (
                         <div className="grid grid-cols-4 gap-1.5 text-xs text-center mb-2">
                           <div className="bg-stone-100/50 rounded p-1.5">
-                            <div className="font-bold text-cyan-400">{arts.length}</div>
+                            <div className="font-bold text-[#3B7EA1]">{arts.length}</div>
                             <div className="text-stone-500 text-[10px]">Articles</div>
                           </div>
                           <div className="bg-stone-100/50 rounded p-1.5">
@@ -4941,7 +4941,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                             <div className="text-stone-500 text-[10px]">Indexed</div>
                           </div>
                           <div className="bg-stone-100/50 rounded p-1.5">
-                            <div className="font-bold text-blue-400">{totalClicks}</div>
+                            <div className="font-bold text-[#3B7EA1]">{totalClicks}</div>
                             <div className="text-stone-500 text-[10px]">Clicks</div>
                           </div>
                           <div className="bg-stone-100/50 rounded p-1.5">
@@ -4955,7 +4955,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                     {latestPubData[site.id].map((article) => {
                       const idxColor =
                         article.indexingStatus === "indexed" ? "text-[#2D5A3D] bg-[rgba(45,90,61,0.06)]" :
-                        article.indexingStatus === "submitted" ? "text-blue-400 bg-[rgba(59,126,161,0.06)]" :
+                        article.indexingStatus === "submitted" ? "text-[#3B7EA1] bg-[rgba(59,126,161,0.06)]" :
                         article.indexingStatus === "error" ? "text-[#C8322B] bg-[rgba(200,50,43,0.06)]" :
                         "text-[#C49A2A] bg-[rgba(196,154,42,0.06)]";
                       return (
@@ -4967,7 +4967,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                 href={article.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs font-medium text-stone-700 hover:text-cyan-300 line-clamp-2 transition-colors"
+                                className="text-xs font-medium text-stone-700 hover:text-[#1e5a7a] line-clamp-2 transition-colors"
                               >
                                 {article.title}
                               </a>
@@ -4979,7 +4979,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                           </div>
                           {/* Metrics row */}
                           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                            <span className="text-stone-500">Clicks: <span className="text-blue-400 font-medium">{article.clicks}</span></span>
+                            <span className="text-stone-500">Clicks: <span className="text-[#3B7EA1] font-medium">{article.clicks}</span></span>
                             <span className="text-stone-500">Impressions: <span className="text-stone-600 font-medium">{article.impressions}</span></span>
                             {article.avgPosition > 0 && (
                               <span className="text-stone-500">Pos: <span className={`font-medium ${article.avgPosition <= 10 ? "text-[#2D5A3D]" : article.avgPosition <= 30 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{article.avgPosition}</span></span>
@@ -5131,7 +5131,7 @@ function AIConfigTab() {
         {data.providerWarnings && Object.keys(data.providerWarnings).length > 0 && (
           <div className="mt-3 space-y-2">
             {Object.entries(data.providerWarnings).map(([provider, warning]) => (
-              <div key={provider} className="p-2 bg-[rgba(196,154,42,0.06)] border border-amber-700/50 rounded text-xs text-[#7a5a10]">
+              <div key={provider} className="p-2 bg-[rgba(196,154,42,0.06)] border border-[rgba(196,154,42,0.25)] rounded text-xs text-[#7a5a10]">
                 <span className="font-semibold">⚠️ {provider}:</span> {String(warning)}
               </div>
             ))}
@@ -5173,7 +5173,7 @@ function AIConfigTab() {
               </div>
               <span className={`text-xs px-1.5 py-0.5 rounded border ${
                 route.status === "active" ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] border-[rgba(45,90,61,0.3)]" :
-                route.status === "fallback_only" ? "bg-amber-900/30 text-[#C49A2A] border-[rgba(196,154,42,0.3)]" :
+                route.status === "fallback_only" ? "bg-[rgba(196,154,42,0.06)] text-[#C49A2A] border-[rgba(196,154,42,0.3)]" :
                 "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border-[rgba(200,50,43,0.3)]"
               }`}>
                 {route.status === "active" ? "✅" : route.status === "fallback_only" ? "⚠️" : "❌"}
@@ -5310,7 +5310,7 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
     success: "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D] border-[rgba(45,90,61,0.3)]",
     failed: "bg-[rgba(200,50,43,0.08)] text-[#C8322B] border-[rgba(200,50,43,0.3)]",
     partial: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.3)]",
-    timeout: "bg-orange-900/40 text-orange-300 border-orange-800",
+    timeout: "bg-[rgba(217,119,6,0.08)] text-[#92400E] border-[rgba(217,119,6,0.25)]",
     running: "bg-[rgba(59,126,161,0.08)] text-[#1e5a7a] border-[rgba(59,126,161,0.3)]",
   };
 
@@ -5386,7 +5386,7 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
           <span className="text-[#C8322B]">{data.stats.failed} failed</span>
           {data.stats.timeout > 0 && <span className="text-orange-400">{data.stats.timeout} timeout</span>}
           {data.stats.partial > 0 && <span className="text-[#C49A2A]">{data.stats.partial} partial</span>}
-          {data.stats.running > 0 && <span className="text-blue-400">{data.stats.running} running</span>}
+          {data.stats.running > 0 && <span className="text-[#3B7EA1]">{data.stats.running} running</span>}
         </div>
       )}
 
@@ -5432,7 +5432,7 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
                   {log.error && (
                     <div>
                       <p className="text-[10px] text-stone-500 uppercase">Error</p>
-                      <p className="text-xs text-red-300">{log.error}</p>
+                      <p className="text-xs text-[#C8322B]">{log.error}</p>
                     </div>
                   )}
                   {log.fix && (
@@ -6181,7 +6181,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         <SectionTitle>API Keys Status</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {API_KEYS.map(({ key, status, capability, emoji }) => (
-            <div key={key} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${status ? "bg-stone-100/40" : "bg-[rgba(200,50,43,0.03)] border border-red-900/30"}`}>
+            <div key={key} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${status ? "bg-stone-100/40" : "bg-[rgba(200,50,43,0.03)] border border-[rgba(200,50,43,0.15)]"}`}>
               <span className="text-base mt-0.5">{emoji}</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -6200,7 +6200,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             href="https://vercel.com/dashboard"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-blue-400 hover:underline"
+            className="text-xs text-[#3B7EA1] hover:underline"
           >
             → Add missing keys in Vercel Dashboard → Settings → Environment Variables
           </a>
@@ -6258,7 +6258,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
 
           {/* Error */}
           {auditError && (
-            <div className="text-xs text-red-300 bg-[rgba(200,50,43,0.06)] px-3 py-2 rounded-lg mb-2">
+            <div className="text-xs text-[#C8322B] bg-[rgba(200,50,43,0.06)] px-3 py-2 rounded-lg mb-2">
               ❌ Audit failed: {auditError}
             </div>
           )}
@@ -6277,7 +6277,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                     <span className={`text-2xl font-bold ${
                       auditReport.overallStatus === "healthy" ? "text-[#2D5A3D]" :
                       auditReport.overallStatus === "degraded" ? "text-[#7a5a10]" :
-                      "text-red-300"
+                      "text-[#C8322B]"
                     }`}>{auditReport.overallScore}/100</span>
                     <span className={`ml-2 text-xs font-medium uppercase ${
                       auditReport.overallStatus === "healthy" ? "text-[#2D5A3D]" :
@@ -6300,7 +6300,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                 const isExpanded = expandedSections.has(sectionKey);
                 const sectionLabel = sectionKey.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim();
                 const statusIcon = section.status === "pass" ? "✅" : section.status === "warn" ? "⚠️" : section.status === "fail" ? "❌" : "⏭️";
-                const borderColor = section.status === "pass" ? "border-[rgba(45,90,61,0.3)]/50" : section.status === "warn" ? "border-[rgba(196,154,42,0.3)]/50" : section.status === "fail" ? "border-[rgba(200,50,43,0.3)]/50" : "border-stone-200";
+                const borderColor = section.status === "pass" ? "border-[rgba(45,90,61,0.3)]" : section.status === "warn" ? "border-[rgba(196,154,42,0.3)]" : section.status === "fail" ? "border-[rgba(200,50,43,0.3)]" : "border-stone-200";
                 const bgColor = section.status === "fail" ? "bg-[rgba(200,50,43,0.04)]" : section.status === "warn" ? "bg-[rgba(196,154,42,0.03)]" : "bg-stone-50/50";
 
                 return (
@@ -6483,7 +6483,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                   <div className="mt-2 space-y-1">
                     <p className="text-[#C8322B] font-medium">{migrationResult.errors!.length} error(s):</p>
                     {migrationResult.errors!.map((err, i) => (
-                      <p key={i} className="text-red-300/80 text-[11px] bg-[rgba(200,50,43,0.04)] rounded px-2 py-1 break-words">{err}</p>
+                      <p key={i} className="text-[#C8322B]/80 text-[11px] bg-[rgba(200,50,43,0.04)] rounded px-2 py-1 break-words">{err}</p>
                     ))}
                   </div>
                 )}
@@ -6541,7 +6541,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             <div key={cron.name} className="rounded-lg bg-stone-100/50 p-2.5">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-stone-700 font-medium">{cron.name}</span>
-                <code className="text-violet-400 font-mono text-[10px] bg-stone-50 px-1.5 py-0.5 rounded">{cron.schedule}</code>
+                <code className="text-[#5B21B6] font-mono text-[10px] bg-stone-50 px-1.5 py-0.5 rounded">{cron.schedule}</code>
               </div>
               <p className="text-stone-500">{cron.desc}</p>
               <p className="text-stone-500 mt-0.5">Quantity: <span className="text-stone-400">{cron.quantity}</span></p>
@@ -6563,13 +6563,13 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           <p>Platform: Vercel Pro</p>
           <p>Cockpit v2.0.0</p>
           <p>
-            <Link href="/admin/design" className="text-blue-400 hover:underline">→ Design Studio</Link>
+            <Link href="/admin/design" className="text-[#3B7EA1] hover:underline">→ Design Studio</Link>
           </p>
           <p>
-            <Link href="/admin/email-campaigns" className="text-blue-400 hover:underline">→ Email Campaigns</Link>
+            <Link href="/admin/email-campaigns" className="text-[#3B7EA1] hover:underline">→ Email Campaigns</Link>
           </p>
           <p>
-            <Link href="/admin/cockpit/new-site" className="text-blue-400 hover:underline">→ New Website Builder</Link>
+            <Link href="/admin/cockpit/new-site" className="text-[#3B7EA1] hover:underline">→ New Website Builder</Link>
           </p>
         </div>
       </Card>
@@ -6805,21 +6805,21 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
   return (
     <div className="space-y-3">
       {/* Project Header */}
-      <div className="bg-gradient-to-r from-indigo-900/90 to-violet-900/90 rounded-xl p-4 text-white">
+      <div className="bg-[rgba(124,58,237,0.08)] border border-[rgba(124,58,237,0.25)] rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="text-xs font-medium opacity-80">Ongoing Development</div>
           <div className="flex gap-2">
             <button
               onClick={runTestAll}
               disabled={testAllRunning}
-              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
+              className="px-3 py-1 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-stone-300 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
             >
               {testAllRunning ? <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Testing...</> : "Test All"}
             </button>
             <button
               onClick={syncPlan}
               disabled={syncing}
-              className="px-3 py-1 bg-white/20 hover:bg-white/30 disabled:bg-white/10 text-white text-xs font-medium rounded-lg transition-colors"
+              className="px-3 py-1 bg-stone-100 hover:bg-stone-200 disabled:bg-stone-50 text-stone-700 text-xs font-medium rounded-lg transition-colors"
             >
               {syncing ? "Syncing..." : "Sync Plans"}
             </button>
@@ -7207,7 +7207,7 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
           <button
             onClick={scanForTasks}
             disabled={scanning}
-            className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 text-white font-medium rounded-lg text-xs transition-colors inline-flex items-center gap-1"
+            className="px-3 py-1 bg-[#5B21B6] hover:bg-[#5B21B6] disabled:bg-gray-400 text-white font-medium rounded-lg text-xs transition-colors inline-flex items-center gap-1"
           >
             {scanning ? "Scanning..." : "Scan"}
           </button>

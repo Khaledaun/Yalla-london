@@ -2,9 +2,15 @@
 
 import React, { useState, useCallback } from 'react'
 import { useSiteId } from '@/components/site-provider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 import {
   RefreshCw,
   Database,
@@ -56,28 +62,28 @@ export default function YachtSyncPage() {
       id: 'manual_refresh',
       name: 'Manual Refresh',
       description: 'Re-validate all existing yacht data, update slugs, and recalculate statistics',
-      icon: <RefreshCw className="h-5 w-5 text-blue-500" />,
+      icon: <RefreshCw size={18} color="#3B7EA1" />,
       enabled: true,
     },
     {
       id: 'nausys',
       name: 'NauSYS',
       description: 'Import yachts from NauSYS charter management system',
-      icon: <Database className="h-5 w-5 text-indigo-500" />,
+      icon: <Database size={18} color="#7C3AED" />,
       enabled: false,
     },
     {
       id: 'mmk',
       name: 'MMK Systems',
       description: 'Import fleet data from MMK booking platform',
-      icon: <CloudDownload className="h-5 w-5 text-purple-500" />,
+      icon: <CloudDownload size={18} color="#C49A2A" />,
       enabled: false,
     },
     {
       id: 'charter_index',
       name: 'Charter Index',
       description: 'Sync availability and pricing from Charter Index',
-      icon: <Activity className="h-5 w-5 text-teal-500" />,
+      icon: <Activity size={18} color="#2D5A3D" />,
       enabled: false,
     },
   ]
@@ -122,152 +128,215 @@ export default function YachtSyncPage() {
   // JSX
   // -----------------------------------------------------------------------
 
-  const statusIcon = (status: string) => {
-    switch (status) {
-      case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'error': return <AlertTriangle className="h-4 w-4 text-red-500" />
-      default: return <Clock className="h-4 w-4 text-gray-400" />
-    }
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sync & Imports</h1>
-          <p className="text-sm text-gray-500 mt-1">Synchronize your fleet data from external sources</p>
-        </div>
-        <Button
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={handleSyncAll}
-          disabled={syncing}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing...' : 'Sync All Sources'}
-        </Button>
-      </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Sync & Imports"
+        subtitle="Synchronize your fleet data from external sources"
+        backHref="/admin/yachts"
+        action={
+          <AdminButton variant="primary" onClick={handleSyncAll} loading={syncing} disabled={syncing}>
+            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync All Sources'}
+          </AdminButton>
+        }
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800 text-sm">{error}</p>
-        </div>
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
       )}
 
       {/* Sync Sources */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <AdminSectionLabel>Data Sources</AdminSectionLabel>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {syncSources.map(source => (
-          <Card key={source.id} className={!source.enabled ? 'opacity-60' : ''}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  {source.icon}
-                  <div>
-                    <h3 className="font-medium text-gray-900">{source.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{source.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={source.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}>
-                    {source.enabled ? 'Active' : 'Coming Soon'}
-                  </Badge>
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSync(source.id)}
-                  disabled={!source.enabled || syncing}
+          <AdminCard
+            key={source.id}
+            className={!source.enabled ? 'opacity-50' : ''}
+            accent={source.enabled}
+            accentColor="blue"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: '#FAF8F4',
+                    border: '1px solid rgba(214,208,196,0.6)',
+                  }}
                 >
-                  <RefreshCw className={`h-3 w-3 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                  Sync Now
-                </Button>
+                  {source.icon}
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      color: '#1C1917',
+                    }}
+                  >
+                    {source.name}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 11,
+                      color: '#78716C',
+                      marginTop: 2,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {source.description}
+                  </p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+              <AdminStatusBadge
+                status={source.enabled ? 'active' : 'inactive'}
+                label={source.enabled ? 'Active' : 'Coming Soon'}
+              />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                onClick={() => handleSync(source.id)}
+                disabled={!source.enabled || syncing}
+                loading={syncing}
+              >
+                <RefreshCw size={11} />
+                Sync Now
+              </AdminButton>
+            </div>
+          </AdminCard>
         ))}
       </div>
 
       {/* Integration Setup Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
+      <AdminCard className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Settings size={15} color="#78716C" />
+          <p
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 14,
+              color: '#1C1917',
+            }}
+          >
             Integration Setup
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-gray-600 space-y-3">
-            <p>
-              External charter management systems (NauSYS, MMK, Charter Index) require API credentials
-              to be configured. Once connected, yachts will sync automatically on a daily schedule.
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">To connect a new source:</h4>
-              <ol className="list-decimal list-inside space-y-1 text-blue-800">
-                <li>Obtain API credentials from the provider</li>
-                <li>Add credentials to environment variables (Vercel dashboard)</li>
-                <li>The sync source will automatically activate</li>
-              </ol>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
-              <p className="text-amber-800 text-sm">
-                <strong>Manual Refresh</strong> is always available and will re-validate existing fleet data,
-                regenerate slugs for new entries, and update fleet statistics.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+        <p
+          style={{
+            fontFamily: 'var(--font-system)',
+            fontSize: 12,
+            color: '#5C564F',
+            lineHeight: 1.6,
+            marginBottom: 12,
+          }}
+        >
+          External charter management systems (NauSYS, MMK, Charter Index) require API credentials
+          to be configured. Once connected, yachts will sync automatically on a daily schedule.
+        </p>
+        <AdminAlertBanner
+          severity="info"
+          message="To connect a new source:"
+          detail="1. Obtain API credentials from the provider  2. Add credentials to environment variables (Vercel dashboard)  3. The sync source will automatically activate"
+        />
+        <div className="mt-3">
+          <AdminAlertBanner
+            severity="warning"
+            message="Manual Refresh is always available"
+            detail="It will re-validate existing fleet data, regenerate slugs for new entries, and update fleet statistics."
+          />
+        </div>
+      </AdminCard>
 
       {/* Sync History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Ship className="h-5 w-5" />
-            Sync History
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {results.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock className="mx-auto h-10 w-10 text-gray-300" />
-              <p className="text-sm text-gray-500 mt-2">No sync operations yet this session</p>
-              <p className="text-xs text-gray-400 mt-1">Results will appear here after running a sync</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {results.map((result, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 border rounded-lg">
-                  {statusIcon(result.status)}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">{result.source}</span>
-                      <Badge className={
-                        result.status === 'success' ? 'bg-green-100 text-green-800'
-                          : result.status === 'error' ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-600'
-                      }>
-                        {result.status}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{result.message}</p>
-                    {(result.added > 0 || result.updated > 0 || result.errors > 0) && (
-                      <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                        <span className="text-green-600">+{result.added} added</span>
-                        <span className="text-blue-600">{result.updated} updated</span>
-                        {result.errors > 0 && <span className="text-red-600">{result.errors} errors</span>}
-                      </div>
-                    )}
+      <AdminCard>
+        <div className="flex items-center gap-2 mb-4">
+          <Ship size={15} color="#78716C" />
+          <AdminSectionLabel>Sync History</AdminSectionLabel>
+        </div>
+
+        {results.length === 0 ? (
+          <AdminEmptyState
+            icon={Clock}
+            title="No sync operations yet"
+            description="Results will appear here after running a sync"
+          />
+        ) : (
+          <div className="space-y-3">
+            {results.map((result, idx) => (
+              <div
+                key={idx}
+                className="flex items-start gap-3 rounded-xl"
+                style={{
+                  padding: '12px',
+                  border: '1px solid rgba(214,208,196,0.5)',
+                  backgroundColor: result.status === 'error' ? 'rgba(200,50,43,0.03)' : 'transparent',
+                }}
+              >
+                {result.status === 'success' ? (
+                  <CheckCircle size={16} color="#2D5A3D" />
+                ) : result.status === 'error' ? (
+                  <AlertTriangle size={16} color="#C8322B" />
+                ) : (
+                  <Clock size={16} color="#78716C" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        color: '#1C1917',
+                      }}
+                    >
+                      {result.source}
+                    </span>
+                    <AdminStatusBadge status={result.status === 'success' ? 'success' : result.status === 'error' ? 'error' : 'inactive'} label={result.status} />
                   </div>
-                  <span className="text-xs text-gray-400">{result.timestamp}</span>
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 11,
+                      color: '#5C564F',
+                      marginTop: 4,
+                    }}
+                  >
+                    {result.message}
+                  </p>
+                  {(result.added > 0 || result.updated > 0 || result.errors > 0) && (
+                    <div className="flex gap-4 mt-2">
+                      <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#2D5A3D', fontWeight: 600 }}>
+                        +{result.added} added
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#3B7EA1', fontWeight: 600 }}>
+                        {result.updated} updated
+                      </span>
+                      {result.errors > 0 && (
+                        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#C8322B', fontWeight: 600 }}>
+                          {result.errors} errors
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', flexShrink: 0 }}>
+                  {result.timestamp}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </AdminCard>
     </div>
   )
 }

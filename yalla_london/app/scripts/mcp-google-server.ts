@@ -39,16 +39,28 @@ import { z } from "zod";
 const GA4_API_BASE =
   "https://analyticsdata.googleapis.com/v1beta/properties";
 
+function parseServiceAccountKey(): { clientEmail?: string; privateKey?: string } {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return { clientEmail: parsed.client_email, privateKey: parsed.private_key };
+  } catch { return {}; }
+}
+
 function getGA4Credentials() {
   const propertyId = process.env.GA4_PROPERTY_ID;
+  const sa = parseServiceAccountKey();
   const clientEmail =
-    process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
     process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
-    process.env.GSC_CLIENT_EMAIL;
+    process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+    process.env.GSC_CLIENT_EMAIL ||
+    sa.clientEmail;
   const privateKey = (
-    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
     process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
+    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
     process.env.GSC_PRIVATE_KEY ||
+    sa.privateKey ||
     ""
   ).replace(/\\n/g, "\n");
 

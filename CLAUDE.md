@@ -3127,3 +3127,54 @@ export async function POST(request: NextRequest) {
 83. **Google Workspace primary domain change is non-destructive** — old primary becomes a secondary alias automatically; all existing email addresses continue to work; no DNS changes needed for existing mail
 84. **`ADMIN_EMAILS` env var controls platform admin access** — comma-separated list read by `lib/admin-middleware.ts` via `getAdminEmails()`; changing this does NOT require a code deploy, only a Vercel env var update + redeploy
 85. **`entity.ts` is the single source of truth for legal identity** — `legalEmail`, `generalEmail`, and `adminEmail` in `config/entity.ts` propagate to privacy policy, GDPR endpoints, footer, and email sender. Always update here first when changing contact emails.
+
+### Session: March 15, 2026 — Dashboard Redesign & GA4 Env Var Fix
+
+**Admin Dashboard Redesign — Complete (16 commits on `claude/dashboard-redesign-cleanup-PVQe7`):**
+
+Unified 3 competing design systems (neumorphic, shadcn/ui, raw Tailwind) into one Clean Light Design System. All admin pages now use consistent warm cream (#FAF8F4), white (#FFFFFF) cards, sand borders (rgba(214,208,196,0.5)), and the `var(--font-display)` / `var(--font-system)` / `var(--font-body)` typography stack.
+
+**Design System Foundation:**
+- CSS variables: `--admin-bg`, `--admin-card-bg`, `--admin-border`, brand colors (#C8322B red, #C49A2A gold, #3B7EA1 blue, #2D5A3D green)
+- Shared component library: `AdminCard`, `AdminPageHeader`, `AdminSectionLabel`, `AdminStatusBadge`, `AdminKPICard`, `AdminButton`, `AdminLoadingState`, `AdminEmptyState`, `AdminAlertBanner`, `AdminTabs`
+- All components in `components/admin/admin-ui.tsx` with optional `children` props
+
+**Changes Applied:**
+- 20+ dead/duplicate admin pages deleted
+- 50+ admin pages converted from neumorphic/shadcn to Clean Light
+- All `var(--neu-*)` CSS variables eliminated (was ~50 references)
+- All shadcn/ui component imports replaced with admin-ui equivalents
+- 7 shared components (CommandCenter, mophy-admin-layout, responsive-table, status-summary, bottom-sheet, sticky-action-bar, tab-container) fully converted
+- 8 yacht admin pages redesigned
+- iPhone-first responsive design throughout
+
+**GA4 Analytics Route Fix — Env Var Name Alignment:**
+
+**Problem:** GA4 dashboard panels returning 0s. Vercel has credentials stored as `GOOGLE_ANALYTICS_CLIENT_EMAIL`, `GOOGLE_ANALYTICS_PRIVATE_KEY`, `GOOGLE_SERVICE_ACCOUNT_KEY`, and `GA4_PROPERTY_ID`. Code already had fallback chains for the individual vars, but `GOOGLE_SERVICE_ACCOUNT_KEY` (JSON blob) was never parsed.
+
+**Fixes applied (5 files):**
+
+1. **`lib/seo/ga4-data-api.ts`** — Added `parseServiceAccountKey()` function that parses `GOOGLE_SERVICE_ACCOUNT_KEY` JSON blob to extract `client_email` and `private_key`. Added to `getCredentials()` and `getGA4ConfigStatus()` fallback chains. Reordered fallbacks to prioritize `GOOGLE_ANALYTICS_*` over `GOOGLE_SEARCH_CONSOLE_*`.
+
+2. **`app/api/admin/analytics/route.ts`** — Added `GOOGLE_SERVICE_ACCOUNT_KEY` JSON parsing at module level. Added to `ga4HasCredentials` detection and `service_account_email_configured`/`private_key_configured` checks.
+
+3. **`lib/seo/validate-seo-env.ts`** — Added `GOOGLE_ANALYTICS_CLIENT_EMAIL` and `GOOGLE_ANALYTICS_PRIVATE_KEY` to validation fallback chains (was only checking `GOOGLE_SEARCH_CONSOLE_*` and `GSC_*`).
+
+4. **`scripts/mcp-google-server.ts`** — Added `parseServiceAccountKey()` and wired into `getGA4Credentials()` fallback chain.
+
+5. **`app/api/admin/cockpit/route.ts`** — Updated GA4_NOT_CONFIGURED error message to reference `GOOGLE_ANALYTICS_CLIENT_EMAIL` instead of `GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL`.
+
+**GA4 Env Var Fallback Chain (final, all files consistent):**
+```
+Property ID:    GA4_PROPERTY_ID
+Client Email:   GOOGLE_ANALYTICS_CLIENT_EMAIL → GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL → GSC_CLIENT_EMAIL → GOOGLE_SERVICE_ACCOUNT_KEY.client_email
+Private Key:    GOOGLE_ANALYTICS_PRIVATE_KEY → GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY → GSC_PRIVATE_KEY → GOOGLE_SERVICE_ACCOUNT_KEY.private_key
+```
+
+### Critical Rules Learned (March 15 Session — Dashboard & GA4)
+
+86. **`GOOGLE_SERVICE_ACCOUNT_KEY` is a JSON blob** — contains `client_email`, `private_key`, `project_id`, and other fields. Must be parsed with `JSON.parse()` and individual fields extracted. Always wrap in try/catch for malformed JSON.
+87. **GA4 credential fallback order matters** — prioritize `GOOGLE_ANALYTICS_*` (explicit GA4 purpose) over `GOOGLE_SEARCH_CONSOLE_*` (shared GSC/GA4 service account) over `GSC_*` (legacy short names) over `GOOGLE_SERVICE_ACCOUNT_KEY` (JSON blob fallback).
+88. **Admin-ui components must have optional `children` props** — components used as wrappers (`AdminCard`, `AdminSectionLabel`) may be rendered empty in some contexts. Making `children?: React.ReactNode` prevents TypeScript errors when agents convert pages.
+89. **Never mix CSS design systems** — neumorphic (`var(--neu-*)` shadows), shadcn/ui (Tailwind utility classes), and custom inline styles create visual inconsistency. One system per project. Clean Light replaces all three.
+90. **Dashboard redesign is UI-only** — no API changes, no data model changes, no business logic changes. Strictly visual conversion to maintain zero regression risk.

@@ -14,7 +14,16 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminKPICard,
+  AdminTabs,
+  AdminLoadingState,
+  AdminAlertBanner,
+  AdminStatusBadge,
+  AdminButton,
+} from "@/components/admin/admin-ui";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -84,25 +93,19 @@ interface FeedData {
 
 // ─── Style Constants ──────────────────────────────────────────────────────
 
-const MONO = "'IBM Plex Mono', monospace";
-const DISPLAY = "'Anybody', sans-serif";
-const BG = "var(--neu-bg, #EDE9E1)";
-const FLAT = "var(--neu-flat, 5px 5px 10px #CAC5BC, -5px -5px 10px #FFFFFF)";
-const INSET = "var(--neu-inset, inset 3px 3px 6px #CAC5BC, inset -3px -3px 6px #FFFFFF)";
-
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  success: { bg: "rgba(16,185,129,0.08)", text: "#059669", dot: "#10B981" },
-  failed: { bg: "rgba(200,50,43,0.08)", text: "#C8322B", dot: "#EF4444" },
-  partial: { bg: "rgba(245,158,11,0.08)", text: "#D97706", dot: "#F59E0B" },
-  running: { bg: "rgba(59,130,246,0.08)", text: "#2563EB", dot: "#3B82F6" },
-  info: { bg: "rgba(99,102,241,0.08)", text: "#6366F1", dot: "#6366F1" },
+  success: { bg: "rgba(45,90,61,0.08)", text: "#2D5A3D", dot: "#2D5A3D" },
+  failed: { bg: "rgba(200,50,43,0.08)", text: "#C8322B", dot: "#C8322B" },
+  partial: { bg: "rgba(196,154,42,0.08)", text: "#7a5a10", dot: "#C49A2A" },
+  running: { bg: "rgba(59,126,161,0.08)", text: "#1e5a7a", dot: "#3B7EA1" },
+  info: { bg: "rgba(59,126,161,0.08)", text: "#3B7EA1", dot: "#3B7EA1" },
 };
 
 const SEVERITY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  positive: { bg: "rgba(16,185,129,0.08)", text: "#059669", border: "#10B981" },
-  info: { bg: "rgba(99,102,241,0.08)", text: "#6366F1", border: "#6366F1" },
-  warning: { bg: "rgba(245,158,11,0.08)", text: "#D97706", border: "#F59E0B" },
-  critical: { bg: "rgba(200,50,43,0.08)", text: "#C8322B", border: "#EF4444" },
+  positive: { bg: "rgba(45,90,61,0.08)", text: "#2D5A3D", border: "#2D5A3D" },
+  info: { bg: "rgba(59,126,161,0.08)", text: "#3B7EA1", border: "#3B7EA1" },
+  warning: { bg: "rgba(196,154,42,0.08)", text: "#7a5a10", border: "#C49A2A" },
+  critical: { bg: "rgba(200,50,43,0.08)", text: "#C8322B", border: "#C8322B" },
 };
 
 const ICON_MAP: Record<string, string> = {
@@ -125,10 +128,10 @@ const TREND_ICONS: Record<string, string> = {
 };
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  pattern: { label: "PATTERN", color: "#F59E0B" },
-  trend: { label: "TREND", color: "#6366F1" },
-  adaptation: { label: "ADAPTED", color: "#10B981" },
-  discovery: { label: "FOUND", color: "#8B5CF6" },
+  pattern: { label: "PATTERN", color: "#C49A2A" },
+  trend: { label: "TREND", color: "#3B7EA1" },
+  adaptation: { label: "ADAPTED", color: "#2D5A3D" },
+  discovery: { label: "FOUND", color: "#7C3AED" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -155,7 +158,7 @@ export default function CEOActivityFeed() {
   const [data, setData] = useState<FeedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState("timeline");
   const [period, setPeriod] = useState("24h");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -199,10 +202,10 @@ export default function CEOActivityFeed() {
   };
 
   const tabs = [
-    { label: "Timeline", icon: "📋", count: data?.stats.totalEvents || 0 },
-    { label: "Self-Healing", icon: "💊", count: data?.stats.healingActions || 0 },
-    { label: "Learning", icon: "🧠", count: data?.stats.insightsCount || 0 },
-    { label: "Insights", icon: "📊", count: data?.stats.observationsCount || 0 },
+    { id: "timeline", label: "Timeline", count: data?.stats.totalEvents || 0 },
+    { id: "healing", label: "Self-Healing", count: data?.stats.healingActions || 0 },
+    { id: "learning", label: "Learning", count: data?.stats.insightsCount || 0 },
+    { id: "insights", label: "Insights", count: data?.stats.observationsCount || 0 },
   ];
 
   const filteredTimeline =
@@ -211,128 +214,77 @@ export default function CEOActivityFeed() {
       : (data?.timeline || []).filter((e) => e.category === filterCategory);
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: BG, color: "#1C1917" }}>
+    <div className="admin-page p-4 md:p-6">
       {/* ── Header ── */}
-      <div
-        className="sticky top-0 z-30 backdrop-blur-md"
-        style={{ backgroundColor: "rgba(237,233,225,0.92)", borderBottom: "1px solid rgba(120,113,108,0.15)" }}
-      >
-        <div className="max-w-screen-xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Link
-                href="/admin/cockpit"
-                className="px-2 py-1 rounded-lg text-xs"
-                style={{ fontFamily: MONO, color: "#78716C" }}
-              >
-                ← HQ
-              </Link>
-              <h1 style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 18, letterSpacing: "-0.3px" }}>
-                Activity Feed
-              </h1>
-            </div>
-            <div className="flex items-center gap-1">
-              {(["1h", "6h", "12h", "24h", "3d", "7d"] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 10,
-                    fontWeight: period === p ? 700 : 500,
-                    color: period === p ? "#1C1917" : "#78716C",
-                    backgroundColor: period === p ? BG : "transparent",
-                    boxShadow: period === p ? FLAT : "none",
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Tabs ── */}
-          <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {tabs.map((tab, i) => (
+      <AdminPageHeader
+        title="Activity Feed"
+        subtitle="Platform autonomous actions"
+        backHref="/admin/cockpit"
+        action={
+          <div className="flex items-center gap-1">
+            {(["1h", "6h", "12h", "24h", "3d", "7d"] as const).map((p) => (
               <button
-                key={tab.label}
-                onClick={() => setActiveTab(i)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap transition-all"
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 10,
-                  fontWeight: activeTab === i ? 700 : 500,
-                  color: activeTab === i ? "#1C1917" : "#78716C",
-                  backgroundColor: activeTab === i ? BG : "transparent",
-                  boxShadow: activeTab === i ? FLAT : "none",
-                  letterSpacing: "0.5px",
-                  textTransform: "uppercase",
-                }}
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`admin-filter-pill ${period === p ? "active" : ""}`}
+                style={{ fontSize: 10, padding: "4px 8px" }}
               >
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-                {tab.count > 0 && (
-                  <span
-                    className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                    style={{
-                      backgroundColor: activeTab === i ? "rgba(99,102,241,0.12)" : "rgba(120,113,108,0.1)",
-                      color: activeTab === i ? "#6366F1" : "#78716C",
-                    }}
-                  >
-                    {tab.count}
-                  </span>
-                )}
+                {p}
               </button>
             ))}
           </div>
-        </div>
+        }
+      />
+
+      {/* ── Tabs ── */}
+      <div className="mb-4">
+        <AdminTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
       {/* ── Content ── */}
-      <div className="max-w-screen-xl mx-auto px-4 py-4">
-        {loading && !data && (
-          <div className="flex items-center justify-center py-20">
-            <p style={{ fontFamily: MONO, fontSize: 11, color: "#78716C", textTransform: "uppercase", letterSpacing: "2px" }}>
-              Loading activity…
-            </p>
-          </div>
-        )}
+      <div className="max-w-screen-xl mx-auto">
+        {loading && !data && <AdminLoadingState label="Loading activity..." />}
 
         {error && (
-          <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: "rgba(200,50,43,0.08)" }}>
-            <p style={{ fontFamily: MONO, fontSize: 11, color: "#C8322B" }}>{error}</p>
-            <button onClick={fetchData} className="mt-2 text-xs underline" style={{ color: "#C8322B" }}>
-              Retry
-            </button>
-          </div>
+          <AdminAlertBanner
+            severity="critical"
+            message={error}
+            action={
+              <AdminButton variant="ghost" size="sm" onClick={fetchData}>
+                Retry
+              </AdminButton>
+            }
+          />
         )}
 
         {data && (
           <>
             {/* ── Stats Banner ── */}
             <div className="grid grid-cols-4 gap-2 mb-4">
-              {[
-                { label: "Events", value: data.stats.totalEvents, color: "#6366F1" },
-                { label: "Success", value: `${data.stats.totalEvents > 0 ? Math.round((data.stats.successEvents / data.stats.totalEvents) * 100) : 0}%`, color: "#10B981" },
-                { label: "Healed", value: data.stats.healingActions, color: "#8B5CF6" },
-                { label: "Insights", value: data.stats.insightsCount, color: "#F59E0B" },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="flex flex-col items-center px-2 py-2.5 rounded-xl"
-                  style={{ backgroundColor: BG, boxShadow: FLAT }}
-                >
-                  <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 800, color: s.color }}>{s.value}</span>
-                  <span style={{ fontFamily: MONO, fontSize: 8, color: "#78716C", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {s.label}
-                  </span>
-                </div>
-              ))}
+              <AdminKPICard
+                value={data.stats.totalEvents}
+                label="Events"
+                color="#3B7EA1"
+              />
+              <AdminKPICard
+                value={`${data.stats.totalEvents > 0 ? Math.round((data.stats.successEvents / data.stats.totalEvents) * 100) : 0}%`}
+                label="Success"
+                color="#2D5A3D"
+              />
+              <AdminKPICard
+                value={data.stats.healingActions}
+                label="Healed"
+                color="#7C3AED"
+              />
+              <AdminKPICard
+                value={data.stats.insightsCount}
+                label="Insights"
+                color="#C49A2A"
+              />
             </div>
 
-            {/* ── Tab 0: Timeline ── */}
-            {activeTab === 0 && (
+            {/* ── Tab: Timeline ── */}
+            {activeTab === "timeline" && (
               <div>
                 {/* Category filter */}
                 <div className="flex gap-1 mb-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
@@ -340,17 +292,8 @@ export default function CEOActivityFeed() {
                     <button
                       key={cat}
                       onClick={() => setFilterCategory(cat)}
-                      className="px-3 py-1.5 rounded-lg whitespace-nowrap"
-                      style={{
-                        fontFamily: MONO,
-                        fontSize: 9,
-                        fontWeight: filterCategory === cat ? 700 : 500,
-                        color: filterCategory === cat ? "#1C1917" : "#78716C",
-                        backgroundColor: filterCategory === cat ? BG : "transparent",
-                        boxShadow: filterCategory === cat ? INSET : "none",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
+                      className={`admin-filter-pill ${filterCategory === cat ? "active" : ""}`}
+                      style={{ fontSize: 9 }}
                     >
                       {cat === "all" ? "All" : cat === "ai" ? "AI Calls" : cat === "auto-fix" ? "Auto-Fix" : cat === "cron" ? "Cron Jobs" : "Manual"}
                     </button>
@@ -360,9 +303,19 @@ export default function CEOActivityFeed() {
                 {/* Timeline list */}
                 <div className="space-y-2">
                   {filteredTimeline.length === 0 && (
-                    <div className="text-center py-12 rounded-xl" style={{ backgroundColor: BG, boxShadow: INSET }}>
-                      <p style={{ fontFamily: MONO, fontSize: 11, color: "#78716C" }}>No activity in this period</p>
-                    </div>
+                    <AdminCard>
+                      <div className="admin-card-inset text-center py-12">
+                        <p
+                          style={{
+                            fontFamily: "var(--font-system)",
+                            fontSize: 11,
+                            color: "#78716C",
+                          }}
+                        >
+                          No activity in this period
+                        </p>
+                      </div>
+                    </AdminCard>
                   )}
 
                   {filteredTimeline.map((event) => {
@@ -373,13 +326,20 @@ export default function CEOActivityFeed() {
                       <button
                         key={event.id}
                         onClick={() => toggleExpand(event.id)}
-                        className="w-full text-left rounded-xl px-3 py-2.5 transition-all active:scale-[0.99]"
-                        style={{ backgroundColor: BG, boxShadow: FLAT }}
+                        className="w-full text-left admin-card transition-all active:scale-[0.99]"
+                        style={{ padding: "10px 12px" }}
                       >
                         <div className="flex items-start gap-2.5">
                           {/* Time + dot */}
                           <div className="flex flex-col items-center gap-1 pt-0.5" style={{ minWidth: 44 }}>
-                            <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: "#78716C" }}>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-system)",
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: "#78716C",
+                              }}
+                            >
                               {formatTime(event.time)}
                             </span>
                             <div
@@ -394,7 +354,7 @@ export default function CEOActivityFeed() {
                               <span style={{ fontSize: 13 }}>{ICON_MAP[event.icon] || "⚙️"}</span>
                               <span
                                 style={{
-                                  fontFamily: MONO,
+                                  fontFamily: "var(--font-system)",
                                   fontSize: 11,
                                   fontWeight: 700,
                                   color: "#1C1917",
@@ -408,7 +368,7 @@ export default function CEOActivityFeed() {
                             </div>
                             <p
                               style={{
-                                fontFamily: MONO,
+                                fontFamily: "var(--font-system)",
                                 fontSize: 10,
                                 color: sc.text,
                                 lineHeight: 1.5,
@@ -418,14 +378,11 @@ export default function CEOActivityFeed() {
                               {event.detail}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span style={{ fontFamily: MONO, fontSize: 8, color: "#A8A29E" }}>{timeAgo(event.time)}</span>
+                              <span style={{ fontFamily: "var(--font-system)", fontSize: 8, color: "#A8A29E" }}>
+                                {timeAgo(event.time)}
+                              </span>
                               {event.siteId && (
-                                <span
-                                  className="px-1.5 py-0.5 rounded"
-                                  style={{ fontFamily: MONO, fontSize: 8, color: "#6366F1", backgroundColor: "rgba(99,102,241,0.08)" }}
-                                >
-                                  {event.siteId}
-                                </span>
+                                <AdminStatusBadge status="active" label={event.siteId} />
                               )}
                             </div>
                           </div>
@@ -437,53 +394,103 @@ export default function CEOActivityFeed() {
               </div>
             )}
 
-            {/* ── Tab 1: Self-Healing ── */}
-            {activeTab === 1 && (
+            {/* ── Tab: Self-Healing ── */}
+            {activeTab === "healing" && (
               <div>
                 {/* Healing summary */}
-                <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: BG, boxShadow: FLAT }}>
+                <AdminCard className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span style={{ fontSize: 18 }}>💊</span>
-                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 14 }}>Self-Healing System</span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        color: "#1C1917",
+                      }}
+                    >
+                      Self-Healing System
+                    </span>
                   </div>
-                  <p style={{ fontFamily: MONO, fontSize: 10, color: "#78716C", lineHeight: 1.6 }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      color: "#78716C",
+                      lineHeight: 1.6,
+                    }}
+                  >
                     The platform automatically detects and fixes issues every 2 hours. When content has problems
                     (thin articles, broken links, missing metadata), the diagnostic agent fixes them without human intervention.
                   </p>
                   {data.stats.healingActions > 0 && (
                     <div className="flex gap-3 mt-3">
                       <div className="flex flex-col items-center">
-                        <span style={{ fontFamily: MONO, fontSize: 20, fontWeight: 800, color: "#8B5CF6" }}>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-display)",
+                            fontSize: 20,
+                            fontWeight: 800,
+                            color: "#7C3AED",
+                          }}
+                        >
                           {data.stats.healingActions}
                         </span>
-                        <span style={{ fontFamily: MONO, fontSize: 8, color: "#78716C", textTransform: "uppercase" }}>Fixes</span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-system)",
+                            fontSize: 8,
+                            color: "#78716C",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Fixes
+                        </span>
                       </div>
                       <div className="flex flex-col items-center">
                         <span
                           style={{
-                            fontFamily: MONO,
+                            fontFamily: "var(--font-display)",
                             fontSize: 20,
                             fontWeight: 800,
-                            color: data.stats.healingSuccessRate >= 80 ? "#10B981" : "#F59E0B",
+                            color: data.stats.healingSuccessRate >= 80 ? "#2D5A3D" : "#C49A2A",
                           }}
                         >
                           {data.stats.healingSuccessRate}%
                         </span>
-                        <span style={{ fontFamily: MONO, fontSize: 8, color: "#78716C", textTransform: "uppercase" }}>Success</span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-system)",
+                            fontSize: 8,
+                            color: "#78716C",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Success
+                        </span>
                       </div>
                     </div>
                   )}
-                </div>
+                </AdminCard>
 
                 {/* Healing records */}
                 <div className="space-y-2">
                   {data.healing.length === 0 && (
-                    <div className="text-center py-12 rounded-xl" style={{ backgroundColor: BG, boxShadow: INSET }}>
-                      <span style={{ fontSize: 24 }}>✅</span>
-                      <p style={{ fontFamily: MONO, fontSize: 11, color: "#78716C", marginTop: 8 }}>
-                        No healing needed in this period — everything is healthy
-                      </p>
-                    </div>
+                    <AdminCard>
+                      <div className="admin-card-inset text-center py-12">
+                        <span style={{ fontSize: 24 }}>✅</span>
+                        <p
+                          style={{
+                            fontFamily: "var(--font-system)",
+                            fontSize: 11,
+                            color: "#78716C",
+                            marginTop: 8,
+                          }}
+                        >
+                          No healing needed in this period — everything is healthy
+                        </p>
+                      </div>
+                    </AdminCard>
                   )}
 
                   {data.healing.map((record) => {
@@ -494,8 +501,8 @@ export default function CEOActivityFeed() {
                       <button
                         key={record.id}
                         onClick={() => toggleExpand(`heal-${record.id}`)}
-                        className="w-full text-left rounded-xl px-3 py-3 transition-all active:scale-[0.99]"
-                        style={{ backgroundColor: BG, boxShadow: FLAT }}
+                        className="w-full text-left admin-card transition-all active:scale-[0.99]"
+                        style={{ padding: "12px" }}
                       >
                         <div className="flex items-start gap-2.5">
                           <div
@@ -506,45 +513,91 @@ export default function CEOActivityFeed() {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="flex items-center gap-2 mb-0.5">
-                              <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: "#1C1917" }}>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-system)",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: "#1C1917",
+                                }}
+                              >
                                 {record.what}
                               </span>
-                              <span
-                                className="px-1.5 py-0.5 rounded text-[8px] font-bold"
-                                style={{ color: sc.text, backgroundColor: sc.bg }}
-                              >
-                                {record.success ? "HEALED" : "FAILED"}
-                              </span>
+                              <AdminStatusBadge
+                                status={record.success ? "success" : "failed"}
+                                label={record.success ? "HEALED" : "FAILED"}
+                              />
                             </div>
-                            <p style={{ fontFamily: MONO, fontSize: 10, color: "#78716C" }}>
+                            <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#78716C" }}>
                               by {record.agent} on {record.targetType}
                             </p>
-                            <span style={{ fontFamily: MONO, fontSize: 8, color: "#A8A29E" }}>{timeAgo(record.time)}</span>
+                            <span style={{ fontFamily: "var(--font-system)", fontSize: 8, color: "#A8A29E" }}>
+                              {timeAgo(record.time)}
+                            </span>
 
                             {expanded && (
                               <div className="mt-2 space-y-1.5">
                                 {record.before && (
-                                  <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: "rgba(200,50,43,0.05)" }}>
-                                    <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: "#C8322B", textTransform: "uppercase" }}>
+                                  <div
+                                    className="rounded-lg px-2 py-1.5"
+                                    style={{ backgroundColor: "rgba(200,50,43,0.05)" }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontFamily: "var(--font-system)",
+                                        fontSize: 8,
+                                        fontWeight: 700,
+                                        color: "#C8322B",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
                                       Before:
                                     </span>
-                                    <p style={{ fontFamily: MONO, fontSize: 9, color: "#78716C", marginTop: 2 }}>{record.before}</p>
+                                    <p style={{ fontFamily: "var(--font-system)", fontSize: 9, color: "#78716C", marginTop: 2 }}>
+                                      {record.before}
+                                    </p>
                                   </div>
                                 )}
                                 {record.after && (
-                                  <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: "rgba(16,185,129,0.05)" }}>
-                                    <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: "#059669", textTransform: "uppercase" }}>
+                                  <div
+                                    className="rounded-lg px-2 py-1.5"
+                                    style={{ backgroundColor: "rgba(45,90,61,0.05)" }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontFamily: "var(--font-system)",
+                                        fontSize: 8,
+                                        fontWeight: 700,
+                                        color: "#2D5A3D",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
                                       After:
                                     </span>
-                                    <p style={{ fontFamily: MONO, fontSize: 9, color: "#78716C", marginTop: 2 }}>{record.after}</p>
+                                    <p style={{ fontFamily: "var(--font-system)", fontSize: 9, color: "#78716C", marginTop: 2 }}>
+                                      {record.after}
+                                    </p>
                                   </div>
                                 )}
                                 {record.error && (
-                                  <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: "rgba(200,50,43,0.05)" }}>
-                                    <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: "#C8322B", textTransform: "uppercase" }}>
+                                  <div
+                                    className="rounded-lg px-2 py-1.5"
+                                    style={{ backgroundColor: "rgba(200,50,43,0.05)" }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontFamily: "var(--font-system)",
+                                        fontSize: 8,
+                                        fontWeight: 700,
+                                        color: "#C8322B",
+                                        textTransform: "uppercase",
+                                      }}
+                                    >
                                       Error:
                                     </span>
-                                    <p style={{ fontFamily: MONO, fontSize: 9, color: "#C8322B", marginTop: 2 }}>{record.error}</p>
+                                    <p style={{ fontFamily: "var(--font-system)", fontSize: 9, color: "#C8322B", marginTop: 2 }}>
+                                      {record.error}
+                                    </p>
                                   </div>
                                 )}
                               </div>
@@ -558,30 +611,55 @@ export default function CEOActivityFeed() {
               </div>
             )}
 
-            {/* ── Tab 2: Self-Learning ── */}
-            {activeTab === 2 && (
+            {/* ── Tab: Self-Learning ── */}
+            {activeTab === "learning" && (
               <div>
                 {/* Learning intro */}
-                <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: BG, boxShadow: FLAT }}>
+                <AdminCard className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span style={{ fontSize: 18 }}>🧠</span>
-                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 14 }}>System Intelligence</span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        color: "#1C1917",
+                      }}
+                    >
+                      System Intelligence
+                    </span>
                   </div>
-                  <p style={{ fontFamily: MONO, fontSize: 10, color: "#78716C", lineHeight: 1.6 }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      color: "#78716C",
+                      lineHeight: 1.6,
+                    }}
+                  >
                     The platform analyzes its own performance to detect patterns, identify bottlenecks,
                     and adapt to failures. These are the insights it discovered from the last 7 days of operation.
                   </p>
-                </div>
+                </AdminCard>
 
                 {/* Insights */}
                 <div className="space-y-2">
                   {data.insights.length === 0 && (
-                    <div className="text-center py-12 rounded-xl" style={{ backgroundColor: BG, boxShadow: INSET }}>
-                      <span style={{ fontSize: 24 }}>🤔</span>
-                      <p style={{ fontFamily: MONO, fontSize: 11, color: "#78716C", marginTop: 8 }}>
-                        Not enough data yet — insights appear after a few days of operation
-                      </p>
-                    </div>
+                    <AdminCard>
+                      <div className="admin-card-inset text-center py-12">
+                        <span style={{ fontSize: 24 }}>🤔</span>
+                        <p
+                          style={{
+                            fontFamily: "var(--font-system)",
+                            fontSize: 11,
+                            color: "#78716C",
+                            marginTop: 8,
+                          }}
+                        >
+                          Not enough data yet — insights appear after a few days of operation
+                        </p>
+                      </div>
+                    </AdminCard>
                   )}
 
                   {/* Group by severity for scanability */}
@@ -596,7 +674,7 @@ export default function CEOActivityFeed() {
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sc.border }} />
                           <span
                             style={{
-                              fontFamily: MONO,
+                              fontFamily: "var(--font-system)",
                               fontSize: 9,
                               fontWeight: 700,
                               color: sc.text,
@@ -617,34 +695,70 @@ export default function CEOActivityFeed() {
                             <button
                               key={insight.id}
                               onClick={() => toggleExpand(`insight-${insight.id}`)}
-                              className="w-full text-left rounded-xl px-3 py-2.5 mb-2 transition-all active:scale-[0.99]"
+                              className="w-full text-left admin-card mb-2 transition-all active:scale-[0.99]"
                               style={{
-                                backgroundColor: BG,
-                                boxShadow: FLAT,
+                                padding: "10px 12px",
                                 borderLeft: `3px solid ${sc.border}`,
                               }}
                             >
                               <div className="flex items-start gap-2">
                                 <span
                                   className="px-1.5 py-0.5 rounded text-[8px] font-bold flex-shrink-0 mt-0.5"
-                                  style={{ color: typeInfo.color, backgroundColor: `${typeInfo.color}15` }}
+                                  style={{
+                                    fontFamily: "var(--font-system)",
+                                    color: typeInfo.color,
+                                    backgroundColor: `${typeInfo.color}15`,
+                                  }}
                                 >
                                   {typeInfo.label}
                                 </span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <p style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: "#1C1917", lineHeight: 1.4 }}>
+                                  <p
+                                    style={{
+                                      fontFamily: "var(--font-system)",
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "#1C1917",
+                                      lineHeight: 1.4,
+                                    }}
+                                  >
                                     {insight.title}
                                   </p>
                                   {expanded && (
                                     <div className="mt-2">
-                                      <p style={{ fontFamily: MONO, fontSize: 10, color: "#78716C", lineHeight: 1.5 }}>
+                                      <p
+                                        style={{
+                                          fontFamily: "var(--font-system)",
+                                          fontSize: 10,
+                                          color: "#78716C",
+                                          lineHeight: 1.5,
+                                        }}
+                                      >
                                         {insight.detail}
                                       </p>
-                                      <div className="mt-2 rounded-lg px-2 py-1.5" style={{ backgroundColor: "rgba(99,102,241,0.05)" }}>
-                                        <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: "#6366F1", textTransform: "uppercase" }}>
+                                      <div
+                                        className="mt-2 rounded-lg px-2 py-1.5"
+                                        style={{ backgroundColor: "rgba(59,126,161,0.05)" }}
+                                      >
+                                        <span
+                                          style={{
+                                            fontFamily: "var(--font-system)",
+                                            fontSize: 8,
+                                            fontWeight: 700,
+                                            color: "#3B7EA1",
+                                            textTransform: "uppercase",
+                                          }}
+                                        >
                                           Evidence:
                                         </span>
-                                        <p style={{ fontFamily: MONO, fontSize: 9, color: "#6366F1", marginTop: 2 }}>
+                                        <p
+                                          style={{
+                                            fontFamily: "var(--font-system)",
+                                            fontSize: 9,
+                                            color: "#3B7EA1",
+                                            marginTop: 2,
+                                          }}
+                                        >
                                           {insight.evidence}
                                         </p>
                                       </div>
@@ -662,27 +776,53 @@ export default function CEOActivityFeed() {
               </div>
             )}
 
-            {/* ── Tab 3: Technical Observations ── */}
-            {activeTab === 3 && (
+            {/* ── Tab: Technical Observations ── */}
+            {activeTab === "insights" && (
               <div>
                 {/* Observations intro */}
-                <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: BG, boxShadow: FLAT }}>
+                <AdminCard className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span style={{ fontSize: 18 }}>📊</span>
-                    <span style={{ fontFamily: DISPLAY, fontWeight: 800, fontSize: 14 }}>Technical Observations</span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        color: "#1C1917",
+                      }}
+                    >
+                      Technical Observations
+                    </span>
                   </div>
-                  <p style={{ fontFamily: MONO, fontSize: 10, color: "#78716C", lineHeight: 1.6 }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      color: "#78716C",
+                      lineHeight: 1.6,
+                    }}
+                  >
                     Real-time system metrics and health indicators. These are facts, not opinions — drawn directly
                     from your database.
                   </p>
-                </div>
+                </AdminCard>
 
                 {/* Observation cards */}
                 <div className="space-y-2">
                   {data.observations.length === 0 && (
-                    <div className="text-center py-12 rounded-xl" style={{ backgroundColor: BG, boxShadow: INSET }}>
-                      <p style={{ fontFamily: MONO, fontSize: 11, color: "#78716C" }}>No observations available</p>
-                    </div>
+                    <AdminCard>
+                      <div className="admin-card-inset text-center py-12">
+                        <p
+                          style={{
+                            fontFamily: "var(--font-system)",
+                            fontSize: 11,
+                            color: "#78716C",
+                          }}
+                        >
+                          No observations available
+                        </p>
+                      </div>
+                    </AdminCard>
                   )}
 
                   {data.observations.map((obs) => {
@@ -690,23 +830,23 @@ export default function CEOActivityFeed() {
                     const trend = TREND_ICONS[obs.trend] || "→";
 
                     return (
-                      <div
-                        key={obs.id}
-                        className="rounded-xl px-4 py-3"
-                        style={{ backgroundColor: BG, boxShadow: FLAT }}
-                      >
+                      <AdminCard key={obs.id}>
                         <div className="flex items-start justify-between gap-3">
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="flex items-center gap-2 mb-1">
                               <span
                                 className="px-1.5 py-0.5 rounded text-[8px] font-bold"
-                                style={{ color: sc.text, backgroundColor: sc.bg }}
+                                style={{
+                                  fontFamily: "var(--font-system)",
+                                  color: sc.text,
+                                  backgroundColor: sc.bg,
+                                }}
                               >
                                 {obs.area}
                               </span>
                               <span
                                 style={{
-                                  fontFamily: MONO,
+                                  fontFamily: "var(--font-system)",
                                   fontSize: 11,
                                   fontWeight: 700,
                                   color: "#1C1917",
@@ -715,21 +855,35 @@ export default function CEOActivityFeed() {
                                 {obs.title}
                               </span>
                             </div>
-                            <p style={{ fontFamily: MONO, fontSize: 10, color: "#78716C", lineHeight: 1.5 }}>
+                            <p
+                              style={{
+                                fontFamily: "var(--font-system)",
+                                fontSize: 10,
+                                color: "#78716C",
+                                lineHeight: 1.5,
+                              }}
+                            >
                               {obs.detail}
                             </p>
                           </div>
 
                           {obs.metric && (
                             <div className="flex flex-col items-center flex-shrink-0">
-                              <span style={{ fontFamily: MONO, fontSize: 18, fontWeight: 800, color: sc.text }}>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-display)",
+                                  fontSize: 18,
+                                  fontWeight: 800,
+                                  color: sc.text,
+                                }}
+                              >
                                 {obs.metric}
                               </span>
                               <span style={{ fontSize: 14, color: sc.text }}>{trend}</span>
                             </div>
                           )}
                         </div>
-                      </div>
+                      </AdminCard>
                     );
                   })}
                 </div>

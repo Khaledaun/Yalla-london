@@ -55,11 +55,22 @@ interface AnalyticsMetrics {
 
 let analyticsConfigurations: Map<string, AnalyticsConfig> = new Map();
 
+// Parse GOOGLE_SERVICE_ACCOUNT_KEY JSON blob if present
+let _serviceAccountEmail: string | undefined;
+let _serviceAccountKey: string | undefined;
+try {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    const parsed = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+    _serviceAccountEmail = parsed.client_email;
+    _serviceAccountKey = parsed.private_key;
+  }
+} catch { /* not valid JSON */ }
+
 // Detect credentials using the ACTUAL env var names used in the codebase
 const ga4HasCredentials = !!(
   process.env.GA4_PROPERTY_ID &&
-  (process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL) &&
-  (process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY)
+  (process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL || _serviceAccountEmail) &&
+  (process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY || _serviceAccountKey)
 );
 const gscHasCredentials = !!(
   process.env.GSC_SITE_URL &&
@@ -77,8 +88,8 @@ const DEFAULT_ANALYTICS_CONFIGS: AnalyticsConfig[] = [
       tracking_id_configured: !!(process.env.GA4_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID),
       measurement_id_configured: !!(process.env.GA4_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID),
       property_id_configured: !!process.env.GA4_PROPERTY_ID,
-      service_account_email_configured: !!(process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL),
-      private_key_configured: !!(process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY),
+      service_account_email_configured: !!(process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL || _serviceAccountEmail),
+      private_key_configured: !!(process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY || _serviceAccountKey),
     },
     features: [
       "page_views_tracking",

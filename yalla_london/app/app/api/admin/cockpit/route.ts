@@ -395,7 +395,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       code: "GA4_NOT_CONFIGURED",
       message: "GA4 not configured — no traffic data",
       detail: "Add GA4_PROPERTY_ID and service account credentials to see website traffic on the dashboard.",
-      fix: "Add GA4_PROPERTY_ID, GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL, and GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY to Vercel environment variables.",
+      fix: "Add GA4_PROPERTY_ID, GOOGLE_ANALYTICS_CLIENT_EMAIL, and GOOGLE_ANALYTICS_PRIVATE_KEY to Vercel environment variables.",
     });
   }
 

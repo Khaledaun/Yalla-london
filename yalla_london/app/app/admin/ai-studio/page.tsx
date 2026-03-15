@@ -5,6 +5,10 @@ import {
   Brain, Play, Copy, Loader2, CheckCircle, AlertCircle,
   MessageSquare, ChevronDown, ChevronUp, Sparkles,
 } from 'lucide-react'
+import {
+  AdminCard, AdminPageHeader, AdminButton, AdminStatusBadge,
+  AdminLoadingState, AdminEmptyState, AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 
 interface Task {
   id: string
@@ -113,22 +117,18 @@ export default function AITaskRunner() {
 
   const selectedTaskDef = tasks.find(t => t.id === selectedTask)
 
-  // Category colors
-  const catColors: Record<string, string> = {
-    content: '#2563EB', seo: '#16A34A', commerce: '#D97706',
-    analysis: '#6366F1', legal: '#78716C', general: '#A8A29E',
-  }
-
   return (
-    <div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="AI Task Runner"
+        subtitle="Run structured AI tasks"
+      />
+
       {/* Task selector */}
-      <div className="rounded-xl p-5 mb-5"
-           style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised)' }}>
+      <AdminCard className="mb-5">
         <div className="flex items-center gap-2 mb-4">
-          <Brain style={{ width: 18, height: 18, color: '#6366F1' }} />
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: '#6366F1' }}>
-            AI Task Runner
-          </span>
+          <Brain style={{ width: 18, height: 18, color: '#3B7EA1' }} />
+          <AdminSectionLabel>AI Task Runner</AdminSectionLabel>
         </div>
 
         {/* Task dropdown */}
@@ -136,8 +136,7 @@ export default function AITaskRunner() {
           <select
             value={selectedTask}
             onChange={(e) => setSelectedTask(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl border-none"
-            style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)', fontSize: 13, color: '#1C1917', minHeight: 44 }}
+            className="admin-select w-full"
           >
             <option value="">Select a task...</option>
             {tasks.map(t => (
@@ -145,7 +144,7 @@ export default function AITaskRunner() {
             ))}
           </select>
           {selectedTaskDef && (
-            <p style={{ fontSize: 11, color: '#78716C', marginTop: 4 }}>{selectedTaskDef.description}</p>
+            <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 4 }}>{selectedTaskDef.description}</p>
           )}
         </div>
 
@@ -155,47 +154,40 @@ export default function AITaskRunner() {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Enter your prompt or paste content to analyze..."
           rows={4}
-          className="w-full px-3 py-2.5 rounded-xl border-none mb-3"
-          style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)', fontSize: 13, color: '#1C1917', resize: 'vertical' }}
+          className="admin-input w-full mb-3"
+          style={{ fontSize: 13, resize: 'vertical' }}
         />
 
         {/* Run button */}
-        <button
+        <AdminButton
+          variant="primary"
+          size="lg"
           onClick={runTask}
           disabled={running || !selectedTask || !prompt.trim()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
-          style={{
-            fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: 1,
-            color: '#FAF8F4', backgroundColor: '#6366F1', minHeight: 48,
-            boxShadow: '3px 3px 8px var(--neu-shadow-dark, #CAC5BC)',
-          }}
+          loading={running}
         >
-          {running ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <Play style={{ width: 16, height: 16 }} />}
+          <Play style={{ width: 16, height: 16 }} />
           {running ? 'Running...' : 'Run Task'}
-        </button>
-      </div>
+        </AdminButton>
+      </AdminCard>
 
       {/* Results */}
       {results.length > 0 && (
         <div className="mb-5">
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C', marginBottom: 8 }}>
-            Results ({results.length})
-          </div>
+          <AdminSectionLabel>Results ({results.length})</AdminSectionLabel>
 
           <div className="space-y-3">
             {results.map(result => {
               const isExpanded = expandedResult === result.runId
               return (
-                <div key={result.runId} className="rounded-xl overflow-hidden"
-                     style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+                <AdminCard key={result.runId}>
                   {/* Header */}
                   <button
                     onClick={() => setExpandedResult(isExpanded ? null : result.runId)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                    className="w-full flex items-center gap-3 text-left"
                   >
                     {result.status === 'success'
-                      ? <CheckCircle style={{ width: 16, height: 16, color: '#16A34A', flexShrink: 0 }} />
+                      ? <CheckCircle style={{ width: 16, height: 16, color: '#2D5A3D', flexShrink: 0 }} />
                       : <AlertCircle style={{ width: 16, height: 16, color: '#C8322B', flexShrink: 0 }} />
                     }
                     <div className="flex-1 min-w-0">
@@ -211,9 +203,9 @@ export default function AITaskRunner() {
 
                   {/* Expanded content */}
                   {isExpanded && (
-                    <div className="px-4 pb-4" style={{ borderTop: '1px solid rgba(120,113,108,0.12)' }}>
+                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(214,208,196,0.6)' }}>
                       {result.error && (
-                        <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'rgba(200,50,43,0.06)' }}>
+                        <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(200,50,43,0.06)' }}>
                           <p style={{ fontSize: 12, color: '#C8322B' }}>{result.error}</p>
                         </div>
                       )}
@@ -222,17 +214,15 @@ export default function AITaskRunner() {
                       {result.structuredOutput && (
                         <div className="mt-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C' }}>
-                              JSON Output
-                            </span>
+                            <AdminSectionLabel>JSON Output</AdminSectionLabel>
                             <button onClick={() => copyJson(result.structuredOutput)}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all"
-                                    style={{ fontSize: 10, color: '#6366F1' }}>
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all hover:bg-stone-100"
+                                    style={{ fontSize: 10, color: '#3B7EA1' }}>
                               <Copy style={{ width: 12, height: 12 }} /> Copy JSON
                             </button>
                           </div>
-                          <pre className="p-3 rounded-lg overflow-x-auto text-xs"
-                               style={{ backgroundColor: 'rgba(0,0,0,0.04)', color: '#1C1917', maxHeight: 300 }}>
+                          <pre className="p-3 rounded-lg overflow-x-auto text-xs admin-card-inset"
+                               style={{ color: '#1C1917', maxHeight: 300 }}>
                             {JSON.stringify(result.structuredOutput, null, 2)}
                           </pre>
                         </div>
@@ -242,17 +232,15 @@ export default function AITaskRunner() {
                       {result.result && !result.structuredOutput && (
                         <div className="mt-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C' }}>
-                              Output
-                            </span>
+                            <AdminSectionLabel>Output</AdminSectionLabel>
                             <button onClick={() => copyJson(result.result)}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all"
-                                    style={{ fontSize: 10, color: '#6366F1' }}>
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg transition-all hover:bg-stone-100"
+                                    style={{ fontSize: 10, color: '#3B7EA1' }}>
                               <Copy style={{ width: 12, height: 12 }} /> Copy
                             </button>
                           </div>
-                          <div className="p-3 rounded-lg overflow-x-auto text-sm"
-                               style={{ backgroundColor: 'rgba(0,0,0,0.04)', color: '#1C1917', maxHeight: 300, whiteSpace: 'pre-wrap' }}>
+                          <div className="p-3 rounded-lg overflow-x-auto text-sm admin-card-inset"
+                               style={{ color: '#1C1917', maxHeight: 300, whiteSpace: 'pre-wrap' }}>
                             {result.result}
                           </div>
                         </div>
@@ -260,32 +248,27 @@ export default function AITaskRunner() {
 
                       {/* Explain button */}
                       <div className="mt-3 flex items-center gap-2">
-                        <button
+                        <AdminButton
+                          variant="secondary"
+                          size="sm"
                           onClick={() => explainResult(result)}
                           disabled={explaining === result.runId}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
-                          style={{
-                            fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600,
-                            textTransform: 'uppercase', letterSpacing: 0.5,
-                            color: '#D97706', backgroundColor: 'rgba(217,119,6,0.08)', minHeight: 40,
-                          }}
+                          loading={explaining === result.runId}
                         >
-                          {explaining === result.runId
-                            ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
-                            : <MessageSquare style={{ width: 14, height: 14 }} />}
+                          <MessageSquare style={{ width: 14, height: 14 }} />
                           Explain in Plain English
-                        </button>
+                        </AdminButton>
                       </div>
 
                       {/* Explanation */}
                       {explanations[result.runId] && (
-                        <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #D97706' }}>
+                        <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'rgba(196,154,42,0.06)', borderLeft: '3px solid #C49A2A' }}>
                           <p style={{ fontSize: 12, color: '#44403C', lineHeight: 1.5 }}>{explanations[result.runId]}</p>
                         </div>
                       )}
                     </div>
                   )}
-                </div>
+                </AdminCard>
               )
             })}
           </div>
@@ -295,45 +278,35 @@ export default function AITaskRunner() {
       {/* Recent runs from API */}
       {recentRuns.length > 0 && (
         <div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C', marginBottom: 8 }}>
-            Recent Runs
-          </div>
+          <AdminSectionLabel>Recent Runs</AdminSectionLabel>
           <div className="space-y-1">
             {recentRuns.map(run => (
-              <div key={run.id} className="flex items-center gap-3 px-3 py-2 rounded-lg"
-                   style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)' }}>
-                {run.success
-                  ? <CheckCircle style={{ width: 12, height: 12, color: '#16A34A' }} />
-                  : <AlertCircle style={{ width: 12, height: 12, color: '#C8322B' }} />
-                }
-                <span style={{ fontSize: 12, color: '#1C1917', flex: 1 }}>{run.taskType}</span>
-                <span style={{ fontSize: 10, color: '#78716C' }}>{run.provider}</span>
-                <span style={{ fontSize: 10, color: '#78716C' }}>{run.tokens?.toLocaleString()} tok</span>
-                {run.cost != null && <span style={{ fontSize: 10, color: '#D97706' }}>${run.cost.toFixed(4)}</span>}
-              </div>
+              <AdminCard key={run.id} className="!py-2 !px-3">
+                <div className="flex items-center gap-3">
+                  {run.success
+                    ? <CheckCircle style={{ width: 12, height: 12, color: '#2D5A3D' }} />
+                    : <AlertCircle style={{ width: 12, height: 12, color: '#C8322B' }} />
+                  }
+                  <span style={{ fontSize: 12, color: '#1C1917', flex: 1 }}>{run.taskType}</span>
+                  <span style={{ fontSize: 10, color: '#78716C' }}>{run.provider}</span>
+                  <span style={{ fontSize: 10, color: '#78716C' }}>{run.tokens?.toLocaleString()} tok</span>
+                  {run.cost != null && <span style={{ fontSize: 10, color: '#C49A2A' }}>${run.cost.toFixed(4)}</span>}
+                </div>
+              </AdminCard>
             ))}
           </div>
         </div>
       )}
 
       {/* Loading / empty state */}
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 style={{ width: 24, height: 24, color: '#78716C' }} className="animate-spin" />
-        </div>
-      )}
+      {loading && <AdminLoadingState label="Loading tasks..." />}
 
       {!loading && tasks.length === 0 && (
-        <div className="text-center py-12 rounded-xl"
-             style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)' }}>
-          <Sparkles style={{ width: 32, height: 32, color: '#78716C', margin: '0 auto 8px' }} />
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
-            AI Task Runner loading...
-          </p>
-          <p style={{ fontSize: 12, color: '#A8A29E', marginTop: 4 }}>
-            Tasks will appear when the API is deployed.
-          </p>
-        </div>
+        <AdminEmptyState
+          icon={Sparkles}
+          title="AI Task Runner loading..."
+          description="Tasks will appear when the API is deployed."
+        />
       )}
     </div>
   )

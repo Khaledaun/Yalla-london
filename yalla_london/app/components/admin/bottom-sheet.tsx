@@ -60,7 +60,7 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = '85vh'
                    rounded-t-2xl overflow-hidden"
         style={{
           maxHeight,
-          backgroundColor: 'var(--neu-bg, #EDE9E1)',
+          backgroundColor: '#FAF8F4',
           boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
         }}
       >
@@ -74,7 +74,7 @@ export function BottomSheet({ open, onClose, title, children, maxHeight = '85vh'
           <div className="flex items-center justify-between px-5 py-3"
                style={{ borderBottom: '1px solid rgba(120,113,108,0.12)' }}>
             <h2 style={{
-              fontFamily: "'Anybody', sans-serif",
+              fontFamily: "var(--font-display,'Anybody',sans-serif)",
               fontWeight: 700,
               fontSize: 15,
               color: '#1C1917',

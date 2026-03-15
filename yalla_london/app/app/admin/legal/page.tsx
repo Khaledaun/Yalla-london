@@ -8,6 +8,10 @@ import {
 import { StatusSummary, StatusCard } from '@/components/admin/status-summary'
 import { ResponsiveTable, Column } from '@/components/admin/responsive-table'
 import { BottomSheet } from '@/components/admin/bottom-sheet'
+import {
+  AdminCard, AdminPageHeader, AdminButton, AdminSectionLabel,
+  AdminAlertBanner,
+} from '@/components/admin/admin-ui'
 
 interface LegalPage {
   id: string
@@ -191,7 +195,7 @@ export default function LegalPagesManager() {
       render: (page) => (
         <div>
           <div style={{ fontWeight: 600, color: '#1C1917', fontSize: 13 }}>{page.title}</div>
-          <div style={{ fontSize: 10, color: '#78716C', marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: '#78716C', marginTop: 2, fontFamily: 'var(--font-system)' }}>
             {page.type} · {page.locale.toUpperCase()}
             {page.siteId && <span> · {page.siteId}</span>}
           </div>
@@ -203,9 +207,9 @@ export default function LegalPagesManager() {
       label: 'Status',
       render: (page) => (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{
-          fontSize: 10, fontWeight: 600,
-          backgroundColor: page.status === 'published' ? 'rgba(22,163,74,0.1)' : 'rgba(217,119,6,0.1)',
-          color: page.status === 'published' ? '#16A34A' : '#D97706',
+          fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-system)',
+          backgroundColor: page.status === 'published' ? 'rgba(45,90,61,0.08)' : 'rgba(196,154,42,0.08)',
+          color: page.status === 'published' ? '#2D5A3D' : '#C49A2A',
         }}>
           {page.status === 'published' ? <CheckCircle style={{ width: 12, height: 12 }} /> : <Edit3 style={{ width: 12, height: 12 }} />}
           {page.status}
@@ -217,7 +221,7 @@ export default function LegalPagesManager() {
       label: 'Updated',
       hideOnMobile: true,
       render: (page) => (
-        <span style={{ fontSize: 12, color: '#78716C' }}>
+        <span style={{ fontSize: 12, color: '#78716C', fontFamily: 'var(--font-system)' }}>
           {new Date(page.lastUpdated).toLocaleDateString()}
         </span>
       ),
@@ -227,7 +231,7 @@ export default function LegalPagesManager() {
       label: 'Ver',
       hideOnMobile: true,
       render: (page) => (
-        <span style={{ fontSize: 12, color: '#A8A29E' }}>v{page.version}</span>
+        <span style={{ fontSize: 12, color: '#A8A29E', fontFamily: 'var(--font-system)' }}>v{page.version}</span>
       ),
     },
     {
@@ -237,15 +241,15 @@ export default function LegalPagesManager() {
       render: (page) => (
         <div className="flex items-center gap-1">
           <button onClick={(e) => { e.stopPropagation(); openEditor(page) }}
-                  className="p-2 rounded-lg" style={{ color: '#2563EB', minHeight: 44, minWidth: 44 }} title="Edit">
+                  className="p-2 rounded-lg hover:bg-stone-100 transition-colors" style={{ color: '#3B7EA1', minHeight: 44, minWidth: 44 }} title="Edit">
             <Edit3 style={{ width: 16, height: 16 }} />
           </button>
           <button onClick={(e) => { e.stopPropagation(); setSelectedPage(page); setPreviewOpen(true) }}
-                  className="p-2 rounded-lg" style={{ color: '#78716C', minHeight: 44, minWidth: 44 }} title="Preview">
+                  className="p-2 rounded-lg hover:bg-stone-100 transition-colors" style={{ color: '#78716C', minHeight: 44, minWidth: 44 }} title="Preview">
             <Eye style={{ width: 16, height: 16 }} />
           </button>
           <button onClick={(e) => { e.stopPropagation(); handleDelete(page.id) }}
-                  className="p-2 rounded-lg" style={{ color: '#DC2626', minHeight: 44, minWidth: 44 }} title="Delete">
+                  className="p-2 rounded-lg hover:bg-stone-100 transition-colors" style={{ color: '#C8322B', minHeight: 44, minWidth: 44 }} title="Delete">
             <Trash2 style={{ width: 16, height: 16 }} />
           </button>
         </div>
@@ -254,30 +258,31 @@ export default function LegalPagesManager() {
   ]
 
   return (
-    <div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Legal Pages"
+        subtitle="Privacy, terms, and compliance"
+      />
+
       {/* Error */}
       {error && (
-        <div className="mb-4 p-3 rounded-xl flex items-center gap-3"
-             style={{ backgroundColor: 'rgba(200,50,43,0.08)', border: '1px solid rgba(200,50,43,0.2)' }}>
-          <AlertCircle style={{ width: 16, height: 16, color: '#C8322B', flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: '#C8322B', flex: 1 }}>{error}</span>
-          <button onClick={() => setError(null)} style={{ fontSize: 11, color: '#C8322B', fontWeight: 600 }}>Dismiss</button>
-        </div>
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
       )}
 
       {/* Status */}
       <StatusSummary cards={statusCards} loading={loading} />
 
       {/* Create new */}
-      <div className="rounded-xl p-4 mb-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+      <AdminCard className="mb-4">
         <div className="flex flex-col md:flex-row items-start md:items-end gap-3">
           <div className="flex-1 w-full">
-            <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C', display: 'block', marginBottom: 6 }}>
-              New Page Type
-            </label>
+            <AdminSectionLabel>New Page Type</AdminSectionLabel>
             <select value={createType} onChange={(e) => setCreateType(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border-none"
-                    style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)', fontSize: 13, minHeight: 44 }}>
+                    className="admin-select w-full">
               <option value="">Select type...</option>
               {LEGAL_TYPES.map(t => (
                 <option key={t.id} value={t.id}>{t.label}</option>
@@ -285,28 +290,24 @@ export default function LegalPagesManager() {
             </select>
           </div>
           <div className="w-full md:w-24">
-            <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C', display: 'block', marginBottom: 6 }}>
-              Locale
-            </label>
+            <AdminSectionLabel>Locale</AdminSectionLabel>
             <select value={createLocale} onChange={(e) => setCreateLocale(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border-none"
-                    style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)', fontSize: 13, minHeight: 44 }}>
+                    className="admin-select w-full">
               <option value="en">EN</option>
               <option value="ar">AR</option>
             </select>
           </div>
-          <button onClick={handleCreate} disabled={!createType || saving}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 700,
-                    textTransform: 'uppercase', letterSpacing: 1,
-                    color: '#FAF8F4', backgroundColor: '#C8322B', minHeight: 44, whiteSpace: 'nowrap',
-                  }}>
+          <AdminButton
+            variant="primary"
+            onClick={handleCreate}
+            disabled={!createType || saving}
+            loading={saving}
+          >
             <Plus style={{ width: 14, height: 14 }} />
             Create
-          </button>
+          </AdminButton>
         </div>
-      </div>
+      </AdminCard>
 
       {/* Table */}
       <ResponsiveTable<LegalPage>
@@ -325,23 +326,19 @@ export default function LegalPagesManager() {
           <div className="space-y-4">
             {/* Title */}
             <div>
-              <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C', display: 'block', marginBottom: 6 }}>
-                Title
-              </label>
+              <AdminSectionLabel>Title</AdminSectionLabel>
               <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
-                     className="w-full px-3 py-2.5 rounded-xl border-none"
-                     style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)', fontSize: 14, minHeight: 44 }} />
+                     className="admin-input w-full"
+                     style={{ fontSize: 14 }} />
             </div>
 
             {/* Content */}
             <div>
-              <label style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: '#78716C', display: 'block', marginBottom: 6 }}>
-                Content (HTML)
-              </label>
+              <AdminSectionLabel>Content (HTML)</AdminSectionLabel>
               <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)}
                         rows={12}
-                        className="w-full px-3 py-2.5 rounded-xl border-none font-mono text-sm"
-                        style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-inset)', resize: 'vertical' }} />
+                        className="admin-input w-full font-mono text-sm"
+                        style={{ resize: 'vertical' }} />
             </div>
 
             {/* AI Actions */}
@@ -351,34 +348,31 @@ export default function LegalPagesManager() {
                 { id: 'translate', label: 'Translate AR', icon: Globe },
                 { id: 'detect_gaps', label: 'Find Missing Clauses', icon: AlertCircle },
               ].map(action => (
-                <button key={action.id}
+                <AdminButton key={action.id}
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleAiAction(action.id)}
                         disabled={aiLoading !== null}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
-                        style={{
-                          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600,
-                          textTransform: 'uppercase', letterSpacing: 0.5,
-                          color: '#6366F1',
-                          backgroundColor: 'rgba(99,102,241,0.08)',
-                          minHeight: 40,
-                        }}>
-                  {aiLoading === action.id ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : <action.icon style={{ width: 14, height: 14 }} />}
+                        loading={aiLoading === action.id}
+                >
+                  <action.icon style={{ width: 14, height: 14 }} />
                   {action.label}
-                </button>
+                </AdminButton>
               ))}
             </div>
 
             {/* Save */}
-            <button onClick={handleSave} disabled={saving}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 700,
-                      textTransform: 'uppercase', letterSpacing: 1.5,
-                      color: '#FAF8F4', backgroundColor: '#C8322B', minHeight: 52,
-                    }}>
-              {saving ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <Save style={{ width: 16, height: 16 }} />}
+            <AdminButton
+              variant="primary"
+              size="lg"
+              onClick={handleSave}
+              disabled={saving}
+              loading={saving}
+              className="w-full justify-center"
+            >
+              <Save style={{ width: 16, height: 16 }} />
               {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            </AdminButton>
           </div>
         )}
       </BottomSheet>

@@ -3,16 +3,19 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSiteId } from '@/components/site-provider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminKPICard,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 import {
   Ship,
-  CheckCircle,
-  Star,
-  Clock,
   Plus,
   RefreshCw,
   Download,
@@ -21,6 +24,7 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Star,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -75,12 +79,6 @@ const STATUSES = ['All Statuses', 'active', 'inactive', 'draft']
 
 const formatPrice = (value: number, currency = 'EUR') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
-
-const statusColor: Record<string, string> = {
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-gray-100 text-gray-600',
-  draft: 'bg-yellow-100 text-yellow-800',
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -163,17 +161,17 @@ export default function YachtsFleetPage() {
   // Guard: yacht management is only for the Zenitha Yachts site
   if (!isYachtSite) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6 text-center">
-        <Ship className="w-16 h-16 text-zinc-600" />
-        <h2 className="text-xl font-semibold text-zinc-200">Yacht Management — Zenitha Yachts Only</h2>
-        <p className="text-zinc-400 max-w-md">
-          The fleet inventory, charter inquiries, and yacht-specific tools are exclusive to the{' '}
-          <span className="text-white font-medium">Zenitha Yachts</span> site. Switch to Zenitha Yachts in
-          the site selector to access these tools.
-        </p>
-        <Link href="/admin/cockpit">
-          <Button variant="outline" className="mt-2">Back to Cockpit</Button>
-        </Link>
+      <div className="admin-page p-4 md:p-6">
+        <AdminEmptyState
+          icon={Ship}
+          title="Yacht Management — Zenitha Yachts Only"
+          description="The fleet inventory, charter inquiries, and yacht-specific tools are exclusive to the Zenitha Yachts site. Switch to Zenitha Yachts in the site selector to access these tools."
+          action={
+            <Link href="/admin/cockpit">
+              <AdminButton variant="secondary">Back to Cockpit</AdminButton>
+            </Link>
+          }
+        />
       </div>
     )
   }
@@ -208,260 +206,292 @@ export default function YachtsFleetPage() {
   }
 
   // -----------------------------------------------------------------------
-  // Render helpers
-  // -----------------------------------------------------------------------
-
-  const SkeletonRows = () => (
-    <>
-      {Array.from({ length: 6 }).map((_, i) => (
-        <tr key={i} className="animate-pulse border-b">
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-20" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-12" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-10" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-28" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-10" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-16" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="p-3"><div className="h-4 bg-gray-200 rounded w-16" /></td>
-        </tr>
-      ))}
-    </>
-  )
-
-  // -----------------------------------------------------------------------
   // JSX
   // -----------------------------------------------------------------------
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="admin-page p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fleet Inventory</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your yacht fleet across all destinations</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin/yachts/new">
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Yacht
-            </Button>
-          </Link>
-          <Button variant="outline" onClick={handleSync} disabled={syncing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing...' : 'Sync Fleet'}
-          </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Fleet Inventory"
+        subtitle="Manage your yacht fleet across all destinations"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/yachts/new">
+              <AdminButton variant="primary" size="sm">
+                <Plus size={14} />
+                Add Yacht
+              </AdminButton>
+            </Link>
+            <AdminButton variant="secondary" size="sm" onClick={handleSync} loading={syncing}>
+              <RefreshCw size={14} />
+              {syncing ? 'Syncing...' : 'Sync Fleet'}
+            </AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={handleExport}>
+              <Download size={14} />
+              Export CSV
+            </AdminButton>
+          </div>
+        }
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Yachts</p>
-                <p className="text-2xl font-bold text-gray-900">{summary.total}</p>
-              </div>
-              <Ship className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-green-600">{summary.active}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Featured</p>
-                <p className="text-2xl font-bold text-amber-600">{summary.featured}</p>
-              </div>
-              <Star className="h-8 w-8 text-amber-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Review</p>
-                <p className="text-2xl font-bold text-orange-600">{summary.pendingReview}</p>
-              </div>
-              <Clock className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard value={summary.total} label="Total Yachts" color="#3B7EA1" />
+        <AdminKPICard value={summary.active} label="Active" color="#2D5A3D" />
+        <AdminKPICard value={summary.featured} label="Featured" color="#C49A2A" />
+        <AdminKPICard value={summary.pendingReview} label="Pending Review" color="#C8322B" />
       </div>
 
       {/* Filter Bar */}
-      <Card>
-        <CardContent className="p-4">
+      <AdminCard className="mb-6">
+        <div className="p-4">
           <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search yachts..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+            <div className="flex-1 min-w-[200px] relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2"
+                style={{ color: '#A8A29E' }}
+              />
+              <input
+                className="admin-input pl-9 w-full"
+                placeholder="Search yachts..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
             </div>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {YACHT_TYPES.map(t => <SelectItem key={t} value={t}>{YACHT_TYPE_LABELS[t] ?? t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map(s => <SelectItem key={s} value={s}>{s === 'All Statuses' ? s : s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={destinationId} onValueChange={setDestinationId}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Destination" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Destinations</SelectItem>
-                {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <select
+              className="admin-select"
+              value={type}
+              onChange={e => setType(e.target.value)}
+            >
+              {YACHT_TYPES.map(t => (
+                <option key={t} value={t}>{YACHT_TYPE_LABELS[t] ?? t}</option>
+              ))}
+            </select>
+            <select
+              className="admin-select"
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+            >
+              {STATUSES.map(s => (
+                <option key={s} value={s}>{s === 'All Statuses' ? s : s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+            <select
+              className="admin-select"
+              value={destinationId}
+              onChange={e => setDestinationId(e.target.value)}
+            >
+              <option value="">All Destinations</option>
+              {destinations.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </AdminCard>
 
-      {/* Yacht Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Fleet ({yachts.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Fleet Table */}
+      <AdminCard>
+        <div className="p-4">
+          <AdminSectionLabel>Fleet ({yachts.length})</AdminSectionLabel>
+
           {error ? (
-            <div className="text-center py-12">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-                <p className="text-red-800 font-medium">Error Loading Fleet</p>
-                <p className="text-red-600 text-sm mt-2">{error}</p>
-                <Button variant="outline" className="mt-4" onClick={fetchYachts}>Try Again</Button>
-              </div>
-            </div>
-          ) : !loading && yachts.length === 0 ? (
-            <div className="text-center py-12">
-              <Ship className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No yachts found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {search || type !== 'All Types' || status !== 'All Statuses' || destinationId
+            <AdminAlertBanner
+              severity="critical"
+              message="Error Loading Fleet"
+              detail={error}
+              action={
+                <AdminButton variant="secondary" size="sm" onClick={fetchYachts}>
+                  Try Again
+                </AdminButton>
+              }
+            />
+          ) : loading ? (
+            <AdminLoadingState label="Loading fleet..." />
+          ) : yachts.length === 0 ? (
+            <AdminEmptyState
+              icon={Ship}
+              title="No yachts found"
+              description={
+                search || type !== 'All Types' || status !== 'All Statuses' || destinationId
                   ? 'Try adjusting your search or filter criteria.'
-                  : 'Get started by adding your first yacht to the fleet.'}
-              </p>
-              <Link href="/admin/yachts/new">
-                <Button className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Yacht
-                </Button>
-              </Link>
-            </div>
+                  : 'Get started by adding your first yacht to the fleet.'
+              }
+              action={
+                <Link href="/admin/yachts/new">
+                  <AdminButton variant="primary" size="sm">
+                    <Plus size={14} />
+                    Add Yacht
+                  </AdminButton>
+                </Link>
+              }
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-gray-500 font-medium">
-                    <th className="p-3">Name</th>
-                    <th className="p-3">Type</th>
-                    <th className="p-3">Length</th>
-                    <th className="p-3">Cabins</th>
-                    <th className="p-3">Price Range</th>
-                    <th className="p-3">Rating</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Destination</th>
-                    <th className="p-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <SkeletonRows />
-                  ) : (
-                    yachts.map(yacht => (
-                      <tr key={yacht.id} className="border-b hover:bg-gray-50 transition-colors">
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full" style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}>
+                  <thead>
+                    <tr
+                      style={{
+                        borderBottom: '1px solid rgba(214,208,196,0.5)',
+                        color: '#78716C',
+                        fontWeight: 600,
+                        fontSize: 10,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px',
+                      }}
+                    >
+                      <th className="text-left p-3">Name</th>
+                      <th className="text-left p-3">Type</th>
+                      <th className="text-left p-3">Length</th>
+                      <th className="text-left p-3">Cabins</th>
+                      <th className="text-left p-3">Price Range</th>
+                      <th className="text-left p-3">Rating</th>
+                      <th className="text-left p-3">Status</th>
+                      <th className="text-left p-3">Destination</th>
+                      <th className="text-left p-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yachts.map(yacht => (
+                      <tr
+                        key={yacht.id}
+                        className="transition-colors"
+                        style={{ borderBottom: '1px solid rgba(214,208,196,0.3)' }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(250,248,244,0.6)')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
                         <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            {yacht.featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />}
-                            <span className="font-medium text-gray-900">{yacht.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            {yacht.featured && <Star size={12} style={{ color: '#C49A2A', fill: '#C49A2A' }} />}
+                            <span style={{ fontWeight: 600, color: '#1C1917' }}>{yacht.name}</span>
                           </div>
-                          <span className="text-xs text-gray-500">{yacht.builder ?? ''}{yacht.builder && yacht.yearBuilt ? ' · ' : ''}{yacht.yearBuilt ?? ''}</span>
+                          <span style={{ fontSize: 10, color: '#A8A29E' }}>
+                            {yacht.builder ?? ''}{yacht.builder && yacht.yearBuilt ? ' \u00B7 ' : ''}{yacht.yearBuilt ?? ''}
+                          </span>
                         </td>
                         <td className="p-3">
-                          <Badge className="bg-blue-50 text-blue-700 border-blue-200">{yacht.type}</Badge>
+                          <AdminStatusBadge status="active" label={YACHT_TYPE_LABELS[yacht.type] ?? yacht.type} />
                         </td>
-                        <td className="p-3 text-gray-700">{yacht.length ? `${yacht.length}m` : '–'}</td>
-                        <td className="p-3 text-gray-700">{yacht.cabins} <span className="text-gray-400 text-xs">({yacht.berths} berths)</span></td>
-                        <td className="p-3 text-gray-700">
-                          {yacht.pricePerWeekLow ? formatPrice(Number(yacht.pricePerWeekLow), yacht.currency) : '–'} &ndash; {yacht.pricePerWeekHigh ? formatPrice(Number(yacht.pricePerWeekHigh), yacht.currency) : '–'}
+                        <td className="p-3" style={{ color: '#44403C' }}>{yacht.length ? `${yacht.length}m` : '\u2013'}</td>
+                        <td className="p-3" style={{ color: '#44403C' }}>
+                          {yacht.cabins}{' '}
+                          <span style={{ fontSize: 10, color: '#A8A29E' }}>({yacht.berths} berths)</span>
+                        </td>
+                        <td className="p-3" style={{ color: '#44403C' }}>
+                          {yacht.pricePerWeekLow ? formatPrice(Number(yacht.pricePerWeekLow), yacht.currency) : '\u2013'}
+                          {' \u2013 '}
+                          {yacht.pricePerWeekHigh ? formatPrice(Number(yacht.pricePerWeekHigh), yacht.currency) : '\u2013'}
                         </td>
                         <td className="p-3">
                           {yacht.rating && Number(yacht.rating) > 0 ? (
-                            <span className="flex items-center gap-1 text-gray-700">
-                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                            <span className="flex items-center gap-1" style={{ color: '#44403C' }}>
+                              <Star size={12} style={{ color: '#C49A2A', fill: '#C49A2A' }} />
                               {Number(yacht.rating).toFixed(1)}
                             </span>
                           ) : (
-                            <span className="text-gray-400">&ndash;</span>
+                            <span style={{ color: '#A8A29E' }}>{'\u2013'}</span>
                           )}
                         </td>
                         <td className="p-3">
-                          <Badge className={statusColor[yacht.status] ?? 'bg-gray-100 text-gray-600'}>
-                            {yacht.status.charAt(0).toUpperCase() + yacht.status.slice(1)}
-                          </Badge>
+                          <AdminStatusBadge status={yacht.status} />
                         </td>
-                        <td className="p-3 text-gray-700">{yacht.destination?.name ?? '–'}</td>
+                        <td className="p-3" style={{ color: '#44403C' }}>{yacht.destination?.name ?? '\u2013'}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-1">
                             <Link href={`/admin/yachts/${yacht.id}/edit`}>
-                              <Button variant="ghost" size="sm"><Edit className="h-3.5 w-3.5" /></Button>
+                              <AdminButton variant="ghost" size="sm"><Edit size={13} /></AdminButton>
                             </Link>
                             <Link href={`/admin/yachts/${yacht.id}`}>
-                              <Button variant="ghost" size="sm"><Eye className="h-3.5 w-3.5" /></Button>
+                              <AdminButton variant="ghost" size="sm"><Eye size={13} /></AdminButton>
                             </Link>
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-3">
+                {yachts.map(yacht => (
+                  <div key={yacht.id} className="admin-card-inset p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          {yacht.featured && <Star size={12} style={{ color: '#C49A2A', fill: '#C49A2A' }} />}
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                            {yacht.name}
+                          </span>
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                          {yacht.builder ?? ''}{yacht.builder && yacht.yearBuilt ? ' \u00B7 ' : ''}{yacht.yearBuilt ?? ''}
+                        </span>
+                      </div>
+                      <AdminStatusBadge status={yacht.status} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2" style={{ fontFamily: 'var(--font-system)', fontSize: 11 }}>
+                      <div>
+                        <span style={{ color: '#A8A29E', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Type</span>
+                        <div style={{ color: '#44403C' }}>{YACHT_TYPE_LABELS[yacht.type] ?? yacht.type}</div>
+                      </div>
+                      <div>
+                        <span style={{ color: '#A8A29E', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Length</span>
+                        <div style={{ color: '#44403C' }}>{yacht.length ? `${yacht.length}m` : '\u2013'}</div>
+                      </div>
+                      <div>
+                        <span style={{ color: '#A8A29E', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cabins</span>
+                        <div style={{ color: '#44403C' }}>{yacht.cabins} ({yacht.berths} berths)</div>
+                      </div>
+                      <div>
+                        <span style={{ color: '#A8A29E', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Destination</span>
+                        <div style={{ color: '#44403C' }}>{yacht.destination?.name ?? '\u2013'}</div>
+                      </div>
+                      <div className="col-span-2">
+                        <span style={{ color: '#A8A29E', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Price / Week</span>
+                        <div style={{ color: '#44403C' }}>
+                          {yacht.pricePerWeekLow ? formatPrice(Number(yacht.pricePerWeekLow), yacht.currency) : '\u2013'}
+                          {' \u2013 '}
+                          {yacht.pricePerWeekHigh ? formatPrice(Number(yacht.pricePerWeekHigh), yacht.currency) : '\u2013'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3 pt-2" style={{ borderTop: '1px solid rgba(214,208,196,0.3)' }}>
+                      <Link href={`/admin/yachts/${yacht.id}/edit`}>
+                        <AdminButton variant="secondary" size="sm"><Edit size={12} /> Edit</AdminButton>
+                      </Link>
+                      <Link href={`/admin/yachts/${yacht.id}`}>
+                        <AdminButton variant="ghost" size="sm"><Eye size={12} /> View</AdminButton>
+                      </Link>
+                      {yacht.rating && Number(yacht.rating) > 0 && (
+                        <span className="ml-auto flex items-center gap-1" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#44403C' }}>
+                          <Star size={11} style={{ color: '#C49A2A', fill: '#C49A2A' }} />
+                          {Number(yacht.rating).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Pagination */}
           {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t mt-4">
-              <p className="text-sm text-gray-500">
+            <div className="flex items-center justify-between pt-4 mt-4" style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}>
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
                 Page {page} of {totalPages}
               </p>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+                <AdminButton variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                  <ChevronLeft size={14} />
+                </AdminButton>
                 {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                   let pageNum: number
                   if (totalPages <= 7) {
@@ -474,25 +504,24 @@ export default function YachtsFleetPage() {
                     pageNum = page - 3 + i
                   }
                   return (
-                    <Button
+                    <AdminButton
                       key={pageNum}
-                      variant={pageNum === page ? 'default' : 'outline'}
+                      variant={pageNum === page ? 'primary' : 'secondary'}
                       size="sm"
                       onClick={() => setPage(pageNum)}
-                      className={pageNum === page ? 'bg-blue-600 text-white' : ''}
                     >
                       {pageNum}
-                    </Button>
+                    </AdminButton>
                   )
                 })}
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <AdminButton variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                  <ChevronRight size={14} />
+                </AdminButton>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </AdminCard>
     </div>
   )
 }

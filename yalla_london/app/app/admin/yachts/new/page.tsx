@@ -3,15 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSiteId } from '@/components/site-provider'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminAlertBanner,
+  AdminSectionLabel,
+} from '@/components/admin/admin-ui'
 import {
   Ship,
   Save,
-  ArrowLeft,
   ImagePlus,
   X,
   Anchor,
@@ -59,6 +61,68 @@ const YACHT_TYPES = [
 ]
 
 const CURRENCIES = ['EUR', 'USD', 'GBP']
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const labelStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-system)',
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#44403C',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+  marginBottom: 4,
+  display: 'block',
+}
+
+const inputStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-system)',
+  fontSize: 13,
+  color: '#1C1917',
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid rgba(214,208,196,0.8)',
+  backgroundColor: '#FFFFFF',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+}
+
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  appearance: 'none' as const,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2378716C'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+  paddingRight: 32,
+}
+
+const textareaStyle: React.CSSProperties = {
+  ...inputStyle,
+  minHeight: 100,
+  resize: 'vertical' as const,
+}
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-display)',
+  fontWeight: 700,
+  fontSize: 14,
+  color: '#1C1917',
+}
+
+const checkboxContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1px solid rgba(214,208,196,0.6)',
+  cursor: 'pointer',
+  transition: 'background-color 0.15s',
+  backgroundColor: '#FFFFFF',
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -236,309 +300,333 @@ export default function AddYachtPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.push('/admin/yachts')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add New Yacht</h1>
-          <p className="text-sm text-gray-500 mt-1">Fill in the details below to add a yacht to your fleet</p>
-        </div>
-      </div>
+    <div className="admin-page p-4 md:p-6" style={{ maxWidth: 900 }}>
+      <AdminPageHeader
+        title="Add New Yacht"
+        subtitle="Fill in the details below to add a yacht to your fleet"
+        backHref="/admin/yachts"
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
+        <AdminAlertBanner
+          severity="critical"
+          message={error}
+          onDismiss={() => setError(null)}
+        />
       )}
 
       {/* Basic Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Ship className="h-5 w-5" />
-            Basic Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <AdminCard accent accentColor="blue" className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Ship size={15} color="#3B7EA1" />
+          <p style={sectionTitleStyle}>Basic Information</p>
+        </div>
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Yacht Name *</label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Azure Dreams" />
+              <label style={labelStyle}>Yacht Name *</label>
+              <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Azure Dreams" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Slug *</label>
-              <Input value={slug} onChange={e => setSlug(e.target.value)} placeholder="azure-dreams" />
+              <label style={labelStyle}>Slug *</label>
+              <input style={inputStyle} value={slug} onChange={e => setSlug(e.target.value)} placeholder="azure-dreams" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Type *</label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {YACHT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <label style={labelStyle}>Type *</label>
+              <select style={selectStyle} value={type} onChange={e => setType(e.target.value)}>
+                {YACHT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Status</label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+              <label style={labelStyle}>Status</label>
+              <select style={selectStyle} value={status} onChange={e => setStatus(e.target.value)}>
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700">Description (English)</label>
+            <label style={labelStyle}>Description (English)</label>
             <textarea
-              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={textareaStyle}
               value={description_en}
               onChange={e => setDescriptionEn(e.target.value)}
               placeholder="Describe the yacht, its features, and unique selling points..."
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700">Description (Arabic)</label>
+            <label style={labelStyle}>Description (Arabic)</label>
             <textarea
-              className="w-full mt-1 rounded-md border border-gray-300 px-3 py-2 text-sm min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={textareaStyle}
               dir="rtl"
               value={description_ar}
               onChange={e => setDescriptionAr(e.target.value)}
               placeholder="وصف اليخت..."
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </AdminCard>
 
       {/* Specifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Ruler className="h-5 w-5" />
-            Specifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Length (m)</label>
-              <Input type="number" value={length} onChange={e => setLength(e.target.value)} placeholder="15.5" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Beam (m)</label>
-              <Input type="number" value={beam} onChange={e => setBeam(e.target.value)} placeholder="4.5" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Draft (m)</label>
-              <Input type="number" value={draft} onChange={e => setDraft(e.target.value)} placeholder="2.1" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Year Built</label>
-              <Input type="number" value={yearBuilt} onChange={e => setYearBuilt(e.target.value)} placeholder="2022" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Builder</label>
-              <Input value={builder} onChange={e => setBuilder(e.target.value)} placeholder="e.g. Beneteau" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Model</label>
-              <Input value={model} onChange={e => setModel(e.target.value)} placeholder="e.g. Oceanis 46.1" />
-            </div>
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Ruler size={15} color="#C49A2A" />
+          <p style={sectionTitleStyle}>Specifications</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label style={labelStyle}>Length (m)</label>
+            <input style={inputStyle} type="number" value={length} onChange={e => setLength(e.target.value)} placeholder="15.5" />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <label style={labelStyle}>Beam (m)</label>
+            <input style={inputStyle} type="number" value={beam} onChange={e => setBeam(e.target.value)} placeholder="4.5" />
+          </div>
+          <div>
+            <label style={labelStyle}>Draft (m)</label>
+            <input style={inputStyle} type="number" value={draft} onChange={e => setDraft(e.target.value)} placeholder="2.1" />
+          </div>
+          <div>
+            <label style={labelStyle}>Year Built</label>
+            <input style={inputStyle} type="number" value={yearBuilt} onChange={e => setYearBuilt(e.target.value)} placeholder="2022" />
+          </div>
+          <div>
+            <label style={labelStyle}>Builder</label>
+            <input style={inputStyle} value={builder} onChange={e => setBuilder(e.target.value)} placeholder="e.g. Beneteau" />
+          </div>
+          <div>
+            <label style={labelStyle}>Model</label>
+            <input style={inputStyle} value={model} onChange={e => setModel(e.target.value)} placeholder="e.g. Oceanis 46.1" />
+          </div>
+        </div>
+      </AdminCard>
 
       {/* Capacity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Capacity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Cabins</label>
-              <Input type="number" value={cabins} onChange={e => setCabins(e.target.value)} placeholder="4" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Berths</label>
-              <Input type="number" value={berths} onChange={e => setBerths(e.target.value)} placeholder="8" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Bathrooms</label>
-              <Input type="number" value={bathrooms} onChange={e => setBathrooms(e.target.value)} placeholder="2" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Crew Size</label>
-              <Input type="number" value={crewSize} onChange={e => setCrewSize(e.target.value)} placeholder="3" />
-            </div>
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Users size={15} color="#3B7EA1" />
+          <p style={sectionTitleStyle}>Capacity</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label style={labelStyle}>Cabins</label>
+            <input style={inputStyle} type="number" value={cabins} onChange={e => setCabins(e.target.value)} placeholder="4" />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <label style={labelStyle}>Berths</label>
+            <input style={inputStyle} type="number" value={berths} onChange={e => setBerths(e.target.value)} placeholder="8" />
+          </div>
+          <div>
+            <label style={labelStyle}>Bathrooms</label>
+            <input style={inputStyle} type="number" value={bathrooms} onChange={e => setBathrooms(e.target.value)} placeholder="2" />
+          </div>
+          <div>
+            <label style={labelStyle}>Crew Size</label>
+            <input style={inputStyle} type="number" value={crewSize} onChange={e => setCrewSize(e.target.value)} placeholder="3" />
+          </div>
+        </div>
+      </AdminCard>
 
       {/* Pricing */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Pricing
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Price/Week (Low)</label>
-              <Input type="number" value={pricePerWeekLow} onChange={e => setPriceLow(e.target.value)} placeholder="5000" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Price/Week (High)</label>
-              <Input type="number" value={pricePerWeekHigh} onChange={e => setPriceHigh(e.target.value)} placeholder="12000" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Currency</label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <DollarSign size={15} color="#2D5A3D" />
+          <p style={sectionTitleStyle}>Pricing</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label style={labelStyle}>Price/Week (Low)</label>
+            <input style={inputStyle} type="number" value={pricePerWeekLow} onChange={e => setPriceLow(e.target.value)} placeholder="5000" />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <label style={labelStyle}>Price/Week (High)</label>
+            <input style={inputStyle} type="number" value={pricePerWeekHigh} onChange={e => setPriceHigh(e.target.value)} placeholder="12000" />
+          </div>
+          <div>
+            <label style={labelStyle}>Currency</label>
+            <select style={selectStyle} value={currency} onChange={e => setCurrency(e.target.value)}>
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      </AdminCard>
 
       {/* Location */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Location
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Home Port</label>
-              <Input value={homePort} onChange={e => setHomePort(e.target.value)} placeholder="e.g. Split, Croatia" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Cruising Area</label>
-              <Input value={cruisingArea} onChange={e => setCruisingArea(e.target.value)} placeholder="e.g. Adriatic Sea" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Primary Destination</label>
-              <Select value={destinationId} onValueChange={setDestinationId}>
-                <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name} ({REGION_LABELS[d.region] ?? d.region})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <MapPin size={15} color="#C8322B" />
+          <p style={sectionTitleStyle}>Location</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label style={labelStyle}>Home Port</label>
+            <input style={inputStyle} value={homePort} onChange={e => setHomePort(e.target.value)} placeholder="e.g. Split, Croatia" />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <label style={labelStyle}>Cruising Area</label>
+            <input style={inputStyle} value={cruisingArea} onChange={e => setCruisingArea(e.target.value)} placeholder="e.g. Adriatic Sea" />
+          </div>
+          <div>
+            <label style={labelStyle}>Primary Destination</label>
+            <select style={selectStyle} value={destinationId} onChange={e => setDestinationId(e.target.value)}>
+              <option value="">None</option>
+              {destinations.map(d => <option key={d.id} value={d.id}>{d.name} ({REGION_LABELS[d.region] ?? d.region})</option>)}
+            </select>
+          </div>
+        </div>
+      </AdminCard>
 
       {/* GCC Features */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5" />
-            GCC Features & Highlights
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input type="checkbox" checked={halalCatering} onChange={e => setHalalCatering(e.target.checked)} className="h-4 w-4 rounded" />
-              <ChefHat className="h-5 w-5 text-green-600" />
-              <span className="text-sm font-medium">Halal Catering Available</span>
-            </label>
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input type="checkbox" checked={familyFriendly} onChange={e => setFamilyFriendly(e.target.checked)} className="h-4 w-4 rounded" />
-              <Baby className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-medium">Family Friendly</span>
-            </label>
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input type="checkbox" checked={crewIncluded} onChange={e => setCrewIncluded(e.target.checked)} className="h-4 w-4 rounded" />
-              <Anchor className="h-5 w-5 text-indigo-600" />
-              <span className="text-sm font-medium">Crew Included</span>
-            </label>
-          </div>
-          <div className="mt-4">
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-fit">
-              <input type="checkbox" checked={featured} onChange={e => setFeatured(e.target.checked)} className="h-4 w-4 rounded" />
-              <Star className="h-5 w-5 text-amber-500" />
-              <span className="text-sm font-medium">Featured Yacht</span>
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Star size={15} color="#C49A2A" />
+          <p style={sectionTitleStyle}>GCC Features & Highlights</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label
+            style={{
+              ...checkboxContainerStyle,
+              backgroundColor: halalCatering ? 'rgba(45,90,61,0.04)' : '#FFFFFF',
+              borderColor: halalCatering ? 'rgba(45,90,61,0.3)' : 'rgba(214,208,196,0.6)',
+            }}
+          >
+            <input type="checkbox" checked={halalCatering} onChange={e => setHalalCatering(e.target.checked)} style={{ accentColor: '#2D5A3D' }} />
+            <ChefHat size={16} color="#2D5A3D" />
+            <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C' }}>
+              Halal Catering
+            </span>
+          </label>
+          <label
+            style={{
+              ...checkboxContainerStyle,
+              backgroundColor: familyFriendly ? 'rgba(59,126,161,0.04)' : '#FFFFFF',
+              borderColor: familyFriendly ? 'rgba(59,126,161,0.3)' : 'rgba(214,208,196,0.6)',
+            }}
+          >
+            <input type="checkbox" checked={familyFriendly} onChange={e => setFamilyFriendly(e.target.checked)} style={{ accentColor: '#3B7EA1' }} />
+            <Baby size={16} color="#3B7EA1" />
+            <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C' }}>
+              Family Friendly
+            </span>
+          </label>
+          <label
+            style={{
+              ...checkboxContainerStyle,
+              backgroundColor: crewIncluded ? 'rgba(196,154,42,0.04)' : '#FFFFFF',
+              borderColor: crewIncluded ? 'rgba(196,154,42,0.3)' : 'rgba(214,208,196,0.6)',
+            }}
+          >
+            <input type="checkbox" checked={crewIncluded} onChange={e => setCrewIncluded(e.target.checked)} style={{ accentColor: '#C49A2A' }} />
+            <Anchor size={16} color="#C49A2A" />
+            <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C' }}>
+              Crew Included
+            </span>
+          </label>
+        </div>
+        <div className="mt-3">
+          <label
+            style={{
+              ...checkboxContainerStyle,
+              width: 'fit-content',
+              backgroundColor: featured ? 'rgba(196,154,42,0.06)' : '#FFFFFF',
+              borderColor: featured ? 'rgba(196,154,42,0.4)' : 'rgba(214,208,196,0.6)',
+            }}
+          >
+            <input type="checkbox" checked={featured} onChange={e => setFeatured(e.target.checked)} style={{ accentColor: '#C49A2A' }} />
+            <Star size={16} color="#C49A2A" />
+            <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C' }}>
+              Featured Yacht
+            </span>
+          </label>
+        </div>
+      </AdminCard>
 
       {/* Images */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImagePlus className="h-5 w-5" />
-            Images
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <AdminCard className="mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <ImagePlus size={15} color="#3B7EA1" />
+          <p style={sectionTitleStyle}>Images</p>
+        </div>
+        <div className="space-y-4">
           <div className="flex gap-2">
-            <Input
+            <input
+              style={inputStyle}
               value={newImageUrl}
               onChange={e => setNewImageUrl(e.target.value)}
               placeholder="Paste image URL..."
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addImage() } }}
             />
-            <Button variant="outline" onClick={addImage}>Add</Button>
+            <AdminButton variant="secondary" onClick={addImage}>Add</AdminButton>
           </div>
           {images.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {images.map((url, i) => (
-                <div key={i} className="relative group border rounded-lg overflow-hidden">
-                  <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
-                    <Waves className="h-8 w-8 text-gray-300" />
+                <div
+                  key={i}
+                  className="relative group"
+                  style={{
+                    borderRadius: 10,
+                    border: '1px solid rgba(214,208,196,0.6)',
+                    overflow: 'hidden',
+                    backgroundColor: '#FAF8F4',
+                  }}
+                >
+                  <div className="flex items-center justify-center" style={{ aspectRatio: '4/3' }}>
+                    <Waves size={24} color="#D6D0C4" />
                   </div>
-                  <div className="p-2">
-                    <p className="text-xs text-gray-500 truncate">{url}</p>
-                    {i === 0 && <Badge className="mt-1 text-xs">Hero Image</Badge>}
+                  <div style={{ padding: '8px 10px' }}>
+                    <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {url}
+                    </p>
+                    {i === 0 && (
+                      <div className="mt-1">
+                        <AdminStatusBadge status="active" label="Hero Image" />
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => removeImage(url)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{
+                      backgroundColor: '#C8322B',
+                      color: '#FFFFFF',
+                      borderRadius: '50%',
+                      width: 22,
+                      height: 22,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
                   >
-                    <X className="h-3 w-3" />
+                    <X size={12} />
                   </button>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-xs text-gray-500">First image will be used as the hero image. Add yacht photo URLs from your media library.</p>
-        </CardContent>
-      </Card>
+          <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+            First image will be used as the hero image. Add yacht photo URLs from your media library.
+          </p>
+        </div>
+      </AdminCard>
 
       {/* Save */}
       <div className="flex justify-end gap-3 pb-8">
-        <Button variant="outline" onClick={() => router.push('/admin/yachts')}>Cancel</Button>
-        <Button
-          className="bg-blue-600 hover:bg-blue-700"
+        <AdminButton variant="secondary" onClick={() => router.push('/admin/yachts')}>Cancel</AdminButton>
+        <AdminButton
+          variant="primary"
           onClick={handleSave}
+          loading={saving}
           disabled={saving || !name.trim()}
         >
-          <Save className="h-4 w-4 mr-2" />
+          <Save size={13} />
           {saving ? 'Saving...' : 'Create Yacht'}
-        </Button>
+        </AdminButton>
       </div>
     </div>
   )

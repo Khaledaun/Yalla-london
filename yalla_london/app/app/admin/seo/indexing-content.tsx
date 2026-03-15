@@ -200,10 +200,10 @@ export default function IndexingCenterContent() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center">
         <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-             style={{ backgroundColor:"var(--neu-bg,#EDE9E1)", boxShadow:"var(--neu-raised)" }}>
+             style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
           <Loader2 size={24} className="animate-spin" style={{ color:"#C8322B" }} />
         </div>
-        <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:2 }}>
+        <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:2 }}>
           Loading Indexing Center
         </p>
       </div>
@@ -219,7 +219,7 @@ export default function IndexingCenterContent() {
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color:"#1C1917", letterSpacing:-0.5 }}>
+          <h1 style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:24, color:"#1C1917", letterSpacing:-0.5 }}>
             Indexing Center
           </h1>
           <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:"#78716C", letterSpacing:0, marginTop:2 }}>
@@ -229,12 +229,12 @@ export default function IndexingCenterContent() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => { setLoading(true); fetchData(); fetchStats(); }}
                   className="p-2.5 rounded-xl transition-all"
-                  style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)", color:"#78716C" }}>
+                  style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)", color:"#78716C" }}>
             <RefreshCw size={15} />
           </button>
           <button onClick={() => doAction("submit_all")} disabled={!!actionLoading}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl transition-all"
-                  style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: actionLoading?"0.7":"1" }}>
+                  style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: actionLoading?"0.7":"1" }}>
             {actionLoading==="submit_all" ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
             Submit All
           </button>
@@ -247,15 +247,15 @@ export default function IndexingCenterContent() {
              style={{ backgroundColor:"rgba(196,154,42,0.08)", border:"1px solid rgba(196,154,42,0.25)" }}>
           <AlertTriangle size={16} style={{ color:"#C49A2A", flexShrink:0, marginTop:1 }} />
           <div>
-            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#C49A2A", textTransform:"uppercase", letterSpacing:1 }}>
+            <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#C49A2A", textTransform:"uppercase", letterSpacing:1 }}>
               Configuration Incomplete
             </div>
-            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", marginTop:3, lineHeight:1.6 }}>
+            <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", marginTop:3, lineHeight:1.6 }}>
               {!data.config.hasIndexNowKey && "· INDEXNOW_KEY missing — IndexNow submission disabled. "}
               {!data.config.hasGscCredentials && "· GSC credentials missing — Google Search Console disabled."}
             </div>
             <Link href="/admin/command-center/settings/api-keys"
-                  style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8", textDecoration:"underline", marginTop:4, display:"inline-block" }}>
+                  style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#4A7BA8", textDecoration:"underline", marginTop:4, display:"inline-block" }}>
               Configure API Keys →
             </Link>
           </div>
@@ -264,33 +264,33 @@ export default function IndexingCenterContent() {
 
       {/* ── Health Diagnosis Card ────────────────────────────────────── */}
       {data && (
-        <div className="neu-card" style={{ borderLeft:`4px solid ${healthCfg.color}` }}>
+        <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)", borderLeft:`4px solid ${healthCfg.color}` }}>
           <div className="flex items-start gap-4">
-            <div style={{ width:50, height:50, borderRadius:"50%", backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)", display:"flex", alignItems:"center", justifyContent:"center", color: healthCfg.color, flexShrink:0 }}>
+            <div style={{ width:50, height:50, borderRadius:"50%", backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)", display:"flex", alignItems:"center", justifyContent:"center", color: healthCfg.color, flexShrink:0 }}>
               <HealthIcon size={22} />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:18, color:"#1C1917" }}>
+                <span style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:18, color:"#1C1917" }}>
                   {data.healthDiagnosis.message}
                 </span>
-                <span className="neu-badge" style={{ backgroundColor: healthCfg.bg, color: healthCfg.color, border:`1px solid ${healthCfg.color}33` }}>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: healthCfg.bg, color: healthCfg.color, border:`1px solid ${healthCfg.color}33` }}>
                   {healthCfg.label}
                 </span>
               </div>
-              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", marginTop:6, lineHeight:1.6 }}>
+              <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", marginTop:6, lineHeight:1.6 }}>
                 {data.healthDiagnosis.detail}
               </p>
               {/* Progress */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="neu-section-label">Indexing Progress</span>
-                  <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color: healthCfg.color }}>
+                  <span className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }}>Indexing Progress</span>
+                  <span style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:14, color: healthCfg.color }}>
                     {data.healthDiagnosis.indexingRate}%
                   </span>
                 </div>
                 <div className="relative rounded-full overflow-hidden"
-                     style={{ height:12, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                     style={{ height:12, backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
                   <div className="h-full rounded-full transition-all duration-700"
                        style={{ width:`${data.healthDiagnosis.indexingRate}%`, backgroundColor: healthCfg.color }} />
                 </div>
@@ -312,9 +312,9 @@ export default function IndexingCenterContent() {
             { label:"Errors",         val: data.summary.errors,         color:"#C8322B" },
           ].map(({ label, val, color }) => (
             <div key={label} className="text-center p-3 rounded-xl"
-                 style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
-              <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:22, color }}>{val}</div>
-              <div className="neu-section-label mt-0.5">{label}</div>
+                 style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+              <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:22, color }}>{val}</div>
+              <div className="text-xs uppercase tracking-wider mt-0.5" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -330,9 +330,10 @@ export default function IndexingCenterContent() {
             <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl transition-all flex-shrink-0"
                     style={{
-                      backgroundColor:"var(--neu-bg)",
-                      boxShadow: active ? "var(--neu-inset)" : "var(--neu-flat)",
-                      fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight: active?600:500,
+                      backgroundColor: active ? "rgba(200,50,43,0.04)" : "#FAF8F4",
+                      border: active ? "1px solid rgba(200,50,43,0.12)" : "1px solid rgba(214,208,196,0.4)",
+                      boxShadow: active ? "none" : "0 1px 2px rgba(28,25,23,0.04)",
+                      fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight: active?600:500,
                       textTransform:"uppercase", letterSpacing:1,
                       color: active ? "#C8322B" : "#78716C",
                     }}>
@@ -354,8 +355,8 @@ export default function IndexingCenterContent() {
       {tab === "overview" && (
         <div className="space-y-4">
           {/* Quick Actions */}
-          <div className="neu-card">
-            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
+          <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
+            <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
               Submission Actions
             </div>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }} className="mb-4">
@@ -375,14 +376,14 @@ export default function IndexingCenterContent() {
                           onClick={() => a.custom ? a.custom() : doAction(a.id)}
                           disabled={!!actionLoading || auditLoading}
                           className="flex flex-col items-center gap-2 p-4 rounded-xl text-center transition-all"
-                          style={{ backgroundColor:"var(--neu-bg)", boxShadow: running?"var(--neu-inset)":"var(--neu-raised)", cursor:(actionLoading||auditLoading)?"not-allowed":"pointer", opacity:(actionLoading||auditLoading)&&!running?0.5:1 }}>
+                          style={{ backgroundColor: running?"rgba(200,50,43,0.04)":"#FAF8F4", boxShadow: running?"none":"0 1px 3px rgba(28,25,23,0.06)", border: running?"1px solid rgba(200,50,43,0.12)":"1px solid rgba(214,208,196,0.4)", cursor:(actionLoading||auditLoading)?"not-allowed":"pointer", opacity:(actionLoading||auditLoading)&&!running?0.5:1 }}>
                     <div style={{ width:40, height:40, borderRadius:"50%", backgroundColor: a.color, display:"flex", alignItems:"center", justifyContent:"center", color:"#FAF8F4", boxShadow:`2px 2px 8px ${a.color}44` }}>
                       {running ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
                     </div>
-                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#1C1917" }}>
+                    <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#1C1917" }}>
                       {running ? "Running…" : a.label}
                     </div>
-                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{a.desc}</div>
+                    <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>{a.desc}</div>
                   </button>
                 );
               })}
@@ -391,32 +392,32 @@ export default function IndexingCenterContent() {
 
           {/* Stats Timeline */}
           {stats && stats.timeline && stats.timeline.length > 0 && (
-            <div className="neu-card">
-              <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-4">
+            <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
+              <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-4">
                 Submission Timeline
               </div>
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {stats.timeline.slice(0, 20).map((t, i) => (
                   <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                       style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
                     <div style={{ width:6, height:6, borderRadius:"50%", backgroundColor: t.googleStatus==="success"?"#2D5A3D":"#C49A2A", flexShrink:0 }} />
                     <div className="flex-1 min-w-0">
-                      <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#1C1917" }}>
+                      <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#1C1917" }}>
                         {new Date(t.date).toLocaleDateString()} · {t.mode}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <div className="text-center">
-                        <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:12, color:"#4A7BA8" }}>{t.googleSubmitted}</div>
-                        <div className="neu-section-label" style={{ fontSize:7 }}>Google</div>
+                        <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#4A7BA8" }}>{t.googleSubmitted}</div>
+                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:7, color:"#78716C", letterSpacing:1 }}>Google</div>
                       </div>
                       <div className="text-center">
-                        <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:12, color:"#C49A2A" }}>{t.indexNowSubmitted}</div>
-                        <div className="neu-section-label" style={{ fontSize:7 }}>IndexNow</div>
+                        <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#C49A2A" }}>{t.indexNowSubmitted}</div>
+                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:7, color:"#78716C", letterSpacing:1 }}>IndexNow</div>
                       </div>
                       <div className="text-center">
-                        <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:12, color:"#1C1917" }}>{t.totalPages}</div>
-                        <div className="neu-section-label" style={{ fontSize:7 }}>Total</div>
+                        <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#1C1917" }}>{t.totalPages}</div>
+                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:7, color:"#78716C", letterSpacing:1 }}>Total</div>
                       </div>
                     </div>
                   </div>
@@ -433,7 +434,7 @@ export default function IndexingCenterContent() {
       {tab === "articles" && (
         <div className="space-y-4">
           {/* Filter + Search Bar */}
-          <div className="neu-card p-3">
+          <div className="rounded-xl p-3" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
             <div className="flex flex-col sm:flex-row gap-3">
               {/* Search */}
               <div className="flex-1 relative">
@@ -441,8 +442,7 @@ export default function IndexingCenterContent() {
                 <input
                   value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search articles..."
-                  className="neu-input pl-9"
-                  style={{ fontSize:11 }}
+                  className="w-full px-3 py-2.5 rounded-xl pl-9" style={{ backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)", color:"#1C1917", fontSize:11 }}
                 />
               </div>
               {/* Status filter */}
@@ -450,7 +450,7 @@ export default function IndexingCenterContent() {
                 {(["all","indexed","submitted","not_indexed","never_submitted","error"] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
                           className="px-3 py-2 rounded-lg transition-all"
-                          style={{ backgroundColor:"var(--neu-bg)", boxShadow: filter===f?"var(--neu-inset)":"var(--neu-flat)", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight: filter===f?600:400, textTransform:"uppercase", letterSpacing:0.8, color: filter===f?"#C8322B":"#78716C" }}>
+                          style={{ backgroundColor: filter===f?"rgba(200,50,43,0.04)":"#FAF8F4", boxShadow: filter===f?"none":"0 1px 2px rgba(28,25,23,0.04)", border: filter===f?"1px solid rgba(200,50,43,0.12)":"1px solid rgba(214,208,196,0.4)", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight: filter===f?600:400, textTransform:"uppercase", letterSpacing:0.8, color: filter===f?"#C8322B":"#78716C" }}>
                     {f === "all" ? `All (${data?.articles?.length ?? 0})` : f === "not_indexed" ? `Not Indexed (${data?.summary?.notIndexed ?? 0})` : f === "never_submitted" ? `Never Sent (${data?.summary?.neverSubmitted ?? 0})` : f}
                   </button>
                 ))}
@@ -460,13 +460,13 @@ export default function IndexingCenterContent() {
 
           {/* Bulk action */}
           <div className="flex items-center gap-2">
-            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C" }}>
+            <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C" }}>
               {filteredArticles.length} articles
             </span>
             {filter === "never_submitted" && filteredArticles.length > 0 && (
               <button onClick={() => doAction("submit_all")} disabled={!!actionLoading}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
-                      style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>
+                      style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>
                 {actionLoading==="submit_all" ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
                 Submit All ({filteredArticles.length})
               </button>
@@ -476,9 +476,9 @@ export default function IndexingCenterContent() {
           {/* Article list */}
           <div className="space-y-2">
             {filteredArticles.length === 0 ? (
-              <div className="neu-card text-center py-12">
+              <div className="rounded-xl p-5 text-center py-12" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
                 <FileText size={28} className="mx-auto mb-3 opacity-20" style={{ color:"#78716C" }} />
-                <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:1 }}>
+                <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:1 }}>
                   No articles match
                 </p>
               </div>
@@ -487,7 +487,7 @@ export default function IndexingCenterContent() {
                 const sc = STATUS_CONFIG[article.indexingStatus];
                 const scoreColor = article.seoScore >= 70 ? "#2D5A3D" : article.seoScore >= 40 ? "#C49A2A" : "#C8322B";
                 return (
-                  <div key={article.id} className="neu-card" style={{ padding:"16px 20px" }}>
+                  <div key={article.id} className="rounded-xl" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)", padding:"16px 20px" }}>
                     <div className="flex items-start gap-3">
                       {/* Status dot */}
                       <div style={{ width:8, height:8, borderRadius:"50%", backgroundColor: sc.color, marginTop:5, flexShrink:0 }} />
@@ -496,25 +496,25 @@ export default function IndexingCenterContent() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:13, color:"#1C1917" }} className="truncate">
+                            <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:13, color:"#1C1917" }} className="truncate">
                               {article.title}
                             </div>
                             <a href={article.url} target="_blank" rel="noopener noreferrer"
-                               style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8", textDecoration:"none" }}
+                               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#4A7BA8", textDecoration:"none" }}
                                className="flex items-center gap-1 mt-0.5 hover:underline truncate">
                               {article.url} <ExternalLink size={9} />
                             </a>
                           </div>
                           {/* Actions */}
                           <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <span className="neu-badge" style={{ backgroundColor: sc.bg, color: sc.color, border:`1px solid ${sc.border}`, fontSize:8 }}>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: sc.bg, color: sc.color, border:`1px solid ${sc.border}`, fontSize:8 }}>
                               {sc.label}
                             </span>
                             {article.indexingStatus !== "indexed" && (
                               <button onClick={() => doAction("submit", { slugs: [article.slug] })}
                                       disabled={!!actionLoading}
                                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
-                                      style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-raised)", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.8, color:"#C8322B", cursor: actionLoading?"not-allowed":"pointer" }}>
+                                      style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.8, color:"#C8322B", cursor: actionLoading?"not-allowed":"pointer" }}>
                                 {actionLoading === "submit" ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
                                 {article.submissionAttempts > 0 ? "Resubmit" : "Submit"}
                               </button>
@@ -524,44 +524,44 @@ export default function IndexingCenterContent() {
 
                         {/* Metadata row */}
                         <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color: scoreColor }}>
+                          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color: scoreColor }}>
                             SEO {article.seoScore}
                           </span>
-                          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>
                             {article.wordCount.toLocaleString()} words
                           </span>
                           {article.submittedAt && (
-                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                            <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>
                               Sent {timeAgo(article.submittedAt)}
                             </span>
                           )}
                           {article.lastCrawledAt && (
-                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                            <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>
                               Crawled {timeAgo(article.lastCrawledAt)}
                             </span>
                           )}
                           {article.submissionAttempts > 0 && (
-                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                            <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>
                               {article.submissionAttempts} attempts
                             </span>
                           )}
-                          {article.submittedIndexnow && <span className="neu-badge" style={{ backgroundColor:"rgba(74,123,168,0.1)", color:"#4A7BA8", border:"1px solid rgba(74,123,168,0.2)", fontSize:7 }}>IndexNow</span>}
-                          {article.submittedSitemap && <span className="neu-badge" style={{ backgroundColor:"rgba(45,90,61,0.1)", color:"#2D5A3D", border:"1px solid rgba(45,90,61,0.2)", fontSize:7 }}>Sitemap</span>}
+                          {article.submittedIndexnow && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor:"rgba(74,123,168,0.1)", color:"#4A7BA8", border:"1px solid rgba(74,123,168,0.2)", fontSize:7 }}>IndexNow</span>}
+                          {article.submittedSitemap && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor:"rgba(45,90,61,0.1)", color:"#2D5A3D", border:"1px solid rgba(45,90,61,0.2)", fontSize:7 }}>Sitemap</span>}
                         </div>
 
                         {/* Indexing notes — only appear for non-indexed articles */}
                         {article.notIndexedReasons && article.notIndexedReasons.length > 0 && (
                           <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
-                            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color:"#C8322B", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>
+                            <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, color:"#C8322B", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>
                               {article.indexingStatus === "submitted" ? "Pending — Notes:" : "Not Indexed — Reasons:"}
                             </div>
                             {article.notIndexedReasons.map((r, i) => (
-                              <div key={i} style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", lineHeight:1.6 }}>
+                              <div key={i} style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", lineHeight:1.6 }}>
                                 · {r}
                               </div>
                             ))}
                             {article.fixAction && (
-                              <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8", marginTop:4 }}>
+                              <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#4A7BA8", marginTop:4 }}>
                                 → Fix: {article.fixAction}
                               </div>
                             )}
@@ -582,38 +582,38 @@ export default function IndexingCenterContent() {
           ════════════════════════════════════════════════════════════════ */}
       {tab === "activity" && (
         <div className="space-y-3">
-          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }}>Recent Indexing Activity</div>
+          <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Recent Indexing Activity</div>
           {!data?.recentActivity || data.recentActivity.length === 0 ? (
-            <div className="neu-card text-center py-12">
+            <div className="rounded-xl p-5 text-center py-12" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
               <Activity size={28} className="mx-auto mb-3 opacity-20" style={{ color:"#78716C" }} />
-              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:1 }}>No activity recorded yet</p>
+              <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:1 }}>No activity recorded yet</p>
             </div>
           ) : (
             data.recentActivity.map((a, i) => {
               const ok = a.status === "success";
               return (
-                <div key={i} className="neu-card" style={{ padding:"16px 20px" }}>
+                <div key={i} className="rounded-xl" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)", padding:"16px 20px" }}>
                   <div className="flex items-start gap-3">
                     <div style={{ width:8, height:8, borderRadius:"50%", backgroundColor: ok?"#2D5A3D":"#C8322B", marginTop:5, flexShrink:0 }} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:0.5 }}>
+                        <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:0.5 }}>
                           {a.jobName}
                         </span>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="neu-badge" style={{ backgroundColor: ok?"rgba(45,90,61,0.1)":"rgba(200,50,43,0.1)", color: ok?"#2D5A3D":"#C8322B", border:`1px solid ${ok?"rgba(45,90,61,0.25)":"rgba(200,50,43,0.25)"}` }}>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: ok?"rgba(45,90,61,0.1)":"rgba(200,50,43,0.1)", color: ok?"#2D5A3D":"#C8322B", border:`1px solid ${ok?"rgba(45,90,61,0.25)":"rgba(200,50,43,0.25)"}` }}>
                             {a.status}
                           </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 mt-2 flex-wrap">
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{timeAgo(a.startedAt)}</span>
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{a.itemsSucceeded}/{a.itemsProcessed} items</span>
-                        {a.durationMs > 0 && <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{(a.durationMs/1000).toFixed(1)}s</span>}
+                        <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>{timeAgo(a.startedAt)}</span>
+                        <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>{a.itemsSucceeded}/{a.itemsProcessed} items</span>
+                        {a.durationMs > 0 && <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>{(a.durationMs/1000).toFixed(1)}s</span>}
                       </div>
                       {a.errorMessage && (
                         <div className="mt-2 p-2 rounded-lg" style={{ backgroundColor:"rgba(200,50,43,0.05)", border:"1px solid rgba(200,50,43,0.12)" }}>
-                          <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#C8322B" }}>{a.errorMessage}</p>
+                          <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#C8322B" }}>{a.errorMessage}</p>
                         </div>
                       )}
                     </div>
@@ -630,11 +630,11 @@ export default function IndexingCenterContent() {
           ════════════════════════════════════════════════════════════════ */}
       {tab === "issues" && (
         <div className="space-y-3">
-          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }}>Indexing Issues & Diagnostics</div>
+          <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Indexing Issues & Diagnostics</div>
           {!data?.systemIssues || data.systemIssues.length === 0 ? (
-            <div className="neu-card text-center py-12">
+            <div className="rounded-xl p-5 text-center py-12" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
               <CheckCircle size={28} className="mx-auto mb-3" style={{ color:"#2D5A3D", opacity:0.5 }} />
-              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#2D5A3D", textTransform:"uppercase", letterSpacing:1 }}>
+              <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#2D5A3D", textTransform:"uppercase", letterSpacing:1 }}>
                 No issues found — all clear
               </p>
             </div>
@@ -645,20 +645,20 @@ export default function IndexingCenterContent() {
               const sev = { critical:{ c:"#C8322B", bg:"rgba(200,50,43,0.08)", b:"rgba(200,50,43,0.2)" }, warning:{ c:"#C49A2A", bg:"rgba(196,154,42,0.08)", b:"rgba(196,154,42,0.2)" }, info:{ c:"#4A7BA8", bg:"rgba(74,123,168,0.08)", b:"rgba(74,123,168,0.2)" } }[issue.severity];
               return (
                 <div key={key} className="rounded-2xl overflow-hidden transition-all"
-                     style={{ backgroundColor:"var(--neu-bg)", boxShadow: isOpen?"var(--neu-raised)":"var(--neu-flat)", border:`1px solid ${sev.b}` }}>
+                     style={{ backgroundColor:"#FAF8F4", boxShadow: isOpen?"0 1px 3px rgba(28,25,23,0.06)":"0 1px 2px rgba(28,25,23,0.04)", border:`1px solid ${sev.b}` }}>
                   <button className="w-full flex items-center gap-3 p-4 text-left"
                           onClick={() => setExpandedIssues(prev => prev.includes(key) ? prev.filter(x=>x!==key) : [...prev, key])}>
                     <div style={{ width:8, height:8, borderRadius:"50%", backgroundColor: sev.c, flexShrink:0 }} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="neu-badge" style={{ backgroundColor: sev.bg, color: sev.c, border:`1px solid ${sev.b}`, fontSize:7 }}>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: sev.bg, color: sev.c, border:`1px solid ${sev.b}`, fontSize:7 }}>
                           {issue.severity}
                         </span>
-                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C", textTransform:"uppercase", letterSpacing:0.8 }}>
+                        <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C", textTransform:"uppercase", letterSpacing:0.8 }}>
                           {issue.category}
                         </span>
                       </div>
-                      <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", marginTop:3 }}>
+                      <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#1C1917", marginTop:3 }}>
                         {issue.message}
                       </div>
                     </div>
@@ -666,15 +666,15 @@ export default function IndexingCenterContent() {
                   </button>
                   {isOpen && (
                     <div className="px-4 pb-4 pt-0" style={{ borderTop:`1px solid ${sev.b}` }}>
-                      <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", lineHeight:1.7, paddingTop:12 }}>
+                      <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", lineHeight:1.7, paddingTop:12 }}>
                         {issue.detail}
                       </p>
                       {issue.fixAction && (
                         <div className="mt-3 p-3 rounded-xl" style={{ backgroundColor:"rgba(74,123,168,0.06)", border:"1px solid rgba(74,123,168,0.15)" }}>
-                          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, color:"#4A7BA8", textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>
+                          <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, color:"#4A7BA8", textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>
                             Recommended Fix:
                           </div>
-                          <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#1C1917" }}>{issue.fixAction}</p>
+                          <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#1C1917" }}>{issue.fixAction}</p>
                         </div>
                       )}
                     </div>
@@ -691,14 +691,14 @@ export default function IndexingCenterContent() {
           ════════════════════════════════════════════════════════════════ */}
       {tab === "audit" && (
         <div className="space-y-4">
-          <div className="neu-card">
-            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
+          <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
+            <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
               SEO Compliance Audit (13 Checks)
             </div>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }} className="mb-4">
               تدقيق امتثال تحسين محركات البحث — ١٣ فحص
             </div>
-            <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", lineHeight:1.7, marginBottom:16 }}>
+            <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", lineHeight:1.7, marginBottom:16 }}>
               Runs all 13 pre-publication gate checks on every published article: route existence, meta title &amp; description,
               word count, heading hierarchy, internal links, readability, image alt text, author attribution (E-E-A-T),
               structured data, authenticity signals (Jan 2026 Update), and affiliate links. Reports blockers, warnings,
@@ -770,14 +770,14 @@ export default function IndexingCenterContent() {
                       }}
                       disabled={complianceAuditLoading}
                       className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
-                      style={{ backgroundColor:"#C49A2A", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(196,154,42,0.3)", opacity: complianceAuditLoading?0.7:1, cursor: complianceAuditLoading?"not-allowed":"pointer" }}>
+                      style={{ backgroundColor:"#C49A2A", color:"#FAF8F4", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(196,154,42,0.3)", opacity: complianceAuditLoading?0.7:1, cursor: complianceAuditLoading?"not-allowed":"pointer" }}>
                 {complianceAuditLoading ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
                 {complianceAuditLoading ? "Auditing All Pages…" : "Run Full Compliance Audit"}
               </button>
               {complianceAuditLoading && (
                 <button onClick={() => { abortRef.current = true; }}
                         className="flex items-center gap-1.5 px-4 py-3 rounded-xl"
-                        style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)", fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#C8322B" }}>
+                        style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#C8322B" }}>
                   <XCircle size={14} /> Cancel
                 </button>
               )}
@@ -812,7 +812,7 @@ export default function IndexingCenterContent() {
                         }}
                         disabled={fixingAll}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
-                        style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: fixingAll?0.7:1, cursor: fixingAll?"not-allowed":"pointer" }}>
+                        style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: fixingAll?0.7:1, cursor: fixingAll?"not-allowed":"pointer" }}>
                   {fixingAll ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
                   {fixingAll ? "Fixing Issues…" : "Fix All Issues"}
                 </button>
@@ -822,21 +822,21 @@ export default function IndexingCenterContent() {
 
           {/* Batched Audit Progress */}
           {auditProgress && (
-            <div className="neu-card">
+            <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
               <div className="flex items-center justify-between mb-2">
-                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
                   Auditing batch {auditProgress.batch} of {auditProgress.totalBatches}
                 </span>
-                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C49A2A" }}>
+                <span style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:16, color:"#C49A2A" }}>
                   {auditProgress.audited}/{auditProgress.total}
                 </span>
               </div>
               <div className="relative rounded-full overflow-hidden"
-                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                   style={{ height:10, backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
                 <div className="h-full rounded-full transition-all duration-500"
                      style={{ width:`${auditProgress.total > 0 ? Math.round((auditProgress.audited / auditProgress.total) * 100) : 0}%`, backgroundColor:"#C49A2A" }} />
               </div>
-              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", marginTop:6 }}>
+              <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", marginTop:6 }}>
                 {Math.round((auditProgress.audited / Math.max(1, auditProgress.total)) * 100)}% complete — processing {Math.min(10, auditProgress.total - auditProgress.audited)} articles in current batch…
               </p>
             </div>
@@ -844,17 +844,17 @@ export default function IndexingCenterContent() {
 
           {/* Fix All Progress */}
           {fixProgress && (
-            <div className="neu-card">
+            <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
               <div className="flex items-center justify-between mb-2">
-                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
                   Fixing article {fixProgress.fixed} of {fixProgress.total}
                 </span>
-                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C8322B" }}>
+                <span style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:16, color:"#C8322B" }}>
                   {fixProgress.fixed}/{fixProgress.total}
                 </span>
               </div>
               <div className="relative rounded-full overflow-hidden"
-                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                   style={{ height:10, backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
                 <div className="h-full rounded-full transition-all duration-500"
                      style={{ width:`${fixProgress.total > 0 ? Math.round((fixProgress.fixed / fixProgress.total) * 100) : 0}%`, backgroundColor:"#C8322B" }} />
               </div>
@@ -873,23 +873,23 @@ export default function IndexingCenterContent() {
                   { label:"Need Fixes",       val: complianceResult.articlesAudited - complianceResult.fullComplianceCount, color:"#C8322B" },
                 ].map(({ label, val, color }) => (
                   <div key={label} className="text-center p-4 rounded-xl"
-                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
-                    <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color }}>{val}</div>
-                    <div className="neu-section-label mt-1">{label}</div>
+                       style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                    <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:24, color }}>{val}</div>
+                    <div className="text-xs uppercase tracking-wider mt-1" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }}>{label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Standards version */}
               <div className="p-3 rounded-xl" style={{ backgroundColor:"rgba(74,123,168,0.06)", border:"1px solid rgba(74,123,168,0.15)" }}>
-                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8" }}>
+                <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#4A7BA8" }}>
                   Standards v{complianceResult.standardsVersion} · 13-check gate · Jan 2026 Authenticity Update active
                 </span>
               </div>
 
               {/* Per-article results */}
-              <div className="neu-card">
-                <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
+              <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
                   Per-Article Compliance ({complianceResult.results.length} articles)
                 </div>
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
@@ -898,36 +898,36 @@ export default function IndexingCenterContent() {
                     const pctBg = article.compliancePercent >= 90 ? "rgba(45,90,61,0.08)" : article.compliancePercent >= 70 ? "rgba(196,154,42,0.08)" : "rgba(200,50,43,0.08)";
                     return (
                       <div key={i} className="flex items-center gap-3 p-3 rounded-xl"
-                           style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                           style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
                         {/* Compliance bar */}
                         <div style={{ width:48, textAlign:"center", flexShrink:0 }}>
-                          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color: pctColor }}>
+                          <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:16, color: pctColor }}>
                             {article.compliancePercent}%
                           </div>
                         </div>
                         {/* Article info */}
                         <div className="flex-1 min-w-0">
-                          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
+                          <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
                             {article.title}
                           </div>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                            <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>
                               {article.passed}/{article.total} checks
                             </span>
                             {article.blockers > 0 && (
-                              <span className="neu-badge" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)", fontSize:7 }}>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)", fontSize:7 }}>
                                 {article.blockers} blocker{article.blockers !== 1 ? "s" : ""}
                               </span>
                             )}
                             {article.warnings > 0 && (
-                              <span className="neu-badge" style={{ backgroundColor:"rgba(196,154,42,0.1)", color:"#C49A2A", border:"1px solid rgba(196,154,42,0.25)", fontSize:7 }}>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor:"rgba(196,154,42,0.1)", color:"#C49A2A", border:"1px solid rgba(196,154,42,0.25)", fontSize:7 }}>
                                 {article.warnings} warning{article.warnings !== 1 ? "s" : ""}
                               </span>
                             )}
                           </div>
                           {/* Progress bar */}
                           <div className="mt-2 relative rounded-full overflow-hidden"
-                               style={{ height:4, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                               style={{ height:4, backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
                             <div className="h-full rounded-full transition-all duration-500"
                                  style={{ width:`${article.compliancePercent}%`, backgroundColor: pctColor }} />
                           </div>
@@ -935,7 +935,7 @@ export default function IndexingCenterContent() {
                         {/* Checklist link */}
                         <Link href={`/admin/articles/${article.slug}/seo-checklist`}
                               className="flex items-center gap-1 px-3 py-2 rounded-lg flex-shrink-0"
-                              style={{ backgroundColor: pctBg, fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color: pctColor, textDecoration:"none", textTransform:"uppercase", letterSpacing:0.8 }}>
+                              style={{ backgroundColor: pctBg, fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, color: pctColor, textDecoration:"none", textTransform:"uppercase", letterSpacing:0.8 }}>
                           <Eye size={11} /> Checklist
                         </Link>
                       </div>
@@ -957,26 +957,26 @@ export default function IndexingCenterContent() {
                   { label:"Auto-Fixed", val: auditResult.autoFixed, color:"#4A7BA8" },
                 ].map(({ label, val, color }) => (
                   <div key={label} className="text-center p-4 rounded-xl"
-                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
-                    <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color }}>{val}</div>
-                    <div className="neu-section-label mt-1">{label}</div>
+                       style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                    <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:24, color }}>{val}</div>
+                    <div className="text-xs uppercase tracking-wider mt-1" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }}>{label}</div>
                   </div>
                 ))}
               </div>
               {auditResult.issues && auditResult.issues.length > 0 && (
-                <div className="neu-card">
-                  <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
+                <div className="rounded-xl p-5" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                  <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
                     Failing Articles ({auditResult.issues.length})
                   </div>
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                     {auditResult.issues.map((item, i) => (
-                      <div key={i} className="p-3 rounded-xl" style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
-                        <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
+                      <div key={i} className="p-3 rounded-xl" style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                        <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
                           {item.url}
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           {item.issues.map((iss, j) => (
-                            <span key={j} className="neu-badge neu-badge-red" style={{ fontSize:8 }}>{iss}</span>
+                            <span key={j} className="inline-flex items-center px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)", fontSize:8 }}>{iss}</span>
                           ))}
                         </div>
                       </div>

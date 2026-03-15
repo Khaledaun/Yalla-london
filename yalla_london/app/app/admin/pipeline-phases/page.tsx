@@ -1,6 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminKPICard,
+  AdminSectionLabel,
+  AdminAlertBanner,
+} from "@/components/admin/admin-ui";
+import { Inbox } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 interface PhaseDraft {
@@ -44,15 +56,15 @@ interface PipelineData {
 }
 
 // ─── Phase Config ──────────────────────────────────────────────────────
-const PHASE_CONFIG: Record<string, { icon: string; color: string; bg: string; border: string }> = {
-  research:  { icon: "🔍", color: "text-blue-700",   bg: "bg-blue-50",    border: "border-blue-200" },
-  outline:   { icon: "📋", color: "text-indigo-700", bg: "bg-indigo-50",  border: "border-indigo-200" },
-  drafting:  { icon: "✍️", color: "text-purple-700", bg: "bg-purple-50",  border: "border-purple-200" },
-  assembly:  { icon: "🔧", color: "text-orange-700", bg: "bg-orange-50",  border: "border-orange-200" },
-  images:    { icon: "🖼️", color: "text-pink-700",   bg: "bg-pink-50",    border: "border-pink-200" },
-  seo:       { icon: "📊", color: "text-green-700",  bg: "bg-green-50",   border: "border-green-200" },
-  scoring:   { icon: "⭐", color: "text-yellow-700", bg: "bg-yellow-50",  border: "border-yellow-200" },
-  reservoir: { icon: "📦", color: "text-teal-700",   bg: "bg-teal-50",    border: "border-teal-200" },
+const PHASE_CONFIG: Record<string, { icon: string; color: string; dotColor: string }> = {
+  research:  { icon: "🔍", color: "#3B7EA1", dotColor: "#3B7EA1" },
+  outline:   { icon: "📋", color: "#5B21B6", dotColor: "#7C3AED" },
+  drafting:  { icon: "✍️", color: "#7C3AED", dotColor: "#7C3AED" },
+  assembly:  { icon: "🔧", color: "#C49A2A", dotColor: "#C49A2A" },
+  images:    { icon: "🖼️", color: "#C8322B", dotColor: "#C8322B" },
+  seo:       { icon: "📊", color: "#2D5A3D", dotColor: "#2D5A3D" },
+  scoring:   { icon: "⭐", color: "#C49A2A", dotColor: "#C49A2A" },
+  reservoir: { icon: "📦", color: "#3B7EA1", dotColor: "#3B7EA1" },
 };
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -136,28 +148,29 @@ export default function PipelinePhasesPage() {
   // ─── Loading / Error ─────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Loading pipeline...</p>
-        </div>
+      <div className="admin-page p-4 md:p-6">
+        <AdminLoadingState label="Loading pipeline..." />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-red-700 font-medium">Failed to load pipeline</p>
-          <p className="text-red-600 text-sm mt-1">{error}</p>
-          <button
-            onClick={() => { setLoading(true); fetchData(); }}
-            className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="admin-page p-4 md:p-6">
+        <AdminAlertBanner
+          severity="critical"
+          message="Failed to load pipeline"
+          detail={error || undefined}
+          action={
+            <AdminButton
+              variant="danger"
+              size="sm"
+              onClick={() => { setLoading(true); fetchData(); }}
+            >
+              Retry
+            </AdminButton>
+          }
+        />
       </div>
     );
   }
@@ -167,110 +180,106 @@ export default function PipelinePhasesPage() {
   const reservoirCount = phases.find((p) => p.phase === "reservoir")?.count || 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="admin-page p-4 md:p-6">
       {/* ─── Toast ──────────────────────────────────────────────── */}
       {toast && (
         <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium max-w-[90vw] ${
-            toast.type === "success"
-              ? "bg-green-600 text-white"
-              : "bg-red-600 text-white"
-          }`}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg max-w-[90vw]"
+          style={{
+            fontFamily: 'var(--font-system)',
+            fontSize: 12,
+            fontWeight: 600,
+            color: '#FAF8F4',
+            backgroundColor: toast.type === "success" ? '#2D5A3D' : '#C8322B',
+          }}
         >
           {toast.message}
         </div>
       )}
 
       {/* ─── Header ─────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-40">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Pipeline Phases</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {totalInPipeline} in pipeline &middot; {reservoirCount} ready &middot; {summary.publishedLast24h} published today
-            </p>
-          </div>
-          <button
-            onClick={() => { setLoading(true); fetchData(); }}
-            className="p-2 text-gray-400 hover:text-gray-600"
-            title="Refresh"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <AdminPageHeader
+        title="Pipeline"
+        subtitle="Content phase overview"
+        action={
+          <AdminButton variant="ghost" size="sm" onClick={() => { setLoading(true); fetchData(); }}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-          </button>
-        </div>
+          </AdminButton>
+        }
+      />
 
-        {/* ─── Summary Bar ──────────────────────────────────────── */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-4 px-4">
-          {phases.map((p) => {
-            const cfg = PHASE_CONFIG[p.phase] || PHASE_CONFIG.research;
-            const isActive = expandedPhase === p.phase;
-            return (
-              <button
-                key={p.phase}
-                onClick={() => setExpandedPhase(isActive ? null : p.phase)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                  isActive
-                    ? `${cfg.bg} ${cfg.color} ${cfg.border} ring-2 ring-offset-1 ring-blue-400`
-                    : p.count > 0
-                      ? `${cfg.bg} ${cfg.color} ${cfg.border}`
-                      : "bg-gray-100 text-gray-400 border-gray-200"
-                }`}
-              >
-                <span>{cfg.icon}</span>
-                <span className="capitalize">{p.phase}</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  p.stuckCount > 0 ? "bg-red-100 text-red-700" : "bg-white/60"
-                }`}>
+      {/* ─── KPI Summary ──────────────────────────────────────── */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <AdminKPICard value={totalInPipeline} label="In Pipeline" color="#3B7EA1" />
+        <AdminKPICard value={reservoirCount} label="Ready" color="#2D5A3D" />
+        <AdminKPICard value={summary.publishedLast24h} label="Published Today" color="#2D5A3D" />
+        <AdminKPICard value={summary.totalStuck} label="Stuck" color={summary.totalStuck > 0 ? '#C8322B' : '#78716C'} />
+      </div>
+
+      {/* ─── Phase Filter Pills ───────────────────────────────── */}
+      <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-1 px-1 mb-4">
+        {phases.map((p) => {
+          const cfg = PHASE_CONFIG[p.phase] || PHASE_CONFIG.research;
+          const isActive = expandedPhase === p.phase;
+          return (
+            <button
+              key={p.phase}
+              onClick={() => setExpandedPhase(isActive ? null : p.phase)}
+              className={`admin-filter-pill ${isActive ? "active" : ""}`}
+              style={{ opacity: p.count === 0 && !isActive ? 0.5 : 1 }}
+            >
+              <span>{cfg.icon}</span>
+              <span className="capitalize">{p.phase}</span>
+              {p.stuckCount > 0 ? (
+                <AdminStatusBadge status="stuck" label={String(p.count)} />
+              ) : (
+                <span
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    opacity: 0.7,
+                  }}
+                >
                   {p.count}
                 </span>
-              </button>
-            );
-          })}
-        </div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ─── Stuck Alert ────────────────────────────────────────── */}
       {summary.totalStuck > 0 && (
-        <div className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-          <span className="text-amber-500 text-lg">&#9888;</span>
-          <div>
-            <p className="text-amber-800 text-sm font-medium">
-              {summary.totalStuck} article{summary.totalStuck > 1 ? "s" : ""} stuck for 2+ hours
-            </p>
-            <p className="text-amber-600 text-xs mt-0.5">
-              Tap a phase to see stuck items. Use Retry or Advance to unblock them.
-            </p>
-          </div>
-        </div>
+        <AdminAlertBanner
+          severity="warning"
+          message={`${summary.totalStuck} article${summary.totalStuck > 1 ? "s" : ""} stuck for 2+ hours`}
+          detail="Tap a phase to see stuck items. Use Retry or Advance to unblock them."
+        />
       )}
 
       {/* ─── Selected Actions Bar ───────────────────────────────── */}
       {selectedDrafts.size > 0 && (
-        <div className="mx-4 mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
-          <span className="text-blue-700 text-sm font-medium">
-            {selectedDrafts.size} selected
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSelectedDrafts(new Set<string>())}
-              className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg"
-            >
-              Clear
-            </button>
-            <button
-              onClick={deleteSelected}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg"
-            >
-              Delete Selected
-            </button>
-          </div>
-        </div>
+        <AdminAlertBanner
+          severity="info"
+          message={`${selectedDrafts.size} selected`}
+          action={
+            <div className="flex gap-2">
+              <AdminButton variant="secondary" size="sm" onClick={() => setSelectedDrafts(new Set<string>())}>
+                Clear
+              </AdminButton>
+              <AdminButton variant="danger" size="sm" onClick={deleteSelected}>
+                Delete Selected
+              </AdminButton>
+            </div>
+          }
+        />
       )}
 
       {/* ─── Phase Sections ─────────────────────────────────────── */}
-      <div className="p-4 space-y-3">
+      <div className="space-y-3">
         {phases.map((group) => {
           const cfg = PHASE_CONFIG[group.phase] || PHASE_CONFIG.research;
           const isExpanded = expandedPhase === group.phase;
@@ -278,36 +287,61 @@ export default function PipelinePhasesPage() {
           const nextPhase: string | null = (group.phase === "reservoir") ? null : (nextPhaseMap[group.phase] || null);
 
           return (
-            <div key={group.phase} className={`rounded-xl border ${cfg.border} overflow-hidden`}>
+            <AdminCard key={group.phase} className="overflow-hidden">
               {/* Phase Header */}
               <button
                 onClick={() => setExpandedPhase(isExpanded ? null : group.phase)}
-                className={`w-full flex items-center justify-between px-4 py-3 ${cfg.bg}`}
+                className="w-full flex items-center justify-between px-4 py-3"
+                style={{ borderLeft: `3px solid ${cfg.color}` }}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{cfg.icon}</span>
-                  <span className={`font-semibold text-sm ${cfg.color}`}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: cfg.color,
+                    }}
+                  >
                     {group.label}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    group.count === 0
-                      ? "bg-gray-200 text-gray-500"
-                      : group.stuckCount > 0
-                        ? "bg-red-100 text-red-700"
-                        : "bg-white text-gray-700"
-                  }`}>
-                    {group.count}
-                  </span>
+                  {group.count === 0 ? (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: '#A8A29E',
+                        backgroundColor: 'rgba(168,162,158,0.1)',
+                        padding: '2px 8px',
+                        borderRadius: 99,
+                      }}
+                    >
+                      {group.count}
+                    </span>
+                  ) : (
+                    <AdminStatusBadge
+                      status={group.stuckCount > 0 ? "stuck" : "active"}
+                      label={String(group.count)}
+                    />
+                  )}
                   {group.stuckCount > 0 && (
-                    <span className="text-[10px] text-red-600 font-medium">
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 9,
+                        fontWeight: 600,
+                        color: '#C8322B',
+                      }}
+                    >
                       {group.stuckCount} stuck
                     </span>
                   )}
                 </div>
                 <svg
-                  className={`w-4 h-4 text-gray-400 transform transition-transform ${
-                    isExpanded ? "rotate-180" : ""
-                  }`}
+                  className={`w-4 h-4 transform transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                  style={{ color: '#A8A29E' }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -318,37 +352,41 @@ export default function PipelinePhasesPage() {
 
               {/* Phase Content */}
               {isExpanded && (
-                <div className="bg-white">
+                <div>
                   {/* Bulk Actions */}
                   {group.count > 0 && (
-                    <div className="px-4 py-2 border-b border-gray-100 flex gap-2 flex-wrap">
+                    <div
+                      className="px-4 py-2 flex gap-2 flex-wrap"
+                      style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}
+                    >
                       {nextPhase && (
-                        <button
+                        <AdminButton
+                          variant="primary"
+                          size="sm"
+                          loading={actionLoading[`bulk_advance-${group.phase}`]}
                           onClick={() => {
                             if (confirm(`Advance ALL ${group.count} drafts from ${group.label} to ${nextPhase}?`))
                               runAction("bulk_advance", { phase: group.phase });
                           }}
-                          disabled={actionLoading[`bulk_advance-${group.phase}`]}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg disabled:opacity-50 flex items-center gap-1"
                         >
-                          {actionLoading[`bulk_advance-${group.phase}`] ? (
-                            <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-                          ) : null}
                           Advance All to {nextPhase}
-                        </button>
+                        </AdminButton>
                       )}
-                      <button
+                      <AdminButton
+                        variant="danger"
+                        size="sm"
+                        loading={actionLoading[`bulk_delete-${group.phase}`]}
                         onClick={() => {
                           if (confirm(`Delete ALL stuck drafts (2h+) from ${group.label}?`))
                             runAction("bulk_delete", { phase: group.phase });
                         }}
-                        disabled={actionLoading[`bulk_delete-${group.phase}`]}
-                        className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg disabled:opacity-50"
                       >
                         Delete Stuck
-                      </button>
+                      </AdminButton>
                       {group.phase === "reservoir" && (
-                        <button
+                        <AdminButton
+                          variant="success"
+                          size="sm"
                           onClick={async () => {
                             showToast("Running content selector...");
                             try {
@@ -368,21 +406,21 @@ export default function PipelinePhasesPage() {
                               showToast("Network error", "error");
                             }
                           }}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg flex items-center gap-1"
                         >
                           Publish Ready Articles
-                        </button>
+                        </AdminButton>
                       )}
                     </div>
                   )}
 
                   {/* Draft List */}
                   {group.count === 0 ? (
-                    <div className="px-4 py-6 text-center text-gray-400 text-sm">
-                      No articles in this phase
-                    </div>
+                    <AdminEmptyState
+                      icon={Inbox}
+                      title="No articles in this phase"
+                    />
                   ) : (
-                    <div className="divide-y divide-gray-100">
+                    <div>
                       {(group.drafts as PhaseDraft[]).map((draft: PhaseDraft) => (
                         <DraftCard
                           key={draft.id}
@@ -398,22 +436,38 @@ export default function PipelinePhasesPage() {
                   )}
                 </div>
               )}
-            </div>
+            </AdminCard>
           );
         })}
 
         {/* ─── Published Summary ─────────────────────────────────── */}
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 flex items-center gap-3">
-          <span className="text-2xl">&#9989;</span>
-          <div>
-            <p className="text-green-800 text-sm font-semibold">
-              {summary.publishedTotal} Published Articles
-            </p>
-            <p className="text-green-600 text-xs">
-              {summary.publishedLast24h} published in the last 24 hours
-            </p>
+        <AdminCard accent accentColor="green">
+          <div className="flex items-center gap-3 p-4">
+            <span className="text-2xl">&#9989;</span>
+            <div>
+              <p
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: '#2D5A3D',
+                }}
+              >
+                {summary.publishedTotal} Published Articles
+              </p>
+              <p
+                style={{
+                  fontFamily: 'var(--font-system)',
+                  fontSize: 11,
+                  color: '#78716C',
+                  marginTop: 2,
+                }}
+              >
+                {summary.publishedLast24h} published in the last 24 hours
+              </p>
+            </div>
           </div>
-        </div>
+        </AdminCard>
       </div>
 
       {/* Bottom spacer for mobile */}
@@ -441,17 +495,14 @@ function DraftCard({
   const [showDetails, setShowDetails] = useState(false);
 
   const stuckBadge = draft.isStuck ? (
-    <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold animate-pulse">
-      STUCK {draft.stuckHours}h
-    </span>
+    <AdminStatusBadge status="stuck" label={`STUCK ${draft.stuckHours}h`} />
   ) : null;
 
   const localeBadge = (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-      draft.locale === "ar" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
-    }`}>
-      {draft.locale === "ar" ? "AR" : "EN"}
-    </span>
+    <AdminStatusBadge
+      status={draft.locale === "ar" ? "warning" : "inactive"}
+      label={draft.locale === "ar" ? "AR" : "EN"}
+    />
   );
 
   const progressText =
@@ -461,15 +512,26 @@ function DraftCard({
         ? `${draft.wordCount.toLocaleString()}w`
         : null;
 
+  const seoScoreColor = draft.seoScore != null
+    ? draft.seoScore >= 70 ? '#2D5A3D' : draft.seoScore >= 50 ? '#C49A2A' : '#C8322B'
+    : '#78716C';
+
   return (
-    <div className={`px-4 py-3 ${isSelected ? "bg-blue-50" : ""}`}>
+    <div
+      className="px-4 py-3"
+      style={{
+        borderTop: '1px solid rgba(214,208,196,0.3)',
+        backgroundColor: isSelected ? 'rgba(59,126,161,0.06)' : undefined,
+      }}
+    >
       {/* Row 1: Checkbox + Title + Badges */}
       <div className="flex items-start gap-2">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600"
+          className="mt-1 h-4 w-4 rounded"
+          style={{ accentColor: '#C8322B' }}
         />
         <div className="flex-1 min-w-0">
           <button
@@ -477,26 +539,38 @@ function DraftCard({
             className="text-left w-full"
           >
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm font-medium text-gray-900 truncate max-w-[60vw]">
+              <span
+                className="truncate max-w-[60vw]"
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  color: '#1C1917',
+                }}
+              >
                 {draft.keyword}
               </span>
               {localeBadge}
               {stuckBadge}
             </div>
             {/* Row 2: Meta info */}
-            <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-              {progressText && <span>{progressText}</span>}
+            <div className="flex items-center gap-2 mt-1">
+              {progressText && (
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
+                  {progressText}
+                </span>
+              )}
               {draft.phaseAttempts > 0 && (
-                <span className="text-amber-600">
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#C49A2A' }}>
                   {draft.phaseAttempts} attempt{draft.phaseAttempts > 1 ? "s" : ""}
                 </span>
               )}
               {draft.seoScore != null && (
-                <span className={draft.seoScore >= 70 ? "text-green-600" : draft.seoScore >= 50 ? "text-amber-600" : "text-red-600"}>
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600, color: seoScoreColor }}>
                   SEO {draft.seoScore}
                 </span>
               )}
-              <span>
+              <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
                 {timeAgo(draft.updatedAt)}
               </span>
             </div>
@@ -509,91 +583,84 @@ function DraftCard({
         <div className="mt-2 ml-6 space-y-2">
           {/* Error */}
           {draft.plainError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-              <p className="text-xs text-red-700">{draft.plainError}</p>
-            </div>
+            <AdminAlertBanner
+              severity="critical"
+              message={draft.plainError}
+            />
           )}
 
           {/* Scores */}
-          <div className="flex gap-3 text-xs text-gray-600">
-            {draft.qualityScore != null && <span>Quality: {draft.qualityScore}</span>}
-            {draft.seoScore != null && <span>SEO: {draft.seoScore}</span>}
-            {draft.wordCount > 0 && <span>Words: {draft.wordCount.toLocaleString()}</span>}
-            {draft.sectionsTotal > 0 && (
-              <span>Sections: {draft.sectionsCompleted}/{draft.sectionsTotal}</span>
-            )}
+          <div className="admin-card-inset rounded-lg p-3">
+            <AdminSectionLabel>SCORES</AdminSectionLabel>
+            <div className="flex gap-4">
+              {draft.qualityScore != null && (
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                  Quality: <strong style={{ color: '#1C1917' }}>{draft.qualityScore}</strong>
+                </span>
+              )}
+              {draft.seoScore != null && (
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                  SEO: <strong style={{ color: seoScoreColor }}>{draft.seoScore}</strong>
+                </span>
+              )}
+              {draft.wordCount > 0 && (
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                  Words: <strong style={{ color: '#1C1917' }}>{draft.wordCount.toLocaleString()}</strong>
+                </span>
+              )}
+              {draft.sectionsTotal > 0 && (
+                <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                  Sections: <strong style={{ color: '#1C1917' }}>{draft.sectionsCompleted}/{draft.sectionsTotal}</strong>
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-2 flex-wrap">
             {nextPhase && (
-              <ActionButton
-                label={`Advance to ${nextPhase}`}
+              <AdminButton
+                variant="primary"
+                size="sm"
                 loading={!!actionLoading[`advance-${draft.id}`]}
                 onClick={() => onAction("advance", { draftId: draft.id })}
-                variant="primary"
-              />
+              >
+                Advance to {nextPhase}
+              </AdminButton>
             )}
-            <ActionButton
-              label="Retry"
+            <AdminButton
+              variant="secondary"
+              size="sm"
               loading={!!actionLoading[`retry-${draft.id}`]}
               onClick={() => onAction("retry", { draftId: draft.id })}
-              variant="secondary"
-            />
+            >
+              Retry
+            </AdminButton>
             {draft.currentPhase === "reservoir" && (
-              <ActionButton
-                label="Publish"
+              <AdminButton
+                variant="success"
+                size="sm"
                 loading={!!actionLoading[`publish-${draft.id}`]}
                 onClick={() => onAction("publish", { draftId: draft.id })}
-                variant="success"
-              />
+              >
+                Publish
+              </AdminButton>
             )}
-            <ActionButton
-              label="Delete"
+            <AdminButton
+              variant="danger"
+              size="sm"
               loading={!!actionLoading[`delete-${draft.id}`]}
               onClick={() => {
                 if (confirm(`Delete "${draft.keyword}"?`))
                   onAction("delete", { draftId: draft.id });
               }}
-              variant="danger"
-            />
+            >
+              Delete
+            </AdminButton>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-// ─── Action Button ─────────────────────────────────────────────────────
-function ActionButton({
-  label,
-  loading,
-  onClick,
-  variant,
-}: {
-  label: string;
-  loading: boolean;
-  onClick: () => void;
-  variant: "primary" | "secondary" | "success" | "danger";
-}) {
-  const styles = {
-    primary: "bg-blue-600 text-white",
-    secondary: "bg-gray-100 text-gray-700 border border-gray-200",
-    success: "bg-green-600 text-white",
-    danger: "bg-red-50 text-red-700 border border-red-200",
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1 ${styles[variant]}`}
-    >
-      {loading && (
-        <span className="animate-spin h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
-      )}
-      {label}
-    </button>
   );
 }
 

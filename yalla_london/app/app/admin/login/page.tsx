@@ -194,11 +194,11 @@ export default function AdminLogin() {
     setSuccess('Enter your email and a NEW password below to reset your admin account.')
   }
 
-  // Shared input styles (neumorphic, large tap targets)
+  // Shared input styles (clean light, large tap targets)
   const inputStyle: React.CSSProperties = {
-    backgroundColor: 'var(--neu-bg, #EDE9E1)',
-    boxShadow: 'var(--neu-inset, inset 2px 2px 5px #CAC5BC, inset -2px -2px 5px #FFFFFF)',
-    border: 'none',
+    backgroundColor: '#FAF8F4',
+    boxShadow: 'none',
+    border: '1px solid rgba(214,208,196,0.4)',
     borderRadius: 12,
     fontSize: 15,
     color: '#1C1917',
@@ -206,7 +206,7 @@ export default function AdminLogin() {
   }
 
   const labelStyle: React.CSSProperties = {
-    fontFamily: "'IBM Plex Mono', monospace",
+    fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
     fontSize: 10,
     fontWeight: 600,
     textTransform: 'uppercase',
@@ -219,16 +219,16 @@ export default function AdminLogin() {
   if (checkingSetup) {
     return (
       <div className="min-h-screen flex items-center justify-center"
-           style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)' }}>
+           style={{ backgroundColor: '#FAF8F4' }}>
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse"
                style={{
                  backgroundColor: '#C8322B',
-                 boxShadow: '4px 4px 12px var(--neu-shadow-dark, #CAC5BC), -2px -2px 6px rgba(200,50,43,0.2)',
+                 boxShadow: '0 2px 8px rgba(200,50,43,0.25)',
                }}>
-            <span style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 22, color: '#FAF8F4' }}>Y</span>
+            <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 22, color: '#FAF8F4' }}>Y</span>
           </div>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1.5 }}>
+          <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1.5 }}>
             Checking system...
           </p>
         </div>
@@ -238,21 +238,21 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center px-5 py-8"
-         style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)' }}>
+         style={{ backgroundColor: '#FAF8F4' }}>
       <div className="mx-auto w-full max-w-sm">
         {/* Logo */}
         <div className="flex justify-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
                style={{
                  backgroundColor: '#C8322B',
-                 boxShadow: '5px 5px 15px var(--neu-shadow-dark, #CAC5BC), -3px -3px 8px rgba(200,50,43,0.15)',
+                 boxShadow: '0 2px 8px rgba(200,50,43,0.25)',
                }}>
-            <span style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: '#FAF8F4' }}>Y</span>
+            <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 28, color: '#FAF8F4' }}>Y</span>
           </div>
         </div>
 
         <h1 className="mt-6 text-center" style={{
-          fontFamily: "'Anybody', sans-serif",
+          fontFamily: "var(--font-display,'Anybody',sans-serif)",
           fontWeight: 800,
           fontSize: 22,
           color: '#1C1917',
@@ -260,7 +260,7 @@ export default function AdminLogin() {
           {needsSetup ? 'Welcome' : 'Sign In'}
         </h1>
         <p className="mt-2 text-center" style={{
-          fontFamily: "'IBM Plex Mono', monospace",
+          fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
           fontSize: 11,
           color: '#78716C',
           letterSpacing: 0.5,
@@ -272,7 +272,7 @@ export default function AdminLogin() {
 
         {/* Card */}
         <div className="mt-8 rounded-2xl p-6"
-             style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised, 6px 6px 16px #CAC5BC, -6px -6px 16px #FFFFFF)' }}>
+             style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
 
           {/* Setup banner */}
           {needsSetup && (
@@ -304,7 +304,7 @@ export default function AdminLogin() {
                 disabled={isMigrating}
                 className="mt-3 px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                   fontSize: 11,
                   fontWeight: 700,
                   textTransform: 'uppercase',
@@ -413,7 +413,7 @@ export default function AdminLogin() {
                 </div>
               </div>
               {needsSetup && (
-                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', marginTop: 6 }}>
+                <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#A8A29E', marginTop: 6 }}>
                   Minimum 8 characters. This will be your admin login.
                 </p>
               )}
@@ -425,14 +425,14 @@ export default function AdminLogin() {
               disabled={isLoading || needsMigration}
               className="w-full rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                 fontSize: 12,
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: 1.5,
                 color: '#FAF8F4',
                 backgroundColor: '#C8322B',
-                boxShadow: '4px 4px 12px var(--neu-shadow-dark, #CAC5BC), -2px -2px 6px rgba(200,50,43,0.15)',
+                boxShadow: '0 2px 8px rgba(200,50,43,0.25)',
                 minHeight: 52,
               }}
             >
@@ -452,7 +452,7 @@ export default function AdminLogin() {
                 onClick={handleResetAdmin}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                   fontSize: 10,
                   fontWeight: 600,
                   textTransform: 'uppercase',
@@ -471,9 +471,9 @@ export default function AdminLogin() {
         {/* System health */}
         {systemHealth && (
           <div className="mt-5 p-4 rounded-xl"
-               style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-inset, inset 2px 2px 5px #CAC5BC, inset -2px -2px 5px #FFFFFF)' }}>
+               style={{ backgroundColor: 'rgba(200,50,43,0.04)', border: '1px solid rgba(200,50,43,0.12)' }}>
             <p style={{
-              fontFamily: "'IBM Plex Mono', monospace",
+              fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
               fontSize: 9,
               fontWeight: 600,
               textTransform: 'uppercase',

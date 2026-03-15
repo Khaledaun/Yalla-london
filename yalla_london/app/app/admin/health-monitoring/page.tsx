@@ -571,10 +571,10 @@ export default function HealthMonitoringPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style={{ backgroundColor:'var(--neu-bg,#EDE9E1)', boxShadow:'var(--neu-raised)' }}>
+               style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
             <RefreshCw size={24} className="animate-spin" style={{ color:'#C8322B' }} />
           </div>
-          <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:'#78716C', textTransform:'uppercase', letterSpacing:2 }}>
+          <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:'#78716C', textTransform:'uppercase', letterSpacing:2 }}>
             Loading health data…
           </p>
         </div>
@@ -594,16 +594,16 @@ export default function HealthMonitoringPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      {/* ── Neumorphic Header ─────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/admin"
                 className="p-2 rounded-xl transition-all"
-                style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-flat)', color:'#78716C' }}>
+                style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 2px rgba(28,25,23,0.04)', border:'1px solid rgba(214,208,196,0.4)', color:'#78716C' }}>
             <ArrowLeft size={16} />
           </Link>
           <div>
-            <h1 style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color:'#1C1917', letterSpacing:-0.5 }}>
+            <h1 style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:24, color:'#1C1917', letterSpacing:-0.5 }}>
               Health Monitor
             </h1>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:'#78716C', letterSpacing:0, marginTop:2 }}>
@@ -614,14 +614,14 @@ export default function HealthMonitoringPage() {
         <div className="flex items-center gap-2">
           <Link href="/admin/cron-logs"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
-                style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-flat)', fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color:'#4A7BA8' }}>
+                style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 2px rgba(28,25,23,0.04)', border:'1px solid rgba(214,208,196,0.4)', fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color:'#4A7BA8' }}>
             <FileText size={12} />
             <span className="hidden sm:inline">Cron Logs</span>
           </Link>
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
-              style={{ backgroundColor:'var(--neu-bg)', boxShadow: autoRefresh?'var(--neu-inset)':'var(--neu-flat)', fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color: autoRefresh?'#2D5A3D':'#78716C' }}
+              style={{ backgroundColor: autoRefresh?'rgba(45,90,61,0.04)':'#FAF8F4', boxShadow: autoRefresh?'none':'0 1px 2px rgba(28,25,23,0.04)', border: autoRefresh?'1px solid rgba(45,90,61,0.12)':'1px solid rgba(214,208,196,0.4)', fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color: autoRefresh?'#2D5A3D':'#78716C' }}
             >
               <Activity size={12} />
               {autoRefresh ? 'Live' : 'Paused'}
@@ -631,7 +631,7 @@ export default function HealthMonitoringPage() {
               onClick={() => fetchData(true)}
               disabled={refreshing}
               className="p-2.5 rounded-xl transition-all"
-              style={{ backgroundColor:'var(--neu-bg)', boxShadow: refreshing?'var(--neu-inset)':'var(--neu-flat)', color:'#78716C' }}
+              style={{ backgroundColor: refreshing?'rgba(200,50,43,0.04)':'#FAF8F4', boxShadow: refreshing?'none':'0 1px 2px rgba(28,25,23,0.04)', border: refreshing?'1px solid rgba(200,50,43,0.12)':'1px solid rgba(214,208,196,0.4)', color:'#78716C' }}
             >
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>
@@ -640,7 +640,7 @@ export default function HealthMonitoringPage() {
               onClick={triggerAlertCheck}
               disabled={sendingAlert}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
-              style={{ backgroundColor:'#C8322B', color:'#FAF8F4', fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, boxShadow:'4px 4px 10px rgba(200,50,43,0.3)', opacity: sendingAlert?0.7:1 }}
+              style={{ backgroundColor:'#C8322B', color:'#FAF8F4', fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, boxShadow:'0 2px 8px rgba(200,50,43,0.25)', opacity: sendingAlert?0.7:1 }}
             >
               {sendingAlert ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
               <span className="hidden sm:inline">Alert Check</span>

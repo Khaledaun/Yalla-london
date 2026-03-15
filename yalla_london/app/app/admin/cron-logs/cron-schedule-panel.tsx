@@ -129,7 +129,7 @@ export function CronSchedulePanel() {
     return (
       <div className="text-center py-16">
         <Loader2 size={28} className="mx-auto animate-spin mb-3" style={{ color: '#78716C' }} />
-        <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C' }}>Loading cron schedule...</p>
+        <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#78716C' }}>Loading cron schedule...</p>
       </div>
     );
   }
@@ -151,9 +151,9 @@ export function CronSchedulePanel() {
             { label: 'Never Run',   val: s.neverRun, color: '#78716C' },
           ].map(({ label, val, color }) => (
             <div key={label} className="text-center py-4 px-3 rounded-xl"
-                 style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: 'var(--neu-flat,1px 1px 3px #CAC5BC, -1px -1px 3px #FDFAF5)' }}>
-              <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 24, color }}>{val}</div>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+                 style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 24, color }}>{val}</div>
+              <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -166,13 +166,14 @@ export function CronSchedulePanel() {
             <button key={cat} onClick={() => setCategoryFilter(cat)}
                     className="px-3 py-1.5 rounded-lg text-xs transition-all"
                     style={{
-                      fontFamily: "'IBM Plex Mono',monospace",
+                      fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                       fontSize: 9,
                       textTransform: 'uppercase',
                       letterSpacing: 0.8,
-                      backgroundColor: categoryFilter === cat ? (CATEGORY_COLORS[cat] || '#1C1917') : 'var(--neu-bg)',
+                      backgroundColor: categoryFilter === cat ? (CATEGORY_COLORS[cat] || '#1C1917') : '#FAF8F4',
                       color: categoryFilter === cat ? '#FAF8F4' : '#78716C',
-                      boxShadow: categoryFilter === cat ? 'none' : 'var(--neu-flat,1px 1px 3px #CAC5BC, -1px -1px 3px #FDFAF5)',
+                      boxShadow: categoryFilter === cat ? 'none' : '0 1px 2px rgba(28,25,23,0.04)',
+                      border: categoryFilter === cat ? 'none' : '1px solid rgba(214,208,196,0.4)',
                     }}>
               {cat}
             </button>
@@ -180,7 +181,7 @@ export function CronSchedulePanel() {
         </div>
         <button onClick={load}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all"
-                style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8, backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.8, backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
           <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
           Refresh
         </button>
@@ -198,7 +199,7 @@ export function CronSchedulePanel() {
 
           return (
             <div key={job.key} className="rounded-xl overflow-hidden"
-                 style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: 'var(--neu-flat,1px 1px 3px #CAC5BC, -1px -1px 3px #FDFAF5)' }}>
+                 style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
               {/* Main row */}
               <div className="flex items-center gap-3 p-4">
                 {/* Health dot */}
@@ -209,37 +210,37 @@ export function CronSchedulePanel() {
                 {/* Job info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                    <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
                       {job.label}
                     </span>
                     {job.critical && (
                       <span className="text-xs px-1.5 py-0.5 rounded"
-                            style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, backgroundColor: 'rgba(200,50,43,0.1)', color: '#C8322B', fontWeight: 600 }}>
+                            style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, backgroundColor: 'rgba(200,50,43,0.1)', color: '#C8322B', fontWeight: 600 }}>
                         CRITICAL
                       </span>
                     )}
                     <span className="text-xs px-1.5 py-0.5 rounded"
-                          style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, backgroundColor: `${CATEGORY_COLORS[job.category]}15`, color: CATEGORY_COLORS[job.category] || '#78716C' }}>
+                          style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, backgroundColor: `${CATEGORY_COLORS[job.category]}15`, color: CATEGORY_COLORS[job.category] || '#78716C' }}>
                       {job.category}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                       <Calendar size={9} className="inline mr-1" />
                       {job.humanSchedule}
                     </span>
-                    <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                       <Timer size={9} className="inline mr-1" />
                       {ago(job.lastRunAt)}
                     </span>
                     {job.avgDurationMs && (
-                      <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                      <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                         <Activity size={9} className="inline mr-1" />
                         avg {fmt(job.avgDurationMs)}
                       </span>
                     )}
                     {job.runs7d > 0 && (
-                      <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                      <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                         {job.runs7d} runs/7d • {job.failures7d} fails
                       </span>
                     )}
@@ -253,7 +254,7 @@ export function CronSchedulePanel() {
                         <div className="h-full rounded-full transition-all"
                              style={{ width: `${budgetPct}%`, backgroundColor: budgetPct > 90 ? '#C8322B' : budgetPct > 70 ? '#C49A2A' : '#2D5A3D' }} />
                       </div>
-                      <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#78716C' }}>
+                      <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C' }}>
                         {fmt(job.lastDurationMs)} / 53s budget
                       </span>
                     </div>
@@ -262,7 +263,7 @@ export function CronSchedulePanel() {
                   {/* Last error */}
                   {job.lastError && (
                     <div className="mt-1.5 text-xs px-2 py-1 rounded"
-                         style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, backgroundColor: 'rgba(200,50,43,0.08)', color: '#C8322B' }}>
+                         style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, backgroundColor: 'rgba(200,50,43,0.08)', color: '#C8322B' }}>
                       ✗ {job.lastError.slice(0, 100)}
                     </div>
                   )}
@@ -270,7 +271,7 @@ export function CronSchedulePanel() {
                   {/* Trigger result */}
                   {tr && (
                     <div className={`mt-1.5 text-xs px-2 py-1 rounded ${tr.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}
-                         style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10 }}>
+                         style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10 }}>
                       {tr.success ? '✓ Job triggered successfully' : `✗ ${tr.error}`}
                     </div>
                   )}
@@ -282,13 +283,13 @@ export function CronSchedulePanel() {
                           disabled={isTrig}
                           title="Run now"
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all"
-                          style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, backgroundColor: '#C8322B', color: '#FAF8F4', opacity: isTrig ? 0.7 : 1 }}>
+                          style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, backgroundColor: '#C8322B', color: '#FAF8F4', opacity: isTrig ? 0.7 : 1 }}>
                     {isTrig ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
                     Run
                   </button>
                   <button onClick={() => toggleExpanded(job.key)}
                           className="p-1.5 rounded-lg transition-all"
-                          style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
+                          style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
                     {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                   </button>
                 </div>
@@ -298,11 +299,11 @@ export function CronSchedulePanel() {
               {isExpanded && (
                 <div className="border-t px-4 pb-4 pt-3"
                      style={{ borderColor: 'rgba(120,113,108,0.1)' }}>
-                  <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: 1 }} className="mb-2">
+                  <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: 1 }} className="mb-2">
                     Recent Runs
                   </div>
                   {job.recentLogs.length === 0 && (
-                    <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#A8A29E' }}>No run history</p>
+                    <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#A8A29E' }}>No run history</p>
                   )}
                   <div className="space-y-1.5">
                     {job.recentLogs.map((log) => {
@@ -312,17 +313,17 @@ export function CronSchedulePanel() {
                         <div key={log.id} className="flex items-center gap-3 py-1.5 px-3 rounded-lg"
                              style={{ backgroundColor: logH.bg }}>
                           <LogIcon size={11} style={{ color: logH.color, flexShrink: 0 }} />
-                          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#57534E', flex: 1 }}>
+                          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#57534E', flex: 1 }}>
                             {ago(log.startedAt)}
                           </span>
-                          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                             {fmt(log.durationMs)}
                           </span>
-                          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#78716C' }}>
+                          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C' }}>
                             {log.itemsProcessed} items
                           </span>
                           {log.error && (
-                            <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#C8322B', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#C8322B', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {log.error}
                             </span>
                           )}

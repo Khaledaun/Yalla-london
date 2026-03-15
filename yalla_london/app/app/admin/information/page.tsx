@@ -15,18 +15,12 @@ import {
 } from '@/components/admin/admin-ui';
 import {
   FileText,
-  Plus,
   Edit,
   Eye,
   Trash2,
   Search,
-  BookOpen,
-  Layers,
-  Settings,
   CheckCircle2,
-  AlertCircle,
   Clock,
-  Globe,
   RefreshCw,
   ExternalLink,
   Save,

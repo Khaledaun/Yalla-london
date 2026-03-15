@@ -3,10 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import NextImage from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Palette,
   FileImage,
@@ -221,20 +217,19 @@ export default function DesignContent() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              className="admin-btn admin-btn-secondary text-sm px-3 py-1.5 inline-flex items-center gap-1"
               onClick={handleRefresh}
               disabled={isRefreshing}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
               Refresh
-            </Button>
+            </button>
             <Link href="/admin/design-studio">
-              <Button size="sm">
+              <button className="admin-btn admin-btn-primary text-sm px-3 py-1.5 inline-flex items-center gap-1">
                 <Plus className="h-4 w-4 mr-2" />
                 Open Studio
-              </Button>
+              </button>
             </Link>
           </div>
         </div>
@@ -243,7 +238,7 @@ export default function DesignContent() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-xl" />
+              <div key={i} className="h-24 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
             ))
           ) : (
             <>
@@ -261,8 +256,8 @@ export default function DesignContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {QUICK_CREATE_ITEMS.map((item) => (
               <Link key={item.title} href={item.href}>
-                <Card className="cursor-pointer transition-all hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 group h-full">
-                  <CardContent className="p-5 flex items-start gap-4">
+                <div className="cursor-pointer transition-all hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-600 group h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                  <div className="p-5 flex items-start gap-4">
                     <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 transition-colors shrink-0">
                       <item.icon className="h-6 w-6" />
                     </div>
@@ -275,8 +270,8 @@ export default function DesignContent() {
                       </p>
                     </div>
                     <ArrowRight className="h-5 w-5 text-gray-300 dark:text-gray-600 group-hover:text-indigo-400 transition-colors ml-auto shrink-0 mt-1" />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
@@ -288,15 +283,15 @@ export default function DesignContent() {
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-28 rounded-xl" />
+                <div key={i} className="h-28 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {brandStatuses.map((brand) => (
                 <Link key={brand.siteId} href={`/admin/brand-assets?site=${brand.siteId}`}>
-                  <Card className="cursor-pointer transition-all hover:shadow-md h-full">
-                    <CardContent className="p-4">
+                  <div className="cursor-pointer transition-all hover:shadow-md h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                    <div className="p-4">
                       <div className="flex items-center gap-3 mb-3">
                         <div
                           className="w-8 h-8 rounded-lg shrink-0"
@@ -307,21 +302,19 @@ export default function DesignContent() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <Badge
-                          variant={brand.assetCount > 0 ? "default" : "secondary"}
-                          className="text-xs"
+                        <span
+                          className={`admin-status-badge text-xs px-2 py-0.5 rounded-full ${brand.assetCount > 0 ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}
                         >
                           {brand.assetCount} asset{brand.assetCount !== 1 ? "s" : ""}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${brand.assetCount >= 5 ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400" : "border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400"}`}
+                        </span>
+                        <span
+                          className={`admin-status-badge text-xs px-2 py-0.5 rounded-full border ${brand.assetCount >= 5 ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400" : "border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400"}`}
                         >
                           {brand.assetCount >= 5 ? "Complete" : "Setup needed"}
-                        </Badge>
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -333,38 +326,38 @@ export default function DesignContent() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Designs</h2>
             <Link href="/admin/design-studio">
-              <Button variant="ghost" size="sm">
+              <button className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 inline-flex items-center gap-1 px-2 py-1">
                 View all <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
+              </button>
             </Link>
           </div>
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 rounded-xl" />
+                <div key={i} className="h-48 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
               ))}
             </div>
           ) : designs.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+              <div className="p-12 text-center">
                 <FileImage className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No designs yet</h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-4">
                   Create your first design using the Quick Create cards above or open the Design Studio.
                 </p>
                 <Link href="/admin/design-studio">
-                  <Button>
+                  <button className="admin-btn admin-btn-primary inline-flex items-center gap-1 px-4 py-2">
                     <Plus className="h-4 w-4 mr-2" />
                     Open Design Studio
-                  </Button>
+                  </button>
                 </Link>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {designs.map((design) => (
                 <Link key={design.id} href={`/admin/design-studio?id=${design.id}`}>
-                  <Card className="cursor-pointer transition-all hover:shadow-md group overflow-hidden h-full">
+                  <div className="cursor-pointer transition-all hover:shadow-md group overflow-hidden h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
                     {/* Thumbnail */}
                     <div className="aspect-video bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
                       {design.thumbnail ? (
@@ -384,7 +377,7 @@ export default function DesignContent() {
                         </div>
                       )}
                     </div>
-                    <CardContent className="p-3">
+                    <div className="p-3">
                       <h3 className="font-medium text-sm text-gray-900 dark:text-white truncate mb-2">
                         {design.title}
                       </h3>
@@ -402,8 +395,8 @@ export default function DesignContent() {
                         <Clock className="h-3 w-3" />
                         {formatDate(design.updatedAt)}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -428,8 +421,8 @@ function StatCard({
   color: string;
 }) {
   return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <div className="p-4 flex items-center gap-3">
         <div className={`p-2.5 rounded-xl ${color} shrink-0`}>
           <Icon className="h-5 w-5" />
         </div>
@@ -437,7 +430,7 @@ function StatCard({
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{label}</p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

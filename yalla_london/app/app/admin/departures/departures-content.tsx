@@ -1,9 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { RefreshCw, Play, CheckCircle, AlertTriangle, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -191,20 +188,20 @@ function DepartureRow({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-zinc-100 truncate">{dep.label}</span>
             {dep.siteId && (
-              <Badge className="text-[10px] px-1 py-0 bg-zinc-800 text-zinc-400">
+              <span className="admin-status-badge text-[10px] px-1 py-0 rounded bg-zinc-800 text-zinc-400">
                 {SITE_SHORT[dep.siteId] ?? dep.siteId}
-              </Badge>
+              </span>
             )}
             {dep.successRate7d !== null && (
-              <Badge className={`text-[10px] px-1.5 py-0 ${healthColor(dep.successRate7d)}`}>
+              <span className={`admin-status-badge text-[10px] px-1.5 py-0 rounded ${healthColor(dep.successRate7d)}`}>
                 {dep.successRate7d}% 7d
-              </Badge>
+              </span>
             )}
             {dep.status === 'ready' && (
-              <Badge className="text-[10px] px-1 py-0 bg-violet-900 text-violet-300">READY</Badge>
+              <span className="admin-status-badge text-[10px] px-1 py-0 rounded bg-violet-900 text-violet-300">READY</span>
             )}
             {dep.status === 'overdue' && (
-              <Badge className="text-[10px] px-1 py-0 bg-red-900 text-red-300">OVERDUE</Badge>
+              <span className="admin-status-badge text-[10px] px-1 py-0 rounded bg-red-900 text-red-300">OVERDUE</span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -236,14 +233,12 @@ function DepartureRow({
 
         {/* Do Now button */}
         {dep.cronPath && (
-          <Button
-            size="sm"
-            variant={dep.status === 'ready' || dep.status === 'overdue' ? 'default' : 'outline'}
-            className={`shrink-0 h-7 px-2 text-xs gap-1 ${
-              dep.status === 'ready' ? 'bg-violet-700 hover:bg-violet-600' :
-              dep.status === 'overdue' ? 'bg-red-700 hover:bg-red-600' :
-              'border-zinc-700 text-zinc-300 hover:bg-zinc-700'
-            }`}
+          <button
+            className={`shrink-0 h-7 px-2 text-xs gap-1 inline-flex items-center rounded-md transition-colors ${
+              dep.status === 'ready' ? 'bg-violet-700 hover:bg-violet-600 text-white' :
+              dep.status === 'overdue' ? 'bg-red-700 hover:bg-red-600 text-white' :
+              'border border-zinc-700 text-zinc-300 hover:bg-zinc-700'
+            } disabled:opacity-50`}
             onClick={(e) => { e.stopPropagation(); dep.cronPath && onTrigger(dep.cronPath) }}
             disabled={isTrig}
             title="Run now"
@@ -252,7 +247,7 @@ function DepartureRow({
               ? <RefreshCw className="w-3 h-3 animate-spin" />
               : <Play className="w-3 h-3" />}
             {isTrig ? 'Running…' : 'Do Now'}
-          </Button>
+          </button>
         )}
 
         {/* Expand chevron */}
@@ -308,8 +303,8 @@ function PipelineChain({ departures }: { departures: Departure[] }) {
   }
 
   return (
-    <Card className="bg-zinc-900 border-zinc-800">
-      <CardContent className="p-4">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl">
+      <div className="p-4">
         <div className="text-xs text-zinc-500 mb-3 font-medium">Content Pipeline Flow</div>
         <div className="flex items-center gap-1 overflow-x-auto pb-2">
           {PIPELINE_CHAIN.map((step, i) => {
@@ -331,8 +326,8 @@ function PipelineChain({ departures }: { departures: Departure[] }) {
             )
           })}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -376,14 +371,14 @@ function CategoryGroupView({
               <div className="flex items-center gap-2">
                 <span className="text-lg">{meta.icon}</span>
                 <span className={`text-sm font-semibold ${meta.color}`}>{meta.label}</span>
-                <Badge className="text-[10px] px-1.5 py-0 bg-zinc-800 text-zinc-400">{deps.length}</Badge>
+                <span className="admin-status-badge text-[10px] px-1.5 py-0 rounded bg-zinc-800 text-zinc-400">{deps.length}</span>
               </div>
               <div className="flex items-center gap-2">
                 {overdueCount > 0 && (
-                  <Badge className="text-[10px] px-1.5 py-0 bg-red-900 text-red-300">{overdueCount} overdue</Badge>
+                  <span className="admin-status-badge text-[10px] px-1.5 py-0 rounded bg-red-900 text-red-300">{overdueCount} overdue</span>
                 )}
                 {failedCount > 0 && (
-                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-900 text-amber-300">{failedCount} failed</Badge>
+                  <span className="admin-status-badge text-[10px] px-1.5 py-0 rounded bg-amber-900 text-amber-300">{failedCount} failed</span>
                 )}
               </div>
             </div>
@@ -492,18 +487,22 @@ export default function DeparturesContent() {
               className={`text-xs px-2.5 py-1 ${viewMode === 'category' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
             >By Category</button>
           </div>
-          <Button
-            variant={autoRefresh ? 'default' : 'outline'}
-            size="sm"
+          <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className="text-xs gap-1"
+            className={`text-xs gap-1 inline-flex items-center px-2.5 py-1 rounded-md transition-colors ${
+              autoRefresh ? 'bg-blue-600 text-white hover:bg-blue-700' : 'border border-zinc-700 text-zinc-300 hover:bg-zinc-700'
+            }`}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${autoRefresh ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
             {autoRefresh ? 'Live' : 'Paused'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="text-xs">
+          </button>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="text-xs inline-flex items-center px-2 py-1 rounded-md border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+          >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -558,12 +557,12 @@ export default function DeparturesContent() {
             { label: 'Failed (7d)', value: failedCount, color: failedCount > 0 ? 'text-amber-400' : 'text-zinc-500' },
             { label: 'Scheduled', value: departures.filter(d => d.status === 'scheduled').length, color: 'text-blue-400' },
           ].map((s) => (
-            <Card key={s.label} className="bg-zinc-900 border-zinc-800">
-              <CardContent className="p-3 text-center">
+            <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl">
+              <div className="p-3 text-center">
                 <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
                 <div className="text-xs text-zinc-500 mt-0.5">{s.label}</div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}

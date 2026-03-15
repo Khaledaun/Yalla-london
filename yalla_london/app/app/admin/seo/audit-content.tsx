@@ -77,10 +77,10 @@ export default function AuditContent() {
   return (
     <div className="space-y-6 pb-8">
       {/* Run Controls */}
-      <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+      <div className="rounded-xl p-4" style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
         <div className="flex items-center gap-2 mb-3">
           <Search style={{ width: 16, height: 16, color: '#6366F1' }} />
-          <span style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+          <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
             Master SEO Audit
           </span>
         </div>
@@ -99,7 +99,7 @@ export default function AuditContent() {
                 onClick={() => setMode(m)}
                 className="px-3 py-2 transition-all"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
                   fontSize: 10,
                   fontWeight: 600,
                   textTransform: 'uppercase',
@@ -119,14 +119,14 @@ export default function AuditContent() {
             disabled={running}
             className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all active:scale-[0.97] disabled:opacity-50"
             style={{
-              fontFamily: "'IBM Plex Mono', monospace",
+              fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
               fontSize: 11,
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: 1,
               color: '#FAF8F4',
               backgroundColor: '#6366F1',
-              boxShadow: '3px 3px 8px var(--neu-shadow-dark, #CAC5BC)',
+              boxShadow: '0 2px 6px rgba(99,102,241,0.25)',
               minHeight: 44,
             }}
           >
@@ -163,11 +163,11 @@ export default function AuditContent() {
               { label: 'Critical (P0)', value: result.bySeverity.P0, color: result.bySeverity.P0 > 0 ? '#C8322B' : '#16A34A' },
               { label: 'Duration', value: `${(result.duration / 1000).toFixed(1)}s`, color: '#78716C' },
             ].map(card => (
-              <div key={card.label} className="rounded-xl p-3" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
+              <div key={card.label} className="rounded-xl p-3" style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
+                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
                   {card.label}
                 </span>
-                <div style={{ fontFamily: "'Anybody', sans-serif", fontSize: 24, fontWeight: 800, color: card.color, marginTop: 2 }}>
+                <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontSize: 24, fontWeight: 800, color: card.color, marginTop: 2 }}>
                   {card.value}
                 </div>
               </div>
@@ -176,10 +176,10 @@ export default function AuditContent() {
 
           {/* Hard Gates */}
           {result.hardGates.length > 0 && (
-            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+            <div className="rounded-xl p-4" style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
               <div className="flex items-center gap-2 mb-3">
                 <Shield style={{ width: 14, height: 14, color: '#78716C' }} />
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
                   Hard Gates
                 </span>
               </div>
@@ -200,10 +200,10 @@ export default function AuditContent() {
 
           {/* Issue Severity Breakdown */}
           {result.totalIssues > 0 && (
-            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+            <div className="rounded-xl p-4" style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 style={{ width: 14, height: 14, color: '#78716C' }} />
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
                   Issues by Severity
                 </span>
               </div>
@@ -214,7 +214,7 @@ export default function AuditContent() {
                   const sc = severityColor(sev)
                   return (
                     <div key={sev} className="flex items-center gap-3">
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: sc.text, width: 65 }}>
+                      <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, fontWeight: 700, color: sc.text, width: 65 }}>
                         {sc.label} ({count})
                       </span>
                       <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(120,113,108,0.1)' }}>
@@ -229,11 +229,11 @@ export default function AuditContent() {
 
           {/* Issues List */}
           {result.issues.length > 0 && (
-            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+            <div className="rounded-xl p-4" style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle style={{ width: 14, height: 14, color: '#D97706' }} />
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                  <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
                     Issues ({result.issues.length})
                   </span>
                 </div>
@@ -244,15 +244,15 @@ export default function AuditContent() {
                   return (
                     <div key={i} className="rounded-lg px-3 py-2" style={{ backgroundColor: sc.bg }}>
                       <div className="flex items-center gap-2 mb-1">
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 700, color: sc.text, textTransform: 'uppercase' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, fontWeight: 700, color: sc.text, textTransform: 'uppercase' }}>
                           {issue.severity}
                         </span>
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C' }}>
                           {issue.validator}
                         </span>
                       </div>
                       <p style={{ fontSize: 12, color: '#1C1917', lineHeight: 1.4 }}>{issue.message}</p>
-                      <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#78716C', marginTop: 2 }} className="truncate">
+                      <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#78716C', marginTop: 2 }} className="truncate">
                         {issue.url}
                       </p>
                       {issue.recommendation && (
@@ -274,11 +274,11 @@ export default function AuditContent() {
 
           {/* Fix Plan */}
           {result.fixPlan && (
-            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+            <div className="rounded-xl p-4" style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <FileText style={{ width: 14, height: 14, color: '#6366F1' }} />
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                  <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
                     Fix Plan
                   </span>
                 </div>
@@ -294,7 +294,7 @@ export default function AuditContent() {
                   <button
                     onClick={() => setShowFixPlan(!showFixPlan)}
                     className="px-2 py-1 rounded-lg"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#6366F1' }}
+                    style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#6366F1' }}
                   >
                     {showFixPlan ? 'Collapse' : 'Expand'}
                   </button>
@@ -312,7 +312,7 @@ export default function AuditContent() {
           {result.execSummary && (
             <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
               <div className="flex items-center justify-between mb-2">
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6366F1' }}>
+                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6366F1' }}>
                   Executive Summary
                 </span>
                 <button

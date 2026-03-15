@@ -254,7 +254,7 @@ export default function TopicsContent() {
     <div className="grid grid-cols-1 gap-4">
       <div>
         <label style={{
-          fontFamily: "'IBM Plex Mono', monospace",
+          fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
           fontSize: 9,
           fontWeight: 600,
           textTransform: 'uppercase',
@@ -270,8 +270,8 @@ export default function TopicsContent() {
           onChange={(e) => setFilterLocale(e.target.value)}
           className="w-full px-3 py-2.5 rounded-xl border-none"
           style={{
-            backgroundColor: 'var(--neu-bg, #EDE9E1)',
-            boxShadow: 'var(--neu-inset)',
+            backgroundColor: 'rgba(200,50,43,0.04)',
+            border: '1px solid rgba(200,50,43,0.12)',
             fontSize: 13,
             color: '#1C1917',
             minHeight: 44,
@@ -284,7 +284,7 @@ export default function TopicsContent() {
       </div>
       <div>
         <label style={{
-          fontFamily: "'IBM Plex Mono', monospace",
+          fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
           fontSize: 9,
           fontWeight: 600,
           textTransform: 'uppercase',
@@ -300,8 +300,8 @@ export default function TopicsContent() {
           onChange={(e) => setFilterStatus(e.target.value)}
           className="w-full px-3 py-2.5 rounded-xl border-none"
           style={{
-            backgroundColor: 'var(--neu-bg, #EDE9E1)',
-            boxShadow: 'var(--neu-inset)',
+            backgroundColor: 'rgba(200,50,43,0.04)',
+            border: '1px solid rgba(200,50,43,0.12)',
             fontSize: 13,
             color: '#1C1917',
             minHeight: 44,
@@ -346,8 +346,8 @@ export default function TopicsContent() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border-none"
             style={{
-              backgroundColor: 'var(--neu-bg, #EDE9E1)',
-              boxShadow: 'var(--neu-inset)',
+              backgroundColor: 'rgba(200,50,43,0.04)',
+              border: '1px solid rgba(200,50,43,0.12)',
               fontSize: 13,
               color: '#1C1917',
               minHeight: 44,
@@ -360,8 +360,9 @@ export default function TopicsContent() {
           onClick={() => setFiltersOpen(true)}
           className="md:hidden flex items-center gap-1.5 px-3 py-2.5 rounded-xl transition-all relative"
           style={{
-            backgroundColor: 'var(--neu-bg, #EDE9E1)',
-            boxShadow: 'var(--neu-flat)',
+            backgroundColor: '#FAF8F4',
+            boxShadow: '0 1px 2px rgba(28,25,23,0.04)',
+            border: '1px solid rgba(214,208,196,0.4)',
             minHeight: 44,
             minWidth: 44,
           }}
@@ -382,8 +383,8 @@ export default function TopicsContent() {
             onChange={(e) => setFilterLocale(e.target.value)}
             className="px-3 py-2.5 rounded-xl border-none"
             style={{
-              backgroundColor: 'var(--neu-bg, #EDE9E1)',
-              boxShadow: 'var(--neu-inset)',
+              backgroundColor: 'rgba(200,50,43,0.04)',
+              border: '1px solid rgba(200,50,43,0.12)',
               fontSize: 12,
               color: '#1C1917',
               minHeight: 44,
@@ -398,8 +399,8 @@ export default function TopicsContent() {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-2.5 rounded-xl border-none"
             style={{
-              backgroundColor: 'var(--neu-bg, #EDE9E1)',
-              boxShadow: 'var(--neu-inset)',
+              backgroundColor: 'rgba(200,50,43,0.04)',
+              border: '1px solid rgba(200,50,43,0.12)',
               fontSize: 12,
               color: '#1C1917',
               minHeight: 44,
@@ -418,8 +419,9 @@ export default function TopicsContent() {
           onClick={fetchTopics}
           className="flex items-center justify-center rounded-xl transition-all"
           style={{
-            backgroundColor: 'var(--neu-bg, #EDE9E1)',
-            boxShadow: 'var(--neu-flat)',
+            backgroundColor: '#FAF8F4',
+            boxShadow: '0 1px 2px rgba(28,25,23,0.04)',
+            border: '1px solid rgba(214,208,196,0.4)',
             minHeight: 44,
             minWidth: 44,
           }}
@@ -436,7 +438,7 @@ export default function TopicsContent() {
           onClick={() => setFiltersOpen(false)}
           className="w-full mt-4 py-3 rounded-xl transition-all"
           style={{
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
             fontSize: 11,
             fontWeight: 700,
             textTransform: 'uppercase',
@@ -452,7 +454,7 @@ export default function TopicsContent() {
 
       {/* Topics count header */}
       <div className="mb-3" style={{
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
         fontSize: 10,
         fontWeight: 600,
         textTransform: 'uppercase',

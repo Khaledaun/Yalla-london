@@ -18,7 +18,19 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, ChevronDown } from "lucide-react";
+import { ShieldCheck, ChevronDown, AlertTriangle, FileText, Settings, Zap } from "lucide-react";
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminStatusBadge,
+  AdminKPICard,
+  AdminButton,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminTabs,
+} from "@/components/admin/admin-ui";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 
@@ -271,56 +283,46 @@ function shortDate(iso: string | null): string {
 }
 
 function scoreColor(score: number | null): string {
-  if (score === null) return "text-zinc-500";
-  if (score >= 80) return "text-emerald-400";
-  if (score >= 60) return "text-amber-400";
-  return "text-red-400";
+  if (score === null) return "text-stone-400";
+  if (score >= 80) return "text-[#2D5A3D]";
+  if (score >= 60) return "text-[#C49A2A]";
+  return "text-[#C8322B]";
 }
 
 function statusBadge(status: string): { label: string; color: string } {
   const map: Record<string, { label: string; color: string }> = {
-    published: { label: "✅ Published", color: "bg-emerald-900/50 text-emerald-300 border-emerald-700" },
-    reservoir: { label: "📦 Ready", color: "bg-blue-900/50 text-blue-300 border-blue-700" },
-    scoring: { label: "🔢 Scoring", color: "bg-purple-900/50 text-purple-300 border-purple-700" },
-    seo: { label: "🔍 SEO Check", color: "bg-purple-900/50 text-purple-300 border-purple-700" },
-    assembly: { label: "🔧 Assembling", color: "bg-amber-900/50 text-amber-300 border-amber-700" },
-    drafting: { label: "✍️ Drafting", color: "bg-amber-900/50 text-amber-300 border-amber-700" },
-    outline: { label: "📐 Outlining", color: "bg-amber-900/50 text-amber-300 border-amber-700" },
-    research: { label: "🔬 Research", color: "bg-amber-900/50 text-amber-300 border-amber-700" },
-    images: { label: "🖼 Images", color: "bg-amber-900/50 text-amber-300 border-amber-700" },
-    rejected: { label: "❌ Rejected", color: "bg-red-900/50 text-red-300 border-red-700" },
-    stuck: { label: "⚠️ Stuck", color: "bg-orange-900/50 text-orange-300 border-orange-700" },
+    published: { label: "Published", color: "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D] border-[rgba(45,90,61,0.2)]" },
+    reservoir: { label: "Ready", color: "bg-[rgba(59,126,161,0.08)] text-[#1e5a7a] border-[rgba(59,126,161,0.2)]" },
+    scoring: { label: "Scoring", color: "bg-[rgba(124,58,237,0.08)] text-[#5B21B6] border-[rgba(124,58,237,0.2)]" },
+    seo: { label: "SEO Check", color: "bg-[rgba(124,58,237,0.08)] text-[#5B21B6] border-[rgba(124,58,237,0.2)]" },
+    assembly: { label: "Assembling", color: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.2)]" },
+    drafting: { label: "Drafting", color: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.2)]" },
+    outline: { label: "Outlining", color: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.2)]" },
+    research: { label: "Research", color: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.2)]" },
+    images: { label: "Images", color: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.2)]" },
+    rejected: { label: "Rejected", color: "bg-[rgba(200,50,43,0.08)] text-[#C8322B] border-[rgba(200,50,43,0.2)]" },
+    stuck: { label: "Stuck", color: "bg-[rgba(217,119,6,0.08)] text-[#92400E] border-[rgba(217,119,6,0.2)]" },
   };
-  return map[status] ?? { label: status, color: "bg-zinc-800 text-zinc-300 border-zinc-600" };
+  return map[status] ?? { label: status, color: "bg-stone-50 text-stone-500 border-stone-200" };
 }
 
-// ─── Shared components ────────────────────────────────────────────────────────
+// ─── Shared components (clean light design wrappers) ─────────────────────────
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl p-4 sm:p-5 ${className}`}
-         style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised, 6px 6px 12px #CAC5BC, -6px -6px 12px #FFFFFF)' }}>
+    <AdminCard className={className}>
       {children}
-    </div>
+    </AdminCard>
   );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="mb-3" style={{
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
-      fontWeight: 600,
-      textTransform: 'uppercase',
-      letterSpacing: '1.5px',
-      color: '#78716C',
-    }}>{children}</h3>
-  );
+  return <AdminSectionLabel>{children}</AdminSectionLabel>;
 }
 
 function StatusDot({ ok, title }: { ok: boolean; title: string }) {
   return (
-    <span title={title} className={`inline-block w-2.5 h-2.5 rounded-full ring-2 ${ok ? "bg-emerald-500 ring-emerald-200" : "bg-red-500 ring-red-200"}`} />
+    <span title={title} className={`inline-block w-2.5 h-2.5 rounded-full ${ok ? "bg-[#2D5A3D]" : "bg-[#C8322B]"}`} />
   );
 }
 
@@ -339,26 +341,23 @@ function ActionButton({
   children: React.ReactNode;
   className?: string;
 }) {
-  const variantStyles: Record<string, React.CSSProperties> = {
-    default: { backgroundColor: 'var(--neu-bg, #EDE9E1)', color: '#1C1917', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)' },
-    danger: { backgroundColor: '#C8322B', color: '#FAF8F4', boxShadow: '3px 3px 8px rgba(200,50,43,0.3), -2px -2px 6px rgba(255,255,255,0.1)' },
-    success: { backgroundColor: '#16A34A', color: '#FAF8F4', boxShadow: '3px 3px 8px rgba(22,163,74,0.3), -2px -2px 6px rgba(255,255,255,0.1)' },
-    amber: { backgroundColor: '#D97706', color: '#FAF8F4', boxShadow: '3px 3px 8px rgba(217,119,6,0.3), -2px -2px 6px rgba(255,255,255,0.1)' },
+  const variantMap: Record<string, "secondary" | "danger" | "success" | "primary"> = {
+    default: "secondary",
+    danger: "danger",
+    success: "success",
+    amber: "primary",
   };
   return (
-    <button
+    <AdminButton
       onClick={onClick}
-      disabled={disabled || loading}
-      className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 active:scale-[0.97] ${className}`}
-      style={{
-        fontFamily: "'IBM Plex Mono', monospace",
-        fontSize: 11,
-        letterSpacing: '0.5px',
-        ...variantStyles[variant],
-      }}
+      loading={loading}
+      disabled={disabled}
+      variant={variantMap[variant] ?? "secondary"}
+      size="sm"
+      className={className}
     >
-      {loading ? "⏳ Working…" : children}
-    </button>
+      {children}
+    </AdminButton>
   );
 }
 
@@ -429,25 +428,25 @@ function ContentCleanupCard({ siteId }: { siteId: string }) {
       </div>
 
       {!scanResult && !scanning && (
-        <p className="text-xs text-zinc-500">Tap Scan to check for title artifacts, overlength meta descriptions, and duplicate articles.</p>
+        <p className="text-xs text-stone-500">Tap Scan to check for title artifacts, overlength meta descriptions, and duplicate articles.</p>
       )}
 
       {scanResult && (
         <div className="space-y-3">
           {/* Summary badges */}
           <div className="flex flex-wrap gap-2">
-            <span className={`px-2 py-1 rounded text-xs font-medium ${scanResult.artifacts.count > 0 ? "bg-amber-900/40 text-amber-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+            <span className={`px-2 py-1 rounded text-xs font-medium ${scanResult.artifacts.count > 0 ? "bg-[rgba(196,154,42,0.08)] text-[#7a5a10]" : "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D]"}`}>
               {scanResult.artifacts.count} artifact{scanResult.artifacts.count !== 1 ? "s" : ""}
             </span>
-            <span className={`px-2 py-1 rounded text-xs font-medium ${scanResult.duplicates.totalDuplicates > 0 ? "bg-red-900/40 text-red-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+            <span className={`px-2 py-1 rounded text-xs font-medium ${scanResult.duplicates.totalDuplicates > 0 ? "bg-[rgba(200,50,43,0.08)] text-[#C8322B]" : "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D]"}`}>
               {scanResult.duplicates.totalDuplicates} duplicate{scanResult.duplicates.totalDuplicates !== 1 ? "s" : ""} in {scanResult.duplicates.clusters} cluster{scanResult.duplicates.clusters !== 1 ? "s" : ""}
             </span>
             {scanResult.duplicates.publishedDuplicates > 0 && (
-              <span className="px-2 py-1 rounded text-xs font-medium bg-red-900/60 text-red-200">
+              <span className="px-2 py-1 rounded text-xs font-medium bg-[rgba(200,50,43,0.10)] text-[#C8322B]">
                 {scanResult.duplicates.publishedDuplicates} published dups!
               </span>
             )}
-            <span className="px-2 py-1 rounded text-xs font-medium bg-zinc-800 text-zinc-400">
+            <span className="px-2 py-1 rounded text-xs font-medium bg-stone-100 text-stone-400">
               {scanResult.totalArticles} total
             </span>
           </div>
@@ -475,7 +474,7 @@ function ContentCleanupCard({ siteId }: { siteId: string }) {
           {hasIssues && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-700 transition-colors"
             >
               <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
               {expanded ? "Hide details" : "Show details"}
@@ -484,39 +483,39 @@ function ContentCleanupCard({ siteId }: { siteId: string }) {
 
           {expanded && scanResult.artifacts.count > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-amber-400">Artifacts Found:</p>
+              <p className="text-xs font-medium text-[#C49A2A]">Artifacts Found:</p>
               {scanResult.artifacts.items.slice(0, 10).map((a, i) => (
-                <div key={i} className="text-xs bg-zinc-900 rounded p-2 space-y-0.5">
-                  <div className="text-zinc-400 truncate">{a.slug}</div>
-                  <div className="text-red-400 truncate">
-                    <span className="text-zinc-500">{a.field}:</span> {a.before}
+                <div key={i} className="text-xs bg-stone-50 rounded p-2 space-y-0.5">
+                  <div className="text-stone-400 truncate">{a.slug}</div>
+                  <div className="text-[#C8322B] truncate">
+                    <span className="text-stone-500">{a.field}:</span> {a.before}
                   </div>
-                  <div className="text-emerald-400 truncate">→ {a.after}</div>
+                  <div className="text-[#2D5A3D] truncate">→ {a.after}</div>
                 </div>
               ))}
               {scanResult.artifacts.items.length > 10 && (
-                <p className="text-xs text-zinc-500">...and {scanResult.artifacts.items.length - 10} more</p>
+                <p className="text-xs text-stone-500">...and {scanResult.artifacts.items.length - 10} more</p>
               )}
             </div>
           )}
 
           {expanded && scanResult.duplicates.items.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-red-400">Duplicate Clusters:</p>
+              <p className="text-xs font-medium text-[#C8322B]">Duplicate Clusters:</p>
               {scanResult.duplicates.items.slice(0, 5).map((cluster, i) => (
-                <div key={i} className="text-xs bg-zinc-900 rounded p-2 space-y-1">
-                  <div className="text-emerald-400 truncate">
+                <div key={i} className="text-xs bg-stone-50 rounded p-2 space-y-1">
+                  <div className="text-[#2D5A3D] truncate">
                     KEEP: {cluster.keep.title} ({cluster.keep.wordCount}w, SEO:{cluster.keep.seoScore ?? "?"})
                   </div>
                   {cluster.duplicates.map((d, j) => (
-                    <div key={j} className="text-red-400 truncate pl-2">
+                    <div key={j} className="text-[#C8322B] truncate pl-2">
                       DUP: {d.title} ({d.wordCount}w) — {d.reason} {d.published ? "⚠️ PUBLISHED" : ""}
                     </div>
                   ))}
                 </div>
               ))}
               {scanResult.duplicates.items.length > 5 && (
-                <p className="text-xs text-zinc-500">...and {scanResult.duplicates.items.length - 5} more clusters</p>
+                <p className="text-xs text-stone-500">...and {scanResult.duplicates.items.length - 5} more clusters</p>
               )}
             </div>
           )}
@@ -524,7 +523,7 @@ function ContentCleanupCard({ siteId }: { siteId: string }) {
       )}
 
       {fixResult && (
-        <p className={`mt-2 text-xs p-2 rounded ${fixResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+        <p className={`mt-2 text-xs p-2 rounded ${fixResult.startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
           {fixResult}
         </p>
       )}
@@ -750,11 +749,11 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
   };
 
   const statusColor = {
-    indexed: "text-emerald-400 bg-emerald-950/40 border-emerald-800",
-    submitted: "text-blue-400 bg-blue-950/40 border-blue-800",
-    not_indexed: "text-amber-400 bg-amber-950/40 border-amber-800",
-    error: "text-red-400 bg-red-950/40 border-red-800",
-    never_submitted: "text-zinc-400 bg-zinc-800/60 border-zinc-700",
+    indexed: "text-[#2D5A3D] bg-[rgba(45,90,61,0.08)] border-[rgba(45,90,61,0.3)]",
+    submitted: "text-blue-400 bg-[rgba(59,126,161,0.08)] border-[rgba(59,126,161,0.3)]",
+    not_indexed: "text-[#C49A2A] bg-[rgba(196,154,42,0.08)] border-[rgba(196,154,42,0.3)]",
+    error: "text-[#C8322B] bg-[rgba(200,50,43,0.08)] border-[rgba(200,50,43,0.3)]",
+    never_submitted: "text-stone-400 bg-stone-100/60 border-stone-200",
   } as const;
 
   const statusLabel = {
@@ -767,10 +766,10 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
   } as const;
 
   const healthColor = {
-    healthy: "border-emerald-700 bg-emerald-950/30",
-    warning: "border-amber-700 bg-amber-950/30",
-    critical: "border-red-700 bg-red-950/30",
-    not_started: "border-zinc-700 bg-zinc-800/30",
+    healthy: "border-[rgba(45,90,61,0.25)] bg-[rgba(45,90,61,0.06)]",
+    warning: "border-amber-700 bg-[rgba(196,154,42,0.06)]",
+    critical: "border-red-700 bg-[rgba(200,50,43,0.06)]",
+    not_started: "border-stone-200 bg-stone-100/30",
   } as const;
 
   const filtered = (data?.articles ?? []).filter((a) => {
@@ -779,25 +778,25 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950" role="dialog" aria-label="Indexing Status">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white" role="dialog" aria-label="Indexing Status">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
+      <div className="sticky top-0 z-10 bg-stone-50 border-b border-stone-200 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
         <div>
           <h2 className="text-sm font-bold text-white">🔍 Indexing Status</h2>
-          <p className="text-xs text-zinc-500">{siteId} — published articles only (GSC counts all URLs incl. /ar/ variants &amp; static pages)</p>
+          <p className="text-xs text-stone-500">{siteId} — published articles only (GSC counts all URLs incl. /ar/ variants &amp; static pages)</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchData}
             disabled={loading}
-            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs disabled:opacity-50"
+            className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-400 text-xs disabled:opacity-50"
             title="Refresh"
           >
             {loading ? "⏳" : "↻"}
           </button>
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium"
+            className="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium"
           >
             ✕ Close
           </button>
@@ -807,12 +806,12 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-screen-xl mx-auto w-full">
         {loading && !data && (
           <div className="flex items-center justify-center h-48">
-            <p className="text-zinc-500 text-sm">Loading indexing data…</p>
+            <p className="text-stone-500 text-sm">Loading indexing data…</p>
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-xl border border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.06)] px-4 py-3 text-sm text-red-300">
             ⚠️ {error}
             <button onClick={fetchData} className="ml-3 underline text-xs">Retry</button>
           </div>
@@ -822,12 +821,12 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
           <>
             {/* Health Diagnosis */}
             <div className={`rounded-xl border px-4 py-3 ${healthColor[data.healthDiagnosis.status as keyof typeof healthColor] || healthColor.not_started}`}>
-              <div className="font-semibold text-sm text-zinc-100">{data.healthDiagnosis.message}</div>
-              <div className="text-xs text-zinc-400 mt-1">{data.healthDiagnosis.detail}</div>
+              <div className="font-semibold text-sm text-stone-800">{data.healthDiagnosis.message}</div>
+              <div className="text-xs text-stone-400 mt-1">{data.healthDiagnosis.detail}</div>
               {typeof data.healthDiagnosis.indexingRate === "number" && data.healthDiagnosis.indexingRate > 0 && (
-                <div className="mt-2 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div className="mt-2 h-1.5 rounded-full bg-stone-100 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-emerald-500 transition-all"
+                    className="h-full rounded-full bg-[#2D5A3D] transition-all"
                     style={{ width: `${data.healthDiagnosis.indexingRate}%` }}
                   />
                 </div>
@@ -837,35 +836,35 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
             {/* Summary Stats */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {[
-                ["Total", data.summary.total, "text-zinc-300", "all"],
-                ["Indexed", data.summary.indexed, "text-emerald-400", "indexed"],
+                ["Total", data.summary.total, "text-stone-600", "all"],
+                ["Indexed", data.summary.indexed, "text-[#2D5A3D]", "indexed"],
                 ["Submitted", data.summary.submitted, "text-blue-400", "submitted"],
-                ["Discovered", data.summary.discovered ?? 0, "text-amber-400", "discovered"],
-                ["Untracked", data.summary.neverSubmitted, "text-zinc-400", "never_submitted"],
-                ["Errors", data.summary.errors, "text-red-400", "error"],
+                ["Discovered", data.summary.discovered ?? 0, "text-[#C49A2A]", "discovered"],
+                ["Untracked", data.summary.neverSubmitted, "text-stone-400", "never_submitted"],
+                ["Errors", data.summary.errors, "text-[#C8322B]", "error"],
               ].map(([label, val, color, filter]) => (
                 <button
                   key={label as string}
                   onClick={() => setStatusFilter(filter as string)}
                   className={`rounded-xl border text-center py-2.5 px-1 transition-colors ${
                     statusFilter === filter
-                      ? "border-zinc-500 bg-zinc-800"
-                      : "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/60"
+                      ? "border-stone-300 bg-stone-100"
+                      : "border-stone-200 bg-stone-50/50 hover:bg-stone-100/60"
                   }`}
                 >
                   <div className={`text-lg font-bold ${color}`}>{val}</div>
-                  <div className="text-[10px] text-zinc-500 mt-0.5 leading-tight">{label}</div>
+                  <div className="text-[10px] text-stone-500 mt-0.5 leading-tight">{label}</div>
                 </button>
               ))}
             </div>
 
             {/* Config warnings */}
             {(!data.config.hasIndexNowKey || !data.config.hasGscCredentials) && (
-              <div className="rounded-xl border border-amber-700 bg-amber-950/20 px-4 py-3 text-xs space-y-1">
-                <p className="font-semibold text-amber-300">⚠️ Indexing Not Fully Configured</p>
-                {!data.config.hasIndexNowKey && <p className="text-amber-400/80">INDEXNOW_KEY not set — cannot submit to Bing/Yandex</p>}
-                {!data.config.hasGscCredentials && <p className="text-amber-400/80">Google Search Console credentials not configured</p>}
-                <p className="text-zinc-500">Add missing keys in Vercel Dashboard → Settings → Environment Variables</p>
+              <div className="rounded-xl border border-amber-700 bg-[rgba(196,154,42,0.04)] px-4 py-3 text-xs space-y-1">
+                <p className="font-semibold text-[#7a5a10]">⚠️ Indexing Not Fully Configured</p>
+                {!data.config.hasIndexNowKey && <p className="text-[#C49A2A]/80">INDEXNOW_KEY not set — cannot submit to Bing/Yandex</p>}
+                {!data.config.hasGscCredentials && <p className="text-[#C49A2A]/80">Google Search Console credentials not configured</p>}
+                <p className="text-stone-500">Add missing keys in Vercel Dashboard → Settings → Environment Variables</p>
               </div>
             )}
 
@@ -873,7 +872,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
             <button
               onClick={syncWithGoogle}
               disabled={submitLoading === "gsc-sync"}
-              className="w-full px-4 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-[#2D5A3D] hover:bg-[#1e4a2d] text-white text-sm font-bold disabled:opacity-50 transition-colors"
             >
               {submitLoading === "gsc-sync" ? "⏳ Syncing with Google Search Console…" : "📡 Sync with Google — Get Real Indexed Count"}
             </button>
@@ -896,7 +895,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
               </button>
             </div>
             {submitResult && (
-              <div className={`text-xs px-3 py-2 rounded-xl ${submitResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300 border border-emerald-800" : submitResult.startsWith("⚠️") ? "bg-amber-950/30 text-amber-300 border border-amber-800" : "bg-red-950/30 text-red-300 border border-red-800"}`}>
+              <div className={`text-xs px-3 py-2 rounded-xl ${submitResult.startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] border border-[rgba(45,90,61,0.3)]" : submitResult.startsWith("⚠️") ? "bg-[rgba(196,154,42,0.06)] text-[#7a5a10] border border-[rgba(196,154,42,0.3)]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border border-[rgba(200,50,43,0.3)]"}`}>
                 {submitResult}
               </div>
             )}
@@ -904,8 +903,8 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
             {/* Article List */}
             <div className="space-y-2">
               {filtered.length === 0 ? (
-                <div className="rounded-xl border border-zinc-800 py-8 text-center">
-                  <p className="text-zinc-500 text-sm">No articles match this filter.</p>
+                <div className="rounded-xl border border-stone-200 py-8 text-center">
+                  <p className="text-stone-500 text-sm">No articles match this filter.</p>
                 </div>
               ) : (
                 filtered.map((article) => {
@@ -913,13 +912,13 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                   const statusCls = statusColor[article.indexingStatus] || statusColor.never_submitted;
                   const statusLbl = statusLabel[article.indexingStatus] || article.indexingStatus;
                   return (
-                    <div key={article.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+                    <div key={article.id} className="rounded-xl border border-stone-200 bg-stone-50/50 overflow-hidden">
                       {/* Row */}
                       <div className="px-3 py-2.5 flex flex-col gap-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-zinc-100 truncate">{article.title}</p>
-                            <p className="text-[10px] text-zinc-500 truncate mt-0.5">/blog/{article.slug}</p>
+                            <p className="text-xs font-medium text-stone-800 truncate">{article.title}</p>
+                            <p className="text-[10px] text-stone-500 truncate mt-0.5">/blog/{article.slug}</p>
                           </div>
                           <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
                             {statusLbl}
@@ -927,7 +926,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                         </div>
 
                         {/* Metrics row */}
-                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] text-zinc-500">
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] text-stone-500">
                           {article.publishedAt && (
                             <span>📅 Published: {new Date(article.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                           )}
@@ -937,11 +936,11 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                           {article.submittedAt && (
                             <span>📤 Submitted: {new Date(article.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                           )}
-                          <span className={article.wordCount < 300 ? "text-red-400" : article.wordCount < 800 ? "text-amber-400" : "text-zinc-500"}>
+                          <span className={article.wordCount < 300 ? "text-[#C8322B]" : article.wordCount < 800 ? "text-[#C49A2A]" : "text-stone-500"}>
                             📝 {article.wordCount.toLocaleString()} words
                           </span>
                           {article.seoScore > 0 && (
-                            <span className={article.seoScore >= 70 ? "text-emerald-400" : article.seoScore >= 50 ? "text-amber-400" : "text-red-400"}>
+                            <span className={article.seoScore >= 70 ? "text-[#2D5A3D]" : article.seoScore >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"}>
                               SEO: {article.seoScore}/100
                             </span>
                           )}
@@ -949,15 +948,15 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                           {article.gscImpressions !== null ? (
                             <span className="text-purple-400">👁 {article.gscImpressions.toLocaleString()} impressions</span>
                           ) : (
-                            <span className="text-zinc-600">👁 — impressions</span>
+                            <span className="text-stone-500">👁 — impressions</span>
                           )}
                           {article.gscClicks !== null ? (
                             <span className="text-cyan-400">🖱 {article.gscClicks.toLocaleString()} clicks</span>
                           ) : (
-                            <span className="text-zinc-600">🖱 — clicks</span>
+                            <span className="text-stone-500">🖱 — clicks</span>
                           )}
                           {article.gscPosition !== null && (
-                            <span className="text-zinc-400">Pos: #{Math.round(article.gscPosition)}</span>
+                            <span className="text-stone-400">Pos: #{Math.round(article.gscPosition)}</span>
                           )}
                         </div>
 
@@ -965,7 +964,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                         <div className="flex items-center justify-between gap-2 mt-0.5">
                           <div className="flex-1 min-w-0">
                             {article.notIndexedReasons.length > 0 && !isExpanded && (
-                              <p className="text-[10px] text-amber-400/80 truncate">
+                              <p className="text-[10px] text-[#C49A2A]/80 truncate">
                                 ⚠️ {article.notIndexedReasons[0]}
                               </p>
                             )}
@@ -975,7 +974,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                               <button
                                 onClick={() => submitArticle(article.slug)}
                                 disabled={submitLoading === article.slug}
-                                className="text-[10px] px-2 py-0.5 rounded-md bg-blue-900/40 hover:bg-blue-900/70 text-blue-300 border border-blue-800 disabled:opacity-50"
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-[rgba(59,126,161,0.08)] hover:bg-[rgba(59,126,161,0.15)] text-[#1e5a7a] border border-[rgba(59,126,161,0.3)] disabled:opacity-50"
                               >
                                 {submitLoading === article.slug ? "⏳" : "Submit"}
                               </button>
@@ -983,14 +982,14 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
                             <button
                               onClick={() => verifyUrl(article.url)}
                               disabled={submitLoading === `verify-${article.url}`}
-                              className="text-[10px] px-2 py-0.5 rounded-md bg-purple-900/40 hover:bg-purple-900/70 text-purple-300 border border-purple-800 disabled:opacity-50"
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-[rgba(124,58,237,0.08)] hover:bg-[rgba(124,58,237,0.15)] text-[#5B21B6] border border-[rgba(124,58,237,0.3)] disabled:opacity-50"
                             >
                               {submitLoading === `verify-${article.url}` ? "⏳" : "Check"}
                             </button>
                             {(article.notIndexedReasons.length > 0 || article.coverageState) && (
                               <button
                                 onClick={() => setExpanded(isExpanded ? null : article.id)}
-                                className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-400"
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-400"
                               >
                                 {isExpanded ? "▲ Hide" : "▼ Issues"}
                               </button>
@@ -1000,64 +999,64 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
 
                         {/* Expanded reasons */}
                         {isExpanded && (
-                          <div className="mt-2 pt-2 border-t border-zinc-800 space-y-1.5">
+                          <div className="mt-2 pt-2 border-t border-stone-200 space-y-1.5">
                             {article.coverageState && (
-                              <p className="text-[10px] text-zinc-400 bg-zinc-800/60 rounded px-2 py-1">
-                                <span className="font-medium text-zinc-300">Google coverage: </span>{article.coverageState}
+                              <p className="text-[10px] text-stone-400 bg-stone-100/60 rounded px-2 py-1">
+                                <span className="font-medium text-stone-600">Google coverage: </span>{article.coverageState}
                               </p>
                             )}
                             {article.notIndexedReasons.map((reason, i) => (
-                              <p key={i} className="text-[10px] text-amber-400/90 bg-amber-950/20 rounded px-2 py-1">
+                              <p key={i} className="text-[10px] text-[#C49A2A]/90 bg-[rgba(196,154,42,0.04)] rounded px-2 py-1">
                                 • {reason}
                               </p>
                             ))}
-                            <div className="flex gap-3 text-[10px] text-zinc-500 pt-1">
+                            <div className="flex gap-3 text-[10px] text-stone-500 pt-1">
                               <span>IndexNow: {article.submittedIndexnow ? "✅" : "❌"}</span>
                               <span>Sitemap: {article.submittedSitemap ? "✅" : "❌"}</span>
                               <span>Attempts: {article.submissionAttempts}</span>
                             </div>
                             {/* GSC Inspection Details */}
                             {article.inspection && (
-                              <div className="mt-2 pt-2 border-t border-zinc-800/50">
-                                <p className="text-[10px] font-medium text-zinc-400 mb-1">GSC Inspection</p>
+                              <div className="mt-2 pt-2 border-t border-stone-200/50">
+                                <p className="text-[10px] font-medium text-stone-400 mb-1">GSC Inspection</p>
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px]">
                                   {article.inspection.verdict && (
-                                    <span className={article.inspection.verdict === "PASS" ? "text-emerald-400" : "text-red-400"}>
+                                    <span className={article.inspection.verdict === "PASS" ? "text-[#2D5A3D]" : "text-[#C8322B]"}>
                                       Verdict: {article.inspection.verdict}
                                     </span>
                                   )}
                                   {article.inspection.pageFetchState && (
-                                    <span className={article.inspection.pageFetchState === "SUCCESSFUL" ? "text-emerald-400" : "text-amber-400"}>
+                                    <span className={article.inspection.pageFetchState === "SUCCESSFUL" ? "text-[#2D5A3D]" : "text-[#C49A2A]"}>
                                       Fetch: {article.inspection.pageFetchState}
                                     </span>
                                   )}
                                   {article.inspection.robotsTxtState && (
-                                    <span className={article.inspection.robotsTxtState === "ALLOWED" ? "text-zinc-500" : "text-red-400"}>
+                                    <span className={article.inspection.robotsTxtState === "ALLOWED" ? "text-stone-500" : "text-[#C8322B]"}>
                                       Robots: {article.inspection.robotsTxtState}
                                     </span>
                                   )}
                                   {article.inspection.indexingAllowed && (
-                                    <span className={article.inspection.indexingAllowed.includes("ALLOWED") ? "text-zinc-500" : "text-red-400"}>
+                                    <span className={article.inspection.indexingAllowed.includes("ALLOWED") ? "text-stone-500" : "text-[#C8322B]"}>
                                       Indexing: {article.inspection.indexingAllowed}
                                     </span>
                                   )}
                                   {article.inspection.crawledAs && (
-                                    <span className="text-zinc-500">Crawler: {article.inspection.crawledAs}</span>
+                                    <span className="text-stone-500">Crawler: {article.inspection.crawledAs}</span>
                                   )}
                                   {article.inspection.mobileUsabilityVerdict && (
-                                    <span className={article.inspection.mobileUsabilityVerdict === "PASS" ? "text-zinc-500" : "text-amber-400"}>
+                                    <span className={article.inspection.mobileUsabilityVerdict === "PASS" ? "text-stone-500" : "text-[#C49A2A]"}>
                                       Mobile: {article.inspection.mobileUsabilityVerdict}
                                     </span>
                                   )}
                                   {article.inspection.referringUrlCount > 0 && (
-                                    <span className="text-zinc-500">Referring URLs: {article.inspection.referringUrlCount}</span>
+                                    <span className="text-stone-500">Referring URLs: {article.inspection.referringUrlCount}</span>
                                   )}
                                   {article.inspection.sitemapCount > 0 && (
-                                    <span className="text-zinc-500">Sitemaps: {article.inspection.sitemapCount}</span>
+                                    <span className="text-stone-500">Sitemaps: {article.inspection.sitemapCount}</span>
                                   )}
                                 </div>
                                 {article.inspection.canonicalMismatch && (
-                                  <p className="text-[10px] text-red-400 mt-1">
+                                  <p className="text-[10px] text-[#C8322B] mt-1">
                                     ⚠️ Canonical mismatch — yours: {article.inspection.userCanonical} | Google: {article.inspection.googleCanonical}
                                   </p>
                                 )}
@@ -1075,12 +1074,12 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
             {/* System Issues */}
             {data.systemIssues.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-zinc-400">System Issues</p>
+                <p className="text-xs font-semibold text-stone-400">System Issues</p>
                 {data.systemIssues.map((issue, i) => (
                   <div key={i} className={`rounded-xl border px-3 py-2 text-xs ${
-                    issue.severity === "critical" ? "border-red-800 bg-red-950/20 text-red-300" :
-                    issue.severity === "warning" ? "border-amber-800 bg-amber-950/20 text-amber-300" :
-                    "border-zinc-700 bg-zinc-800/30 text-zinc-400"
+                    issue.severity === "critical" ? "border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.04)] text-red-300" :
+                    issue.severity === "warning" ? "border-[rgba(196,154,42,0.3)] bg-[rgba(196,154,42,0.04)] text-[#7a5a10]" :
+                    "border-stone-200 bg-stone-100/30 text-stone-400"
                   }`}>
                     <div className="font-medium">{issue.category}: {issue.message}</div>
                     <div className="text-[10px] mt-0.5 opacity-80">{issue.detail}</div>
@@ -1127,21 +1126,21 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
     return () => { cancelled = true; };
   }, [siteId]);
 
-  const urgencyColor = (u: string) => u === "breaking" ? "text-red-400" : u === "urgent" ? "text-amber-400" : "text-zinc-400";
-  const statusBadge = (s: string) => s === "published" ? "bg-emerald-900/40 text-emerald-300" : s === "draft" ? "bg-blue-900/40 text-blue-300" : "bg-zinc-800 text-zinc-400";
+  const urgencyColor = (u: string) => u === "breaking" ? "text-[#C8322B]" : u === "urgent" ? "text-[#C49A2A]" : "text-stone-400";
+  const statusBadge = (s: string) => s === "published" ? "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D]" : s === "draft" ? "bg-[rgba(59,126,161,0.08)] text-[#1e5a7a]" : "bg-stone-100 text-stone-400";
 
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
         <SectionTitle>London News</SectionTitle>
-        <Link href="/admin/news" className="text-[10px] text-blue-400 hover:text-blue-300">View All →</Link>
+        <Link href="/admin/news" className="text-[10px] text-blue-400 hover:text-[#1e5a7a]">View All →</Link>
       </div>
 
       {loading ? (
-        <p className="text-xs text-zinc-500 text-center py-3">Loading…</p>
+        <p className="text-xs text-stone-500 text-center py-3">Loading…</p>
       ) : !news || news.total === 0 ? (
         <div className="text-center py-3">
-          <p className="text-xs text-zinc-500 mb-2">No news items yet</p>
+          <p className="text-xs text-stone-500 mb-2">No news items yet</p>
           <ActionButton
             onClick={() => triggerAction("/api/cron/london-news", {}, "News")}
             loading={actionLoading === "News"}
@@ -1154,21 +1153,21 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
         <>
           {/* Stats row */}
           <div className="grid grid-cols-4 gap-2 text-center text-xs mb-3">
-            <div className="bg-zinc-800/50 rounded-lg p-2">
-              <div className="text-lg font-bold text-zinc-200">{news.total}</div>
-              <div className="text-[10px] text-zinc-500">Total</div>
+            <div className="bg-stone-100/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-stone-700">{news.total}</div>
+              <div className="text-[10px] text-stone-500">Total</div>
             </div>
-            <div className="bg-zinc-800/50 rounded-lg p-2">
-              <div className="text-lg font-bold text-emerald-400">{news.published}</div>
-              <div className="text-[10px] text-zinc-500">Published</div>
+            <div className="bg-stone-100/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-[#2D5A3D]">{news.published}</div>
+              <div className="text-[10px] text-stone-500">Published</div>
             </div>
-            <div className="bg-zinc-800/50 rounded-lg p-2">
+            <div className="bg-stone-100/50 rounded-lg p-2">
               <div className="text-lg font-bold text-blue-400">{news.draft}</div>
-              <div className="text-[10px] text-zinc-500">Draft</div>
+              <div className="text-[10px] text-stone-500">Draft</div>
             </div>
-            <div className="bg-zinc-800/50 rounded-lg p-2">
-              <div className={`text-lg font-bold ${news.expiringSoon > 0 ? "text-amber-400" : "text-zinc-600"}`}>{news.expiringSoon}</div>
-              <div className="text-[10px] text-zinc-500">Expiring</div>
+            <div className="bg-stone-100/50 rounded-lg p-2">
+              <div className={`text-lg font-bold ${news.expiringSoon > 0 ? "text-[#C49A2A]" : "text-stone-500"}`}>{news.expiringSoon}</div>
+              <div className="text-[10px] text-stone-500">Expiring</div>
             </div>
           </div>
 
@@ -1180,7 +1179,7 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
                   <span className={urgencyColor(item.urgency)}>
                     {item.urgency === "breaking" ? "🔴" : item.urgency === "urgent" ? "🟠" : "🔵"}
                   </span>
-                  <span className="text-zinc-300 truncate flex-1">{item.headline_en}</span>
+                  <span className="text-stone-600 truncate flex-1">{item.headline_en}</span>
                   <span className={`px-1.5 py-0.5 rounded text-[9px] ${statusBadge(item.status)}`}>{item.status}</span>
                 </div>
               ))}
@@ -1265,7 +1264,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
   if (!data) {
     return (
       <div className="flex items-center justify-center h-48">
-        <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: '2px' }}>Loading mission control…</p>
+        <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: '2px' }}>Loading mission control…</p>
       </div>
     );
   }
@@ -1287,29 +1286,29 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <StatusDot ok={system.db.connected} title={system.db.error ?? "DB connected"} />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>Database</span>
-            {system.db.latencyMs > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{system.db.latencyMs}ms</span>}
+            <span style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 500, color: '#44403C' }}>Database</span>
+            {system.db.latencyMs > 0 && <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E' }}>{system.db.latencyMs}ms</span>}
           </div>
           <div className="flex items-center gap-2">
             <StatusDot ok={system.ai.configured} title={system.ai.activeProviders.join(", ") || "No AI key"} />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>AI</span>
+            <span style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 500, color: '#44403C' }}>AI</span>
             {system.ai.activeProviders.length > 0 ? (
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{system.ai.activeProviders.join(", ")}</span>
+              <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E' }}>{system.ai.activeProviders.join(", ")}</span>
             ) : (
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#C8322B', fontWeight: 600 }}>No keys</span>
+              <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#C8322B', fontWeight: 600 }}>No keys</span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <StatusDot ok={system.indexNow.configured} title="IndexNow" />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>IndexNow</span>
+            <span style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 500, color: '#44403C' }}>IndexNow</span>
           </div>
           <div className="flex items-center gap-2">
             <StatusDot ok={system.gsc.configured} title="Google Search Console" />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, fontWeight: 500, color: '#44403C' }}>GSC</span>
+            <span style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 500, color: '#44403C' }}>GSC</span>
           </div>
         </div>
         {!system.db.connected && system.db.error && (
-          <p className="mt-2" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B' }}>{system.db.error}</p>
+          <p className="mt-2" style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#C8322B' }}>{system.db.error}</p>
         )}
       </Card>
 
@@ -1319,17 +1318,17 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           {alerts.map((alert) => (
             <div key={alert.code} className="rounded-2xl p-4 border-l-4" style={{
               backgroundColor: alert.severity === "critical" ? 'rgba(200,50,43,0.06)' : alert.severity === "warning" ? 'rgba(217,119,6,0.06)' : 'rgba(74,123,168,0.06)',
-              borderLeftColor: alert.severity === "critical" ? '#C8322B' : alert.severity === "warning" ? '#D97706' : '#4A7BA8',
-              boxShadow: 'var(--neu-raised, 6px 6px 12px #CAC5BC, -6px -6px 12px #FFFFFF)',
+              borderLeftColor: alert.severity === "critical" ? '#C8322B' : alert.severity === "warning" ? '#D97706' : '#3B7EA1',
+              boxShadow: '0 1px 3px rgba(28,25,23,0.06)',
             }}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p style={{
-                    fontFamily: "'Anybody', sans-serif", fontWeight: 700, fontSize: 13,
+                    fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13,
                     color: alert.severity === "critical" ? '#C8322B' : alert.severity === "warning" ? '#92400E' : '#1E3A5F',
                   }}>{alert.message}</p>
-                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#57534E', marginTop: 4 }}>{alert.detail}</p>
-                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', marginTop: 6 }}>Fix: {alert.fix}</p>
+                  <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#57534E', marginTop: 4 }}>{alert.detail}</p>
+                  <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#78716C', marginTop: 6 }}>Fix: {alert.fix}</p>
                 </div>
                 {alert.action && (
                   <ActionButton
@@ -1351,7 +1350,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         <SectionTitle>Content Pipeline</SectionTitle>
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           {[
-            { label: "Topics", value: pipeline.topicsReady, color: "#4A7BA8", tab: "pipeline" as TabId },
+            { label: "Topics", value: pipeline.topicsReady, color: "#3B7EA1", tab: "pipeline" as TabId },
             { label: "Building", value: pipeline.draftsActive, color: "#D97706", tab: "pipeline" as TabId },
             { label: "Ready", value: pipeline.reservoir, color: "#7C3AED", tab: "content" as TabId },
             { label: "Live", value: pipeline.publishedTotal, color: "#16A34A", tab: "content" as TabId },
@@ -1361,10 +1360,10 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               <button
                 onClick={() => onSwitchTab(step.tab)}
                 className="rounded-xl px-3 sm:px-4 py-2.5 text-center min-w-[68px] transition-all active:scale-[0.97]"
-                style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)' }}
+                style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.6)', borderRadius: 12, boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}
               >
-                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 20, color: step.color }}>{step.value}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2 }}>{step.label}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, color: step.color }}>{step.value}</div>
+                <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2 }}>{step.label}</div>
               </button>
             </React.Fragment>
           ))}
@@ -1374,7 +1373,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
             {Object.entries(pipeline.byPhase).map(([phase, count]) => (
               <span key={phase} className="rounded-lg px-2.5 py-1" style={{
                 backgroundColor: 'rgba(120,113,108,0.08)',
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "var(--font-system)",
                 fontSize: 10,
                 color: '#78716C',
               }}>
@@ -1388,23 +1387,23 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
       {/* Today's stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="text-center">
-          <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: '#16A34A' }}>{pipeline.publishedToday}</div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>Published Today</div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 28, color: '#16A34A' }}>{pipeline.publishedToday}</div>
+          <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>Published Today</div>
         </Card>
         <button
           onClick={() => setShowIndexPanel(true)}
           className="rounded-2xl text-center p-4 sm:p-5 transition-all active:scale-[0.97] w-full"
-          style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-raised, 6px 6px 12px #CAC5BC, -6px -6px 12px #FFFFFF)' }}
+          style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.6)', borderRadius: 12, boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}
           title="View indexing status for all articles"
         >
-          <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: '#4A7BA8' }}>{indexing.indexed}</div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>Indexed</div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 28, color: '#3B7EA1' }}>{indexing.indexed}</div>
+          <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>Indexed</div>
         </button>
         <Card className="text-center">
-          <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 28, color: cronHealth.failedLast24h > 0 ? '#C8322B' : '#16A34A' }}>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 28, color: cronHealth.failedLast24h > 0 ? '#C8322B' : '#16A34A' }}>
             {cronHealth.failedLast24h > 0 ? cronHealth.failedLast24h : "OK"}
           </div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>
+          <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 4 }}>
             {cronHealth.failedLast24h > 0 ? "Failed Crons" : "All Systems"}
           </div>
         </Card>
@@ -1423,14 +1422,14 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         <div className="grid grid-cols-4 gap-2 text-center">
           {[
             { value: `${indexing.rate}%`, label: "Indexed", color: indexing.rate >= 80 ? '#16A34A' : indexing.rate >= 50 ? '#D97706' : '#C8322B' },
-            { value: String(indexing.velocity7d ?? 0), label: "This Week", color: (indexing.velocity7d ?? 0) > 0 ? '#4A7BA8' : '#A8A29E', extra: typeof indexing.velocity7dPrevious === "number" && (indexing.velocity7d ?? 0) !== indexing.velocity7dPrevious ? `${(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "▲" : "▼"} was ${indexing.velocity7dPrevious}` : undefined },
+            { value: String(indexing.velocity7d ?? 0), label: "This Week", color: (indexing.velocity7d ?? 0) > 0 ? '#3B7EA1' : '#A8A29E', extra: typeof indexing.velocity7dPrevious === "number" && (indexing.velocity7d ?? 0) !== indexing.velocity7dPrevious ? `${(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "▲" : "▼"} was ${indexing.velocity7dPrevious}` : undefined },
             { value: String(indexing.submitted), label: "Pending", color: indexing.submitted > 0 ? '#7C3AED' : '#A8A29E' },
             { value: String(indexing.errors > 0 ? indexing.errors : "0"), label: "Errors", color: indexing.errors > 0 ? '#C8322B' : '#16A34A' },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
-              <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: stat.color }}>{stat.value}</div>
-              {stat.extra && <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E', marginTop: 1 }}>{stat.extra}</div>}
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{stat.label}</div>
+            <div key={stat.label} className="rounded-xl p-2.5" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: stat.color }}>{stat.value}</div>
+              {stat.extra && <div style={{ fontFamily: "var(--font-system)", fontSize: 9, color: '#A8A29E', marginTop: 1 }}>{stat.extra}</div>}
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{stat.label}</div>
             </div>
           ))}
         </div>
@@ -1440,7 +1439,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <div className="mt-2">
             <div className="h-3 rounded-full overflow-hidden flex" style={{ backgroundColor: 'rgba(120,113,108,0.12)' }}>
               {indexing.indexed > 0 && (
-                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(indexing.indexed / indexing.total) * 100}%` }} title={`${indexing.indexed} indexed`} />
+                <div className="h-full bg-[#2D5A3D] transition-all" style={{ width: `${(indexing.indexed / indexing.total) * 100}%` }} title={`${indexing.indexed} indexed`} />
               )}
               {indexing.submitted > 0 && (
                 <div className="h-full bg-blue-500 transition-all" style={{ width: `${(indexing.submitted / indexing.total) * 100}%` }} title={`${indexing.submitted} submitted`} />
@@ -1452,16 +1451,16 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 <div className="h-full bg-red-500 transition-all" style={{ width: `${(indexing.errors / indexing.total) * 100}%` }} title={`${indexing.errors} errors`} />
               )}
               {(indexing.neverSubmitted ?? 0) > 0 && (
-                <div className="h-full bg-zinc-600 transition-all" style={{ width: `${((indexing.neverSubmitted ?? 0) / indexing.total) * 100}%` }} title={`${indexing.neverSubmitted} never submitted`} />
+                <div className="h-full bg-stone-400 transition-all" style={{ width: `${((indexing.neverSubmitted ?? 0) / indexing.total) * 100}%` }} title={`${indexing.neverSubmitted} never submitted`} />
               )}
             </div>
-            <div className="flex justify-between mt-1" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E' }}>
+            <div className="flex justify-between mt-1" style={{ fontFamily: "var(--font-system)", fontSize: 9, color: '#A8A29E' }}>
               <span>{indexing.indexed} indexed</span>
               <span>{indexing.submitted} pending</span>
               <span>{indexing.discovered ?? 0} discovered</span>
               <span>{indexing.neverSubmitted ?? 0} untracked</span>
             </div>
-            <div className="mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(120,113,108,0.06)', fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', lineHeight: '1.5' }}>
+            <div className="mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(120,113,108,0.06)', fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E', lineHeight: '1.5' }}>
               Blog articles only. GSC counts /ar/ pages, static pages, and old URLs too.
             </div>
             {(indexing.discovered ?? 0) > 0 && (
@@ -1479,25 +1478,25 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                     }
                   } catch { /* silently fail — refresh will show current state */ }
                 }}
-                className="mt-2 w-full text-xs bg-amber-700/30 hover:bg-amber-700/50 text-amber-300 border border-amber-700/50 rounded py-1.5 px-3 transition-colors"
+                className="mt-2 w-full text-xs bg-amber-700/30 hover:bg-amber-700/50 text-[#7a5a10] border border-amber-700/50 rounded py-1.5 px-3 transition-colors"
               >
                 Submit {indexing.discovered} discovered article{indexing.discovered === 1 ? "" : "s"} to Google
               </button>
             )}
             {indexing.dataSource === "lightweight" && (
-              <div className="mt-1 text-[9px] text-zinc-600 italic">Numbers are approximate (blog posts only). Full count includes static pages.</div>
+              <div className="mt-1 text-[9px] text-stone-500 italic">Numbers are approximate (blog posts only). Full count includes static pages.</div>
             )}
           </div>
         )}
 
         {/* Impression Drop Diagnostic — only shown when impressions are falling */}
         {indexing.impressionDiagnostic && (
-          <div className="mt-3 bg-amber-950/20 border border-amber-800/50 rounded-lg p-3">
-            <div className="text-xs font-semibold text-amber-300 mb-2">Why impressions are dropping</div>
-            <div className="space-y-1.5 text-[11px] text-zinc-300">
+          <div className="mt-3 bg-[rgba(196,154,42,0.04)] border border-[rgba(196,154,42,0.3)]/50 rounded-lg p-3">
+            <div className="text-xs font-semibold text-[#7a5a10] mb-2">Why impressions are dropping</div>
+            <div className="space-y-1.5 text-[11px] text-stone-600">
               {indexing.impressionDiagnostic.gscDelayNote && (
                 <div className="flex items-start gap-1.5">
-                  <span className="text-amber-400 mt-0.5 shrink-0">!</span>
+                  <span className="text-[#C49A2A] mt-0.5 shrink-0">!</span>
                   <span>{indexing.impressionDiagnostic.gscDelayNote}</span>
                 </div>
               )}
@@ -1507,17 +1506,17 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               </div>
               {indexing.impressionDiagnostic.blockedByGate > 0 && (
                 <div className="flex items-start gap-1.5">
-                  <span className="text-red-400 mt-0.5 shrink-0">X</span>
+                  <span className="text-[#C8322B] mt-0.5 shrink-0">X</span>
                   <span>{indexing.impressionDiagnostic.blockedByGate} article(s) stuck in reservoir — quality score below 70</span>
                 </div>
               )}
               {indexing.impressionDiagnostic.topDroppers.length > 0 && (
                 <div className="mt-1.5">
-                  <div className="text-[10px] text-zinc-500 mb-1">Top impression losers:</div>
+                  <div className="text-[10px] text-stone-500 mb-1">Top impression losers:</div>
                   {indexing.impressionDiagnostic.topDroppers.map((d, i) => (
                     <div key={i} className="flex justify-between text-[10px] py-0.5">
-                      <span className="text-zinc-400 truncate mr-2">{d.url.replace(/^https?:\/\/[^/]+/, "")}</span>
-                      <span className="text-red-400 shrink-0">{d.impressionsDelta}</span>
+                      <span className="text-stone-400 truncate mr-2">{d.url.replace(/^https?:\/\/[^/]+/, "")}</span>
+                      <span className="text-[#C8322B] shrink-0">{d.impressionsDelta}</span>
                     </div>
                   ))}
                 </div>
@@ -1534,10 +1533,10 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 key={i}
                 className={`text-[11px] rounded-lg px-2.5 py-1.5 ${
                   blocker.severity === "critical"
-                    ? "bg-red-950/30 text-red-300 border border-red-900/50"
+                    ? "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border border-red-900/50"
                     : blocker.severity === "warning"
-                    ? "bg-amber-950/20 text-amber-300 border border-amber-900/40"
-                    : "bg-zinc-800/40 text-zinc-400 border border-zinc-700/50"
+                    ? "bg-[rgba(196,154,42,0.04)] text-[#7a5a10] border border-amber-900/40"
+                    : "bg-stone-100/40 text-stone-400 border border-stone-200/50"
                 }`}
               >
                 {blocker.severity === "critical" ? "🚨" : "⚠️"} {blocker.reason}
@@ -1547,7 +1546,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         )}
 
         {/* Meta line */}
-        <div className="mt-2 flex flex-wrap gap-x-3 text-[10px] text-zinc-600">
+        <div className="mt-2 flex flex-wrap gap-x-3 text-[10px] text-stone-500">
           {indexing.avgTimeToIndexDays != null && (
             <span>Avg index time: {indexing.avgTimeToIndexDays}d</span>
           )}
@@ -1567,33 +1566,33 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         {/* GSC Search Performance — real clicks/impressions from gsc-sync */}
         {(indexing.gscTotalClicks7d > 0 || indexing.gscTotalImpressions7d > 0) && (
           <div className="mt-3">
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8 }}>Google Search (7d)</div>
+            <div style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8 }}>Google Search (7d)</div>
             <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
-                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 20, color: '#0891B2' }}>
+              <div className="rounded-xl p-3" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, color: '#0891B2' }}>
                   {indexing.gscTotalClicks7d.toLocaleString()}
                   {indexing.gscClicksTrend != null && (
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, marginLeft: 4, color: indexing.gscClicksTrend > 0 ? '#16A34A' : indexing.gscClicksTrend < 0 ? '#C8322B' : '#A8A29E' }}>
+                    <span style={{ fontFamily: "var(--font-system)", fontSize: 10, marginLeft: 4, color: indexing.gscClicksTrend > 0 ? '#16A34A' : indexing.gscClicksTrend < 0 ? '#C8322B' : '#A8A29E' }}>
                       {indexing.gscClicksTrend > 0 ? "▲" : indexing.gscClicksTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscClicksTrend)}%
                     </span>
                   )}
                 </div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Clicks</div>
+                <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Clicks</div>
               </div>
-              <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
-                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 20, color: '#7C3AED' }}>
+              <div className="rounded-xl p-3" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, color: '#7C3AED' }}>
                   {indexing.gscTotalImpressions7d.toLocaleString()}
                   {indexing.gscImpressionsTrend != null && (
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, marginLeft: 4, color: indexing.gscImpressionsTrend > 0 ? '#16A34A' : indexing.gscImpressionsTrend < 0 ? '#C8322B' : '#A8A29E' }}>
+                    <span style={{ fontFamily: "var(--font-system)", fontSize: 10, marginLeft: 4, color: indexing.gscImpressionsTrend > 0 ? '#16A34A' : indexing.gscImpressionsTrend < 0 ? '#C8322B' : '#A8A29E' }}>
                       {indexing.gscImpressionsTrend > 0 ? "▲" : indexing.gscImpressionsTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscImpressionsTrend)}%
                     </span>
                   )}
                 </div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Impressions</div>
+                <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Impressions</div>
               </div>
             </div>
             {indexing.lastGscSync && (
-              <div className="mt-1.5 text-center" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E' }}>Last sync: {indexing.lastGscSync}</div>
+              <div className="mt-1.5 text-center" style={{ fontFamily: "var(--font-system)", fontSize: 9, color: '#A8A29E' }}>Last sync: {indexing.lastGscSync}</div>
             )}
           </div>
         )}
@@ -1601,7 +1600,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         {/* Tap to see full details */}
         <button
           onClick={() => setShowIndexPanel(true)}
-          className="mt-2 w-full text-center text-[10px] text-blue-400 hover:text-blue-300 py-1"
+          className="mt-2 w-full text-center text-[10px] text-blue-400 hover:text-[#1e5a7a] py-1"
         >
           Tap for full indexing details →
         </button>
@@ -1613,35 +1612,35 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <SectionTitle>Website Traffic (7d)</SectionTitle>
           {!data.traffic.configured ? (
             <div className="text-center py-3">
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#78716C' }}>GA4 not configured</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', marginTop: 4 }}>Add GA4_PROPERTY_ID to Vercel env vars</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 12, color: '#78716C' }}>GA4 not configured</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E', marginTop: 4 }}>Add GA4_PROPERTY_ID to Vercel env vars</div>
             </div>
           ) : data.traffic.sessions7d === 0 ? (
             <div className="text-center py-3">
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#78716C' }}>No traffic data yet</div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E', marginTop: 4 }}>GA4 takes 24-48h to report</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 12, color: '#78716C' }}>No traffic data yet</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E', marginTop: 4 }}>GA4 takes 24-48h to report</div>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[
-                  { value: data.traffic.sessions7d, label: "Sessions", color: "#4A7BA8" },
+                  { value: data.traffic.sessions7d, label: "Sessions", color: "#3B7EA1" },
                   { value: data.traffic.users7d, label: "Users", color: "#0891B2" },
                   { value: data.traffic.pageViews7d, label: "Views", color: "#7C3AED" },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
-                    <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value.toLocaleString()}</div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{s.label}</div>
+                  <div key={s.label} className="rounded-xl p-2.5" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+                    <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value.toLocaleString()}</div>
+                    <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
               {data.traffic.topPages.length > 0 && (
                 <div className="mt-3">
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Top Pages</div>
+                  <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Top Pages</div>
                   {data.traffic.topPages.slice(0, 3).map((p, i) => (
                     <div key={i} className="flex justify-between py-1">
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#57534E' }} className="truncate max-w-[70%]">{p.path}</span>
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, color: '#78716C' }}>{p.pageViews}</span>
+                      <span style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#57534E' }} className="truncate max-w-[70%]">{p.path}</span>
+                      <span style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, color: '#78716C' }}>{p.pageViews}</span>
                     </div>
                   ))}
                 </div>
@@ -1661,13 +1660,13 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               { value: String(data.revenue.conversionsWeek), label: "Conversions", color: "#16A34A" },
               { value: `$${data.revenue.revenueWeekUsd.toFixed(2)}`, label: "Commission", color: "#16A34A" },
             ].map((s) => (
-              <div key={s.label} className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(120,113,108,0.06)', boxShadow: 'inset 2px 2px 4px rgba(202,197,188,0.5), inset -2px -2px 4px rgba(255,255,255,0.7)' }}>
-                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{s.label}</div>
+              <div key={s.label} className="rounded-xl p-2.5" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 18, color: s.color }}>{s.value}</div>
+                <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
-          <div className="mt-2 flex items-center justify-between" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>
+          <div className="mt-2 flex items-center justify-between" style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E' }}>
             <span>{data.revenue.affiliateClicksWeek} clicks this week{data.revenue.topPartner ? ` · Top: ${data.revenue.topPartner}` : ""}</span>
             <span style={{ color: '#C8322B', fontWeight: 600 }}>AI: ${data.revenue.aiCostWeekUsd.toFixed(2)}</span>
           </div>
@@ -1714,13 +1713,13 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
             Clean + Dedup
           </ActionButton>
           <Link href="/admin/cockpit/validator" className="col-span-2 rounded-xl text-center block py-2.5 transition-all active:scale-[0.97]"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: '#78716C', backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)' }}>
+                style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: '#78716C', backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.8)', borderRadius: 10, boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}>
             System Validator
           </Link>
         </div>
         {actionResult && (
           <p className="mt-3 px-3 py-2.5 rounded-xl" style={{
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "var(--font-system)",
             fontSize: 11,
             backgroundColor: actionResult.startsWith("✅") ? 'rgba(22,163,74,0.08)' : 'rgba(200,50,43,0.08)',
             color: actionResult.startsWith("✅") ? '#16A34A' : '#C8322B',
@@ -1735,12 +1734,12 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         <Card className="transition-all active:scale-[0.98]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-inset, inset 3px 3px 6px #CAC5BC, inset -3px -3px 6px #FFFFFF)' }}>
-                <ShieldCheck className="w-4 h-4" style={{ color: '#4A7BA8' }} />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.6)' }}>
+                <ShieldCheck className="w-4 h-4" style={{ color: '#3B7EA1' }} />
               </div>
               <div>
-                <div style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>Site Health Monitor</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>SEO audit, issues, health score</div>
+                <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>Site Health Monitor</div>
+                <div style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E' }}>SEO audit, issues, health score</div>
               </div>
             </div>
             <ChevronDown className="w-4 h-4 -rotate-90" style={{ color: '#A8A29E' }} />
@@ -1758,17 +1757,17 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 <span className="flex-shrink-0" style={{ fontSize: 12 }}>
                   {job.status === "success" ? "✅" : job.status === "failed" ? "❌" : "⏱"}
                 </span>
-                <span className="truncate" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fontWeight: 500, color: '#44403C' }}>{job.name}</span>
-                {job.itemsProcessed > 0 && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{job.itemsProcessed}</span>}
+                <span className="truncate" style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 500, color: '#44403C' }}>{job.name}</span>
+                {job.itemsProcessed > 0 && <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E' }}>{job.itemsProcessed}</span>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#A8A29E' }}>{formatDuration(job.durationMs)}</span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#D6D3D1' }}>{timeAgo(job.startedAt)}</span>
+                <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#A8A29E' }}>{formatDuration(job.durationMs)}</span>
+                <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: '#D6D3D1' }}>{timeAgo(job.startedAt)}</span>
               </div>
             </div>
           ))}
           {cronHealth.recentJobs.length === 0 && (
-            <p className="text-center py-4" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#A8A29E' }}>No cron runs in last 24h</p>
+            <p className="text-center py-4" style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#A8A29E' }}>No cron runs in last 24h</p>
           )}
         </div>
       </Card>
@@ -1812,10 +1811,10 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
             {pipeline.stuckDrafts.map((d) => (
               <div key={d.id} className="text-xs">
                 <div className="flex justify-between">
-                  <span className="text-zinc-300 font-medium">&quot;{d.keyword}&quot;</span>
+                  <span className="text-stone-600 font-medium">&quot;{d.keyword}&quot;</span>
                   <span className="text-orange-400">{d.hoursStuck}h in {d.phase}</span>
                 </div>
-                {d.plainError && <p className="text-zinc-500 mt-0.5">{d.plainError}</p>}
+                {d.plainError && <p className="text-stone-500 mt-0.5">{d.plainError}</p>}
               </div>
             ))}
           </div>
@@ -2022,11 +2021,11 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   });
 
   const indexColor = (s: string | null) => {
-    if (!s) return "text-zinc-500";
-    if (s === "indexed") return "text-emerald-400";
+    if (!s) return "text-stone-500";
+    if (s === "indexed") return "text-[#2D5A3D]";
     if (s === "submitted") return "text-blue-400";
-    if (s === "error") return "text-red-400";
-    return "text-zinc-400";
+    if (s === "error") return "text-[#C8322B]";
+    return "text-stone-400";
   };
 
   const indexLabel = (item: ContentItem) => {
@@ -2039,9 +2038,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     return item.indexingStatus;
   };
 
-  const volumeColor = (v: string) => v === "high" ? "text-emerald-400" : v === "medium" ? "text-amber-400" : "text-zinc-400";
+  const volumeColor = (v: string) => v === "high" ? "text-[#2D5A3D]" : v === "medium" ? "text-[#C49A2A]" : "text-stone-400";
   const trendIcon = (t: string) => t === "rising" ? "📈" : t === "declining" ? "📉" : "➡️";
-  const competitionColor = (c: string) => c === "low" ? "text-emerald-400" : c === "high" ? "text-red-400" : "text-amber-400";
+  const competitionColor = (c: string) => c === "low" ? "text-[#2D5A3D]" : c === "high" ? "text-[#C8322B]" : "text-[#C49A2A]";
 
   return (
     <div className="space-y-4">
@@ -2050,7 +2049,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         <button
           onClick={() => setContentView("articles")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "articles" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+            contentView === "articles" ? "bg-blue-600 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
           }`}
         >
           Articles ({data?.summary.total ?? "…"})
@@ -2058,7 +2057,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         <button
           onClick={() => setContentView("research")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "research" ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+            contentView === "research" ? "bg-violet-600 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
           }`}
         >
           Research & Create
@@ -2073,7 +2072,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           {/* Research controls */}
           <Card>
             <SectionTitle>SEO Topic Research</SectionTitle>
-            <p className="text-zinc-400 text-xs mb-3">
+            <p className="text-stone-400 text-xs mb-3">
               AI-powered keyword research finds 20 high-potential topics for your site.
               Select up to 5 and create bulk articles instantly.
             </p>
@@ -2083,7 +2082,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 placeholder="Focus area (optional): e.g. Ramadan, summer, luxury hotels…"
                 value={focusArea}
                 onChange={(e) => setFocusArea(e.target.value)}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                className="flex-1 bg-stone-100 border border-stone-200 rounded-lg px-3 py-2 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-violet-500"
               />
               <ActionButton
                 onClick={runTopicResearch}
@@ -2095,7 +2094,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
               </ActionButton>
             </div>
             {researchError && (
-              <p className="text-red-400 text-xs mt-2">Research failed: {researchError}</p>
+              <p className="text-[#C8322B] text-xs mt-2">Research failed: {researchError}</p>
             )}
           </Card>
 
@@ -2104,7 +2103,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
             <Card className="text-center py-8">
               <div className="animate-pulse space-y-2">
                 <p className="text-violet-400 text-sm font-medium">Researching trending topics…</p>
-                <p className="text-zinc-500 text-xs">This takes 20-40 seconds. AI is analyzing search trends, competition, and relevance.</p>
+                <p className="text-stone-500 text-xs">This takes 20-40 seconds. AI is analyzing search trends, competition, and relevance.</p>
               </div>
             </Card>
           )}
@@ -2115,10 +2114,10 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
               {/* Selection summary bar */}
               <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
-                  <p className="text-zinc-100 text-sm font-medium">
+                  <p className="text-stone-800 text-sm font-medium">
                     {researchedTopics.length} topics found — select up to 5
                   </p>
-                  <p className="text-zinc-500 text-xs">
+                  <p className="text-stone-500 text-xs">
                     {selectedTopics.size} selected{selectedTopics.size > 0 ? `: ${researchedTopics.filter((t) => selectedTopics.has(t.rank)).map((t) => t.keyword).join(", ")}` : ""}
                   </p>
                 </div>
@@ -2126,7 +2125,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   {selectedTopics.size > 0 && (
                     <button
                       onClick={() => setSelectedTopics(new Set())}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
+                      className="px-3 py-1.5 rounded-lg text-xs bg-stone-100 hover:bg-stone-200 text-stone-400 border border-stone-200"
                     >
                       Clear
                     </button>
@@ -2145,20 +2144,20 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
               {/* Bulk creation result */}
               {bulkResult && (
-                <Card className={bulkResult.success ? "border-emerald-800 bg-emerald-950/20" : "border-red-800 bg-red-950/20"}>
+                <Card className={bulkResult.success ? "border-[rgba(45,90,61,0.3)] bg-[rgba(45,90,61,0.04)]" : "border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.04)]"}>
                   {bulkResult.success ? (
                     <div>
-                      <p className="text-emerald-300 text-sm font-medium">
+                      <p className="text-[#2D5A3D] text-sm font-medium">
                         {bulkResult.queued} article{(bulkResult.queued ?? 0) !== 1 ? "s" : ""} queued in pipeline
                       </p>
-                      <p className="text-zinc-400 text-xs mt-1">{bulkResult.message}</p>
+                      <p className="text-stone-400 text-xs mt-1">{bulkResult.message}</p>
                       {bulkResult.articles && bulkResult.articles.length > 0 && (
                         <div className="mt-2 space-y-1">
                           {bulkResult.articles.map((a, i) => (
                             <div key={i} className="flex items-center gap-2 text-xs">
-                              <span className="text-emerald-400">✓</span>
-                              <span className="text-zinc-300">{a.keyword}</span>
-                              <span className="text-zinc-600">→ pipeline</span>
+                              <span className="text-[#2D5A3D]">✓</span>
+                              <span className="text-stone-600">{a.keyword}</span>
+                              <span className="text-stone-500">→ pipeline</span>
                             </div>
                           ))}
                         </div>
@@ -2190,7 +2189,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                           ? "border-violet-500 bg-violet-950/20 ring-1 ring-violet-500/30"
                           : atLimit
                           ? "opacity-50 cursor-not-allowed"
-                          : "hover:border-zinc-600"
+                          : "hover:border-stone-300"
                       }`}
                     >
                       <div
@@ -2199,7 +2198,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       >
                         {/* Checkbox */}
                         <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                          isSelected ? "bg-violet-600 border-violet-500" : "border-zinc-600"
+                          isSelected ? "bg-violet-600 border-violet-500" : "border-stone-300"
                         }`}>
                           {isSelected && <span className="text-white text-xs font-bold">✓</span>}
                         </div>
@@ -2208,8 +2207,8 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                         <div className="flex-1 min-w-0">
                           {/* Header row */}
                           <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="text-zinc-500 text-xs font-mono">#{topic.rank}</span>
-                            <span className="text-zinc-100 text-sm font-semibold">{topic.keyword}</span>
+                            <span className="text-stone-500 text-xs font-mono">#{topic.rank}</span>
+                            <span className="text-stone-800 text-sm font-semibold">{topic.keyword}</span>
                             <span className="text-xs">{trendIcon(topic.trend)}</span>
                           </div>
 
@@ -2217,7 +2216,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                           <div className="flex flex-wrap gap-3 text-[11px] mb-2">
                             <span>
                               Vol: <span className={`font-medium ${volumeColor(topic.searchVolume)}`}>{topic.searchVolume}</span>
-                              <span className="text-zinc-600 ml-1">({topic.estimatedMonthlySearches})</span>
+                              <span className="text-stone-500 ml-1">({topic.estimatedMonthlySearches})</span>
                             </span>
                             <span>
                               Competition: <span className={`font-medium ${competitionColor(topic.competition)}`}>{topic.competition}</span>
@@ -2225,7 +2224,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                             <span>
                               Relevance: <span className={scoreColor(topic.relevanceScore)}>{topic.relevanceScore}/100</span>
                             </span>
-                            <span className="text-zinc-500">
+                            <span className="text-stone-500">
                               {topic.suggestedPageType}
                             </span>
                           </div>
@@ -2234,7 +2233,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                           {topic.longTails.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-2">
                               {topic.longTails.map((lt, i) => (
-                                <span key={i} className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[10px] border border-zinc-700">
+                                <span key={i} className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-400 text-[10px] border border-stone-200">
                                   {lt}
                                 </span>
                               ))}
@@ -2243,12 +2242,12 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
                           {/* Trend evidence + rationale */}
                           {topic.trendEvidence && (
-                            <p className="text-zinc-500 text-[11px] mb-1">
-                              <span className="text-zinc-400 font-medium">Trend:</span> {topic.trendEvidence}
+                            <p className="text-stone-500 text-[11px] mb-1">
+                              <span className="text-stone-400 font-medium">Trend:</span> {topic.trendEvidence}
                             </p>
                           )}
-                          <p className="text-zinc-500 text-[11px]">
-                            <span className="text-zinc-400 font-medium">Why:</span> {topic.rationale}
+                          <p className="text-stone-500 text-[11px]">
+                            <span className="text-stone-400 font-medium">Why:</span> {topic.rationale}
                           </p>
 
                           {/* Content angle */}
@@ -2269,8 +2268,8 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           {/* Empty state */}
           {!researchLoading && researchedTopics.length === 0 && !researchError && (
             <Card className="text-center py-12">
-              <p className="text-zinc-500 text-sm mb-2">No research results yet</p>
-              <p className="text-zinc-600 text-xs">Click &quot;Research Topics&quot; to discover high-performing keywords for your site.</p>
+              <p className="text-stone-500 text-sm mb-2">No research results yet</p>
+              <p className="text-stone-500 text-xs">Click &quot;Research Topics&quot; to discover high-performing keywords for your site.</p>
             </Card>
           )}
         </div>
@@ -2282,11 +2281,11 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
       {contentView === "articles" && (
         <>
           {loading ? (
-            <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading content…</p></div>
+            <div className="flex items-center justify-center h-48"><p className="text-stone-500 text-sm">Loading content…</p></div>
           ) : fetchError ? (
             <Card className="text-center py-8 space-y-2">
-              <p className="text-red-400 text-sm">Failed to load articles: {fetchError}</p>
-              <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs">Retry</button>
+              <p className="text-[#C8322B] text-sm">Failed to load articles: {fetchError}</p>
+              <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs">Retry</button>
             </Card>
           ) : (
             <>
@@ -2294,16 +2293,16 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
               {data && (
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {[
-                    ["Total", data.summary.total, "text-zinc-300"],
-                    ["Published", data.summary.published, "text-emerald-400"],
+                    ["Total", data.summary.total, "text-stone-600"],
+                    ["Published", data.summary.published, "text-[#2D5A3D]"],
                     ["Reservoir", data.summary.reservoir, "text-blue-400"],
-                    ["Pipeline", data.summary.inPipeline, "text-amber-400"],
-                    ["Rejected", data.summary.rejected, "text-red-400"],
+                    ["Pipeline", data.summary.inPipeline, "text-[#C49A2A]"],
+                    ["Rejected", data.summary.rejected, "text-[#C8322B]"],
                     ["Stuck", data.summary.stuck, "text-orange-400"],
                   ].map(([label, val, color]) => (
                     <Card key={label as string} className="text-center py-3">
                       <div className={`text-xl font-bold ${color}`}>{val}</div>
-                      <div className="text-xs text-zinc-500 mt-0.5">{label}</div>
+                      <div className="text-xs text-stone-500 mt-0.5">{label}</div>
                     </Card>
                   ))}
                 </div>
@@ -2353,8 +2352,8 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <ActionButton onClick={fetchData} loading={loading}>
                   Refresh
                 </ActionButton>
-                {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>{actionResult.__builder}</span>}
-                {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>{actionResult.__selector}</span>}
+                {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-[#2D5A3D]" : "text-red-300"}`}>{actionResult.__builder}</span>}
+                {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-[#2D5A3D]" : "text-red-300"}`}>{actionResult.__selector}</span>}
               </Card>
 
               {/* Filters + Search */}
@@ -2364,14 +2363,14 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   placeholder="Search articles…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 min-w-[150px] bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                  className="flex-1 min-w-[150px] bg-stone-100 border border-stone-200 rounded-lg px-3 py-1.5 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-300"
                 />
                 {["all", "published", "draft", "reservoir", "rejected", "stuck"].map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
-                      filter === f ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                      filter === f ? "bg-stone-100 text-stone-800" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
                     }`}
                   >
                     {f}
@@ -2382,14 +2381,14 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
               {/* Content table */}
               {filtered.length === 0 ? (
                 <Card className="text-center py-8">
-                  <p className="text-zinc-500 text-sm">No articles match the current filter.</p>
+                  <p className="text-stone-500 text-sm">No articles match the current filter.</p>
                 </Card>
               ) : (
                 <Card className="p-0 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                        <tr className="border-b border-stone-200 text-stone-500 text-left">
                           <th className="px-3 py-2.5 font-medium min-w-[200px]">Page</th>
                           <th className="px-3 py-2.5 font-medium whitespace-nowrap">Status</th>
                           <th className="px-3 py-2.5 font-medium whitespace-nowrap">Created</th>
@@ -2407,10 +2406,10 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                           const checks = gateResults[item.id];
 
                           return (
-                            <tr key={item.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group">
+                            <tr key={item.id} className="border-b border-stone-200/50 hover:bg-stone-100/30 transition-colors group">
                               {/* Page name */}
                               <td className="px-3 py-2.5">
-                                <p className="text-zinc-100 font-medium truncate max-w-[280px]" title={item.title}>
+                                <p className="text-stone-800 font-medium truncate max-w-[280px]" title={item.title}>
                                   {item.title || item.slug || item.id}
                                 </p>
                                 {item.url && (
@@ -2419,26 +2418,26 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                   </a>
                                 )}
                                 {item.plainError && (
-                                  <p className="text-red-400 mt-0.5 truncate max-w-[280px] text-[10px]" title={item.plainError}>{item.plainError}</p>
+                                  <p className="text-[#C8322B] mt-0.5 truncate max-w-[280px] text-[10px]" title={item.plainError}>{item.plainError}</p>
                                 )}
                                 {actionResult[item.id] && (
-                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>
+                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-[#2D5A3D]" : "text-red-300"}`}>
                                     {actionResult[item.id]}
                                   </p>
                                 )}
                                 {/* Expanded gate check panel */}
                                 {isExpanded && (
-                                  <div className="mt-2 border-t border-zinc-800 pt-2">
-                                    <p className="font-semibold text-zinc-400 mb-1.5">Why Isn{"'"}t This Published?</p>
-                                    {gateLoading === item.id && <p className="text-zinc-500">Running gate checks…</p>}
+                                  <div className="mt-2 border-t border-stone-200 pt-2">
+                                    <p className="font-semibold text-stone-400 mb-1.5">Why Isn{"'"}t This Published?</p>
+                                    {gateLoading === item.id && <p className="text-stone-500">Running gate checks…</p>}
                                     {checks && (
                                       <div className="space-y-1">
                                         {checks.map((c) => (
-                                          <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-zinc-800/30" : c.isBlocker ? "bg-red-950/20" : "bg-amber-950/20"}`}>
+                                          <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-stone-100/30" : c.isBlocker ? "bg-[rgba(200,50,43,0.04)]" : "bg-[rgba(196,154,42,0.04)]"}`}>
                                             <span className="shrink-0">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
                                             <div>
-                                              <span className={c.pass ? "text-zinc-400" : c.isBlocker ? "text-red-300" : "text-amber-300"}>{c.label}</span>
-                                              {!c.pass && c.detail && <p className="text-zinc-500 mt-0.5">{c.detail}</p>}
+                                              <span className={c.pass ? "text-stone-400" : c.isBlocker ? "text-red-300" : "text-[#7a5a10]"}>{c.label}</span>
+                                              {!c.pass && c.detail && <p className="text-stone-500 mt-0.5">{c.detail}</p>}
                                             </div>
                                           </div>
                                         ))}
@@ -2457,15 +2456,15 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                   {badge.label}
                                 </span>
                                 {item.phase && item.type === "draft" && item.status !== "reservoir" && (
-                                  <p className="text-zinc-600 text-[10px] mt-0.5">{item.phase}</p>
+                                  <p className="text-stone-500 text-[10px] mt-0.5">{item.phase}</p>
                                 )}
                               </td>
 
                               {/* Created */}
-                              <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap">
+                              <td className="px-3 py-2.5 text-stone-400 whitespace-nowrap">
                                 {shortDate(item.generatedAt)}
                                 {item.publishedAt && (
-                                  <p className="text-emerald-400 text-[10px]">Pub {shortDate(item.publishedAt)}</p>
+                                  <p className="text-[#2D5A3D] text-[10px]">Pub {shortDate(item.publishedAt)}</p>
                                 )}
                               </td>
 
@@ -2481,13 +2480,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                 {item.seoScore !== null ? (
                                   <span className={scoreColor(item.seoScore)}>{item.seoScore}</span>
                                 ) : (
-                                  <span className="text-zinc-600">—</span>
+                                  <span className="text-stone-500">—</span>
                                 )}
                               </td>
 
                               {/* Word Count */}
                               <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                                <span className={item.wordCount < 1000 ? "text-red-400" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-400"}>
+                                <span className={item.wordCount < 1000 ? "text-[#C8322B]" : item.wordCount < 1200 ? "text-[#C49A2A]" : "text-stone-400"}>
                                   {item.wordCount > 0 ? item.wordCount.toLocaleString() : "—"}
                                 </span>
                               </td>
@@ -2495,9 +2494,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               {/* Clicks */}
                               <td className="px-3 py-2.5 text-right whitespace-nowrap">
                                 {item.gscClicks !== null ? (
-                                  <span className={item.gscClicks > 0 ? "text-emerald-400 font-medium" : "text-zinc-300"}>{item.gscClicks.toLocaleString()}</span>
+                                  <span className={item.gscClicks > 0 ? "text-[#2D5A3D] font-medium" : "text-stone-600"}>{item.gscClicks.toLocaleString()}</span>
                                 ) : (
-                                  <span className="text-zinc-600">—</span>
+                                  <span className="text-stone-500">—</span>
                                 )}
                               </td>
 
@@ -2515,7 +2514,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                             if (!checks) runGateCheck(item);
                                           }
                                         }}
-                                        className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap"
+                                        className="px-1.5 py-0.5 rounded bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200 whitespace-nowrap"
                                       >
                                         {isExpanded ? "Hide" : "Why?"}
                                       </button>
@@ -2553,7 +2552,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                     <>
                                       {item.url && (
                                         <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                          className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap">
+                                          className="px-1.5 py-0.5 rounded bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200 whitespace-nowrap">
                                           View
                                         </a>
                                       )}
@@ -2629,11 +2628,11 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading pipeline…</p></div>;
+  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-stone-500 text-sm">Loading pipeline…</p></div>;
   if (fetchError) return (
     <Card>
-      <p className="text-red-400 text-sm">⚠️ Failed to load pipeline: {fetchError}</p>
-      <button onClick={fetchData} className="mt-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+      <p className="text-[#C8322B] text-sm">⚠️ Failed to load pipeline: {fetchError}</p>
+      <button onClick={fetchData} className="mt-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200">
         ↺ Retry
       </button>
     </Card>
@@ -2650,13 +2649,13 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
         <SectionTitle>Content Pipeline — {activeSiteId}</SectionTitle>
         <div className="flex flex-wrap gap-3 text-sm mb-3">
           {[
-            ["Building", summary.total_active ?? 0, "text-amber-400"],
-            ["Reservoir", summary.reservoir_count ?? 0, "text-blue-300"],
-            ["Published Today", summary.published_today ?? 0, "text-emerald-400"],
+            ["Building", summary.total_active ?? 0, "text-[#C49A2A]"],
+            ["Reservoir", summary.reservoir_count ?? 0, "text-[#1e5a7a]"],
+            ["Published Today", summary.published_today ?? 0, "text-[#2D5A3D]"],
           ].map(([label, val, color]) => (
-            <div key={label as string} className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
+            <div key={label as string} className="bg-stone-100 rounded-lg px-3 py-2 text-center min-w-[70px]">
               <div className={`text-xl font-bold ${color}`}>{val}</div>
-              <div className="text-xs text-zinc-500">{label}</div>
+              <div className="text-xs text-stone-500">{label}</div>
             </div>
           ))}
         </div>
@@ -2666,14 +2665,14 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
           <div className="space-y-1.5">
             {Object.entries(byPhase).map(([phase, count]) => (
               <div key={phase} className="flex items-center gap-2 text-xs">
-                <span className="text-zinc-400 capitalize w-20 shrink-0">{phase}</span>
-                <div className="flex-1 bg-zinc-800 rounded-full h-1.5">
+                <span className="text-stone-400 capitalize w-20 shrink-0">{phase}</span>
+                <div className="flex-1 bg-stone-100 rounded-full h-1.5">
                   <div
                     className="bg-blue-500 h-1.5 rounded-full transition-all"
                     style={{ width: `${Math.min(100, ((count as number) / Math.max(1, ...Object.values(byPhase).map(v => Number(v)))) * 100)}%` }}
                   />
                 </div>
-                <span className="text-zinc-400 w-6 text-right">{count}</span>
+                <span className="text-stone-400 w-6 text-right">{count}</span>
               </div>
             ))}
           </div>
@@ -2706,7 +2705,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
           </ActionButton>
         </div>
         {actionResult && (
-          <p className={`mt-2 text-xs p-2 rounded ${actionResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+          <p className={`mt-2 text-xs p-2 rounded ${actionResult.startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
             {actionResult}
           </p>
         )}
@@ -2729,10 +2728,10 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
               return (
                 <div key={id} className="flex items-center justify-between text-xs">
                   <div className="min-w-0">
-                    <span className="text-zinc-300 truncate block">{title}</span>
-                    <span className="text-zinc-500 capitalize">{phase}</span>
+                    <span className="text-stone-600 truncate block">{title}</span>
+                    <span className="text-stone-500 capitalize">{phase}</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 text-zinc-500">
+                  <div className="flex items-center gap-2 shrink-0 text-stone-500">
                     {seoScore !== null && (
                       <span className={scoreColor(seoScore)}>SEO{seoScore}</span>
                     )}
@@ -2789,11 +2788,11 @@ function CronsTab() {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading cron logs…</p></div>;
+  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-stone-500 text-sm">Loading cron logs…</p></div>;
   if (fetchError) return (
     <Card>
-      <p className="text-red-400 text-sm">⚠️ Failed to load cron logs: {fetchError}</p>
-      <button onClick={fetchData} className="mt-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+      <p className="text-[#C8322B] text-sm">⚠️ Failed to load cron logs: {fetchError}</p>
+      <button onClick={fetchData} className="mt-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200">
         ↺ Retry
       </button>
     </Card>
@@ -2836,20 +2835,20 @@ function CronsTab() {
       {/* Health summary */}
       <div className="grid grid-cols-3 gap-2">
         <Card className="text-center">
-          <div className="text-xl font-bold text-zinc-300">{summary.total ?? logs.length}</div>
-          <div className="text-xs text-zinc-500 mt-1">Runs (24h)</div>
+          <div className="text-xl font-bold text-stone-600">{summary.total ?? logs.length}</div>
+          <div className="text-xs text-stone-500 mt-1">Runs (24h)</div>
         </Card>
         <Card className="text-center">
-          <div className={`text-xl font-bold ${(summary.failed ?? 0) > 0 ? "text-red-400" : "text-emerald-400"}`}>
+          <div className={`text-xl font-bold ${(summary.failed ?? 0) > 0 ? "text-[#C8322B]" : "text-[#2D5A3D]"}`}>
             {summary.failed ?? 0}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Failed</div>
+          <div className="text-xs text-stone-500 mt-1">Failed</div>
         </Card>
         <Card className="text-center">
-          <div className={`text-xl font-bold ${(summary.timedOut ?? 0) > 0 ? "text-amber-400" : "text-zinc-500"}`}>
+          <div className={`text-xl font-bold ${(summary.timedOut ?? 0) > 0 ? "text-[#C49A2A]" : "text-stone-500"}`}>
             {summary.timedOut ?? 0}
           </div>
-          <div className="text-xs text-zinc-500 mt-1">Timed Out</div>
+          <div className="text-xs text-stone-500 mt-1">Timed Out</div>
         </Card>
       </div>
 
@@ -2857,8 +2856,8 @@ function CronsTab() {
       <Card>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-zinc-300">Run Critical Sequence</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Topics → Builder → Selector → SEO</p>
+            <p className="text-xs font-semibold text-stone-600">Run Critical Sequence</p>
+            <p className="text-[10px] text-stone-500 mt-0.5">Topics → Builder → Selector → SEO</p>
           </div>
           <ActionButton
             onClick={async () => {
@@ -2894,7 +2893,7 @@ function CronsTab() {
           </ActionButton>
         </div>
         {actionResult["critical-seq"] && (
-          <p className="mt-2 text-xs bg-emerald-950/30 text-emerald-300 rounded px-2 py-1">{actionResult["critical-seq"]}</p>
+          <p className="mt-2 text-xs bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] rounded px-2 py-1">{actionResult["critical-seq"]}</p>
         )}
       </Card>
 
@@ -2904,7 +2903,7 @@ function CronsTab() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === f ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === f ? "bg-stone-100 text-stone-800" : "bg-stone-100 text-stone-400 hover:bg-stone-200"}`}
           >
             {f}
           </button>
@@ -2914,7 +2913,7 @@ function CronsTab() {
       {/* Cron cards */}
       <div className="space-y-2">
         {entries.length === 0 && (
-          <Card className="text-center py-8"><p className="text-zinc-500 text-sm">No cron runs found.</p></Card>
+          <Card className="text-center py-8"><p className="text-stone-500 text-sm">No cron runs found.</p></Card>
         )}
         {entries.map(([name, jobLogs]) => {
           const last = jobLogs[0] as {
@@ -2929,24 +2928,24 @@ function CronsTab() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={isOk ? "text-emerald-400" : isFailed ? "text-red-400" : "text-amber-400"}>
+                    <span className={isOk ? "text-[#2D5A3D]" : isFailed ? "text-[#C8322B]" : "text-[#C49A2A]"}>
                       {isOk ? "✅" : isFailed ? "❌" : "⏱"}
                     </span>
-                    <span className="text-sm font-medium text-zinc-200">{name}</span>
-                    <span className="text-xs text-zinc-500">{timeAgo(last.startedAt ?? null)}</span>
+                    <span className="text-sm font-medium text-stone-700">{name}</span>
+                    <span className="text-xs text-stone-500">{timeAgo(last.startedAt ?? null)}</span>
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500">
+                  <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
                     <span>{formatDuration(last.durationMs ?? null)}</span>
                     {last.itemsProcessed !== undefined && last.itemsProcessed > 0 && (
                       <span>{last.itemsProcessed} items</span>
                     )}
-                    <span className="text-zinc-600">{jobLogs.length} runs in 24h</span>
+                    <span className="text-stone-500">{jobLogs.length} runs in 24h</span>
                   </div>
                   {isFailed && last.errorMessage && (
-                    <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{String(last.errorMessage).slice(0, 200)}</p>
+                    <p className="mt-1.5 text-xs text-[#C8322B] bg-[rgba(200,50,43,0.04)] rounded px-2 py-1">{String(last.errorMessage).slice(0, 200)}</p>
                   )}
                   {actionResult[name] && (
-                    <p className={`mt-1 text-xs rounded px-2 py-1 ${actionResult[name].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                    <p className={`mt-1 text-xs rounded px-2 py-1 ${actionResult[name].startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
                       {actionResult[name]}
                     </p>
                   )}
@@ -2982,8 +2981,8 @@ function CronsTab() {
               {notRunToday.map((name) => (
                 <div key={name} className="flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-amber-300">{name}</span>
-                    <span className="ml-2 text-zinc-500">{EXPECTED_WEEKLY.includes(name) ? "weekly" : "daily"}</span>
+                    <span className="text-[#7a5a10]">{name}</span>
+                    <span className="ml-2 text-stone-500">{EXPECTED_WEEKLY.includes(name) ? "weekly" : "daily"}</span>
                   </div>
                   {cronEndpoints[name] && (
                     <ActionButton onClick={() => runCron(cronEndpoints[name], name)} loading={actionLoading === name} variant="amber">
@@ -3580,7 +3579,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   if (sites.length === 0) {
     return (
       <Card className="text-center py-8">
-        <p className="text-zinc-500 text-sm">No site data available. Check database connection in Settings.</p>
+        <p className="text-stone-500 text-sm">No site data available. Check database connection in Settings.</p>
       </Card>
     );
   }
@@ -3601,20 +3600,20 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
                     site.isActive
-                      ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
-                      : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                      ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border-[rgba(45,90,61,0.25)]"
+                      : "bg-stone-100 text-stone-500 border-stone-200"
                   }`}>
                     {site.isActive ? "Active" : "Inactive"}
                   </span>
-                  <h3 className="text-sm font-semibold text-zinc-100">{site.name}</h3>
+                  <h3 className="text-sm font-semibold text-stone-800">{site.name}</h3>
                 </div>
-                <p className="text-xs text-zinc-500 mt-0.5">{site.domain}</p>
+                <p className="text-xs text-stone-500 mt-0.5">{site.domain}</p>
               </div>
               {/* Readiness badge */}
               <div className={`text-xs px-2 py-1 rounded-lg border font-medium ${
-                readiness.percentage >= 80 ? "bg-emerald-900/30 text-emerald-300 border-emerald-700" :
-                readiness.percentage >= 50 ? "bg-amber-900/30 text-amber-300 border-amber-700" :
-                "bg-red-900/30 text-red-300 border-red-700"
+                readiness.percentage >= 80 ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] border-[rgba(45,90,61,0.25)]" :
+                readiness.percentage >= 50 ? "bg-amber-900/30 text-[#7a5a10] border-amber-700" :
+                "bg-[rgba(200,50,43,0.06)] text-red-300 border-red-700"
               }`}>
                 {readiness.percentage}% ready
               </div>
@@ -3622,12 +3621,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* Data load error — show instead of misleading zeros */}
             {site.dataError && (
-              <div className="mt-2 bg-red-950/30 border border-red-800/50 rounded-lg px-3 py-2 text-xs text-red-300">
+              <div className="mt-2 bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)]/50 rounded-lg px-3 py-2 text-xs text-red-300">
                 <div className="font-medium mb-1">Data load failed</div>
-                <div className="text-red-400/80 text-[10px]">{site.dataError}</div>
+                <div className="text-[#C8322B]/80 text-[10px]">{site.dataError}</div>
                 <button
                   onClick={() => onRefresh()}
-                  className="mt-1.5 px-2 py-0.5 rounded bg-red-900/50 hover:bg-red-800/50 text-red-300 text-[10px] border border-red-700/50"
+                  className="mt-1.5 px-2 py-0.5 rounded bg-[rgba(200,50,43,0.10)] hover:bg-red-800/50 text-red-300 text-[10px] border border-red-700/50"
                 >
                   Tap to retry
                 </button>
@@ -3636,46 +3635,46 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* Content gap warning */}
             {!site.dataError && daysSincePublish !== null && daysSincePublish > 3 && (
-              <div className="mt-2 bg-amber-950/20 border border-amber-800/50 rounded-lg px-3 py-1.5 text-xs text-amber-300">
+              <div className="mt-2 bg-[rgba(196,154,42,0.04)] border border-[rgba(196,154,42,0.3)]/50 rounded-lg px-3 py-1.5 text-xs text-[#7a5a10]">
                 {daysSincePublish}d since last publish — content gap detected
               </div>
             )}
 
             <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
-              <div className="bg-zinc-800/50 rounded p-2">
-                <div className="font-bold text-emerald-400">{site.articlesPublished}</div>
-                <div className="text-zinc-500">Published</div>
+              <div className="bg-stone-100/50 rounded p-2">
+                <div className="font-bold text-[#2D5A3D]">{site.articlesPublished}</div>
+                <div className="text-stone-500">Published</div>
               </div>
-              <div className="bg-zinc-800/50 rounded p-2">
+              <div className="bg-stone-100/50 rounded p-2">
                 <div className="font-bold text-blue-400">{site.reservoir}</div>
-                <div className="text-zinc-500">Reservoir</div>
+                <div className="text-stone-500">Reservoir</div>
               </div>
-              <div className="bg-zinc-800/50 rounded p-2">
-                <div className="font-bold text-amber-400">{site.inPipeline}</div>
-                <div className="text-zinc-500">Pipeline</div>
+              <div className="bg-stone-100/50 rounded p-2">
+                <div className="font-bold text-[#C49A2A]">{site.inPipeline}</div>
+                <div className="text-stone-500">Pipeline</div>
               </div>
-              <div className="bg-zinc-800/50 rounded p-2">
-                <div className="font-bold text-zinc-400">{site.topicsQueued}</div>
-                <div className="text-zinc-500">Topics</div>
+              <div className="bg-stone-100/50 rounded p-2">
+                <div className="font-bold text-stone-400">{site.topicsQueued}</div>
+                <div className="text-stone-500">Topics</div>
               </div>
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-1 text-xs text-zinc-500">
-              <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-emerald-400" : site.avgSeoScore > 0 ? "text-amber-400" : "text-red-400"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
-              <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-emerald-400" : site.indexRate > 0 ? "text-amber-400" : "text-red-400"}>{site.indexRate}%</span></span>
+            <div className="mt-2 flex flex-wrap gap-1 text-xs text-stone-500">
+              <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-[#2D5A3D]" : site.avgSeoScore > 0 ? "text-[#C49A2A]" : "text-[#C8322B]"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
+              <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-[#2D5A3D]" : site.indexRate > 0 ? "text-[#C49A2A]" : "text-[#C8322B]"}>{site.indexRate}%</span></span>
               {site.lastPublishedAt && <span className="ml-2">Last article: {timeAgo(site.lastPublishedAt)}</span>}
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">
               <button
                 onClick={() => onSelectSite(site.id)}
-                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+                className="px-2 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
               >
                 Content
               </button>
               <button
                 onClick={() => window.open(`https://${site.domain}`, "_blank")}
-                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+                className="px-2 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
               >
                 View Site
               </button>
@@ -3746,7 +3745,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                     setSeoAuditHistoryOpen(site.id);
                   }
                 }}
-                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-violet-400 border border-zinc-700"
+                className="px-2 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-violet-400 border border-stone-200"
               >
                 Reports
               </button>
@@ -3754,15 +3753,15 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 onClick={() => loadAuditReports(site.id)}
                 className={`px-2 py-1 rounded text-xs border font-medium transition-colors ${
                   auditReportsOpen === site.id
-                    ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
-                    : "bg-gradient-to-r from-emerald-900/50 to-teal-900/50 hover:from-emerald-800/50 hover:to-teal-800/50 text-emerald-300 border-emerald-700/50"
+                    ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border-[rgba(45,90,61,0.25)]"
+                    : "bg-gradient-to-r from-emerald-900/50 to-teal-900/50 hover:from-emerald-800/50 hover:to-teal-800/50 text-[#2D5A3D] border-[rgba(45,90,61,0.25)]/50"
                 }`}
               >
                 {auditReportsLoading === site.id ? "Loading…" : "Audit Reports"}
               </button>
               <button
                 onClick={() => window.location.href = `/admin/cockpit/per-page-audit?siteId=${encodeURIComponent(site.id)}`}
-                className="px-2 py-1 rounded text-xs bg-gradient-to-r from-blue-900/50 to-violet-900/50 hover:from-blue-800/50 hover:to-violet-800/50 text-blue-300 border border-blue-700/50 font-medium"
+                className="px-2 py-1 rounded text-xs bg-gradient-to-r from-blue-900/50 to-violet-900/50 hover:from-blue-800/50 hover:to-violet-800/50 text-[#1e5a7a] border border-blue-700/50 font-medium"
               >
                 Per-Page Audit
               </button>
@@ -3771,7 +3770,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 className={`px-2 py-1 rounded text-xs border transition-colors ${
                   latestPubSiteId === site.id
                     ? "bg-cyan-900/50 text-cyan-300 border-cyan-700"
-                    : "bg-zinc-800 hover:bg-zinc-700 text-cyan-400 border-zinc-700"
+                    : "bg-stone-100 hover:bg-stone-200 text-cyan-400 border-stone-200"
                 }`}
               >
                 {latestPubLoading === site.id ? "Loading…" : "Latest Published"}
@@ -3781,63 +3780,63 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 className={`px-2 py-1 rounded text-xs border font-medium transition-colors ${
                   aggReportSiteId === site.id && aggReportStep !== "idle"
                     ? "bg-gradient-to-r from-amber-900/50 to-orange-900/50 text-amber-200 border-amber-600"
-                    : "bg-gradient-to-r from-amber-900/40 to-orange-900/40 hover:from-amber-800/50 hover:to-orange-800/50 text-amber-300 border-amber-700/50"
+                    : "bg-gradient-to-r from-amber-900/40 to-orange-900/40 hover:from-amber-800/50 hover:to-orange-800/50 text-[#7a5a10] border-amber-700/50"
                 }`}
               >
                 {aggReportLoading === site.id ? "Generating…" : "Aggregated Report"}
               </button>
               <button
                 onClick={() => setExpandedSite(isExpanded ? null : site.id)}
-                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
+                className="px-2 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-400 border border-stone-200"
               >
                 {isExpanded ? "▲ Less" : "▼ Readiness"}
               </button>
             </div>
 
             {publishResult[site.id] && (
-              <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+              <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
                 {publishResult[site.id]}
               </p>
             )}
             {diagnosticResult[site.id] && (
-              <p className={`mt-2 text-xs rounded px-2 py-1 ${diagnosticResult[site.id].startsWith("❌") ? "bg-red-950/30 text-red-300" : "bg-blue-950/30 text-blue-300"}`}>
+              <p className={`mt-2 text-xs rounded px-2 py-1 ${diagnosticResult[site.id].startsWith("❌") ? "bg-[rgba(200,50,43,0.06)] text-[#C8322B]" : "bg-[rgba(59,126,161,0.06)] text-[#1e5a7a]"}`}>
                 {diagnosticResult[site.id]}
               </p>
             )}
 
             {/* Automation readiness checklist */}
             {isExpanded && (
-              <div className="mt-3 border-t border-zinc-800 pt-3">
-                <p className="text-xs font-semibold text-zinc-400 mb-2">Automation Readiness</p>
+              <div className="mt-3 border-t border-stone-200 pt-3">
+                <p className="text-xs font-semibold text-stone-400 mb-2">Automation Readiness</p>
                 <div className="space-y-1">
                   {readiness.checks.map((check) => (
                     <div key={check.label} className="flex items-center gap-2 text-xs">
-                      <span className={check.ok ? "text-emerald-400" : "text-zinc-600"}>
+                      <span className={check.ok ? "text-[#2D5A3D]" : "text-stone-500"}>
                         {check.ok ? "✓" : "○"}
                       </span>
-                      <span className={check.ok ? "text-zinc-300" : "text-zinc-500"}>{check.label}</span>
+                      <span className={check.ok ? "text-stone-600" : "text-stone-500"}>{check.label}</span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="mt-2 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      readiness.percentage >= 80 ? "bg-emerald-500" :
+                      readiness.percentage >= 80 ? "bg-[#2D5A3D]" :
                       readiness.percentage >= 50 ? "bg-amber-500" : "bg-red-500"
                     }`}
                     style={{ width: `${readiness.percentage}%` }}
                   />
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">{readiness.passCount}/{readiness.total} checks passed</p>
+                <p className="text-xs text-stone-500 mt-1">{readiness.passCount}/{readiness.total} checks passed</p>
               </div>
             )}
 
             {/* Performance Audit Results Panel */}
             {auditSiteId === site.id && auditResults[site.id] && (
-              <div className="mt-3 border-t border-zinc-800 pt-3">
+              <div className="mt-3 border-t border-stone-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-zinc-400">Performance Audit (Mobile)</p>
-                  <button onClick={() => setAuditSiteId(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                  <p className="text-xs font-semibold text-stone-400">Performance Audit (Mobile)</p>
+                  <button onClick={() => setAuditSiteId(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
                 {/* Summary scores */}
                 <div className="grid grid-cols-4 gap-2 text-xs text-center mb-3">
@@ -3847,49 +3846,49 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                     { label: "SEO", value: auditResults[site.id].avgSeo, threshold: 90 },
                     { label: "LCP", value: auditResults[site.id].avgLcpMs, threshold: 2500, isMs: true },
                   ].map((m) => (
-                    <div key={m.label} className="bg-zinc-800/50 rounded p-2">
+                    <div key={m.label} className="bg-stone-100/50 rounded p-2">
                       <div className={`font-bold ${
-                        m.isMs ? (m.value <= m.threshold ? "text-emerald-400" : "text-red-400") :
-                        m.value >= m.threshold ? "text-emerald-400" : m.value >= 50 ? "text-amber-400" : "text-red-400"
+                        m.isMs ? (m.value <= m.threshold ? "text-[#2D5A3D]" : "text-[#C8322B]") :
+                        m.value >= m.threshold ? "text-[#2D5A3D]" : m.value >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"
                       }`}>
                         {m.isMs ? `${(m.value / 1000).toFixed(1)}s` : m.value}
                       </div>
-                      <div className="text-zinc-500">{m.label}</div>
+                      <div className="text-stone-500">{m.label}</div>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-zinc-500 mb-2">{auditResults[site.id].pagesAudited} pages audited</p>
+                <p className="text-xs text-stone-500 mb-2">{auditResults[site.id].pagesAudited} pages audited</p>
                 {auditResults[site.id].avgPerformance === 0 && auditResults[site.id].avgSeo === 0 && (
-                  <div className="bg-red-950/30 border border-red-800/40 rounded p-2 mb-2 text-xs text-red-400">
+                  <div className="bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)]/40 rounded p-2 mb-2 text-xs text-[#C8322B]">
                     All audits failed. This usually means the Google PageSpeed API key is invalid or missing.
                     Check that GOOGLE_PAGESPEED_API_KEY starts with &quot;AIza&quot; (API Key type, not OAuth).
                   </div>
                 )}
                 {auditResults[site.id].warning && (
-                  <div className="bg-amber-950/30 border border-amber-800/40 rounded p-2 mb-2 text-xs text-amber-400">
+                  <div className="bg-[rgba(196,154,42,0.06)] border border-[rgba(196,154,42,0.3)]/40 rounded p-2 mb-2 text-xs text-[#C49A2A]">
                     {auditResults[site.id].warning}
                   </div>
                 )}
                 {/* Per-page results */}
                 <div className="space-y-1 max-h-48 overflow-y-auto">
                   {auditResults[site.id].pages.map((p) => (
-                    <div key={p.url} className="flex items-center justify-between text-xs bg-zinc-800/30 rounded px-2 py-1.5">
-                      <span className="text-zinc-400 truncate max-w-[55%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
+                    <div key={p.url} className="flex items-center justify-between text-xs bg-stone-100/30 rounded px-2 py-1.5">
+                      <span className="text-stone-400 truncate max-w-[55%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
                       <div className="flex gap-2 text-right shrink-0">
                         {p.error ? (
-                          <span className="text-red-400" title={p.error}>
+                          <span className="text-[#C8322B]" title={p.error}>
                             {p.error.startsWith("HTTP ") ? p.error.substring(0, 20) : "API Error"}
                           </span>
                         ) : (
                           <>
-                            <span className={p.performance != null && p.performance >= 90 ? "text-emerald-400" : p.performance != null && p.performance >= 50 ? "text-amber-400" : "text-red-400"}>
+                            <span className={p.performance != null && p.performance >= 90 ? "text-[#2D5A3D]" : p.performance != null && p.performance >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"}>
                               {p.performance ?? "–"}
                             </span>
-                            <span className={p.seo != null && p.seo >= 90 ? "text-emerald-400" : "text-amber-400"}>
+                            <span className={p.seo != null && p.seo >= 90 ? "text-[#2D5A3D]" : "text-[#C49A2A]"}>
                               {p.seo ?? "–"}
                             </span>
                             {p.lcpMs != null && (
-                              <span className={p.lcpMs <= 2500 ? "text-emerald-400" : "text-red-400"}>
+                              <span className={p.lcpMs <= 2500 ? "text-[#2D5A3D]" : "text-[#C8322B]"}>
                                 {(p.lcpMs / 1000).toFixed(1)}s
                               </span>
                             )}
@@ -3904,41 +3903,41 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* ══════ Previous Reports History Panel ══════ */}
             {seoAuditHistoryOpen === site.id && (
-              <div className="mt-3 border-t border-zinc-800 pt-3">
+              <div className="mt-3 border-t border-stone-200 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-violet-400">Previous SEO Audit Reports</p>
-                  <button onClick={() => setSeoAuditHistoryOpen(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                  <button onClick={() => setSeoAuditHistoryOpen(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
                 {(!seoAuditHistory[site.id] || seoAuditHistory[site.id].length === 0) ? (
-                  <p className="text-xs text-zinc-500">No saved reports yet. Run a Master Audit to create the first one.</p>
+                  <p className="text-xs text-stone-500">No saved reports yet. Run a Master Audit to create the first one.</p>
                 ) : (
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">
                     {seoAuditHistory[site.id].map((report) => (
                       <button
                         key={report.id}
                         onClick={() => loadPreviousReport(report.id, site.id)}
-                        className="w-full text-left bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2 text-xs transition-colors"
+                        className="w-full text-left bg-stone-100/50 hover:bg-stone-100 rounded-lg px-3 py-2 text-xs transition-colors"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <span className={`font-bold ${
-                              report.healthScore >= 70 ? "text-emerald-400" :
-                              report.healthScore >= 40 ? "text-amber-400" : "text-red-400"
+                              report.healthScore >= 70 ? "text-[#2D5A3D]" :
+                              report.healthScore >= 40 ? "text-[#C49A2A]" : "text-[#C8322B]"
                             }`}>
                               {report.healthScore}/100
                             </span>
-                            <span className="text-zinc-500">{timeAgo(report.createdAt)}</span>
+                            <span className="text-stone-500">{timeAgo(report.createdAt)}</span>
                           </div>
                           <div className="flex gap-1.5">
                             {report.criticalCount > 0 && (
-                              <span className="px-1.5 py-0.5 rounded bg-red-900/50 text-red-300 text-[10px]">{report.criticalCount} critical</span>
+                              <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-red-300 text-[10px]">{report.criticalCount} critical</span>
                             )}
                             {report.highCount > 0 && (
-                              <span className="px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-300 text-[10px]">{report.highCount} high</span>
+                              <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-orange-300 text-[10px]">{report.highCount} high</span>
                             )}
                           </div>
                         </div>
-                        <p className="text-zinc-400 text-[11px] mt-1 line-clamp-1">{report.summary}</p>
+                        <p className="text-stone-400 text-[11px] mt-1 line-clamp-1">{report.summary}</p>
                       </button>
                     ))}
                   </div>
@@ -3950,18 +3949,18 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
             {seoAuditSiteId === site.id && seoAuditResult[site.id] && (() => {
               const audit = seoAuditResult[site.id];
               const severityColors: Record<string, string> = {
-                critical: "bg-red-900/50 text-red-300 border-red-700",
-                high: "bg-orange-900/50 text-orange-300 border-orange-700",
-                medium: "bg-amber-900/50 text-amber-300 border-amber-700",
-                low: "bg-blue-900/50 text-blue-300 border-blue-700",
-                info: "bg-zinc-800 text-zinc-400 border-zinc-700",
+                critical: "bg-[rgba(200,50,43,0.10)] text-red-300 border-red-700",
+                high: "bg-[rgba(217,119,6,0.10)] text-orange-300 border-orange-700",
+                medium: "bg-amber-900/50 text-[#7a5a10] border-amber-700",
+                low: "bg-blue-900/50 text-[#1e5a7a] border-blue-700",
+                info: "bg-stone-100 text-stone-400 border-stone-200",
               };
               const severityDots: Record<string, string> = {
                 critical: "bg-red-500",
                 high: "bg-orange-500",
                 medium: "bg-amber-500",
                 low: "bg-blue-500",
-                info: "bg-zinc-500",
+                info: "bg-stone-400",
               };
               return (
                 <div className="mt-3 border-t border-violet-800/50 pt-3">
@@ -3969,33 +3968,33 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-semibold text-violet-400">Master SEO Audit</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-500">{Math.round(audit.durationMs / 1000)}s</span>
-                      <button onClick={() => setSeoAuditSiteId(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                      <span className="text-[10px] text-stone-500">{Math.round(audit.durationMs / 1000)}s</span>
+                      <button onClick={() => setSeoAuditSiteId(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                     </div>
                   </div>
 
                   {/* Save warning */}
                   {audit.saveError && (
-                    <div className="mb-2 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-1.5 text-[11px] text-amber-300">
+                    <div className="mb-2 bg-[rgba(196,154,42,0.06)] border border-[rgba(196,154,42,0.3)]/40 rounded-lg px-3 py-1.5 text-[11px] text-[#7a5a10]">
                       {audit.saveError}
                     </div>
                   )}
 
                   {/* Health Score + Summary */}
-                  <div className="bg-zinc-800/60 rounded-xl p-3 mb-3">
+                  <div className="bg-stone-100/60 rounded-xl p-3 mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`text-2xl font-black ${
-                        audit.healthScore >= 70 ? "text-emerald-400" :
-                        audit.healthScore >= 40 ? "text-amber-400" : "text-red-400"
+                        audit.healthScore >= 70 ? "text-[#2D5A3D]" :
+                        audit.healthScore >= 40 ? "text-[#C49A2A]" : "text-[#C8322B]"
                       }`}>
                         {audit.healthScore}
                       </div>
                       <div className="flex-1">
-                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Health Score</div>
-                        <div className="h-1.5 bg-zinc-700 rounded-full mt-1 overflow-hidden">
+                        <div className="text-[10px] text-stone-500 uppercase tracking-wider">Health Score</div>
+                        <div className="h-1.5 bg-stone-200 rounded-full mt-1 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              audit.healthScore >= 70 ? "bg-emerald-500" :
+                              audit.healthScore >= 70 ? "bg-[#2D5A3D]" :
                               audit.healthScore >= 40 ? "bg-amber-500" : "bg-red-500"
                             }`}
                             style={{ width: `${audit.healthScore}%` }}
@@ -4003,80 +4002,80 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-zinc-300 mt-2">{audit.summary}</p>
+                    <p className="text-xs text-stone-600 mt-2">{audit.summary}</p>
                     <div className="flex gap-2 mt-2 text-[10px]">
-                      {audit.criticalCount > 0 && <span className="px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">{audit.criticalCount} critical</span>}
-                      {audit.highCount > 0 && <span className="px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-300">{audit.highCount} high</span>}
-                      {audit.mediumCount > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-300">{audit.mediumCount} medium</span>}
-                      {audit.lowCount > 0 && <span className="px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">{audit.lowCount} low</span>}
+                      {audit.criticalCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-red-300">{audit.criticalCount} critical</span>}
+                      {audit.highCount > 0 && <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-orange-300">{audit.highCount} high</span>}
+                      {audit.mediumCount > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-900/50 text-[#7a5a10]">{audit.mediumCount} medium</span>}
+                      {audit.lowCount > 0 && <span className="px-1.5 py-0.5 rounded bg-blue-900/50 text-[#1e5a7a]">{audit.lowCount} low</span>}
                     </div>
                   </div>
 
                   {/* Indexing Quick Stats */}
                   <div className="grid grid-cols-4 gap-1.5 mb-3 text-center text-xs">
-                    <div className="bg-zinc-800/50 rounded-lg p-2">
-                      <div className={`font-bold ${audit.indexingSummary.indexRate >= 60 ? "text-emerald-400" : "text-red-400"}`}>
+                    <div className="bg-stone-100/50 rounded-lg p-2">
+                      <div className={`font-bold ${audit.indexingSummary.indexRate >= 60 ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                         {audit.indexingSummary.indexRate}%
                       </div>
-                      <div className="text-zinc-500 text-[10px]">Indexed</div>
+                      <div className="text-stone-500 text-[10px]">Indexed</div>
                     </div>
-                    <div className="bg-zinc-800/50 rounded-lg p-2">
+                    <div className="bg-stone-100/50 rounded-lg p-2">
                       <div className="font-bold text-blue-400">{audit.indexingSummary.submitted}</div>
-                      <div className="text-zinc-500 text-[10px]">Submitted</div>
+                      <div className="text-stone-500 text-[10px]">Submitted</div>
                     </div>
-                    <div className="bg-zinc-800/50 rounded-lg p-2">
-                      <div className={`font-bold ${audit.indexingSummary.discovered > 10 ? "text-amber-400" : "text-zinc-400"}`}>
+                    <div className="bg-stone-100/50 rounded-lg p-2">
+                      <div className={`font-bold ${audit.indexingSummary.discovered > 10 ? "text-[#C49A2A]" : "text-stone-400"}`}>
                         {audit.indexingSummary.discovered}
                       </div>
-                      <div className="text-zinc-500 text-[10px]">Discovered</div>
+                      <div className="text-stone-500 text-[10px]">Discovered</div>
                     </div>
-                    <div className="bg-zinc-800/50 rounded-lg p-2">
-                      <div className={`font-bold ${audit.indexingSummary.errors > 0 ? "text-red-400" : "text-zinc-400"}`}>
+                    <div className="bg-stone-100/50 rounded-lg p-2">
+                      <div className={`font-bold ${audit.indexingSummary.errors > 0 ? "text-[#C8322B]" : "text-stone-400"}`}>
                         {audit.indexingSummary.errors}
                       </div>
-                      <div className="text-zinc-500 text-[10px]">Errors</div>
+                      <div className="text-stone-500 text-[10px]">Errors</div>
                     </div>
                   </div>
 
                   {/* Trends */}
                   {audit.trends && (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Week-over-Week Trends</p>
+                      <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">Week-over-Week Trends</p>
                       <div className="grid grid-cols-2 gap-1.5 text-xs">
-                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
-                          <div className="text-zinc-500 text-[10px]">Clicks</div>
+                        <div className="bg-stone-100/50 rounded-lg px-2.5 py-2">
+                          <div className="text-stone-500 text-[10px]">Clicks</div>
                           <div className="flex items-baseline gap-1.5">
-                            <span className="font-bold text-zinc-200">{audit.trends.weeklyClicks.current}</span>
+                            <span className="font-bold text-stone-700">{audit.trends.weeklyClicks.current}</span>
                             {audit.trends.weeklyClicks.change !== 0 && (
-                              <span className={`text-[10px] font-medium ${audit.trends.weeklyClicks.change > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              <span className={`text-[10px] font-medium ${audit.trends.weeklyClicks.change > 0 ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                                 {audit.trends.weeklyClicks.change > 0 ? "↑" : "↓"}{Math.abs(audit.trends.weeklyClicks.change)}%
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
-                          <div className="text-zinc-500 text-[10px]">Impressions</div>
+                        <div className="bg-stone-100/50 rounded-lg px-2.5 py-2">
+                          <div className="text-stone-500 text-[10px]">Impressions</div>
                           <div className="flex items-baseline gap-1.5">
-                            <span className="font-bold text-zinc-200">{audit.trends.weeklyImpressions.current}</span>
+                            <span className="font-bold text-stone-700">{audit.trends.weeklyImpressions.current}</span>
                             {audit.trends.weeklyImpressions.change !== 0 && (
-                              <span className={`text-[10px] font-medium ${audit.trends.weeklyImpressions.change > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              <span className={`text-[10px] font-medium ${audit.trends.weeklyImpressions.change > 0 ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                                 {audit.trends.weeklyImpressions.change > 0 ? "↑" : "↓"}{Math.abs(audit.trends.weeklyImpressions.change)}%
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
-                          <div className="text-zinc-500 text-[10px]">Indexing Velocity</div>
+                        <div className="bg-stone-100/50 rounded-lg px-2.5 py-2">
+                          <div className="text-stone-500 text-[10px]">Indexing Velocity</div>
                           <div className="flex items-baseline gap-1.5">
-                            <span className="font-bold text-zinc-200">{audit.trends.indexingVelocity.thisWeek}</span>
-                            <span className="text-zinc-500 text-[10px]">vs {audit.trends.indexingVelocity.lastWeek} prev</span>
+                            <span className="font-bold text-stone-700">{audit.trends.indexingVelocity.thisWeek}</span>
+                            <span className="text-stone-500 text-[10px]">vs {audit.trends.indexingVelocity.lastWeek} prev</span>
                           </div>
                         </div>
-                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
-                          <div className="text-zinc-500 text-[10px]">Content Published</div>
+                        <div className="bg-stone-100/50 rounded-lg px-2.5 py-2">
+                          <div className="text-stone-500 text-[10px]">Content Published</div>
                           <div className="flex items-baseline gap-1.5">
-                            <span className="font-bold text-zinc-200">{audit.trends.contentVelocity.thisWeek}</span>
-                            <span className="text-zinc-500 text-[10px]">vs {audit.trends.contentVelocity.lastWeek} prev</span>
+                            <span className="font-bold text-stone-700">{audit.trends.contentVelocity.thisWeek}</span>
+                            <span className="text-stone-500 text-[10px]">vs {audit.trends.contentVelocity.lastWeek} prev</span>
                           </div>
                         </div>
                       </div>
@@ -4085,20 +4084,20 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                       {(audit.trends.topGrowing.length > 0 || audit.trends.topDeclining.length > 0) && (
                         <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
                           {audit.trends.topGrowing.length > 0 && (
-                            <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-lg px-2 py-1.5">
-                              <div className="text-emerald-400 font-medium mb-1">Top Growing</div>
+                            <div className="bg-[rgba(45,90,61,0.04)] border border-[rgba(45,90,61,0.3)]/30 rounded-lg px-2 py-1.5">
+                              <div className="text-[#2D5A3D] font-medium mb-1">Top Growing</div>
                               {audit.trends.topGrowing.slice(0, 3).map((p, i) => (
-                                <div key={i} className="text-zinc-400 truncate">
+                                <div key={i} className="text-stone-400 truncate">
                                   +{p.clickGain} {(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}
                                 </div>
                               ))}
                             </div>
                           )}
                           {audit.trends.topDeclining.length > 0 && (
-                            <div className="bg-red-950/20 border border-red-800/30 rounded-lg px-2 py-1.5">
-                              <div className="text-red-400 font-medium mb-1">Top Declining</div>
+                            <div className="bg-[rgba(200,50,43,0.04)] border border-[rgba(200,50,43,0.3)]/30 rounded-lg px-2 py-1.5">
+                              <div className="text-[#C8322B] font-medium mb-1">Top Declining</div>
                               {audit.trends.topDeclining.slice(0, 3).map((p, i) => (
-                                <div key={i} className="text-zinc-400 truncate">
+                                <div key={i} className="text-stone-400 truncate">
                                   -{p.clickLoss} {(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}
                                 </div>
                               ))}
@@ -4111,7 +4110,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
                   {/* Sections with findings */}
                   <div className="space-y-1.5 mb-3">
-                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Findings by Category</p>
+                    <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1">Findings by Category</p>
                     {audit.sections.map((section) => {
                       const isExpanded = seoAuditExpandedSection === section.name;
                       const criticals = section.findings.filter((f) => f.severity === "critical").length;
@@ -4120,23 +4119,23 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         <div key={section.name}>
                           <button
                             onClick={() => setSeoAuditExpandedSection(isExpanded ? null : section.name)}
-                            className="w-full flex items-center justify-between bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2 text-xs transition-colors"
+                            className="w-full flex items-center justify-between bg-stone-100/50 hover:bg-stone-100 rounded-lg px-3 py-2 text-xs transition-colors"
                           >
                             <div className="flex items-center gap-2">
                               <span>{section.icon}</span>
-                              <span className="font-medium text-zinc-200">{section.name}</span>
-                              <span className="text-zinc-500">({section.findings.length})</span>
+                              <span className="font-medium text-stone-700">{section.name}</span>
+                              <span className="text-stone-500">({section.findings.length})</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {criticals > 0 && <span className="w-2 h-2 rounded-full bg-red-500" />}
                               {highs > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" />}
                               <span className={`text-[10px] font-bold ${
-                                section.score >= 80 ? "text-emerald-400" :
-                                section.score >= 50 ? "text-amber-400" : "text-red-400"
+                                section.score >= 80 ? "text-[#2D5A3D]" :
+                                section.score >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"
                               }`}>
                                 {section.score}/{section.maxScore}
                               </span>
-                              <span className="text-zinc-600">{isExpanded ? "▲" : "▼"}</span>
+                              <span className="text-stone-500">{isExpanded ? "▲" : "▼"}</span>
                             </div>
                           </button>
                           {isExpanded && (
@@ -4160,32 +4159,32 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                                       </div>
                                     </button>
                                     {findingExpanded && (
-                                      <div className="ml-4 mt-1 bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2 text-[11px] space-y-2">
+                                      <div className="ml-4 mt-1 bg-stone-50/80 border border-stone-200 rounded-lg px-3 py-2 text-[11px] space-y-2">
                                         <div>
-                                          <span className="text-zinc-500 font-medium">What it means: </span>
-                                          <span className="text-zinc-300">{finding.description}</span>
+                                          <span className="text-stone-500 font-medium">What it means: </span>
+                                          <span className="text-stone-600">{finding.description}</span>
                                         </div>
                                         {finding.impact && (
                                           <div>
-                                            <span className="text-zinc-500 font-medium">Impact: </span>
-                                            <span className="text-zinc-300">{finding.impact}</span>
+                                            <span className="text-stone-500 font-medium">Impact: </span>
+                                            <span className="text-stone-600">{finding.impact}</span>
                                           </div>
                                         )}
                                         {finding.fix && (
                                           <div>
-                                            <span className="text-zinc-500 font-medium">How to fix: </span>
-                                            <span className="text-zinc-300">{finding.fix}</span>
+                                            <span className="text-stone-500 font-medium">How to fix: </span>
+                                            <span className="text-stone-600">{finding.fix}</span>
                                           </div>
                                         )}
                                         {finding.affected.length > 0 && (
                                           <div>
-                                            <span className="text-zinc-500 font-medium">Affected ({finding.count}): </span>
+                                            <span className="text-stone-500 font-medium">Affected ({finding.count}): </span>
                                             <div className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
                                               {finding.affected.slice(0, 10).map((a, i) => (
-                                                <div key={i} className="text-zinc-400 text-[10px] font-mono truncate">{a}</div>
+                                                <div key={i} className="text-stone-400 text-[10px] font-mono truncate">{a}</div>
                                               ))}
                                               {finding.affected.length > 10 && (
-                                                <div className="text-zinc-600 text-[10px]">... and {finding.affected.length - 10} more</div>
+                                                <div className="text-stone-500 text-[10px]">... and {finding.affected.length - 10} more</div>
                                               )}
                                             </div>
                                           </div>
@@ -4205,17 +4204,17 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   {/* Available Actions */}
                   {audit.availableActions && audit.availableActions.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Quick Fix Actions</p>
+                      <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5">Quick Fix Actions</p>
                       <div className="space-y-1">
                         {audit.availableActions.map((action) => (
-                          <div key={action.id} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-3 py-2">
+                          <div key={action.id} className="flex items-center justify-between bg-stone-100/50 rounded-lg px-3 py-2">
                             <div className="flex-1 mr-2">
-                              <div className="text-xs font-medium text-zinc-200">{action.label}</div>
-                              <div className="text-[10px] text-zinc-500">{action.description}</div>
+                              <div className="text-xs font-medium text-stone-700">{action.label}</div>
+                              <div className="text-[10px] text-stone-500">{action.description}</div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               {seoAuditActionResult[action.id] && (
-                                <span className={`text-[10px] ${seoAuditActionResult[action.id].startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>
+                                <span className={`text-[10px] ${seoAuditActionResult[action.id].startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                                   {seoAuditActionResult[action.id]}
                                 </span>
                               )}
@@ -4235,7 +4234,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   )}
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
+                  <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-200">
                     <span>{audit.siteName} — {new Date(audit.timestamp).toLocaleString()}</span>
                     {audit.reportId && <span className="text-violet-500">Saved</span>}
                   </div>
@@ -4245,14 +4244,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* ══════ Audit Reports Panel (daily + manual reports with JSON copy) ══════ */}
             {auditReportsOpen === site.id && (
-              <div className="mt-3 border-t border-emerald-800/50 pt-3">
+              <div className="mt-3 border-t border-[rgba(45,90,61,0.3)]/50 pt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-emerald-400">Audit Reports</p>
-                  <button onClick={() => setAuditReportsOpen(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                  <p className="text-xs font-semibold text-[#2D5A3D]">Audit Reports</p>
+                  <button onClick={() => setAuditReportsOpen(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
-                <p className="text-[10px] text-zinc-500 mb-2">Daily automated + manual SEO audits. Tap any report to see the JSON summary you can copy.</p>
+                <p className="text-[10px] text-stone-500 mb-2">Daily automated + manual SEO audits. Tap any report to see the JSON summary you can copy.</p>
                 {(!auditReportsData[site.id] || auditReportsData[site.id].length === 0) ? (
-                  <p className="text-xs text-zinc-500">No audit reports yet. Run a Master Audit or wait for the daily scheduled audit (4:30 AM UTC).</p>
+                  <p className="text-xs text-stone-500">No audit reports yet. Run a Master Audit or wait for the daily scheduled audit (4:30 AM UTC).</p>
                 ) : (
                   <div className="space-y-1.5 max-h-[70vh] overflow-y-auto">
                     {auditReportsData[site.id].map((report) => {
@@ -4261,24 +4260,24 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         <div key={report.id}>
                           <button
                             onClick={() => loadAuditJson(report.id, site.id)}
-                            className="w-full text-left bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs transition-colors"
+                            className="w-full text-left bg-stone-100/50 hover:bg-stone-100 rounded-lg px-3 py-2.5 text-xs transition-colors"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
                                 <span className={`font-bold text-sm ${
-                                  report.healthScore >= 70 ? "text-emerald-400" :
-                                  report.healthScore >= 40 ? "text-amber-400" : "text-red-400"
+                                  report.healthScore >= 70 ? "text-[#2D5A3D]" :
+                                  report.healthScore >= 40 ? "text-[#C49A2A]" : "text-[#C8322B]"
                                 }`}>
                                   {report.healthScore}
                                 </span>
                                 <div>
-                                  <div className="text-zinc-300 text-[11px]">
+                                  <div className="text-stone-600 text-[11px]">
                                     {new Date(report.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                                     {" "}
-                                    <span className="text-zinc-600">{new Date(report.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                                    <span className="text-stone-500">{new Date(report.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                                   </div>
                                   <span className={`text-[9px] px-1 py-0.5 rounded ${
-                                    report.triggeredBy === "scheduled" ? "bg-blue-900/40 text-blue-400" : "bg-zinc-700/50 text-zinc-400"
+                                    report.triggeredBy === "scheduled" ? "bg-[rgba(59,126,161,0.08)] text-blue-400" : "bg-stone-200/50 text-stone-400"
                                   }`}>
                                     {report.triggeredBy === "scheduled" ? "Daily Auto" : "Manual"}
                                   </span>
@@ -4286,50 +4285,50 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                               </div>
                               <div className="flex gap-1">
                                 {report.criticalCount > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded bg-red-900/50 text-red-300 text-[10px]">{report.criticalCount}C</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-[rgba(200,50,43,0.10)] text-red-300 text-[10px]">{report.criticalCount}C</span>
                                 )}
                                 {report.highCount > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-300 text-[10px]">{report.highCount}H</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-[rgba(217,119,6,0.10)] text-orange-300 text-[10px]">{report.highCount}H</span>
                                 )}
-                                <span className="text-zinc-600 text-[10px]">{isJsonOpen ? "▲" : "▼"}</span>
+                                <span className="text-stone-500 text-[10px]">{isJsonOpen ? "▲" : "▼"}</span>
                               </div>
                             </div>
-                            <p className="text-zinc-500 text-[10px] mt-1 line-clamp-2">{report.summary}</p>
+                            <p className="text-stone-500 text-[10px] mt-1 line-clamp-2">{report.summary}</p>
                           </button>
 
                           {/* Expanded JSON summary + plain language report */}
                           {isJsonOpen && (
                             <div className="ml-2 mt-1 space-y-2">
                               {auditJsonLoading === report.id ? (
-                                <p className="text-xs text-zinc-500 animate-pulse px-3 py-2">Loading report data…</p>
+                                <p className="text-xs text-stone-500 animate-pulse px-3 py-2">Loading report data…</p>
                               ) : auditJsonData ? (
                                 <>
                                   {/* Plain language report */}
                                   {(auditJsonData as Record<string, unknown>).plainLanguage && (
-                                    <div className="bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2.5">
-                                      <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mb-1.5">Plain Language Summary</p>
-                                      <pre className="text-[11px] text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">
+                                    <div className="bg-stone-50/80 border border-stone-200 rounded-lg px-3 py-2.5">
+                                      <p className="text-[10px] font-semibold text-[#2D5A3D] uppercase tracking-wider mb-1.5">Plain Language Summary</p>
+                                      <pre className="text-[11px] text-stone-600 whitespace-pre-wrap font-mono leading-relaxed">
                                         {(auditJsonData as Record<string, unknown>).plainLanguage as string}
                                       </pre>
                                     </div>
                                   )}
 
                                   {/* JSON with copy button */}
-                                  <div className="bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2.5">
+                                  <div className="bg-stone-50/80 border border-stone-200 rounded-lg px-3 py-2.5">
                                     <div className="flex items-center justify-between mb-2">
-                                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">JSON Summary (tap to copy)</p>
+                                      <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider">JSON Summary (tap to copy)</p>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); copyAuditJson(); }}
                                         className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
                                           auditJsonCopied
-                                            ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700"
-                                            : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200 border border-zinc-600"
+                                            ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]"
+                                            : "bg-stone-200 hover:bg-stone-400 text-stone-700 border border-stone-300"
                                         }`}
                                       >
                                         {auditJsonCopied ? "Copied!" : "Copy JSON"}
                                       </button>
                                     </div>
-                                    <pre className="text-[10px] text-zinc-400 whitespace-pre-wrap font-mono max-h-64 overflow-y-auto leading-relaxed">
+                                    <pre className="text-[10px] text-stone-400 whitespace-pre-wrap font-mono max-h-64 overflow-y-auto leading-relaxed">
                                       {JSON.stringify(auditJsonData, null, 2)}
                                     </pre>
                                   </div>
@@ -4347,15 +4346,15 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
             {/* ══════ Aggregated Report Panel ══════ */}
             {aggReportSiteId === site.id && aggReportStep !== "idle" && (
-              <div className="mt-3 border-t border-amber-800/50 pt-3">
+              <div className="mt-3 border-t border-[rgba(196,154,42,0.3)]/50 pt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-amber-400">Aggregated SEO Report</p>
-                  <button onClick={() => { setAggReportSiteId(null); setAggReportStep("idle"); }} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                  <p className="text-xs font-semibold text-[#C49A2A]">Aggregated SEO Report</p>
+                  <button onClick={() => { setAggReportSiteId(null); setAggReportStep("idle"); }} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
 
                 {/* Step 1: Checking sources */}
                 {aggReportStep === "checking" && (
-                  <p className="text-xs text-zinc-400 animate-pulse">Checking data sources for recent reports…</p>
+                  <p className="text-xs text-stone-400 animate-pulse">Checking data sources for recent reports…</p>
                 )}
 
                 {/* Step 2: Choose — use cached or generate fresh */}
@@ -4364,25 +4363,25 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   const hasSavedReport = src.sources.aggregatedReport.hasRecent;
                   return (
                     <div className="space-y-3">
-                      <p className="text-[11px] text-zinc-400">{src.recommendation}</p>
+                      <p className="text-[11px] text-stone-400">{src.recommendation}</p>
 
                       {/* Source freshness indicators */}
                       <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.seoAudit.hasRecent ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-400" : "bg-red-950/20 border-red-800/30 text-red-400"}`}>
+                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.seoAudit.hasRecent ? "bg-[rgba(45,90,61,0.04)] border-[rgba(45,90,61,0.3)]/30 text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.04)] border-[rgba(200,50,43,0.3)]/30 text-[#C8322B]"}`}>
                           <div className="font-medium">{src.sources.seoAudit.hasRecent ? "✓" : "✗"} SEO Audit</div>
                           {src.sources.seoAudit.lastRun && <div className="text-[10px] opacity-70">Score: {src.sources.seoAudit.score} — {timeAgo(src.sources.seoAudit.lastRun)}</div>}
                           {!src.sources.seoAudit.hasRecent && <div className="text-[10px] opacity-70">No report in last 12h</div>}
                         </div>
-                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.gscData.hasRecent ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-400" : "bg-amber-950/20 border-amber-800/30 text-amber-400"}`}>
+                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.gscData.hasRecent ? "bg-[rgba(45,90,61,0.04)] border-[rgba(45,90,61,0.3)]/30 text-[#2D5A3D]" : "bg-[rgba(196,154,42,0.04)] border-[rgba(196,154,42,0.3)]/30 text-[#C49A2A]"}`}>
                           <div className="font-medium">{src.sources.gscData.hasRecent ? "✓" : "~"} GSC Data</div>
                           {src.sources.gscData.lastDate && <div className="text-[10px] opacity-70">Last: {new Date(src.sources.gscData.lastDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
                           {!src.sources.gscData.hasRecent && <div className="text-[10px] opacity-70">Data may be stale</div>}
                         </div>
-                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.indexingData.hasRecent ? "bg-emerald-950/20 border-emerald-800/30 text-emerald-400" : "bg-amber-950/20 border-amber-800/30 text-amber-400"}`}>
+                        <div className={`rounded-lg px-2.5 py-2 border ${src.sources.indexingData.hasRecent ? "bg-[rgba(45,90,61,0.04)] border-[rgba(45,90,61,0.3)]/30 text-[#2D5A3D]" : "bg-[rgba(196,154,42,0.04)] border-[rgba(196,154,42,0.3)]/30 text-[#C49A2A]"}`}>
                           <div className="font-medium">{src.sources.indexingData.hasRecent ? "✓" : "~"} Indexing</div>
                         </div>
                         {hasSavedReport && (
-                          <div className="bg-blue-950/20 border-blue-800/30 border rounded-lg px-2.5 py-2 text-blue-400">
+                          <div className="bg-[rgba(59,126,161,0.04)] border-[rgba(59,126,161,0.3)]/30 border rounded-lg px-2.5 py-2 text-blue-400">
                             <div className="font-medium">✓ Saved Report</div>
                             <div className="text-[10px] opacity-70">Score: {src.sources.aggregatedReport.score} — {timeAgo(src.sources.aggregatedReport.lastRun!)}</div>
                           </div>
@@ -4394,7 +4393,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         {hasSavedReport && (
                           <button
                             onClick={() => generateAggReport(site.id, true)}
-                            className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 border border-blue-700/50 transition-colors"
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-900/50 hover:bg-blue-800/50 text-[#1e5a7a] border border-blue-700/50 transition-colors"
                           >
                             Use Saved Report
                           </button>
@@ -4402,14 +4401,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                         {src.allSourcesFresh && (
                           <button
                             onClick={() => generateAggReport(site.id, false)}
-                            className="px-3 py-2 rounded-lg text-xs font-medium bg-emerald-900/50 hover:bg-emerald-800/50 text-emerald-300 border border-emerald-700/50 transition-colors"
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-[rgba(45,90,61,0.10)] hover:bg-emerald-800/50 text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]/50 transition-colors"
                           >
                             Generate from Recent Data (~{src.estimatedGenerationTimeSec}s)
                           </button>
                         )}
                         <button
                           onClick={() => generateAggReport(site.id, false)}
-                          className="px-3 py-2 rounded-lg text-xs font-medium bg-amber-900/50 hover:bg-amber-800/50 text-amber-300 border border-amber-700/50 transition-colors"
+                          className="px-3 py-2 rounded-lg text-xs font-medium bg-amber-900/50 hover:bg-amber-800/50 text-[#7a5a10] border border-amber-700/50 transition-colors"
                         >
                           Generate Fresh (~{src.estimatedGenerationTimeSec}s)
                         </button>
@@ -4417,7 +4416,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
                       {/* Tip for non-fresh sources */}
                       {!src.allSourcesFresh && (
-                        <p className="text-[10px] text-zinc-500">
+                        <p className="text-[10px] text-stone-500">
                           Tip: Run the daily SEO audit cron first for the most complete report. Expected generation: ~{src.estimatedGenerationTimeSec}s.
                         </p>
                       )}
@@ -4427,7 +4426,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
 
                 {/* Step 3: Generating */}
                 {aggReportStep === "generating" && (
-                  <div className="flex items-center gap-2 text-xs text-amber-300">
+                  <div className="flex items-center gap-2 text-xs text-[#7a5a10]">
                     <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                     <span>Generating aggregated report… This may take 15-40 seconds.</span>
                   </div>
@@ -4436,12 +4435,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 {/* Step 4: Error */}
                 {aggReportStep === "error" && (
                   <div className="space-y-2">
-                    <div className="bg-red-950/30 border border-red-800/50 rounded-lg px-3 py-2 text-xs text-red-300">
+                    <div className="bg-[rgba(200,50,43,0.06)] border border-[rgba(200,50,43,0.3)]/50 rounded-lg px-3 py-2 text-xs text-red-300">
                       {aggReportError || "An error occurred"}
                     </div>
                     <button
                       onClick={() => generateAggReport(site.id, false)}
-                      className="px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+                      className="px-3 py-1.5 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"
                     >
                       Retry
                     </button>
@@ -4453,7 +4452,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   const rpt = aggReportData[site.id];
                   const grade = (rpt.grade as string) || "?";
                   const score = (rpt.compositeScore as number) || 0;
-                  const gradeColor = grade === "A" ? "text-emerald-400" : grade === "B" ? "text-blue-400" : grade === "C" ? "text-amber-400" : "text-red-400";
+                  const gradeColor = grade === "A" ? "text-[#2D5A3D]" : grade === "B" ? "text-blue-400" : grade === "C" ? "text-[#C49A2A]" : "text-[#C8322B]";
                   const gradeBg = grade === "A" ? "from-emerald-900/30 to-emerald-800/20" : grade === "B" ? "from-blue-900/30 to-blue-800/20" : grade === "C" ? "from-amber-900/30 to-amber-800/20" : "from-red-900/30 to-red-800/20";
                   const issues = (rpt.issues as Array<{ severity: string; category: string; title: string; rootCause: string; fix: string }>) || [];
                   const fixPlan = (rpt.fixPlan as Array<{ priority: number; action: string; category: string; severity: string; expectedImpact: string }>) || [];
@@ -4494,32 +4493,32 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                           <div className={`text-4xl font-black ${gradeColor}`}>{grade}</div>
                           <div className="flex-1">
                             <div className={`text-xl font-bold ${gradeColor}`}>{score}/100</div>
-                            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Composite Score</div>
-                            <div className="h-1.5 bg-zinc-700/50 rounded-full mt-1.5 overflow-hidden">
-                              <div className={`h-full rounded-full ${grade === "A" ? "bg-emerald-500" : grade === "B" ? "bg-blue-500" : grade === "C" ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${score}%` }} />
+                            <div className="text-[10px] text-stone-500 uppercase tracking-wider">Composite Score</div>
+                            <div className="h-1.5 bg-stone-200/50 rounded-full mt-1.5 overflow-hidden">
+                              <div className={`h-full rounded-full ${grade === "A" ? "bg-[#2D5A3D]" : grade === "B" ? "bg-blue-500" : grade === "C" ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${score}%` }} />
                             </div>
                           </div>
                         </div>
-                        <p className="text-xs text-zinc-300 mt-2">{executiveSummary}</p>
+                        <p className="text-xs text-stone-600 mt-2">{executiveSummary}</p>
                       </div>
 
                       {/* Top-level action buttons */}
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => copyAggReportSection(plainLanguage, "plain")}
-                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "plain" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"}`}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "plain" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"}`}
                         >
                           {aggReportCopied === "plain" ? "Copied!" : "Copy Report"}
                         </button>
                         <button
                           onClick={() => copyAggReportSection(claudePrompt, "prompt")}
-                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "prompt" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-violet-900/40 hover:bg-violet-800/40 text-violet-300 border border-violet-700/50"}`}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "prompt" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-violet-900/40 hover:bg-violet-800/40 text-violet-300 border border-violet-700/50"}`}
                         >
                           {aggReportCopied === "prompt" ? "Copied!" : "Copy Claude Prompt"}
                         </button>
                         <button
                           onClick={() => copyAggReportSection(JSON.stringify(rpt, null, 2), "json")}
-                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "json" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"}`}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "json" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-stone-100 hover:bg-stone-200 text-stone-600 border border-stone-200"}`}
                         >
                           {aggReportCopied === "json" ? "Copied!" : "Copy Full JSON"}
                         </button>
@@ -4527,12 +4526,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                           <button
                             onClick={() => saveAggReport(site.id)}
                             disabled={aggReportSaving}
-                            className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-amber-900/40 hover:bg-amber-800/40 text-amber-300 border border-amber-700/50 transition-colors disabled:opacity-50"
+                            className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-amber-900/40 hover:bg-amber-800/40 text-[#7a5a10] border border-amber-700/50 transition-colors disabled:opacity-50"
                           >
                             {aggReportSaving ? "Saving…" : "Save Report"}
                           </button>
                         ) : (
-                          <span className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-emerald-900/30 text-emerald-300 border border-emerald-700/30">Saved</span>
+                          <span className="px-2.5 py-1.5 rounded text-[11px] font-medium bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]/30">Saved</span>
                         )}
                         <button
                           onClick={() => {
@@ -4548,7 +4547,7 @@ ${claudePrompt}
 The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggregated". If you need the raw data, fetch it from /api/admin/aggregated-report?siteId=${site.id}`;
                             copyAggReportSection(reviewPrompt, "review");
                           }}
-                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "review" ? "bg-emerald-900/50 text-emerald-300 border border-emerald-700" : "bg-gradient-to-r from-violet-900/40 to-blue-900/40 hover:from-violet-800/40 hover:to-blue-800/40 text-violet-300 border border-violet-700/50"}`}
+                          className={`px-2.5 py-1.5 rounded text-[11px] font-medium transition-colors ${aggReportCopied === "review" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D] border border-[rgba(45,90,61,0.25)]" : "bg-gradient-to-r from-violet-900/40 to-blue-900/40 hover:from-violet-800/40 hover:to-blue-800/40 text-violet-300 border border-violet-700/50"}`}
                         >
                           {aggReportCopied === "review" ? "Copied!" : "Copy Review Prompt"}
                         </button>
@@ -4562,15 +4561,15 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                             <div key={sec.id}>
                               <button
                                 onClick={() => setAggReportSection(isOpen ? null : sec.id)}
-                                className="w-full flex items-center justify-between bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2 text-xs transition-colors"
+                                className="w-full flex items-center justify-between bg-stone-100/50 hover:bg-stone-100 rounded-lg px-3 py-2 text-xs transition-colors"
                               >
-                                <span className="font-medium text-zinc-200">{sec.label}</span>
-                                <span className="text-zinc-600">{isOpen ? "▲" : "▼"}</span>
+                                <span className="font-medium text-stone-700">{sec.label}</span>
+                                <span className="text-stone-500">{isOpen ? "▲" : "▼"}</span>
                               </button>
                               {isOpen && (
-                                <div className="ml-1 mt-1 bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2.5 text-[11px] space-y-2 max-h-[60vh] overflow-y-auto">
+                                <div className="ml-1 mt-1 bg-stone-50/80 border border-stone-200 rounded-lg px-3 py-2.5 text-[11px] space-y-2 max-h-[60vh] overflow-y-auto">
                                   {sec.id === "summary" && (
-                                    <p className="text-zinc-300 whitespace-pre-wrap">{executiveSummary}</p>
+                                    <p className="text-stone-600 whitespace-pre-wrap">{executiveSummary}</p>
                                   )}
                                   {sec.id === "scores" && (
                                     <div className="grid grid-cols-2 gap-2">
@@ -4582,9 +4581,9 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                         { label: "Operations", value: scores.operations, weight: "15%" },
                                         { label: "Public Website", value: scores.publicWebsite || 0, weight: "10%" },
                                       ].map((s) => (
-                                        <div key={s.label} className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
-                                          <div className="text-zinc-500 text-[10px]">{s.label} ({s.weight})</div>
-                                          <div className={`font-bold ${s.value >= 70 ? "text-emerald-400" : s.value >= 40 ? "text-amber-400" : "text-red-400"}`}>{s.value}/100</div>
+                                        <div key={s.label} className="bg-stone-100/50 rounded-lg px-2.5 py-2">
+                                          <div className="text-stone-500 text-[10px]">{s.label} ({s.weight})</div>
+                                          <div className={`font-bold ${s.value >= 70 ? "text-[#2D5A3D]" : s.value >= 40 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{s.value}/100</div>
                                         </div>
                                       ))}
                                     </div>
@@ -4592,18 +4591,18 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "gsc" && (
                                     <div className="space-y-2">
                                       <div className="grid grid-cols-4 gap-1.5 text-center">
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-blue-400">{gsc.clicks7d}</div><div className="text-zinc-500 text-[10px]">Clicks 7d</div></div>
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-zinc-300">{gsc.impressions7d}</div><div className="text-zinc-500 text-[10px]">Imp 7d</div></div>
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-zinc-300">{gsc.avgCtr7d}%</div><div className="text-zinc-500 text-[10px]">CTR</div></div>
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${gsc.avgPosition7d <= 20 ? "text-emerald-400" : "text-amber-400"}`}>{gsc.avgPosition7d || "—"}</div><div className="text-zinc-500 text-[10px]">Avg Pos</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-blue-400">{gsc.clicks7d}</div><div className="text-stone-500 text-[10px]">Clicks 7d</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-stone-600">{gsc.impressions7d}</div><div className="text-stone-500 text-[10px]">Imp 7d</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-stone-600">{gsc.avgCtr7d}%</div><div className="text-stone-500 text-[10px]">CTR</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className={`font-bold ${gsc.avgPosition7d <= 20 ? "text-[#2D5A3D]" : "text-[#C49A2A]"}`}>{gsc.avgPosition7d || "—"}</div><div className="text-stone-500 text-[10px]">Avg Pos</div></div>
                                       </div>
                                       {gsc.topPages.length > 0 && (
                                         <div>
-                                          <p className="text-zinc-500 text-[10px] font-medium mb-1">Top Pages</p>
+                                          <p className="text-stone-500 text-[10px] font-medium mb-1">Top Pages</p>
                                           {gsc.topPages.slice(0, 5).map((p, i) => (
                                             <div key={i} className="flex justify-between text-[10px] py-0.5">
-                                              <span className="text-zinc-400 truncate max-w-[60%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
-                                              <span className="text-zinc-500">{p.clicks}c / {p.impressions}i / pos {p.position}</span>
+                                              <span className="text-stone-400 truncate max-w-[60%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
+                                              <span className="text-stone-500">{p.clicks}c / {p.impressions}i / pos {p.position}</span>
                                             </div>
                                           ))}
                                         </div>
@@ -4614,26 +4613,26 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                     discoveryData ? (
                                       <div className="space-y-2">
                                         <div className="flex items-center gap-3 mb-2">
-                                          <div className={`text-2xl font-black ${discoveryData.overallGrade === "A" ? "text-emerald-400" : discoveryData.overallGrade === "B" ? "text-blue-400" : discoveryData.overallGrade === "C" ? "text-amber-400" : "text-red-400"}`}>
+                                          <div className={`text-2xl font-black ${discoveryData.overallGrade === "A" ? "text-[#2D5A3D]" : discoveryData.overallGrade === "B" ? "text-blue-400" : discoveryData.overallGrade === "C" ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>
                                             {discoveryData.overallGrade}
                                           </div>
-                                          <div className="text-zinc-400 text-[11px]">{discoveryData.overallScore}/100 — {discoveryData.totalPages} pages, {discoveryData.totalIssues} issues</div>
+                                          <div className="text-stone-400 text-[11px]">{discoveryData.overallScore}/100 — {discoveryData.totalPages} pages, {discoveryData.totalIssues} issues</div>
                                         </div>
-                                        <p className="text-zinc-500 text-[10px] font-medium mb-1">Discovery Funnel</p>
+                                        <p className="text-stone-500 text-[10px] font-medium mb-1">Discovery Funnel</p>
                                         <div className="grid grid-cols-4 gap-1 text-center">
                                           {[
-                                            { label: "Published", value: discoveryData.funnel.published, color: "text-zinc-300" },
+                                            { label: "Published", value: discoveryData.funnel.published, color: "text-stone-600" },
                                             { label: "Submitted", value: discoveryData.funnel.submitted, color: "text-blue-400" },
-                                            { label: "Indexed", value: discoveryData.funnel.indexed, color: "text-emerald-400" },
+                                            { label: "Indexed", value: discoveryData.funnel.indexed, color: "text-[#2D5A3D]" },
                                             { label: "Performing", value: discoveryData.funnel.performing, color: "text-violet-400" },
                                           ].map((f) => (
-                                            <div key={f.label} className="bg-zinc-800/50 rounded p-1">
+                                            <div key={f.label} className="bg-stone-100/50 rounded p-1">
                                               <div className={`font-bold text-sm ${f.color}`}>{f.value}</div>
-                                              <div className="text-zinc-600 text-[9px]">{f.label}</div>
+                                              <div className="text-stone-500 text-[9px]">{f.label}</div>
                                             </div>
                                           ))}
                                         </div>
-                                        <p className="text-zinc-500 text-[10px] font-medium mt-2 mb-1">Health Scores</p>
+                                        <p className="text-stone-500 text-[10px] font-medium mt-2 mb-1">Health Scores</p>
                                         <div className="grid grid-cols-2 gap-1.5">
                                           {[
                                             { label: "Crawlability", value: discoveryData.crawlabilityScore },
@@ -4641,91 +4640,91 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                             { label: "Content Quality", value: discoveryData.contentQualityScore },
                                             { label: "AIO Readiness", value: discoveryData.aioReadinessScore },
                                           ].map((s) => (
-                                            <div key={s.label} className="bg-zinc-800/50 rounded px-2 py-1">
-                                              <div className="text-zinc-500 text-[10px]">{s.label}</div>
-                                              <div className={`font-bold ${s.value >= 70 ? "text-emerald-400" : s.value >= 40 ? "text-amber-400" : "text-red-400"}`}>{s.value}/100</div>
+                                            <div key={s.label} className="bg-stone-100/50 rounded px-2 py-1">
+                                              <div className="text-stone-500 text-[10px]">{s.label}</div>
+                                              <div className={`font-bold ${s.value >= 70 ? "text-[#2D5A3D]" : s.value >= 40 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{s.value}/100</div>
                                             </div>
                                           ))}
                                         </div>
                                         {discoveryData.topIssues.length > 0 && (
                                           <div className="mt-2">
-                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">Top Issues</p>
+                                            <p className="text-stone-500 text-[10px] font-medium mb-1">Top Issues</p>
                                             {discoveryData.topIssues.slice(0, 5).map((di, i) => (
                                               <div key={i} className="flex items-start gap-1.5 py-0.5 text-[10px]">
-                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[8px] font-medium uppercase ${di.severity === "critical" ? "bg-red-900/50 text-red-300" : di.severity === "high" ? "bg-orange-900/50 text-orange-300" : "bg-amber-900/50 text-amber-300"}`}>{di.severity}</span>
-                                                <span className="text-zinc-300">{di.title}</span>
+                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[8px] font-medium uppercase ${di.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-red-300" : di.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-orange-300" : "bg-amber-900/50 text-[#7a5a10]"}`}>{di.severity}</span>
+                                                <span className="text-stone-600">{di.title}</span>
                                               </div>
                                             ))}
                                           </div>
                                         )}
                                         {discoveryData.pagesNeedingAttention.length > 0 && (
                                           <div className="mt-2">
-                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">Pages Needing Attention</p>
+                                            <p className="text-stone-500 text-[10px] font-medium mb-1">Pages Needing Attention</p>
                                             {discoveryData.pagesNeedingAttention.slice(0, 5).map((p, i) => (
                                               <div key={i} className="flex justify-between py-0.5 text-[10px]">
-                                                <span className="text-zinc-400 truncate max-w-[55%]">{p.title || p.slug}</span>
-                                                <span className="text-zinc-500">{p.score}/100 — {p.topIssue}</span>
+                                                <span className="text-stone-400 truncate max-w-[55%]">{p.title || p.slug}</span>
+                                                <span className="text-stone-500">{p.score}/100 — {p.topIssue}</span>
                                               </div>
                                             ))}
                                           </div>
                                         )}
                                       </div>
-                                    ) : <p className="text-zinc-500">Discovery audit did not run (budget exceeded).</p>
+                                    ) : <p className="text-stone-500">Discovery audit did not run (budget exceeded).</p>
                                   )}
                                   {sec.id === "publicAudit" && (
                                     publicAuditData ? (
                                       <div className="space-y-2">
                                         <div className="grid grid-cols-3 gap-1.5 text-center">
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className={`font-bold ${publicAuditData.pagesReachable === publicAuditData.pagesChecked ? "text-emerald-400" : "text-amber-400"}`}>{publicAuditData.pagesReachable}/{publicAuditData.pagesChecked}</div>
-                                            <div className="text-zinc-500 text-[10px]">Reachable</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className={`font-bold ${publicAuditData.pagesReachable === publicAuditData.pagesChecked ? "text-[#2D5A3D]" : "text-[#C49A2A]"}`}>{publicAuditData.pagesReachable}/{publicAuditData.pagesChecked}</div>
+                                            <div className="text-stone-500 text-[10px]">Reachable</div>
                                           </div>
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className={`font-bold ${publicAuditData.pagesUnreachable > 0 ? "text-red-400" : "text-zinc-400"}`}>{publicAuditData.pagesUnreachable}</div>
-                                            <div className="text-zinc-500 text-[10px]">Unreachable</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className={`font-bold ${publicAuditData.pagesUnreachable > 0 ? "text-[#C8322B]" : "text-stone-400"}`}>{publicAuditData.pagesUnreachable}</div>
+                                            <div className="text-stone-500 text-[10px]">Unreachable</div>
                                           </div>
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className={`font-bold ${publicAuditData.avgResponseTimeMs <= 2500 ? "text-emerald-400" : publicAuditData.avgResponseTimeMs <= 5000 ? "text-amber-400" : "text-red-400"}`}>{publicAuditData.avgResponseTimeMs}ms</div>
-                                            <div className="text-zinc-500 text-[10px]">Avg Response</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className={`font-bold ${publicAuditData.avgResponseTimeMs <= 2500 ? "text-[#2D5A3D]" : publicAuditData.avgResponseTimeMs <= 5000 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{publicAuditData.avgResponseTimeMs}ms</div>
+                                            <div className="text-stone-500 text-[10px]">Avg Response</div>
                                           </div>
                                         </div>
                                         <div className="mt-2">
-                                          <p className="text-zinc-500 text-[10px] font-medium mb-1">Page Results</p>
+                                          <p className="text-stone-500 text-[10px] font-medium mb-1">Page Results</p>
                                           {publicAuditData.results.map((r, i) => (
                                             <div key={i} className="flex items-center justify-between py-0.5 text-[10px]">
                                               <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                                <span className={r.ok ? "text-emerald-400" : "text-red-400"}>{r.ok ? "✓" : "✗"}</span>
-                                                <span className="text-zinc-400 truncate">{r.url}</span>
+                                                <span className={r.ok ? "text-[#2D5A3D]" : "text-[#C8322B]"}>{r.ok ? "✓" : "✗"}</span>
+                                                <span className="text-stone-400 truncate">{r.url}</span>
                                               </div>
-                                              <div className="flex gap-2 shrink-0 text-zinc-500">
-                                                <span className={r.ok ? "" : "text-red-400"}>{r.status || "ERR"}</span>
+                                              <div className="flex gap-2 shrink-0 text-stone-500">
+                                                <span className={r.ok ? "" : "text-[#C8322B]"}>{r.status || "ERR"}</span>
                                                 <span>{r.responseTimeMs}ms</span>
                                               </div>
                                             </div>
                                           ))}
                                         </div>
                                       </div>
-                                    ) : <p className="text-zinc-500">Public website audit did not run (budget exceeded).</p>
+                                    ) : <p className="text-stone-500">Public website audit did not run (budget exceeded).</p>
                                   )}
                                   {sec.id === "platformHealth" && (
                                     platformHealthData ? (
                                       <div className="space-y-3">
                                         <div className="grid grid-cols-4 gap-1.5 text-center">
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className={`text-xl font-black ${platformHealthData.grade === "A" ? "text-emerald-400" : platformHealthData.grade === "B" ? "text-blue-400" : "text-amber-400"}`}>{platformHealthData.grade}</div>
-                                            <div className="text-zinc-500 text-[10px]">Grade</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className={`text-xl font-black ${platformHealthData.grade === "A" ? "text-[#2D5A3D]" : platformHealthData.grade === "B" ? "text-blue-400" : "text-[#C49A2A]"}`}>{platformHealthData.grade}</div>
+                                            <div className="text-stone-500 text-[10px]">Grade</div>
                                           </div>
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className="font-bold text-emerald-400">{platformHealthData.passed}</div>
-                                            <div className="text-zinc-500 text-[10px]">Pass</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className="font-bold text-[#2D5A3D]">{platformHealthData.passed}</div>
+                                            <div className="text-stone-500 text-[10px]">Pass</div>
                                           </div>
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className={`font-bold ${platformHealthData.failed > 0 ? "text-red-400" : "text-zinc-400"}`}>{platformHealthData.failed}</div>
-                                            <div className="text-zinc-500 text-[10px]">Fail</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className={`font-bold ${platformHealthData.failed > 0 ? "text-[#C8322B]" : "text-stone-400"}`}>{platformHealthData.failed}</div>
+                                            <div className="text-stone-500 text-[10px]">Fail</div>
                                           </div>
-                                          <div className="bg-zinc-800/50 rounded p-1.5">
-                                            <div className={`font-bold ${platformHealthData.warnings > 0 ? "text-amber-400" : "text-zinc-400"}`}>{platformHealthData.warnings}</div>
-                                            <div className="text-zinc-500 text-[10px]">Warn</div>
+                                          <div className="bg-stone-100/50 rounded p-1.5">
+                                            <div className={`font-bold ${platformHealthData.warnings > 0 ? "text-[#C49A2A]" : "text-stone-400"}`}>{platformHealthData.warnings}</div>
+                                            <div className="text-stone-500 text-[10px]">Warn</div>
                                           </div>
                                         </div>
                                         {Object.entries(
@@ -4736,53 +4735,53 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                           }, {} as Record<string, typeof platformHealthData.checks>)
                                         ).map(([cat, checks]) => (
                                           <div key={cat}>
-                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">{cat}</p>
+                                            <p className="text-stone-500 text-[10px] font-medium mb-1">{cat}</p>
                                             {checks.map((c, i) => (
                                               <div key={i} className="flex items-center justify-between py-0.5 text-[10px]">
                                                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                                  <span className={c.status === "pass" ? "text-emerald-400" : c.status === "fail" ? "text-red-400" : "text-amber-400"}>
+                                                  <span className={c.status === "pass" ? "text-[#2D5A3D]" : c.status === "fail" ? "text-[#C8322B]" : "text-[#C49A2A]"}>
                                                     {c.status === "pass" ? "✓" : c.status === "fail" ? "✗" : "⚠"}
                                                   </span>
-                                                  <span className="text-zinc-300 truncate">{c.name}</span>
+                                                  <span className="text-stone-600 truncate">{c.name}</span>
                                                 </div>
-                                                <span className="text-zinc-500 text-[9px] shrink-0 ml-2">{c.detail}</span>
+                                                <span className="text-stone-500 text-[9px] shrink-0 ml-2">{c.detail}</span>
                                               </div>
                                             ))}
                                           </div>
                                         ))}
                                         {platformHealthData.recentFixes.length > 0 && (
                                           <div>
-                                            <p className="text-zinc-500 text-[10px] font-medium mb-1">Recent Fixes Applied</p>
+                                            <p className="text-stone-500 text-[10px] font-medium mb-1">Recent Fixes Applied</p>
                                             {platformHealthData.recentFixes.slice(0, 8).map((f, i) => (
                                               <div key={i} className="flex items-center gap-1.5 py-0.5 text-[10px]">
-                                                <span className="text-emerald-400">+</span>
-                                                <span className="text-zinc-400">{f.description}</span>
-                                                <span className="text-zinc-600 ml-auto shrink-0">{f.date}</span>
+                                                <span className="text-[#2D5A3D]">+</span>
+                                                <span className="text-stone-400">{f.description}</span>
+                                                <span className="text-stone-500 ml-auto shrink-0">{f.date}</span>
                                               </div>
                                             ))}
                                           </div>
                                         )}
                                       </div>
-                                    ) : <p className="text-zinc-500">Platform health check did not run.</p>
+                                    ) : <p className="text-stone-500">Platform health check did not run.</p>
                                   )}
                                   {sec.id === "indexing" && (
                                     <div className="grid grid-cols-3 gap-1.5 text-center">
-                                      <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${indexing.rate >= 60 ? "text-emerald-400" : "text-red-400"}`}>{indexing.rate}%</div><div className="text-zinc-500 text-[10px]">Rate</div></div>
-                                      <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-emerald-400">{indexing.indexed}</div><div className="text-zinc-500 text-[10px]">Indexed</div></div>
-                                      <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${indexing.errors > 0 ? "text-red-400" : "text-zinc-400"}`}>{indexing.errors}</div><div className="text-zinc-500 text-[10px]">Errors</div></div>
-                                      {indexing.chronicFailures > 0 && <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-red-400">{indexing.chronicFailures}</div><div className="text-zinc-500 text-[10px]">Chronic</div></div>}
-                                      {indexing.neverSubmitted > 0 && <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-amber-400">{indexing.neverSubmitted}</div><div className="text-zinc-500 text-[10px]">Never Submitted</div></div>}
+                                      <div className="bg-stone-100/50 rounded p-1.5"><div className={`font-bold ${indexing.rate >= 60 ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{indexing.rate}%</div><div className="text-stone-500 text-[10px]">Rate</div></div>
+                                      <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-[#2D5A3D]">{indexing.indexed}</div><div className="text-stone-500 text-[10px]">Indexed</div></div>
+                                      <div className="bg-stone-100/50 rounded p-1.5"><div className={`font-bold ${indexing.errors > 0 ? "text-[#C8322B]" : "text-stone-400"}`}>{indexing.errors}</div><div className="text-stone-500 text-[10px]">Errors</div></div>
+                                      {indexing.chronicFailures > 0 && <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-[#C8322B]">{indexing.chronicFailures}</div><div className="text-stone-500 text-[10px]">Chronic</div></div>}
+                                      {indexing.neverSubmitted > 0 && <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-[#C49A2A]">{indexing.neverSubmitted}</div><div className="text-stone-500 text-[10px]">Never Submitted</div></div>}
                                     </div>
                                   )}
                                   {sec.id === "operations" && (
                                     <div className="space-y-2">
                                       <div className="grid grid-cols-3 gap-1.5 text-center">
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-emerald-400">{operations.cronSuccesses24h}</div><div className="text-zinc-500 text-[10px]">Cron OK (24h)</div></div>
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className={`font-bold ${operations.cronFailures24h > 0 ? "text-red-400" : "text-zinc-400"}`}>{operations.cronFailures24h}</div><div className="text-zinc-500 text-[10px]">Cron Fails</div></div>
-                                        <div className="bg-zinc-800/50 rounded p-1.5"><div className="font-bold text-zinc-300">${operations.aiCost7d}</div><div className="text-zinc-500 text-[10px]">AI Cost 7d</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-[#2D5A3D]">{operations.cronSuccesses24h}</div><div className="text-stone-500 text-[10px]">Cron OK (24h)</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className={`font-bold ${operations.cronFailures24h > 0 ? "text-[#C8322B]" : "text-stone-400"}`}>{operations.cronFailures24h}</div><div className="text-stone-500 text-[10px]">Cron Fails</div></div>
+                                        <div className="bg-stone-100/50 rounded p-1.5"><div className="font-bold text-stone-600">${operations.aiCost7d}</div><div className="text-stone-500 text-[10px]">AI Cost 7d</div></div>
                                       </div>
                                       {operations.failedCrons.length > 0 && (
-                                        <div className="bg-red-950/20 border border-red-800/30 rounded-lg px-2.5 py-1.5 text-[10px] text-red-400">
+                                        <div className="bg-[rgba(200,50,43,0.04)] border border-[rgba(200,50,43,0.3)]/30 rounded-lg px-2.5 py-1.5 text-[10px] text-[#C8322B]">
                                           Failed: {operations.failedCrons.join(", ")}
                                         </div>
                                       )}
@@ -4791,18 +4790,18 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "articles" && (
                                     <div className="space-y-1">
                                       {latestArticles.length === 0 ? (
-                                        <p className="text-zinc-500">No published articles.</p>
+                                        <p className="text-stone-500">No published articles.</p>
                                       ) : latestArticles.map((a, i) => (
-                                        <div key={i} className="flex items-center justify-between text-[10px] py-1 border-b border-zinc-800/50 last:border-0">
+                                        <div key={i} className="flex items-center justify-between text-[10px] py-1 border-b border-stone-200/50 last:border-0">
                                           <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                            <span className={a.indexingStatus === "indexed" ? "text-emerald-400" : a.indexingStatus === "submitted" ? "text-blue-400" : "text-red-400"}>
+                                            <span className={a.indexingStatus === "indexed" ? "text-[#2D5A3D]" : a.indexingStatus === "submitted" ? "text-blue-400" : "text-[#C8322B]"}>
                                               {a.indexingStatus === "indexed" ? "✓" : a.indexingStatus === "submitted" ? "⟳" : "✗"}
                                             </span>
-                                            <span className="text-zinc-300 truncate">{a.title}</span>
+                                            <span className="text-stone-600 truncate">{a.title}</span>
                                           </div>
-                                          <div className="flex gap-2 shrink-0 text-zinc-500">
+                                          <div className="flex gap-2 shrink-0 text-stone-500">
                                             {a.clicks > 0 && <span>{a.clicks}c</span>}
-                                            <span className={a.seoScore >= 70 ? "text-emerald-400" : a.seoScore >= 50 ? "text-amber-400" : "text-red-400"}>{a.seoScore}</span>
+                                            <span className={a.seoScore >= 70 ? "text-[#2D5A3D]" : a.seoScore >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"}>{a.seoScore}</span>
                                           </div>
                                         </div>
                                       ))}
@@ -4811,24 +4810,24 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "issues" && (
                                     <div className="space-y-2">
                                       {issues.length === 0 ? (
-                                        <p className="text-emerald-400">No issues found!</p>
+                                        <p className="text-[#2D5A3D]">No issues found!</p>
                                       ) : issues.map((issue, i) => (
                                         <div key={i} className={`rounded-lg px-2.5 py-2 border ${
-                                          issue.severity === "critical" ? "bg-red-950/20 border-red-800/30" :
-                                          issue.severity === "high" ? "bg-orange-950/20 border-orange-800/30" :
-                                          "bg-amber-950/20 border-amber-800/30"
+                                          issue.severity === "critical" ? "bg-[rgba(200,50,43,0.04)] border-[rgba(200,50,43,0.3)]/30" :
+                                          issue.severity === "high" ? "bg-[rgba(217,119,6,0.04)] border-orange-800/30" :
+                                          "bg-[rgba(196,154,42,0.04)] border-[rgba(196,154,42,0.3)]/30"
                                         }`}>
                                           <div className="flex items-center gap-1.5">
                                             <span className={`text-[9px] px-1 py-0.5 rounded font-medium uppercase ${
-                                              issue.severity === "critical" ? "bg-red-900/50 text-red-300" :
-                                              issue.severity === "high" ? "bg-orange-900/50 text-orange-300" :
-                                              "bg-amber-900/50 text-amber-300"
+                                              issue.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-red-300" :
+                                              issue.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-orange-300" :
+                                              "bg-amber-900/50 text-[#7a5a10]"
                                             }`}>{issue.severity}</span>
-                                            <span className="text-zinc-500 text-[10px]">{issue.category}</span>
+                                            <span className="text-stone-500 text-[10px]">{issue.category}</span>
                                           </div>
-                                          <div className="text-zinc-200 font-medium mt-1">{issue.title}</div>
-                                          <div className="text-zinc-400 mt-1"><span className="text-zinc-500 font-medium">Root cause:</span> {issue.rootCause}</div>
-                                          <div className="text-zinc-400 mt-0.5"><span className="text-zinc-500 font-medium">Fix:</span> {issue.fix}</div>
+                                          <div className="text-stone-700 font-medium mt-1">{issue.title}</div>
+                                          <div className="text-stone-400 mt-1"><span className="text-stone-500 font-medium">Root cause:</span> {issue.rootCause}</div>
+                                          <div className="text-stone-400 mt-0.5"><span className="text-stone-500 font-medium">Fix:</span> {issue.fix}</div>
                                         </div>
                                       ))}
                                     </div>
@@ -4836,17 +4835,17 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "fixplan" && (
                                     <div className="space-y-1.5">
                                       {fixPlan.length === 0 ? (
-                                        <p className="text-zinc-500">No fix plan items.</p>
+                                        <p className="text-stone-500">No fix plan items.</p>
                                       ) : fixPlan.map((fp) => (
                                         <div key={fp.priority} className="flex items-start gap-2 text-[11px]">
                                           <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                            fp.severity === "critical" ? "bg-red-900/50 text-red-300" :
-                                            fp.severity === "high" ? "bg-orange-900/50 text-orange-300" :
-                                            "bg-amber-900/50 text-amber-300"
+                                            fp.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-red-300" :
+                                            fp.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-orange-300" :
+                                            "bg-amber-900/50 text-[#7a5a10]"
                                           }`}>{fp.priority}</span>
                                           <div>
-                                            <div className="text-zinc-200">{fp.action}</div>
-                                            <div className="text-zinc-500 text-[10px]">{fp.category} — {fp.expectedImpact}</div>
+                                            <div className="text-stone-700">{fp.action}</div>
+                                            <div className="text-stone-500 text-[10px]">{fp.category} — {fp.expectedImpact}</div>
                                           </div>
                                         </div>
                                       ))}
@@ -4855,43 +4854,43 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                   {sec.id === "prompt" && (
                                     <div>
                                       <div className="flex items-center justify-between mb-2">
-                                        <p className="text-zinc-500 text-[10px] font-medium">Claude review prompt — copy this to a new conversation</p>
+                                        <p className="text-stone-500 text-[10px] font-medium">Claude review prompt — copy this to a new conversation</p>
                                         <button
                                           onClick={() => copyAggReportSection(claudePrompt, "prompt-sec")}
-                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "prompt-sec" ? "bg-emerald-900/50 text-emerald-300" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "prompt-sec" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D]" : "bg-stone-200 hover:bg-stone-400 text-stone-600"}`}
                                         >
                                           {aggReportCopied === "prompt-sec" ? "Copied!" : "Copy"}
                                         </button>
                                       </div>
-                                      <pre className="text-zinc-300 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{claudePrompt}</pre>
+                                      <pre className="text-stone-600 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{claudePrompt}</pre>
                                     </div>
                                   )}
                                   {sec.id === "plain" && (
                                     <div>
                                       <div className="flex items-center justify-between mb-2">
-                                        <p className="text-zinc-500 text-[10px] font-medium">Plain language report</p>
+                                        <p className="text-stone-500 text-[10px] font-medium">Plain language report</p>
                                         <button
                                           onClick={() => copyAggReportSection(plainLanguage, "plain-sec")}
-                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "plain-sec" ? "bg-emerald-900/50 text-emerald-300" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "plain-sec" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D]" : "bg-stone-200 hover:bg-stone-400 text-stone-600"}`}
                                         >
                                           {aggReportCopied === "plain-sec" ? "Copied!" : "Copy"}
                                         </button>
                                       </div>
-                                      <pre className="text-zinc-300 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{plainLanguage}</pre>
+                                      <pre className="text-stone-600 whitespace-pre-wrap font-mono text-[10px] leading-relaxed">{plainLanguage}</pre>
                                     </div>
                                   )}
                                   {sec.id === "json" && (
                                     <div>
                                       <div className="flex items-center justify-between mb-2">
-                                        <p className="text-zinc-500 text-[10px] font-medium">Full JSON data</p>
+                                        <p className="text-stone-500 text-[10px] font-medium">Full JSON data</p>
                                         <button
                                           onClick={() => copyAggReportSection(JSON.stringify(rpt, null, 2), "json-sec")}
-                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "json-sec" ? "bg-emerald-900/50 text-emerald-300" : "bg-zinc-700 hover:bg-zinc-600 text-zinc-300"}`}
+                                          className={`px-2 py-0.5 rounded text-[10px] transition-colors ${aggReportCopied === "json-sec" ? "bg-[rgba(45,90,61,0.10)] text-[#2D5A3D]" : "bg-stone-200 hover:bg-stone-400 text-stone-600"}`}
                                         >
                                           {aggReportCopied === "json-sec" ? "Copied!" : "Copy"}
                                         </button>
                                       </div>
-                                      <pre className="text-zinc-400 whitespace-pre-wrap font-mono text-[9px] leading-relaxed max-h-96 overflow-y-auto">{JSON.stringify(rpt, null, 2)}</pre>
+                                      <pre className="text-stone-400 whitespace-pre-wrap font-mono text-[9px] leading-relaxed max-h-96 overflow-y-auto">{JSON.stringify(rpt, null, 2)}</pre>
                                     </div>
                                   )}
                                 </div>
@@ -4902,7 +4901,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                       </div>
 
                       {/* Footer */}
-                      <div className="flex items-center justify-between text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
+                      <div className="flex items-center justify-between text-[10px] text-stone-500 pt-2 border-t border-stone-200">
                         <span>Generated: {(rpt._generated as string) ? new Date(rpt._generated as string).toLocaleString() : "now"}</span>
                         <span>Duration: {((rpt.durationMs as number) || 0) / 1000}s</span>
                       </div>
@@ -4917,12 +4916,12 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
               <div className="mt-3 border-t border-cyan-800/50 pt-3">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-cyan-400">Latest Published Content</p>
-                  <button onClick={() => setLatestPubSiteId(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                  <button onClick={() => setLatestPubSiteId(null)} className="text-xs text-stone-500 hover:text-stone-600">✕ Close</button>
                 </div>
                 {latestPubLoading === site.id ? (
-                  <p className="text-xs text-zinc-500 animate-pulse">Loading latest articles…</p>
+                  <p className="text-xs text-stone-500 animate-pulse">Loading latest articles…</p>
                 ) : !latestPubData[site.id] || latestPubData[site.id].length === 0 ? (
-                  <p className="text-xs text-zinc-500">No published articles yet.</p>
+                  <p className="text-xs text-stone-500">No published articles yet.</p>
                 ) : (
                   <div className="space-y-2 max-h-[70vh] overflow-y-auto">
                     {/* Summary row */}
@@ -4933,21 +4932,21 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                       const totalImpressions = arts.reduce((s, a) => s + a.impressions, 0);
                       return (
                         <div className="grid grid-cols-4 gap-1.5 text-xs text-center mb-2">
-                          <div className="bg-zinc-800/50 rounded p-1.5">
+                          <div className="bg-stone-100/50 rounded p-1.5">
                             <div className="font-bold text-cyan-400">{arts.length}</div>
-                            <div className="text-zinc-500 text-[10px]">Articles</div>
+                            <div className="text-stone-500 text-[10px]">Articles</div>
                           </div>
-                          <div className="bg-zinc-800/50 rounded p-1.5">
-                            <div className={`font-bold ${indexed === arts.length ? "text-emerald-400" : indexed > 0 ? "text-amber-400" : "text-red-400"}`}>{indexed}/{arts.length}</div>
-                            <div className="text-zinc-500 text-[10px]">Indexed</div>
+                          <div className="bg-stone-100/50 rounded p-1.5">
+                            <div className={`font-bold ${indexed === arts.length ? "text-[#2D5A3D]" : indexed > 0 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{indexed}/{arts.length}</div>
+                            <div className="text-stone-500 text-[10px]">Indexed</div>
                           </div>
-                          <div className="bg-zinc-800/50 rounded p-1.5">
+                          <div className="bg-stone-100/50 rounded p-1.5">
                             <div className="font-bold text-blue-400">{totalClicks}</div>
-                            <div className="text-zinc-500 text-[10px]">Clicks</div>
+                            <div className="text-stone-500 text-[10px]">Clicks</div>
                           </div>
-                          <div className="bg-zinc-800/50 rounded p-1.5">
-                            <div className="font-bold text-zinc-300">{totalImpressions}</div>
-                            <div className="text-zinc-500 text-[10px]">Impressions</div>
+                          <div className="bg-stone-100/50 rounded p-1.5">
+                            <div className="font-bold text-stone-600">{totalImpressions}</div>
+                            <div className="text-stone-500 text-[10px]">Impressions</div>
                           </div>
                         </div>
                       );
@@ -4955,12 +4954,12 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                     {/* Per-article rows */}
                     {latestPubData[site.id].map((article) => {
                       const idxColor =
-                        article.indexingStatus === "indexed" ? "text-emerald-400 bg-emerald-950/30" :
-                        article.indexingStatus === "submitted" ? "text-blue-400 bg-blue-950/30" :
-                        article.indexingStatus === "error" ? "text-red-400 bg-red-950/30" :
-                        "text-amber-400 bg-amber-950/30";
+                        article.indexingStatus === "indexed" ? "text-[#2D5A3D] bg-[rgba(45,90,61,0.06)]" :
+                        article.indexingStatus === "submitted" ? "text-blue-400 bg-[rgba(59,126,161,0.06)]" :
+                        article.indexingStatus === "error" ? "text-[#C8322B] bg-[rgba(200,50,43,0.06)]" :
+                        "text-[#C49A2A] bg-[rgba(196,154,42,0.06)]";
                       return (
-                        <div key={article.id} className="bg-zinc-800/40 rounded-lg px-3 py-2">
+                        <div key={article.id} className="bg-stone-100/40 rounded-lg px-3 py-2">
                           {/* Title row */}
                           <div className="flex items-start gap-2 mb-1.5">
                             <div className="flex-1 min-w-0">
@@ -4968,11 +4967,11 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                 href={article.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs font-medium text-zinc-200 hover:text-cyan-300 line-clamp-2 transition-colors"
+                                className="text-xs font-medium text-stone-700 hover:text-cyan-300 line-clamp-2 transition-colors"
                               >
                                 {article.title}
                               </a>
-                              <div className="text-[10px] text-zinc-600 mt-0.5 truncate">/blog/{article.slug}</div>
+                              <div className="text-[10px] text-stone-500 mt-0.5 truncate">/blog/{article.slug}</div>
                             </div>
                             <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${idxColor}`}>
                               {article.indexingStatus}
@@ -4980,20 +4979,20 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                           </div>
                           {/* Metrics row */}
                           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                            <span className="text-zinc-500">Clicks: <span className="text-blue-400 font-medium">{article.clicks}</span></span>
-                            <span className="text-zinc-500">Impressions: <span className="text-zinc-300 font-medium">{article.impressions}</span></span>
+                            <span className="text-stone-500">Clicks: <span className="text-blue-400 font-medium">{article.clicks}</span></span>
+                            <span className="text-stone-500">Impressions: <span className="text-stone-600 font-medium">{article.impressions}</span></span>
                             {article.avgPosition > 0 && (
-                              <span className="text-zinc-500">Pos: <span className={`font-medium ${article.avgPosition <= 10 ? "text-emerald-400" : article.avgPosition <= 30 ? "text-amber-400" : "text-red-400"}`}>{article.avgPosition}</span></span>
+                              <span className="text-stone-500">Pos: <span className={`font-medium ${article.avgPosition <= 10 ? "text-[#2D5A3D]" : article.avgPosition <= 30 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{article.avgPosition}</span></span>
                             )}
                             {article.ctr > 0 && (
-                              <span className="text-zinc-500">CTR: <span className="text-zinc-300 font-medium">{(article.ctr * 100).toFixed(1)}%</span></span>
+                              <span className="text-stone-500">CTR: <span className="text-stone-600 font-medium">{(article.ctr * 100).toFixed(1)}%</span></span>
                             )}
                             {article.seoScore != null && (
-                              <span className="text-zinc-500">SEO: <span className={`font-medium ${article.seoScore >= 70 ? "text-emerald-400" : article.seoScore >= 50 ? "text-amber-400" : "text-red-400"}`}>{article.seoScore}</span></span>
+                              <span className="text-stone-500">SEO: <span className={`font-medium ${article.seoScore >= 70 ? "text-[#2D5A3D]" : article.seoScore >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"}`}>{article.seoScore}</span></span>
                             )}
                           </div>
                           {/* Timestamps row */}
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-zinc-600">
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-stone-500">
                             <span>Published: {new Date(article.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                             {article.lastInspectedAt && (
                               <span>Verified: {new Date(article.lastInspectedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
@@ -5007,13 +5006,13 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                           </div>
                           {/* Submission channels */}
                           <div className="flex gap-1.5 mt-1.5">
-                            {article.submittedIndexNow && <span className="px-1 py-0.5 rounded bg-zinc-700/50 text-[9px] text-zinc-400">IndexNow</span>}
-                            {article.submittedSitemap && <span className="px-1 py-0.5 rounded bg-zinc-700/50 text-[9px] text-zinc-400">Sitemap</span>}
-                            {article.submittedGoogleApi && <span className="px-1 py-0.5 rounded bg-zinc-700/50 text-[9px] text-zinc-400">GSC API</span>}
+                            {article.submittedIndexNow && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[9px] text-stone-400">IndexNow</span>}
+                            {article.submittedSitemap && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[9px] text-stone-400">Sitemap</span>}
+                            {article.submittedGoogleApi && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[9px] text-stone-400">GSC API</span>}
                           </div>
                           {/* Error if any */}
                           {article.indexingError && (
-                            <div className="mt-1.5 text-[10px] text-red-400 bg-red-950/20 rounded px-2 py-1 line-clamp-2">
+                            <div className="mt-1.5 text-[10px] text-[#C8322B] bg-[rgba(200,50,43,0.04)] rounded px-2 py-1 line-clamp-2">
                               {article.indexingError}
                             </div>
                           )}
@@ -5101,8 +5100,8 @@ function AIConfigTab() {
     setRoutes((prev) => prev.map((r) => r.taskType === taskType ? { ...r, [field]: value } : r));
   };
 
-  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading AI config…</p></div>;
-  if (!data) return <Card><p className="text-zinc-500 text-sm">Failed to load AI configuration.</p></Card>;
+  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-stone-500 text-sm">Loading AI config…</p></div>;
+  if (!data) return <Card><p className="text-stone-500 text-sm">Failed to load AI configuration.</p></Card>;
 
   const configuredProviders = data.providers.filter((p) => p.hasKey);
 
@@ -5115,24 +5114,24 @@ function AIConfigTab() {
           {data.providers.map((p) => (
             <div key={p.id} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <span className={p.hasKey ? "text-emerald-400" : "text-zinc-600"}>{p.hasKey ? "✅" : "❌"}</span>
-                <span className={p.hasKey ? "text-zinc-200" : "text-zinc-500"}>{p.displayName}</span>
+                <span className={p.hasKey ? "text-[#2D5A3D]" : "text-stone-500"}>{p.hasKey ? "✅" : "❌"}</span>
+                <span className={p.hasKey ? "text-stone-700" : "text-stone-500"}>{p.displayName}</span>
                 {p.testStatus && (
-                  <span className="text-xs text-zinc-500">({p.testStatus})</span>
+                  <span className="text-xs text-stone-500">({p.testStatus})</span>
                 )}
               </div>
-              <span className="text-xs text-zinc-500">{p.hasKey ? "Key configured" : "No API key"}</span>
+              <span className="text-xs text-stone-500">{p.hasKey ? "Key configured" : "No API key"}</span>
             </div>
           ))}
         </div>
         {configuredProviders.length === 0 && (
-          <p className="mt-2 text-xs text-red-400">No AI providers configured. Add at least one API key in Vercel environment variables.</p>
+          <p className="mt-2 text-xs text-[#C8322B]">No AI providers configured. Add at least one API key in Vercel environment variables.</p>
         )}
         {/* Provider warnings (wrong key format, missing keys for assigned tasks) */}
         {data.providerWarnings && Object.keys(data.providerWarnings).length > 0 && (
           <div className="mt-3 space-y-2">
             {Object.entries(data.providerWarnings).map(([provider, warning]) => (
-              <div key={provider} className="p-2 bg-amber-950/30 border border-amber-700/50 rounded text-xs text-amber-300">
+              <div key={provider} className="p-2 bg-[rgba(196,154,42,0.06)] border border-amber-700/50 rounded text-xs text-[#7a5a10]">
                 <span className="font-semibold">⚠️ {provider}:</span> {String(warning)}
               </div>
             ))}
@@ -5146,13 +5145,13 @@ function AIConfigTab() {
         <div className="space-y-3">
           {routes.map((route) => (
             <div key={route.taskType} className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-zinc-300 w-36 shrink-0">{route.label}</span>
+              <span className="text-stone-600 w-36 shrink-0">{route.label}</span>
               <div className="flex items-center gap-1">
-                <span className="text-zinc-600">Primary:</span>
+                <span className="text-stone-500">Primary:</span>
                 <select
                   value={route.primary}
                   onChange={(e) => updateRoute(route.taskType, "primary", e.target.value)}
-                  className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-zinc-500"
+                  className="bg-stone-100 border border-stone-200 rounded px-2 py-1 text-xs text-stone-700 focus:outline-none focus:border-stone-300"
                 >
                   {data.providers.filter((p) => p.hasKey).map((p) => (
                     <option key={p.name} value={p.name}>{p.displayName}</option>
@@ -5160,11 +5159,11 @@ function AIConfigTab() {
                 </select>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-zinc-600">Fallback:</span>
+                <span className="text-stone-500">Fallback:</span>
                 <select
                   value={route.fallback ?? ""}
                   onChange={(e) => updateRoute(route.taskType, "fallback", e.target.value)}
-                  className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-zinc-500"
+                  className="bg-stone-100 border border-stone-200 rounded px-2 py-1 text-xs text-stone-700 focus:outline-none focus:border-stone-300"
                 >
                   <option value="">None</option>
                   {data.providers.filter((p) => p.hasKey).map((p) => (
@@ -5173,9 +5172,9 @@ function AIConfigTab() {
                 </select>
               </div>
               <span className={`text-xs px-1.5 py-0.5 rounded border ${
-                route.status === "active" ? "bg-emerald-900/30 text-emerald-400 border-emerald-800" :
-                route.status === "fallback_only" ? "bg-amber-900/30 text-amber-400 border-amber-800" :
-                "bg-red-900/30 text-red-400 border-red-800"
+                route.status === "active" ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D] border-[rgba(45,90,61,0.3)]" :
+                route.status === "fallback_only" ? "bg-amber-900/30 text-[#C49A2A] border-[rgba(196,154,42,0.3)]" :
+                "bg-[rgba(200,50,43,0.06)] text-[#C8322B] border-[rgba(200,50,43,0.3)]"
               }`}>
                 {route.status === "active" ? "✅" : route.status === "fallback_only" ? "⚠️" : "❌"}
               </span>
@@ -5191,7 +5190,7 @@ function AIConfigTab() {
           </ActionButton>
         </div>
         {saveResult && (
-          <p className={`mt-2 text-xs rounded px-2 py-1 ${saveResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+          <p className={`mt-2 text-xs rounded px-2 py-1 ${saveResult.startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
             {saveResult}
           </p>
         )}
@@ -5204,9 +5203,9 @@ function AIConfigTab() {
           <div className="space-y-2 text-xs">
             {Object.entries(testResults).map(([provider, result]) => (
               <div key={provider} className="flex items-center justify-between">
-                <span className="text-zinc-300 capitalize">{provider}</span>
+                <span className="text-stone-600 capitalize">{provider}</span>
                 <span className={
-                  (result as { success?: boolean })?.success ? "text-emerald-400" : "text-red-400"
+                  (result as { success?: boolean })?.success ? "text-[#2D5A3D]" : "text-[#C8322B]"
                 }>
                   {(result as { success?: boolean })?.success
                     ? `✅ ${(result as { latencyMs?: number })?.latencyMs ?? 0}ms`
@@ -5308,11 +5307,11 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
   };
 
   const statusColor: Record<string, string> = {
-    success: "bg-emerald-900/40 text-emerald-300 border-emerald-800",
-    failed: "bg-red-900/40 text-red-300 border-red-800",
-    partial: "bg-amber-900/40 text-amber-300 border-amber-800",
+    success: "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D] border-[rgba(45,90,61,0.3)]",
+    failed: "bg-[rgba(200,50,43,0.08)] text-[#C8322B] border-[rgba(200,50,43,0.3)]",
+    partial: "bg-[rgba(196,154,42,0.08)] text-[#7a5a10] border-[rgba(196,154,42,0.3)]",
     timeout: "bg-orange-900/40 text-orange-300 border-orange-800",
-    running: "bg-blue-900/40 text-blue-300 border-blue-800",
+    running: "bg-[rgba(59,126,161,0.08)] text-[#1e5a7a] border-[rgba(59,126,161,0.3)]",
   };
 
   const statusIcon: Record<string, string> = {
@@ -5326,34 +5325,34 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
       {/* Header */}
-      <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between shrink-0">
-        <h2 className="text-sm font-semibold text-zinc-100">Action Logs</h2>
+      <div className="bg-stone-50 border-b border-stone-200 px-4 py-3 flex items-center justify-between shrink-0">
+        <h2 className="text-sm font-semibold text-stone-800">Action Logs</h2>
         <div className="flex items-center gap-2">
-          <button onClick={exportAll} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">
+          <button onClick={exportAll} className="px-2 py-1 text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 rounded border border-stone-200">
             {copied === "all" ? "Copied!" : "Export All JSON"}
           </button>
-          <button onClick={cleanup} disabled={cleaning} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">
+          <button onClick={cleanup} disabled={cleaning} className="px-2 py-1 text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 rounded border border-stone-200">
             {cleaning ? "Cleaning..." : "Purge >21d"}
           </button>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 text-lg px-2">✕</button>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-800 text-lg px-2">✕</button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-zinc-900/80 border-b border-zinc-800 px-4 py-2 flex flex-wrap gap-2 shrink-0">
-        <select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+      <div className="bg-stone-50/80 border-b border-stone-200 px-4 py-2 flex flex-wrap gap-2 shrink-0">
+        <select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-stone-100 text-stone-600 text-xs rounded px-2 py-1 border border-stone-200">
           {["1h", "12h", "24h", "3d", "7d", "14d", "21d"].map((p) => (
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="bg-stone-100 text-stone-600 text-xs rounded px-2 py-1 border border-stone-200">
           <option value="">All types</option>
           <option value="cron">Cron jobs</option>
           <option value="auto-fix">Auto-fixes</option>
           <option value="ai-call">AI calls</option>
           <option value="audit">Audits</option>
         </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-stone-100 text-stone-600 text-xs rounded px-2 py-1 border border-stone-200">
           <option value="">All statuses</option>
           <option value="success">Success</option>
           <option value="failed">Failed</option>
@@ -5361,14 +5360,14 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
           <option value="timeout">Timeout</option>
         </select>
         {data?.filters.functions && data.filters.functions.length > 0 && (
-          <select value={func} onChange={(e) => setFunc(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <select value={func} onChange={(e) => setFunc(e.target.value)} className="bg-stone-100 text-stone-600 text-xs rounded px-2 py-1 border border-stone-200">
             <option value="">All functions</option>
             {data.filters.functions.map((f) => (
               <option key={f} value={f}>{f}</option>
             ))}
           </select>
         )}
-        <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+        <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className="bg-stone-100 text-stone-600 text-xs rounded px-2 py-1 border border-stone-200">
           <option value="">All sites</option>
           <option value="yalla-london">Yalla London</option>
           <option value="zenitha-yachts-med">Zenitha Yachts</option>
@@ -5381,12 +5380,12 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
 
       {/* Stats bar */}
       {data?.stats && (
-        <div className="bg-zinc-900/60 border-b border-zinc-800 px-4 py-2 flex gap-3 text-xs shrink-0 overflow-x-auto">
-          <span className="text-zinc-400">{data.stats.total} total</span>
-          <span className="text-emerald-400">{data.stats.success} ok</span>
-          <span className="text-red-400">{data.stats.failed} failed</span>
+        <div className="bg-stone-50/60 border-b border-stone-200 px-4 py-2 flex gap-3 text-xs shrink-0 overflow-x-auto">
+          <span className="text-stone-400">{data.stats.total} total</span>
+          <span className="text-[#2D5A3D]">{data.stats.success} ok</span>
+          <span className="text-[#C8322B]">{data.stats.failed} failed</span>
           {data.stats.timeout > 0 && <span className="text-orange-400">{data.stats.timeout} timeout</span>}
-          {data.stats.partial > 0 && <span className="text-amber-400">{data.stats.partial} partial</span>}
+          {data.stats.partial > 0 && <span className="text-[#C49A2A]">{data.stats.partial} partial</span>}
           {data.stats.running > 0 && <span className="text-blue-400">{data.stats.running} running</span>}
         </div>
       )}
@@ -5394,57 +5393,57 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
       {/* Log entries */}
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
         {loading ? (
-          <p className="text-zinc-500 text-xs text-center py-8">Loading logs...</p>
+          <p className="text-stone-500 text-xs text-center py-8">Loading logs...</p>
         ) : !data || data.logs.length === 0 ? (
-          <p className="text-zinc-500 text-xs text-center py-8">No logs found for this period/filters.</p>
+          <p className="text-stone-500 text-xs text-center py-8">No logs found for this period/filters.</p>
         ) : (
           data.logs.map((log) => (
-            <div key={log.id} className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+            <div key={log.id} className="bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
               {/* Log row */}
               <button
                 onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                className="w-full px-3 py-2 flex items-start gap-2 text-left hover:bg-zinc-800/50"
+                className="w-full px-3 py-2 flex items-start gap-2 text-left hover:bg-stone-100/50"
               >
                 <span className="text-sm shrink-0 mt-0.5">{statusIcon[log.status] || "•"}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-zinc-500">{categoryIcon[log.category] || ""} {log.category}</span>
-                    <span className="text-xs font-medium text-zinc-200 truncate">{log.action}</span>
-                    {log.siteId && <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500">{log.siteId}</span>}
-                    {log.durationMs != null && <span className="text-[10px] text-zinc-600">{(log.durationMs / 1000).toFixed(1)}s</span>}
+                    <span className="text-xs text-stone-500">{categoryIcon[log.category] || ""} {log.category}</span>
+                    <span className="text-xs font-medium text-stone-700 truncate">{log.action}</span>
+                    {log.siteId && <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">{log.siteId}</span>}
+                    {log.durationMs != null && <span className="text-[10px] text-stone-500">{(log.durationMs / 1000).toFixed(1)}s</span>}
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{log.summary}</p>
-                  <span className="text-[10px] text-zinc-600">{new Date(log.timestamp).toLocaleString()}</span>
+                  <p className="text-xs text-stone-400 mt-0.5 line-clamp-2">{log.summary}</p>
+                  <span className="text-[10px] text-stone-500">{new Date(log.timestamp).toLocaleString()}</span>
                 </div>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${statusColor[log.status] || "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${statusColor[log.status] || "bg-stone-100 text-stone-400 border-stone-200"}`}>
                   {log.status}
                 </span>
               </button>
 
               {/* Expanded detail */}
               {expandedId === log.id && (
-                <div className="px-3 pb-3 border-t border-zinc-800 space-y-2">
+                <div className="px-3 pb-3 border-t border-stone-200 space-y-2">
                   {log.outcome && (
                     <div className="mt-2">
-                      <p className="text-[10px] text-zinc-500 uppercase">Outcome</p>
-                      <p className="text-xs text-emerald-300">{log.outcome}</p>
+                      <p className="text-[10px] text-stone-500 uppercase">Outcome</p>
+                      <p className="text-xs text-[#2D5A3D]">{log.outcome}</p>
                     </div>
                   )}
                   {log.error && (
                     <div>
-                      <p className="text-[10px] text-zinc-500 uppercase">Error</p>
+                      <p className="text-[10px] text-stone-500 uppercase">Error</p>
                       <p className="text-xs text-red-300">{log.error}</p>
                     </div>
                   )}
                   {log.fix && (
                     <div>
-                      <p className="text-[10px] text-zinc-500 uppercase">How to fix</p>
-                      <p className="text-xs text-amber-300">{log.fix}</p>
+                      <p className="text-[10px] text-stone-500 uppercase">How to fix</p>
+                      <p className="text-xs text-[#7a5a10]">{log.fix}</p>
                     </div>
                   )}
                   <button
                     onClick={() => copyJson(log)}
-                    className="mt-1 px-2 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded border border-zinc-700"
+                    className="mt-1 px-2 py-1 text-[10px] bg-stone-100 hover:bg-stone-200 text-stone-400 rounded border border-stone-200"
                   >
                     {copied === log.id ? "Copied!" : "Copy JSON"}
                   </button>
@@ -5563,7 +5562,7 @@ function WebsiteConfigPanel() {
         <select
           value={siteId}
           onChange={(e) => setSiteId(e.target.value)}
-          className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700"
+          className="bg-stone-100 text-stone-600 text-xs rounded px-2 py-1 border border-stone-200"
         >
           {sites.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
@@ -5572,9 +5571,9 @@ function WebsiteConfigPanel() {
       </div>
 
       {loading ? (
-        <p className="text-zinc-500 text-xs animate-pulse">Loading settings…</p>
+        <p className="text-stone-500 text-xs animate-pulse">Loading settings…</p>
       ) : !settings ? (
-        <p className="text-zinc-500 text-xs">Failed to load settings. The site_settings table may need migration.</p>
+        <p className="text-stone-500 text-xs">Failed to load settings. The site_settings table may need migration.</p>
       ) : (
         <div className="space-y-2">
           {CATEGORIES.map(({ key, label, icon, desc }) => {
@@ -5582,31 +5581,31 @@ function WebsiteConfigPanel() {
             const isExpanded = expandedCategory === key;
             if (!cat) return null;
             return (
-              <div key={key} className={`rounded-lg border ${cat.enabled ? "border-zinc-700 bg-zinc-800/40" : "border-zinc-800 bg-zinc-900/40 opacity-70"}`}>
+              <div key={key} className={`rounded-lg border ${cat.enabled ? "border-stone-200 bg-stone-100/40" : "border-stone-200 bg-stone-50/40 opacity-70"}`}>
                 {/* Header row */}
                 <div className="flex items-center gap-2 p-2.5 cursor-pointer" onClick={() => setExpandedCategory(isExpanded ? null : key)}>
                   <span className="text-base">{icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-zinc-200 text-xs font-medium">{label}</span>
+                      <span className="text-stone-700 text-xs font-medium">{label}</span>
                       {cat.updatedAt && (
-                        <span className="text-zinc-600 text-[10px]">updated {new Date(cat.updatedAt).toLocaleDateString()}</span>
+                        <span className="text-stone-500 text-[10px]">updated {new Date(cat.updatedAt).toLocaleDateString()}</span>
                       )}
                     </div>
-                    <p className="text-zinc-500 text-[11px] truncate">{desc}</p>
+                    <p className="text-stone-500 text-[11px] truncate">{desc}</p>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleCategory(key); }}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${cat.enabled ? "bg-emerald-600" : "bg-zinc-700"}`}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${cat.enabled ? "bg-emerald-600" : "bg-stone-200"}`}
                   >
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${cat.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
                   </button>
-                  <span className={`text-zinc-500 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+                  <span className={`text-stone-500 text-xs transition-transform ${isExpanded ? "rotate-180" : ""}`}>▼</span>
                 </div>
 
                 {/* Expanded panel */}
                 {isExpanded && (
-                  <div className="border-t border-zinc-700/50 p-3 space-y-3">
+                  <div className="border-t border-stone-200/50 p-3 space-y-3">
                     {key === "affiliates" && <AffiliatesEditor config={cat.config} onChange={(k, v) => updateConfig("affiliates", k, v)} />}
                     {key === "email" && <EmailEditor config={cat.config} onChange={(k, v) => updateConfig("email", k, v)} />}
                     {key === "social" && <SocialEditor config={cat.config} onChange={(k, v) => updateConfig("social", k, v)} />}
@@ -5616,12 +5615,12 @@ function WebsiteConfigPanel() {
                     {/* Instructions textarea (shared across all categories) */}
                     {cat.config.instructions !== undefined && (
                       <div>
-                        <label className="text-zinc-400 text-[11px] font-medium block mb-1">AI Instructions</label>
+                        <label className="text-stone-400 text-[11px] font-medium block mb-1">AI Instructions</label>
                         <textarea
                           value={(cat.config.instructions as string) || ""}
                           onChange={(e) => updateConfig(key, "instructions", e.target.value)}
                           rows={3}
-                          className="w-full bg-zinc-900 text-zinc-300 text-xs rounded px-2 py-1.5 border border-zinc-700 resize-y"
+                          className="w-full bg-stone-50 text-stone-600 text-xs rounded px-2 py-1.5 border border-stone-200 resize-y"
                           placeholder="Instructions for AI when handling this category…"
                         />
                       </div>
@@ -5637,7 +5636,7 @@ function WebsiteConfigPanel() {
                         Save {label}
                       </ActionButton>
                       {saveResult?.category === key && (
-                        <span className={`text-xs ${saveResult.ok ? "text-emerald-400" : "text-red-400"}`}>
+                        <span className={`text-xs ${saveResult.ok ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                           {saveResult.ok ? "✅" : "❌"} {saveResult.msg}
                         </span>
                       )}
@@ -5670,11 +5669,11 @@ function AffiliatesEditor({ config, onChange }: { config: Record<string, unknown
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 text-xs">
-        <label className="text-zinc-400">Injection Mode:</label>
+        <label className="text-stone-400">Injection Mode:</label>
         <select
           value={(config.injectionMode as string) || "auto"}
           onChange={(e) => onChange("injectionMode", e.target.value)}
-          className="bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          className="bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
         >
           <option value="auto">Auto (cron injects into articles)</option>
           <option value="manual">Manual (AI includes during generation)</option>
@@ -5682,29 +5681,29 @@ function AffiliatesEditor({ config, onChange }: { config: Record<string, unknown
         </select>
       </div>
       <div className="flex items-center gap-3 text-xs">
-        <label className="text-zinc-400">Max links/article:</label>
+        <label className="text-stone-400">Max links/article:</label>
         <input
           type="number"
           value={(config.maxLinksPerArticle as number) || 5}
           onChange={(e) => onChange("maxLinksPerArticle", parseInt(e.target.value) || 5)}
-          className="bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs w-16"
+          className="bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs w-16"
           min={1}
           max={20}
         />
       </div>
-      <label className="text-zinc-400 text-[11px] font-medium block">Active Partners</label>
+      <label className="text-stone-400 text-[11px] font-medium block">Active Partners</label>
       <div className="space-y-1.5">
         {partners.map((p, i) => (
-          <div key={i} className={`rounded-md border p-2 ${p.enabled ? "border-zinc-700 bg-zinc-800/30" : "border-zinc-800 bg-zinc-900/30 opacity-60"}`}>
+          <div key={i} className={`rounded-md border p-2 ${p.enabled ? "border-stone-200 bg-stone-100/30" : "border-stone-200 bg-stone-50/30 opacity-60"}`}>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => togglePartner(i)}
-                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${p.enabled ? "bg-emerald-600" : "bg-zinc-700"}`}
+                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${p.enabled ? "bg-emerald-600" : "bg-stone-200"}`}
               >
                 <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${p.enabled ? "translate-x-3.5" : "translate-x-0.5"}`} />
               </button>
-              <span className="text-zinc-200 text-xs font-medium">{p.name}</span>
-              <span className="text-zinc-600 text-[10px]">{p.category}</span>
+              <span className="text-stone-700 text-xs font-medium">{p.name}</span>
+              <span className="text-stone-500 text-[10px]">{p.category}</span>
               <span className="text-emerald-500 text-[10px] ml-auto">{p.commissionRate}</span>
             </div>
             {p.enabled && (
@@ -5713,7 +5712,7 @@ function AffiliatesEditor({ config, onChange }: { config: Record<string, unknown
                   value={p.affiliateId}
                   onChange={(e) => updatePartnerField(i, "affiliateId", e.target.value)}
                   placeholder="Affiliate ID (from partner dashboard)"
-                  className="bg-zinc-900 text-zinc-300 text-[11px] rounded px-2 py-1 border border-zinc-700"
+                  className="bg-stone-50 text-stone-600 text-[11px] rounded px-2 py-1 border border-stone-200"
                 />
               </div>
             )}
@@ -5729,11 +5728,11 @@ function EmailEditor({ config, onChange }: { config: Record<string, unknown>; on
     <div className="space-y-2 text-xs">
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">Provider</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">Provider</label>
           <select
             value={(config.provider as string) || "auto"}
             onChange={(e) => onChange("provider", e.target.value)}
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           >
             <option value="auto">Auto-detect</option>
             <option value="resend">Resend</option>
@@ -5742,11 +5741,11 @@ function EmailEditor({ config, onChange }: { config: Record<string, unknown>; on
           </select>
         </div>
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">Digest Frequency</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">Digest Frequency</label>
           <select
             value={(config.digestFrequency as string) || "weekly"}
             onChange={(e) => onChange("digestFrequency", e.target.value)}
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           >
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
@@ -5756,39 +5755,39 @@ function EmailEditor({ config, onChange }: { config: Record<string, unknown>; on
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">From Name</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">From Name</label>
           <input
             value={(config.fromName as string) || ""}
             onChange={(e) => onChange("fromName", e.target.value)}
             placeholder="e.g. Yalla London"
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           />
         </div>
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">From Email</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">From Email</label>
           <input
             value={(config.fromEmail as string) || ""}
             onChange={(e) => onChange("fromEmail", e.target.value)}
             placeholder="e.g. hello@yalla-london.com"
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           />
         </div>
       </div>
       <div>
-        <label className="text-zinc-400 text-[11px] block mb-0.5">Reply-To</label>
+        <label className="text-stone-400 text-[11px] block mb-0.5">Reply-To</label>
         <input
           value={(config.replyTo as string) || ""}
           onChange={(e) => onChange("replyTo", e.target.value)}
           placeholder="e.g. support@yalla-london.com"
-          className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
         />
       </div>
       <div className="flex gap-4">
-        <label className="flex items-center gap-1.5 text-zinc-300">
+        <label className="flex items-center gap-1.5 text-stone-600">
           <input type="checkbox" checked={!!config.welcomeEmailEnabled} onChange={(e) => onChange("welcomeEmailEnabled", e.target.checked)} className="rounded" />
           Welcome email
         </label>
-        <label className="flex items-center gap-1.5 text-zinc-300">
+        <label className="flex items-center gap-1.5 text-stone-600">
           <input type="checkbox" checked={!!config.digestEmailEnabled} onChange={(e) => onChange("digestEmailEnabled", e.target.checked)} className="rounded" />
           Digest email
         </label>
@@ -5815,7 +5814,7 @@ function SocialEditor({ config, onChange }: { config: Record<string, unknown>; o
     <div className="space-y-2 text-xs">
       {PLATFORMS.map((p) => (
         <div key={p.key} className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-zinc-300 w-24 shrink-0">
+          <label className="flex items-center gap-1.5 text-stone-600 w-24 shrink-0">
             <input
               type="checkbox"
               checked={!!platforms[p.key]?.connected}
@@ -5828,12 +5827,12 @@ function SocialEditor({ config, onChange }: { config: Record<string, unknown>; o
             value={(platforms[p.key]?.[p.field as keyof typeof platforms[string]] as string) || ""}
             onChange={(e) => updatePlatform(p.key, p.field, e.target.value)}
             placeholder={p.placeholder}
-            className="flex-1 bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="flex-1 bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
             disabled={!platforms[p.key]?.connected}
           />
         </div>
       ))}
-      <label className="flex items-center gap-1.5 text-zinc-300 text-xs mt-2">
+      <label className="flex items-center gap-1.5 text-stone-600 text-xs mt-2">
         <input type="checkbox" checked={!!config.autoPostOnPublish} onChange={(e) => onChange("autoPostOnPublish", e.target.checked)} className="rounded" />
         Auto-post when article is published
       </label>
@@ -5846,11 +5845,11 @@ function WorkflowEditor({ config, onChange }: { config: Record<string, unknown>;
     <div className="space-y-2 text-xs">
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">Content Tone</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">Content Tone</label>
           <select
             value={(config.contentTone as string) || "luxury-editorial"}
             onChange={(e) => onChange("contentTone", e.target.value)}
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           >
             <option value="luxury-editorial">Luxury Editorial</option>
             <option value="casual-friendly">Casual & Friendly</option>
@@ -5859,11 +5858,11 @@ function WorkflowEditor({ config, onChange }: { config: Record<string, unknown>;
           </select>
         </div>
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">Publishing Frequency</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">Publishing Frequency</label>
           <select
             value={(config.publishingFrequency as string) || "2/day"}
             onChange={(e) => onChange("publishingFrequency", e.target.value)}
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           >
             <option value="1/day">1 per day</option>
             <option value="2/day">2 per day</option>
@@ -5873,21 +5872,21 @@ function WorkflowEditor({ config, onChange }: { config: Record<string, unknown>;
         </div>
       </div>
       <div>
-        <label className="text-zinc-400 text-[11px] block mb-0.5">Target Audience</label>
+        <label className="text-stone-400 text-[11px] block mb-0.5">Target Audience</label>
         <input
           value={(config.targetAudience as string) || ""}
           onChange={(e) => onChange("targetAudience", e.target.value)}
-          className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+          className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           placeholder="e.g. Arab travellers seeking luxury experiences"
         />
       </div>
       <div>
-        <label className="text-zinc-400 text-[11px] block mb-0.5">Brand Voice Notes</label>
+        <label className="text-stone-400 text-[11px] block mb-0.5">Brand Voice Notes</label>
         <textarea
           value={(config.brandVoiceNotes as string) || ""}
           onChange={(e) => onChange("brandVoiceNotes", e.target.value)}
           rows={2}
-          className="w-full bg-zinc-900 text-zinc-300 text-xs rounded px-2 py-1.5 border border-zinc-700 resize-y"
+          className="w-full bg-stone-50 text-stone-600 text-xs rounded px-2 py-1.5 border border-stone-200 resize-y"
           placeholder="Special notes about brand voice, phrases to use/avoid…"
         />
       </div>
@@ -5905,7 +5904,7 @@ function GeneralEditor({ config, onChange }: { config: Record<string, unknown>; 
           { key: "cronJobsEnabled", label: "Cron Jobs" },
           { key: "maintenanceMode", label: "Maintenance Mode" },
         ].map(({ key, label }) => (
-          <label key={key} className="flex items-center gap-1.5 text-zinc-300">
+          <label key={key} className="flex items-center gap-1.5 text-stone-600">
             <input
               type="checkbox"
               checked={key === "maintenanceMode" ? !!config[key] : config[key] !== false}
@@ -5918,30 +5917,30 @@ function GeneralEditor({ config, onChange }: { config: Record<string, unknown>; 
       </div>
       <div className="grid grid-cols-1 gap-2">
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">Custom Domain</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">Custom Domain</label>
           <input
             value={(config.customDomain as string) || ""}
             onChange={(e) => onChange("customDomain", e.target.value)}
             placeholder="e.g. yalla-london.com"
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           />
         </div>
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">Google Verification Code</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">Google Verification Code</label>
           <input
             value={(config.googleVerification as string) || ""}
             onChange={(e) => onChange("googleVerification", e.target.value)}
             placeholder="google-site-verification=…"
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           />
         </div>
         <div>
-          <label className="text-zinc-400 text-[11px] block mb-0.5">GA4 Measurement ID</label>
+          <label className="text-stone-400 text-[11px] block mb-0.5">GA4 Measurement ID</label>
           <input
             value={(config.analyticsId as string) || ""}
             onChange={(e) => onChange("analyticsId", e.target.value)}
             placeholder="G-XXXXXXXXXX"
-            className="w-full bg-zinc-900 text-zinc-300 rounded px-2 py-1 border border-zinc-700 text-xs"
+            className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           />
         </div>
       </div>
@@ -6170,8 +6169,8 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {ENV_VARS.map(({ key, ok }) => (
             <div key={key} className="flex items-center gap-2 text-xs">
-              <span className={ok ? "text-emerald-400" : "text-zinc-600"}>{ok ? "✅" : "❌"}</span>
-              <span className={ok ? "text-zinc-300" : "text-zinc-500"}>{key}</span>
+              <span className={ok ? "text-[#2D5A3D]" : "text-stone-500"}>{ok ? "✅" : "❌"}</span>
+              <span className={ok ? "text-stone-600" : "text-stone-500"}>{key}</span>
             </div>
           ))}
         </div>
@@ -6182,21 +6181,21 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         <SectionTitle>API Keys Status</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {API_KEYS.map(({ key, status, capability, emoji }) => (
-            <div key={key} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${status ? "bg-zinc-800/40" : "bg-red-950/10 border border-red-900/30"}`}>
+            <div key={key} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${status ? "bg-stone-100/40" : "bg-[rgba(200,50,43,0.03)] border border-red-900/30"}`}>
               <span className="text-base mt-0.5">{emoji}</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={status ? "text-emerald-400" : "text-red-500"}>
+                  <span className={status ? "text-[#2D5A3D]" : "text-red-500"}>
                     {status ? "✅" : "❌"}
                   </span>
-                  <span className={`font-mono font-medium ${status ? "text-zinc-200" : "text-zinc-400"}`}>{key}</span>
+                  <span className={`font-mono font-medium ${status ? "text-stone-700" : "text-stone-400"}`}>{key}</span>
                 </div>
-                <p className="text-zinc-500 mt-0.5">{capability}</p>
+                <p className="text-stone-500 mt-0.5">{capability}</p>
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-3 border-t border-zinc-800 pt-2">
+        <div className="mt-3 border-t border-stone-200 pt-2">
           <a
             href="https://vercel.com/dashboard"
             target="_blank"
@@ -6226,13 +6225,13 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           </ActionButton>
         </div>
         {testResult && (
-          <p className={`mt-2 text-xs rounded px-2 py-1 break-all ${testResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+          <p className={`mt-2 text-xs rounded px-2 py-1 break-all ${testResult.startsWith("✅") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
             {testResult}
           </p>
         )}
 
         {/* System Health Audit */}
-        <div className="mt-3 border-t border-zinc-800 pt-3">
+        <div className="mt-3 border-t border-stone-200 pt-3">
           <div className="flex items-center gap-2 mb-2">
             <ActionButton
               onClick={runSystemAudit}
@@ -6251,7 +6250,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
 
           {/* Progress */}
           {auditProgress && (
-            <div className="flex items-center gap-2 text-xs text-blue-300 bg-blue-950/30 px-3 py-2 rounded-lg mb-2">
+            <div className="flex items-center gap-2 text-xs text-[#1e5a7a] bg-[rgba(59,126,161,0.06)] px-3 py-2 rounded-lg mb-2">
               <span className="animate-spin">⏳</span>
               <span>{auditProgress}</span>
             </div>
@@ -6259,7 +6258,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
 
           {/* Error */}
           {auditError && (
-            <div className="text-xs text-red-300 bg-red-950/30 px-3 py-2 rounded-lg mb-2">
+            <div className="text-xs text-red-300 bg-[rgba(200,50,43,0.06)] px-3 py-2 rounded-lg mb-2">
               ❌ Audit failed: {auditError}
             </div>
           )}
@@ -6269,30 +6268,30 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             <div className="space-y-2">
               {/* Overall Score */}
               <div className={`rounded-lg p-3 border ${
-                auditReport.overallStatus === "healthy" ? "bg-emerald-950/30 border-emerald-800" :
-                auditReport.overallStatus === "degraded" ? "bg-amber-950/30 border-amber-800" :
-                "bg-red-950/30 border-red-800"
+                auditReport.overallStatus === "healthy" ? "bg-[rgba(45,90,61,0.06)] border-[rgba(45,90,61,0.3)]" :
+                auditReport.overallStatus === "degraded" ? "bg-[rgba(196,154,42,0.06)] border-[rgba(196,154,42,0.3)]" :
+                "bg-[rgba(200,50,43,0.06)] border-[rgba(200,50,43,0.3)]"
               }`}>
                 <div className="flex items-center justify-between">
                   <div>
                     <span className={`text-2xl font-bold ${
-                      auditReport.overallStatus === "healthy" ? "text-emerald-300" :
-                      auditReport.overallStatus === "degraded" ? "text-amber-300" :
+                      auditReport.overallStatus === "healthy" ? "text-[#2D5A3D]" :
+                      auditReport.overallStatus === "degraded" ? "text-[#7a5a10]" :
                       "text-red-300"
                     }`}>{auditReport.overallScore}/100</span>
                     <span className={`ml-2 text-xs font-medium uppercase ${
-                      auditReport.overallStatus === "healthy" ? "text-emerald-400" :
-                      auditReport.overallStatus === "degraded" ? "text-amber-400" :
-                      "text-red-400"
+                      auditReport.overallStatus === "healthy" ? "text-[#2D5A3D]" :
+                      auditReport.overallStatus === "degraded" ? "text-[#C49A2A]" :
+                      "text-[#C8322B]"
                     }`}>{auditReport.overallStatus}</span>
                   </div>
-                  <span className="text-xs text-zinc-500">{formatDuration(auditReport.durationMs)}</span>
+                  <span className="text-xs text-stone-500">{formatDuration(auditReport.durationMs)}</span>
                 </div>
                 <div className="flex gap-3 mt-2 text-xs">
-                  <span className="text-emerald-400">✅ {auditReport.summary.passed}</span>
-                  <span className="text-amber-400">⚠️ {auditReport.summary.warnings}</span>
-                  <span className="text-red-400">❌ {auditReport.summary.failed}</span>
-                  <span className="text-zinc-500">⏭️ {auditReport.summary.skipped}</span>
+                  <span className="text-[#2D5A3D]">✅ {auditReport.summary.passed}</span>
+                  <span className="text-[#C49A2A]">⚠️ {auditReport.summary.warnings}</span>
+                  <span className="text-[#C8322B]">❌ {auditReport.summary.failed}</span>
+                  <span className="text-stone-500">⏭️ {auditReport.summary.skipped}</span>
                 </div>
               </div>
 
@@ -6301,27 +6300,27 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                 const isExpanded = expandedSections.has(sectionKey);
                 const sectionLabel = sectionKey.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()).trim();
                 const statusIcon = section.status === "pass" ? "✅" : section.status === "warn" ? "⚠️" : section.status === "fail" ? "❌" : "⏭️";
-                const borderColor = section.status === "pass" ? "border-emerald-800/50" : section.status === "warn" ? "border-amber-800/50" : section.status === "fail" ? "border-red-800/50" : "border-zinc-800";
-                const bgColor = section.status === "fail" ? "bg-red-950/20" : section.status === "warn" ? "bg-amber-950/10" : "bg-zinc-900/50";
+                const borderColor = section.status === "pass" ? "border-[rgba(45,90,61,0.3)]/50" : section.status === "warn" ? "border-[rgba(196,154,42,0.3)]/50" : section.status === "fail" ? "border-[rgba(200,50,43,0.3)]/50" : "border-stone-200";
+                const bgColor = section.status === "fail" ? "bg-[rgba(200,50,43,0.04)]" : section.status === "warn" ? "bg-[rgba(196,154,42,0.03)]" : "bg-stone-50/50";
 
                 return (
                   <div key={sectionKey} className={`rounded-lg border ${borderColor} ${bgColor} overflow-hidden`}>
                     <button
                       onClick={() => toggleSection(sectionKey)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-zinc-800/30 transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-stone-100/30 transition-colors"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-sm">{statusIcon}</span>
-                        <span className="text-xs font-medium text-zinc-200 truncate">{sectionLabel}</span>
+                        <span className="text-xs font-medium text-stone-700 truncate">{sectionLabel}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-mono ${scoreColor(section.score)}`}>{section.score}</span>
-                        <ChevronDown className={`w-3 h-3 text-zinc-500 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`w-3 h-3 text-stone-500 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                       </div>
                     </button>
 
                     {isExpanded && (
-                      <div className="px-3 pb-2 space-y-1 border-t border-zinc-800/50">
+                      <div className="px-3 pb-2 space-y-1 border-t border-stone-200/50">
                         {Object.entries(section.checks).map(([checkKey, check]) => {
                           const checkIcon = check.status === "pass" ? "✅" : check.status === "warn" ? "⚠️" : check.status === "fail" ? "❌" : "⏭️";
                           const checkLabel = checkKey.replace(/([A-Z])/g, " $1").replace(/_/g, " ").replace(/^./, s => s.toUpperCase()).trim();
@@ -6331,16 +6330,16 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                                 <div className="flex items-start gap-1.5 min-w-0">
                                   <span className="text-xs mt-0.5">{checkIcon}</span>
                                   <div className="min-w-0">
-                                    <span className="text-xs text-zinc-300 block">{checkLabel}</span>
+                                    <span className="text-xs text-stone-600 block">{checkLabel}</span>
                                     {check.error && (
-                                      <span className="text-[10px] text-red-400 block mt-0.5 break-all">{check.error}</span>
+                                      <span className="text-[10px] text-[#C8322B] block mt-0.5 break-all">{check.error}</span>
                                     )}
                                     {check.action && (
-                                      <span className="text-[10px] text-amber-400 block mt-0.5">{check.action}</span>
+                                      <span className="text-[10px] text-[#C49A2A] block mt-0.5">{check.action}</span>
                                     )}
                                   </div>
                                 </div>
-                                <span className="text-[10px] text-zinc-500 shrink-0">{formatDuration(check.durationMs)}</span>
+                                <span className="text-[10px] text-stone-500 shrink-0">{formatDuration(check.durationMs)}</span>
                               </div>
                             </div>
                           );
@@ -6354,17 +6353,17 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           )}
         </div>
 
-        <div className="mt-3 border-t border-zinc-800 pt-3 flex flex-wrap gap-2">
+        <div className="mt-3 border-t border-stone-200 pt-3 flex flex-wrap gap-2">
           <ActionButton onClick={() => setShowActionLogs(true)}>
             📊 Action Logs
           </ActionButton>
-          <a href="/test-connections.html" target="_blank" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+          <a href="/test-connections.html" target="_blank" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200">
             🔬 test-connections.html
           </a>
-          <Link href="/admin/cron-logs" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+          <Link href="/admin/cron-logs" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200">
             📋 Full Cron History
           </Link>
-          <Link href="/admin" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+          <Link href="/admin" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-600 border-stone-200">
             📁 Full Admin
           </Link>
         </div>
@@ -6373,7 +6372,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       {/* Database Migration */}
       <Card>
         <SectionTitle>Database Migration</SectionTitle>
-        <p className="text-zinc-500 text-xs mb-3">Scan for missing tables, columns, and indexes. Fix applies all pending schema changes.</p>
+        <p className="text-stone-500 text-xs mb-3">Scan for missing tables, columns, and indexes. Fix applies all pending schema changes.</p>
         <div className="flex flex-wrap gap-2">
           <ActionButton onClick={runMigrationScan} loading={migrationStatus === "scanning"}>
             🔍 Scan Schema
@@ -6430,30 +6429,30 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           </ActionButton>
         </div>
         {migrationError && (
-          <p className="mt-2 text-xs bg-red-950/30 text-red-300 rounded px-2 py-1">{migrationError}</p>
+          <p className="mt-2 text-xs bg-[rgba(200,50,43,0.06)] text-[#C8322B] rounded px-2 py-1">{migrationError}</p>
         )}
         {migrationResult && (
           <div className="mt-2 text-xs space-y-1">
             {migrationResult.type === "scan" ? (
               <>
                 <div className="flex items-center gap-2">
-                  <span className={migrationResult.needsMigration ? "text-amber-400" : "text-emerald-400"}>
+                  <span className={migrationResult.needsMigration ? "text-[#C49A2A]" : "text-[#2D5A3D]"}>
                     {migrationResult.needsMigration ? "⚠️" : "✅"}
                   </span>
-                  <span className="text-zinc-300">
+                  <span className="text-stone-600">
                     {migrationResult.needsMigration
                       ? "Migration needed"
                       : "Schema is up to date"}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-1">
-                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingTables > 0 ? "bg-red-950/30 text-red-300" : "bg-zinc-800 text-zinc-400"}`}>
+                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingTables > 0 ? "bg-[rgba(200,50,43,0.06)] text-[#C8322B]" : "bg-stone-100 text-stone-400"}`}>
                     {migrationResult.missingTables} tables
                   </div>
-                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingColumns > 0 ? "bg-red-950/30 text-red-300" : "bg-zinc-800 text-zinc-400"}`}>
+                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingColumns > 0 ? "bg-[rgba(200,50,43,0.06)] text-[#C8322B]" : "bg-stone-100 text-stone-400"}`}>
                     {migrationResult.missingColumns} columns
                   </div>
-                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingIndexes > 0 ? "bg-amber-950/30 text-amber-300" : "bg-zinc-800 text-zinc-400"}`}>
+                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingIndexes > 0 ? "bg-[rgba(196,154,42,0.06)] text-[#7a5a10]" : "bg-stone-100 text-stone-400"}`}>
                     {migrationResult.missingIndexes} indexes
                   </div>
                 </div>
@@ -6461,30 +6460,30 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <span className={(migrationResult.errors?.length ?? 0) > 0 ? "text-amber-400" : "text-emerald-400"}>
+                  <span className={(migrationResult.errors?.length ?? 0) > 0 ? "text-[#C49A2A]" : "text-[#2D5A3D]"}>
                     {(migrationResult.errors?.length ?? 0) > 0 ? "⚠️" : "✅"}
                   </span>
-                  <span className="text-zinc-300">
+                  <span className="text-stone-600">
                     Migration complete{migrationResult.durationMs ? ` (${(migrationResult.durationMs / 1000).toFixed(1)}s)` : ""}
                   </span>
                 </div>
                 {(migrationResult.tablesCreated?.length ?? 0) > 0 && (
-                  <p className="text-emerald-400">+ {migrationResult.tablesCreated!.length} table(s) created: {migrationResult.tablesCreated!.join(", ")}</p>
+                  <p className="text-[#2D5A3D]">+ {migrationResult.tablesCreated!.length} table(s) created: {migrationResult.tablesCreated!.join(", ")}</p>
                 )}
                 {(migrationResult.columnsAdded?.length ?? 0) > 0 && (
-                  <p className="text-emerald-400">+ {migrationResult.columnsAdded!.length} column(s) added</p>
+                  <p className="text-[#2D5A3D]">+ {migrationResult.columnsAdded!.length} column(s) added</p>
                 )}
                 {(migrationResult.indexesCreated?.length ?? 0) > 0 && (
-                  <p className="text-emerald-400">+ {migrationResult.indexesCreated!.length} index(es) created</p>
+                  <p className="text-[#2D5A3D]">+ {migrationResult.indexesCreated!.length} index(es) created</p>
                 )}
                 {(migrationResult.foreignKeysCreated?.length ?? 0) > 0 && (
-                  <p className="text-emerald-400">+ {migrationResult.foreignKeysCreated!.length} foreign key(s) created</p>
+                  <p className="text-[#2D5A3D]">+ {migrationResult.foreignKeysCreated!.length} foreign key(s) created</p>
                 )}
                 {(migrationResult.errors?.length ?? 0) > 0 && (
                   <div className="mt-2 space-y-1">
-                    <p className="text-red-400 font-medium">{migrationResult.errors!.length} error(s):</p>
+                    <p className="text-[#C8322B] font-medium">{migrationResult.errors!.length} error(s):</p>
                     {migrationResult.errors!.map((err, i) => (
-                      <p key={i} className="text-red-300/80 text-[11px] bg-red-950/20 rounded px-2 py-1 break-words">{err}</p>
+                      <p key={i} className="text-red-300/80 text-[11px] bg-[rgba(200,50,43,0.04)] rounded px-2 py-1 break-words">{err}</p>
                     ))}
                   </div>
                 )}
@@ -6501,20 +6500,20 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       <Card>
         <SectionTitle>Feature Flags</SectionTitle>
         {flagsLoading ? (
-          <p className="text-zinc-500 text-xs">Loading flags…</p>
+          <p className="text-stone-500 text-xs">Loading flags…</p>
         ) : flags.length === 0 ? (
-          <p className="text-zinc-500 text-xs">No feature flags found in database.</p>
+          <p className="text-stone-500 text-xs">No feature flags found in database.</p>
         ) : (
           <div className="space-y-2">
             {flags.map((flag) => (
               <div key={flag.key} className="flex items-center justify-between gap-2 text-xs">
                 <div>
-                  <span className="text-zinc-300 font-medium">{flag.key}</span>
-                  {flag.description && <p className="text-zinc-500 mt-0.5">{flag.description}</p>}
+                  <span className="text-stone-600 font-medium">{flag.key}</span>
+                  {flag.description && <p className="text-stone-500 mt-0.5">{flag.description}</p>}
                 </div>
                 <button
                   onClick={() => toggleFlag(flag.key, flag.enabled)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${flag.enabled ? "bg-emerald-600" : "bg-zinc-700"}`}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${flag.enabled ? "bg-emerald-600" : "bg-stone-200"}`}
                 >
                   <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${flag.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
                 </button>
@@ -6527,8 +6526,8 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       {/* Cron Schedule Reference */}
       <Card>
         <SectionTitle>Cron Schedules & Quantities</SectionTitle>
-        <p className="text-zinc-500 text-xs mb-3">
-          Current cron timing and article generation quantities. To change schedules, update <code className="text-zinc-400">vercel.json</code> and redeploy.
+        <p className="text-stone-500 text-xs mb-3">
+          Current cron timing and article generation quantities. To change schedules, update <code className="text-stone-400">vercel.json</code> and redeploy.
         </p>
         <div className="space-y-2 text-xs">
           {[
@@ -6539,18 +6538,18 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             { name: "SEO Agent", schedule: "0 7,13,20 * * *", desc: "3x daily — auto-fixes meta, schema, internal links", quantity: "50 meta + 20 schema + 5 links" },
             { name: "Diagnostic Sweep", schedule: "0 */2 * * *", desc: "Every 2 hours — diagnoses stuck drafts and failed crons", quantity: "All stuck items" },
           ].map((cron) => (
-            <div key={cron.name} className="rounded-lg bg-zinc-800/50 p-2.5">
+            <div key={cron.name} className="rounded-lg bg-stone-100/50 p-2.5">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-zinc-200 font-medium">{cron.name}</span>
-                <code className="text-violet-400 font-mono text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded">{cron.schedule}</code>
+                <span className="text-stone-700 font-medium">{cron.name}</span>
+                <code className="text-violet-400 font-mono text-[10px] bg-stone-50 px-1.5 py-0.5 rounded">{cron.schedule}</code>
               </div>
-              <p className="text-zinc-500">{cron.desc}</p>
-              <p className="text-zinc-600 mt-0.5">Quantity: <span className="text-zinc-400">{cron.quantity}</span></p>
+              <p className="text-stone-500">{cron.desc}</p>
+              <p className="text-stone-500 mt-0.5">Quantity: <span className="text-stone-400">{cron.quantity}</span></p>
             </div>
           ))}
         </div>
-        <div className="mt-3 border-t border-zinc-800 pt-2">
-          <p className="text-zinc-600 text-[11px]">
+        <div className="mt-3 border-t border-stone-200 pt-2">
+          <p className="text-stone-500 text-[11px]">
             Tip: To increase article output, the content-builder runs every 15 min and processes 1-2 drafts each run.
             More topics = more articles. Use &quot;Research &amp; Create&quot; in the Content tab to add topics on demand.
           </p>
@@ -6560,7 +6559,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       {/* Links */}
       <Card>
         <SectionTitle>System Info</SectionTitle>
-        <div className="text-xs space-y-1 text-zinc-500">
+        <div className="text-xs space-y-1 text-stone-500">
           <p>Platform: Vercel Pro</p>
           <p>Cockpit v2.0.0</p>
           <p>
@@ -6849,12 +6848,12 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
 
       {/* Test All Progress */}
       {testAllProgress && (
-        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
+        <div className="bg-stone-50 rounded-xl p-3 border border-[rgba(214,208,196,0.6)]">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Test All Results</span>
+            <span className="text-xs font-medium text-stone-600">Test All Results</span>
             <span className="text-xs text-gray-500">{testAllProgress.done}/{testAllProgress.total}</span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-2">
+          <div className="w-full bg-stone-200 rounded-full h-1.5 mb-2">
             <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(testAllProgress.done / Math.max(testAllProgress.total, 1)) * 100}%` }} />
           </div>
           <div className="flex gap-3 text-xs">
@@ -6869,60 +6868,60 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
       {plans.length > 0 ? plans.map(plan => {
         const isPlanExpanded = expandedPlan === plan.planId;
         return (
-          <div key={plan.planId} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div key={plan.planId} className="admin-card rounded-xl border border-[rgba(214,208,196,0.6)] overflow-hidden">
             {/* Plan Header */}
             <button
               onClick={() => setExpandedPlan(isPlanExpanded ? null : plan.planId)}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors"
             >
               <div className="flex items-center gap-2 text-left">
                 <span className="text-xs text-gray-400">{isPlanExpanded ? "▾" : "▸"}</span>
                 <div>
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white">{plan.planTitle}</span>
+                  <span className="font-semibold text-sm text-stone-900">{plan.planTitle}</span>
                   {plan.project && <span className="text-xs text-gray-400 ml-2">{plan.project}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">{plan.completedTasks}/{plan.totalTasks}</span>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                  <div className="w-16 bg-stone-200 rounded-full h-1.5">
                     <div className={`${readinessBarColor(plan.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${plan.readiness}%` }} />
                   </div>
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{plan.readiness}%</span>
+                  <span className="text-xs font-medium text-stone-500 w-8 text-right">{plan.readiness}%</span>
                 </div>
               </div>
             </button>
 
             {/* Plan Phases */}
             {isPlanExpanded && (
-              <div className="border-t border-gray-100 dark:border-gray-800">
+              <div className="border-t border-stone-100">
                 {plan.phases.map(phase => {
                   const isPhaseExp = expandedPhase === `${plan.planId}:${phase.name}`;
                   return (
-                    <div key={phase.name} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <div key={phase.name} className="border-b border-stone-100 last:border-b-0">
                       {/* Phase Header */}
                       <button
                         onClick={() => setExpandedPhase(isPhaseExp ? null : `${plan.planId}:${phase.name}`)}
-                        className="w-full px-6 py-2.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                        className="w-full px-6 py-2.5 flex items-center justify-between hover:bg-stone-50 transition-colors"
                       >
                         <div className="flex items-center gap-2 text-left">
                           <span className="text-xs text-gray-400">{isPhaseExp ? "▾" : "▸"}</span>
-                          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">{phase.name}</span>
+                          <span className="font-medium text-sm text-stone-600">{phase.name}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
                           <div className="flex items-center gap-1.5">
-                            <div className="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                            <div className="w-12 bg-stone-200 rounded-full h-1.5">
                               <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
                             </div>
-                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{phase.readiness}%</span>
+                            <span className="text-xs font-medium text-stone-500 w-8 text-right">{phase.readiness}%</span>
                           </div>
                         </div>
                       </button>
 
                       {/* Phase Tasks */}
                       {isPhaseExp && (
-                        <div className="bg-gray-50/30 dark:bg-gray-800/20">
+                        <div className="bg-stone-50">
                           {phase.tasks.map((task, idx) => {
                             const meta = (task.metadata || {}) as Record<string, unknown>;
                             const taskReadiness = (meta.readiness as number) || (task.status === "completed" ? 100 : 0);
@@ -6935,7 +6934,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                             const isOverdue = dueDate && new Date(dueDate) < new Date() && !isDone;
 
                             return (
-                              <div key={task.id} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                              <div key={task.id} className="border-b border-stone-100 last:border-b-0">
                                 <div className="px-6 py-2.5">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -6947,13 +6946,13 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                       )}
                                       <button
                                         onClick={() => setExpandedTask(isTaskExpanded ? null : task.id)}
-                                        className="text-sm text-gray-800 dark:text-gray-200 truncate text-left hover:text-indigo-600 transition-colors"
+                                        className="text-sm text-stone-700 truncate text-left hover:text-indigo-600 transition-colors"
                                       >
                                         {meta.title as string || task.title}
                                       </button>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                                      <div className="w-12 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 hidden sm:block">
+                                      <div className="w-12 bg-stone-200 rounded-full h-1.5 hidden sm:block">
                                         <div className={`${readinessBarColor(taskReadiness)} h-1.5 rounded-full`} style={{ width: `${taskReadiness}%` }} />
                                       </div>
                                       <span className="text-xs font-medium text-gray-500 w-8 text-right">{taskReadiness}%</span>
@@ -6988,8 +6987,8 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                 </div>
 
                                 {isTaskExpanded && (
-                                  <div className="px-6 pb-3 space-y-2 bg-gray-50/50 dark:bg-gray-800/30">
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 ml-8">{task.description}</p>
+                                  <div className="px-6 pb-3 space-y-2 bg-stone-50/50">
+                                    <p className="text-xs text-stone-500 ml-8">{task.description}</p>
                                     <div className="flex gap-4 text-xs text-gray-400 ml-8 flex-wrap">
                                       {meta.startDate && <span>Started: {new Date(meta.startDate as string).toLocaleDateString()}</span>}
                                       {lastTestResult?.timestamp && <span>Last Test: {new Date(lastTestResult.timestamp).toLocaleString()}</span>}
@@ -6999,29 +6998,29 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                     {(result || lastTestResult) && (() => {
                                       const tr = result || lastTestResult!;
                                       return (
-                                        <div className={`ml-8 rounded-lg p-3 border ${tr.success ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : tr.success === false ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800" : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"}`}>
-                                          <p className={`text-sm mb-2 ${tr.success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                                        <div className={`ml-8 rounded-lg p-3 border ${tr.success ? "bg-[rgba(45,90,61,0.06)] border-[rgba(45,90,61,0.2)]" : tr.success === false ? "bg-[rgba(200,50,43,0.06)] border-[rgba(200,50,43,0.2)]" : "bg-stone-50 border-stone-200"}`}>
+                                          <p className={`text-sm mb-2 ${tr.success ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
                                             {tr.plainLanguage}
                                           </p>
                                           {tr.error && (
-                                            <div className="bg-red-100 dark:bg-red-900/30 rounded p-2 mb-2 text-xs">
-                                              <div className="font-medium text-red-800 dark:text-red-300 mb-1">Error: {tr.error.code}</div>
-                                              <div className="text-red-700 dark:text-red-400">{tr.error.message}</div>
-                                              <div className="text-red-600 dark:text-red-500 mt-1">Where: {tr.error.where}</div>
-                                              <div className="text-red-600 dark:text-red-500 font-medium mt-1">Fix: {tr.error.howToFix}</div>
+                                            <div className="bg-[rgba(200,50,43,0.06)] rounded p-2 mb-2 text-xs">
+                                              <div className="font-medium text-[#C8322B] mb-1">Error: {tr.error.code}</div>
+                                              <div className="text-[#C8322B]">{tr.error.message}</div>
+                                              <div className="text-[#C8322B]/80 mt-1">Where: {tr.error.where}</div>
+                                              <div className="text-[#C8322B]/80 font-medium mt-1">Fix: {tr.error.howToFix}</div>
                                               {tr.error.envVarsNeeded && (
-                                                <div className="mt-1 text-red-600 dark:text-red-500">Env vars needed: {tr.error.envVarsNeeded.join(", ")}</div>
+                                                <div className="mt-1 text-[#C8322B]/80">Env vars needed: {tr.error.envVarsNeeded.join(", ")}</div>
                                               )}
                                             </div>
                                           )}
                                           <div className="relative">
                                             <button
                                               onClick={() => copyJson(task.id, tr, task)}
-                                              className="absolute top-1 right-1 px-2 py-0.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-xs rounded transition-colors"
+                                              className="absolute top-1 right-1 px-2 py-0.5 bg-stone-100 hover:bg-stone-200 text-xs rounded transition-colors"
                                             >
                                               {copiedJson === task.id ? "Copied!" : "Copy JSON"}
                                             </button>
-                                            <pre className="bg-gray-900 dark:bg-black text-green-400 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
+                                            <pre className="bg-stone-800 text-green-400 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
                                               {JSON.stringify(tr.json, null, 2)}
                                             </pre>
                                           </div>
@@ -7051,22 +7050,22 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
         phases.map(phase => {
           const isExpanded = expandedPhase === phase.name;
           return (
-            <div key={phase.name} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div key={phase.name} className="admin-card rounded-xl border border-[rgba(214,208,196,0.6)] overflow-hidden">
               <button
                 onClick={() => setExpandedPhase(isExpanded ? null : phase.name)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors"
               >
                 <div className="flex items-center gap-2 text-left">
                   <span className="text-xs text-gray-400">{isExpanded ? "▾" : "▸"}</span>
-                  <span className="font-medium text-sm text-gray-900 dark:text-white">{phase.name}</span>
+                  <span className="font-medium text-sm text-stone-900">{phase.name}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                    <div className="w-16 bg-stone-200 rounded-full h-1.5">
                       <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
                     </div>
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400 w-8 text-right">{phase.readiness}%</span>
+                    <span className="text-xs font-medium text-stone-500 w-8 text-right">{phase.readiness}%</span>
                   </div>
                 </div>
               </button>
@@ -7180,10 +7179,10 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
 
   const priorityColor = (p: string) => {
     switch (p) {
-      case "critical": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      case "high": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-      case "medium": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      default: return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+      case "critical": return "bg-[rgba(200,50,43,0.08)] text-[#C8322B]";
+      case "high": return "bg-[rgba(217,119,6,0.08)] text-[#92400E]";
+      case "medium": return "bg-[rgba(59,126,161,0.08)] text-[#1e5a7a]";
+      default: return "bg-stone-50 text-stone-500";
     }
   };
 
@@ -7203,7 +7202,7 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Operational Tasks</h3>
+        <h3 className="text-sm font-semibold text-stone-600">Operational Tasks</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={scanForTasks}
@@ -7215,7 +7214,7 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs"
+            className="px-2 py-1 rounded-lg border border-[rgba(214,208,196,0.6)] bg-white text-xs"
           >
             <option value="">Open</option>
             <option value="pending">Pending</option>
@@ -7236,15 +7235,15 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
       ) : (
         <div className="space-y-1.5">
           {tasks.map(task => (
-            <div key={task.id} className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+            <div key={task.id} className="bg-white rounded-lg border border-[rgba(214,208,196,0.6)] p-3">
               <div className="flex items-start gap-2">
                 <span className="text-xs font-mono text-gray-400 flex-shrink-0 mt-0.5 w-4 text-center">{categoryIcon(task.category)}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${priorityColor(task.priority)}`}>{task.priority}</span>
-                    <span className="font-medium text-xs text-gray-900 dark:text-white truncate">{task.title}</span>
+                    <span className="font-medium text-xs text-stone-900 truncate">{task.title}</span>
                   </div>
-                  {task.description && <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1 line-clamp-2">{task.description}</p>}
+                  {task.description && <p className="text-[11px] text-stone-500 mb-1 line-clamp-2">{task.description}</p>}
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {task.actionLabel && task.actionApi && (
                       actionResults[task.id] ? (
@@ -7280,7 +7279,7 @@ function TasksTab({ siteId }: { siteId: string }) {
   return (
     <div className="space-y-6 p-1">
       <DevMonitorSection siteId={siteId} />
-      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+      <div className="border-t border-[rgba(214,208,196,0.4)] pt-4">
         <OperationalTasksSection siteId={siteId} />
       </div>
     </div>
@@ -7304,7 +7303,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function CockpitPageWrapper() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)' }}><p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: '2px' }}>Loading HQ…</p></div>}>
+    <Suspense fallback={<div className="admin-page flex items-center justify-center h-screen"><AdminLoadingState label="Loading HQ…" /></div>}>
       <CockpitPage />
     </Suspense>
   );
@@ -7383,27 +7382,24 @@ function CockpitPage() {
   }, []);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', color: '#1C1917' }}>
+    <div className="admin-page min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-30 backdrop-blur-md" style={{ backgroundColor: 'rgba(237,233,225,0.92)', borderBottom: '1px solid rgba(120,113,108,0.15)' }}>
+      <div className="sticky top-0 z-30 backdrop-blur-md bg-white/92" style={{ borderBottom: '1px solid var(--admin-border, rgba(214,208,196,0.6))' }}>
         <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <h1 style={{ fontFamily: "'Anybody', sans-serif", fontWeight: 800, fontSize: 18, color: '#1C1917', letterSpacing: '-0.3px' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917', letterSpacing: '-0.3px' }}>
               HQ
             </h1>
             {cockpitData && activeSiteId && (
               <select
                 value={activeSiteId}
                 onChange={(e) => setActiveSiteId(e.target.value)}
-                className="rounded-xl px-3 py-1.5 text-xs focus:outline-none appearance-none"
+                className="admin-input rounded-lg px-3 py-1.5 text-xs focus:outline-none appearance-none"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: 'var(--font-system)',
                   fontSize: 10,
                   fontWeight: 500,
                   color: '#78716C',
-                  backgroundColor: 'var(--neu-bg, #EDE9E1)',
-                  boxShadow: 'var(--neu-inset, inset 3px 3px 6px #CAC5BC, inset -3px -3px 6px #FFFFFF)',
-                  border: 'none',
                 }}
               >
                 <option value="all">All Sites</option>
@@ -7416,62 +7412,58 @@ function CockpitPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/admin/cockpit/activity"
-              className="px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
+              className="admin-card px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97]"
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: 'var(--font-system)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
-                backgroundColor: 'var(--neu-bg, #EDE9E1)',
-                color: '#6366F1',
-                boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)',
+                color: '#3B7EA1',
               }}
             >
-              📋 FEED
+              FEED
             </Link>
             <Link
               href="/admin/cockpit/write"
-              className="px-4 py-2 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
+              className="px-4 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97]"
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: 'var(--font-system)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
                 backgroundColor: '#C8322B',
                 color: '#FAF8F4',
-                boxShadow: '3px 3px 8px rgba(200,50,43,0.3), -1px -1px 4px rgba(200,50,43,0.2)',
               }}
             >
               + WRITE
             </Link>
             {lastRefresh && (
-              <span className="hidden sm:block" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#A8A29E', letterSpacing: '0.5px' }}>
+              <span className="hidden sm:block" style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', letterSpacing: '0.5px' }}>
                 {timeAgo(lastRefresh.toISOString())}
               </span>
             )}
-            <button
+            <AdminButton
               onClick={fetchCockpit}
               disabled={cockpitLoading}
-              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 active:scale-[0.95]"
-              style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat, 4px 4px 8px #CAC5BC, -4px -4px 8px #FFFFFF)', color: '#78716C' }}
-              title="Refresh"
+              variant="secondary"
+              size="sm"
             >
-              {cockpitLoading ? "⏳" : "↻"}
-            </button>
+              {cockpitLoading ? "..." : "Refresh"}
+            </AdminButton>
           </div>
         </div>
 
         {/* Tab bar */}
-        <div className="flex overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid rgba(120,113,108,0.1)' }}>
+        <div className="flex overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid var(--admin-border, rgba(214,208,196,0.4))' }}>
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className="flex-shrink-0 px-3 sm:px-4 py-2.5 whitespace-nowrap transition-all border-b-2"
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: 'var(--font-system)',
                 fontSize: 10,
                 fontWeight: activeTab === tab.id ? 700 : 500,
                 letterSpacing: '0.5px',
@@ -7488,28 +7480,20 @@ function CockpitPage() {
 
       {/* Error banner */}
       {cockpitError && (
-        <div className="px-4 py-3 flex items-center justify-between gap-2" style={{ backgroundColor: 'rgba(200,50,43,0.08)', borderBottom: '1px solid rgba(200,50,43,0.2)' }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B' }}>
-            Dashboard data failed to load: {cockpitError}
-          </span>
-          <button onClick={fetchCockpit} className="underline" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#C8322B', fontWeight: 600 }}>Retry</button>
-        </div>
+        <AdminAlertBanner
+          severity="critical"
+          message={`Dashboard data failed to load: ${cockpitError}`}
+          action={<AdminButton onClick={fetchCockpit} variant="danger" size="sm">Retry</AdminButton>}
+        />
       )}
 
       {/* Builder errors — some dashboard sections returned zeros due to DB/timeout issues */}
       {cockpitData?.builderErrors && cockpitData.builderErrors.length > 0 && (
-        <div className="px-4 py-3" style={{ backgroundColor: 'rgba(217,119,6,0.06)', borderBottom: '1px solid rgba(217,119,6,0.15)' }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#D97706', fontWeight: 600 }}>
-            Some dashboard sections may show incomplete data:
-          </span>
-          <ul className="mt-1 space-y-0.5">
-            {cockpitData.builderErrors.map((err, i) => (
-              <li key={i} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#92400E' }}>
-                • {err}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <AdminAlertBanner
+          severity="warning"
+          message="Some dashboard sections may show incomplete data"
+          detail={cockpitData.builderErrors.join(" | ")}
+        />
       )}
 
       {/* Content */}

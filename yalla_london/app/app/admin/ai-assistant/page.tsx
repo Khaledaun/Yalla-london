@@ -711,7 +711,7 @@ export default function CEOOperationsDashboard() {
     if (!healthReport) {
       return (
         <AdminEmptyState
-          icon={Heart}
+          icon={Heart as React.ComponentType<{ size?: number; color?: string }>}
           title="No health report loaded"
           description="Run a full audit to see platform health"
           action={<AdminButton variant="primary" onClick={fetchHealthReport}>Run Full Audit</AdminButton>}
@@ -1028,7 +1028,7 @@ export default function CEOOperationsDashboard() {
         {/* No results yet */}
         {!testResults && !testLoading && (
           <AdminEmptyState
-            icon={Terminal}
+            icon={Terminal as React.ComponentType<{ size?: number; color?: string }>}
             title="No test results"
             description="Tap a test suite above to run it. Results appear here with Copy JSON and Share with CEO buttons."
           />

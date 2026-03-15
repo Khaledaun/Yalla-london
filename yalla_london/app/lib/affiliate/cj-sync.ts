@@ -322,6 +322,44 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
       hasMore = response.recordsReturned >= 100 && pageNumber < 10; // Max 10 pages
       pageNumber++;
     }
+
+    // ── Deep Link Auto-Generation ──
+    // Most CJ advertisers (Vrbo, Expedia, Hotels.com) don't publish pre-built
+    // creative links via link-search API. They use "deep linking" — any destination
+    // URL wrapped in CJ's tracking format. If API returned 0 results, auto-generate
+    // deep link records so the injection pipeline has tracking URLs to work with.
+    if (result.processed === 0 && advertiser.programUrl) {
+      const publisherCid = process.env.CJ_PUBLISHER_CID;
+      if (publisherCid) {
+        try {
+          const deepLinkUrl = buildCjDeepLink(publisherCid, advertiserId, advertiser.programUrl);
+          await prisma.cjLink.upsert({
+            where: { id: `cj-deep-${advertiserId}` },
+            create: {
+              id: `cj-deep-${advertiserId}`,
+              networkId: CJ_NETWORK_ID,
+              advertiserId: advertiser.id,
+              name: `${advertiser.name} - Deep Link`,
+              destinationUrl: advertiser.programUrl,
+              affiliateUrl: deepLinkUrl,
+              linkType: "TEXT",
+              category: advertiser.category || "travel",
+              language: "EN",
+              isActive: true,
+            },
+            update: {
+              affiliateUrl: deepLinkUrl,
+              destinationUrl: advertiser.programUrl,
+              isActive: true,
+            },
+          });
+          result.created++;
+          console.log(`[cj-sync] Auto-generated deep link for ${advertiser.name}: ${deepLinkUrl.substring(0, 80)}...`);
+        } catch (err) {
+          result.errors.push(`Deep link gen failed for ${advertiserId}: ${getErrorMessage(err)}`);
+        }
+      }
+    }
   } catch (err) {
     result.errors.push(`Link sync failed: ${getErrorMessage(err)}`);
   }
@@ -652,6 +690,35 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
     linksSynced,
     result: syncResult, // expose for dashboard diagnostic
   };
+}
+
+// ---------------------------------------------------------------------------
+// CJ Deep Link Builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a CJ tracking deep link. This is how most CJ publishers create
+ * affiliate links — wrap any destination URL in CJ's click-tracking format.
+ *
+ * CJ deep link domains (all equivalent, owned by CJ):
+ * - www.anrdoezrs.net  (primary)
+ * - www.jdoqocy.com    (alternate)
+ * - www.tkqlhce.com    (alternate)
+ * - www.dpbolvw.net    (alternate)
+ *
+ * Format: https://www.anrdoezrs.net/click-{PID}-{AID}?url={encoded_url}&sid={sid}
+ */
+export function buildCjDeepLink(
+  publisherCid: string,
+  advertiserCid: string,
+  destinationUrl: string,
+  sid?: string,
+): string {
+  const base = `https://www.anrdoezrs.net/click-${publisherCid}-${advertiserCid}`;
+  const encoded = encodeURIComponent(destinationUrl);
+  let url = `${base}?url=${encoded}`;
+  if (sid) url += `&sid=${sid}`;
+  return url;
 }
 
 // ---------------------------------------------------------------------------

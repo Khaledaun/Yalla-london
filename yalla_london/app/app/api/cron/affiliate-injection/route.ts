@@ -23,15 +23,58 @@ type AffiliateRule = {
   affiliates: Array<{ name: string; url: string; param: string; category: string }>;
 };
 
-// Build affiliate rules from CjLink records (synced from CJ API)
+// Build affiliate rules from CjLink records AND CJ deep links for JOINED advertisers
 async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRule[]> {
   try {
     const { prisma } = await import("@/lib/db");
+    const { CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
+    const { buildCjDeepLink } = await import("@/lib/affiliate/cj-sync");
+    const publisherCid = process.env.CJ_PUBLISHER_CID;
+
     const links = await prisma.cjLink.findMany({
       where: { isActive: true },
-      include: { advertiser: { select: { name: true, category: true, status: true } } },
+      include: { advertiser: { select: { name: true, category: true, status: true, externalId: true } } },
       take: 100,
     });
+
+    // Also find JOINED advertisers WITHOUT any CjLink records —
+    // generate deep links on-the-fly using their programUrl
+    if (publisherCid) {
+      const joinedWithoutLinks = await prisma.cjAdvertiser.findMany({
+        where: {
+          networkId: CJ_NETWORK_ID,
+          status: "JOINED",
+          programUrl: { not: "" },
+          links: { none: {} },
+        },
+        select: { id: true, externalId: true, name: true, programUrl: true, category: true },
+        take: 50,
+      });
+
+      // Convert to CjLink-like records with deep link URLs
+      for (const adv of joinedWithoutLinks) {
+        if (!adv.programUrl) continue;
+        const deepLinkUrl = buildCjDeepLink(publisherCid, adv.externalId, adv.programUrl, `${siteId}_cj`);
+        links.push({
+          id: `deep-${adv.externalId}`,
+          networkId: CJ_NETWORK_ID,
+          advertiserId: adv.id,
+          name: `${adv.name} - Deep Link`,
+          destinationUrl: adv.programUrl,
+          affiliateUrl: deepLinkUrl,
+          linkType: "TEXT",
+          category: adv.category || "travel",
+          language: "EN",
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          advertiser: { name: adv.name, category: adv.category, status: "JOINED", externalId: adv.externalId },
+        } as typeof links[0]);
+      }
+      if (joinedWithoutLinks.length > 0) {
+        console.log(`[affiliate-injection] Generated ${joinedWithoutLinks.length} CJ deep links for JOINED advertisers`);
+      }
+    }
 
     if (links.length === 0) return [];
 

@@ -1967,46 +1967,38 @@ function ErrorRow({
 // ─── Site Card ───────────────────────────────────────────────────────
 
 function SiteCard({ site }: { site: SiteHealth }) {
-  const statusColors = {
-    healthy: 'border-emerald-500/30 bg-emerald-500/5',
-    degraded: 'border-amber-500/30 bg-amber-500/5',
-    down: 'border-red-500/30 bg-red-500/5',
-    unknown: 'border-gray-700 bg-gray-900',
+  const statusConfig: Record<string, { border: string; bg: string; text: string; dot: string }> = {
+    healthy: { border: 'rgba(45,90,61,0.3)', bg: 'rgba(45,90,61,0.04)', text: '#2D5A3D', dot: '#2D5A3D' },
+    degraded: { border: 'rgba(196,154,42,0.3)', bg: 'rgba(196,154,42,0.04)', text: '#C49A2A', dot: '#C49A2A' },
+    down: { border: 'rgba(200,50,43,0.3)', bg: 'rgba(200,50,43,0.04)', text: '#C8322B', dot: '#C8322B' },
+    unknown: { border: 'rgba(214,208,196,0.6)', bg: '#FFFFFF', text: '#78716C', dot: '#A8A29E' },
   };
 
-  const statusTextColors = {
-    healthy: 'text-emerald-400',
-    degraded: 'text-amber-400',
-    down: 'text-red-400',
-    unknown: 'text-gray-500',
-  };
-
-  const dotColors = {
-    healthy: 'bg-emerald-500',
-    degraded: 'bg-amber-500',
-    down: 'bg-red-500',
-    unknown: 'bg-gray-600',
-  };
+  const sc = statusConfig[site.status] ?? statusConfig.unknown;
 
   return (
-    <div className={`border rounded-2xl p-5 ${statusColors[site.status]}`}>
+    <div className="rounded-2xl p-5" style={{ border: `1px solid ${sc.border}`, backgroundColor: sc.bg }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${dotColors[site.status]} ${site.status === 'healthy' ? 'animate-pulse' : ''}`} />
-          <h4 className="font-semibold text-sm">{site.siteName}</h4>
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${site.status === 'healthy' ? 'animate-pulse' : ''}`}
+            style={{ backgroundColor: sc.dot }}
+          />
+          <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>{site.siteName}</h4>
         </div>
-        <span className={`text-xs font-medium uppercase ${statusTextColors[site.status]}`}>
+        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: sc.text }}>
           {site.status}
         </span>
       </div>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-gray-500">{site.domain}</p>
+        <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{site.domain}</p>
         {site.domain && (
           <a
             href={`https://${site.domain}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-cyan-500 hover:text-cyan-400 flex items-center gap-1"
+            className="flex items-center gap-1"
+            style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#3B7EA1', textDecoration: 'none' }}
           >
             <ExternalLink className="h-3 w-3" />
             Visit
@@ -2015,40 +2007,37 @@ function SiteCard({ site }: { site: SiteHealth }) {
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xs text-gray-500">Health Score</span>
-          <div className={`text-xl font-bold font-mono ${statusTextColors[site.status]}`}>
+          <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Health Score</span>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: sc.text, fontVariantNumeric: 'tabular-nums' }}>
             {site.healthScore !== null ? site.healthScore : '--'}
           </div>
         </div>
         {site.lastChecked && (
           <div className="text-right">
-            <span className="text-xs text-gray-500">Last Check</span>
-            <div className="text-xs text-gray-400">{timeAgo(site.lastChecked)}</div>
+            <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Last Check</span>
+            <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{timeAgo(site.lastChecked)}</div>
           </div>
         )}
       </div>
       {/* Score bar */}
       {site.healthScore !== null && (
-        <div className="mt-3 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+        <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(214,208,196,0.3)' }}>
           <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              site.healthScore >= 70
-                ? 'bg-emerald-500'
-                : site.healthScore >= 40
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
-            }`}
-            style={{ width: `${site.healthScore}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${site.healthScore}%`,
+              backgroundColor: site.healthScore >= 70 ? '#2D5A3D' : site.healthScore >= 40 ? '#C49A2A' : '#C8322B',
+            }}
           />
         </div>
       )}
 
       {/* Quick fix hint for down/degraded sites */}
       {(site.status === 'down' || site.status === 'degraded') && (
-        <div className="mt-3 pt-3 border-t border-gray-800/50">
+        <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}>
           <div className="flex items-start gap-2">
-            <Lightbulb className="h-3.5 w-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-gray-400">
+            <Lightbulb className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" style={{ color: '#C49A2A' }} />
+            <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
               {site.status === 'down'
                 ? 'Check DNS settings, Vercel deployment, and database connection.'
                 : 'Health score is low. Check cron jobs, SEO audits, and analytics sync.'}
@@ -2063,31 +2052,44 @@ function SiteCard({ site }: { site: SiteHealth }) {
 // ─── Sub-components ─────────────────────────────────────────────────
 
 function StatusDot({ status }: { status: string }) {
-  const color =
-    status === 'completed'
-      ? 'bg-emerald-500'
-      : status === 'running'
-        ? 'bg-blue-500 animate-pulse'
-        : status === 'degraded'
-          ? 'bg-orange-500'
-          : status === 'failed' || status === 'timed_out'
-            ? 'bg-red-500'
-            : 'bg-gray-600';
-  return <div className={`w-2.5 h-2.5 rounded-full ${color}`} />;
+  const colorMap: Record<string, string> = {
+    completed: '#2D5A3D',
+    running: '#3B7EA1',
+    degraded: '#C49A2A',
+    failed: '#C8322B',
+    timed_out: '#C8322B',
+  };
+  const bg = colorMap[status] ?? '#A8A29E';
+  return (
+    <div
+      className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status === 'running' ? 'animate-pulse' : ''}`}
+      style={{ backgroundColor: bg }}
+    />
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    running: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    failed: 'bg-red-500/10 text-red-400 border-red-500/20',
-    degraded: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    timed_out: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    never_run: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+  const config: Record<string, { bg: string; text: string; border: string }> = {
+    completed: { bg: 'rgba(45,90,61,0.08)', text: '#2D5A3D', border: 'rgba(45,90,61,0.2)' },
+    running: { bg: 'rgba(59,126,161,0.08)', text: '#3B7EA1', border: 'rgba(59,126,161,0.2)' },
+    failed: { bg: 'rgba(200,50,43,0.08)', text: '#C8322B', border: 'rgba(200,50,43,0.2)' },
+    degraded: { bg: 'rgba(196,154,42,0.08)', text: '#C49A2A', border: 'rgba(196,154,42,0.2)' },
+    timed_out: { bg: 'rgba(196,154,42,0.08)', text: '#C49A2A', border: 'rgba(196,154,42,0.2)' },
+    never_run: { bg: 'rgba(120,113,108,0.08)', text: '#78716C', border: 'rgba(120,113,108,0.2)' },
   };
+  const c = config[status] ?? config.never_run;
   return (
     <span
-      className={`text-xs font-medium px-2 py-0.5 rounded-full border ${colors[status] ?? colors.never_run}`}
+      className="inline-flex items-center px-2 py-0.5 rounded-full"
+      style={{
+        backgroundColor: c.bg,
+        color: c.text,
+        border: `1px solid ${c.border}`,
+        fontFamily: 'var(--font-system)',
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.3px',
+      }}
     >
       {status.replace('_', ' ')}
     </span>

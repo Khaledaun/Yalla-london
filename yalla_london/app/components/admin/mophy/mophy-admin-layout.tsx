@@ -266,8 +266,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                 onClick={() => toggleMenu(section.id)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all relative"
                 style={{
-                  backgroundColor: active ? 'rgba(200,50,43,0.04)' : undefined, border: active ? '1px solid rgba(200,50,43,0.12)' : undefined,
-                  backgroundColor: '#FAF8F4',
+                  backgroundColor: active ? 'rgba(200,50,43,0.04)' : '#FAF8F4',
+                  border: active ? '1px solid rgba(200,50,43,0.12)' : undefined,
                 }}
               >
                 {/* Active indicator */}
@@ -279,8 +279,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                 {/* Icon container */}
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
                      style={{
-                       backgroundColor: '#FAF8F4',
-                       backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF', border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
+                       backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF',
+                       border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
                        color: active ? '#C8322B' : '#78716C',
                      }}>
                   <Icon size={15} />
@@ -329,8 +329,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                           fontSize: 10, fontWeight: itemActive ? 600 : 400,
                           textTransform: 'uppercase', letterSpacing: 0.8,
                           color: itemActive ? '#C8322B' : '#78716C',
-                          backgroundColor: itemActive ? 'rgba(200,50,43,0.05)' : 'transparent',
-                          backgroundColor: itemActive ? 'rgba(200,50,43,0.04)' : undefined,
+                          backgroundColor: itemActive ? 'rgba(200,50,43,0.04)' : 'transparent',
                         }}
                       >
                         {item.label}
@@ -424,8 +423,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                   <Link key={section.id} href={section.items[0]?.href || '/admin'} title={section.label}
                         className="w-11 h-11 rounded-xl flex items-center justify-center transition-all"
                         style={{
-                          backgroundColor: '#FAF8F4',
-                          backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF', border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
+                          backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF',
+                          border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
                           color: active ? '#C8322B' : '#78716C',
                         }}>
                     <Icon size={17} />

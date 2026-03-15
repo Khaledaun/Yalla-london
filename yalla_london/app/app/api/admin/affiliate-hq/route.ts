@@ -345,9 +345,10 @@ export async function POST(request: NextRequest) {
         const res = await fetch(`${origin}/api/affiliate/cron/sync-advertisers`, {
           method: "POST",
           headers,
+          signal: AbortSignal.timeout(55_000), // Give the cron its full 53s budget
         });
-        const data = res.ok ? await res.json() : { error: `HTTP ${res.status}` };
-        return NextResponse.json({ success: true, action, result: data });
+        const data = await res.json().catch(() => ({ error: `HTTP ${res.status} (non-JSON response)` }));
+        return NextResponse.json({ success: res.ok, action, result: data });
       }
 
       case "sync_commissions": {

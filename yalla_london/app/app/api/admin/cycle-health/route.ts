@@ -1217,6 +1217,77 @@ async function executeFix(request: NextRequest, issueId: string, siteId: string)
       return NextResponse.json({ success: res.ok, issueId, steps, result: json });
     }
 
+    if (issueId === "builder-create-blocked") {
+      // Clear stuck drafts that block new creation
+      addStep("Running sweeper to clear stuck drafts", "running", "Clearing pipeline blockages...");
+      const res = await fetch(`${origin}/api/cron/sweeper`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+        },
+      });
+      const json = await res.json().catch(() => ({}));
+      addStep("Sweeper complete", res.ok ? "done" : "failed", JSON.stringify(json).substring(0, 200));
+
+      // Also run diagnostic agent to reject permanently stuck drafts
+      addStep("Running diagnostic agent", "running", "Rejecting permanently stuck drafts...");
+      const { runDiagnosticSweep } = await import("@/lib/ops/diagnostic-agent");
+      const diagResult = await runDiagnosticSweep(resolvedSiteId);
+      addStep("Diagnostic sweep complete", "done", diagResult.summary);
+
+      return NextResponse.json({ success: true, issueId, steps, result: { sweeper: json, diagnostic: diagResult.summary } });
+    }
+
+    if (issueId === "cj-commission-sync-error") {
+      // Sync advertisers first, then commissions (correct ordering)
+      addStep("Syncing advertisers first", "running", "Fetching advertiser list from CJ...");
+      const advRes = await fetch(`${origin}/api/affiliate/cron/sync-advertisers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+        },
+      });
+      const advJson = await advRes.json().catch(() => ({}));
+      addStep("Advertiser sync", advRes.ok ? "done" : "failed", JSON.stringify(advJson).substring(0, 200));
+
+      addStep("Syncing commissions", "running", "Fetching commission data from CJ...");
+      const comRes = await fetch(`${origin}/api/affiliate/cron/sync-commissions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+        },
+      });
+      const comJson = await comRes.json().catch(() => ({}));
+      addStep("Commission sync", comRes.ok ? "done" : "failed", JSON.stringify(comJson).substring(0, 200));
+
+      return NextResponse.json({ success: comRes.ok, issueId, steps, result: { advertisers: advJson, commissions: comJson } });
+    }
+
+    if (issueId === "pipeline-drafting-backlog") {
+      // Run diagnostic sweep to fix stuck drafting phase articles
+      addStep("Running diagnostic agent on drafting backlog", "running", "Analyzing stuck drafts in drafting phase...");
+      const { runDiagnosticSweep } = await import("@/lib/ops/diagnostic-agent");
+      const result = await runDiagnosticSweep(resolvedSiteId);
+      addStep("Diagnostic sweep complete", "done", result.summary);
+
+      // Trigger content builder to process recovered drafts
+      addStep("Triggering content builder", "running", "Processing recovered drafts...");
+      const res = await fetch(`${origin}/api/cron/content-builder`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+        },
+      });
+      const json = await res.json().catch(() => ({}));
+      addStep("Content builder complete", res.ok ? "done" : "failed", JSON.stringify(json).substring(0, 200));
+
+      return NextResponse.json({ success: true, issueId, steps, result: { diagnostic: result.summary, builder: json } });
+    }
+
     if (issueId.startsWith("cron-")) {
       addStep("Running diagnostic agent for cron fix", "running", "Analyzing downstream damage...");
       const { runDiagnosticSweep } = await import("@/lib/ops/diagnostic-agent");

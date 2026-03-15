@@ -16,6 +16,9 @@
     "app/api/admin/command-center/**/*.ts": {
       "maxDuration": 60
     },
+    "app/api/admin/ceo-inbox/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/cache/**/*.ts": {
       "maxDuration": 15
     },
@@ -248,7 +251,7 @@
     },
     {
       "path": "/api/affiliate/cron/sync-commissions",
-      "schedule": "40 4 * * *"
+      "schedule": "50 6 * * *"
     },
     {
       "path": "/api/affiliate/cron/discover-deals",

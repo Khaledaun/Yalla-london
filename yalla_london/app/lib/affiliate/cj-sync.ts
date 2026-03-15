@@ -97,12 +97,12 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
     // Must pass `advertiser-ids=joined` to get active advertisers.
     // See: https://developers.cj.com/docs/rest-apis/advertiser-lookup
     const allRecords = new Map<string, CjAdvertiserRecord>();
-    const MAX_PAGES = 5; // Safety cap: 500 advertisers max
+    const MAX_PAGES = 3; // Safety cap: 300 advertisers max (CJ API is slow ~10-20s/call)
 
     // Fetch joined advertisers first (this is the primary use case)
     for (let page = 1; page <= MAX_PAGES; page++) {
-      if (Date.now() - syncStart > budgetMs * 0.4) {
-        console.warn("[cj-sync] Budget >40% used during joined fetch, stopping pagination");
+      if (Date.now() - syncStart > budgetMs * 0.3) {
+        console.warn("[cj-sync] Budget >30% used during joined fetch, stopping pagination");
         break;
       }
 
@@ -132,7 +132,7 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
     }
 
     // Also try fetching by keyword to catch pending/not-joined (CJ requires SOME filter)
-    if (Date.now() - syncStart < budgetMs * 0.6) {
+    if (Date.now() - syncStart < budgetMs * 0.45) {
       try {
         const keywordResponse = await lookupAdvertisers({
           keywords: "travel hotel vacation",
@@ -577,8 +577,8 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
     const linksResult = await syncLinks(advId);
     linksSynced += linksResult.created;
 
-    // Search for site-relevant products
-    if (remaining() > 5_000) {
+    // Search for site-relevant products — skip if budget tight
+    if (remaining() > 10_000) {
       const { getKeywordsForSite } = await import("./site-keywords");
       const keywords = getKeywordsForSite();
       await syncProducts(advId, keywords);
@@ -597,7 +597,7 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
         links: { none: {} },
       },
       select: { externalId: true, name: true },
-      take: 10, // Cap per run to stay within budget
+      take: 3, // Cap per run — CJ API is slow (~10-20s/call), runs will catch up over time
     });
 
     if (joinedWithoutLinks.length > 0) {

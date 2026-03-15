@@ -2,15 +2,22 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { MophyAdminLayout } from '@/components/admin/mophy/mophy-admin-layout'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
-  ArrowLeft, Zap, Shield, FlaskConical, Gauge, Search,
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminStatusBadge,
+  AdminKPICard,
+  AdminButton,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminTabs,
+} from '@/components/admin/admin-ui'
+import {
+  Zap, Shield, FlaskConical, Gauge, Search,
   Rocket, PenTool, Database, ClipboardList, Workflow,
-  SearchCode, Loader2, ChevronDown, ChevronRight,
-  CheckCircle, AlertTriangle, Play, Settings
+  SearchCode, ChevronDown, ChevronRight,
+  CheckCircle, AlertTriangle, Play, Settings,
 } from 'lucide-react'
 
 interface SkillAction {
@@ -52,51 +59,51 @@ interface SkillsResponse {
 }
 
 const iconMap: Record<string, React.ReactNode> = {
-  SearchCode: <SearchCode className="w-5 h-5" />,
-  FlaskConical: <FlaskConical className="w-5 h-5" />,
-  Shield: <Shield className="w-5 h-5" />,
-  Gauge: <Gauge className="w-5 h-5" />,
-  ClipboardList: <ClipboardList className="w-5 h-5" />,
-  Workflow: <Workflow className="w-5 h-5" />,
-  Search: <Search className="w-5 h-5" />,
-  PenTool: <PenTool className="w-5 h-5" />,
-  Rocket: <Rocket className="w-5 h-5" />,
-  Database: <Database className="w-5 h-5" />,
+  SearchCode: <SearchCode size={18} />,
+  FlaskConical: <FlaskConical size={18} />,
+  Shield: <Shield size={18} />,
+  Gauge: <Gauge size={18} />,
+  ClipboardList: <ClipboardList size={18} />,
+  Workflow: <Workflow size={18} />,
+  Search: <Search size={18} />,
+  PenTool: <PenTool size={18} />,
+  Rocket: <Rocket size={18} />,
+  Database: <Database size={18} />,
 }
 
-const priorityColor: Record<string, string> = {
-  critical: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
-  high: 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
-  medium: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
-  low: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+const priorityConfig: Record<string, { color: string; bg: string }> = {
+  critical: { color: '#C8322B', bg: 'rgba(200,50,43,0.08)' },
+  high: { color: '#C49A2A', bg: 'rgba(196,154,42,0.08)' },
+  medium: { color: '#3B7EA1', bg: 'rgba(59,126,161,0.08)' },
+  low: { color: '#78716C', bg: 'rgba(120,113,108,0.08)' },
 }
 
-const categoryGradient: Record<string, string> = {
-  'code-quality': 'from-violet-500 to-purple-600',
-  testing: 'from-green-500 to-emerald-600',
-  security: 'from-red-500 to-rose-600',
-  performance: 'from-amber-500 to-orange-600',
-  requirements: 'from-blue-500 to-indigo-600',
-  automation: 'from-cyan-500 to-teal-600',
-  seo: 'from-pink-500 to-fuchsia-600',
-  content: 'from-emerald-500 to-green-600',
-  deployment: 'from-slate-500 to-gray-600',
-  data: 'from-indigo-500 to-blue-600',
-  design: 'from-purple-500 to-violet-600',
-  operations: 'from-rose-500 to-red-600',
+const categoryColor: Record<string, string> = {
+  'code-quality': '#7C3AED',
+  testing: '#2D5A3D',
+  security: '#C8322B',
+  performance: '#C49A2A',
+  requirements: '#3B7EA1',
+  automation: '#0D9488',
+  seo: '#C8322B',
+  content: '#2D5A3D',
+  deployment: '#44403C',
+  data: '#3B7EA1',
+  design: '#7C3AED',
+  operations: '#C8322B',
 }
 
 export default function SkillsPage() {
   const [data, setData] = useState<SkillsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null)
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState<string>('all')
   const [testKeyword, setTestKeyword] = useState('')
   const [matchedSkills, setMatchedSkills] = useState<SkillData[] | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/skill-engine')
-      .then(res => res.json())
+      .then((res) => res.json())
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -113,220 +120,353 @@ export default function SkillsPage() {
     }
   }
 
-  const filteredSkills = data?.skills.filter(s =>
-    !activeCategory || s.category === activeCategory
-  ) || []
+  const filteredSkills = data?.skills.filter((s) => activeCategory === 'all' || s.category === activeCategory) || []
+
+  if (loading) {
+    return (
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader
+          title="Skills Engine"
+          subtitle="Auto-activated dev, security, and operations skills"
+          backHref="/admin/operations"
+        />
+        <AdminLoadingState label="Loading skills engine..." />
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader
+          title="Skills Engine"
+          subtitle="Auto-activated dev, security, and operations skills"
+          backHref="/admin/operations"
+        />
+        <AdminEmptyState icon={AlertTriangle} title="Failed to load skills" description="Could not connect to the skills engine API." />
+      </div>
+    )
+  }
 
   return (
-    <MophyAdminLayout pageTitle="Skills Engine">
-      <div className="space-y-6 max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin/operations" className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-gray-500" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl">
-                  <Zap className="w-6 h-6 text-white" />
-                </div>
-                Skills Engine
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">
-                Auto-activated dev, security, and operations skills — inspired by openclaw, claude-code-templates, and enterprise patterns
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Skills Engine"
+        subtitle="Auto-activated dev, security, and operations skills"
+        backHref="/admin/operations"
+      />
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <AdminKPICard value={data.total} label="Total Skills" color="#3B7EA1" />
+        <AdminKPICard value={data.summary.totalActions} label="Total Actions" color="#7C3AED" />
+        <AdminKPICard value={data.summary.criticalSkills} label="Critical" color="#C8322B" />
+        <AdminKPICard value={data.summary.autoTriggered} label="Auto-Triggered" color="#2D5A3D" />
+      </div>
+
+      {/* Auto-Activation Tester */}
+      <AdminCard accent accentColor="blue" className="mb-5">
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Play size={14} color="#3B7EA1" />
+            <AdminSectionLabel>Test Auto-Activation</AdminSectionLabel>
+          </div>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={testKeyword}
+              onChange={(e) => setTestKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && testAutoActivation()}
+              placeholder="Type a keyword (e.g., 'security', 'deploy', 'test')..."
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: '1px solid rgba(214,208,196,0.8)',
+                fontFamily: 'var(--font-system)',
+                fontSize: 12,
+                backgroundColor: '#FFFFFF',
+                outline: 'none',
+              }}
+            />
+            <AdminButton variant="secondary" size="sm" onClick={testAutoActivation}>
+              <Zap size={12} />
+              Test
+            </AdminButton>
+          </div>
+          {matchedSkills && (
+            <div
+              className="mt-3 p-3 rounded-lg"
+              style={{ backgroundColor: 'rgba(59,126,161,0.06)', border: '1px solid rgba(59,126,161,0.15)' }}
+            >
+              <p
+                style={{
+                  fontFamily: 'var(--font-system)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#3B7EA1',
+                  marginBottom: 6,
+                }}
+              >
+                {matchedSkills.length} skill{matchedSkills.length !== 1 ? 's' : ''} would activate for &ldquo;{testKeyword}&rdquo;:
               </p>
+              <div className="flex flex-wrap gap-1.5">
+                {matchedSkills.map((s) => (
+                  <AdminStatusBadge key={s.id} status="active" label={s.name} />
+                ))}
+                {matchedSkills.length === 0 && (
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#A8A29E' }}>
+                    No skills match. Try: security, deploy, test, SEO, performance
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
+      </AdminCard>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
-          </div>
-        ) : data ? (
-          <>
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Total Skills', value: data.total, color: 'text-violet-600' },
-                { label: 'Total Actions', value: data.summary.totalActions, color: 'text-blue-600' },
-                { label: 'Critical', value: data.summary.criticalSkills, color: 'text-red-600' },
-                { label: 'Auto-Triggered', value: data.summary.autoTriggered, color: 'text-green-600' },
-              ].map(stat => (
-                <Card key={stat.label}>
-                  <CardContent className="p-4 text-center">
-                    <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+      {/* Category Tabs */}
+      <div className="mb-5">
+        <AdminTabs
+          tabs={[
+            { id: 'all', label: 'All', count: data.total },
+            ...data.categories
+              .filter((c) => c.count > 0)
+              .map((cat) => ({
+                id: cat.category,
+                label: cat.label,
+                count: cat.count,
+              })),
+          ]}
+          activeTab={activeCategory}
+          onTabChange={setActiveCategory}
+        />
+      </div>
 
-            {/* Auto-Activation Tester */}
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Play className="w-4 h-4 text-violet-500" />
-                  Test Auto-Activation
-                </h3>
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={testKeyword}
-                    onChange={(e) => setTestKeyword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && testAutoActivation()}
-                    placeholder="Type a keyword (e.g., 'security', 'deploy', 'test')..."
-                    className="flex-1 px-4 py-2 text-sm bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
-                  />
-                  <Button onClick={testAutoActivation} variant="outline" size="sm">
-                    <Zap className="w-4 h-4 mr-2" />
-                    Test
-                  </Button>
-                </div>
-                {matchedSkills && (
-                  <div className="mt-3 p-3 bg-violet-50 dark:bg-violet-900/10 rounded-lg">
-                    <p className="text-sm font-medium text-violet-700 dark:text-violet-400 mb-2">
-                      {matchedSkills.length} skill{matchedSkills.length !== 1 ? 's' : ''} would activate for &ldquo;{testKeyword}&rdquo;:
+      {/* Skills List */}
+      <div className="space-y-3">
+        {filteredSkills.map((skill) => {
+          const isExpanded = expandedSkill === skill.id
+          const catColor = categoryColor[skill.category] || '#78716C'
+          const priConfig = priorityConfig[skill.priority] || priorityConfig.low
+
+          return (
+            <AdminCard key={skill.id}>
+              <button
+                onClick={() => setExpandedSkill(isExpanded ? null : skill.id)}
+                className="w-full text-left"
+              >
+                <div className="p-4 flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${catColor}15`, color: catColor }}
+                  >
+                    {iconMap[skill.icon] || <Zap size={18} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          color: '#1C1917',
+                        }}
+                      >
+                        {skill.name}
+                      </span>
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: priConfig.bg,
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 9,
+                          fontWeight: 600,
+                          color: priConfig.color,
+                          letterSpacing: '0.5px',
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {skill.priority}
+                      </span>
+                      {skill.enabled && <CheckCircle size={14} color="#2D5A3D" />}
+                    </div>
+                    <p
+                      className="line-clamp-1"
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 11,
+                        color: '#78716C',
+                      }}
+                    >
+                      {skill.description}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {matchedSkills.map(s => (
-                        <Badge key={s.id} className="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
-                          {s.name}
-                        </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 10,
+                        color: '#A8A29E',
+                      }}
+                    >
+                      {skill.actions.length} actions
+                    </span>
+                    {isExpanded ? (
+                      <ChevronDown size={14} color="#A8A29E" />
+                    ) : (
+                      <ChevronRight size={14} color="#A8A29E" />
+                    )}
+                  </div>
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div style={{ borderTop: '1px solid rgba(214,208,196,0.6)' }}>
+                  {/* Triggers */}
+                  <div className="px-4 py-3" style={{ backgroundColor: '#FAF8F4' }}>
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 9,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1.5px',
+                        color: '#78716C',
+                        marginBottom: 8,
+                      }}
+                    >
+                      Auto-Activation Triggers
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {skill.triggers.events?.map((e) => (
+                        <AdminStatusBadge key={e} status="running" label={e} />
                       ))}
-                      {matchedSkills.length === 0 && (
-                        <span className="text-sm text-gray-500">No skills match. Try: security, deploy, test, SEO, performance</span>
-                      )}
+                      {skill.triggers.filePatterns?.map((p) => (
+                        <span
+                          key={p}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: 'rgba(120,113,108,0.08)',
+                            fontFamily: 'monospace',
+                            fontSize: 9,
+                            color: '#44403C',
+                          }}
+                        >
+                          {p}
+                        </span>
+                      ))}
+                      {skill.triggers.keywords?.slice(0, 6).map((k) => (
+                        <AdminStatusBadge key={k} status="pending" label={k} />
+                      ))}
+                      {skill.triggers.directories?.map((d) => (
+                        <span
+                          key={d}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: 'rgba(120,113,108,0.08)',
+                            fontFamily: 'monospace',
+                            fontSize: 9,
+                            color: '#44403C',
+                          }}
+                        >
+                          {d}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
 
-            {/* Category Filters */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveCategory(null)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all ${
-                  !activeCategory
-                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
-                    : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400 hover:bg-gray-200'
-                }`}
-              >
-                All ({data.total})
-              </button>
-              {data.categories.filter(c => c.count > 0).map(cat => (
-                <button
-                  key={cat.category}
-                  onClick={() => setActiveCategory(activeCategory === cat.category ? null : cat.category)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all ${
-                    activeCategory === cat.category
-                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
-                      : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400 hover:bg-gray-200'
-                  }`}
-                >
-                  {cat.label} ({cat.count})
-                </button>
-              ))}
-            </div>
-
-            {/* Skills List */}
-            <div className="space-y-3">
-              {filteredSkills.map(skill => {
-                const isExpanded = expandedSkill === skill.id
-                const gradient = categoryGradient[skill.category] || 'from-gray-500 to-gray-600'
-
-                return (
-                  <Card key={skill.id} className="overflow-hidden">
-                    <button
-                      onClick={() => setExpandedSkill(isExpanded ? null : skill.id)}
-                      className="w-full text-left"
+                  {/* Actions */}
+                  <div className="p-4 space-y-2">
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 9,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '1.5px',
+                        color: '#78716C',
+                        marginBottom: 6,
+                      }}
                     >
-                      <div className="p-4 flex items-center gap-4">
-                        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${gradient} text-white flex-shrink-0`}>
-                          {iconMap[skill.icon] || <Zap className="w-5 h-5" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{skill.name}</h3>
-                            <Badge className={priorityColor[skill.priority]}>
-                              {skill.priority}
-                            </Badge>
-                            {skill.enabled && (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
+                      Actions
+                    </p>
+                    {skill.actions.map((action) => {
+                      const actionColors: Record<string, { bg: string; color: string }> = {
+                        check: { bg: 'rgba(59,126,161,0.10)', color: '#3B7EA1' },
+                        generate: { bg: 'rgba(45,90,61,0.10)', color: '#2D5A3D' },
+                        fix: { bg: 'rgba(196,154,42,0.10)', color: '#C49A2A' },
+                        report: { bg: 'rgba(124,58,237,0.10)', color: '#7C3AED' },
+                        validate: { bg: 'rgba(200,50,43,0.10)', color: '#C8322B' },
+                      }
+                      const ac = actionColors[action.type] || { bg: 'rgba(120,113,108,0.08)', color: '#78716C' }
+
+                      return (
+                        <div
+                          key={action.id}
+                          className="flex items-start gap-3 p-3 rounded-lg"
+                          style={{ backgroundColor: '#FAF8F4' }}
+                        >
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: ac.bg, color: ac.color }}
+                          >
+                            {action.type === 'check' ? (
+                              <Search size={14} />
+                            ) : action.type === 'generate' ? (
+                              <Zap size={14} />
+                            ) : action.type === 'validate' ? (
+                              <Shield size={14} />
+                            ) : (
+                              <Settings size={14} />
                             )}
                           </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">{skill.description}</p>
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-xs text-gray-400">{skill.actions.length} actions</span>
-                          {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                        </div>
-                      </div>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="border-t border-gray-100 dark:border-slate-800">
-                        {/* Triggers */}
-                        <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800/50">
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Auto-Activation Triggers</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {skill.triggers.events?.map(e => (
-                              <Badge key={e} variant="secondary" className="text-xs">{e}</Badge>
-                            ))}
-                            {skill.triggers.filePatterns?.map(p => (
-                              <Badge key={p} variant="outline" className="text-xs font-mono">{p}</Badge>
-                            ))}
-                            {skill.triggers.keywords?.slice(0, 6).map(k => (
-                              <Badge key={k} className="bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400 text-xs">{k}</Badge>
-                            ))}
-                            {skill.triggers.directories?.map(d => (
-                              <Badge key={d} variant="outline" className="text-xs font-mono">{d}</Badge>
-                            ))}
+                          <div>
+                            <p
+                              style={{
+                                fontFamily: 'var(--font-display)',
+                                fontWeight: 700,
+                                fontSize: 12,
+                                color: '#1C1917',
+                              }}
+                            >
+                              {action.name}
+                            </p>
+                            <p
+                              style={{
+                                fontFamily: 'var(--font-system)',
+                                fontSize: 10,
+                                color: '#78716C',
+                                marginTop: 2,
+                              }}
+                            >
+                              {action.description}
+                            </p>
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded-full mt-1.5"
+                              style={{
+                                backgroundColor: ac.bg,
+                                fontFamily: 'var(--font-system)',
+                                fontSize: 9,
+                                fontWeight: 600,
+                                color: ac.color,
+                                letterSpacing: '0.5px',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {action.type}
+                            </span>
                           </div>
                         </div>
-
-                        {/* Actions */}
-                        <div className="p-4 space-y-3">
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</h4>
-                          {skill.actions.map(action => (
-                            <div key={action.id} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-slate-800/30 rounded-lg">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                action.type === 'check' ? 'bg-blue-100 text-blue-600' :
-                                action.type === 'generate' ? 'bg-green-100 text-green-600' :
-                                action.type === 'fix' ? 'bg-amber-100 text-amber-600' :
-                                action.type === 'report' ? 'bg-purple-100 text-purple-600' :
-                                action.type === 'validate' ? 'bg-red-100 text-red-600' :
-                                'bg-gray-100 text-gray-600'
-                              }`}>
-                                {action.type === 'check' ? <Search className="w-4 h-4" /> :
-                                 action.type === 'generate' ? <Zap className="w-4 h-4" /> :
-                                 action.type === 'validate' ? <Shield className="w-4 h-4" /> :
-                                 <Settings className="w-4 h-4" />}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900 dark:text-white">{action.name}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{action.description}</p>
-                                <Badge variant="outline" className="text-xs mt-1 capitalize">{action.type}</Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                )
-              })}
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-20">
-            <AlertTriangle className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Failed to load skills</p>
-          </div>
-        )}
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </AdminCard>
+          )
+        })}
       </div>
-    </MophyAdminLayout>
+    </div>
   )
 }

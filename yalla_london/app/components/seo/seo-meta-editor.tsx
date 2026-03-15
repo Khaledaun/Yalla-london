@@ -141,7 +141,7 @@ export function SeoMetaEditor({
   const generatePreview = () => {
     const title = seoData.metaTitle || seoData.title;
     const description = seoData.metaDescription;
-    const url = previewUrl || 'https://example.com/page';
+    const url = previewUrl || '';
 
     return (
       <div className="border rounded-lg p-4 bg-white">

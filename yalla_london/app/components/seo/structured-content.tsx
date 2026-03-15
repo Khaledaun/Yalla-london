@@ -22,7 +22,7 @@ export function StructuredFAQ({ faqs, className = '' }: StructuredFAQProps) {
   React.useEffect(() => {
     if (faqs.length > 0) {
       const generator = new SchemaGenerator(
-        process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com',
+        process.env.NEXT_PUBLIC_SITE_URL || '',
         { siteName: 'Yalla London', description: 'Your Guide to London' }
       );
       const faqSchema = generator.generateFAQ(faqs);

@@ -25,6 +25,7 @@ import {
   Phone
 } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
+import { AdminEmptyState } from '@/components/admin/admin-ui'
 
 const _siteCfg = getSiteConfig(getDefaultSiteId())
 
@@ -97,114 +98,13 @@ export default function SiteControl() {
   const loadSiteData = async () => {
     setIsLoading(true)
     try {
-      // Mock data - will be replaced with real API calls
-      const mockBlocks: HomepageBlock[] = [
-        {
-          id: '1',
-          type: 'hero',
-          title_en: 'Welcome to London',
-          title_ar: 'مرحباً بك في لندن',
-          content_en: 'Discover the best of London with our comprehensive guides and recommendations',
-          content_ar: 'اكتشف أفضل ما في لندن من خلال أدلتنا الشاملة والتوصيات',
-          position: 1,
-          enabled: true,
-          version: 'draft',
-          language: 'both',
-          config: {
-            backgroundType: 'video',
-            overlay: true,
-            overlayOpacity: 0.4
-          },
-          heroVideoId: 'video_1',
-          heroVideoPoster: '/images/hero-poster.jpg',
-          heroVideoAutoplay: true,
-          heroVideoMuted: true,
-          heroVideoLoop: true
-        },
-        {
-          id: '2',
-          type: 'featured',
-          title_en: 'Featured Experiences',
-          title_ar: 'التجارب المميزة',
-          content_en: 'Handpicked experiences for your London adventure',
-          content_ar: 'تجارب مختارة بعناية لمغامرتك في لندن',
-          position: 2,
-          enabled: true,
-          version: 'draft',
-          language: 'both',
-          config: {
-            layout: 'grid',
-            itemsPerRow: 3,
-            showRatings: true
-          }
-        },
-        {
-          id: '3',
-          type: 'events',
-          title_en: 'Upcoming Events',
-          title_ar: 'الأحداث القادمة',
-          content_en: 'Don\'t miss out on London\'s exciting events',
-          content_ar: 'لا تفوت الأحداث المثيرة في لندن',
-          position: 3,
-          enabled: true,
-          version: 'draft',
-          language: 'both',
-          config: {
-            limit: 6,
-            showDates: true,
-            showLocations: true
-          }
-        }
-      ]
-
-      const mockMedia: MediaAsset[] = [
-        {
-          id: 'video_1',
-          filename: 'london-hero-video.mp4',
-          url: '/videos/london-hero-video.mp4',
-          file_type: 'video',
-          width: 1920,
-          height: 1080,
-          isVideo: true,
-          isHeroVideo: true,
-          duration: 30
-        },
-        {
-          id: 'image_1',
-          filename: 'hero-poster.jpg',
-          url: '/images/hero-poster.jpg',
-          file_type: 'image',
-          width: 1920,
-          height: 1080,
-          isVideo: false,
-          isHeroVideo: false
-        },
-        {
-          id: 'video_2',
-          filename: 'london-mobile-hero.mp4',
-          url: '/videos/london-mobile-hero.mp4',
-          file_type: 'video',
-          width: 1080,
-          height: 1920,
-          isVideo: true,
-          isHeroVideo: true,
-          duration: 25
-        }
-      ]
-
-      const mockConfig: SiteConfig = {
-        id: '1',
+      // No API for homepage blocks or media yet — start with empty state
+      const defaultConfig: SiteConfig = {
+        id: 'default',
         homepage_json: {},
-        hero_video_url: '/videos/london-hero-video.mp4',
-        hero_mobile_video_url: '/videos/london-mobile-hero.mp4',
-        hero_poster_url: '/images/hero-poster.jpg',
         hero_autoplay: true,
         hero_muted: true,
         hero_loop: true,
-        hero_cta_label: 'Explore London',
-        hero_cta_href: '/recommendations',
-        hero_headline: 'Welcome to London',
-        hero_subheadline: 'Discover the best of London with our comprehensive guides',
         theme_config: {
           primaryColor: '#8B5CF6',
           secondaryColor: '#F59E0B',
@@ -212,9 +112,9 @@ export default function SiteControl() {
         }
       }
 
-      setBlocks(mockBlocks)
-      setMediaAssets(mockMedia)
-      setSiteConfig(mockConfig)
+      setBlocks([])
+      setMediaAssets([])
+      setSiteConfig(defaultConfig)
     } catch (error) {
       console.error('Failed to load site data:', error)
     } finally {
@@ -489,36 +389,40 @@ export default function SiteControl() {
             </div>
 
             <div className="space-y-4">
-              {blocks.map((block) => (
-                <div
-                  key={block.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedBlock?.id === block.id
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedBlock(block)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{block.title_en}</h4>
-                      <p className="text-sm text-gray-600">{block.type} • Position {block.position}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        block.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {block.enabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        block.version === 'published' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {block.version}
-                      </span>
+              {blocks.length === 0 ? (
+                <AdminEmptyState icon={Layout} title="No homepage blocks" description="Configure homepage blocks in the Homepage Builder." />
+              ) : (
+                blocks.map((block) => (
+                  <div
+                    key={block.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      selectedBlock?.id === block.id
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedBlock(block)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{block.title_en}</h4>
+                        <p className="text-sm text-gray-600">{block.type} • Position {block.position}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          block.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {block.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          block.version === 'published' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {block.version}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -666,31 +570,35 @@ export default function SiteControl() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {mediaAssets.map((asset) => (
-              <div key={asset.id} className="bg-white p-4 rounded-lg border border-gray-200">
-                <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                  {asset.isVideo ? (
-                    <Video className="h-8 w-8 text-gray-400" />
-                  ) : (
-                    <Image className="h-8 w-8 text-gray-400" />
-                  )}
+          {mediaAssets.length === 0 ? (
+            <AdminEmptyState icon={Image} title="No media assets" description="Upload media in the Media Library." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {mediaAssets.map((asset) => (
+                <div key={asset.id} className="bg-white p-4 rounded-lg border border-gray-200">
+                  <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                    {asset.isVideo ? (
+                      <Video className="h-8 w-8 text-gray-400" />
+                    ) : (
+                      <Image className="h-8 w-8 text-gray-400" />
+                    )}
+                  </div>
+                  <h4 className="font-medium text-gray-900 text-sm mb-1">{asset.filename}</h4>
+                  <p className="text-xs text-gray-600 mb-2">
+                    {asset.file_type} • {asset.width}x{asset.height}
+                    {asset.duration && ` • ${asset.duration}s`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {asset.isHeroVideo && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                        Hero Video
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <h4 className="font-medium text-gray-900 text-sm mb-1">{asset.filename}</h4>
-                <p className="text-xs text-gray-600 mb-2">
-                  {asset.file_type} • {asset.width}x{asset.height}
-                  {asset.duration && ` • ${asset.duration}s`}
-                </p>
-                <div className="flex items-center gap-2">
-                  {asset.isHeroVideo && (
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                      Hero Video
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

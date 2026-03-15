@@ -136,7 +136,7 @@ export function PhotoPoolManager() {
   // Dropzone configuration
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadingFile[] = acceptedFiles.map(file => ({
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       file,
       progress: 0,
       status: 'uploading' as const,

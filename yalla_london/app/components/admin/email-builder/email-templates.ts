@@ -48,7 +48,7 @@ function buildBrandDefaults() {
     darkGray: '#374151',
     textColor: '#1F2937',
     mutedText: '#6B7280',
-    logoUrl: `/images/${cfg?.slug ?? 'yalla-london'}-logo.png`,
+    logoUrl: `/images/${cfg?.slug ?? getDefaultSiteId()}-logo.png`,
     siteName: cfg?.name ?? 'Yalla London',
     siteUrl,
     supportEmail: `hello@${domain}`,

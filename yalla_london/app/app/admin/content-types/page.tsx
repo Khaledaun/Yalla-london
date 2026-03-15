@@ -80,247 +80,8 @@ const iconMap = {
   'Users': Users
 }
 
-const mockContentTypes: ContentType[] = [
-  {
-    id: '1',
-    name: 'Travel Guide',
-    slug: 'travel-guide',
-    description: 'Comprehensive travel guides for London areas and attractions',
-    icon: 'MapPin',
-    color: 'blue',
-    isActive: true,
-    fields: [
-      {
-        id: 'f1',
-        name: 'location',
-        type: 'text',
-        label: 'Location',
-        placeholder: 'e.g., Covent Garden, London',
-        required: true,
-        validation: { minLength: 5, maxLength: 100 }
-      },
-      {
-        id: 'f2',
-        name: 'bestTimeToVisit',
-        type: 'select',
-        label: 'Best Time to Visit',
-        required: false,
-        options: ['Morning', 'Afternoon', 'Evening', 'Weekend', 'Weekday', 'Any time']
-      },
-      {
-        id: 'f3',
-        name: 'priceRange',
-        type: 'select',
-        label: 'Price Range',
-        required: false,
-        options: ['Free', '£', '££', '£££', '££££']
-      },
-      {
-        id: 'f4',
-        name: 'duration',
-        type: 'text',
-        label: 'Recommended Duration',
-        placeholder: 'e.g., 2-3 hours',
-        required: false
-      }
-    ],
-    seoTemplate: {
-      titleTemplate: `Ultimate Guide to {{location}} - ${_siteName}`,
-      descriptionTemplate: 'Discover the best of {{location}} with our comprehensive guide. Find top attractions, hidden gems, and local tips for your London adventure.',
-      keywordsTemplate: '{{location}}, London guide, travel, attractions, things to do'
-    },
-    contentTemplate: `# Ultimate Guide to {{location}}
-
-## Overview
-{{location}} is one of London's most captivating destinations, offering a perfect blend of history, culture, and modern attractions.
-
-## Best Time to Visit
-{{bestTimeToVisit}}
-
-## What to Expect
-- Price Range: {{priceRange}}
-- Recommended Duration: {{duration}}
-
-## Top Attractions
-[To be filled with specific attractions]
-
-## Local Tips
-[To be filled with insider knowledge]
-
-## Getting There
-[To be filled with transport information]`,
-    articleCount: 23,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-10T00:00:00Z'
-  },
-  {
-    id: '2',
-    name: 'Restaurant Review',
-    slug: 'restaurant-review',
-    description: 'Detailed reviews of London restaurants, focusing on halal options',
-    icon: 'Utensils',
-    color: 'green',
-    isActive: true,
-    fields: [
-      {
-        id: 'r1',
-        name: 'restaurantName',
-        type: 'text',
-        label: 'Restaurant Name',
-        required: true,
-        validation: { minLength: 2, maxLength: 100 }
-      },
-      {
-        id: 'r2',
-        name: 'cuisine',
-        type: 'select',
-        label: 'Cuisine Type',
-        required: true,
-        options: ['Middle Eastern', 'Turkish', 'Pakistani', 'Indian', 'Mediterranean', 'British', 'International']
-      },
-      {
-        id: 'r3',
-        name: 'halalCertified',
-        type: 'boolean',
-        label: 'Halal Certified',
-        required: true
-      },
-      {
-        id: 'r4',
-        name: 'priceRange',
-        type: 'select',
-        label: 'Price Range',
-        required: true,
-        options: ['£', '££', '£££', '££££']
-      },
-      {
-        id: 'r5',
-        name: 'address',
-        type: 'text',
-        label: 'Address',
-        placeholder: 'Full address including postcode',
-        required: true
-      },
-      {
-        id: 'r6',
-        name: 'rating',
-        type: 'number',
-        label: 'Rating (1-5)',
-        required: true,
-        validation: { minLength: 1, maxLength: 5 }
-      }
-    ],
-    seoTemplate: {
-      titleTemplate: '{{restaurantName}} Review - {{cuisine}} Restaurant in London',
-      descriptionTemplate: 'Read our detailed review of {{restaurantName}}, a {{cuisine}} restaurant in London. {{#halalCertified}}Halal certified. {{/halalCertified}}Price range: {{priceRange}}.',
-      keywordsTemplate: '{{restaurantName}}, {{cuisine}} restaurant London, halal food, restaurant review'
-    },
-    contentTemplate: `# {{restaurantName}} Review
-
-## Overview
-{{restaurantName}} is a {{cuisine}} restaurant located in the heart of London, offering an authentic dining experience.
-
-## Key Details
-- **Cuisine**: {{cuisine}}
-- **Halal Certified**: {{halalCertified}}
-- **Price Range**: {{priceRange}}
-- **Our Rating**: {{rating}}/5
-- **Address**: {{address}}
-
-## Atmosphere & Ambiance
-[To be filled with atmosphere description]
-
-## Menu Highlights
-[To be filled with menu recommendations]
-
-## Service Quality
-[To be filled with service review]
-
-## Final Verdict
-[To be filled with conclusion and recommendation]`,
-    articleCount: 67,
-    createdAt: '2024-01-02T00:00:00Z',
-    updatedAt: '2024-01-08T00:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Event Coverage',
-    slug: 'event-coverage',
-    description: 'Coverage of London events, festivals, and cultural happenings',
-    icon: 'Calendar',
-    color: 'purple',
-    isActive: true,
-    fields: [
-      {
-        id: 'e1',
-        name: 'eventName',
-        type: 'text',
-        label: 'Event Name',
-        required: true
-      },
-      {
-        id: 'e2',
-        name: 'eventDate',
-        type: 'date',
-        label: 'Event Date',
-        required: true
-      },
-      {
-        id: 'e3',
-        name: 'venue',
-        type: 'text',
-        label: 'Venue',
-        required: true
-      },
-      {
-        id: 'e4',
-        name: 'ticketPrice',
-        type: 'text',
-        label: 'Ticket Price',
-        placeholder: 'e.g., Free, £15, £20-£50',
-        required: false
-      },
-      {
-        id: 'e5',
-        name: 'eventType',
-        type: 'select',
-        label: 'Event Type',
-        required: true,
-        options: ['Festival', 'Exhibition', 'Concert', 'Conference', 'Cultural', 'Food & Drink', 'Family', 'Sports']
-      }
-    ],
-    seoTemplate: {
-      titleTemplate: '{{eventName}} {{eventDate}} - London Event Guide',
-      descriptionTemplate: 'Everything you need to know about {{eventName}} happening on {{eventDate}} at {{venue}}. {{ticketPrice}} tickets.',
-      keywordsTemplate: '{{eventName}}, London events, {{eventType}}, {{venue}}'
-    },
-    contentTemplate: `# {{eventName}} - London Event Guide
-
-## Event Overview
-Join us for {{eventName}}, an exciting {{eventType}} event happening in London.
-
-## Event Details
-- **Date**: {{eventDate}}
-- **Venue**: {{venue}}
-- **Type**: {{eventType}}
-- **Tickets**: {{ticketPrice}}
-
-## What to Expect
-[To be filled with event description]
-
-## How to Get There
-[To be filled with transport information]
-
-## Tips for Attendees
-[To be filled with practical advice]`,
-    articleCount: 34,
-    createdAt: '2024-01-03T00:00:00Z',
-    updatedAt: '2024-01-05T00:00:00Z'
-  }
-]
-
 export default function ContentTypesPage() {
-  const [contentTypes, setContentTypes] = useState<ContentType[]>(mockContentTypes)
+  const [contentTypes, setContentTypes] = useState<ContentType[]>([])
   const [selectedType, setSelectedType] = useState<ContentType | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -468,6 +229,14 @@ export default function ContentTypesPage() {
         }
       />
 
+      {contentTypes.length === 0 ? (
+        <AdminEmptyState
+          icon={Layers}
+          title="No content types configured"
+          description="Content type definitions will appear here."
+        />
+      ) : (
+      <>
       {/* KPI Summary */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <AdminKPICard
@@ -898,6 +667,8 @@ export default function ContentTypesPage() {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Edit/Create Modal */}
       {(isEditing || isCreating) && (

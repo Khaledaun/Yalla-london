@@ -58,7 +58,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { isPremiumFeatureEnabled, validatePremiumFeatureAccess } from '@/lib/feature-flags'
-import { getActiveSiteIds, getSiteConfig } from '@/config/sites'
+import { getActiveSiteIds, getSiteConfig, getDefaultSiteId } from '@/config/sites'
 
 export interface NavItem {
   id: string
@@ -269,7 +269,7 @@ export function PremiumAdminNav({
       const stored = localStorage.getItem('selectedSiteId')
       if (stored && activeSiteIds.includes(stored)) return stored
     }
-    return activeSiteIds[0] || 'yalla-london'
+    return activeSiteIds[0] || getDefaultSiteId()
   })
   const currentSiteConfig = getSiteConfig(selectedSiteId)
   const currentSite = selectedSiteId

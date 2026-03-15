@@ -1,26 +1,26 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Palette, 
-  Type, 
-  Layout, 
-  Save, 
-  Eye, 
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminTabs,
+  AdminSectionLabel,
+  AdminAlertBanner,
+} from '@/components/admin/admin-ui'
+import {
+  Palette,
+  Type,
+  Layout,
+  Save,
+  Eye,
   RotateCcw,
   Download,
   Upload,
-  Settings,
   Monitor,
   Smartphone,
-  Tablet
+  Tablet,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -41,7 +41,7 @@ const defaultTheme: ThemeConfig = {
   fontFamily: 'Inter',
   layout: 'contained',
   borderRadius: 'medium',
-  spacing: 'normal'
+  spacing: 'normal',
 }
 
 const fontOptions = [
@@ -53,46 +53,47 @@ const fontOptions = [
   { value: 'Lato', label: 'Lato (Professional)' },
   { value: 'Poppins', label: 'Poppins (Bold)' },
   { value: 'Merriweather', label: 'Merriweather (Readable)' },
-  { value: 'Source Sans Pro', label: 'Source Sans Pro (Versatile)' }
+  { value: 'Source Sans Pro', label: 'Source Sans Pro (Versatile)' },
 ]
 
 const presetThemes = [
   {
     name: 'Yalla London',
     colors: { primaryColor: '#C8322B', secondaryColor: '#1C1917', accentColor: '#C49A2A' },
-    font: 'Anybody'
+    font: 'Anybody',
   },
   {
     name: 'Modern Blue',
     colors: { primaryColor: '#2563EB', secondaryColor: '#1D4ED8', accentColor: '#06B6D4' },
-    font: 'Roboto'
+    font: 'Roboto',
   },
   {
     name: 'Warm Orange',
     colors: { primaryColor: '#EA580C', secondaryColor: '#C2410C', accentColor: '#F59E0B' },
-    font: 'Poppins'
+    font: 'Poppins',
   },
   {
     name: 'Elegant Purple',
     colors: { primaryColor: '#7C3AED', secondaryColor: '#5B21B6', accentColor: '#EC4899' },
-    font: 'Source Serif 4'
+    font: 'Source Serif 4',
   },
   {
     name: 'Nature Green',
     colors: { primaryColor: '#059669', secondaryColor: '#047857', accentColor: '#10B981' },
-    font: 'Open Sans'
+    font: 'Open Sans',
   },
   {
     name: 'Minimal Gray',
     colors: { primaryColor: '#374151', secondaryColor: '#1F2937', accentColor: '#6B7280' },
-    font: 'Source Sans Pro'
-  }
+    font: 'Source Sans Pro',
+  },
 ]
 
 export default function ThemeSettingsPage() {
   const [theme, setTheme] = useState<ThemeConfig>(defaultTheme)
   const [isLoading, setIsLoading] = useState(false)
   const [previewMode, setPreviewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+  const [activeTab, setActiveTab] = useState('colors')
 
   useEffect(() => {
     // Load saved theme from localStorage or API
@@ -111,21 +112,21 @@ export default function ThemeSettingsPage() {
     try {
       // Save to localStorage
       localStorage.setItem('yalla-theme', JSON.stringify(theme))
-      
+
       // Apply theme to document
       const root = document.documentElement
       root.style.setProperty('--primary-color', theme.primaryColor)
       root.style.setProperty('--secondary-color', theme.secondaryColor)
       root.style.setProperty('--accent-color', theme.accentColor)
       root.style.setProperty('--font-family', theme.fontFamily)
-      
+
       // Save to API (if available)
       const response = await fetch('/api/admin/settings/theme', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(theme)
+        body: JSON.stringify(theme),
       })
-      
+
       if (response.ok) {
         toast.success('Theme saved successfully!')
       } else {
@@ -139,11 +140,11 @@ export default function ThemeSettingsPage() {
     }
   }
 
-  const applyPreset = (preset: typeof presetThemes[0]) => {
-    setTheme(prev => ({
+  const applyPreset = (preset: (typeof presetThemes)[0]) => {
+    setTheme((prev) => ({
       ...prev,
       ...preset.colors,
-      fontFamily: preset.font
+      fontFamily: preset.font,
     }))
   }
 
@@ -173,7 +174,7 @@ export default function ThemeSettingsPage() {
           const importedTheme = JSON.parse(e.target?.result as string)
           setTheme(importedTheme)
           toast.success('Theme imported successfully!')
-        } catch (error) {
+        } catch {
           toast.error('Invalid theme file')
         }
       }
@@ -181,325 +182,512 @@ export default function ThemeSettingsPage() {
     }
   }
 
+  const tabs = [
+    { id: 'colors', label: 'Colors' },
+    { id: 'typography', label: 'Typography' },
+    { id: 'layout', label: 'Layout' },
+    { id: 'presets', label: 'Presets' },
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Theme Settings</h1>
-              <p className="text-gray-600 mt-2">Customize your site&apos;s appearance and branding</p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={resetTheme}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
-              <Button variant="outline" onClick={exportTheme}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline" asChild>
-                <label htmlFor="import-theme">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import
-                  <input
-                    id="import-theme"
-                    type="file"
-                    accept=".json"
-                    onChange={importTheme}
-                    className="hidden"
-                  />
-                </label>
-              </Button>
-              <Button onClick={saveTheme} disabled={isLoading}>
-                <Save className="h-4 w-4 mr-2" />
-                {isLoading ? 'Saving...' : 'Save Theme'}
-              </Button>
-            </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Theme Settings"
+        subtitle="Customize your site's appearance and branding"
+        backHref="/admin/settings"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <AdminButton variant="ghost" size="sm" onClick={resetTheme}>
+              <RotateCcw size={14} />
+              Reset
+            </AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={exportTheme}>
+              <Download size={14} />
+              Export
+            </AdminButton>
+            <AdminButton variant="secondary" size="sm" className="relative">
+              <label htmlFor="import-theme" className="flex items-center gap-1.5 cursor-pointer">
+                <Upload size={14} />
+                Import
+                <input
+                  id="import-theme"
+                  type="file"
+                  accept=".json"
+                  onChange={importTheme}
+                  className="hidden"
+                />
+              </label>
+            </AdminButton>
+            <AdminButton variant="primary" size="sm" onClick={saveTheme} loading={isLoading}>
+              <Save size={14} />
+              {isLoading ? 'Saving...' : 'Save Theme'}
+            </AdminButton>
+          </div>
+        }
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Settings Panel */}
+        <div className="lg:col-span-2">
+          <AdminTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+
+          <div className="mt-4">
+            {/* Colors Tab */}
+            {activeTab === 'colors' && (
+              <AdminCard>
+                <div className="p-4 md:p-5">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Palette size={16} style={{ color: '#3B7EA1' }} />
+                    <AdminSectionLabel>Color Palette</AdminSectionLabel>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {/* Primary Color */}
+                    <div>
+                      <label
+                        htmlFor="primary-color"
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#44403C',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Primary Color
+                      </label>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          id="primary-color"
+                          type="color"
+                          value={theme.primaryColor}
+                          onChange={(e) =>
+                            setTheme((prev) => ({ ...prev, primaryColor: e.target.value }))
+                          }
+                          className="w-12 h-10 rounded-lg border border-stone-200 p-0.5 cursor-pointer"
+                        />
+                        <input
+                          value={theme.primaryColor}
+                          onChange={(e) =>
+                            setTheme((prev) => ({ ...prev, primaryColor: e.target.value }))
+                          }
+                          className="admin-input flex-1"
+                          style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+                        />
+                      </div>
+                    </div>
+                    {/* Secondary Color */}
+                    <div>
+                      <label
+                        htmlFor="secondary-color"
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#44403C',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Secondary Color
+                      </label>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          id="secondary-color"
+                          type="color"
+                          value={theme.secondaryColor}
+                          onChange={(e) =>
+                            setTheme((prev) => ({ ...prev, secondaryColor: e.target.value }))
+                          }
+                          className="w-12 h-10 rounded-lg border border-stone-200 p-0.5 cursor-pointer"
+                        />
+                        <input
+                          value={theme.secondaryColor}
+                          onChange={(e) =>
+                            setTheme((prev) => ({ ...prev, secondaryColor: e.target.value }))
+                          }
+                          className="admin-input flex-1"
+                          style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+                        />
+                      </div>
+                    </div>
+                    {/* Accent Color */}
+                    <div>
+                      <label
+                        htmlFor="accent-color"
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#44403C',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Accent Color
+                      </label>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          id="accent-color"
+                          type="color"
+                          value={theme.accentColor}
+                          onChange={(e) =>
+                            setTheme((prev) => ({ ...prev, accentColor: e.target.value }))
+                          }
+                          className="w-12 h-10 rounded-lg border border-stone-200 p-0.5 cursor-pointer"
+                        />
+                        <input
+                          value={theme.accentColor}
+                          onChange={(e) =>
+                            setTheme((prev) => ({ ...prev, accentColor: e.target.value }))
+                          }
+                          className="admin-input flex-1"
+                          style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Color preview swatches */}
+                  <div className="flex gap-2 mt-5">
+                    <div
+                      className="h-8 flex-1 rounded-lg"
+                      style={{ backgroundColor: theme.primaryColor }}
+                    />
+                    <div
+                      className="h-8 flex-1 rounded-lg"
+                      style={{ backgroundColor: theme.secondaryColor }}
+                    />
+                    <div
+                      className="h-8 flex-1 rounded-lg"
+                      style={{ backgroundColor: theme.accentColor }}
+                    />
+                  </div>
+                </div>
+              </AdminCard>
+            )}
+
+            {/* Typography Tab */}
+            {activeTab === 'typography' && (
+              <AdminCard>
+                <div className="p-4 md:p-5">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Type size={16} style={{ color: '#3B7EA1' }} />
+                    <AdminSectionLabel>Typography</AdminSectionLabel>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="font-family"
+                      style={{
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#44403C',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      Font Family
+                    </label>
+                    <select
+                      id="font-family"
+                      value={theme.fontFamily}
+                      onChange={(e) =>
+                        setTheme((prev) => ({ ...prev, fontFamily: e.target.value }))
+                      }
+                      className="admin-select mt-2 w-full"
+                      style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+                    >
+                      {fontOptions.map((font) => (
+                        <option key={font.value} value={font.value}>
+                          {font.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Font preview */}
+                  <div className="mt-5 p-4 rounded-xl" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.6)' }}>
+                    <p
+                      style={{
+                        fontFamily: theme.fontFamily,
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: '#1C1917',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      The quick brown fox jumps over the lazy dog
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: theme.fontFamily,
+                        fontSize: 14,
+                        color: '#57534E',
+                        marginTop: 8,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
+                      incididunt ut labore et dolore magna aliqua.
+                    </p>
+                  </div>
+                </div>
+              </AdminCard>
+            )}
+
+            {/* Layout Tab */}
+            {activeTab === 'layout' && (
+              <AdminCard>
+                <div className="p-4 md:p-5">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Layout size={16} style={{ color: '#3B7EA1' }} />
+                    <AdminSectionLabel>Layout & Spacing</AdminSectionLabel>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label
+                        htmlFor="layout-style"
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#44403C',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Layout Style
+                      </label>
+                      <select
+                        id="layout-style"
+                        value={theme.layout}
+                        onChange={(e) =>
+                          setTheme((prev) => ({
+                            ...prev,
+                            layout: e.target.value as ThemeConfig['layout'],
+                          }))
+                        }
+                        className="admin-select mt-2 w-full"
+                        style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+                      >
+                        <option value="full-width">Full Width</option>
+                        <option value="contained">Contained</option>
+                        <option value="split">Split Layout</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="border-radius"
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#44403C',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Border Radius
+                      </label>
+                      <select
+                        id="border-radius"
+                        value={theme.borderRadius}
+                        onChange={(e) =>
+                          setTheme((prev) => ({
+                            ...prev,
+                            borderRadius: e.target.value as ThemeConfig['borderRadius'],
+                          }))
+                        }
+                        className="admin-select mt-2 w-full"
+                        style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}
+                      >
+                        <option value="none">None</option>
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </AdminCard>
+            )}
+
+            {/* Presets Tab */}
+            {activeTab === 'presets' && (
+              <AdminCard>
+                <div className="p-4 md:p-5">
+                  <AdminSectionLabel>Theme Presets</AdminSectionLabel>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                    {presetThemes.map((preset) => (
+                      <div
+                        key={preset.name}
+                        className="rounded-xl p-4 cursor-pointer transition-all hover:shadow-md"
+                        style={{
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid rgba(214,208,196,0.6)',
+                        }}
+                        onClick={() => applyPreset(preset)}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex gap-1">
+                            <div
+                              className="w-5 h-5 rounded-full"
+                              style={{
+                                backgroundColor: preset.colors.primaryColor,
+                                border: '2px solid rgba(255,255,255,0.8)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                              }}
+                            />
+                            <div
+                              className="w-5 h-5 rounded-full -ml-1"
+                              style={{
+                                backgroundColor: preset.colors.secondaryColor,
+                                border: '2px solid rgba(255,255,255,0.8)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                              }}
+                            />
+                            <div
+                              className="w-5 h-5 rounded-full -ml-1"
+                              style={{
+                                backgroundColor: preset.colors.accentColor,
+                                border: '2px solid rgba(255,255,255,0.8)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <p
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontWeight: 700,
+                            fontSize: 13,
+                            color: '#1C1917',
+                          }}
+                        >
+                          {preset.name}
+                        </p>
+                        <p
+                          style={{
+                            fontFamily: 'var(--font-system)',
+                            fontSize: 11,
+                            color: '#78716C',
+                            marginTop: 2,
+                          }}
+                        >
+                          {preset.font}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </AdminCard>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Settings Panel */}
-          <div className="lg:col-span-2">
-            <Tabs defaultValue="colors" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="colors">Colors</TabsTrigger>
-                <TabsTrigger value="typography">Typography</TabsTrigger>
-                <TabsTrigger value="layout">Layout</TabsTrigger>
-                <TabsTrigger value="presets">Presets</TabsTrigger>
-              </TabsList>
-
-              {/* Colors Tab */}
-              <TabsContent value="colors" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Palette className="h-5 w-5" />
-                      Color Palette
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="primary-color">Primary Color</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="primary-color"
-                            type="color"
-                            value={theme.primaryColor}
-                            onChange={(e) => setTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
-                            className="w-16 h-10 p-1"
-                          />
-                          <Input
-                            value={theme.primaryColor}
-                            onChange={(e) => setTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="secondary-color">Secondary Color</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="secondary-color"
-                            type="color"
-                            value={theme.secondaryColor}
-                            onChange={(e) => setTheme(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                            className="w-16 h-10 p-1"
-                          />
-                          <Input
-                            value={theme.secondaryColor}
-                            onChange={(e) => setTheme(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="accent-color">Accent Color</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="accent-color"
-                            type="color"
-                            value={theme.accentColor}
-                            onChange={(e) => setTheme(prev => ({ ...prev, accentColor: e.target.value }))}
-                            className="w-16 h-10 p-1"
-                          />
-                          <Input
-                            value={theme.accentColor}
-                            onChange={(e) => setTheme(prev => ({ ...prev, accentColor: e.target.value }))}
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Typography Tab */}
-              <TabsContent value="typography" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Type className="h-5 w-5" />
-                      Typography
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="font-family">Font Family</Label>
-                      <Select
-                        value={theme.fontFamily}
-                        onValueChange={(value) => setTheme(prev => ({ ...prev, fontFamily: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {fontOptions.map((font) => (
-                            <SelectItem key={font.value} value={font.value}>
-                              {font.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Layout Tab */}
-              <TabsContent value="layout" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Layout className="h-5 w-5" />
-                      Layout & Spacing
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="layout">Layout Style</Label>
-                        <Select
-                          value={theme.layout}
-                          onValueChange={(value: any) => setTheme(prev => ({ ...prev, layout: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="full-width">Full Width</SelectItem>
-                            <SelectItem value="contained">Contained</SelectItem>
-                            <SelectItem value="split">Split Layout</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="border-radius">Border Radius</Label>
-                        <Select
-                          value={theme.borderRadius}
-                          onValueChange={(value: any) => setTheme(prev => ({ ...prev, borderRadius: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="small">Small</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="large">Large</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Presets Tab */}
-              <TabsContent value="presets" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Theme Presets</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {presetThemes.map((preset) => (
-                        <div
-                          key={preset.name}
-                          className="border rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors"
-                          onClick={() => applyPreset(preset)}
-                        >
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="flex gap-1">
-                              <div
-                                className="w-4 h-4 rounded-full border"
-                                style={{ backgroundColor: preset.colors.primaryColor }}
-                              />
-                              <div
-                                className="w-4 h-4 rounded-full border"
-                                style={{ backgroundColor: preset.colors.secondaryColor }}
-                              />
-                              <div
-                                className="w-4 h-4 rounded-full border"
-                                style={{ backgroundColor: preset.colors.accentColor }}
-                              />
-                            </div>
-                            <span className="font-medium">{preset.name}</span>
-                          </div>
-                          <p className="text-sm text-gray-600">{preset.font}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Preview Panel */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
-                  Live Preview
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    variant={previewMode === 'desktop' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPreviewMode('desktop')}
-                  >
-                    <Monitor className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={previewMode === 'tablet' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPreviewMode('tablet')}
-                  >
-                    <Tablet className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={previewMode === 'mobile' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPreviewMode('mobile')}
-                  >
-                    <Smartphone className="h-4 w-4" />
-                  </Button>
+        {/* Preview Panel */}
+        <div className="lg:col-span-1">
+          <AdminCard>
+            <div className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Eye size={16} style={{ color: '#3B7EA1' }} />
+                  <AdminSectionLabel>Live Preview</AdminSectionLabel>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`border rounded-lg overflow-hidden ${
-                    previewMode === 'desktop' ? 'w-full' :
-                    previewMode === 'tablet' ? 'w-80 mx-auto' : 'w-64 mx-auto'
-                  }`}
-                >
-                  <div
-                    className="p-4 text-center"
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setPreviewMode('desktop')}
+                    className="p-1.5 rounded-lg transition-colors"
                     style={{
-                      backgroundColor: theme.primaryColor,
-                      color: 'white',
-                      fontFamily: theme.fontFamily
+                      backgroundColor:
+                        previewMode === 'desktop' ? 'rgba(59,126,161,0.1)' : 'transparent',
+                      color: previewMode === 'desktop' ? '#3B7EA1' : '#A8A29E',
                     }}
                   >
-                    <h3 className="text-lg font-bold">Yalla London</h3>
-                    <p className="text-sm opacity-90">Your London Experience</p>
+                    <Monitor size={16} />
+                  </button>
+                  <button
+                    onClick={() => setPreviewMode('tablet')}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor:
+                        previewMode === 'tablet' ? 'rgba(59,126,161,0.1)' : 'transparent',
+                      color: previewMode === 'tablet' ? '#3B7EA1' : '#A8A29E',
+                    }}
+                  >
+                    <Tablet size={16} />
+                  </button>
+                  <button
+                    onClick={() => setPreviewMode('mobile')}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor:
+                        previewMode === 'mobile' ? 'rgba(59,126,161,0.1)' : 'transparent',
+                      color: previewMode === 'mobile' ? '#3B7EA1' : '#A8A29E',
+                    }}
+                  >
+                    <Smartphone size={16} />
+                  </button>
+                </div>
+              </div>
+              <div
+                className={`rounded-xl overflow-hidden ${
+                  previewMode === 'desktop'
+                    ? 'w-full'
+                    : previewMode === 'tablet'
+                      ? 'w-80 mx-auto'
+                      : 'w-64 mx-auto'
+                }`}
+                style={{ border: '1px solid rgba(214,208,196,0.6)' }}
+              >
+                <div
+                  className="p-4 text-center"
+                  style={{
+                    backgroundColor: theme.primaryColor,
+                    color: 'white',
+                    fontFamily: theme.fontFamily,
+                  }}
+                >
+                  <h3 style={{ fontSize: 18, fontWeight: 700 }}>Yalla London</h3>
+                  <p style={{ fontSize: 12, opacity: 0.9 }}>Your London Experience</p>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div
+                    className="p-3"
+                    style={{
+                      backgroundColor: theme.secondaryColor,
+                      color: 'white',
+                      borderRadius:
+                        theme.borderRadius === 'none'
+                          ? '0'
+                          : theme.borderRadius === 'small'
+                            ? '4px'
+                            : theme.borderRadius === 'medium'
+                              ? '8px'
+                              : '16px',
+                    }}
+                  >
+                    <p style={{ fontSize: 12 }}>Featured Article</p>
                   </div>
-                  <div className="p-4 space-y-3">
-                    <div
-                      className="p-3 rounded"
-                      style={{
-                        backgroundColor: theme.secondaryColor,
-                        color: 'white',
-                        borderRadius: theme.borderRadius === 'none' ? '0' :
-                                   theme.borderRadius === 'small' ? '4px' :
-                                   theme.borderRadius === 'medium' ? '8px' : '16px'
-                      }}
-                    >
-                      <p className="text-sm">Featured Article</p>
-                    </div>
-                    <div
-                      className="p-3 border rounded"
-                      style={{
-                        borderColor: theme.accentColor,
-                        borderRadius: theme.borderRadius === 'none' ? '0' :
-                                   theme.borderRadius === 'small' ? '4px' :
-                                   theme.borderRadius === 'medium' ? '8px' : '16px'
-                      }}
-                    >
-                      <p className="text-sm">Call to Action</p>
-                    </div>
+                  <div
+                    className="p-3"
+                    style={{
+                      border: `2px solid ${theme.accentColor}`,
+                      borderRadius:
+                        theme.borderRadius === 'none'
+                          ? '0'
+                          : theme.borderRadius === 'small'
+                            ? '4px'
+                            : theme.borderRadius === 'medium'
+                              ? '8px'
+                              : '16px',
+                    }}
+                  >
+                    <p style={{ fontSize: 12, color: '#44403C' }}>Call to Action</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </div>
+          </AdminCard>
         </div>
       </div>
     </div>

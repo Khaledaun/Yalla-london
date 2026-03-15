@@ -470,9 +470,10 @@ test("SEO", "related-content.ts queries DB + static", () => {
 
 // ==================== CATEGORY 12: Budget Guards ====================
 
-test("Budget", "build-runner has 53s budget guard", () => {
-  return fileContains("lib/content-pipeline/build-runner.ts", "53")
-    ? { status: PASS, details: "53s budget present" }
+test("Budget", "build-runner has budget guard", () => {
+  // content-builder has maxDuration=300 (5min), so budget is 280s not 53s
+  return fileContains("lib/content-pipeline/build-runner.ts", "280_000")
+    ? { status: PASS, details: "280s budget present (300s maxDuration route)" }
     : { status: FAIL, details: "Missing budget guard" };
 });
 

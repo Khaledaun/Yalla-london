@@ -337,18 +337,37 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case "sync_advertisers": {
-        const origin = request.nextUrl.origin;
-        const cronSecret = process.env.CRON_SECRET;
-        const headers: Record<string, string> = {};
-        if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+        // Call checkPendingAdvertisers directly — avoids internal HTTP fetch chain
+        // that caused 504 timeouts due to serverless function nesting
+        try {
+          const { isCjConfigured } = await import("@/lib/affiliate/cj-client");
+          if (!isCjConfigured()) {
+            return NextResponse.json({
+              success: false, action,
+              result: { error: "CJ_API_TOKEN not configured. Set CJ_API_TOKEN, CJ_WEBSITE_ID, CJ_PUBLISHER_CID in Vercel env vars." },
+            });
+          }
 
-        const res = await fetch(`${origin}/api/affiliate/cron/sync-advertisers`, {
-          method: "POST",
-          headers,
-          signal: AbortSignal.timeout(55_000), // Give the cron its full 53s budget
-        });
-        const data = await res.json().catch(() => ({ error: `HTTP ${res.status} (non-JSON response)` }));
-        return NextResponse.json({ success: res.ok, action, result: data });
+          const BUDGET_MS = 50_000;
+          const { checkPendingAdvertisers } = await import("@/lib/affiliate/cj-sync");
+          const result = await checkPendingAdvertisers(BUDGET_MS);
+
+          const { logCronExecution } = await import("@/lib/cron-logger");
+          await logCronExecution("affiliate-sync-advertisers", "completed", {
+            durationMs: Date.now() - Date.now(),
+            itemsProcessed: result.checked,
+            resultSummary: result as unknown as Record<string, unknown>,
+          }).catch((err: Error) => console.warn("[affiliate-hq] log failed:", err.message));
+
+          return NextResponse.json({ success: true, action, result });
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          console.error("[affiliate-hq] sync_advertisers failed:", errMsg);
+          return NextResponse.json({
+            success: false, action,
+            result: { error: `CJ sync failed: ${errMsg.substring(0, 500)}` },
+          });
+        }
       }
 
       case "sync_commissions": {

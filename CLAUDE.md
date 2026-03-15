@@ -3178,3 +3178,7 @@ Private Key:    GOOGLE_ANALYTICS_PRIVATE_KEY → GOOGLE_SEARCH_CONSOLE_PRIVATE_K
 88. **Admin-ui components must have optional `children` props** — components used as wrappers (`AdminCard`, `AdminSectionLabel`) may be rendered empty in some contexts. Making `children?: React.ReactNode` prevents TypeScript errors when agents convert pages.
 89. **Never mix CSS design systems** — neumorphic (`var(--neu-*)` shadows), shadcn/ui (Tailwind utility classes), and custom inline styles create visual inconsistency. One system per project. Clean Light replaces all three.
 90. **Dashboard redesign is UI-only** — no API changes, no data model changes, no business logic changes. Strictly visual conversion to maintain zero regression risk.
+
+## Weekly Manual Checks
+
+- [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

@@ -653,34 +653,55 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
     }
   }
 
-  // COLD-START FIX: Also sync links for JOINED advertisers that have 0 links.
-  // On first run, advertisers go from non-existent → JOINED (not PENDING → JOINED),
-  // so newlyApproved is always empty and syncLinks never fires. This catches all
-  // JOINED advertisers missing their CjLink records.
-  if (remaining() > 5_000) {
+  // COLD-START FIX: Generate deep links for ALL JOINED advertisers missing CjLink records.
+  // Skip the CJ link-search API entirely — it returns 0 for most advertisers (they use
+  // deep linking, not pre-built creatives). Direct DB upsert is instant (<50ms each).
+  const publisherCid = process.env.CJ_PUBLISHER_CID;
+  if (remaining() > 5_000 && publisherCid) {
     const joinedWithoutLinks = await prisma.cjAdvertiser.findMany({
       where: {
         networkId: CJ_NETWORK_ID,
         status: "JOINED",
         links: { none: {} },
+        programUrl: { not: null },
       },
-      select: { externalId: true, name: true },
-      take: 3, // Cap per run — CJ API is slow (~10-20s/call), runs will catch up over time
+      select: { id: true, externalId: true, name: true, programUrl: true, category: true },
+      take: 50, // Deep link gen is DB-only (no API call), so 50 is safe within budget
     });
 
     if (joinedWithoutLinks.length > 0) {
-      console.log(`[cj-sync] Cold-start: ${joinedWithoutLinks.length} JOINED advertisers with 0 links, syncing...`);
+      console.log(`[cj-sync] Cold-start: generating deep links for ${joinedWithoutLinks.length} JOINED advertisers...`);
     }
 
     for (const adv of joinedWithoutLinks) {
-      if (remaining() < 5_000) {
-        console.warn("[cj-sync] Budget low, skipping remaining cold-start link syncs");
-        break;
+      if (!adv.programUrl) continue;
+      try {
+        const deepLinkUrl = buildCjDeepLink(publisherCid, adv.externalId, adv.programUrl);
+        await prisma.cjLink.upsert({
+          where: { id: `cj-deep-${adv.externalId}` },
+          create: {
+            id: `cj-deep-${adv.externalId}`,
+            networkId: CJ_NETWORK_ID,
+            advertiserId: adv.id,
+            name: `${adv.name} - Deep Link`,
+            destinationUrl: adv.programUrl,
+            affiliateUrl: deepLinkUrl,
+            linkType: "TEXT",
+            category: adv.category || "travel",
+            language: "EN",
+            isActive: true,
+          },
+          update: {
+            affiliateUrl: deepLinkUrl,
+            destinationUrl: adv.programUrl,
+            isActive: true,
+          },
+        });
+        linksSynced++;
+        console.log(`[cj-sync] Deep link created for ${adv.name}`);
+      } catch (err) {
+        console.warn(`[cj-sync] Deep link failed for ${adv.name}: ${getErrorMessage(err)}`);
       }
-
-      console.log(`[cj-sync] Cold-start link sync for: ${adv.name} (${adv.externalId})`);
-      const linksResult = await syncLinks(adv.externalId);
-      linksSynced += linksResult.created;
     }
   }
 

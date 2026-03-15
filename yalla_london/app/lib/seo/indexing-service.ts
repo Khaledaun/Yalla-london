@@ -1501,7 +1501,10 @@ export async function retryFailedIndexing(
       succeeded = urls.length;
     }
 
-    // Update status
+    // Update status — only increment submission_attempts on SUCCESS.
+    // Failed submissions should NOT burn attempt budget. Otherwise, if IndexNow
+    // is temporarily down, all pages burn through their 15-attempt cap without
+    // ever being successfully submitted, then get permanently excluded.
     const newStatus = indexNowOk ? "submitted" : "error";
     for (const record of staleUrls) {
       if (Date.now() - startTime > budgetMs) break;
@@ -1512,7 +1515,7 @@ export async function retryFailedIndexing(
           status: newStatus,
           submitted_indexnow: indexNowOk,
           last_submitted_at: new Date(),
-          submission_attempts: { increment: 1 },
+          ...(indexNowOk ? { submission_attempts: { increment: 1 } } : {}),
           last_error: indexNowOk ? null : "IndexNow batch submission failed",
         },
       }).catch((e: unknown) => errors.push(`DB update ${record.url}: ${e instanceof Error ? e.message : e}`));
@@ -1570,7 +1573,8 @@ export async function submitUrlImmediately(
         status: indexNow ? "submitted" : "discovered",
         submitted_indexnow: indexNow || undefined,
         last_submitted_at: indexNow ? new Date() : undefined,
-        submission_attempts: { increment: 1 },
+        // Only count successful submissions toward the attempt cap
+        ...(indexNow ? { submission_attempts: { increment: 1 } } : {}),
       },
     });
   } catch (trackErr) {

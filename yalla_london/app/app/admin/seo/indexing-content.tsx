@@ -409,15 +409,15 @@ export default function IndexingCenterContent() {
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <div className="text-center">
                         <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#4A7BA8" }}>{t.googleSubmitted}</div>
-                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }} style={{ fontSize:7 }}>Google</div>
+                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:7, color:"#78716C", letterSpacing:1 }}>Google</div>
                       </div>
                       <div className="text-center">
                         <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#C49A2A" }}>{t.indexNowSubmitted}</div>
-                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }} style={{ fontSize:7 }}>IndexNow</div>
+                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:7, color:"#78716C", letterSpacing:1 }}>IndexNow</div>
                       </div>
                       <div className="text-center">
                         <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#1C1917" }}>{t.totalPages}</div>
-                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, color:"#78716C", letterSpacing:1 }} style={{ fontSize:7 }}>Total</div>
+                        <div className="text-xs uppercase tracking-wider" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:7, color:"#78716C", letterSpacing:1 }}>Total</div>
                       </div>
                     </div>
                   </div>
@@ -442,8 +442,7 @@ export default function IndexingCenterContent() {
                 <input
                   value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search articles..."
-                  className="w-full px-3 py-2.5 rounded-xl pl-9" style={{ backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)", color:"#1C1917" }}
-                  style={{ fontSize:11 }}
+                  className="w-full px-3 py-2.5 rounded-xl pl-9" style={{ backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)", color:"#1C1917", fontSize:11 }}
                 />
               </div>
               {/* Status filter */}
@@ -977,7 +976,7 @@ export default function IndexingCenterContent() {
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           {item.issues.map((iss, j) => (
-                            <span key={j} className="inline-flex items-center px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)" }} style={{ fontSize:8 }}>{iss}</span>
+                            <span key={j} className="inline-flex items-center px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)", fontSize:8 }}>{iss}</span>
                           ))}
                         </div>
                       </div>

@@ -52,8 +52,7 @@ const navigation = [
       { label: 'London News',        href: '/admin/news' },
       { label: 'Topics & Pipeline',  href: '/admin/topics' },
       { label: 'Content Engine',     href: '/admin/content-engine' },
-      { label: 'Indexing & SEO',     href: '/admin/seo' },
-      { label: 'Public SEO Audit',  href: '/admin/seo-audit-public' },
+      { label: 'SEO Audits',          href: '/admin/seo-audits' },
     ],
   },
   {
@@ -515,7 +514,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                         { label: 'Profile', href: '/admin/team', icon: User },
                         { label: 'Settings', href: '/admin/settings', icon: Settings },
                         { label: 'AI Models', href: '/admin/settings?tab=ai-models', icon: Brain },
-                        { label: 'API Keys', href: '/admin/command-center/settings/api-keys', icon: Key },
+                        { label: 'API Keys', href: '/admin/settings?tab=api-keys', icon: Key },
                       ].map(({ label, href, icon: Icon }) => (
                         <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}
                               className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all"

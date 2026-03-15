@@ -6564,10 +6564,10 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           <p>Platform: Vercel Pro</p>
           <p>Cockpit v2.0.0</p>
           <p>
-            <Link href="/admin/cockpit/design" className="text-blue-400 hover:underline">→ Design Studio</Link>
+            <Link href="/admin/design" className="text-blue-400 hover:underline">→ Design Studio</Link>
           </p>
           <p>
-            <Link href="/admin/cockpit/email" className="text-blue-400 hover:underline">→ Email Center</Link>
+            <Link href="/admin/email-campaigns" className="text-blue-400 hover:underline">→ Email Campaigns</Link>
           </p>
           <p>
             <Link href="/admin/cockpit/new-site" className="text-blue-400 hover:underline">→ New Website Builder</Link>

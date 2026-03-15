@@ -9,7 +9,7 @@ export function YallaLondonSection() {
 
   return (
     <section
-      id="yalla-london"
+      id="portfolio"
       className="px-6 sm:px-10 lg:px-20 py-16 lg:py-24"
       style={{ background: 'var(--zl-obsidian)' }}
     >

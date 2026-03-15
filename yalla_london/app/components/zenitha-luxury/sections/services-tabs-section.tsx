@@ -39,7 +39,7 @@ export function ServicesTabsSection() {
 
   return (
     <section
-      id="services"
+      id="products"
       className="px-6 sm:px-10 lg:px-20 py-16 lg:py-24"
       style={{ background: 'var(--zl-obsidian)' }}
     >
@@ -56,7 +56,8 @@ export function ServicesTabsSection() {
               marginBottom: '0.65rem',
             }}
           >
-            02 — Platforms &amp; Services
+            {/* Intent: Renumbered to 03; reframed as "Products" not "Services" */}
+            03 — Products
           </div>
           <h2
             style={{
@@ -68,7 +69,7 @@ export function ServicesTabsSection() {
               margin: '0 0 0.8rem 0',
             }}
           >
-            What Zenitha Operates
+            Live Products
           </h2>
           <div
             style={{
@@ -80,10 +81,9 @@ export function ServicesTabsSection() {
               lineHeight: 1.9,
             }}
           >
-            Two live platforms today — Yalla London and Zenitha Yachts — with
-            additional concepts planned. This page describes structure and
-            content only; actual integrations, pricing, and APIs are not defined
-            here.
+            Two products live today — Yalla London and Zenitha Yachts — with
+            additional brands in the pipeline. Each product combines
+            AI&#8209;assisted discovery with human&#8209;curated editorial.
           </div>
         </ScrollReveal>
 

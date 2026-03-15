@@ -32,8 +32,8 @@ export function AmbassadorsSection() {
               }}
             />
             <img
-              src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1280&q=80&auto=format"
-              alt="Travel ambassador exploring a luxury destination"
+              src="https://images.unsplash.com/photo-1500051638674-ff996a0ec29e?w=1280&q=80&auto=format"
+              alt="Travel ambassador with camera at sunset"
               className="relative z-10 w-full object-cover"
               style={{ height: '420px' }}
               loading="lazy"

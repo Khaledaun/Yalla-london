@@ -189,8 +189,8 @@ export const GALLERY_ITEMS: GalleryItem[] = [
     subtitle: 'London',
   },
   {
-    image: 'https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=960&q=80&auto=format',
-    alt: 'Luxury yacht in the Mediterranean',
+    image: 'https://images.unsplash.com/photo-1530870110042-98b2cb110834?w=960&q=80&auto=format',
+    alt: 'Aerial view of yacht sailing the Mediterranean',
     title: 'Mediterranean',
     subtitle: 'Yacht Region',
   },
@@ -207,9 +207,9 @@ export const GALLERY_ITEMS: GalleryItem[] = [
     subtitle: 'At Sea',
   },
   {
-    image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=960&q=80&auto=format',
-    alt: 'Fine dining experience',
-    title: 'Fine Dining',
+    image: 'https://images.unsplash.com/photo-1631857093457-d2f20e6e6500?w=960&q=80&auto=format',
+    alt: 'Champagne service — luxury hospitality',
+    title: 'White Glove',
     subtitle: 'Hospitality',
   },
 ];

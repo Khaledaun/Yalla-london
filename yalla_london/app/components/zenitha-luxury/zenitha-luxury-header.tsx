@@ -4,20 +4,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { NAV_ITEMS } from './site-data';
 
 /**
- * ZenithaLuxuryHeader — Sticky header with anchor-link navigation for single-page scrolling.
- * Highlights active section based on scroll position. Full-height mobile menu with hamburger.
+ * ZenithaLuxuryHeader — Sticky header matching skeleton nav.
+ * Logo as text "Zenitha .Luxury", nav links, gold "Enquire" CTA.
+ * Scrolled state: darker background with blur + border.
+ * Mobile: hide nav links except CTA, show hamburger.
  */
 export function ZenithaLuxuryHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('');
 
-  // Track scroll for header background + active section
   useEffect(() => {
     function onScroll() {
-      setScrolled(window.scrollY > 60);
+      setScrolled(window.scrollY > 50);
 
-      // Find active section
       const sections = NAV_ITEMS.map((item) => item.href.replace('#', ''));
       let current = '';
       for (const id of sections) {
@@ -34,7 +34,6 @@ export function ZenithaLuxuryHeader() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Lock body scroll when mobile menu open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -43,91 +42,108 @@ export function ZenithaLuxuryHeader() {
   const scrollTo = useCallback((href: string) => {
     setMobileOpen(false);
     const id = href.replace('#', '');
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (id === 'top') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
     }
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
       style={{
-        background: scrolled ? 'rgba(10, 10, 10, 0.97)' : 'rgba(10, 10, 10, 0.4)',
-        backdropFilter: 'blur(12px)',
+        padding: scrolled ? '0.75rem 3rem' : '1.2rem 3rem',
+        background: scrolled
+          ? 'rgba(10, 10, 10, 0.95)'
+          : 'transparent',
+        backdropFilter: scrolled ? 'blur(20px)' : 'none',
         borderBottom: scrolled
-          ? '1px solid rgba(196, 169, 108, 0.12)'
+          ? '1px solid rgba(196, 169, 108, 0.08)'
           : '1px solid transparent',
       }}
     >
-      <div className="max-w-[1360px] mx-auto px-6 h-[72px] flex items-center justify-between">
+      <div className="flex items-center justify-between max-w-[1360px] mx-auto">
         {/* Logo */}
         <a
-          href="#"
-          onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          className="flex items-center gap-3 no-underline"
+          href="#top"
+          onClick={(e) => { e.preventDefault(); scrollTo('#top'); }}
+          className="flex items-center no-underline"
+          style={{ gap: '0.4rem' }}
         >
-          <DiamondIcon size={28} />
           <span
             style={{
               fontFamily: 'var(--zl-font-display)',
               fontSize: '1.25rem',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              color: 'var(--zl-ivory)',
-            }}
-          >
-            ZENITHA
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--zl-font-label)',
-              fontSize: '0.5rem',
-              fontWeight: 300,
-              letterSpacing: '0.55em',
+              letterSpacing: '0.06em',
               color: 'var(--zl-gold)',
-              marginLeft: '-4px',
             }}
           >
-            LUXURY
+            Zenitha
           </span>
+          <em
+            style={{
+              fontFamily: 'var(--zl-font-body)',
+              fontStyle: 'italic',
+              fontSize: '0.9rem',
+              color: 'var(--zl-gold-deep)',
+            }}
+          >
+            .Luxury
+          </em>
         </a>
 
         {/* Desktop nav */}
-        <nav className="hidden lg:flex items-center gap-6 xl:gap-8" aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeSection === item.href.replace('#', '');
-            return (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={(e) => { e.preventDefault(); scrollTo(item.href); }}
-                className="no-underline transition-colors duration-300 relative"
-                style={{
-                  fontFamily: 'var(--zl-font-label)',
-                  fontSize: '0.75rem',
-                  fontWeight: 400,
-                  letterSpacing: '0.12em',
-                  color: isActive ? 'var(--zl-gold)' : 'var(--zl-platinum)',
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--zl-gold-light)'; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = 'var(--zl-platinum)'; }}
-              >
-                {item.label.toUpperCase()}
-                {/* Active indicator */}
-                {isActive && (
-                  <span
-                    className="absolute left-0 right-0 -bottom-1"
-                    style={{
-                      height: '1px',
-                      background: 'var(--zl-gold)',
-                      opacity: 0.6,
-                    }}
-                  />
-                )}
-              </a>
-            );
-          })}
+        <nav className="hidden lg:flex items-center" style={{ gap: '2rem' }} aria-label="Main navigation">
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onClick={(e) => { e.preventDefault(); scrollTo(item.href); }}
+              className="no-underline transition-colors duration-300"
+              style={{
+                fontFamily: 'var(--zl-font-label)',
+                fontSize: '0.625rem',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase' as const,
+                color:
+                  activeSection === item.href.replace('#', '')
+                    ? 'var(--zl-gold)'
+                    : 'rgba(245, 240, 232, 0.4)',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.color = 'var(--zl-gold)';
+              }}
+              onMouseLeave={(e) => {
+                if (activeSection !== item.href.replace('#', '')) {
+                  (e.currentTarget as HTMLElement).style.color =
+                    'rgba(245, 240, 232, 0.4)';
+                }
+              }}
+            >
+              {item.label}
+            </a>
+          ))}
+
+          {/* Enquire CTA */}
+          <a
+            href="#contact"
+            onClick={(e) => { e.preventDefault(); scrollTo('#contact'); }}
+            className="no-underline transition-colors duration-300"
+            style={{
+              fontFamily: 'var(--zl-font-label)',
+              fontSize: '0.625rem',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase' as const,
+              background: 'var(--zl-gold)',
+              color: 'var(--zl-obsidian)',
+              padding: '0.45rem 1.25rem',
+              fontWeight: 600,
+            }}
+          >
+            Enquire
+          </a>
         </nav>
 
         {/* Mobile hamburger */}
@@ -166,19 +182,18 @@ export function ZenithaLuxuryHeader() {
         </button>
       </div>
 
-      {/* Mobile full-screen menu */}
+      {/* Mobile menu */}
       <div
         className="lg:hidden fixed inset-0 transition-all duration-500"
         style={{
-          top: '72px',
+          top: '60px',
           background: 'rgba(10, 10, 10, 0.98)',
           backdropFilter: 'blur(20px)',
           opacity: mobileOpen ? 1 : 0,
           pointerEvents: mobileOpen ? 'auto' : 'none',
-          transform: mobileOpen ? 'translateY(0)' : 'translateY(-8px)',
         }}
       >
-        <nav className="flex flex-col items-center justify-center h-full gap-1 -mt-[72px]" aria-label="Mobile navigation">
+        <nav className="flex flex-col items-center justify-center h-full gap-1 -mt-[60px]" aria-label="Mobile navigation">
           {NAV_ITEMS.map((item, i) => (
             <a
               key={item.href}
@@ -190,9 +205,10 @@ export function ZenithaLuxuryHeader() {
                 fontSize: '1.5rem',
                 fontWeight: 400,
                 letterSpacing: '0.08em',
-                color: activeSection === item.href.replace('#', '')
-                  ? 'var(--zl-gold)'
-                  : 'var(--zl-platinum)',
+                color:
+                  activeSection === item.href.replace('#', '')
+                    ? 'var(--zl-gold)'
+                    : 'var(--zl-platinum)',
                 transitionDelay: mobileOpen ? `${i * 50}ms` : '0ms',
                 opacity: mobileOpen ? 1 : 0,
                 transform: mobileOpen ? 'translateY(0)' : 'translateY(10px)',
@@ -202,7 +218,6 @@ export function ZenithaLuxuryHeader() {
             </a>
           ))}
 
-          {/* Mobile contact CTA */}
           <a
             href="#contact"
             onClick={(e) => { e.preventDefault(); scrollTo('#contact'); }}
@@ -211,6 +226,7 @@ export function ZenithaLuxuryHeader() {
               fontFamily: 'var(--zl-font-label)',
               fontSize: '0.8125rem',
               letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
               color: 'var(--zl-gold)',
               border: '1px solid rgba(196, 169, 108, 0.4)',
               padding: '14px 40px',
@@ -218,33 +234,10 @@ export function ZenithaLuxuryHeader() {
               transitionDelay: mobileOpen ? `${NAV_ITEMS.length * 50}ms` : '0ms',
             }}
           >
-            GET IN TOUCH
+            ENQUIRE
           </a>
         </nav>
       </div>
     </header>
-  );
-}
-
-function DiamondIcon({ size = 28 }: { size?: number }) {
-  const h = size / 2;
-  const inner = h * 0.6;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-      <polygon
-        points={`${h},0 ${size},${h} ${h},${size} 0,${h}`}
-        fill="none"
-        stroke="#C4A96C"
-        strokeWidth={size * 0.02}
-      />
-      <polygon
-        points={`${h},${h - inner} ${h + inner},${h} ${h},${h + inner} ${h - inner},${h}`}
-        fill="none"
-        stroke="#C4A96C"
-        strokeWidth={size * 0.015}
-        opacity={0.4}
-      />
-      <circle cx={h} cy={h} r={size * 0.05} fill="#C4A96C" />
-    </svg>
   );
 }

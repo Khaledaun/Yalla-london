@@ -1,234 +1,230 @@
 'use client';
 
-import { BRANDS } from './site-data';
-
 /**
- * ZenithaLuxuryFooter — Expanded footer with brand links, company info, legal, and social.
+ * ZenithaLuxuryFooter — Matches skeleton footer exactly.
+ * 4-column: brand info, Platforms (3 links), Company (4 links), Legal (3 links).
+ * Bottom row: copyright + metadata + socials (IG, LI, X).
  */
 export function ZenithaLuxuryFooter() {
-  const year = new Date().getFullYear();
-
   return (
     <footer
       style={{
+        padding: '3.5rem 5rem 1.5rem',
+        borderTop: '1px solid rgba(196, 169, 108, 0.06)',
         background: 'var(--zl-obsidian)',
-        borderTop: '1px solid rgba(196, 169, 108, 0.12)',
-        color: 'var(--zl-mist)',
-        fontFamily: 'var(--zl-font-body)',
       }}
     >
-      <div className="max-w-[1200px] mx-auto px-6 py-16 md:py-20">
-        {/* Top: 4-column grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
-          {/* Column 1: Brand */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span
-                style={{
-                  fontFamily: 'var(--zl-font-display)',
-                  fontSize: '1.375rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.1em',
-                  color: 'var(--zl-ivory)',
-                }}
-              >
-                ZENITHA
-              </span>
-            </div>
-            <span
-              className="block mb-5"
-              style={{
-                fontFamily: 'var(--zl-font-label)',
-                fontSize: '0.5rem',
-                letterSpacing: '0.55em',
-                color: 'var(--zl-gold)',
-              }}
-            >
-              THE ART OF EXCEPTIONAL TRAVEL
-            </span>
-            <p
-              style={{
-                fontSize: '0.875rem',
-                lineHeight: 1.7,
-                color: 'var(--zl-smoke)',
-              }}
-            >
-              A portfolio of luxury travel brands, each crafted for the
-              world&apos;s most discerning travellers.
-            </p>
+      {/* Top grid */}
+      <div
+        className="grid gap-12 mb-10"
+        style={{
+          gridTemplateColumns: '1.5fr 1fr 1fr 1fr',
+        }}
+      >
+        {/* Brand column */}
+        <div>
+          <div
+            style={{
+              fontFamily: 'var(--zl-font-display)',
+              fontSize: '1.25rem',
+              color: 'var(--zl-gold)',
+              marginBottom: '0.25rem',
+            }}
+          >
+            Zenitha Luxury
           </div>
-
-          {/* Column 2: Our Brands */}
-          <div>
-            <h3
-              className="mb-5"
-              style={{
-                fontFamily: 'var(--zl-font-label)',
-                fontSize: '0.6875rem',
-                letterSpacing: '0.15em',
-                color: 'var(--zl-gold)',
-              }}
-            >
-              OUR BRANDS
-            </h3>
-            <ul className="space-y-3" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {BRANDS.map((brand) => (
-                <li key={brand.name}>
-                  {brand.status === 'live' ? (
-                    <a
-                      href={brand.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="no-underline transition-colors duration-300"
-                      style={{ fontSize: '0.875rem', color: 'var(--zl-mist)' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--zl-gold)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--zl-mist)')}
-                    >
-                      {brand.name}
-                    </a>
-                  ) : (
-                    <span style={{ fontSize: '0.875rem', color: 'var(--zl-charcoal)' }}>
-                      {brand.name}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+          <div
+            style={{
+              fontFamily: 'var(--zl-font-label)',
+              fontSize: '0.52rem',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(245, 240, 232, 0.28)',
+              marginBottom: '0.9rem',
+            }}
+          >
+            Luxury Travel Technology
           </div>
-
-          {/* Column 3: Company */}
-          <div>
-            <h3
-              className="mb-5"
-              style={{
-                fontFamily: 'var(--zl-font-label)',
-                fontSize: '0.6875rem',
-                letterSpacing: '0.15em',
-                color: 'var(--zl-gold)',
-              }}
-            >
-              COMPANY
-            </h3>
-            <ul className="space-y-3" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {[
-                { label: 'About', href: '#about' },
-                { label: 'Our Process', href: '#process' },
-                { label: 'Services', href: '#services' },
-                { label: 'Privacy Policy', href: '/privacy' },
-                { label: 'Terms of Service', href: '/terms' },
-                { label: 'Affiliate Disclosure', href: '/affiliate-disclosure' },
-              ].map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="no-underline transition-colors duration-300"
-                    style={{ fontSize: '0.875rem', color: 'var(--zl-mist)' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--zl-gold)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--zl-mist)')}
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Column 4: Contact */}
-          <div>
-            <h3
-              className="mb-5"
-              style={{
-                fontFamily: 'var(--zl-font-label)',
-                fontSize: '0.6875rem',
-                letterSpacing: '0.15em',
-                color: 'var(--zl-gold)',
-              }}
-            >
-              CONTACT
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <p
-                  className="mb-1"
-                  style={{
-                    fontFamily: 'var(--zl-font-label)',
-                    fontSize: '0.625rem',
-                    letterSpacing: '0.12em',
-                    color: 'var(--zl-smoke)',
-                  }}
-                >
-                  EMAIL
-                </p>
-                <a
-                  href="mailto:hello@zenitha.luxury"
-                  className="no-underline transition-colors duration-300"
-                  style={{ fontSize: '0.875rem', color: 'var(--zl-platinum)' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--zl-gold)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--zl-platinum)')}
-                >
-                  hello@zenitha.luxury
-                </a>
-              </div>
-              <div>
-                <p
-                  className="mb-1"
-                  style={{
-                    fontFamily: 'var(--zl-font-label)',
-                    fontSize: '0.625rem',
-                    letterSpacing: '0.12em',
-                    color: 'var(--zl-smoke)',
-                  }}
-                >
-                  HEADQUARTERS
-                </p>
-                <p style={{ fontSize: '0.875rem', color: 'var(--zl-platinum)' }}>
-                  Delaware, United States
-                </p>
-              </div>
-
-              {/* Social links */}
-              <div className="pt-4 flex gap-5">
-                {/* [PLACEHOLDER] — Replace with actual social URLs */}
-                {['LinkedIn', 'Instagram', 'X'].map((platform) => (
-                  <a
-                    key={platform}
-                    href="#"
-                    className="no-underline transition-colors duration-300"
-                    style={{
-                      fontFamily: 'var(--zl-font-label)',
-                      fontSize: '0.6875rem',
-                      letterSpacing: '0.08em',
-                      color: 'var(--zl-smoke)',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--zl-gold)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--zl-smoke)')}
-                  >
-                    {platform}
-                  </a>
-                ))}
-              </div>
-            </div>
+          <div
+            style={{
+              fontFamily: 'var(--zl-font-body)',
+              fontSize: '0.7rem',
+              fontWeight: 300,
+              color: 'rgba(245, 240, 232, 0.32)',
+              lineHeight: 1.75,
+            }}
+          >
+            High&#8209;level visual and structural skeleton for Zenitha
+            platforms. Actual branding details, legal entities, and disclaimers
+            must come from your own documentation and brand kit.
           </div>
         </div>
 
-        {/* Divider */}
-        <div
-          className="my-12"
-          style={{
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(196, 169, 108, 0.2), transparent)',
-          }}
-        />
+        {/* Platforms */}
+        <FooterColumn title="Platforms">
+          {/* TODO: Update hrefs once production URLs are finalised. */}
+          <FooterLink href="#">Yalla London</FooterLink>
+          <FooterLink href="#">Zenitha Yachts</FooterLink>
+          <FooterLink href="#">Worldtme (coming soon)</FooterLink>
+        </FooterColumn>
 
-        {/* Bottom: legal */}
+        {/* Company */}
+        <FooterColumn title="Company">
+          <FooterLink href="#about">About</FooterLink>
+          <FooterLink href="#services">Services</FooterLink>
+          <FooterLink href="#coming-soon">Coming Soon</FooterLink>
+          <FooterLink href="#contact">Contact</FooterLink>
+        </FooterColumn>
+
+        {/* Legal */}
+        <FooterColumn title="Legal">
+          {/* TODO: Link to actual policy pages in your app. */}
+          <FooterLink href="#">Privacy Policy</FooterLink>
+          <FooterLink href="#">Terms of Use</FooterLink>
+          <FooterLink href="#">Cookie Policy</FooterLink>
+        </FooterColumn>
+      </div>
+
+      {/* Bottom row */}
+      <div
+        className="flex justify-between items-center flex-wrap gap-4"
+        style={{
+          paddingTop: '1.4rem',
+          borderTop: '1px solid rgba(196, 169, 108, 0.04)',
+        }}
+      >
         <div
-          className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
-          style={{ fontSize: '0.75rem', lineHeight: 1.75, color: 'var(--zl-charcoal)' }}
+          style={{
+            fontFamily: 'var(--zl-font-label)',
+            fontSize: '0.57rem',
+            letterSpacing: '0.05em',
+            color: 'rgba(245, 240, 232, 0.22)',
+          }}
         >
-          <p>&copy; 2025&ndash;{year} Zenitha.Luxury LLC. All rights reserved.</p>
-          <p>Zenitha.Luxury LLC is a Delaware limited liability company.</p>
+          &copy; 2026 Zenitha Luxury — Placeholder legal line. Replace with
+          your actual entity and jurisdiction.
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--zl-font-label)',
+            fontSize: '0.55rem',
+            letterSpacing: '0.09em',
+            textTransform: 'uppercase' as const,
+            color: 'rgba(245, 240, 232, 0.18)',
+          }}
+        >
+          Coordinates, office locations, or other metadata can be surfaced here.
+        </div>
+        <div className="flex" style={{ gap: '0.5rem' }}>
+          {/* TODO: Replace with real social profiles or remove if not used. */}
+          {['IG', 'LI', 'X'].map((label) => (
+            <a
+              key={label}
+              href="#"
+              className="flex items-center justify-center no-underline transition-colors duration-300"
+              style={{
+                width: '28px',
+                height: '28px',
+                border: '1px solid rgba(196, 169, 108, 0.1)',
+                color: 'rgba(245, 240, 232, 0.3)',
+                fontFamily: 'var(--zl-font-label)',
+                fontSize: '0.56rem',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--zl-gold)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--zl-gold)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor =
+                  'rgba(196, 169, 108, 0.1)';
+                (e.currentTarget as HTMLElement).style.color =
+                  'rgba(245, 240, 232, 0.3)';
+              }}
+            >
+              {label}
+            </a>
+          ))}
         </div>
       </div>
+
+      {/* Responsive override for mobile */}
+      <style>{`
+        @media (max-width: 960px) {
+          footer {
+            padding: 2.5rem 1.5rem 1rem !important;
+          }
+          footer > div:first-child {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 2rem !important;
+          }
+        }
+      `}</style>
     </footer>
+  );
+}
+
+/* ─── Sub-components ─── */
+
+function FooterColumn({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h5
+        style={{
+          fontFamily: 'var(--zl-font-label)',
+          fontSize: '0.57rem',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase' as const,
+          color: 'var(--zl-gold-deep)',
+          marginBottom: '0.9rem',
+        }}
+      >
+        {title}
+      </h5>
+      {children}
+    </div>
+  );
+}
+
+function FooterLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className="block no-underline transition-colors duration-300"
+      style={{
+        fontFamily: 'var(--zl-font-body)',
+        fontSize: '0.7rem',
+        fontWeight: 300,
+        color: 'rgba(245, 240, 232, 0.32)',
+        marginBottom: '0.45rem',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.color = 'var(--zl-gold)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.color =
+          'rgba(245, 240, 232, 0.32)';
+      }}
+      onClick={(e) => {
+        if (href.startsWith('#')) {
+          e.preventDefault();
+          const el = document.getElementById(href.replace('#', ''));
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }}
+    >
+      {children}
+    </a>
   );
 }

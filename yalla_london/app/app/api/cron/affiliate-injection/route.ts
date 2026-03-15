@@ -23,6 +23,70 @@ type AffiliateRule = {
   affiliates: Array<{ name: string; url: string; param: string; category: string }>;
 };
 
+// Build affiliate rules from CjLink records (synced from CJ API)
+async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRule[]> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const links = await prisma.cjLink.findMany({
+      where: { isActive: true },
+      include: { advertiser: { select: { name: true, category: true, status: true } } },
+      take: 100,
+    });
+
+    if (links.length === 0) return [];
+
+    // Group by category, build keyword-to-affiliate mapping
+    const CATEGORY_KEYWORDS: Record<string, string[]> = {
+      hotel: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "vacation rental", "vrbo", "expedia", "فندق", "فنادق"],
+      activity: ["tour", "tours", "experience", "activity", "visit", "attraction", "جولة", "تجربة"],
+      restaurant: ["restaurant", "dining", "food", "halal", "cuisine", "eat", "مطعم", "طعام", "حلال"],
+      travel: ["travel", "flight", "flights", "trip", "holiday", "vacation", "سفر", "رحلة"],
+      shopping: ["shopping", "shop", "buy", "luxury", "brand", "fashion", "تسوق"],
+      transport: ["transfer", "airport", "taxi", "car", "transport", "نقل", "مطار"],
+      yacht: ["yacht", "charter", "boat", "sailing", "يخت", "إيجار"],
+    };
+
+    const byCategory = new Map<string, Array<{ name: string; url: string; param: string; category: string }>>();
+
+    for (const link of links) {
+      if (!link.advertiser || link.advertiser.status !== "JOINED") continue;
+      const cat = (link.category || link.advertiser.category || "travel").toLowerCase();
+      const existing = byCategory.get(cat) || [];
+
+      // Build SID tracking param for revenue attribution
+      const sidParam = `&sid=${siteId}_cj`;
+      existing.push({
+        name: link.advertiser.name,
+        url: link.affiliateUrl || link.destinationUrl,
+        param: sidParam,
+        category: cat,
+      });
+      byCategory.set(cat, existing);
+    }
+
+    const rules: AffiliateRule[] = [];
+    for (const [cat, affiliates] of byCategory) {
+      // Deduplicate by advertiser name (keep first = most recently synced)
+      const seen = new Set<string>();
+      const deduped = affiliates.filter(a => {
+        if (seen.has(a.name)) return false;
+        seen.add(a.name);
+        return true;
+      });
+      rules.push({
+        keywords: CATEGORY_KEYWORDS[cat] || [cat],
+        affiliates: deduped.slice(0, 5), // Max 5 per category
+      });
+    }
+
+    console.log(`[affiliate-injection] Loaded ${rules.length} CJ-based rules with ${links.length} active links`);
+    return rules;
+  } catch (err) {
+    console.warn(`[affiliate-injection] CjLink rules load failed:`, (err as Error).message);
+    return [];
+  }
+}
+
 // Try loading affiliate config from SiteSettings DB (cockpit-configurable)
 async function getAffiliateRulesFromDB(siteId: string): Promise<AffiliateRule[] | null> {
   try {
@@ -487,15 +551,14 @@ async function handleAffiliateInjection(request: NextRequest) {
   try {
     const { prisma } = await import("@/lib/db");
 
-    // Find published posts that still have affiliate placeholders OR no affiliate links
+    // Find ALL published posts that DON'T have affiliate links — no date window.
+    // Previously used a 48h window which missed older articles (15 uncovered articles).
     const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
     const activeSiteIds = getActiveSiteIds();
-    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const posts = await prisma.blogPost.findMany({
       where: {
         published: true,
         deletedAt: null,
-        created_at: { gte: twoDaysAgo },
         ...(activeSiteIds.length > 0 ? { siteId: { in: activeSiteIds } } : {}),
       },
       select: {
@@ -506,22 +569,27 @@ async function handleAffiliateInjection(request: NextRequest) {
         title_en: true,
         siteId: true,
       },
-      take: 50, // Prevent OOM if content velocity increases
+      take: 100,
       orderBy: { created_at: "desc" },
     });
 
-    // Filter to posts that need injection
+    // Filter to posts that need injection — either have placeholders or no affiliate links
     const needsInjection = posts.filter(
       (p) =>
         p.content_en.includes('class="affiliate-placeholder"') ||
-        !p.content_en.includes('class="affiliate-recommendation"'),
+        (!p.content_en.includes('class="affiliate-recommendation"') &&
+         !p.content_en.includes('rel="sponsored"') &&
+         !p.content_en.includes('rel="noopener sponsored"') &&
+         !p.content_en.includes('data-affiliate-id')),
     );
 
     let injected = 0;
     const results: Array<{ slug: string; partners: string[] }> = [];
 
-    // Cache DB rules per site to avoid repeated queries
+    // Cache rules per site to avoid repeated queries
     const dbRulesCache = new Map<string, AffiliateRule[] | null>();
+    // Load CjLink-based rules once (global, not per-site — CjLink has no siteId)
+    const cjLinkRules = await getAffiliateRulesFromCjLinks(getDefaultSiteId());
 
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
@@ -532,10 +600,12 @@ async function handleAffiliateInjection(request: NextRequest) {
       if (!dbRulesCache.has(postSiteId)) {
         dbRulesCache.set(postSiteId, await getAffiliateRulesFromDB(postSiteId));
       }
+      // Merge: DB rules > CjLink rules > static rules (priority order)
       const dbRules = dbRulesCache.get(postSiteId) ?? null;
+      const mergedRules = dbRules || (cjLinkRules.length > 0 ? cjLinkRules : null);
 
-      const enResult = injectAffiliates(post.content_en || "", postSiteId, dbRules, post.title_en);
-      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, dbRules, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
+      const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules, post.title_en);
+      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({

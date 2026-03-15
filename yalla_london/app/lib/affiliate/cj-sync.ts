@@ -585,6 +585,37 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
     }
   }
 
+  // COLD-START FIX: Also sync links for JOINED advertisers that have 0 links.
+  // On first run, advertisers go from non-existent → JOINED (not PENDING → JOINED),
+  // so newlyApproved is always empty and syncLinks never fires. This catches all
+  // JOINED advertisers missing their CjLink records.
+  if (remaining() > 5_000) {
+    const joinedWithoutLinks = await prisma.cjAdvertiser.findMany({
+      where: {
+        networkId: CJ_NETWORK_ID,
+        status: "JOINED",
+        links: { none: {} },
+      },
+      select: { externalId: true, name: true },
+      take: 10, // Cap per run to stay within budget
+    });
+
+    if (joinedWithoutLinks.length > 0) {
+      console.log(`[cj-sync] Cold-start: ${joinedWithoutLinks.length} JOINED advertisers with 0 links, syncing...`);
+    }
+
+    for (const adv of joinedWithoutLinks) {
+      if (remaining() < 5_000) {
+        console.warn("[cj-sync] Budget low, skipping remaining cold-start link syncs");
+        break;
+      }
+
+      console.log(`[cj-sync] Cold-start link sync for: ${adv.name} (${adv.externalId})`);
+      const linksResult = await syncLinks(adv.externalId);
+      linksSynced += linksResult.created;
+    }
+  }
+
   return {
     checked: totalInDb,
     newlyApproved,

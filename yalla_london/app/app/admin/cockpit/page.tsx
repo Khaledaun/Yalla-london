@@ -882,7 +882,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
               <button
                 onClick={submitAll}
                 disabled={submitLoading === "all"}
-                className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-[#2d6a8a] text-white text-xs font-semibold disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-[#3B7EA1] hover:bg-[#2d6a8a] text-white text-xs font-semibold disabled:opacity-50"
               >
                 {submitLoading === "all" ? "⏳ Submitting…" : "📤 Submit All Unsubmitted"}
               </button>
@@ -1445,7 +1445,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                 <div className="h-full bg-[#3B7EA1] transition-all" style={{ width: `${(indexing.submitted / indexing.total) * 100}%` }} title={`${indexing.submitted} submitted`} />
               )}
               {(indexing.discovered ?? 0) > 0 && (
-                <div className="h-full bg-amber-600 transition-all" style={{ width: `${((indexing.discovered ?? 0) / indexing.total) * 100}%` }} title={`${indexing.discovered} discovered`} />
+                <div className="h-full bg-[#C49A2A] transition-all" style={{ width: `${((indexing.discovered ?? 0) / indexing.total) * 100}%` }} title={`${indexing.discovered} discovered`} />
               )}
               {indexing.errors > 0 && (
                 <div className="h-full bg-[#C8322B] transition-all" style={{ width: `${(indexing.errors / indexing.total) * 100}%` }} title={`${indexing.errors} errors`} />
@@ -1812,7 +1812,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               <div key={d.id} className="text-xs">
                 <div className="flex justify-between">
                   <span className="text-stone-600 font-medium">&quot;{d.keyword}&quot;</span>
-                  <span className="text-orange-400">{d.hoursStuck}h in {d.phase}</span>
+                  <span className="text-[#92400E]">{d.hoursStuck}h in {d.phase}</span>
                 </div>
                 {d.plainError && <p className="text-stone-500 mt-0.5">{d.plainError}</p>}
               </div>
@@ -2164,7 +2164,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       )}
                       <button
                         onClick={() => { setContentView("articles"); fetchData(); }}
-                        className="mt-3 px-3 py-1.5 rounded-lg text-xs bg-blue-700 hover:bg-[#2d6a8a] text-white"
+                        className="mt-3 px-3 py-1.5 rounded-lg text-xs bg-[#3B7EA1] hover:bg-[#2d6a8a] text-white"
                       >
                         View in Articles
                       </button>
@@ -2298,7 +2298,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     ["Reservoir", data.summary.reservoir, "text-[#3B7EA1]"],
                     ["Pipeline", data.summary.inPipeline, "text-[#C49A2A]"],
                     ["Rejected", data.summary.rejected, "text-[#C8322B]"],
-                    ["Stuck", data.summary.stuck, "text-orange-400"],
+                    ["Stuck", data.summary.stuck, "text-[#92400E]"],
                   ].map(([label, val, color]) => (
                     <Card key={label as string} className="text-center py-3">
                       <div className={`text-xl font-bold ${color}`}>{val}</div>
@@ -3957,7 +3957,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
               };
               const severityDots: Record<string, string> = {
                 critical: "bg-[#C8322B]",
-                high: "bg-orange-500",
+                high: "bg-[#D97706]",
                 medium: "bg-[#C49A2A]",
                 low: "bg-[#3B7EA1]",
                 info: "bg-stone-400",
@@ -4128,7 +4128,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                             </div>
                             <div className="flex items-center gap-2">
                               {criticals > 0 && <span className="w-2 h-2 rounded-full bg-[#C8322B]" />}
-                              {highs > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" />}
+                              {highs > 0 && <span className="w-2 h-2 rounded-full bg-[#D97706]" />}
                               <span className={`text-[10px] font-bold ${
                                 section.score >= 80 ? "text-[#2D5A3D]" :
                                 section.score >= 50 ? "text-[#C49A2A]" : "text-[#C8322B]"
@@ -4427,7 +4427,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 {/* Step 3: Generating */}
                 {aggReportStep === "generating" && (
                   <div className="flex items-center gap-2 text-xs text-[#7a5a10]">
-                    <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[rgba(196,154,42,0.4)] border-t-transparent rounded-full animate-spin" />
                     <span>Generating aggregated report… This may take 15-40 seconds.</span>
                   </div>
                 )}
@@ -5384,7 +5384,7 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
           <span className="text-stone-400">{data.stats.total} total</span>
           <span className="text-[#2D5A3D]">{data.stats.success} ok</span>
           <span className="text-[#C8322B]">{data.stats.failed} failed</span>
-          {data.stats.timeout > 0 && <span className="text-orange-400">{data.stats.timeout} timeout</span>}
+          {data.stats.timeout > 0 && <span className="text-[#92400E]">{data.stats.timeout} timeout</span>}
           {data.stats.partial > 0 && <span className="text-[#C49A2A]">{data.stats.partial} partial</span>}
           {data.stats.running > 0 && <span className="text-[#3B7EA1]">{data.stats.running} running</span>}
         </div>
@@ -6185,7 +6185,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
               <span className="text-base mt-0.5">{emoji}</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={status ? "text-[#2D5A3D]" : "text-red-500"}>
+                  <span className={status ? "text-[#2D5A3D]" : "text-[#C8322B]"}>
                     {status ? "✅" : "❌"}
                   </span>
                   <span className={`font-mono font-medium ${status ? "text-stone-700" : "text-stone-400"}`}>{key}</span>
@@ -6800,7 +6800,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
     return "bg-[#C8322B]";
   };
 
-  if (loading) return <div className="p-4 text-center text-gray-500 text-sm">Loading development plan...</div>;
+  if (loading) return <div className="p-4 text-center text-stone-500 text-sm">Loading development plan...</div>;
 
   return (
     <div className="space-y-3">
@@ -6840,7 +6840,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
         )}
 
         {projectStats && projectStats.completedTasks === projectStats.totalTasks && projectStats.totalTasks > 0 && (
-          <div className="mt-2 bg-[#2D5A3D]/30 border border-green-400/50 rounded-lg p-2 text-center text-sm font-medium">
+          <div className="mt-2 bg-[rgba(45,90,61,0.08)] border border-[rgba(45,90,61,0.25)] rounded-lg p-2 text-center text-sm font-medium">
             ALL PLANS COMPLETE — all {projectStats.totalTasks} tasks verified
           </div>
         )}
@@ -6851,15 +6851,15 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
         <div className="bg-stone-50 rounded-xl p-3 border border-[rgba(214,208,196,0.6)]">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium text-stone-600">Test All Results</span>
-            <span className="text-xs text-gray-500">{testAllProgress.done}/{testAllProgress.total}</span>
+            <span className="text-xs text-stone-500">{testAllProgress.done}/{testAllProgress.total}</span>
           </div>
           <div className="w-full bg-stone-200 rounded-full h-1.5 mb-2">
             <div className="bg-[#3B7EA1] h-1.5 rounded-full transition-all" style={{ width: `${(testAllProgress.done / Math.max(testAllProgress.total, 1)) * 100}%` }} />
           </div>
           <div className="flex gap-3 text-xs">
-            <span className="text-green-600">{testAllProgress.passed} pass</span>
-            <span className="text-red-600">{testAllProgress.failed} fail</span>
-            <span className="text-gray-500">{testAllProgress.skipped} skip</span>
+            <span className="text-[#2D5A3D]">{testAllProgress.passed} pass</span>
+            <span className="text-[#C8322B]">{testAllProgress.failed} fail</span>
+            <span className="text-stone-500">{testAllProgress.skipped} skip</span>
           </div>
         </div>
       )}
@@ -6875,14 +6875,14 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
               className="w-full px-4 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors"
             >
               <div className="flex items-center gap-2 text-left">
-                <span className="text-xs text-gray-400">{isPlanExpanded ? "▾" : "▸"}</span>
+                <span className="text-xs text-stone-400">{isPlanExpanded ? "▾" : "▸"}</span>
                 <div>
                   <span className="font-semibold text-sm text-stone-900">{plan.planTitle}</span>
-                  {plan.project && <span className="text-xs text-gray-400 ml-2">{plan.project}</span>}
+                  {plan.project && <span className="text-xs text-stone-400 ml-2">{plan.project}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500">{plan.completedTasks}/{plan.totalTasks}</span>
+                <span className="text-xs text-stone-500">{plan.completedTasks}/{plan.totalTasks}</span>
                 <div className="flex items-center gap-1.5">
                   <div className="w-16 bg-stone-200 rounded-full h-1.5">
                     <div className={`${readinessBarColor(plan.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${plan.readiness}%` }} />
@@ -6905,11 +6905,11 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                         className="w-full px-6 py-2.5 flex items-center justify-between hover:bg-stone-50 transition-colors"
                       >
                         <div className="flex items-center gap-2 text-left">
-                          <span className="text-xs text-gray-400">{isPhaseExp ? "▾" : "▸"}</span>
+                          <span className="text-xs text-stone-400">{isPhaseExp ? "▾" : "▸"}</span>
                           <span className="font-medium text-sm text-stone-600">{phase.name}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
+                          <span className="text-xs text-stone-500">{phase.done}/{phase.total} done</span>
                           <div className="flex items-center gap-1.5">
                             <div className="w-12 bg-stone-200 rounded-full h-1.5">
                               <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
@@ -6938,15 +6938,15 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                 <div className="px-6 py-2.5">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                                      <span className="text-xs text-gray-400 font-mono w-4">{idx + 1}</span>
+                                      <span className="text-xs text-stone-400 font-mono w-4">{idx + 1}</span>
                                       {isDone ? (
-                                        <span className="text-green-500 text-sm flex-shrink-0">&#10003;</span>
+                                        <span className="text-[#2D5A3D] text-sm flex-shrink-0">&#10003;</span>
                                       ) : (
-                                        <span className="text-gray-300 text-sm flex-shrink-0">&#9675;</span>
+                                        <span className="text-stone-400 text-sm flex-shrink-0">&#9675;</span>
                                       )}
                                       <button
                                         onClick={() => setExpandedTask(isTaskExpanded ? null : task.id)}
-                                        className="text-sm text-stone-700 truncate text-left hover:text-indigo-600 transition-colors"
+                                        className="text-sm text-stone-700 truncate text-left hover:text-[#5B21B6] transition-colors"
                                       >
                                         {meta.title as string || task.title}
                                       </button>
@@ -6955,12 +6955,12 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                       <div className="w-12 bg-stone-200 rounded-full h-1.5 hidden sm:block">
                                         <div className={`${readinessBarColor(taskReadiness)} h-1.5 rounded-full`} style={{ width: `${taskReadiness}%` }} />
                                       </div>
-                                      <span className="text-xs font-medium text-gray-500 w-8 text-right">{taskReadiness}%</span>
+                                      <span className="text-xs font-medium text-stone-500 w-8 text-right">{taskReadiness}%</span>
                                       {testType && (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); runTest(task); }}
                                           disabled={testingTask === task.id}
-                                          className="px-2 py-0.5 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-gray-400 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
+                                          className="px-2 py-0.5 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-stone-300 text-white text-xs rounded transition-colors inline-flex items-center gap-1"
                                         >
                                           {testingTask === task.id ? (
                                             <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
@@ -6971,16 +6971,16 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                   </div>
 
                                   {lastTestResult && !isTaskExpanded && (
-                                    <div className={`mt-1 text-xs ml-8 ${lastTestResult.success ? "text-green-600" : lastTestResult.success === false ? "text-red-600" : "text-gray-500"}`}>
+                                    <div className={`mt-1 text-xs ml-8 ${lastTestResult.success ? "text-[#2D5A3D]" : lastTestResult.success === false ? "text-[#C8322B]" : "text-stone-500"}`}>
                                       {lastTestResult.plainLanguage?.slice(0, 100)}{(lastTestResult.plainLanguage?.length || 0) > 100 ? "..." : ""}
                                       {lastTestResult.timestamp && (
-                                        <span className="text-gray-400 ml-2">{new Date(lastTestResult.timestamp).toLocaleString()}</span>
+                                        <span className="text-stone-400 ml-2">{new Date(lastTestResult.timestamp).toLocaleString()}</span>
                                       )}
                                     </div>
                                   )}
 
                                   {isOverdue && (
-                                    <div className="mt-1 ml-8 text-xs text-red-500 animate-pulse">
+                                    <div className="mt-1 ml-8 text-xs text-[#C8322B] animate-pulse">
                                       Overdue — due {new Date(dueDate!).toLocaleDateString()}
                                     </div>
                                   )}
@@ -6989,10 +6989,10 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                 {isTaskExpanded && (
                                   <div className="px-6 pb-3 space-y-2 bg-stone-50/50">
                                     <p className="text-xs text-stone-500 ml-8">{task.description}</p>
-                                    <div className="flex gap-4 text-xs text-gray-400 ml-8 flex-wrap">
+                                    <div className="flex gap-4 text-xs text-stone-400 ml-8 flex-wrap">
                                       {meta.startDate && <span>Started: {new Date(meta.startDate as string).toLocaleDateString()}</span>}
                                       {lastTestResult?.timestamp && <span>Last Test: {new Date(lastTestResult.timestamp).toLocaleString()}</span>}
-                                      {dueDate && <span className={isOverdue ? "text-red-500 font-medium" : ""}>Due: {new Date(dueDate).toLocaleDateString()}</span>}
+                                      {dueDate && <span className={isOverdue ? "text-[#C8322B] font-medium" : ""}>Due: {new Date(dueDate).toLocaleDateString()}</span>}
                                     </div>
 
                                     {(result || lastTestResult) && (() => {
@@ -7020,11 +7020,11 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                                             >
                                               {copiedJson === task.id ? "Copied!" : "Copy JSON"}
                                             </button>
-                                            <pre className="bg-stone-800 text-green-400 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
+                                            <pre className="bg-stone-100 text-stone-800 text-xs p-3 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
                                               {JSON.stringify(tr.json, null, 2)}
                                             </pre>
                                           </div>
-                                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                                          <div className="flex items-center gap-3 mt-2 text-xs text-stone-500">
                                             <span>{tr.durationMs}ms</span>
                                             <span>{new Date(tr.timestamp).toLocaleString()}</span>
                                           </div>
@@ -7056,11 +7056,11 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-stone-50 transition-colors"
               >
                 <div className="flex items-center gap-2 text-left">
-                  <span className="text-xs text-gray-400">{isExpanded ? "▾" : "▸"}</span>
+                  <span className="text-xs text-stone-400">{isExpanded ? "▾" : "▸"}</span>
                   <span className="font-medium text-sm text-stone-900">{phase.name}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">{phase.done}/{phase.total} done</span>
+                  <span className="text-xs text-stone-500">{phase.done}/{phase.total} done</span>
                   <div className="flex items-center gap-1.5">
                     <div className="w-16 bg-stone-200 rounded-full h-1.5">
                       <div className={`${readinessBarColor(phase.readiness)} h-1.5 rounded-full transition-all`} style={{ width: `${phase.readiness}%` }} />
@@ -7075,7 +7075,7 @@ function DevMonitorSection({ siteId }: { siteId: string }) {
       ) : null}
 
       {plans.length === 0 && phases.length === 0 && !loading && (
-        <div className="text-center py-6 text-gray-500">
+        <div className="text-center py-6 text-stone-500">
           <p className="text-sm mb-2">No development plans synced yet.</p>
           <button onClick={syncPlan} className="px-4 py-2 bg-[#5B21B6] hover:bg-[#4a1a96] text-white text-sm rounded-lg">
             Sync All Plans
@@ -7197,7 +7197,7 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
     }
   };
 
-  if (loading) return <div className="p-4 text-center text-gray-500 text-sm">Loading operational tasks...</div>;
+  if (loading) return <div className="p-4 text-center text-stone-500 text-sm">Loading operational tasks...</div>;
 
   return (
     <div className="space-y-3">
@@ -7207,7 +7207,7 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
           <button
             onClick={scanForTasks}
             disabled={scanning}
-            className="px-3 py-1 bg-[#5B21B6] hover:bg-[#5B21B6] disabled:bg-gray-400 text-white font-medium rounded-lg text-xs transition-colors inline-flex items-center gap-1"
+            className="px-3 py-1 bg-[#5B21B6] hover:bg-[#5B21B6] disabled:bg-stone-300 text-white font-medium rounded-lg text-xs transition-colors inline-flex items-center gap-1"
           >
             {scanning ? "Scanning..." : "Scan"}
           </button>
@@ -7225,19 +7225,19 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
       </div>
 
       {actionResults["scan"] && (
-        <span className={`text-xs ${actionResults["scan"].success ? "text-green-600" : "text-red-600"}`}>
+        <span className={`text-xs ${actionResults["scan"].success ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
           {actionResults["scan"].message}
         </span>
       )}
 
       {tasks.length === 0 ? (
-        <div className="text-center py-4 text-gray-400 text-xs">No operational tasks. Tap Scan to check.</div>
+        <div className="text-center py-4 text-stone-400 text-xs">No operational tasks. Tap Scan to check.</div>
       ) : (
         <div className="space-y-1.5">
           {tasks.map(task => (
             <div key={task.id} className="bg-white rounded-lg border border-[rgba(214,208,196,0.6)] p-3">
               <div className="flex items-start gap-2">
-                <span className="text-xs font-mono text-gray-400 flex-shrink-0 mt-0.5 w-4 text-center">{categoryIcon(task.category)}</span>
+                <span className="text-xs font-mono text-stone-400 flex-shrink-0 mt-0.5 w-4 text-center">{categoryIcon(task.category)}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${priorityColor(task.priority)}`}>{task.priority}</span>
@@ -7247,21 +7247,21 @@ function OperationalTasksSection({ siteId }: { siteId: string }) {
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {task.actionLabel && task.actionApi && (
                       actionResults[task.id] ? (
-                        <span className={`text-[10px] px-2 py-0.5 rounded ${actionResults[task.id].success ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded ${actionResults[task.id].success ? "bg-[rgba(45,90,61,0.08)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.08)] text-[#C8322B]"}`}>
                           {actionResults[task.id].message}
                         </span>
                       ) : (
                         <button
                           onClick={() => executeAction(task)}
                           disabled={executingId === task.id}
-                          className="px-2 py-0.5 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-gray-400 text-white text-[10px] rounded transition-colors"
+                          className="px-2 py-0.5 bg-[#3B7EA1] hover:bg-[#2d6a8a] disabled:bg-stone-300 text-white text-[10px] rounded transition-colors"
                         >
                           {executingId === task.id ? "..." : task.actionLabel}
                         </button>
                       )
                     )}
-                    <button onClick={() => completeTask(task.id)} className="px-1.5 py-0.5 text-[10px] text-green-600 hover:bg-green-50 rounded">Done</button>
-                    <button onClick={() => dismissTask(task.id)} className="px-1.5 py-0.5 text-[10px] text-gray-400 hover:bg-gray-100 rounded">Dismiss</button>
+                    <button onClick={() => completeTask(task.id)} className="px-1.5 py-0.5 text-[10px] text-[#2D5A3D] hover:bg-[rgba(45,90,61,0.06)] rounded">Done</button>
+                    <button onClick={() => dismissTask(task.id)} className="px-1.5 py-0.5 text-[10px] text-stone-400 hover:bg-stone-100 rounded">Dismiss</button>
                   </div>
                 </div>
               </div>

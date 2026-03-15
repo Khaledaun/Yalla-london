@@ -6,8 +6,10 @@
  *
  * Required env vars:
  *   GA4_PROPERTY_ID - numeric GA4 property ID (e.g. "123456789")
- *   GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL or GSC_CLIENT_EMAIL - service account email
- *   GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY or GSC_PRIVATE_KEY - service account private key
+ *   Service account credentials (checked in order):
+ *     GOOGLE_ANALYTICS_CLIENT_EMAIL / GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL / GSC_CLIENT_EMAIL
+ *     GOOGLE_ANALYTICS_PRIVATE_KEY / GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY / GSC_PRIVATE_KEY
+ *     OR: GOOGLE_SERVICE_ACCOUNT_KEY (JSON blob with client_email + private_key)
  *
  * The service account must have "Viewer" role on the GA4 property.
  */
@@ -50,16 +52,34 @@ export interface GA4Report {
   fetchedAt: string;
 }
 
+function parseServiceAccountKey(): { clientEmail?: string; privateKey?: string } {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      clientEmail: parsed.client_email,
+      privateKey: parsed.private_key,
+    };
+  } catch {
+    console.warn("[GA4] GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON");
+    return {};
+  }
+}
+
 function getCredentials(): GA4Credentials | null {
   const propertyId = process.env.GA4_PROPERTY_ID;
+  const serviceAccount = parseServiceAccountKey();
   const clientEmail =
-    process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
     process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
-    process.env.GSC_CLIENT_EMAIL;
+    process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+    process.env.GSC_CLIENT_EMAIL ||
+    serviceAccount.clientEmail;
   const privateKey =
-    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
     process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
-    process.env.GSC_PRIVATE_KEY;
+    process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+    process.env.GSC_PRIVATE_KEY ||
+    serviceAccount.privateKey;
 
   if (!propertyId || !clientEmail || !privateKey) {
     return null;
@@ -287,18 +307,21 @@ export function getGA4ConfigStatus(): {
   clientEmail: boolean;
   privateKey: boolean;
 } {
+  const serviceAccount = parseServiceAccountKey();
   return {
     configured: isGA4Configured(),
     propertyId: !!process.env.GA4_PROPERTY_ID,
     clientEmail: !!(
-      process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
       process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
-      process.env.GSC_CLIENT_EMAIL
+      process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+      process.env.GSC_CLIENT_EMAIL ||
+      serviceAccount.clientEmail
     ),
     privateKey: !!(
-      process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
       process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
-      process.env.GSC_PRIVATE_KEY
+      process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+      process.env.GSC_PRIVATE_KEY ||
+      serviceAccount.privateKey
     ),
   };
 }

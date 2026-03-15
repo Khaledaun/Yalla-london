@@ -224,9 +224,19 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     dbResult.latencyMs = Date.now() - t0;
     dbResult.connected = true;
     dbOk = true;
-  } catch (err) {
-    dbResult.error = err instanceof Error ? err.message : String(err);
-    console.warn("[cockpit] DB connectivity check failed:", dbResult.error);
+  } catch (firstErr) {
+    // Cold start: engine not yet connected — explicitly connect and retry once
+    try {
+      await prisma.$connect();
+      const t0 = Date.now();
+      await prisma.$queryRaw`SELECT 1`;
+      dbResult.latencyMs = Date.now() - t0;
+      dbResult.connected = true;
+      dbOk = true;
+    } catch (retryErr) {
+      dbResult.error = retryErr instanceof Error ? retryErr.message : String(retryErr);
+      console.warn("[cockpit] DB connectivity check failed after retry:", dbResult.error);
+    }
   }
 
   // ── 2. AI providers ───────────────────────────────────

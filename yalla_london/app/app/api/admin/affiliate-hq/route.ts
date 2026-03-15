@@ -25,6 +25,13 @@ const EMPTY_LINKS = {
   total: 0, active: 0, inactive: 0,
   byType: {} as Record<string, number>,
   recentDeals: [] as Array<{ id: string; title: string; advertiser: string; price: number | null; previousPrice: number | null; isPriceDrop: boolean; isNewArrival: boolean; category: string; validTo: Date | null }>,
+  linksList: [] as Array<{
+    id: string; name: string; advertiser: string; category: string | null;
+    destinationUrl: string; affiliateUrl: string; linkType: string; isActive: boolean;
+    clicks: number; impressions: number; ctr: number; revenue: number; sales: number;
+    pages: Array<{ url: string; clicks: number }>;
+    lastClickAt: Date | null;
+  }>,
 };
 
 const EMPTY_SYSTEM_HEALTH = {
@@ -168,56 +175,124 @@ export async function GET(request: NextRequest) {
     errors.push(`Partners: ${msg}`);
   }
 
-  // ── Tab 3: Content Coverage ──
+  // ── Tab 3: Content Coverage — Per-Page Performance ──
   let coverage = {
     totalArticles: 0, withAffiliates: 0, withoutAffiliates: 0, coveragePercent: 0,
     uncoveredArticles: [] as Array<{ id: string; title: string; slug: string; createdAt: Date }>,
+    pages: [] as Array<{
+      id: string; title: string; slug: string; publishedAt: Date | null;
+      hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number;
+      revenue: number; sales: number; advertisers: string[];
+    }>,
   };
   try {
-    const totalPublished = await prisma.blogPost.count({
+    // Get all published articles with content for link counting
+    const allArticles = await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null, siteId },
+      select: {
+        id: true, title_en: true, slug: true, content_en: true,
+        created_at: true, published_at: true, siteId: true,
+      },
+      orderBy: { published_at: "desc" },
+      take: 200,
     });
 
-    let withAffiliatesCount = 0;
-    if (totalPublished > 0) {
-      withAffiliatesCount = await prisma.blogPost.count({
-        where: {
-          published: true, deletedAt: null, siteId,
-          OR: [
-            { content_en: { contains: 'rel="sponsored' } },
-            { content_en: { contains: "affiliate-cta-block" } },
-            { content_en: { contains: "affiliate-recommendation" } },
-            { content_en: { contains: 'rel="noopener sponsored"' } },
-          ],
-        },
-      });
+    // Get all click events grouped by pageUrl
+    const clickEvents = await prisma.cjClickEvent.findMany({
+      where: siteId ? { OR: [{ siteId }, { siteId: null }] } : {},
+      select: { pageUrl: true, linkId: true },
+    });
+
+    // Build page→clicks map and page→linkIds map
+    const pageClickMap = new Map<string, number>();
+    const pageLinkIdsMap = new Map<string, Set<string>>();
+    for (const ev of clickEvents) {
+      const slug = ev.pageUrl.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "").replace(/^\/blog\//, "");
+      pageClickMap.set(slug, (pageClickMap.get(slug) || 0) + 1);
+      if (!pageLinkIdsMap.has(slug)) pageLinkIdsMap.set(slug, new Set<string>());
+      pageLinkIdsMap.get(slug)!.add(ev.linkId);
     }
 
-    const uncoveredArticles = await prisma.blogPost.findMany({
+    // Get commissions grouped by link for revenue attribution
+    const commissions = await prisma.cjCommission.findMany({
       where: {
-        published: true, deletedAt: null, siteId,
-        NOT: {
-          OR: [
-            { content_en: { contains: 'rel="sponsored' } },
-            { content_en: { contains: "affiliate-cta-block" } },
-            { content_en: { contains: "affiliate-recommendation" } },
-            { content_en: { contains: 'rel="noopener sponsored"' } },
-          ],
-        },
+        status: { in: ["APPROVED", "LOCKED"] },
+        ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}),
       },
-      select: { id: true, title_en: true, slug: true, created_at: true },
-      orderBy: { created_at: "desc" },
-      take: 15,
+      select: { linkId: true, commissionAmount: true, saleAmount: true },
+    });
+    const linkRevenueMap = new Map<string, { revenue: number; sales: number }>();
+    for (const c of commissions) {
+      if (!c.linkId) continue;
+      const existing = linkRevenueMap.get(c.linkId) || { revenue: 0, sales: 0 };
+      existing.revenue += c.commissionAmount;
+      existing.sales += 1;
+      linkRevenueMap.set(c.linkId, existing);
+    }
+
+    // Get CjLink advertiser names for display
+    const cjLinks = await prisma.cjLink.findMany({
+      where: { advertiser: { networkId: CJ_NETWORK_ID } },
+      select: { id: true, advertiser: { select: { name: true } } },
+    });
+    const linkAdvertiserMap = new Map<string, string>();
+    for (const l of cjLinks) linkAdvertiserMap.set(l.id, l.advertiser.name);
+
+    const affiliatePatterns = ['rel="sponsored', "affiliate-cta-block", "affiliate-recommendation", 'rel="noopener sponsored"'];
+
+    let withAffiliatesCount = 0;
+    const uncoveredArticles: Array<{ id: string; title: string; slug: string; createdAt: Date }> = [];
+
+    const pages = allArticles.map((article) => {
+      const content = article.content_en || "";
+      const hasAffiliateLinks = affiliatePatterns.some((p) => content.includes(p));
+      if (hasAffiliateLinks) withAffiliatesCount++;
+      else uncoveredArticles.push({ id: article.id, title: article.title_en, slug: article.slug, createdAt: article.created_at });
+
+      // Count affiliate links in content (approximate by counting rel="sponsored" occurrences)
+      const linkMatches = content.match(/rel="(noopener )?sponsored"/g);
+      const ctaBlocks = content.match(/affiliate-cta-block|affiliate-recommendation/g);
+      const linkCount = (linkMatches?.length || 0) + (ctaBlocks?.length || 0);
+
+      // Clicks for this page
+      const affiliateClicks = pageClickMap.get(article.slug) || 0;
+
+      // Revenue from links clicked on this page
+      const clickedLinkIds = pageLinkIdsMap.get(article.slug);
+      let revenue = 0;
+      let sales = 0;
+      const advertiserNames = new Set<string>();
+      if (clickedLinkIds) {
+        for (const lid of clickedLinkIds) {
+          const rev = linkRevenueMap.get(lid);
+          if (rev) { revenue += rev.revenue; sales += rev.sales; }
+          const advName = linkAdvertiserMap.get(lid);
+          if (advName) advertiserNames.add(advName);
+        }
+      }
+
+      return {
+        id: article.id,
+        title: article.title_en,
+        slug: article.slug,
+        publishedAt: article.published_at,
+        hasAffiliateLinks,
+        linkCount,
+        affiliateClicks,
+        revenue: Math.round(revenue * 100) / 100,
+        sales,
+        advertisers: [...advertiserNames],
+      };
     });
 
+    const totalPublished = allArticles.length;
     coverage = {
       totalArticles: totalPublished,
       withAffiliates: withAffiliatesCount,
       withoutAffiliates: totalPublished - withAffiliatesCount,
       coveragePercent: totalPublished > 0 ? Math.round((withAffiliatesCount / totalPublished) * 100) : 0,
-      uncoveredArticles: uncoveredArticles.map((a) => ({
-        id: a.id, title: a.title_en, slug: a.slug, createdAt: a.created_at,
-      })),
+      uncoveredArticles: uncoveredArticles.slice(0, 15),
+      pages,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -246,6 +321,62 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
+    // Fetch detailed link list with advertiser info + click/revenue aggregation
+    const allLinks = await prisma.cjLink.findMany({
+      where: { advertiser: { networkId: CJ_NETWORK_ID } },
+      include: {
+        advertiser: { select: { name: true, category: true } },
+        clickEvents: {
+          select: { pageUrl: true },
+          take: 200,
+        },
+        commissions: {
+          select: { commissionAmount: true, saleAmount: true, status: true },
+        },
+      },
+      orderBy: { clicks: "desc" },
+      take: 100,
+    });
+
+    const linksList = allLinks.map((link) => {
+      // Aggregate clicks per page from CjClickEvent
+      const pageCounts = new Map<string, number>();
+      for (const ev of link.clickEvents) {
+        const clean = ev.pageUrl.replace(/\?.*$/, ""); // strip query params
+        pageCounts.set(clean, (pageCounts.get(clean) || 0) + 1);
+      }
+      const pages = [...pageCounts.entries()]
+        .map(([url, clicks]) => ({ url, clicks }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 10);
+
+      // Revenue & sales from commissions (only APPROVED/LOCKED count)
+      const approvedCommissions = link.commissions.filter(
+        (c) => c.status === "APPROVED" || c.status === "LOCKED"
+      );
+      const revenue = approvedCommissions.reduce((sum, c) => sum + c.commissionAmount, 0);
+      const sales = approvedCommissions.length;
+      const ctr = link.impressions > 0 ? (link.clicks / link.impressions) * 100 : 0;
+
+      return {
+        id: link.id,
+        name: link.name,
+        advertiser: link.advertiser.name,
+        category: link.category || link.advertiser.category,
+        destinationUrl: link.destinationUrl,
+        affiliateUrl: link.affiliateUrl,
+        linkType: link.linkType,
+        isActive: link.isActive,
+        clicks: link.clicks,
+        impressions: link.impressions,
+        ctr: Math.round(ctr * 100) / 100,
+        revenue: Math.round(revenue * 100) / 100,
+        sales,
+        pages,
+        lastClickAt: link.lastClickAt,
+      };
+    });
+
     links = {
       total: totalLinksCount,
       active: activeLinksCount,
@@ -256,6 +387,7 @@ export async function GET(request: NextRequest) {
         price: d.price, previousPrice: d.previousPrice, isPriceDrop: d.isPriceDropped,
         isNewArrival: d.isNewArrival, category: d.category, validTo: d.validTo,
       })),
+      linksList,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

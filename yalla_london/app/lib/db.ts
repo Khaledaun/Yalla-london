@@ -55,7 +55,13 @@ export async function checkDatabaseHealth(): Promise<{
 }> {
   try {
     const client = getPrismaClient();
-    await client.$queryRaw`SELECT 1`;
+    try {
+      await client.$queryRaw`SELECT 1`;
+    } catch {
+      // Cold start — engine not yet connected, explicitly connect and retry
+      await client.$connect();
+      await client.$queryRaw`SELECT 1`;
+    }
 
     const result = (await client.$queryRaw`
       SELECT EXISTS (

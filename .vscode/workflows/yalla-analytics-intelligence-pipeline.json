@@ -1,0 +1,133 @@
+{
+  "id": "workflow-yalla-analytics-2026",
+  "name": "yalla-analytics-intelligence-pipeline",
+  "description": "Yalla London Analytics Intelligence Pipeline: Daily data collection → analysis → segmentation → action triggers → A/B testing → measurement. Feeds insights to all other pipelines.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-analytics",
+      "type": "start",
+      "name": "start-analytics",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "Daily Cron Trigger (3am UTC)" }
+    },
+    {
+      "id": "agent-data-collector",
+      "type": "subAgent",
+      "name": "analytics-data-collector",
+      "position": { "x": 300, "y": 200 },
+      "data": {
+        "description": "Analytics Data Collector",
+        "prompt": "Collect analytics data from all active sites daily:\n1. GA4 Data API: sessions, pageviews, bounce rate, avg session duration, traffic sources\n2. Google Search Console: impressions, clicks, CTR, average position per query\n3. IndexNow submission status: pending, submitted, indexed, error counts\n4. CronJobLog: success/failure rates for all scheduled jobs\n5. BlogPost metrics: views, shares, affiliate clicks per article\nStore raw data in analytics tables. Per-site scoping via siteId. Budget: 53s.",
+        "model": "haiku",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-traffic-analyzer",
+      "type": "subAgent",
+      "name": "traffic-analyzer",
+      "position": { "x": 550, "y": 120 },
+      "data": {
+        "description": "Traffic Pattern Analyzer",
+        "prompt": "Analyze traffic patterns across all sites:\n- Identify top-performing pages (by sessions, CTR, revenue)\n- Detect traffic drops > 20% week-over-week (flag for investigation)\n- Segment by: organic vs referral vs direct, mobile vs desktop, language (EN vs AR)\n- Identify geographic hotspots (GCC countries, UK, specific cities)\n- Track new vs returning visitor ratio\n- Correlate traffic spikes with published content dates\nGenerate insights for content and SEO teams.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-revenue-tracker",
+      "type": "subAgent",
+      "name": "revenue-tracker",
+      "position": { "x": 550, "y": 320 },
+      "data": {
+        "description": "Revenue & Affiliate Tracker",
+        "prompt": "Track revenue metrics per site:\n- Affiliate link click-through rates by partner (HalalBooking, Booking.com, GetYourGuide, etc.)\n- Revenue per article (affiliate clicks × estimated commission)\n- Revenue per visitor (RPV) trending\n- Top-earning content categories\n- Underperforming monetized pages (high traffic, low clicks)\n- Conversion funnel: pageview → affiliate click → booking\nFlag articles with high traffic but zero affiliate clicks for link injection.",
+        "model": "haiku",
+        "color": "yellow",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-segmentation",
+      "type": "subAgent",
+      "name": "audience-segmentation",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "description": "Audience Segmentation Agent",
+        "prompt": "Segment audiences across all sites:\n- Gulf travelers (UAE, Saudi, Kuwait, Qatar, Bahrain, Oman)\n- UK-based luxury travelers\n- Arabic-language users vs English-language users\n- Mobile vs desktop behavior differences\n- New visitors vs repeat visitors\n- High-intent users (booking page visits, affiliate link clicks)\nBuild audience profiles for content personalization and targeting. Feed segment data to CRO pipeline.",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "ifelse-action-trigger",
+      "type": "ifElse",
+      "name": "action-trigger-check",
+      "position": { "x": 1050, "y": 200 },
+      "data": {
+        "evaluationTarget": "Anomalies or opportunities detected",
+        "branches": [
+          { "id": "b-action", "label": "Action Needed", "condition": "Traffic drop > 20% OR revenue drop OR zero-click articles found" },
+          { "id": "b-stable", "label": "Stable", "condition": "All metrics within normal ranges" }
+        ],
+        "outputPorts": 2
+      }
+    },
+    {
+      "id": "agent-action-dispatcher",
+      "type": "subAgent",
+      "name": "action-dispatcher",
+      "position": { "x": 1300, "y": 120 },
+      "data": {
+        "description": "Cross-Pipeline Action Dispatcher",
+        "prompt": "Dispatch actions based on analytics findings:\n- Traffic drop detected → trigger SEO audit for affected pages\n- Zero-click articles → trigger affiliate injection cron\n- Low CTR queries → trigger meta title/description rewrite\n- Content gap found → create TopicProposal with high priority\n- CWV regression → trigger frontend performance audit\nLog all dispatched actions to CronJobLog with source=analytics.",
+        "model": "sonnet",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-dashboard-reporter",
+      "type": "subAgent",
+      "name": "dashboard-reporter",
+      "position": { "x": 1300, "y": 320 },
+      "data": {
+        "description": "Dashboard Report Generator",
+        "prompt": "Generate daily analytics report for admin dashboard:\n- At-a-glance KPIs: sessions, pageviews, CTR, revenue, indexed pages\n- Per-site health row: articles, traffic, revenue, errors\n- Week-over-week trend arrows (up/down/flat)\n- Top 5 performing articles today\n- Top 5 underperforming articles (need attention)\n- Cron job health: success rate, failures, last run times\nFormat for iPhone viewing. Store in dashboard cache.",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-analytics",
+      "type": "end",
+      "name": "end-analytics",
+      "position": { "x": 1550, "y": 220 },
+      "data": { "label": "Daily Analytics Report (Dashboard)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-collect", "from": "start-analytics", "to": "agent-data-collector", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-collect-traffic", "from": "agent-data-collector", "to": "agent-traffic-analyzer", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-collect-revenue", "from": "agent-data-collector", "to": "agent-revenue-tracker", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-traffic-segment", "from": "agent-traffic-analyzer", "to": "agent-segmentation", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-revenue-segment", "from": "agent-revenue-tracker", "to": "agent-segmentation", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-segment-trigger", "from": "agent-segmentation", "to": "ifelse-action-trigger", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-trigger-action", "from": "ifelse-action-trigger", "to": "agent-action-dispatcher", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-trigger-stable", "from": "ifelse-action-trigger", "to": "agent-dashboard-reporter", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-action-report", "from": "agent-action-dispatcher", "to": "agent-dashboard-reporter", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-report-end", "from": "agent-dashboard-reporter", "to": "end-analytics", "fromPort": "output", "toPort": "in" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["analytics", "daily", "revenue-tracking", "traffic-analysis", "cross-pipeline"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

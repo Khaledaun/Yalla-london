@@ -1,7 +1,7 @@
 
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Language } from '@/lib/types'
 
 interface LanguageContextType {
@@ -12,17 +12,38 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | null>(null)
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en')
+interface LanguageProviderProps {
+  children: React.ReactNode
+  /** Server-provided locale from middleware (e.g. /ar/ routes set this to 'ar') */
+  initialLocale?: Language
+}
+
+export function LanguageProvider({ children, initialLocale }: LanguageProviderProps) {
+  // URL-based locale (from middleware x-locale header) ALWAYS wins.
+  // localStorage is ONLY used when no URL locale is set (i.e. user hasn't
+  // navigated to /ar/ but previously toggled the language switcher).
+  // This prevents Arabic showing on the English homepage just because
+  // localStorage has language=ar from a previous session.
+  const [language, setLanguage] = useState<Language>(initialLocale || 'en')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('language') as Language
-    if (saved && (saved === 'en' || saved === 'ar')) {
-      setLanguage(saved)
+    // Only read localStorage when there's NO server-provided locale.
+    // If the URL says English (/blog/foo), respect it — don't let a stale
+    // localStorage preference flip the page to Arabic.
+    if (!initialLocale) {
+      const saved = localStorage.getItem('language') as Language
+      if (saved && (saved === 'en' || saved === 'ar')) {
+        setLanguage(saved)
+      }
+    } else {
+      // URL locale provided — force it and sync localStorage so the
+      // preference stays consistent with the URL the user is on.
+      setLanguage(initialLocale)
+      try { localStorage.setItem('language', initialLocale) } catch { /* SSR */ }
     }
     setMounted(true)
-  }, [])
+  }, [initialLocale])
 
   useEffect(() => {
     if (mounted) {
@@ -34,10 +55,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const isRTL = language === 'ar'
 
-  if (!mounted) {
-    return null
-  }
-
+  // Always render children — returning null blocks SSR and makes crawlers see an empty page
   return (
     <LanguageContext.Provider value={{ language, setLanguage, isRTL }}>
       {children}

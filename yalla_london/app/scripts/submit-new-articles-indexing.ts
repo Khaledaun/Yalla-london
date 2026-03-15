@@ -10,8 +10,10 @@
  * Or via API: POST /api/seo/index-urls { "urls": [...] }
  */
 
+// Dynamic import not available in script context; use require for config
+const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
 const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 
 // New articles created on January 18, 2026
 const NEW_ARTICLE_URLS = [

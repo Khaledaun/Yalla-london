@@ -176,6 +176,7 @@ function extractMetricValue(
 export async function fetchGA4Metrics(
   startDate: string = "30daysAgo",
   endDate: string = "today",
+  propertyIdOverride?: string,
 ): Promise<GA4Report | null> {
   const creds = getCredentials();
   if (!creds) {
@@ -183,6 +184,10 @@ export async function fetchGA4Metrics(
       "[GA4] Missing credentials (GA4_PROPERTY_ID + service account). Skipping GA4 fetch.",
     );
     return null;
+  }
+  // Per-site property override (multi-tenant support)
+  if (propertyIdOverride) {
+    creds.propertyId = propertyIdOverride;
   }
 
   const token = await getAccessToken(creds.clientEmail, creds.privateKey);

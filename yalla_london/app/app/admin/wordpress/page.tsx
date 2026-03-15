@@ -326,7 +326,7 @@ export default function WordPressPage() {
                   <Badge className="shrink-0">3</Badge>
                   <p>
                     AI generates a <strong>Site Profile</strong> with system prompt, content
-                    guidelines, and SEO rules matched to your site's voice
+                    guidelines, and SEO rules matched to your site&apos;s voice
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -553,10 +553,10 @@ function SiteProfileView({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            AI-Generated Site Profile for "{profile.siteName}"
+            AI-Generated Site Profile for &quot;{profile.siteName}&quot;
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            This profile is used by the AI content engine to match the site's voice, style,
+            This profile is used by the AI content engine to match the site&apos;s voice, style,
             and audience when generating content.
           </p>
         </CardHeader>

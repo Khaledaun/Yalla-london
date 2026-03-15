@@ -6,7 +6,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { fetchGA4Metrics, isGA4Configured } from "@/lib/seo/ga4-data-api";
 import { gscApi } from "@/lib/seo/indexing-service";
 import { requireAdmin } from "@/lib/admin-middleware";
@@ -59,6 +58,7 @@ export async function GET(request: NextRequest) {
     // Try to load recent snapshot from DB
     let latestSnapshot = null;
     try {
+      const { prisma } = await import("@/lib/db");
       latestSnapshot = await prisma.analyticsSnapshot.findFirst({
         orderBy: { created_at: "desc" },
       });
@@ -111,13 +111,16 @@ export async function GET(request: NextRequest) {
         }))
       : [];
 
-    // Build single site analytics (Yalla London)
+    // Build site analytics from config
+    const { getDefaultSiteId, getSiteConfig, getSiteDomain } = await import("@/config/sites");
+    const activeSiteId = request.nextUrl.searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+    const activeSiteConfig = getSiteConfig(activeSiteId);
     const siteAnalytics = [
       {
-        siteId: "yalla-london",
-        siteName: "Yalla London",
-        domain: "www.yalla-london.com",
-        locale: "en" as const,
+        siteId: activeSiteId,
+        siteName: activeSiteConfig?.name || activeSiteId,
+        domain: activeSiteConfig?.domain || getSiteDomain(activeSiteId).replace("https://", ""),
+        locale: (activeSiteConfig?.locale || "en") as "en" | "ar",
         metrics,
         change: { users: 0, pageviews: 0, sessions: 0 },
         topPages,

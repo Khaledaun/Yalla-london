@@ -9,6 +9,7 @@ import { enhancedSchemaInjector } from './enhanced-schema-injector';
 import { dynamicInternalLinking } from './dynamic-internal-linking';
 import { aiSEOAudit } from './ai-seo-audit';
 import { enhancedSitemapGenerator } from './enhanced-sitemap-generator';
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from '@/config/sites';
 
 export interface ContentData {
   id: string;
@@ -29,16 +30,26 @@ export class AutoSEOService {
   private schemaGenerator: SchemaGenerator;
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
+  constructor(baseUrl?: string, siteId?: string) {
+    const resolvedSiteId = siteId || getDefaultSiteId();
+    if (!baseUrl) {
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(resolvedSiteId);
+    }
     this.baseUrl = baseUrl;
+
+    const config = getSiteConfig(resolvedSiteId);
+    const siteName = config?.name || 'Yalla London';
+    const siteDesc = config?.destination ? `Luxury ${config.destination} travel guide` : 'Luxury travel guide';
+    const domain = config?.domain || 'zenitha.luxury';
+
     this.schemaGenerator = new SchemaGenerator(baseUrl, {
-      siteName: 'Yalla London',
-      description: 'Luxury London travel guide',
+      siteName,
+      description: siteDesc,
       contact: {
-        email: 'hello@yalla-london.com',
+        email: `hello@${domain}`,
         social: {
-          twitter: 'https://twitter.com/yallalondon',
-          instagram: 'https://instagram.com/yallalondon'
+          twitter: 'https://twitter.com/zenithaluxury',
+          instagram: 'https://instagram.com/zenithaluxury'
         }
       }
     });

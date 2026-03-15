@@ -109,7 +109,8 @@ interface TechnicalSEOReport {
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const url = new URL(request.url);
-    const siteUrl = url.searchParams.get('url') || process.env.NEXT_PUBLIC_SITE_URL || 'https://yallalondon.com';
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    const siteUrl = url.searchParams.get('url') || process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
     const includePerformance = url.searchParams.get('performance') !== 'false';
     const includeTrends = url.searchParams.get('trends') !== 'false';
     const includeAds = url.searchParams.get('ads') !== 'false';

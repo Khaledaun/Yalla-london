@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,12 +88,7 @@ export function AffiliatePoolManager() {
     is_active: true
   })
 
-  // Refetch when site or type changes
-  useEffect(() => {
-    fetchAffiliates()
-  }, [selectedType, currentSite.id])
-
-  const fetchAffiliates = async () => {
+  const fetchAffiliates = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -112,7 +107,12 @@ export function AffiliatePoolManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedType, currentSite.id, searchQuery])
+
+  // Refetch when site or type changes
+  useEffect(() => {
+    fetchAffiliates()
+  }, [fetchAffiliates])
 
   const handleCopyUrl = (url: string, id: string) => {
     navigator.clipboard.writeText(url)
@@ -297,7 +297,7 @@ export function AffiliatePoolManager() {
       {/* Category Filter Cards */}
       <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
         <Card
-          className={`cursor-pointer transition-all ${selectedType === 'all' ? 'ring-2 ring-[#E8634B]' : ''}`}
+          className={`cursor-pointer transition-all ${selectedType === 'all' ? 'ring-2 ring-[#C8322B]' : ''}`}
           onClick={() => setSelectedType('all')}
         >
           <CardContent className="p-3 text-center">
@@ -312,7 +312,7 @@ export function AffiliatePoolManager() {
           return (
             <Card
               key={type.id}
-              className={`cursor-pointer transition-all ${selectedType === type.id ? 'ring-2 ring-[#E8634B]' : ''}`}
+              className={`cursor-pointer transition-all ${selectedType === type.id ? 'ring-2 ring-[#C8322B]' : ''}`}
               onClick={() => setSelectedType(type.id)}
             >
               <CardContent className="p-3 text-center">
@@ -342,7 +342,20 @@ export function AffiliatePoolManager() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const csv = ['Name,URL,Type,Commission,Active', ...affiliates.map(a =>
+                    `"${a.name}","${a.affiliate_url}","${a.partner_type}","${a.commission_rate ?? ''}",${a.is_active}`
+                  )].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url; link.download = 'affiliate-pool.csv'; link.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
                 <Download className="w-4 h-4 mr-2" /> Export
               </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -350,7 +363,7 @@ export function AffiliatePoolManager() {
                 if (!open) resetForm()
               }}>
                 <DialogTrigger asChild>
-                  <Button className="bg-[#1A1F36] hover:bg-[#2d3452]">
+                  <Button className="bg-[#1C1917] hover:bg-[#3D3835]">
                     <Plus className="w-4 h-4 mr-2" /> Add Affiliate Link
                   </Button>
                 </DialogTrigger>
@@ -455,7 +468,7 @@ export function AffiliatePoolManager() {
 
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-[#E8634B] hover:bg-[#d4543d]">
+                    <Button onClick={handleSubmit} className="bg-[#C8322B] hover:bg-[#a82520]">
                       {editingAffiliate ? 'Update' : 'Add'} Affiliate Link
                     </Button>
                   </DialogFooter>

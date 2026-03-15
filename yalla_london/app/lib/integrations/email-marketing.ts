@@ -51,7 +51,7 @@ export class MailchimpAPI {
               LNAME: subscriber.lastName || '',
               LANGUAGE: subscriber.language,
             },
-            tags: subscriber.tags || ['yalla-london-subscriber'],
+            tags: subscriber.tags || [`${subscriber.source || 'general'}-subscriber`],
           }),
         }
       );
@@ -82,8 +82,8 @@ export class MailchimpAPI {
             },
             settings: {
               subject_line: campaign.subject,
-              from_name: 'Yalla London',
-              reply_to: 'hello@yalla-london.com',
+              from_name: 'Zenitha Content Network',
+              reply_to: 'hello@zenitha.luxury',
             },
           }),
         }
@@ -196,7 +196,7 @@ export class SendGridAPI {
             to: [{ email: to }],
             subject: subject,
           }],
-          from: { email: 'hello@yalla-london.com', name: 'Yalla London' },
+          from: { email: 'hello@zenitha.luxury', name: 'Zenitha Content Network' },
           content: [{
             type: 'text/html',
             value: htmlContent,
@@ -255,10 +255,21 @@ export class EmailMarketing {
   }
 
   private getWelcomeEmailTemplate(language: 'en' | 'ar'): string {
+    let siteUrl = 'https://zenitha.luxury';
+    let siteName = 'Zenitha Luxury';
+    try {
+      const { getSiteDomain, getSiteConfig, getDefaultSiteId } = require('@/config/sites');
+      const id = getDefaultSiteId();
+      siteUrl = getSiteDomain(id);
+      siteName = getSiteConfig(id)?.name || siteName;
+    } catch {
+      console.warn('[email-marketing] Failed to load site config, using defaults');
+    }
+
     if (language === 'ar') {
       return `
         <div dir="rtl" style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #7c3aed; text-align: center;">مرحباً بك في يالا لندن!</h1>
+          <h1 style="color: #7c3aed; text-align: center;">مرحباً بك في ${siteName}!</h1>
           <p>شكراً لك على الانضمام إلى مجتمعنا الرائع من محبي السفر الفاخر.</p>
           <p>ستحصل قريباً على:</p>
           <ul>
@@ -267,7 +278,7 @@ export class EmailMarketing {
             <li>نصائح من الداخل لأفضل التجارب</li>
           </ul>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://yalla-london.com" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">استكشف الآن</a>
+            <a href="${siteUrl}" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">استكشف الآن</a>
           </div>
         </div>
       `;
@@ -275,7 +286,7 @@ export class EmailMarketing {
 
     return `
       <div style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #7c3aed; text-align: center;">Welcome to Yalla London!</h1>
+        <h1 style="color: #7c3aed; text-align: center;">Welcome to ${siteName}!</h1>
         <p>Thank you for joining our amazing community of luxury travel enthusiasts.</p>
         <p>You'll soon receive:</p>
         <ul>
@@ -284,7 +295,7 @@ export class EmailMarketing {
           <li>Insider tips for the best experiences</li>
         </ul>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://yalla-london.com" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Explore Now</a>
+          <a href="${siteUrl}" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Explore Now</a>
         </div>
       </div>
     `;

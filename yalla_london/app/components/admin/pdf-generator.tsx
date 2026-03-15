@@ -227,7 +227,7 @@ ${additionalNotes ? `\nAdditional notes incorporated: ${additionalNotes}` : ''}`
                       onClick={() => setSelectedTemplate(template.id)}
                       className={`p-4 rounded-xl border-2 text-center transition-all ${
                         selectedTemplate === template.id
-                          ? 'border-[#E8634B] bg-[#E8634B]/5'
+                          ? 'border-[#C8322B] bg-[#C8322B]/5'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -306,7 +306,7 @@ ${additionalNotes ? `\nAdditional notes incorporated: ${additionalNotes}` : ''}`
             <Button
               onClick={handleGenerate}
               disabled={!selectedTemplate || !topic || isGenerating}
-              className="w-full bg-gradient-to-r from-[#1A1F36] to-[#2d3452] hover:from-[#2d3452] hover:to-[#1A1F36]"
+              className="w-full bg-gradient-to-r from-[#1C1917] to-[#3D3835] hover:from-[#3D3835] hover:to-[#1C1917]"
             >
               {isGenerating ? (
                 <>
@@ -349,8 +349,8 @@ ${additionalNotes ? `\nAdditional notes incorporated: ${additionalNotes}` : ''}`
               <div className="space-y-6 max-h-[500px] overflow-y-auto">
                 {previewContent.map((section, i) => (
                   <div key={i} className="border rounded-lg p-4">
-                    <h4 className="font-semibold text-lg text-[#1A1F36] mb-2 flex items-center gap-2">
-                      <span className="w-6 h-6 bg-[#E8634B] text-white rounded-full text-sm flex items-center justify-center">
+                    <h4 className="font-semibold text-lg text-[#1C1917] mb-2 flex items-center gap-2">
+                      <span className="w-6 h-6 bg-[#C8322B] text-white rounded-full text-sm flex items-center justify-center">
                         {i + 1}
                       </span>
                       {section.title}
@@ -362,7 +362,7 @@ ${additionalNotes ? `\nAdditional notes incorporated: ${additionalNotes}` : ''}`
                 ))}
 
                 <div className="flex gap-3">
-                  <Button className="flex-1 bg-[#E8634B] hover:bg-[#d4543d]">
+                  <Button className="flex-1 bg-[#C8322B] hover:bg-[#a82520]">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>

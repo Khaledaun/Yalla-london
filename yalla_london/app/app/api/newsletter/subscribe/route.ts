@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { emailMarketing } from "@/lib/integrations/email-marketing";
 import { notifications } from "@/lib/integrations/notifications";
 import { withRateLimit } from "@/lib/rate-limiting";
+import { getDefaultSiteId } from "@/config/sites";
 
 async function subscribeHandler(request: NextRequest) {
   try {
@@ -14,7 +15,11 @@ async function subscribeHandler(request: NextRequest) {
       lastName,
       language = "en",
       source = "website",
+      siteId: bodySiteId,
     } = await request.json();
+
+    // Resolve siteId: body param > middleware header > config default
+    const siteId = bodySiteId || request.headers.get("x-site-id") || getDefaultSiteId();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -26,8 +31,8 @@ async function subscribeHandler(request: NextRequest) {
       firstName,
       lastName,
       language,
-      source,
-      tags: ["luxury-guide-subscriber"],
+      source: siteId,
+      tags: [`${siteId}-subscriber`],
     });
 
     if (!result) {

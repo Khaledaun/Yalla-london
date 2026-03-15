@@ -299,7 +299,7 @@ export const automationConfig = {
   // AI generation settings
   aiGeneration: {
     provider: 'anthropic', // or 'openai'
-    model: 'claude-3-sonnet',
+    model: 'claude-sonnet-4-6',
     temperature: 0.7,
     maxTokens: 4000,
     contentTypes: ['blog', 'social', 'newsletter'],

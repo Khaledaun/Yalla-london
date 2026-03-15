@@ -143,9 +143,7 @@ function checkEnvironment() {
   const check = (vars: string[]) =>
     vars.map((v) => ({
       name: v,
-      set: !!process.env[v],
-      // Show partial value for debugging (first 4 chars)
-      preview: process.env[v] ? `${process.env[v]!.substring(0, 4)}...` : null,
+      configured: !!process.env[v],
     }));
 
   const requiredResults = check(required);
@@ -154,15 +152,15 @@ function checkEnvironment() {
 
   return {
     required: {
-      all_set: requiredResults.every((r) => r.set),
+      all_set: requiredResults.every((r) => r.configured),
       vars: requiredResults,
     },
     recommended: {
-      set_count: `${recommendedResults.filter((r) => r.set).length}/${recommendedResults.length}`,
+      set_count: `${recommendedResults.filter((r) => r.configured).length}/${recommendedResults.length}`,
       vars: recommendedResults,
     },
     optional: {
-      set_count: `${optionalResults.filter((r) => r.set).length}/${optionalResults.length}`,
+      set_count: `${optionalResults.filter((r) => r.configured).length}/${optionalResults.length}`,
       vars: optionalResults,
     },
     node_env: process.env.NODE_ENV,
@@ -177,20 +175,20 @@ async function checkAIProviders() {
   if (process.env.ANTHROPIC_API_KEY) {
     providers.anthropic = {
       status: "configured",
-      key_prefix: process.env.ANTHROPIC_API_KEY.substring(0, 6),
+      configured: true,
     };
   } else {
-    providers.anthropic = { status: "not_configured" };
+    providers.anthropic = { status: "not_configured", configured: false };
   }
 
   // Check OpenAI
   if (process.env.OPENAI_API_KEY) {
     providers.openai = {
       status: "configured",
-      key_prefix: process.env.OPENAI_API_KEY.substring(0, 6),
+      configured: true,
     };
   } else {
-    providers.openai = { status: "not_configured" };
+    providers.openai = { status: "not_configured", configured: false };
   }
 
   // Check Google AI
@@ -255,9 +253,6 @@ async function checkGA4() {
     status: measurementId ? "configured" : "not_configured",
     client_tracking: !!measurementId,
     server_analytics: !!propertyId,
-    measurement_id: measurementId
-      ? `${measurementId.substring(0, 4)}...`
-      : null,
   };
 }
 
@@ -276,7 +271,8 @@ async function checkGSC() {
 
   return {
     status: "configured",
-    service_account: email,
+    has_email: true,
+    has_key: true,
   };
 }
 

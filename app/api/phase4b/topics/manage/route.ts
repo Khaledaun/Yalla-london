@@ -5,9 +5,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 // POST - Create or update topic
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     
@@ -106,12 +110,9 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Topic management error:', error);
+    console.error('[phase4b/topics/manage] POST error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to manage topic',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to manage topic' },
       { status: 500 }
     );
   }
@@ -119,6 +120,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Delete topic
 export async function DELETE(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     
@@ -158,12 +162,9 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Topic deletion error:', error);
+    console.error('[phase4b/topics/manage] DELETE error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to delete topic',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to delete topic' },
       { status: 500 }
     );
   }
@@ -171,6 +172,9 @@ export async function DELETE(request: NextRequest) {
 
 // GET - Check for consecutive same-category topics and validate reason requirement
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
     
@@ -237,12 +241,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Topic check error:', error);
+    console.error('[phase4b/topics/manage] GET error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to check topics',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to check topics' },
       { status: 500 }
     );
   }

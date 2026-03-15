@@ -4,7 +4,7 @@
  */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,14 +81,7 @@ export function TopicManager() {
   const isPhase4BEnabled = process.env.NEXT_PUBLIC_FEATURE_PHASE4B_ENABLED === 'true';
   const isTopicResearchEnabled = process.env.NEXT_PUBLIC_FEATURE_TOPIC_RESEARCH === 'true';
 
-  useEffect(() => {
-    if (isPhase4BEnabled) {
-      fetchTopics();
-      fetchStats();
-    }
-  }, [isPhase4BEnabled, filter, selectedCategory]);
-
-  const fetchTopics = async () => {
+  const fetchTopics = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filter !== 'all') params.set('status', filter);
@@ -105,7 +98,7 @@ export function TopicManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, selectedCategory]);
 
   const fetchStats = async () => {
     try {
@@ -118,6 +111,13 @@ export function TopicManager() {
       console.error('Error fetching stats:', error);
     }
   };
+
+  useEffect(() => {
+    if (isPhase4BEnabled) {
+      fetchTopics();
+      fetchStats();
+    }
+  }, [isPhase4BEnabled, filter, selectedCategory, fetchTopics]);
 
   const runTopicResearch = async (category: string) => {
     if (!isTopicResearchEnabled) {
@@ -492,7 +492,7 @@ export function TopicManager() {
             </DialogHeader>
             <div className="space-y-4">
               <p>
-                The last approved topic was also in the "{reasonDialog.category}" category. 
+                The last approved topic was also in the &quot;{reasonDialog.category}&quot; category.
                 Please provide a reason for approving another topic from the same category consecutively.
               </p>
               <Textarea

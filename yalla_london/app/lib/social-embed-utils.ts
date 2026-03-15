@@ -6,6 +6,17 @@ export interface EmbedInfo {
 }
 
 export function extractEmbedInfo(url: string): EmbedInfo | null {
+  // X / Twitter — matches both x.com and twitter.com post URLs
+  const xMatch = url.match(/(?:x\.com|twitter\.com)\/([A-Za-z0-9_]+)\/status\/(\d+)/)
+  if (xMatch) {
+    return {
+      platform: 'x',
+      embedId: xMatch[2],
+      aspectRatio: '4:3',
+      thumbnailUrl: undefined,
+    }
+  }
+
   // Instagram
   const instagramMatch = url.match(/instagram\.com\/p\/([A-Za-z0-9_-]+)/)
   if (instagramMatch) {
@@ -53,18 +64,21 @@ export function extractEmbedInfo(url: string): EmbedInfo | null {
 
 export function generateEmbedCode(platform: string, embedId: string): string {
   switch (platform) {
+    case 'x':
+      return `<blockquote class="twitter-tweet"><a href="https://x.com/i/status/${embedId}"></a></blockquote>`
+
     case 'instagram':
       return `<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/${embedId}/" data-instgrm-version="14"></blockquote>`
-    
+
     case 'tiktok':
       return `<blockquote class="tiktok-embed" cite="https://www.tiktok.com/@user/video/${embedId}" data-video-id="${embedId}"></blockquote>`
-    
+
     case 'youtube':
       return `<iframe width="560" height="315" src="https://www.youtube.com/embed/${embedId}" frameborder="0" allowfullscreen></iframe>`
-    
+
     case 'facebook':
       return `<div class="fb-video" data-href="https://www.facebook.com/video.php?v=${embedId}"></div>`
-    
+
     default:
       return ''
   }

@@ -7,7 +7,7 @@
  * across all sites. Features automated link insertion based on keyword rules.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -111,11 +111,7 @@ export default function AffiliatesPage() {
     "overview",
   );
 
-  useEffect(() => {
-    loadAffiliateData();
-  }, [selectedCategory, dateRange]);
-
-  const loadAffiliateData = async () => {
+  const loadAffiliateData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -140,7 +136,11 @@ export default function AffiliatesPage() {
       setLinkRules([]);
     }
     setIsLoading(false);
-  };
+  }, [selectedCategory, dateRange]);
+
+  useEffect(() => {
+    loadAffiliateData();
+  }, [loadAffiliateData]);
 
   // Run auto-insertion across all content
   const runAutoInsertion = async () => {
@@ -706,11 +706,11 @@ export default function AffiliatesPage() {
               </h3>
               <ul className="space-y-2 text-sm text-blue-800">
                 <li>
-                  • Use specific keywords like "book a hotel in London" rather
-                  than just "hotel"
+                  • Use specific keywords like &quot;book a hotel in London&quot; rather
+                  than just &quot;hotel&quot;
                 </li>
                 <li>
-                  • The "contains" match type is more flexible but may cause
+                  • The &quot;contains&quot; match type is more flexible but may cause
                   over-insertion
                 </li>
                 <li>

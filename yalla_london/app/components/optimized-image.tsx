@@ -93,7 +93,7 @@ export function OptimizedImage({
     return (
       <div
         className={cn(
-          'bg-gray-200 flex items-center justify-center text-gray-400',
+          'bg-cream-100 flex items-center justify-center text-stone',
           className
         )}
         style={{ width: fill ? '100%' : finalWidth, height: fill ? '100%' : finalHeight }}

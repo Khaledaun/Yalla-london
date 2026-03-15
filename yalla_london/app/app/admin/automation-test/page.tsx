@@ -328,7 +328,7 @@ export default function AutomationTestPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
-              "Launch & Forget" Business Model Status
+              &quot;Launch & Forget&quot; Business Model Status
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -355,7 +355,7 @@ export default function AutomationTestPage() {
                 <span className="font-medium">Your automation workflow is fully operational!</span>
               </div>
               <p className="text-sm text-green-700 mt-1">
-                All critical automation jobs are running successfully. Your "launch and forget" business model is active.
+                All critical automation jobs are running successfully. Your &quot;launch and forget&quot; business model is active.
               </p>
             </div>
           </CardContent>

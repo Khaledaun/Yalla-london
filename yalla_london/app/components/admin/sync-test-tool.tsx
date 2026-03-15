@@ -64,14 +64,15 @@ export function SyncTestTool() {
         })
       });
 
-      if (!createResponse.ok) {
-        throw new Error(`Failed to create test content: ${createResponse.status}`);
+      if (createResponse.status === 401 || createResponse.status === 403) {
+        throw new Error('Sign in required to run sync tests');
       }
 
       const createData = await createResponse.json();
-      
-      if (!createData.success) {
-        throw new Error(createData.error || 'Failed to create test content');
+
+      if (!createResponse.ok || !createData.success) {
+        const msg = createData.details || createData.error || `Failed to create test content (${createResponse.status})`;
+        throw new Error(msg);
       }
 
       setTestContentId(createData.testContent.id);
@@ -100,11 +101,15 @@ export function SyncTestTool() {
         })
       });
 
-      if (!verifyResponse.ok) {
-        throw new Error(`Sync verification failed: ${verifyResponse.status}`);
+      if (verifyResponse.status === 401 || verifyResponse.status === 403) {
+        throw new Error('Sign in required to verify sync');
       }
 
       const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        throw new Error(verifyData.details || verifyData.error || `Sync verification failed: ${verifyResponse.status}`);
+      }
       
       setCurrentStep(5);
       

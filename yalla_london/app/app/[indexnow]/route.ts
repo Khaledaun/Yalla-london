@@ -7,8 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { indexnow: string } }
+  { params }: { params: Promise<{ indexnow: string }> }
 ) {
+  const { indexnow } = await params;
   const indexNowKey = process.env.INDEXNOW_KEY;
 
   if (!indexNowKey) {
@@ -16,7 +17,7 @@ export async function GET(
   }
 
   // Check if the request is for the IndexNow key file
-  const requestedKey = params.indexnow.replace('.txt', '');
+  const requestedKey = indexnow.replace('.txt', '');
 
   if (requestedKey === indexNowKey) {
     return new NextResponse(indexNowKey, {

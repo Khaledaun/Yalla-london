@@ -137,12 +137,12 @@ export default function PDFGeneratorPage() {
       const response = await fetch('/api/admin/command-center/products/pdf');
       if (response.ok) {
         const data = await response.json();
-        setGuides(data.guides);
+        setGuides(data.guides || []);
       } else {
-        setGuides(mockGuides);
+        setGuides([]); // No mock data — show honest empty state
       }
     } catch (error) {
-      setGuides(mockGuides);
+      setGuides([]); // No mock data — show honest empty state
     }
     setIsLoading(false);
   };
@@ -263,10 +263,7 @@ export default function PDFGeneratorPage() {
               <Download className="h-5 w-5 text-green-500" />
             </div>
             <div className="text-2xl font-bold">{totalDownloads.toLocaleString()}</div>
-            <div className="text-sm text-green-600 flex items-center gap-1 mt-1">
-              <TrendingUp className="h-4 w-4" />
-              +15% this month
-            </div>
+            <div className="text-sm text-gray-500 mt-1">total</div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -494,9 +491,11 @@ export default function PDFGeneratorPage() {
                           onChange={(e) => setSelectedSite(e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         >
-                          <option value="arabaldives">Arabaldives</option>
                           <option value="yalla-london">Yalla London</option>
-                          <option value="gulf-maldives">Gulf Maldives</option>
+                          <option value="arabaldives">Arabaldives</option>
+                          <option value="french-riviera">Yalla Riviera</option>
+                          <option value="istanbul">Yalla Istanbul</option>
+                          <option value="thailand">Yalla Thailand</option>
                         </select>
                       </div>
                       <div>
@@ -757,7 +756,7 @@ const mockGuides: PDFGuide[] = [
     id: '3',
     title: 'Premium Honeymoon Planning Guide',
     description: 'Expert tips for planning the perfect Maldives honeymoon',
-    site: 'Gulf Maldives',
+    site: 'Arabaldives',
     locale: 'en',
     status: 'published',
     template: 'maldives-guide',

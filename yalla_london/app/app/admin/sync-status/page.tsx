@@ -122,12 +122,8 @@ export default function SyncStatusPage() {
               <p className="text-sm text-muted-foreground mb-3">
                 Check server logs for detailed sync information
               </p>
-              <button 
-                onClick={() => {
-                  // Open browser dev tools
-                  console.log('Check the browser console for sync logs');
-                  alert('Check the browser console (F12) for detailed sync logs');
-                }}
+              <button
+                onClick={() => { window.location.href = '/admin/cron-logs'; }}
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
               >
                 View Logs

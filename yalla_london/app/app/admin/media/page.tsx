@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import NextImage from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export default function MediaLibraryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFolder, setSelectedFolder] = useState("All Files");
+  const [filterType, setFilterType] = useState<"all" | "image" | "video" | "document">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -75,7 +77,25 @@ export default function MediaLibraryPage() {
       const res = await fetch("/api/admin/media");
       if (res.ok) {
         const data = await res.json();
-        setMediaFiles(data.files || data.data || []);
+        const raw = data.files || data.data || [];
+        // Map API response to MediaFile interface
+        const mapped: MediaFile[] = raw.map((f: Record<string, unknown>) => ({
+          id: String(f.id || ""),
+          name: (f.filename || f.name || "") as string,
+          type: ((f.mimeType || f.mime_type || "") as string).startsWith("image/")
+            ? "image"
+            : ((f.mimeType || f.mime_type || "") as string).startsWith("video/")
+              ? "video"
+              : "document",
+          url: (f.url || "") as string,
+          thumbnail: (f.thumbnailUrl || f.thumbnail || f.url || "") as string,
+          size: (f.size || 0) as number,
+          uploadedAt: (f.createdAt || f.created_at || f.uploadedAt || "") as string,
+          alt: (f.altText || f.alt_text || f.alt || "") as string,
+          tags: (f.tags || []) as string[],
+          folder: (f.folder || "uploads") as string,
+        }));
+        setMediaFiles(mapped);
       } else {
         setMediaFiles([]);
       }
@@ -93,6 +113,11 @@ export default function MediaLibraryPage() {
       filtered = filtered.filter((file) => file.folder === selectedFolder);
     }
 
+    // Filter by file type
+    if (filterType !== "all") {
+      filtered = filtered.filter((file) => file.type === filterType);
+    }
+
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
@@ -106,7 +131,7 @@ export default function MediaLibraryPage() {
     }
 
     setFilteredFiles(filtered);
-  }, [mediaFiles, selectedFolder, searchTerm]);
+  }, [mediaFiles, selectedFolder, searchTerm, filterType]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -142,17 +167,32 @@ export default function MediaLibraryPage() {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedFiles.length === 0) {
       toast.error("No files selected");
       return;
     }
 
-    setMediaFiles((prev) =>
-      prev.filter((file) => !selectedFiles.includes(file.id)),
-    );
+    try {
+      const res = await fetch("/api/admin/media", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedFiles }),
+      });
+
+      if (res.ok) {
+        setMediaFiles((prev) =>
+          prev.filter((file) => !selectedFiles.includes(file.id)),
+        );
+        toast.success(`${selectedFiles.length} file(s) deleted`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to delete files");
+      }
+    } catch {
+      toast.error("Failed to delete files");
+    }
     setSelectedFiles([]);
-    toast.success(`${selectedFiles.length} file(s) deleted`);
   };
 
   const handleFileUpload = async (files: FileList) => {
@@ -160,38 +200,67 @@ export default function MediaLibraryPage() {
     setUploadProgress(0);
     setShowUploadModal(false);
 
+    let successCount = 0;
+    let failCount = 0;
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const progress = ((i + 1) / files.length) * 100;
-        setUploadProgress(progress);
+        setUploadProgress(((i + 0.5) / files.length) * 100);
 
-        // Simulate upload
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          // Upload file to real S3 API
+          const formData = new FormData();
+          formData.append("file", file);
 
-        const newFile: MediaFile = {
-          id: Date.now().toString() + i,
-          name: file.name,
-          type: file.type.startsWith("image/")
-            ? "image"
-            : file.type.startsWith("video/")
-              ? "video"
-              : "document",
-          url: URL.createObjectURL(file),
-          thumbnail: file.type.startsWith("image/")
-            ? URL.createObjectURL(file)
-            : undefined,
-          size: file.size,
-          uploadedAt: new Date().toISOString(),
-          tags: [],
-          folder: selectedFolder === "All Files" ? "uploads" : selectedFolder,
-        };
+          const res = await fetch("/api/media/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        setMediaFiles((prev) => [newFile, ...prev]);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({ error: "Upload failed" }));
+            throw new Error(errData.error || `Upload failed (${res.status})`);
+          }
+
+          const data = await res.json();
+
+          // Add uploaded file to the library view
+          const newFile: MediaFile = {
+            id: data.id?.toString() || Date.now().toString() + i,
+            name: data.original_name || file.name,
+            type: file.type.startsWith("image/")
+              ? "image"
+              : file.type.startsWith("video/")
+                ? "video"
+                : "document",
+            url: data.url,
+            thumbnail: file.type.startsWith("image/") ? data.url : undefined,
+            size: data.file_size || file.size,
+            uploadedAt: data.created_at || new Date().toISOString(),
+            tags: data.tags || [],
+            folder: selectedFolder === "All Files" ? "uploads" : selectedFolder,
+          };
+
+          setMediaFiles((prev) => [newFile, ...prev]);
+          successCount++;
+        } catch (fileErr) {
+          console.warn(`[media-upload] Failed to upload ${file.name}:`, fileErr);
+          failCount++;
+        }
+
+        setUploadProgress(((i + 1) / files.length) * 100);
       }
 
-      toast.success(`${files.length} file(s) uploaded successfully`);
+      if (successCount > 0 && failCount === 0) {
+        toast.success(`${successCount} file(s) uploaded successfully`);
+      } else if (successCount > 0 && failCount > 0) {
+        toast.warning(`${successCount} uploaded, ${failCount} failed`);
+      } else {
+        toast.error("All uploads failed — check that AWS S3 is configured");
+      }
     } catch (error) {
+      console.warn("[media-upload] Upload error:", error);
       toast.error("Failed to upload files");
     } finally {
       setIsUploading(false);
@@ -302,9 +371,17 @@ export default function MediaLibraryPage() {
                       className="pl-10"
                     />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant={filterType !== "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      const types: Array<"all" | "image" | "video" | "document"> = ["all", "image", "video", "document"];
+                      const idx = types.indexOf(filterType);
+                      setFilterType(types[(idx + 1) % types.length]);
+                    }}
+                  >
                     <Filter className="h-4 w-4 mr-2" />
-                    Filter
+                    {filterType === "all" ? "Filter" : filterType.charAt(0).toUpperCase() + filterType.slice(1) + "s"}
                   </Button>
                 </div>
 
@@ -335,7 +412,20 @@ export default function MediaLibraryPage() {
                       {selectedFiles.length} file(s) selected
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const toDownload = mediaFiles.filter((f) => selectedFiles.includes(f.id));
+                          toDownload.forEach((f) => {
+                            const a = document.createElement('a');
+                            a.href = f.url;
+                            a.download = f.name || 'media';
+                            a.target = '_blank';
+                            a.click();
+                          });
+                        }}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
@@ -436,10 +526,15 @@ export default function MediaLibraryPage() {
                       <div className="relative">
                         {file.type === "image" ? (
                           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3">
-                            <img
+                            <NextImage
                               src={file.thumbnail || file.url}
                               alt={file.alt || file.name}
+                              width={0}
+                              height={0}
+                              sizes="100vw"
                               className="w-full h-full object-cover"
+                              style={{ width: '100%', height: '100%' }}
+                              unoptimized
                             />
                           </div>
                         ) : file.type === "video" ? (
@@ -479,10 +574,13 @@ export default function MediaLibraryPage() {
                       <div className="flex-shrink-0">
                         {file.type === "image" ? (
                           <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                            <img
+                            <NextImage
                               src={file.thumbnail || file.url}
                               alt={file.alt || file.name}
+                              width={48}
+                              height={48}
                               className="w-full h-full object-cover"
+                              unoptimized
                             />
                           </div>
                         ) : file.type === "video" ? (

@@ -94,6 +94,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
   success: { bg: "rgba(16,185,129,0.08)", text: "#059669", dot: "#10B981" },
   failed: { bg: "rgba(200,50,43,0.08)", text: "#C8322B", dot: "#EF4444" },
   partial: { bg: "rgba(245,158,11,0.08)", text: "#D97706", dot: "#F59E0B" },
+  running: { bg: "rgba(59,130,246,0.08)", text: "#2563EB", dot: "#3B82F6" },
   info: { bg: "rgba(99,102,241,0.08)", text: "#6366F1", dot: "#6366F1" },
 };
 
@@ -231,7 +232,7 @@ export default function CEOActivityFeed() {
               </h1>
             </div>
             <div className="flex items-center gap-1">
-              {(["6h", "24h", "3d", "7d"] as const).map((p) => (
+              {(["1h", "6h", "12h", "24h", "3d", "7d"] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
@@ -335,7 +336,7 @@ export default function CEOActivityFeed() {
               <div>
                 {/* Category filter */}
                 <div className="flex gap-1 mb-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-                  {["all", "cron", "auto-fix", "manual"].map((cat) => (
+                  {["all", "cron", "ai", "auto-fix", "manual"].map((cat) => (
                     <button
                       key={cat}
                       onClick={() => setFilterCategory(cat)}
@@ -351,7 +352,7 @@ export default function CEOActivityFeed() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      {cat === "all" ? "All" : cat === "auto-fix" ? "Auto-Fix" : cat === "cron" ? "Cron Jobs" : "Manual"}
+                      {cat === "all" ? "All" : cat === "ai" ? "AI Calls" : cat === "auto-fix" ? "Auto-Fix" : cat === "cron" ? "Cron Jobs" : "Manual"}
                     </button>
                   ))}
                 </div>

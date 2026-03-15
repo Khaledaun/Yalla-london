@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  Key, 
-  Shield, 
-  Eye, 
-  EyeOff, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Copy, 
-  Check, 
+import {
+  Key,
+  Shield,
+  Eye,
+  EyeOff,
+  Plus,
+  Edit,
+  Trash2,
+  Copy,
+  Check,
   AlertTriangle,
   Settings,
   Activity,
@@ -21,6 +21,7 @@ import {
   Database,
   Zap
 } from 'lucide-react'
+import { AdminEmptyState } from '@/components/admin/admin-ui'
 
 interface ApiKey {
   id: string
@@ -79,127 +80,10 @@ export default function ApiKeysSafe() {
   const loadApiData = async () => {
     setIsLoading(true)
     try {
-      // Mock data - will be replaced with real API calls
-      const mockKeys: ApiKey[] = [
-        {
-          id: '1',
-          name: 'OpenAI Production',
-          provider: 'openai',
-          keyType: 'api_key',
-          encryptedKey: 'encrypted_key_data',
-          isActive: true,
-          lastUsed: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          usageCount: 1250,
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          maskedKey: 'sk-...abc123'
-        },
-        {
-          id: '2',
-          name: 'Anthropic Claude',
-          provider: 'anthropic',
-          keyType: 'api_key',
-          encryptedKey: 'encrypted_key_data',
-          isActive: true,
-          lastUsed: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          usageCount: 890,
-          createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          maskedKey: 'sk-ant-...def456'
-        },
-        {
-          id: '3',
-          name: 'Google AI',
-          provider: 'google',
-          keyType: 'api_key',
-          encryptedKey: 'encrypted_key_data',
-          isActive: false,
-          lastUsed: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          usageCount: 340,
-          createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          maskedKey: 'AIza...ghi789'
-        }
-      ]
-
-      const mockUsageLogs: UsageLog[] = [
-        {
-          id: '1',
-          provider: 'openai',
-          model: 'gpt-4',
-          promptType: 'content_generation',
-          tokensIn: 150,
-          tokensOut: 800,
-          costEst: 0.024,
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          success: true
-        },
-        {
-          id: '2',
-          provider: 'anthropic',
-          model: 'claude-3-sonnet',
-          promptType: 'seo_audit',
-          tokensIn: 200,
-          tokensOut: 600,
-          costEst: 0.018,
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          success: true
-        },
-        {
-          id: '3',
-          provider: 'openai',
-          model: 'gpt-3.5-turbo',
-          promptType: 'topic_research',
-          tokensIn: 100,
-          tokensOut: 400,
-          costEst: 0.008,
-          timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          success: false
-        }
-      ]
-
-      const mockProviders: ProviderConfig[] = [
-        {
-          name: 'openai',
-          displayName: 'OpenAI',
-          keyTypes: ['api_key'],
-          endpoints: ['https://api.openai.com/v1'],
-          rateLimits: {
-            requestsPerMinute: 60,
-            tokensPerMinute: 150000
-          },
-          models: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
-          status: 'active'
-        },
-        {
-          name: 'anthropic',
-          displayName: 'Anthropic',
-          keyTypes: ['api_key'],
-          endpoints: ['https://api.anthropic.com'],
-          rateLimits: {
-            requestsPerMinute: 30,
-            tokensPerMinute: 100000
-          },
-          models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'],
-          status: 'active'
-        },
-        {
-          name: 'google',
-          displayName: 'Google AI',
-          keyTypes: ['api_key'],
-          endpoints: ['https://generativelanguage.googleapis.com'],
-          rateLimits: {
-            requestsPerMinute: 15,
-            tokensPerMinute: 32000
-          },
-          models: ['gemini-pro', 'gemini-pro-vision'],
-          status: 'inactive'
-        }
-      ]
-
-      setApiKeys(mockKeys)
-      setUsageLogs(mockUsageLogs)
-      setProviders(mockProviders)
+      // No local API key storage — keys are managed via Vercel environment variables
+      setApiKeys([])
+      setUsageLogs([])
+      setProviders([])
     } catch (error) {
       console.error('Failed to load API data:', error)
     } finally {
@@ -338,81 +222,85 @@ export default function ApiKeysSafe() {
       {/* Tab Content */}
       {activeTab === 'keys' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {apiKeys.map((key) => (
-              <div key={key.id} className="bg-white p-6 rounded-lg border border-gray-200">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{getProviderIcon(key.provider)}</span>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{key.name}</h3>
-                      <p className="text-sm text-gray-600 capitalize">{key.provider}</p>
+          {apiKeys.length === 0 ? (
+            <AdminEmptyState icon={Key} title="No API keys configured" description="API keys are managed via environment variables in Vercel." />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {apiKeys.map((key) => (
+                <div key={key.id} className="bg-white p-6 rounded-lg border border-gray-200">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{getProviderIcon(key.provider)}</span>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{key.name}</h3>
+                        <p className="text-sm text-gray-600 capitalize">{key.provider}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleToggleKeyStatus(key.id)}
-                      className={`p-1 rounded ${
-                        key.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      {key.isActive ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteKey(key.id)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm font-mono">
-                        {revealedKeys.has(key.id) ? key.maskedKey : '••••••••••••••••'}
-                      </code>
                       <button
-                        onClick={() => handleRevealKey(key.id)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                        onClick={() => handleToggleKeyStatus(key.id)}
+                        className={`p-1 rounded ${
+                          key.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-50'
+                        }`}
                       >
-                        {revealedKeys.has(key.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {key.isActive ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                       </button>
                       <button
-                        onClick={() => handleCopyKey(key.maskedKey || '')}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                        onClick={() => handleDeleteKey(key.id)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="space-y-3">
                     <div>
-                      <span className="text-gray-600">Usage Count:</span>
-                      <span className="ml-1 font-medium">{key.usageCount.toLocaleString()}</span>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded text-sm font-mono">
+                          {revealedKeys.has(key.id) ? key.maskedKey : '••••••••••••••••'}
+                        </code>
+                        <button
+                          onClick={() => handleRevealKey(key.id)}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                        >
+                          {revealedKeys.has(key.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleCopyKey(key.maskedKey || '')}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`ml-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        key.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {key.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
 
-                  {key.lastUsed && (
-                    <div className="text-sm text-gray-600">
-                      Last used: {new Date(key.lastUsed).toLocaleString()}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Usage Count:</span>
+                        <span className="ml-1 font-medium">{key.usageCount.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Status:</span>
+                        <span className={`ml-1 px-2 py-1 rounded-full text-xs font-medium ${
+                          key.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {key.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
                     </div>
-                  )}
+
+                    {key.lastUsed && (
+                      <div className="text-sm text-gray-600">
+                        Last used: {new Date(key.lastUsed).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Add Key Form */}
           {showAddKey && (

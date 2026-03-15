@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { Suspense } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import {
   AdminCard,
   AdminPageHeader,
@@ -11,6 +11,7 @@ import {
   AdminKPICard,
   AdminButton,
   AdminLoadingState,
+  AdminEmptyState,
 } from '@/components/admin/admin-ui'
 import {
   Plus,
@@ -34,50 +35,36 @@ interface PageInfo {
   views?: number
 }
 
-const mockPages: PageInfo[] = [
-  {
-    id: '1',
-    title: 'Privacy Policy',
-    slug: 'privacy',
-    status: 'published',
-    lastModified: '2024-01-15',
-    author: 'Admin',
-    type: 'system',
-    views: 1234,
-  },
-  {
-    id: '2',
-    title: 'Terms of Service',
-    slug: 'terms',
-    status: 'published',
-    lastModified: '2024-01-10',
-    author: 'Admin',
-    type: 'system',
-    views: 890,
-  },
-  {
-    id: '3',
-    title: 'About Us',
-    slug: 'about',
-    status: 'draft',
-    lastModified: '2024-01-20',
-    author: 'Admin',
-    type: 'static',
-    views: 0,
-  },
-  {
-    id: '4',
-    title: 'Contact Information',
-    slug: 'contact',
-    status: 'published',
-    lastModified: '2024-01-12',
-    author: 'Admin',
-    type: 'static',
-    views: 567,
-  },
-]
-
 function PagesList() {
+  const [pages, setPages] = useState<PageInfo[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/homepage-blocks')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed to fetch'))))
+      .then((data) => {
+        if (Array.isArray(data?.blocks)) {
+          setPages(
+            data.blocks.map((b: Record<string, unknown>) => ({
+              id: String(b.id || ''),
+              title: String(b.title || b.name || 'Untitled'),
+              slug: String(b.slug || b.type || ''),
+              status: (b.published ? 'published' : 'draft') as PageInfo['status'],
+              lastModified: b.updatedAt
+                ? new Date(b.updatedAt as string).toISOString().slice(0, 10)
+                : '',
+              author: 'Admin',
+              type: 'static' as const,
+            }))
+          )
+        }
+      })
+      .catch((err) => {
+        console.warn('[pages] Failed to fetch pages:', err.message)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'system':
@@ -89,23 +76,37 @@ function PagesList() {
     }
   }
 
+  if (loading) {
+    return <AdminLoadingState label="Loading pages..." />
+  }
+
+  if (pages.length === 0) {
+    return (
+      <AdminEmptyState
+        icon={FileText}
+        title="No pages yet"
+        description="Pages will appear here when created."
+      />
+    )
+  }
+
   return (
     <div className="space-y-5">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <AdminKPICard value={mockPages.length} label="Total Pages" color="#3B7EA1" />
+        <AdminKPICard value={pages.length} label="Total Pages" color="#3B7EA1" />
         <AdminKPICard
-          value={mockPages.filter((p) => p.status === 'published').length}
+          value={pages.filter((p) => p.status === 'published').length}
           label="Published"
           color="#2D5A3D"
         />
         <AdminKPICard
-          value={mockPages.filter((p) => p.status === 'draft').length}
+          value={pages.filter((p) => p.status === 'draft').length}
           label="Drafts"
           color="#C49A2A"
         />
         <AdminKPICard
-          value={mockPages.reduce((sum, p) => sum + (p.views || 0), 0).toLocaleString()}
+          value={pages.reduce((sum, p) => sum + (p.views || 0), 0).toLocaleString()}
           label="Total Views"
           color="#7C3AED"
         />
@@ -115,7 +116,7 @@ function PagesList() {
       <AdminSectionLabel>All Pages</AdminSectionLabel>
       <AdminCard>
         <div className="p-4 space-y-2">
-          {mockPages.map((page) => (
+          {pages.map((page) => (
             <div
               key={page.id}
               className="flex items-center justify-between"

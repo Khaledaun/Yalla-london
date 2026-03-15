@@ -137,7 +137,7 @@ export function AffiliatePoolManager() {
     } else {
       // Create new
       const newAffiliate: AffiliateLink = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         ...affiliateData,
         clicks: 0,
         conversions: 0,

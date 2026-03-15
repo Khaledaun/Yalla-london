@@ -3040,3 +3040,90 @@ export async function POST(request: NextRequest) {
 **Next steps for Khaled (in CJ dashboard):**
 - Apply to more advertisers: Booking.com, Hotels.com, GetYourGuide, Viator, HalalBooking, Agoda
 - Monitor approvals in Affiliate HQ dashboard (`/admin/affiliate-hq`)
+
+### Session: March 15, 2026 — Perplexity Computer Onboarding + Account Consolidation
+
+**Context:** First session using Perplexity Computer as the external AI executor for the platform's task queue system. Session covered platform architecture review, Perplexity Computer capabilities mapping, and full account consolidation under Zenitha.Luxury LLC.
+
+---
+
+#### Part 1: Platform Architecture Review (Perplexity Computer)
+
+**Full repo audit performed — key findings:**
+
+**Structure:**
+- Confirmed dual directory issue: root-level `app/`, `components/`, `lib/` AND `yalla_london/app/app/` — deployed code lives in `yalla_london/app/`
+- ZIP files committed to repo root (`yalla-london-app.zip`, `PHASE-4A-PACKAGE-1.zip`, etc.) — dead weight, should be cleaned up
+- Too many root-level audit docs (`AUDIT-REPORT.md`, `AUDIT_REPORT.md`, `ENTERPRISE-IMPLEMENTATION.md`, etc.) — risk of context fragmentation across Claude Code sessions
+
+**Active Known Gaps confirmed (as of March 15):**
+- KG-054: Hotels/experiences/recommendations pages — static hardcoded data, no affiliate tracking (MEDIUM — revenue gap)
+- KG-056: Perplexity quota exhausted — blocks Perplexity task system execution
+- KG-057: OAuth flow UI for social account linking not built
+- KG-058: Author profiles are AI-generated personas — rising E-E-A-T risk post Google Jan 2026 Authenticity Update
+- KG-020: 31 orphan Prisma models — run `prisma validate` before any schema migration
+
+**Pending manual actions identified (not yet done):**
+- `npx prisma migrate deploy` for CJ siteId migration — still not run in production
+- Twitter API keys (`TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`) — not yet added to Vercel; code is complete
+
+**Vercel deployment status (March 15):**
+- Active build: PR #509 merged — `fix: deal-discovery siteId backfill, getHotDeals site scoping, cron stagger, empty catch`
+- 9 projects under `Khaledaun's projects` team: yalla-london, khaled-aun-site-admin, khaled-aun-site, wtmeseller, aqar-index, ai-delft, prod-env, frontend, orion-content
+
+---
+
+#### Part 2: Perplexity Computer — Capabilities Mapping
+
+**Clarified the execution model:**
+- The platform's `/api/admin/perplexity-tasks` queue manages task lifecycle (create, track, schedule, retry)
+- Perplexity Computer (this conversation) is the **actual executor** — the queue tracks tasks, but the AI runs them here
+- The cron scheduler (`/api/cron/perplexity-scheduler`) marks tasks as "running" but does NOT auto-dispatch to an external agent
+- Result workflow: Perplexity Computer delivers output → human (or Claude Code) calls `update_status` endpoint to write results back to DB
+
+**13 templates mapped to execution capability:**
+- Fully executable now (no credentials needed): `seo-competitor-audit`, `seo-ai-citation-check`, `intel-market-research`, `intel-partnership-scan`, `strategy-content-gap`, `content-fact-check`, `content-ai-trace-audit`, `ai-travel-tool-scan`
+- Executable with user credentials/access: `seo-gsc-deep-analysis`, `reg-affiliate-apply`, `reg-directory-submit`, `design-mystery-shopper`, `content-photo-license-check`
+
+**KG-056 impact:** Perplexity quota exhaustion blocks `seo-ai-citation-check` template execution and any Perplexity-powered research tasks. Replenish before scheduled tasks fire.
+
+---
+
+#### Part 3: Account Consolidation — Zenitha.Luxury LLC
+
+**Problem mapped:**
+- `khaled.aun@gmail.com` → GitHub, Vercel, Cloudflare, Perplexity, Claude
+- `aunk.adv@gmail.com` → Google Search Console (yalla-london)
+- `worldtme.com` → Former business Google Workspace primary domain
+- `zenitha.luxury` → Active Delaware LLC; target for full consolidation
+- `admin@zenitha.luxury` → Outlook inbox (NOT a Google account)
+
+**Actions completed this session:**
+
+**Code changes (committed to main):**
+1. `yalla_london/app/config/entity.ts` — Added `adminEmail: "admin@zenitha.luxury"` field; updated `generalEmail` from `hello@zenitha.luxury` → `info@zenitha.luxury`; added inline comments clarifying each inbox's purpose
+2. `yalla_london/app/.env.example` — Updated both `ADMIN_EMAILS` placeholder lines to `admin@zenitha.luxury,khaled.aun@gmail.com`
+
+**Platform actions completed by Khaled:**
+1. **Google Workspace** — Primary domain changed from `worldtme.com` → `zenitha.luxury` (confirmed ✅). `worldtme.com` is now a secondary alias. Propagation up to 48h.
+2. **Vercel** — `ADMIN_EMAILS` updated to `Aunk.adv@gmail.com, admin@zenitha.luxury, khaled.aun@gmail.com` (all environments) ✅
+3. **Google Search Console** — `khaled.aun@gmail.com` confirmed as Owner; `admin@zenitha.luxury` addition failed (Outlook account, not a Google account — expected behavior)
+
+**GSC resolution:** `admin@zenitha.luxury` cannot be added to GSC directly (not a Google account). Options:
+- Option A: Keep `aunk.adv@gmail.com` as GSC admin (already Owner, Google account)
+- Option B: Create a Google account using `admin@zenitha.luxury` email at accounts.google.com/signup → "Use my current email address instead"
+
+**Remaining account migrations (deferred — do after stable builds):**
+- GitHub account email → migrate to `khaled@zenitha.luxury` or keep Gmail (low urgency, do LAST)
+- Cloudflare account email → low urgency
+- CJ affiliate account email → contact CJ support when ready; don't rush (blocks payouts during migration)
+
+---
+
+#### Critical Rules Learned (March 15 Session)
+
+81. **Perplexity Computer is the executor, not the scheduler** — the `/api/admin/perplexity-tasks` system manages task state, but results must be written back manually via `update_status` after Perplexity Computer delivers output in conversation
+82. **`admin@zenitha.luxury` (Outlook) cannot be added as a GSC owner** — GSC requires Google accounts. Either use an existing Google account (aunk.adv@gmail.com) or create a Google account linked to the Outlook address
+83. **Google Workspace primary domain change is non-destructive** — old primary becomes a secondary alias automatically; all existing email addresses continue to work; no DNS changes needed for existing mail
+84. **`ADMIN_EMAILS` env var controls platform admin access** — comma-separated list read by `lib/admin-middleware.ts` via `getAdminEmails()`; changing this does NOT require a code deploy, only a Vercel env var update + redeploy
+85. **`entity.ts` is the single source of truth for legal identity** — `legalEmail`, `generalEmail`, and `adminEmail` in `config/entity.ts` propagate to privacy policy, GDPR endpoints, footer, and email sender. Always update here first when changing contact emails.

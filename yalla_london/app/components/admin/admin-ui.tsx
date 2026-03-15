@@ -334,7 +334,7 @@ export function AdminEmptyState({
   description,
   action,
 }: {
-  icon: React.ComponentType<{ size?: number; color?: string }>
+  icon: React.ComponentType<{ size?: number | string; color?: string }>
   title: string
   description?: string
   action?: React.ReactNode

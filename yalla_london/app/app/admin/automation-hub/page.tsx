@@ -99,7 +99,7 @@ export default function AutomationHubPage() {
     setIsLoading(false);
   };
 
-  const jobTypeIcons: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  const jobTypeIcons: Record<string, React.ComponentType<{ size?: number | string; className?: string }>> = {
     "content-generation": FileText,
     "seo-audit": Search,
     publishing: Upload,

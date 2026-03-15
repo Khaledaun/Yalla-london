@@ -1207,6 +1207,223 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
   );
 }
 
+// ─── CEO Inbox Panel ─────────────────────────────────────────────────────────
+
+interface CeoInboxAlert {
+  id: string;
+  originalJob: string;
+  error: string;
+  diagnosis: { plain: string; fix: string; severity: string };
+  fixStrategy: { path: string; label: string } | null;
+  fixResult: { attempted: boolean; success: boolean; message: string } | null;
+  retestResult: { attempted: boolean; success: boolean; message: string } | null;
+  status: "new" | "fixing" | "retesting" | "resolved" | "failed";
+  read: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function CeoInboxPanel() {
+  const [alerts, setAlerts] = useState<CeoInboxAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [dismissing, setDismissing] = useState<string | null>(null);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/ceo-inbox?limit=10");
+      if (!res.ok) { setLoading(false); return; }
+      const json = await res.json();
+      setAlerts(json.alerts || []);
+    } catch {
+      // Non-fatal
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
+
+  const handleDismiss = async (id: string) => {
+    setDismissing(id);
+    try {
+      await fetch("/api/admin/ceo-inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss", entryId: id }),
+      });
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+    } catch {
+      // Non-fatal
+    } finally {
+      setDismissing(null);
+    }
+  };
+
+  const handleRetest = async (alert: CeoInboxAlert) => {
+    setDismissing(alert.id);
+    try {
+      const cronPath = alert.fixStrategy?.path || `/api/cron/${alert.originalJob}`;
+      await fetch("/api/admin/ceo-inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retest", entryId: alert.id, jobName: alert.originalJob, cronPath }),
+      });
+      await fetchAlerts();
+    } catch {
+      // Non-fatal
+    } finally {
+      setDismissing(null);
+    }
+  };
+
+  // Only show active (unresolved, unread) alerts
+  const activeAlerts = alerts.filter((a) => a.status !== "resolved" && !a.read);
+
+  if (loading || activeAlerts.length === 0) return null;
+
+  const statusColor = (status: string) => {
+    switch (status) {
+      case "new": return "#C8322B";
+      case "fixing": return "#D97706";
+      case "retesting": return "#3B7EA1";
+      case "resolved": return "#2D5A3D";
+      case "failed": return "#C8322B";
+      default: return "#78716C";
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "new": return "NEW";
+      case "fixing": return "FIXING...";
+      case "retesting": return "RETESTING...";
+      case "resolved": return "FIXED";
+      case "failed": return "FAILED";
+      default: return status.toUpperCase();
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border-l-4 overflow-hidden" style={{
+      backgroundColor: "rgba(200,50,43,0.04)",
+      borderLeftColor: "#C8322B",
+      boxShadow: "0 1px 3px rgba(28,25,23,0.06)",
+    }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-4 py-3"
+      >
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 16 }}>📮</span>
+          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13, color: "#C8322B" }}>
+            CEO Inbox
+          </span>
+          <span className="rounded-full px-2 py-0.5" style={{
+            backgroundColor: "#C8322B", color: "white",
+            fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 700,
+          }}>
+            {activeAlerts.length}
+          </span>
+        </div>
+        <span style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C" }}>
+          {expanded ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3">
+          {activeAlerts.map((alert) => (
+            <div key={alert.id} className="rounded-xl p-3" style={{
+              backgroundColor: "rgba(255,255,255,0.8)",
+              border: "1px solid rgba(214,208,196,0.5)",
+            }}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="rounded-full px-2 py-0.5" style={{
+                      backgroundColor: statusColor(alert.status),
+                      color: "white",
+                      fontFamily: "var(--font-system)",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      textTransform: "uppercase" as const,
+                    }}>
+                      {statusLabel(alert.status)}
+                    </span>
+                    <span style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 600, color: "#44403C" }}>
+                      {alert.originalJob}
+                    </span>
+                    <span style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#A8A29E" }}>
+                      {new Date(alert.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <p className="mt-1" style={{ fontFamily: "var(--font-system)", fontSize: 12, color: "#57534E" }}>
+                    {alert.diagnosis.plain}
+                  </p>
+                  <p className="mt-0.5" style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C" }}>
+                    Fix: {alert.diagnosis.fix}
+                  </p>
+
+                  {/* Fix result */}
+                  {alert.fixResult && (
+                    <p className="mt-1" style={{
+                      fontFamily: "var(--font-system)", fontSize: 11,
+                      color: alert.fixResult.success ? "#2D5A3D" : "#C8322B",
+                    }}>
+                      {alert.fixResult.success ? "✅" : "❌"} Auto-fix: {alert.fixResult.message.substring(0, 100)}
+                    </p>
+                  )}
+
+                  {/* Retest result */}
+                  {alert.retestResult && (
+                    <p className="mt-1" style={{
+                      fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600,
+                      color: alert.retestResult.success ? "#2D5A3D" : "#C8322B",
+                    }}>
+                      {alert.retestResult.success ? "✅" : "❌"} Retest: {alert.retestResult.message.substring(0, 100)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  {alert.status === "failed" && (
+                    <button
+                      onClick={() => handleRetest(alert)}
+                      disabled={dismissing === alert.id}
+                      className="rounded-lg px-2.5 py-1.5 text-white transition-all active:scale-[0.97]"
+                      style={{
+                        backgroundColor: "#3B7EA1",
+                        fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600,
+                        opacity: dismissing === alert.id ? 0.6 : 1,
+                      }}
+                    >
+                      {dismissing === alert.id ? "..." : "Retry"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDismiss(alert.id)}
+                    disabled={dismissing === alert.id}
+                    className="rounded-lg px-2.5 py-1.5 transition-all active:scale-[0.97]"
+                    style={{
+                      backgroundColor: "rgba(214,208,196,0.3)",
+                      fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 500, color: "#78716C",
+                      opacity: dismissing === alert.id ? 0.6 : 1,
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tab 1: Mission Control ───────────────────────────────────────────────────
 
 function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void; siteId: string; onUpdateIndexing?: (summary: { total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number }) => void }) {
@@ -1311,6 +1528,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <p className="mt-2" style={{ fontFamily: "var(--font-system)", fontSize: 11, color: '#C8322B' }}>{system.db.error}</p>
         )}
       </Card>
+
+      {/* CEO Inbox — Incident Response */}
+      <CeoInboxPanel />
 
       {/* Alerts */}
       {alerts.length > 0 && (

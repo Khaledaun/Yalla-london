@@ -299,10 +299,15 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
         outcome: sweepResult > 0 ? "recovered" : "logged",
         context: { jobName: ctx.jobName, siteId: ctx.siteId, error: errorMsg.substring(0, 300), draftsRecovered: sweepResult },
       });
+
+      // CEO Inbox — fire-and-forget
+      import("@/lib/ops/ceo-inbox")
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
 
-    // SEO crons — log only
+    // SEO crons — log + CEO inbox
     const seoCrons = ["seo-agent", "seo-cron", "seo-orchestrator"];
     if (seoCrons.some(name => ctx.jobName.includes(name))) {
       logSweeperEventSafe({
@@ -318,6 +323,11 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
         outcome: "will_retry",
         context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300) },
       });
+
+      // CEO Inbox — fire-and-forget
+      import("@/lib/ops/ceo-inbox")
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
 
@@ -341,6 +351,16 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
       outcome: "logged",
       context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300), ...(ctx.details || {}) },
     });
+
+    // ─── CEO Inbox: create alert + auto-fix + schedule retest ──────────
+    // Fire-and-forget — never blocks the caller, never crashes on failure.
+    import("@/lib/ops/ceo-inbox")
+      .then(({ handleCronFailureNotice }) =>
+        handleCronFailureNotice(ctx.jobName, errorMsg),
+      )
+      .catch((err) =>
+        console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err),
+      );
   } catch (hookError) {
     // Non-fatal — console only
     console.warn("[onCronFailure] Cron hook error (non-fatal):", hookError instanceof Error ? hookError.message : String(hookError));

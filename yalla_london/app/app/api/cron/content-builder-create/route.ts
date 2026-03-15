@@ -78,7 +78,7 @@ async function handleCreate(request: NextRequest) {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           updated_at: { gte: thirtyMinAgo },
-          phase_attempts: { lt: 3 },
+          phase_attempts: { lt: 5 },
           NOT: {
             OR: [
               { last_error: { contains: "Reset phase timer" } },

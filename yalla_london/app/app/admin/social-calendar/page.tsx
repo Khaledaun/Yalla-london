@@ -2,27 +2,17 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import NextImage from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+  AdminSectionLabel,
+  AdminKPICard,
+} from "@/components/admin/admin-ui";
 import {
   Calendar,
   Plus,
@@ -81,18 +71,18 @@ interface SocialPost {
 // ─── Constants ───────────────────────────────────────────────────
 
 const PLATFORM_CONFIG: Record<string, { label: string; icon: string; color: string; bgColor: string }> = {
-  twitter: { label: "X (Twitter)", icon: "\uD835\uDD4F", color: "text-gray-900 dark:text-white", bgColor: "bg-gray-200 dark:bg-gray-700" },
-  instagram: { label: "Instagram", icon: "\uD83D\uDCF8", color: "text-pink-700 dark:text-pink-300", bgColor: "bg-pink-100 dark:bg-pink-900" },
-  linkedin: { label: "LinkedIn", icon: "\uD83D\uDCBC", color: "text-blue-700 dark:text-blue-300", bgColor: "bg-blue-100 dark:bg-blue-900" },
-  tiktok: { label: "TikTok", icon: "\uD83C\uDFB5", color: "text-gray-900 dark:text-white", bgColor: "bg-gray-200 dark:bg-gray-700" },
-  facebook: { label: "Facebook", icon: "\uD83D\uDCD8", color: "text-blue-700 dark:text-blue-300", bgColor: "bg-blue-100 dark:bg-blue-900" },
+  twitter: { label: "X (Twitter)", icon: "\uD835\uDD4F", color: "#1C1917", bgColor: "rgba(120,113,108,0.10)" },
+  instagram: { label: "Instagram", icon: "\uD83D\uDCF8", color: "#C8322B", bgColor: "rgba(200,50,43,0.08)" },
+  linkedin: { label: "LinkedIn", icon: "\uD83D\uDCBC", color: "#3B7EA1", bgColor: "rgba(59,126,161,0.08)" },
+  tiktok: { label: "TikTok", icon: "\uD83C\uDFB5", color: "#1C1917", bgColor: "rgba(120,113,108,0.10)" },
+  facebook: { label: "Facebook", icon: "\uD83D\uDCD8", color: "#3B7EA1", bgColor: "rgba(59,126,161,0.08)" },
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
-  drafted: { label: "Drafted", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300", dotColor: "bg-gray-400" },
-  scheduled: { label: "Scheduled", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300", dotColor: "bg-blue-500" },
-  published: { label: "Published", color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300", dotColor: "bg-green-500" },
-  failed: { label: "Failed", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300", dotColor: "bg-red-500" },
+const STATUS_MAP: Record<string, string> = {
+  drafted: "draft",
+  scheduled: "pending",
+  published: "published",
+  failed: "failed",
 };
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6am to 10pm
@@ -127,6 +117,7 @@ export default function SocialCalendarPage() {
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
   const [showNewPost, setShowNewPost] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // New post form
   const [newPlatform, setNewPlatform] = useState("twitter");
@@ -139,6 +130,7 @@ export default function SocialCalendarPage() {
 
   const loadPosts = useCallback(async () => {
     try {
+      setFetchError(null);
       const res = await fetch("/api/admin/command-center/social/posts");
       if (res.ok) {
         const data = await res.json();
@@ -161,6 +153,7 @@ export default function SocialCalendarPage() {
       }
     } catch (err) {
       console.warn("[social-calendar] Failed to load posts:", err);
+      setFetchError("Failed to load social posts. Check your connection.");
       setPosts([]);
     }
   }, []);
@@ -278,73 +271,112 @@ export default function SocialCalendarPage() {
   });
   const upcomingPosts = [...todayPosts, ...tomorrowPosts];
 
+  // KPI stats
+  const totalPosts = posts.length;
+  const scheduledCount = posts.filter(p => p.status === "scheduled").length;
+  const publishedCount = posts.filter(p => p.status === "published").length;
+  const draftCount = posts.filter(p => p.status === "drafted").length;
+
   // ─── Render ──────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-              <Calendar className="h-7 w-7 text-pink-600" />
-              Social Calendar
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              Schedule and manage social media posts across platforms
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button size="sm" onClick={() => setShowNewPost(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Post
-            </Button>
-          </div>
+    <div className="admin-page p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+        <AdminPageHeader
+          title="Social Calendar"
+          subtitle="Schedule and manage social media posts across platforms"
+          action={
+            <div className="flex items-center gap-2">
+              <AdminButton
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                loading={isRefreshing}
+              >
+                <RefreshCw size={14} />
+                Refresh
+              </AdminButton>
+              <AdminButton
+                variant="primary"
+                size="sm"
+                onClick={() => setShowNewPost(true)}
+              >
+                <Plus size={14} />
+                New Post
+              </AdminButton>
+            </div>
+          }
+        />
+
+        {/* Error Banner */}
+        {fetchError && (
+          <AdminAlertBanner
+            severity="critical"
+            message={fetchError}
+            onDismiss={() => setFetchError(null)}
+            action={
+              <AdminButton variant="ghost" size="sm" onClick={handleRefresh}>
+                Retry
+              </AdminButton>
+            }
+          />
+        )}
+
+        {/* KPI Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <AdminKPICard value={totalPosts} label="Total Posts" color="#1C1917" />
+          <AdminKPICard value={scheduledCount} label="Scheduled" color="#C49A2A" />
+          <AdminKPICard value={publishedCount} label="Published" color="#2D5A3D" />
+          <AdminKPICard value={draftCount} label="Drafts" color="#3B7EA1" />
         </div>
 
         {/* View Toggle + Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === "week" ? "default" : "outline"}
-              size="sm"
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex items-center gap-1.5">
+            <button
               onClick={() => setViewMode("week")}
+              className={`admin-filter-pill ${viewMode === "week" ? "active" : ""}`}
             >
               Week
-            </Button>
-            <Button
-              variant={viewMode === "month" ? "default" : "outline"}
-              size="sm"
+            </button>
+            <button
               onClick={() => setViewMode("month")}
+              className={`admin-filter-pill ${viewMode === "month" ? "active" : ""}`}
             >
               Month
-            </Button>
+            </button>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={navigateBack}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={goToToday}>
+            <AdminButton variant="ghost" size="sm" onClick={navigateBack}>
+              <ChevronLeft size={14} />
+            </AdminButton>
+            <AdminButton variant="ghost" size="sm" onClick={goToToday}>
               Today
-            </Button>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[160px] text-center">
+            </AdminButton>
+            <span
+              style={{
+                fontFamily: "var(--font-system)",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#44403C",
+                minWidth: 160,
+                textAlign: "center",
+                display: "inline-block",
+              }}
+            >
               {viewMode === "week"
-                ? `${format(calendarDays[0], "d MMM")} - ${format(calendarDays[calendarDays.length - 1], "d MMM yyyy")}`
+                ? `${format(calendarDays[0], "d MMM")} \u2013 ${format(calendarDays[calendarDays.length - 1], "d MMM yyyy")}`
                 : format(currentDate, "MMMM yyyy")}
             </span>
-            <Button variant="outline" size="sm" onClick={navigateForward}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <AdminButton variant="ghost" size="sm" onClick={navigateForward}>
+              <ChevronRight size={14} />
+            </AdminButton>
           </div>
         </div>
 
         {/* Calendar Grid */}
         {isLoading ? (
-          <Skeleton className="h-96 rounded-xl" />
+          <AdminLoadingState label="Loading calendar..." />
         ) : viewMode === "week" ? (
           <WeekView
             days={calendarDays}
@@ -361,29 +393,22 @@ export default function SocialCalendarPage() {
         )}
 
         {/* Publish Assistant */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Publish Assistant
-          </h2>
+        <section className="mt-6">
+          <AdminSectionLabel>Publish Assistant</AdminSectionLabel>
           {upcomingPosts.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <CheckCircle className="h-10 w-10 text-green-400 mx-auto mb-3" />
-                <h3 className="font-medium text-gray-900 dark:text-white mb-1">All caught up</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No posts due today or tomorrow.
-                </p>
-              </CardContent>
-            </Card>
+            <AdminEmptyState
+              icon={CheckCircle}
+              title="All caught up"
+              description="No posts due today or tomorrow."
+            />
           ) : (
             <div className="space-y-3">
               {upcomingPosts.map((post) => {
                 const postDate = getPostDate(post);
-                const statusConf = STATUS_CONFIG[post.status] || STATUS_CONFIG.drafted;
 
                 return (
-                  <Card key={post.id} className="hover:shadow-md transition-all">
-                    <CardContent className="p-4">
+                  <AdminCard key={post.id} className="hover:shadow-md transition-all">
+                    <div className="p-4">
                       <div className="flex flex-col sm:flex-row gap-3">
                         {/* Platform icons + time */}
                         <div className="flex items-center gap-2 shrink-0">
@@ -392,16 +417,21 @@ export default function SocialCalendarPage() {
                             return pConf ? (
                               <span
                                 key={p}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${pConf.bgColor}`}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                                style={{ backgroundColor: pConf.bgColor }}
                                 title={pConf.label}
                               >
                                 {pConf.icon}
                               </span>
                             ) : null;
                           })}
-                          <div className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                          <div style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C", marginLeft: 4 }}>
                             {postDate ? format(postDate, "HH:mm") : "--:--"}
-                            <div className={`text-xs ${isToday(postDate!) ? "text-amber-600 font-medium" : "text-gray-400"}`}>
+                            <div style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: postDate && isToday(postDate) ? "#C49A2A" : "#A8A29E",
+                            }}>
                               {postDate && isToday(postDate) ? "Today" : "Tomorrow"}
                             </div>
                           </div>
@@ -409,12 +439,12 @@ export default function SocialCalendarPage() {
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 dark:text-white line-clamp-2">
+                          <p style={{ fontFamily: "var(--font-system)", fontSize: 13, color: "#1C1917", lineHeight: 1.5 }} className="line-clamp-2">
                             {post.content}
                           </p>
                           {post.media.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
-                              <ImageIcon className="h-3 w-3" />
+                            <div className="flex items-center gap-1 mt-1" style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#A8A29E" }}>
+                              <ImageIcon size={10} />
                               {post.media.length} image{post.media.length !== 1 ? "s" : ""}
                             </div>
                           )}
@@ -422,46 +452,42 @@ export default function SocialCalendarPage() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                          <Badge className={`text-xs border-0 ${statusConf.color}`}>
-                            {statusConf.label}
-                          </Badge>
-                          <Button
-                            variant="outline"
+                          <AdminStatusBadge status={STATUS_MAP[post.status] || post.status} />
+                          <AdminButton
+                            variant="ghost"
                             size="sm"
                             onClick={() => copyToClipboard(post.content)}
-                            title="Copy text"
                           >
-                            <Copy className="h-3.5 w-3.5 mr-1" />
+                            <Copy size={12} />
                             Copy
-                          </Button>
+                          </AdminButton>
                           {post.media.length > 0 && (
-                            <Button
-                              variant="outline"
+                            <AdminButton
+                              variant="ghost"
                               size="sm"
-                              title="Download media"
                               onClick={() => {
-                                // Open the first media URL in a new tab for download
                                 const url = post.media[0];
                                 if (url) window.open(url, "_blank");
                               }}
                             >
-                              <Download className="h-3.5 w-3.5 mr-1" />
+                              <Download size={12} />
                               Media
-                            </Button>
+                            </AdminButton>
                           )}
                           {post.status !== "published" && (
-                            <Button
+                            <AdminButton
+                              variant="success"
                               size="sm"
                               onClick={() => handleMarkPublished(post.id)}
                             >
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                              <CheckCircle size={12} />
                               Published
-                            </Button>
+                            </AdminButton>
                           )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </AdminCard>
                 );
               })}
             </div>
@@ -469,46 +495,78 @@ export default function SocialCalendarPage() {
         </section>
       </div>
 
-      {/* Post Detail Dialog */}
-      <Dialog open={!!selectedPost} onOpenChange={(open) => { if (!open) setSelectedPost(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Post Details</DialogTitle>
-            <DialogDescription>
-              {selectedPost?.scheduledFor
-                ? `Scheduled for ${format(parseISO(selectedPost.scheduledFor), "d MMM yyyy 'at' HH:mm")}`
-                : "No schedule set"}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedPost && (
-            <div className="space-y-4 py-2">
+      {/* Post Detail Modal */}
+      {selectedPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(28,25,23,0.4)" }}
+          onClick={() => setSelectedPost(null)}
+        >
+          <div
+            className="admin-card-elevated w-full max-w-lg max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-5 pb-0">
+              <div>
+                <h2
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    color: "#1C1917",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Post Details
+                </h2>
+                <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C", marginTop: 4 }}>
+                  {selectedPost.scheduledFor
+                    ? `Scheduled for ${format(parseISO(selectedPost.scheduledFor), "d MMM yyyy 'at' HH:mm")}`
+                    : "No schedule set"}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
               {/* Platforms */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {selectedPost.platforms.map((p) => {
                   const pConf = PLATFORM_CONFIG[p];
                   return pConf ? (
                     <span
                       key={p}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium ${pConf.bgColor} ${pConf.color}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+                      style={{
+                        backgroundColor: pConf.bgColor,
+                        fontFamily: "var(--font-system)",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: pConf.color,
+                      }}
                     >
                       {pConf.icon} {pConf.label}
                     </span>
                   ) : (
-                    <Badge key={p} variant="secondary">{p}</Badge>
+                    <AdminStatusBadge key={p} status={p} label={p} />
                   );
                 })}
               </div>
 
               {/* Status */}
               <div>
-                <Badge className={`text-xs border-0 ${(STATUS_CONFIG[selectedPost.status] || STATUS_CONFIG.drafted).color}`}>
-                  {(STATUS_CONFIG[selectedPost.status] || STATUS_CONFIG.drafted).label}
-                </Badge>
+                <AdminStatusBadge status={STATUS_MAP[selectedPost.status] || selectedPost.status} />
               </div>
 
               {/* Content */}
-              <div className="rounded-lg bg-gray-50 dark:bg-gray-900 p-4">
-                <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
+              <div className="admin-card-inset rounded-lg p-4">
+                <p style={{ fontFamily: "var(--font-system)", fontSize: 13, color: "#1C1917", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
                   {selectedPost.content}
                 </p>
               </div>
@@ -516,10 +574,12 @@ export default function SocialCalendarPage() {
               {/* Media preview */}
               {selectedPost.media.length > 0 && (
                 <div>
-                  <Label className="text-xs text-gray-500 mb-2 block">Media</Label>
+                  <p style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, color: "#78716C", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 8 }}>
+                    Media
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {selectedPost.media.map((url, i) => (
-                      <div key={i} className="aspect-video rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      <div key={i} className="aspect-video rounded-lg overflow-hidden" style={{ backgroundColor: "#FAF8F4", border: "1px solid rgba(214,208,196,0.6)" }}>
                         <NextImage
                           src={url}
                           alt={`Media ${i + 1}`}
@@ -536,28 +596,31 @@ export default function SocialCalendarPage() {
                 </div>
               )}
             </div>
-          )}
-          <DialogFooter className="flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => selectedPost && copyToClipboard(selectedPost.content)}
-            >
-              <Copy className="h-3.5 w-3.5 mr-1" />
-              Copy Text
-            </Button>
-            {selectedPost && selectedPost.status !== "published" && (
-              <Button
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2 p-5 pt-0">
+              <AdminButton
+                variant="ghost"
                 size="sm"
-                onClick={() => selectedPost && handleMarkPublished(selectedPost.id)}
+                onClick={() => copyToClipboard(selectedPost.content)}
               >
-                <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                Mark Published
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <Copy size={12} />
+                Copy Text
+              </AdminButton>
+              {selectedPost.status !== "published" && (
+                <AdminButton
+                  variant="success"
+                  size="sm"
+                  onClick={() => handleMarkPublished(selectedPost.id)}
+                >
+                  <CheckCircle size={12} />
+                  Mark Published
+                </AdminButton>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Media Picker */}
       <MediaPicker
@@ -567,114 +630,184 @@ export default function SocialCalendarPage() {
         accept="image"
       />
 
-      {/* New Post Dialog */}
-      <Dialog open={showNewPost} onOpenChange={setShowNewPost}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Social Post</DialogTitle>
-            <DialogDescription>
-              Create and schedule a social media post.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="post-platform">Platform</Label>
-              <Select value={newPlatform} onValueChange={setNewPlatform}>
-                <SelectTrigger id="post-platform">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => (
-                    <SelectItem key={key} value={key}>
-                      {conf.icon} {conf.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="post-content">Content</Label>
-              <textarea
-                id="post-content"
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-y"
-                placeholder="Write your post content..."
-                value={newContent}
-                onChange={(e) => setNewContent(e.target.value)}
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {newContent.length} characters
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="post-date">Date</Label>
-                <Input
-                  id="post-date"
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="post-time">Time</Label>
-                <Input
-                  id="post-time"
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              {newMedia.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {newMedia.map((url, i) => (
-                    <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setNewMedia((prev) => prev.filter((_, idx) => idx !== i))}
-                        className="absolute top-0 right-0 bg-black/60 text-white rounded-bl p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowMediaPicker(true)}
-                className="w-full rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-4 text-center hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors"
-              >
-                <ImageIcon className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {newMedia.length > 0 ? "Add another image" : "Add image"}
+      {/* New Post Modal */}
+      {showNewPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(28,25,23,0.4)" }}
+          onClick={() => setShowNewPost(false)}
+        >
+          <div
+            className="admin-card-elevated w-full max-w-md max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-5 pb-0">
+              <div>
+                <h2
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    color: "#1C1917",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  New Social Post
+                </h2>
+                <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C", marginTop: 4 }}>
+                  Create and schedule a social media post.
                 </p>
+              </div>
+              <button
+                onClick={() => setShowNewPost(false)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-700"
+              >
+                <X size={16} />
               </button>
             </div>
+
+            <div className="p-5 space-y-4">
+              {/* Platform */}
+              <div>
+                <label
+                  htmlFor="post-platform"
+                  style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#78716C", display: "block", marginBottom: 6 }}
+                >
+                  Platform
+                </label>
+                <select
+                  id="post-platform"
+                  className="admin-select"
+                  value={newPlatform}
+                  onChange={(e) => setNewPlatform(e.target.value)}
+                >
+                  {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => (
+                    <option key={key} value={key}>
+                      {conf.icon} {conf.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Content */}
+              <div>
+                <label
+                  htmlFor="post-content"
+                  style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#78716C", display: "block", marginBottom: 6 }}
+                >
+                  Content
+                </label>
+                <textarea
+                  id="post-content"
+                  className="admin-input"
+                  style={{ minHeight: 100, resize: "vertical" }}
+                  placeholder="Write your post content..."
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                />
+                <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#A8A29E", marginTop: 4 }}>
+                  {newContent.length} characters
+                </p>
+              </div>
+
+              {/* Date + Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="post-date"
+                    style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#78716C", display: "block", marginBottom: 6 }}
+                  >
+                    Date
+                  </label>
+                  <input
+                    id="post-date"
+                    type="date"
+                    className="admin-input"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="post-time"
+                    style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#78716C", display: "block", marginBottom: 6 }}
+                  >
+                    Time
+                  </label>
+                  <input
+                    id="post-time"
+                    type="time"
+                    className="admin-input"
+                    value={newTime}
+                    onChange={(e) => setNewTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Media */}
+              <div>
+                {newMedia.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {newMedia.map((url, i) => (
+                      <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden" style={{ border: "1px solid rgba(214,208,196,0.6)" }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setNewMedia((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="absolute top-0 right-0 bg-black/60 text-white rounded-bl p-0.5"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowMediaPicker(true)}
+                  className="w-full rounded-xl p-4 text-center transition-colors"
+                  style={{
+                    border: "1px dashed rgba(214,208,196,0.8)",
+                    backgroundColor: "#FAFAF8",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#3B7EA1";
+                    e.currentTarget.style.backgroundColor = "rgba(59,126,161,0.04)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(214,208,196,0.8)";
+                    e.currentTarget.style.backgroundColor = "#FAFAF8";
+                  }}
+                >
+                  <ImageIcon size={24} color="#A8A29E" className="mx-auto mb-2" />
+                  <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C" }}>
+                    {newMedia.length > 0 ? "Add another image" : "Add image"}
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2 p-5 pt-0">
+              <AdminButton variant="ghost" size="sm" onClick={() => setShowNewPost(false)}>
+                Cancel
+              </AdminButton>
+              <AdminButton
+                variant="primary"
+                size="sm"
+                onClick={handleCreatePost}
+                loading={isCreating}
+                disabled={!newContent.trim()}
+              >
+                <Send size={12} />
+                Schedule Post
+              </AdminButton>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewPost(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreatePost} disabled={isCreating || !newContent.trim()}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Scheduling...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Schedule Post
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }
@@ -691,27 +824,40 @@ function WeekView({
   onSelectPost: (post: SocialPost) => void;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <AdminCard>
       <div className="overflow-x-auto">
-        <div className="min-w-[700px]">
+        <div style={{ minWidth: 700 }}>
           {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-800">
+          <div className="grid grid-cols-7" style={{ borderBottom: "1px solid rgba(214,208,196,0.5)" }}>
             {days.map((day) => (
               <div
                 key={day.toISOString()}
-                className={`p-3 text-center border-r last:border-r-0 border-gray-200 dark:border-gray-800 ${
-                  isToday(day) ? "bg-blue-50 dark:bg-blue-950" : ""
-                }`}
+                className="p-3 text-center"
+                style={{
+                  borderRight: "1px solid rgba(214,208,196,0.3)",
+                  backgroundColor: isToday(day) ? "rgba(59,126,161,0.06)" : undefined,
+                }}
               >
-                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                <div
+                  style={{
+                    fontFamily: "var(--font-system)",
+                    fontSize: 9,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "1.5px",
+                    color: "#A8A29E",
+                  }}
+                >
                   {format(day, "EEE")}
                 </div>
                 <div
-                  className={`text-lg font-semibold mt-0.5 ${
-                    isToday(day)
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-900 dark:text-white"
-                  }`}
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    marginTop: 2,
+                    color: isToday(day) ? "#3B7EA1" : "#1C1917",
+                  }}
                 >
                   {format(day, "d")}
                 </div>
@@ -723,7 +869,8 @@ function WeekView({
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="grid grid-cols-7 border-b last:border-b-0 border-gray-100 dark:border-gray-800/50 min-h-[48px]"
+              className="grid grid-cols-7"
+              style={{ borderBottom: "1px solid rgba(214,208,196,0.2)", minHeight: 48 }}
             >
               {days.map((day) => {
                 const dayKey = format(day, "yyyy-MM-dd");
@@ -736,24 +883,37 @@ function WeekView({
                 return (
                   <div
                     key={`${dayKey}-${hour}`}
-                    className={`relative border-r last:border-r-0 border-gray-100 dark:border-gray-800/50 p-0.5 ${
-                      isToday(day) ? "bg-blue-50/30 dark:bg-blue-950/20" : ""
-                    }`}
+                    className="relative p-0.5"
+                    style={{
+                      borderRight: "1px solid rgba(214,208,196,0.15)",
+                      backgroundColor: isToday(day) ? "rgba(59,126,161,0.03)" : undefined,
+                    }}
                   >
                     {/* Show hour label only in first column */}
                     {days[0] === day && (
-                      <span className="absolute -left-0 top-0 text-[10px] text-gray-400 dark:text-gray-600 px-1">
+                      <span
+                        className="absolute px-1"
+                        style={{
+                          left: 0,
+                          top: 0,
+                          fontFamily: "var(--font-system)",
+                          fontSize: 9,
+                          color: "#A8A29E",
+                        }}
+                      >
                         {String(hour).padStart(2, "0")}:00
                       </span>
                     )}
                     {hourPosts.map((post) => (
                       <button
                         key={post.id}
-                        className={`w-full text-left text-xs px-1.5 py-1 rounded mb-0.5 truncate cursor-pointer transition-opacity hover:opacity-80 ${
-                          post.platforms[0]
-                            ? (PLATFORM_CONFIG[post.platforms[0]]?.bgColor || "bg-gray-200 dark:bg-gray-700")
-                            : "bg-gray-200 dark:bg-gray-700"
-                        }`}
+                        className="w-full text-left px-1.5 py-1 rounded-md mb-0.5 truncate cursor-pointer transition-opacity hover:opacity-80"
+                        style={{
+                          fontFamily: "var(--font-system)",
+                          fontSize: 10,
+                          backgroundColor: PLATFORM_CONFIG[post.platforms[0]]?.bgColor || "rgba(120,113,108,0.10)",
+                          color: PLATFORM_CONFIG[post.platforms[0]]?.color || "#1C1917",
+                        }}
                         onClick={() => onSelectPost(post)}
                         title={post.content}
                       >
@@ -770,7 +930,7 @@ function WeekView({
           ))}
         </div>
       </div>
-    </Card>
+    </AdminCard>
   );
 }
 
@@ -788,15 +948,24 @@ function MonthView({
   onSelectPost: (post: SocialPost) => void;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <AdminCard>
       <div className="overflow-x-auto">
-        <div className="min-w-[700px]">
+        <div style={{ minWidth: 700 }}>
           {/* Day of week headers */}
-          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-800">
+          <div className="grid grid-cols-7" style={{ borderBottom: "1px solid rgba(214,208,196,0.5)" }}>
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <div
                 key={d}
-                className="p-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase border-r last:border-r-0 border-gray-200 dark:border-gray-800"
+                className="p-2 text-center"
+                style={{
+                  borderRight: "1px solid rgba(214,208,196,0.3)",
+                  fontFamily: "var(--font-system)",
+                  fontSize: 9,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "1.5px",
+                  color: "#A8A29E",
+                }}
               >
                 {d}
               </div>
@@ -813,16 +982,27 @@ function MonthView({
               return (
                 <div
                   key={dayKey}
-                  className={`min-h-[100px] p-1.5 border-r border-b last:border-r-0 border-gray-100 dark:border-gray-800/50 ${
-                    !inMonth ? "bg-gray-50 dark:bg-gray-900/50 opacity-50" : ""
-                  } ${isToday(day) ? "bg-blue-50/50 dark:bg-blue-950/30" : ""}`}
+                  className="p-1.5"
+                  style={{
+                    minHeight: 100,
+                    borderRight: "1px solid rgba(214,208,196,0.15)",
+                    borderBottom: "1px solid rgba(214,208,196,0.15)",
+                    opacity: inMonth ? 1 : 0.4,
+                    backgroundColor: isToday(day)
+                      ? "rgba(59,126,161,0.06)"
+                      : !inMonth
+                        ? "#FAFAF8"
+                        : undefined,
+                  }}
                 >
                   <div
-                    className={`text-xs font-medium mb-1 ${
-                      isToday(day)
-                        ? "text-blue-600 dark:text-blue-400 font-bold"
-                        : "text-gray-700 dark:text-gray-300"
-                    }`}
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 11,
+                      fontWeight: isToday(day) ? 800 : 600,
+                      color: isToday(day) ? "#3B7EA1" : "#44403C",
+                      marginBottom: 4,
+                    }}
                   >
                     {format(day, "d")}
                   </div>
@@ -830,11 +1010,13 @@ function MonthView({
                     {dayPosts.slice(0, 3).map((post) => (
                       <button
                         key={post.id}
-                        className={`w-full text-left text-[10px] leading-tight px-1.5 py-0.5 rounded truncate cursor-pointer transition-opacity hover:opacity-80 ${
-                          post.platforms[0]
-                            ? (PLATFORM_CONFIG[post.platforms[0]]?.bgColor || "bg-gray-200 dark:bg-gray-700")
-                            : "bg-gray-200 dark:bg-gray-700"
-                        }`}
+                        className="w-full text-left leading-tight px-1.5 py-0.5 rounded truncate cursor-pointer transition-opacity hover:opacity-80"
+                        style={{
+                          fontFamily: "var(--font-system)",
+                          fontSize: 9,
+                          backgroundColor: PLATFORM_CONFIG[post.platforms[0]]?.bgColor || "rgba(120,113,108,0.10)",
+                          color: PLATFORM_CONFIG[post.platforms[0]]?.color || "#1C1917",
+                        }}
                         onClick={() => onSelectPost(post)}
                         title={post.content}
                       >
@@ -843,7 +1025,7 @@ function MonthView({
                       </button>
                     ))}
                     {dayPosts.length > 3 && (
-                      <div className="text-[10px] text-gray-400 dark:text-gray-500 pl-1">
+                      <div style={{ fontFamily: "var(--font-system)", fontSize: 9, color: "#A8A29E", paddingLeft: 4 }}>
                         +{dayPosts.length - 3} more
                       </div>
                     )}
@@ -854,6 +1036,6 @@ function MonthView({
           </div>
         </div>
       </div>
-    </Card>
+    </AdminCard>
   );
 }

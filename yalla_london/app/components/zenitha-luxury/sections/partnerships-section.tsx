@@ -53,9 +53,10 @@ export function PartnershipsSection() {
               lineHeight: 1.9,
             }}
           >
-            We work with hotel groups, tourism boards, charter operators, and
-            travel brands who want to reach high&#8209;value audiences through
-            products — not just ads. Here&rsquo;s how we collaborate.
+            Zenitha Luxury is a travel&#8209;focused AI venture studio. We
+            co&#8209;build and operate products with hospitality groups, travel
+            brands and investors who want to create the next generation of
+            travel experiences.
           </div>
         </ScrollReveal>
 
@@ -133,7 +134,7 @@ export function PartnershipsSection() {
                   ?.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              Start a Conversation
+              Discuss a Partnership
             </a>
           </div>
         </ScrollReveal>

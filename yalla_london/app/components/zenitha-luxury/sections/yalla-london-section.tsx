@@ -58,7 +58,6 @@ export function YallaLondonSection() {
         <ScrollReveal delay={100}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20 items-center">
             {/* Image */}
-            {/* TODO: Replace with Yalla London brand image. */}
             <img
               src={d.image}
               alt={d.imageAlt}

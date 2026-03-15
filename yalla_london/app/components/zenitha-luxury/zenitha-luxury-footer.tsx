@@ -68,7 +68,7 @@ export function ZenithaLuxuryFooter() {
         <FooterColumn title="Company">
           <FooterLink href="#about">About</FooterLink>
           <FooterLink href="#partnerships">Partnerships</FooterLink>
-          <FooterLink href="#products">Products</FooterLink>
+          <FooterLink href="#platforms">Platforms</FooterLink>
           <FooterLink href="#contact">Contact</FooterLink>
         </FooterColumn>
 

@@ -12,8 +12,6 @@ import { GALLERY_ITEMS } from '../site-data';
 export function GallerySection() {
   return (
     <ScrollReveal>
-      {/* TODO: Replace all gallery images with licensed Zenitha assets. */}
-
       {/* Desktop: flex expand on hover */}
       <div
         className="hidden md:flex overflow-hidden"

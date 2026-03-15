@@ -31,10 +31,9 @@ export function AmbassadorsSection() {
                 zIndex: 0,
               }}
             />
-            {/* TODO: Replace with real ambassador / on-location photography. */}
             <img
-              src="/branding/zenitha-luxury/images/gallery-3.png"
-              alt="Travel ambassador on location"
+              src="https://images.unsplash.com/photo-1500051638674-ff996a0ec29e?w=1280&q=80&auto=format"
+              alt="Travel ambassador with camera at sunset"
               className="relative z-10 w-full object-cover"
               style={{ height: '420px' }}
               loading="lazy"
@@ -79,13 +78,15 @@ export function AmbassadorsSection() {
               marginBottom: '1.8rem',
             }}
           >
-            Every Zenitha product is backed by a global network of travel
-            ambassadors — local experts who visit, photograph, and verify the
-            experiences we recommend. AI accelerates our research. People
-            guarantee its quality.
+            Behind our products is a network of travel ambassadors —
+            photographers, writers and locals around the world who contribute
+            genuine content, footage and feedback. AI helps us scale; people
+            keep it honest.
           </p>
 
-          {/* Bullet list */}
+          {/* Bullet list
+              TODO: Replace static bullets with ambassador profiles from CMS.
+              TODO: Add a world map or location pins showing ambassador presence. */}
           <ul
             style={{
               listStyle: 'none',

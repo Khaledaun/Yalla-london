@@ -99,7 +99,6 @@ export function ZenithaYachtsSection() {
             </div>
 
             {/* Image (RIGHT) */}
-            {/* TODO: Replace with Zenitha Yachts brand image. */}
             <img
               src={d.image}
               alt={d.imageAlt}

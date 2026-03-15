@@ -82,9 +82,9 @@ export function HeroSection() {
             transitionDelay: '700ms',
           }}
         >
-          We build AI&#8209;powered travel products for high&#8209;value travellers —
-          combining proprietary technology with real, on&#8209;the&#8209;ground
-          editorial to create brands that partners want to be part of.
+          We build and operate AI&#8209;powered travel products for
+          high&#8209;value travellers, then partner with brands who want
+          to move faster.
         </p>
 
         {/* CTAs — Intent: "Explore Partnership Models" (primary) +
@@ -119,7 +119,7 @@ export function HeroSection() {
             Explore Partnership Models
           </a>
           <a
-            href="#products"
+            href="#platforms"
             className="inline-flex items-center gap-2 no-underline transition-all duration-300"
             style={{
               padding: '0.85rem 2rem',
@@ -133,7 +133,7 @@ export function HeroSection() {
             }}
             onClick={(e) => {
               e.preventDefault();
-              document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+              document.getElementById('platforms')?.scrollIntoView({ behavior: 'smooth' });
             }}
           >
             See Live Products
@@ -185,7 +185,7 @@ export function HeroSection() {
         style={{ zIndex: 0 }}
       >
         <img
-          src="/branding/zenitha-luxury/images/hero-bg.png"
+          src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80&auto=format"
           alt=""
           aria-hidden="true"
           className="w-full h-full object-cover"
@@ -195,9 +195,8 @@ export function HeroSection() {
 
       {/* Right: Image (desktop only) */}
       <div className="relative overflow-hidden hidden lg:block">
-        {/* TODO: Replace with branded hero image from the Zenitha branding kit. */}
         <img
-          src="/branding/zenitha-luxury/images/hero-bg.png"
+          src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80&auto=format"
           alt="Luxury London Rooftop"
           className="w-full h-full object-cover"
           style={{ filter: 'brightness(0.65)' }}

@@ -39,7 +39,7 @@ export function ServicesTabsSection() {
 
   return (
     <section
-      id="products"
+      id="platforms"
       className="px-6 sm:px-10 lg:px-20 py-16 lg:py-24"
       style={{ background: 'var(--zl-obsidian)' }}
     >
@@ -57,7 +57,7 @@ export function ServicesTabsSection() {
             }}
           >
             {/* Intent: Renumbered to 03; reframed as "Products" not "Services" */}
-            03 — Products
+            03 — Platforms
           </div>
           <h2
             style={{
@@ -69,7 +69,7 @@ export function ServicesTabsSection() {
               margin: '0 0 0.8rem 0',
             }}
           >
-            Live Products
+            Live Platforms
           </h2>
           <div
             style={{
@@ -81,9 +81,9 @@ export function ServicesTabsSection() {
               lineHeight: 1.9,
             }}
           >
-            Two products live today — Yalla London and Zenitha Yachts — with
-            additional brands in the pipeline. Each product combines
-            AI&#8209;assisted discovery with human&#8209;curated editorial.
+            Two products live and operating — Yalla London and Zenitha
+            Yachts — with additional brands in the pipeline. AI&#8209;assisted
+            discovery, human&#8209;curated content, built for partners.
           </div>
         </ScrollReveal>
 

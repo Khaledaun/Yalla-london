@@ -30,17 +30,18 @@ export function ComingSoonSection() {
           >
             03 — Future
           </div>
-          <div
+          <h2
             style={{
               fontFamily: 'var(--zl-font-display)',
               fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
               fontWeight: 400,
               color: 'var(--zl-ivory)',
               marginBottom: '0.8rem',
+              margin: '0 0 0.8rem 0',
             }}
           >
             Coming Soon
-          </div>
+          </h2>
           <div
             style={{
               fontFamily: 'var(--zl-font-body)',
@@ -62,20 +63,25 @@ export function ComingSoonSection() {
             {COMING_SOON_CARDS.map((card) => (
               <div
                 key={card.name}
+                aria-disabled="true"
                 style={{
                   border: card.faded
-                    ? '1px dashed rgba(245, 240, 232, 0.08)'
-                    : '1px solid rgba(245, 240, 232, 0.08)',
-                  padding: '1.5rem 1.6rem',
-                  background: 'rgba(10, 10, 10, 0.6)',
-                  opacity: card.faded ? 0.5 : 1,
+                    ? '1px dashed rgba(245, 240, 232, 0.06)'
+                    : '1px solid rgba(245, 240, 232, 0.1)',
+                  padding: '1.8rem 1.6rem',
+                  background: card.faded
+                    ? 'rgba(10, 10, 10, 0.3)'
+                    : 'rgba(10, 10, 10, 0.6)',
+                  opacity: card.faded ? 0.45 : 0.85,
+                  cursor: 'default',
+                  userSelect: 'none' as const,
                 }}
               >
                 <div
                   style={{
                     fontFamily: 'var(--zl-font-display)',
                     fontSize: '1.1rem',
-                    color: 'var(--zl-cream)',
+                    color: card.faded ? 'var(--zl-smoke)' : 'var(--zl-cream)',
                     marginBottom: '0.35rem',
                   }}
                 >
@@ -88,7 +94,7 @@ export function ComingSoonSection() {
                       fontSize: '0.625rem',
                       letterSpacing: '0.1em',
                       textTransform: 'uppercase' as const,
-                      color: 'rgba(245, 240, 232, 0.5)',
+                      color: 'rgba(245, 240, 232, 0.35)',
                       marginBottom: '0.4rem',
                     }}
                   >
@@ -99,7 +105,7 @@ export function ComingSoonSection() {
                   style={{
                     fontFamily: 'var(--zl-font-body)',
                     fontSize: '0.7rem',
-                    color: 'rgba(245, 240, 232, 0.45)',
+                    color: 'rgba(245, 240, 232, 0.4)',
                     lineHeight: 1.7,
                   }}
                 >

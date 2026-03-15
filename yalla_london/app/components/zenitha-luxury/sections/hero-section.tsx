@@ -21,10 +21,10 @@ export function HeroSection() {
     <section
       id="top"
       className="min-h-screen grid grid-cols-1 lg:grid-cols-2 relative overflow-hidden"
-      style={{ background: 'var(--zl-obsidian)', padding: 0 }}
+      style={{ background: 'var(--zl-gradient-hero)', padding: 0 }}
     >
       {/* Left: Text Content */}
-      <div className="flex flex-col justify-center px-6 sm:px-10 lg:px-16 xl:px-20 pt-28 pb-16 lg:pt-36 lg:pb-28 relative z-10">
+      <div className="flex flex-col justify-center px-6 sm:px-10 lg:px-16 xl:px-20 pt-24 pb-12 lg:pt-36 lg:pb-28 relative z-10">
         {/* Eyebrow */}
         <div
           className="transition-all duration-700"
@@ -140,7 +140,7 @@ export function HeroSection() {
 
         {/* Stats Row */}
         <div
-          className="flex gap-10 mt-12 pt-8 transition-all duration-700"
+          className="flex flex-wrap gap-6 sm:gap-10 mt-10 sm:mt-12 pt-6 sm:pt-8 transition-all duration-700"
           style={{
             borderTop: '1px solid rgba(196, 169, 108, 0.08)',
             opacity: mounted ? 1 : 0,
@@ -177,7 +177,21 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Right: Image */}
+      {/* Mobile background image — visible only below lg breakpoint */}
+      <div
+        className="absolute inset-0 lg:hidden"
+        style={{ zIndex: 0 }}
+      >
+        <img
+          src="/branding/zenitha-luxury/images/hero-bg.png"
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover"
+          style={{ filter: 'brightness(0.25)' }}
+        />
+      </div>
+
+      {/* Right: Image (desktop only) */}
       <div className="relative overflow-hidden hidden lg:block">
         {/* TODO: Replace with branded hero image from the Zenitha branding kit. */}
         <img

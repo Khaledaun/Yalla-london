@@ -40,17 +40,18 @@ export function ContactSection() {
           >
             06 — Contact
           </div>
-          <div
+          <h2
             style={{
               fontFamily: 'var(--zl-font-display)',
               fontSize: 'clamp(1.8rem, 3vw, 2.8rem)',
               fontWeight: 400,
               color: 'var(--zl-ivory)',
               marginBottom: '0.5rem',
+              margin: '0 0 0.5rem 0',
             }}
           >
             Get in Touch
-          </div>
+          </h2>
           <p
             style={{
               fontFamily: 'var(--zl-font-body)',
@@ -130,25 +131,36 @@ export function ContactSection() {
 
         {/* Right: Form */}
         <ScrollReveal delay={100}>
-          <form onSubmit={handleSubmit}>
+          {/* TODO: Wire to API endpoint /api/contact or email service */}
+          <form onSubmit={handleSubmit} noValidate>
             {/* Name row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <FieldGroup label="First Name">
+              <FieldGroup label="First Name" htmlFor="contact-first-name">
                 <input
+                  id="contact-first-name"
+                  name="firstName"
                   className="w-full focus:outline-none transition-colors duration-300"
                   style={inputStyle}
                   type="text"
                   placeholder="First name"
+                  required
+                  aria-required="true"
+                  autoComplete="given-name"
                   onFocus={focusHandler}
                   onBlur={blurHandler}
                 />
               </FieldGroup>
-              <FieldGroup label="Last Name">
+              <FieldGroup label="Last Name" htmlFor="contact-last-name">
                 <input
+                  id="contact-last-name"
+                  name="lastName"
                   className="w-full focus:outline-none transition-colors duration-300"
                   style={inputStyle}
                   type="text"
                   placeholder="Last name"
+                  required
+                  aria-required="true"
+                  autoComplete="family-name"
                   onFocus={focusHandler}
                   onBlur={blurHandler}
                 />
@@ -157,12 +169,17 @@ export function ContactSection() {
 
             {/* Email */}
             <div className="mb-4">
-              <FieldGroup label="Email Address">
+              <FieldGroup label="Email Address" htmlFor="contact-email">
                 <input
+                  id="contact-email"
+                  name="email"
                   className="w-full focus:outline-none transition-colors duration-300"
                   style={inputStyle}
                   type="email"
                   placeholder="you@example.com"
+                  required
+                  aria-required="true"
+                  autoComplete="email"
                   onFocus={focusHandler}
                   onBlur={blurHandler}
                 />
@@ -171,20 +188,27 @@ export function ContactSection() {
 
             {/* Organisation + Enquiry Type row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <FieldGroup label="Organisation">
+              <FieldGroup label="Organisation" htmlFor="contact-organisation">
                 <input
+                  id="contact-organisation"
+                  name="organisation"
                   className="w-full focus:outline-none transition-colors duration-300"
                   style={inputStyle}
                   type="text"
                   placeholder="Your company"
+                  autoComplete="organization"
                   onFocus={focusHandler}
                   onBlur={blurHandler}
                 />
               </FieldGroup>
-              <FieldGroup label="Enquiry Type">
+              <FieldGroup label="Enquiry Type" htmlFor="contact-enquiry-type">
                 <select
+                  id="contact-enquiry-type"
+                  name="enquiryType"
                   className="w-full focus:outline-none transition-colors duration-300"
                   style={{ ...inputStyle, cursor: 'pointer' }}
+                  required
+                  aria-required="true"
                   onFocus={focusHandler}
                   onBlur={blurHandler}
                 >
@@ -200,11 +224,15 @@ export function ContactSection() {
 
             {/* Message */}
             <div className="mb-4">
-              <FieldGroup label="Message">
+              <FieldGroup label="Message" htmlFor="contact-message">
                 <textarea
+                  id="contact-message"
+                  name="message"
                   className="w-full focus:outline-none transition-colors duration-300"
                   style={{ ...inputStyle, resize: 'vertical' as const, minHeight: '110px' }}
                   placeholder="Tell us how we can help..."
+                  required
+                  aria-required="true"
                   onFocus={focusHandler}
                   onBlur={blurHandler}
                 />
@@ -266,14 +294,17 @@ function blurHandler(e: React.FocusEvent<HTMLElement>) {
 
 function FieldGroup({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col" style={{ gap: '0.4rem' }}>
       <label
+        htmlFor={htmlFor}
         style={{
           fontFamily: 'var(--zl-font-label)',
           fontSize: '0.625rem',

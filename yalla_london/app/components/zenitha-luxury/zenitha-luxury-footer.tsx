@@ -8,6 +8,7 @@
 export function ZenithaLuxuryFooter() {
   return (
     <footer
+      aria-label="Site footer"
       style={{
         padding: '3.5rem 5rem 1.5rem',
         borderTop: '1px solid rgba(196, 169, 108, 0.06)',
@@ -23,16 +24,11 @@ export function ZenithaLuxuryFooter() {
       >
         {/* Brand column */}
         <div>
-          <div
-            style={{
-              fontFamily: 'var(--zl-font-display)',
-              fontSize: '1.25rem',
-              color: 'var(--zl-gold)',
-              marginBottom: '0.25rem',
-            }}
-          >
-            Zenitha Luxury
-          </div>
+          <img
+            src="/branding/zenitha-luxury/logo/zenitha-logo-light.png"
+            alt="Zenitha Luxury"
+            style={{ height: '28px', width: 'auto', marginBottom: '0.25rem' }}
+          />
           <div
             style={{
               fontFamily: 'var(--zl-font-label)',
@@ -62,9 +58,9 @@ export function ZenithaLuxuryFooter() {
 
         {/* Platforms */}
         <FooterColumn title="Platforms">
-          {/* TODO: Update hrefs once production URLs are finalised. */}
-          <FooterLink href="#">Yalla London</FooterLink>
-          <FooterLink href="#">Zenitha Yachts</FooterLink>
+          <FooterLink href="https://www.yalla-london.com">Yalla London</FooterLink>
+          <FooterLink href="https://www.zenithayachts.com">Zenitha Yachts</FooterLink>
+          {/* TODO: Update Worldtme href once production URL is finalised. */}
           <FooterLink href="#">Worldtme (coming soon)</FooterLink>
         </FooterColumn>
 
@@ -101,8 +97,8 @@ export function ZenithaLuxuryFooter() {
             color: 'rgba(245, 240, 232, 0.22)',
           }}
         >
-          &copy; 2026 Zenitha Luxury — Placeholder legal line. Replace with
-          your actual entity and jurisdiction.
+          &copy; 2026 Zenitha.Luxury LLC — Delaware, USA. All rights
+          reserved.
         </div>
         <div
           style={{
@@ -198,6 +194,7 @@ function FooterLink({
   href: string;
   children: React.ReactNode;
 }) {
+  const isExternal = href.startsWith('http');
   return (
     <a
       href={href}
@@ -209,6 +206,7 @@ function FooterLink({
         color: 'rgba(245, 240, 232, 0.32)',
         marginBottom: '0.45rem',
       }}
+      {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.color = 'var(--zl-gold)';
       }}

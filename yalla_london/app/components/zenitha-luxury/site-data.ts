@@ -268,25 +268,24 @@ export interface ContactWay {
   href: string;
 }
 
-// TODO: Replace placeholder email and URLs with production details.
 export const CONTACT_WAYS: ContactWay[] = [
   {
     icon: '\u2709', // ✉
     label: 'Email',
-    value: 'info@example.com',
-    href: 'mailto:info@example.com',
+    value: 'info@zenitha.luxury',
+    href: 'mailto:info@zenitha.luxury',
   },
   {
     icon: '\u25CA', // ◊
     label: 'Yalla London',
-    value: 'yalla-london.com (update to production URL)',
-    href: '#',
+    value: 'yalla-london.com',
+    href: 'https://www.yalla-london.com',
   },
   {
     icon: '\u266B', // ♫
     label: 'Zenitha Yachts',
-    value: 'zenithayachts.co (update to production URL)',
-    href: '#',
+    value: 'zenithayachts.com',
+    href: 'https://www.zenithayachts.com',
   },
 ];
 

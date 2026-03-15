@@ -39,7 +39,7 @@ export function ZenithaLuxuryFooter() {
               marginBottom: '0.9rem',
             }}
           >
-            Luxury Travel Technology
+            Travel Venture Studio
           </div>
           <div
             style={{
@@ -50,9 +50,9 @@ export function ZenithaLuxuryFooter() {
               lineHeight: 1.75,
             }}
           >
-            High&#8209;level visual and structural skeleton for Zenitha
-            platforms. Actual branding details, legal entities, and disclaimers
-            must come from your own documentation and brand kit.
+            Building AI&#8209;powered travel products for high&#8209;value
+            travellers. Proprietary technology meets genuine,
+            human&#8209;curated editorial.
           </div>
         </div>
 
@@ -67,8 +67,8 @@ export function ZenithaLuxuryFooter() {
         {/* Company */}
         <FooterColumn title="Company">
           <FooterLink href="#about">About</FooterLink>
-          <FooterLink href="#services">Services</FooterLink>
-          <FooterLink href="#coming-soon">Coming Soon</FooterLink>
+          <FooterLink href="#partnerships">Partnerships</FooterLink>
+          <FooterLink href="#products">Products</FooterLink>
           <FooterLink href="#contact">Contact</FooterLink>
         </FooterColumn>
 
@@ -109,7 +109,7 @@ export function ZenithaLuxuryFooter() {
             color: 'rgba(245, 240, 232, 0.18)',
           }}
         >
-          Coordinates, office locations, or other metadata can be surfaced here.
+          Delaware, USA &middot; London &middot; Dubai
         </div>
         <div className="flex" style={{ gap: '0.5rem' }}>
           {/* TODO: Replace with real social profiles or remove if not used. */}

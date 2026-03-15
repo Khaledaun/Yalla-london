@@ -25,7 +25,7 @@ export function HeroSection() {
     >
       {/* Left: Text Content */}
       <div className="flex flex-col justify-center px-6 sm:px-10 lg:px-16 xl:px-20 pt-24 pb-12 lg:pt-36 lg:pb-28 relative z-10">
-        {/* Eyebrow */}
+        {/* Eyebrow — Intent: Venture studio identity, not "technology brand" */}
         <div
           className="transition-all duration-700"
           style={{
@@ -40,10 +40,10 @@ export function HeroSection() {
             transitionDelay: '300ms',
           }}
         >
-          Zenitha Luxury — Luxury Travel Technology
+          Zenitha Luxury — Travel Venture Studio
         </div>
 
-        {/* Title */}
+        {/* Title — Intent: New H1 per repositioning brief */}
         <h1
           className="transition-all duration-700"
           style={{
@@ -58,14 +58,15 @@ export function HeroSection() {
             transitionDelay: '500ms',
           }}
         >
-          Where <em style={{ fontStyle: 'italic', color: 'var(--zl-gold)' }}>Luxury</em>
+          An AI venture studio
           <br />
-          Meets Precision
+          for next&#8209;generation
           <br />
-          Technology
+          <em style={{ fontStyle: 'italic', color: 'var(--zl-gold)' }}>travel brands.</em>
         </h1>
 
-        {/* Description */}
+        {/* Description — Intent: Supporting line emphasising partnership
+            value and human-curated quality, de-emphasising raw tech. */}
         <p
           className="transition-all duration-700"
           style={{
@@ -81,12 +82,13 @@ export function HeroSection() {
             transitionDelay: '700ms',
           }}
         >
-          A curated luxury travel technology brand — serving global
-          high&#8209;net&#8209;worth travellers with bilingual digital experiences,
-          London city discovery, and yacht charter journeys.
+          We build AI&#8209;powered travel products for high&#8209;value travellers —
+          combining proprietary technology with real, on&#8209;the&#8209;ground
+          editorial to create brands that partners want to be part of.
         </p>
 
-        {/* CTAs */}
+        {/* CTAs — Intent: "Explore Partnership Models" (primary) +
+            "See Live Products" (secondary) per brief. */}
         <div
           className="flex gap-4 flex-wrap transition-all duration-700"
           style={{
@@ -96,7 +98,7 @@ export function HeroSection() {
           }}
         >
           <a
-            href="#services"
+            href="#partnerships"
             className="inline-flex items-center gap-2 no-underline transition-all duration-300 hover:shadow-lg"
             style={{
               padding: '0.85rem 2rem',
@@ -111,13 +113,13 @@ export function HeroSection() {
             }}
             onClick={(e) => {
               e.preventDefault();
-              document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+              document.getElementById('partnerships')?.scrollIntoView({ behavior: 'smooth' });
             }}
           >
-            Explore Services
+            Explore Partnership Models
           </a>
           <a
-            href="#contact"
+            href="#products"
             className="inline-flex items-center gap-2 no-underline transition-all duration-300"
             style={{
               padding: '0.85rem 2rem',
@@ -131,10 +133,10 @@ export function HeroSection() {
             }}
             onClick={(e) => {
               e.preventDefault();
-              document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+              document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
             }}
           >
-            Private Enquiry
+            See Live Products
           </a>
         </div>
 

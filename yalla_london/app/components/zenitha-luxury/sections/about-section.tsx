@@ -92,6 +92,7 @@ export function AboutSection() {
             >
               01 — About
             </div>
+            {/* Intent: Venture-studio framing, not "digital experiences" */}
             <h2
               style={{
                 fontFamily: 'var(--zl-font-display)',
@@ -102,7 +103,7 @@ export function AboutSection() {
                 margin: '0 0 0.8rem 0',
               }}
             >
-              One Standard of Excellence
+              A Travel Venture Studio
             </h2>
             <div
               style={{
@@ -114,10 +115,10 @@ export function AboutSection() {
                 lineHeight: 1.9,
               }}
             >
-              Zenitha Luxury builds and operates digital experiences for luxury
-              travellers, with a specific focus on bilingual (EN/AR) audiences
-              and high&#8209;touch journeys across London and yachting
-              destinations.
+              Zenitha Luxury builds, launches, and scales AI&#8209;powered travel
+              brands — combining proprietary technology with genuine,
+              human&#8209;curated editorial to serve high&#8209;value travellers
+              across multiple markets.
             </div>
           </ScrollReveal>
 

@@ -5,7 +5,7 @@
  * Edit these arrays to update content without touching layout code.
  * Items marked with TODO should be replaced with real content.
  *
- * Content sourced from zenitha-layout-skeleton.html.
+ * Identity: "An AI venture studio for next-generation travel brands."
  */
 
 // ─── Navigation ─────────────────────────────────────────────────────
@@ -15,11 +15,13 @@ export interface NavItem {
   href: string;
 }
 
+/* Intent: Add Partnerships as a primary nav destination; keep Ambassadors as
+   an in-page block within About rather than a top-level nav item. */
 export const NAV_ITEMS: NavItem[] = [
   { label: 'About', href: '#about' },
-  { label: 'Services', href: '#services' },
-  { label: 'Yalla London', href: '#yalla-london' },
-  { label: 'Zenitha Yachts', href: '#zenitha-yachts' },
+  { label: 'Partnerships', href: '#partnerships' },
+  { label: 'Products', href: '#products' },
+  { label: 'Portfolio', href: '#portfolio' },
   { label: 'Coming Soon', href: '#coming-soon' },
 ];
 
@@ -30,11 +32,13 @@ export interface HeroStat {
   label: string;
 }
 
+/* Intent: Reinforce venture-studio positioning — live products, markets,
+   bilingual reach, not technology metrics. */
 export const HERO_STATS: HeroStat[] = [
-  { value: 'EN/AR', label: 'Bilingual Focus' },
-  { value: '2', label: 'Live Platforms' },
-  { value: 'Global', label: 'Travel Audience' },
-  { value: '2026', label: 'Growth Year' },
+  { value: '2', label: 'Live Products' },
+  { value: 'EN/AR', label: 'Bilingual Reach' },
+  { value: '6+', label: 'Markets in Pipeline' },
+  { value: '2026', label: 'Scaling Year' },
 ];
 
 // ─── Pillars (About section) ────────────────────────────────────────
@@ -44,30 +48,74 @@ export interface Pillar {
   description: string;
 }
 
+/* Intent: Reframe pillars around the venture-studio mindset —
+   AI-assisted but human-led, not "technology first". */
 export const PILLARS: Pillar[] = [
   {
-    title: 'Technology First',
+    title: 'Venture Studio Mindset',
     description:
-      'Modern web stack (e.g. Next.js, TypeScript, Supabase) for speed, reliability, and global scalability. Actual implementation should align with your existing codebase.',
+      'We build, launch, and scale travel brands from zero — handling product, content, distribution, and monetisation under one roof.',
   },
   {
-    title: 'Bilingual by Design',
+    title: 'AI\u2011Assisted, Human\u2011Led',
     description:
-      'English and Arabic baked into every experience — the exact language toggle and i18n system are not defined here and must be handled in your product architecture.',
+      'Proprietary AI accelerates research, personalisation, and discovery. Every recommendation is validated by real travellers and local experts.',
   },
   {
-    title: 'Curated Experiences',
+    title: 'Bilingual & Cross\u2011Market',
     description:
-      'Every hotel, itinerary, and recommendation is intentionally selected, not bulk\u2011aggregated. Data sources and partners are not specified in this skeleton.',
+      'English and Arabic built into every product from day one — reaching Gulf, European, and global luxury audiences simultaneously.',
   },
   {
-    title: 'Privacy & Discretion',
+    title: 'Discreet Luxury Focus',
     description:
-      'Journeys are designed for users who value subtlety and confidentiality. Concrete privacy guarantees and policies should be taken from your legal docs.',
+      'Our products serve high-value travellers who prioritise substance over spectacle — curated quality, not mass-market volume.',
   },
 ];
 
-// ─── Service Tabs ───────────────────────────────────────────────────
+// ─── Partnership Cards ──────────────────────────────────────────────
+
+export interface PartnershipCard {
+  title: string;
+  description: string;
+}
+
+/* Intent: Position Zenitha as a partner-first venture studio,
+   not a service provider. These are collaboration models. */
+export const PARTNERSHIP_CARDS: PartnershipCard[] = [
+  {
+    title: 'Co\u2011build',
+    description:
+      'We co-create new travel products with strategic partners — you bring the audience or inventory, we bring the technology and editorial engine.',
+  },
+  {
+    title: 'White\u2011label',
+    description:
+      'License our AI-powered travel platform under your own brand. Full editorial control, bilingual out of the box, ready for your market.',
+  },
+  {
+    title: 'Distribution',
+    description:
+      'Reach high-value travellers across the Zenitha network. Our products surface curated partner content to qualified audiences in real time.',
+  },
+  {
+    title: 'Insight',
+    description:
+      'Access our proprietary travel-intelligence layer — trend data, audience signals, and destination analytics — to sharpen your own strategy.',
+  },
+];
+
+// ─── Ambassador Bullets ─────────────────────────────────────────────
+
+/* Intent: Counter the "just AI content" perception by spotlighting
+   real people creating genuine, on-the-ground travel content. */
+export const AMBASSADOR_BULLETS: string[] = [
+  'Global network of travel ambassadors producing genuine, first-hand content — not AI-generated summaries.',
+  'On-the-ground photography, video, and editorial from the destinations we cover.',
+  'Every recommendation meets our editorial standards: visited, verified, and updated regularly.',
+];
+
+// ─── Service Tabs (now "Products") ──────────────────────────────────
 
 export interface ServiceTab {
   id: string;
@@ -82,44 +130,45 @@ export interface ServiceTab {
   ctaHref: string;
 }
 
+/* Intent: Reframe as "portfolio products" built by the venture studio,
+   not "services" or AI showcases. Emphasis on the traveller value. */
 export const SERVICE_TABS: ServiceTab[] = [
   {
     id: 'yalla-london',
     label: 'Yalla London',
     title: 'Yalla London — Luxury City Discovery',
     description:
-      'A bilingual (EN/AR) digital guide to London for luxury travellers. This platform focuses on neighbourhood discovery, hotels, restaurants, and shopping areas that align with high\u2011end tastes.',
+      'A bilingual (EN/AR) city guide for high-value travellers visiting London. AI-assisted discovery surfaces the best hotels, dining, and experiences — every recommendation verified by local experts and travel ambassadors.',
     // TODO: Replace with real Yalla London hero asset.
     image: '/branding/zenitha-luxury/images/gallery-1.png',
     imageAlt: 'London Luxury Travel',
     items: [
-      'Home / landing with hero, sections for hotels, dining, shopping, and seasonal highlights.',
-      'Neighbourhood pages (e.g. Mayfair, Knightsbridge, Chelsea) with bilingual content.',
-      'Hotel collections by area or theme, using card grids and outbound links / affiliate logic defined in product.',
-      'Dining & experience pages for restaurants, afternoon tea, and private tours.',
-      'Seasonal pages (e.g. summer in London, winter shopping, major events).',
-      'Contact / concierge enquiry flows that connect to your own CRM or email systems.',
+      'Neighbourhood guides (Mayfair, Knightsbridge, Chelsea) with bilingual editorial content.',
+      'Curated hotel and dining collections ranked by first-hand visits.',
+      'Seasonal guides for events, shopping, and cultural moments.',
+      'AI-powered personalisation matching travellers to experiences.',
+      'Concierge-style enquiry flows for bespoke trip planning.',
     ],
-    ctaLabel: 'View Yalla London Structure',
-    ctaHref: '#yalla-london',
+    ctaLabel: 'Explore Yalla London',
+    ctaHref: '#portfolio',
   },
   {
     id: 'zenitha-yachts',
     label: 'Zenitha Yachts',
     title: 'Zenitha Yachts — Charter Journeys',
     description:
-      'A digital front door for yacht charter discovery — focused on itinerary inspiration and enquiry capture across the Mediterranean, Arabian Gulf and Caribbean.',
+      'A curated marketplace for yacht charter discovery — connecting travellers with vetted itineraries across the Mediterranean, Arabian Gulf, and Caribbean.',
     // TODO: Replace with real Zenitha Yachts hero asset.
     image: '/branding/zenitha-luxury/images/gallery-4.png',
     imageAlt: 'Yacht Charter Sunset',
     items: [
-      'Landing page with regions overview and primary charter enquiry CTA.',
-      'Region pages (Mediterranean, Arabian Gulf, Caribbean) with curated content and imagery.',
-      'Itinerary inspiration pages (sample 7\u2011day / 10\u2011day routes).',
-      'Yacht category pages (motor yachts, sailing yachts, superyachts) using card\u2011based layouts.',
-      'Dedicated enquiry forms / modals prepared for later integration with CRM or booking tools.',
+      'Region-based discovery (Mediterranean, Arabian Gulf, Caribbean).',
+      'Curated itinerary inspiration — sample 7\u2011day and 10\u2011day routes.',
+      'Yacht category browsing (motor, sailing, superyachts).',
+      'AI-assisted matching based on preferences, group size, and budget.',
+      'Direct enquiry capture integrated with charter partners.',
     ],
-    ctaLabel: 'View Yacht Pages',
+    ctaLabel: 'Explore Zenitha Yachts',
     ctaHref: '#zenitha-yachts',
   },
 ];
@@ -217,45 +266,47 @@ export interface DetailSection {
   footnote: string;
 }
 
+/* Intent: Reframe detail sections as "portfolio products" — real businesses
+   built and operated by the venture studio, not tech demos. */
 export const YALLA_LONDON_DETAIL: DetailSection = {
-  sectionNumber: '04',
-  sectionLabel: 'Yalla London',
+  sectionNumber: '05',
+  sectionLabel: 'Portfolio — Yalla London',
   title: 'London, Curated',
   description:
-    'Section skeleton for the Yalla London site structure. The actual routing, components, and CMS bindings should follow this model inside your codebase.',
+    'Our flagship city product. Yalla London is a bilingual luxury travel guide combining AI-assisted discovery with on-the-ground editorial from London-based travel ambassadors.',
   // TODO: Replace with Yalla London brand image.
   image: '/branding/zenitha-luxury/images/banner.png',
   imageAlt: 'Yalla London Mayfair',
   bullets: [
-    'Home / Landing (hero, featured neighbourhoods, hotel & dining highlights).',
-    'Neighbourhood pages (e.g. Mayfair, Knightsbridge, Chelsea) with bilingual content.',
-    'Hotel collection pages by area/theme with grid cards.',
-    'Dining & experiences pages (restaurants, afternoon tea, private tours).',
-    'Seasonal / campaign pages (sales, events, cultural moments).',
-    'Contact / concierge enquiry page.',
+    'Neighbourhood guides written and verified by local experts.',
+    'Hotel and dining collections curated from first-hand visits.',
+    'Seasonal editorial covering events, openings, and cultural moments.',
+    'AI-powered personalisation for tailored trip recommendations.',
+    'Bilingual (EN/AR) content serving Gulf, European, and global travellers.',
+    'Affiliate and concierge monetisation built in from day one.',
   ],
   footnote:
-    'This is a content and page\u2011type sketch only. Use it to design Next.js routes, layout components, and CMS schemas (e.g. Neighbourhood, Collection, SeasonalGuide) in your actual application.',
+    'Yalla London is live at yalla-london.com — the first product in the Zenitha portfolio, proving our model of AI-assisted, human-curated travel content.',
 };
 
 export const ZENITHA_YACHTS_DETAIL: DetailSection = {
-  sectionNumber: '05',
-  sectionLabel: 'Zenitha Yachts',
+  sectionNumber: '06',
+  sectionLabel: 'Portfolio — Zenitha Yachts',
   title: 'Journeys at Sea',
   description:
-    'Section skeleton for the Zenitha Yachts site. Actual yacht inventory, filters, booking flows, and CRMs are not defined here and must be implemented within your stack.',
+    'Our charter discovery product. Zenitha Yachts connects high-value travellers with curated yacht experiences across the Mediterranean, Arabian Gulf, and Caribbean.',
   // TODO: Replace with Zenitha Yachts brand image.
   image: '/branding/zenitha-luxury/images/hero-bg.png',
   imageAlt: 'Zenitha Yachts',
   bullets: [
-    'Home / Landing (hero, regions overview, key selling points, primary CTA).',
-    'Region pages (Mediterranean, Arabian Gulf, Caribbean) with hero, summary, and sectioned content.',
-    'Itinerary pages (e.g. "7 days in the Greek Islands") describing sample routes.',
-    'Yacht category pages (motor, sailing, superyachts) using card grids.',
-    'Charter enquiry page or modular form component that can be integrated with your backend.',
+    'Region-based discovery with curated itinerary inspiration.',
+    'AI-assisted matching by preferences, group size, and budget.',
+    'Vetted charter partners and yacht categories (motor, sailing, superyachts).',
+    'Direct enquiry capture with broker integration.',
+    'Content produced by yachting specialists and on-water ambassadors.',
   ],
   footnote:
-    'Use this skeleton to define your page tree and core components. Data structures for yachts, regions, pricing, and availability should live in your own models and APIs.',
+    'Zenitha Yachts is the second product in the portfolio — extending the studio model into luxury maritime experiences.',
 };
 
 // ─── Contact Ways ───────────────────────────────────────────────────
@@ -289,10 +340,13 @@ export const CONTACT_WAYS: ContactWay[] = [
   },
 ];
 
+/* Intent: Lead with partnership-oriented enquiry types to attract
+   co-build and licensing conversations, not just end-user queries. */
 export const ENQUIRY_TYPES = [
-  'Hotel / Venue Partnership',
+  'Partnership / Co\u2011build',
+  'White\u2011label / Licensing',
+  'Investment / Strategic',
   'Yacht Charter Enquiry',
-  'Affiliate Partnership',
   'Travel Concierge',
   'Press / Media',
   'Other',

@@ -38,7 +38,8 @@ export function ContactSection() {
               marginBottom: '0.65rem',
             }}
           >
-            06 — Contact
+            {/* Intent: Renumbered to 07; partnership-inviting intro */}
+            07 — Contact
           </div>
           <h2
             style={{
@@ -50,7 +51,7 @@ export function ContactSection() {
               margin: '0 0 0.5rem 0',
             }}
           >
-            Get in Touch
+            Let&rsquo;s Build Together
           </h2>
           <p
             style={{
@@ -61,9 +62,9 @@ export function ContactSection() {
               lineHeight: 1.9,
             }}
           >
-            Generic enquiry skeleton. Replace placeholder contact details with
-            your real support, partnership, and charter channels and wire them
-            to your backend.
+            Whether you&rsquo;re a hotel group, tourism board, charter operator,
+            or travel brand — we&rsquo;d love to explore how Zenitha can work
+            with you. Tell us what you have in mind.
           </p>
 
           {/* Contact ways */}

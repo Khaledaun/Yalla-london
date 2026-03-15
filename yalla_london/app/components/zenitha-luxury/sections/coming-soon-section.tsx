@@ -28,7 +28,7 @@ export function ComingSoonSection() {
               marginBottom: '0.65rem',
             }}
           >
-            03 — Future
+            04 — Pipeline
           </div>
           <h2
             style={{
@@ -52,9 +52,9 @@ export function ComingSoonSection() {
               lineHeight: 1.9,
             }}
           >
-            A monochrome snapshot of ideas in the Zenitha pipeline. Names and
-            descriptions below are placeholders and must be updated once
-            strategy and branding are final.
+            New brands in the Zenitha pipeline. Each follows the same venture
+            studio model — AI&#8209;assisted discovery, human&#8209;curated
+            editorial, built for high&#8209;value travellers.
           </div>
         </ScrollReveal>
 

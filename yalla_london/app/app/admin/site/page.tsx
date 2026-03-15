@@ -1,38 +1,31 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminButton,
+  AdminStatusBadge,
+  AdminSectionLabel,
+  AdminTabs,
+  AdminKPICard,
+  AdminEmptyState,
+} from '@/components/admin/admin-ui'
+import {
   Settings,
   Home,
   Palette,
   Plus,
   Edit,
-  Trash2,
   Eye,
   Save,
-  Upload,
-  Image,
-  Type,
   Layout,
   Zap,
   Clock,
   Target,
-  Users,
-  BarChart3,
   ToggleLeft,
   ToggleRight,
-  Calendar,
-  Globe,
-  Smartphone,
-  Monitor,
-  Search
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import NextImage from 'next/image'
@@ -226,6 +219,7 @@ export default function SiteControl() {
 
   const [selectedPopup, setSelectedPopup] = useState<PopupOffer | null>(null)
   const [isCreatingPopup, setIsCreatingPopup] = useState(false)
+  const [activeTab, setActiveTab] = useState('homepage')
 
   const saveHomepageConfig = async () => {
     try {
@@ -259,8 +253,8 @@ export default function SiteControl() {
 
   const togglePopupStatus = async (popupId: string) => {
     try {
-      setPopupOffers(prev => prev.map(popup => 
-        popup.id === popupId 
+      setPopupOffers(prev => prev.map(popup =>
+        popup.id === popupId
           ? { ...popup, status: popup.status === 'active' ? 'inactive' : 'active' }
           : popup
       ))
@@ -270,74 +264,63 @@ export default function SiteControl() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">Active</Badge>
-      case 'inactive':
-        return <Badge className="bg-gray-500">Inactive</Badge>
-      case 'scheduled':
-        return <Badge className="bg-blue-500">Scheduled</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-
   const getConversionRate = (views: number, conversions: number) => {
     return views > 0 ? ((conversions / views) * 100).toFixed(1) : '0.0'
   }
 
+  const tabItems = [
+    { id: 'homepage', label: 'Homepage' },
+    { id: 'theme', label: 'Theme & Branding' },
+    { id: 'popups', label: 'Pop-up Offers' },
+    { id: 'automation', label: 'Automation' },
+  ]
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Settings className="h-8 w-8 text-purple-500" />
-                Site Control
-              </h1>
-              <p className="text-gray-600 mt-1">Homepage, theme, pop-ups, and automation settings</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => window.open(getSiteDomain(getDefaultSiteId()), '_blank')}>
-                <Eye className="h-4 w-4 mr-2" />
-                Preview Site
-              </Button>
-              <Button className="bg-purple-500 hover:bg-purple-600">
-                <Save className="h-4 w-4 mr-2" />
-                Save All Changes
-              </Button>
-            </div>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Site Control"
+        subtitle="Homepage, theme, pop-ups, and automation settings"
+        action={
+          <div className="flex items-center gap-2">
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              onClick={() => window.open(getSiteDomain(getDefaultSiteId()), '_blank')}
+            >
+              <Eye size={14} />
+              Preview
+            </AdminButton>
+            <AdminButton variant="primary" size="sm">
+              <Save size={14} />
+              Save All
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="homepage" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="homepage">Homepage</TabsTrigger>
-            <TabsTrigger value="theme">Theme & Branding</TabsTrigger>
-            <TabsTrigger value="popups">Pop-up Offers</TabsTrigger>
-            <TabsTrigger value="automation">Automation</TabsTrigger>
-          </TabsList>
+      <AdminTabs tabs={tabItems} activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {/* Homepage Tab */}
-          <TabsContent value="homepage" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Home className="h-5 w-5" />
-                    Hero Section
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+      <div className="mt-5">
+        {/* ─── Homepage Tab ─── */}
+        {activeTab === 'homepage' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <AdminCard>
+                <div className="flex items-center gap-2 mb-4">
+                  <Home size={16} style={{ color: '#C8322B' }} />
+                  <AdminSectionLabel>Hero Section</AdminSectionLabel>
+                </div>
+                <div className="space-y-3">
                   <div>
-                    <Label htmlFor="hero-title">Hero Title</Label>
-                    <Input
+                    <label
+                      htmlFor="hero-title"
+                      style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                    >
+                      Hero Title
+                    </label>
+                    <input
                       id="hero-title"
+                      className="admin-input"
                       value={homepageConfig.hero.title}
                       onChange={(e) => setHomepageConfig(prev => ({
                         ...prev,
@@ -346,9 +329,15 @@ export default function SiteControl() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="hero-subtitle">Hero Subtitle</Label>
-                    <Textarea
+                    <label
+                      htmlFor="hero-subtitle"
+                      style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                    >
+                      Hero Subtitle
+                    </label>
+                    <textarea
                       id="hero-subtitle"
+                      className="admin-input"
                       value={homepageConfig.hero.subtitle}
                       onChange={(e) => setHomepageConfig(prev => ({
                         ...prev,
@@ -358,9 +347,15 @@ export default function SiteControl() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="hero-image">Background Image URL</Label>
-                    <Input
+                    <label
+                      htmlFor="hero-image"
+                      style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                    >
+                      Background Image URL
+                    </label>
+                    <input
                       id="hero-image"
+                      className="admin-input"
                       value={homepageConfig.hero.backgroundImage}
                       onChange={(e) => setHomepageConfig(prev => ({
                         ...prev,
@@ -368,11 +363,17 @@ export default function SiteControl() {
                       }))}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="cta1-text">CTA 1 Text</Label>
-                      <Input
+                      <label
+                        htmlFor="cta1-text"
+                        style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                      >
+                        CTA 1 Text
+                      </label>
+                      <input
                         id="cta1-text"
+                        className="admin-input"
                         value={homepageConfig.hero.cta1Text}
                         onChange={(e) => setHomepageConfig(prev => ({
                           ...prev,
@@ -381,9 +382,15 @@ export default function SiteControl() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="cta1-link">CTA 1 Link</Label>
-                      <Input
+                      <label
+                        htmlFor="cta1-link"
+                        style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                      >
+                        CTA 1 Link
+                      </label>
+                      <input
                         id="cta1-link"
+                        className="admin-input"
                         value={homepageConfig.hero.cta1Link}
                         onChange={(e) => setHomepageConfig(prev => ({
                           ...prev,
@@ -392,11 +399,17 @@ export default function SiteControl() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="cta2-text">CTA 2 Text</Label>
-                      <Input
+                      <label
+                        htmlFor="cta2-text"
+                        style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                      >
+                        CTA 2 Text
+                      </label>
+                      <input
                         id="cta2-text"
+                        className="admin-input"
                         value={homepageConfig.hero.cta2Text}
                         onChange={(e) => setHomepageConfig(prev => ({
                           ...prev,
@@ -405,9 +418,15 @@ export default function SiteControl() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="cta2-link">CTA 2 Link</Label>
-                      <Input
+                      <label
+                        htmlFor="cta2-link"
+                        style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                      >
+                        CTA 2 Link
+                      </label>
+                      <input
                         id="cta2-link"
+                        className="admin-input"
                         value={homepageConfig.hero.cta2Link}
                         onChange={(e) => setHomepageConfig(prev => ({
                           ...prev,
@@ -416,435 +435,487 @@ export default function SiteControl() {
                       />
                     </div>
                   </div>
-                  <Button onClick={saveHomepageConfig} className="w-full bg-purple-500 hover:bg-purple-600">
-                    <Save className="h-4 w-4 mr-2" />
+                  <AdminButton onClick={saveHomepageConfig} variant="primary" className="w-full justify-center">
+                    <Save size={14} />
                     Save Hero Section
-                  </Button>
-                </CardContent>
-              </Card>
+                  </AdminButton>
+                </div>
+              </AdminCard>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    Live Preview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative h-64 rounded-lg overflow-hidden">
-                    <NextImage
-                      src={homepageConfig.hero.backgroundImage}
-                      alt="Hero preview"
-                      width={0}
-                      height={0}
-                      sizes="100vw"
-                      className="w-full h-full object-cover"
-                      style={{ width: '100%', height: '100%' }}
-                      unoptimized
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                      <div className="text-center text-white p-4">
-                        <h2 className="text-2xl font-bold mb-2">{homepageConfig.hero.title}</h2>
-                        <p className="text-lg mb-4">{homepageConfig.hero.subtitle}</p>
-                        <div className="flex gap-4 justify-center">
-                          <Button className="bg-white text-black hover:bg-gray-100">
-                            {homepageConfig.hero.cta1Text}
-                          </Button>
-                          <Button variant="outline" className="border-white text-white hover:bg-white hover:text-black">
-                            {homepageConfig.hero.cta2Text}
-                          </Button>
-                        </div>
+              <AdminCard>
+                <div className="flex items-center gap-2 mb-4">
+                  <Eye size={16} style={{ color: '#3B7EA1' }} />
+                  <AdminSectionLabel>Live Preview</AdminSectionLabel>
+                </div>
+                <div className="relative h-64 rounded-lg overflow-hidden">
+                  <NextImage
+                    src={homepageConfig.hero.backgroundImage}
+                    alt="Hero preview"
+                    width={0}
+                    height={0}
+                    sizes="100vw"
+                    className="w-full h-full object-cover"
+                    style={{ width: '100%', height: '100%' }}
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                    <div className="text-center text-white p-4">
+                      <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
+                        {homepageConfig.hero.title}
+                      </h2>
+                      <p style={{ fontFamily: 'var(--font-system)', fontSize: 14, marginBottom: 16, opacity: 0.9 }}>
+                        {homepageConfig.hero.subtitle}
+                      </p>
+                      <div className="flex gap-3 justify-center">
+                        <span
+                          className="px-4 py-2 rounded-lg text-sm font-semibold"
+                          style={{ backgroundColor: '#FAF8F4', color: '#1C1917' }}
+                        >
+                          {homepageConfig.hero.cta1Text}
+                        </span>
+                        <span
+                          className="px-4 py-2 rounded-lg text-sm font-semibold"
+                          style={{ border: '1px solid rgba(255,255,255,0.7)', color: '#fff' }}
+                        >
+                          {homepageConfig.hero.cta2Text}
+                        </span>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </AdminCard>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Homepage Modules</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {homepageConfig.modules.map((module) => (
-                    <div key={module.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center">
-                          {module.type === 'article-grid' ? '📄' : '📧'}
-                        </div>
-                        <div>
-                          <div className="font-medium">{module.settings.title}</div>
-                          <div className="text-sm text-gray-600 capitalize">{module.type.replace('-', ' ')}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {module.enabled ? (
-                          <ToggleRight className="h-6 w-6 text-green-500" />
-                        ) : (
-                          <ToggleLeft className="h-6 w-6 text-gray-400" />
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setHomepageConfig(prev => ({
-                            ...prev,
-                            modules: prev.modules.map(m => m.id === module.id ? { ...m, enabled: !m.enabled } : m)
-                          }))}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Theme Tab */}
-          <TabsContent value="theme" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Palette className="h-5 w-5" />
-                    Color Scheme
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="primary-color">Primary Color</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="primary-color"
-                        type="color"
-                        value={themeConfig.primaryColor}
-                        onChange={(e) => setThemeConfig(prev => ({
-                          ...prev,
-                          primaryColor: e.target.value
-                        }))}
-                        className="w-16 h-10"
-                      />
-                      <Input
-                        value={themeConfig.primaryColor}
-                        onChange={(e) => setThemeConfig(prev => ({
-                          ...prev,
-                          primaryColor: e.target.value
-                        }))}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="secondary-color">Secondary Color</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="secondary-color"
-                        type="color"
-                        value={themeConfig.secondaryColor}
-                        onChange={(e) => setThemeConfig(prev => ({
-                          ...prev,
-                          secondaryColor: e.target.value
-                        }))}
-                        className="w-16 h-10"
-                      />
-                      <Input
-                        value={themeConfig.secondaryColor}
-                        onChange={(e) => setThemeConfig(prev => ({
-                          ...prev,
-                          secondaryColor: e.target.value
-                        }))}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="font-family">Font Family</Label>
-                    <select
-                      id="font-family"
-                      value={themeConfig.fontFamily}
-                      onChange={(e) => setThemeConfig(prev => ({
-                        ...prev,
-                        fontFamily: e.target.value
-                      }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    >
-                      <option value="Inter">Inter (Sans-serif)</option>
-                      <option value="Roboto">Roboto (Sans-serif)</option>
-                      <option value="Open Sans">Open Sans (Sans-serif)</option>
-                      <option value="Lato">Lato (Sans-serif)</option>
-                      <option value="Montserrat">Montserrat (Sans-serif)</option>
-                      <option value="Anybody">Anybody (Display)</option>
-                      <option value="Source Serif 4">Source Serif 4 (Editorial)</option>
-                      <option value="Merriweather">Merriweather (Serif)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="layout">Layout Style</Label>
-                    <select
-                      id="layout"
-                      value={themeConfig.layout}
-                      onChange={(e) => setThemeConfig(prev => ({
-                        ...prev,
-                        layout: e.target.value as any
-                      }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    >
-                      <option value="full-width">Full Width</option>
-                      <option value="contained">Contained (Centered)</option>
-                      <option value="split">Split Layout (Sidebar)</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="dark-mode"
-                      checked={themeConfig.darkModeEnabled}
-                      onChange={(e) => setThemeConfig(prev => ({
-                        ...prev,
-                        darkModeEnabled: e.target.checked
-                      }))}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="dark-mode">Enable Dark Mode</Label>
-                  </div>
-                  <Button onClick={saveThemeConfig} className="w-full bg-purple-500 hover:bg-purple-600">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Theme Settings
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    Theme Preview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+            <AdminCard>
+              <div className="flex items-center gap-2 mb-4">
+                <Layout size={16} style={{ color: '#C49A2A' }} />
+                <AdminSectionLabel>Homepage Modules</AdminSectionLabel>
+              </div>
+              <div className="space-y-3">
+                {homepageConfig.modules.map((module) => (
                   <div
-                    className="w-full h-64 border rounded-lg flex items-center justify-center text-center p-4 overflow-hidden relative"
-                    style={{
-                      backgroundColor: themeConfig.primaryColor,
-                      color: themeConfig.secondaryColor,
-                      fontFamily: themeConfig.fontFamily,
-                    }}
+                    key={module.id}
+                    className="flex items-center justify-between p-3 rounded-xl"
+                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.5)' }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/20" />
-                    <div className="relative z-10">
-                      <h3 className="text-2xl font-bold mb-2">{_defaultSite?.name || 'Your Site'}</h3>
-                      <p className="text-lg mb-4">Your site, your style.</p>
-                      <div className="flex gap-2 justify-center">
-                        <div
-                          className="px-4 py-2 rounded"
-                          style={{ backgroundColor: themeConfig.secondaryColor, color: themeConfig.primaryColor }}
-                        >
-                          Primary Button
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                        style={{ backgroundColor: 'rgba(200,50,43,0.08)', color: '#C8322B' }}
+                      >
+                        {module.type === 'article-grid' ? '📄' : '📧'}
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                          {module.settings.title}
                         </div>
-                        <div
-                          className="px-4 py-2 border rounded"
-                          style={{ borderColor: themeConfig.secondaryColor, color: themeConfig.secondaryColor }}
-                        >
-                          Secondary Button
+                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {module.type.replace('-', ' ')}
                         </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      {module.enabled ? (
+                        <ToggleRight size={22} style={{ color: '#2D5A3D' }} />
+                      ) : (
+                        <ToggleLeft size={22} style={{ color: '#A8A29E' }} />
+                      )}
+                      <AdminButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setHomepageConfig(prev => ({
+                          ...prev,
+                          modules: prev.modules.map(m => m.id === module.id ? { ...m, enabled: !m.enabled } : m)
+                        }))}
+                      >
+                        <Edit size={14} />
+                      </AdminButton>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Pop-ups Tab */}
-          <TabsContent value="popups" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Pop-ups List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Pop-up Offers</h3>
-                  <Button
-                    onClick={() => setIsCreatingPopup(true)}
-                    className="bg-purple-500 hover:bg-purple-600"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Pop-up
-                  </Button>
-                </div>
-                {popupOffers.map((popup) => (
-                  <Card 
-                    key={popup.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedPopup?.id === popup.id ? 'ring-2 ring-purple-500' : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedPopup(popup)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <NextImage
-                          src={popup.image}
-                          alt={popup.name}
-                          width={64}
-                          height={64}
-                          className="w-16 h-16 object-cover rounded-lg"
-                          unoptimized
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-gray-900">{popup.name}</h4>
-                            {getStatusBadge(popup.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{popup.title}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Views: {popup.analytics.views}</span>
-                            <span>Clicks: {popup.analytics.clicks}</span>
-                            <span>Conversions: {popup.analytics.conversions}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
                 ))}
               </div>
+            </AdminCard>
+          </div>
+        )}
 
-              {/* Pop-up Details */}
-              <div>
-                {selectedPopup ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Pop-up Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <NextImage
-                          src={selectedPopup.image}
-                          alt={selectedPopup.name}
-                          width={96}
-                          height={96}
-                          className="w-24 h-24 object-cover rounded-lg"
-                          unoptimized
-                        />
-                        <div>
-                          <h3 className="text-xl font-bold">{selectedPopup.name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getStatusBadge(selectedPopup.status)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Title</Label>
-                        <Input value={selectedPopup.title} readOnly />
-                      </div>
-
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea value={selectedPopup.description} readOnly rows={3} />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>CTA Text</Label>
-                          <Input value={selectedPopup.ctaText} readOnly />
-                        </div>
-                        <div>
-                          <Label>CTA Link</Label>
-                          <Input value={selectedPopup.ctaLink} readOnly />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {selectedPopup.analytics.views}
-                          </div>
-                          <div className="text-xs text-gray-600">Views</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">
-                            {selectedPopup.analytics.clicks}
-                          </div>
-                          <div className="text-xs text-gray-600">Clicks</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">
-                            {getConversionRate(selectedPopup.analytics.views, selectedPopup.analytics.conversions)}%
-                          </div>
-                          <div className="text-xs text-gray-600">Conversion Rate</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => togglePopupStatus(selectedPopup.id)}
-                          className="flex-1"
-                        >
-                          {selectedPopup.status === 'active' ? 'Deactivate' : 'Activate'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => { window.location.href = '/admin/workflow?tab=automation'; }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => { window.location.href = '/admin/seo'; }}
-                        >
-                          <BarChart3 className="h-4 w-4 mr-2" />
-                          Analytics
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Pop-up</h3>
-                      <p className="text-gray-600">Choose a pop-up from the list to view details</p>
-                    </CardContent>
-                  </Card>
-                )}
+        {/* ─── Theme Tab ─── */}
+        {activeTab === 'theme' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <AdminCard>
+              <div className="flex items-center gap-2 mb-4">
+                <Palette size={16} style={{ color: '#C49A2A' }} />
+                <AdminSectionLabel>Color Scheme</AdminSectionLabel>
               </div>
-            </div>
-          </TabsContent>
+              <div className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="primary-color"
+                    style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                  >
+                    Primary Color
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="primary-color"
+                      type="color"
+                      value={themeConfig.primaryColor}
+                      onChange={(e) => setThemeConfig(prev => ({
+                        ...prev,
+                        primaryColor: e.target.value
+                      }))}
+                      className="w-12 h-10 rounded-lg border border-stone-200 cursor-pointer"
+                      style={{ padding: 2 }}
+                    />
+                    <input
+                      className="admin-input flex-1"
+                      value={themeConfig.primaryColor}
+                      onChange={(e) => setThemeConfig(prev => ({
+                        ...prev,
+                        primaryColor: e.target.value
+                      }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    htmlFor="secondary-color"
+                    style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                  >
+                    Secondary Color
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="secondary-color"
+                      type="color"
+                      value={themeConfig.secondaryColor}
+                      onChange={(e) => setThemeConfig(prev => ({
+                        ...prev,
+                        secondaryColor: e.target.value
+                      }))}
+                      className="w-12 h-10 rounded-lg border border-stone-200 cursor-pointer"
+                      style={{ padding: 2 }}
+                    />
+                    <input
+                      className="admin-input flex-1"
+                      value={themeConfig.secondaryColor}
+                      onChange={(e) => setThemeConfig(prev => ({
+                        ...prev,
+                        secondaryColor: e.target.value
+                      }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    htmlFor="font-family"
+                    style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                  >
+                    Font Family
+                  </label>
+                  <select
+                    id="font-family"
+                    className="admin-select"
+                    value={themeConfig.fontFamily}
+                    onChange={(e) => setThemeConfig(prev => ({
+                      ...prev,
+                      fontFamily: e.target.value
+                    }))}
+                  >
+                    <option value="Inter">Inter (Sans-serif)</option>
+                    <option value="Roboto">Roboto (Sans-serif)</option>
+                    <option value="Open Sans">Open Sans (Sans-serif)</option>
+                    <option value="Lato">Lato (Sans-serif)</option>
+                    <option value="Montserrat">Montserrat (Sans-serif)</option>
+                    <option value="Anybody">Anybody (Display)</option>
+                    <option value="Source Serif 4">Source Serif 4 (Editorial)</option>
+                    <option value="Merriweather">Merriweather (Serif)</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="layout"
+                    style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                  >
+                    Layout Style
+                  </label>
+                  <select
+                    id="layout"
+                    className="admin-select"
+                    value={themeConfig.layout}
+                    onChange={(e) => setThemeConfig(prev => ({
+                      ...prev,
+                      layout: e.target.value as any
+                    }))}
+                  >
+                    <option value="full-width">Full Width</option>
+                    <option value="contained">Contained (Centered)</option>
+                    <option value="split">Split Layout (Sidebar)</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="dark-mode"
+                    checked={themeConfig.darkModeEnabled}
+                    onChange={(e) => setThemeConfig(prev => ({
+                      ...prev,
+                      darkModeEnabled: e.target.checked
+                    }))}
+                    className="h-4 w-4 rounded border-stone-300"
+                    style={{ accentColor: '#C8322B' }}
+                  />
+                  <label
+                    htmlFor="dark-mode"
+                    style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}
+                  >
+                    Enable Dark Mode
+                  </label>
+                </div>
+                <AdminButton onClick={saveThemeConfig} variant="primary" className="w-full justify-center">
+                  <Save size={14} />
+                  Save Theme Settings
+                </AdminButton>
+              </div>
+            </AdminCard>
 
-          {/* Automation Tab */}
-          <TabsContent value="automation" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5" />
-                    Content Generation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Auto Content Generation</div>
-                      <div className="text-sm text-gray-600">Automatically generate new content</div>
+            <AdminCard>
+              <div className="flex items-center gap-2 mb-4">
+                <Eye size={16} style={{ color: '#3B7EA1' }} />
+                <AdminSectionLabel>Theme Preview</AdminSectionLabel>
+              </div>
+              <div
+                className="w-full h-64 rounded-xl flex items-center justify-center text-center p-4 overflow-hidden relative"
+                style={{
+                  backgroundColor: themeConfig.primaryColor,
+                  color: themeConfig.secondaryColor,
+                  fontFamily: themeConfig.fontFamily,
+                }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/20" />
+                <div className="relative z-10">
+                  <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
+                    {_defaultSite?.name || 'Your Site'}
+                  </h3>
+                  <p style={{ fontSize: 14, marginBottom: 16, opacity: 0.9 }}>Your site, your style.</p>
+                  <div className="flex gap-2 justify-center">
+                    <div
+                      className="px-4 py-2 rounded-lg text-sm font-semibold"
+                      style={{ backgroundColor: themeConfig.secondaryColor, color: themeConfig.primaryColor }}
+                    >
+                      Primary Button
                     </div>
-                    <div className="flex items-center gap-2">
-                      {automationSettings.contentGeneration.enabled ? (
-                        <ToggleRight className="h-6 w-6 text-green-500" />
-                      ) : (
-                        <ToggleLeft className="h-6 w-6 text-gray-400" />
-                      )}
+                    <div
+                      className="px-4 py-2 rounded-lg text-sm font-semibold"
+                      style={{ borderColor: themeConfig.secondaryColor, color: themeConfig.secondaryColor, border: `1px solid ${themeConfig.secondaryColor}` }}
+                    >
+                      Secondary Button
                     </div>
                   </div>
+                </div>
+              </div>
+            </AdminCard>
+          </div>
+        )}
+
+        {/* ─── Pop-ups Tab ─── */}
+        {activeTab === 'popups' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Pop-ups List */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <AdminSectionLabel>Pop-up Offers</AdminSectionLabel>
+                <AdminButton
+                  onClick={() => setIsCreatingPopup(true)}
+                  variant="primary"
+                  size="sm"
+                >
+                  <Plus size={14} />
+                  Create Pop-up
+                </AdminButton>
+              </div>
+              {popupOffers.map((popup) => (
+                <AdminCard
+                  key={popup.id}
+                  className={`cursor-pointer transition-all ${
+                    selectedPopup?.id === popup.id ? 'ring-2 ring-[#C8322B]' : ''
+                  }`}
+                  elevated={selectedPopup?.id === popup.id}
+                >
+                  <div onClick={() => setSelectedPopup(popup)}>
+                    <div className="flex items-start gap-3">
+                      <NextImage
+                        src={popup.image}
+                        alt={popup.name}
+                        width={64}
+                        height={64}
+                        className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
+                        unoptimized
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                            {popup.name}
+                          </span>
+                          <AdminStatusBadge status={popup.status} />
+                        </div>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#78716C', marginBottom: 6 }}>
+                          {popup.title}
+                        </p>
+                        <div className="flex items-center gap-3" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          <span>Views: {popup.analytics.views}</span>
+                          <span>Clicks: {popup.analytics.clicks}</span>
+                          <span>Conv: {popup.analytics.conversions}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </AdminCard>
+              ))}
+            </div>
+
+            {/* Pop-up Details */}
+            <div>
+              {selectedPopup ? (
+                <AdminCard accent accentColor="red">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Target size={16} style={{ color: '#C8322B' }} />
+                    <AdminSectionLabel>Pop-up Details</AdminSectionLabel>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <NextImage
+                        src={selectedPopup.image}
+                        alt={selectedPopup.name}
+                        width={96}
+                        height={96}
+                        className="w-20 h-20 object-cover rounded-xl"
+                        unoptimized
+                      />
+                      <div>
+                        <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
+                          {selectedPopup.name}
+                        </h3>
+                        <div className="mt-1">
+                          <AdminStatusBadge status={selectedPopup.status} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Title
+                      </label>
+                      <input className="admin-input" value={selectedPopup.title} readOnly />
+                    </div>
+
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Description
+                      </label>
+                      <textarea className="admin-input" value={selectedPopup.description} readOnly rows={3} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          CTA Text
+                        </label>
+                        <input className="admin-input" value={selectedPopup.ctaText} readOnly />
+                      </div>
+                      <div>
+                        <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          CTA Link
+                        </label>
+                        <input className="admin-input" value={selectedPopup.ctaLink} readOnly />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <AdminKPICard
+                        value={selectedPopup.analytics.views}
+                        label="Views"
+                        color="#3B7EA1"
+                      />
+                      <AdminKPICard
+                        value={selectedPopup.analytics.clicks}
+                        label="Clicks"
+                        color="#2D5A3D"
+                      />
+                      <AdminKPICard
+                        value={`${getConversionRate(selectedPopup.analytics.views, selectedPopup.analytics.conversions)}%`}
+                        label="Conversion"
+                        color="#C49A2A"
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <AdminButton
+                        variant="secondary"
+                        onClick={() => togglePopupStatus(selectedPopup.id)}
+                        className="flex-1 justify-center"
+                      >
+                        {selectedPopup.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </AdminButton>
+                      <AdminButton
+                        variant="secondary"
+                        className="flex-1 justify-center"
+                        onClick={() => { window.location.href = '/admin/workflow?tab=automation'; }}
+                      >
+                        <Edit size={14} />
+                        Edit
+                      </AdminButton>
+                    </div>
+                  </div>
+                </AdminCard>
+              ) : (
+                <AdminEmptyState
+                  icon={Target}
+                  title="Select a Pop-up"
+                  description="Choose a pop-up from the list to view details and analytics"
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Automation Tab ─── */}
+        {activeTab === 'automation' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <AdminCard accent accentColor="gold">
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap size={16} style={{ color: '#C49A2A' }} />
+                  <AdminSectionLabel>Content Generation</AdminSectionLabel>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                        Auto Content Generation
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                        Automatically generate new content
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setAutomationSettings(prev => ({
+                        ...prev,
+                        contentGeneration: { ...prev.contentGeneration, enabled: !prev.contentGeneration.enabled }
+                      }))}
+                    >
+                      {automationSettings.contentGeneration.enabled ? (
+                        <ToggleRight size={26} style={{ color: '#2D5A3D' }} />
+                      ) : (
+                        <ToggleLeft size={26} style={{ color: '#A8A29E' }} />
+                      )}
+                    </button>
+                  </div>
                   <div>
-                    <Label>Generation Frequency</Label>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Generation Frequency
+                    </label>
                     <select
+                      className="admin-select"
                       value={automationSettings.contentGeneration.frequency}
                       onChange={(e) => setAutomationSettings(prev => ({
                         ...prev,
@@ -853,7 +924,6 @@ export default function SiteControl() {
                           frequency: e.target.value as any
                         }
                       }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
                     >
                       <option value="hourly">Hourly</option>
                       <option value="daily">Daily</option>
@@ -861,9 +931,12 @@ export default function SiteControl() {
                     </select>
                   </div>
                   <div>
-                    <Label>Topics Per Generation</Label>
-                    <Input
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Topics Per Generation
+                    </label>
+                    <input
                       type="number"
+                      className="admin-input"
                       value={automationSettings.contentGeneration.topicsPerGeneration}
                       onChange={(e) => setAutomationSettings(prev => ({
                         ...prev,
@@ -874,34 +947,44 @@ export default function SiteControl() {
                       }))}
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </AdminCard>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Publishing Schedule
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+              <AdminCard accent accentColor="blue">
+                <div className="flex items-center gap-2 mb-4">
+                  <Clock size={16} style={{ color: '#3B7EA1' }} />
+                  <AdminSectionLabel>Publishing Schedule</AdminSectionLabel>
+                </div>
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium">Auto Publishing</div>
-                      <div className="text-sm text-gray-600">Automatically publish content</div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                        Auto Publishing
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                        Automatically publish content
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setAutomationSettings(prev => ({
+                        ...prev,
+                        publishing: { ...prev.publishing, enabled: !prev.publishing.enabled }
+                      }))}
+                    >
                       {automationSettings.publishing.enabled ? (
-                        <ToggleRight className="h-6 w-6 text-green-500" />
+                        <ToggleRight size={26} style={{ color: '#2D5A3D' }} />
                       ) : (
-                        <ToggleLeft className="h-6 w-6 text-gray-400" />
+                        <ToggleLeft size={26} style={{ color: '#A8A29E' }} />
                       )}
-                    </div>
+                    </button>
                   </div>
                   <div>
-                    <Label>Publishing Time</Label>
-                    <Input
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Publishing Time
+                    </label>
+                    <input
                       type="time"
+                      className="admin-input"
                       value={automationSettings.publishing.schedule}
                       onChange={(e) => setAutomationSettings(prev => ({
                         ...prev,
@@ -912,7 +995,7 @@ export default function SiteControl() {
                       }))}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 pt-1">
                     <input
                       type="checkbox"
                       checked={automationSettings.publishing.autoPublish}
@@ -923,38 +1006,51 @@ export default function SiteControl() {
                           autoPublish: e.target.checked
                         }
                       }))}
-                      className="h-4 w-4"
+                      className="h-4 w-4 rounded border-stone-300"
+                      style={{ accentColor: '#C8322B' }}
                     />
-                    <Label>Auto-publish without review</Label>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  SEO Optimization
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">Real-time SEO Optimization</div>
-                    <div className="text-sm text-gray-600">Automatically optimize content for SEO</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {automationSettings.seoOptimization.enabled ? (
-                      <ToggleRight className="h-6 w-6 text-green-500" />
-                    ) : (
-                      <ToggleLeft className="h-6 w-6 text-gray-400" />
-                    )}
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
+                      Auto-publish without review
+                    </label>
                   </div>
                 </div>
+              </AdminCard>
+            </div>
+
+            <AdminCard accent accentColor="green">
+              <div className="flex items-center gap-2 mb-4">
+                <Search size={16} style={{ color: '#2D5A3D' }} />
+                <AdminSectionLabel>SEO Optimization</AdminSectionLabel>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                      Real-time SEO Optimization
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                      Automatically optimize content for SEO
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAutomationSettings(prev => ({
+                      ...prev,
+                      seoOptimization: { ...prev.seoOptimization, enabled: !prev.seoOptimization.enabled }
+                    }))}
+                  >
+                    {automationSettings.seoOptimization.enabled ? (
+                      <ToggleRight size={26} style={{ color: '#2D5A3D' }} />
+                    ) : (
+                      <ToggleLeft size={26} style={{ color: '#A8A29E' }} />
+                    )}
+                  </button>
+                </div>
                 <div>
-                  <Label>Optimization Frequency</Label>
+                  <label style={{ fontFamily: 'var(--font-system)', fontSize: 11, fontWeight: 600, color: '#44403C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Optimization Frequency
+                  </label>
                   <select
+                    className="admin-select"
                     value={automationSettings.seoOptimization.frequency}
                     onChange={(e) => setAutomationSettings(prev => ({
                       ...prev,
@@ -963,24 +1059,23 @@ export default function SiteControl() {
                         frequency: e.target.value as any
                       }
                     }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
                   >
                     <option value="realtime">Real-time</option>
                     <option value="hourly">Hourly</option>
                     <option value="daily">Daily</option>
                   </select>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </AdminCard>
 
             <div className="flex justify-end">
-              <Button onClick={saveAutomationSettings} className="bg-purple-500 hover:bg-purple-600">
-                <Save className="h-4 w-4 mr-2" />
+              <AdminButton onClick={saveAutomationSettings} variant="primary">
+                <Save size={14} />
                 Save Automation Settings
-              </Button>
+              </AdminButton>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
     </div>
   )

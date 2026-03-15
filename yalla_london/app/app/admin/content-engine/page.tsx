@@ -1,27 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminStatusBadge,
+  AdminButton,
+  AdminKPICard,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminAlertBanner,
+} from "@/components/admin/admin-ui";
 import { SITES, getDefaultSiteId } from "@/config/sites";
 import {
   Search,
@@ -42,7 +32,6 @@ import {
   Lightbulb,
   PenTool,
   BarChart3,
-  Activity,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -90,16 +79,6 @@ const STAGE_LABELS: Record<string, string> = {
 
 const ACTIVE_STATUSES = ["researching", "ideating", "scripting", "analyzing"];
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  researching: { bg: "bg-blue-50 dark:bg-blue-950", text: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
-  ideating: { bg: "bg-indigo-50 dark:bg-indigo-950", text: "text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" },
-  scripting: { bg: "bg-purple-50 dark:bg-purple-950", text: "text-purple-700 dark:text-purple-300", dot: "bg-purple-500" },
-  analyzing: { bg: "bg-cyan-50 dark:bg-cyan-950", text: "text-cyan-700 dark:text-cyan-300", dot: "bg-cyan-500" },
-  complete: { bg: "bg-green-50 dark:bg-green-950", text: "text-green-700 dark:text-green-300", dot: "bg-green-500" },
-  paused: { bg: "bg-amber-50 dark:bg-amber-950", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
-  failed: { bg: "bg-red-50 dark:bg-red-950", text: "text-red-700 dark:text-red-300", dot: "bg-red-500" },
-};
-
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {
@@ -118,11 +97,24 @@ function getStageStatus(stages: PipelineStage[], stageName: string): "completed"
 
 function getStageStatusIcon(status: string) {
   switch (status) {
-    case "completed": return <CheckCircle className="h-4 w-4 text-green-500" />;
-    case "in_progress": return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-    case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-    default: return <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />;
+    case "completed": return <CheckCircle className="h-4 w-4" style={{ color: '#2D5A3D' }} />;
+    case "in_progress": return <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#3B7EA1' }} />;
+    case "failed": return <AlertCircle className="h-4 w-4" style={{ color: '#C8322B' }} />;
+    default: return <Clock className="h-4 w-4" style={{ color: '#A8A29E' }} />;
   }
+}
+
+function mapPipelineStatusToBadge(status: string): string {
+  const map: Record<string, string> = {
+    researching: "running",
+    ideating: "running",
+    scripting: "running",
+    analyzing: "running",
+    complete: "success",
+    paused: "warning",
+    failed: "failed",
+  };
+  return map[status] || "pending";
 }
 
 // ─── Main Component ──────────────────────────────────────────────
@@ -135,6 +127,7 @@ export default function ContentEnginePage() {
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
   const [isCreating, setIsCreating] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // New pipeline form state
   const [newSiteId, setNewSiteId] = useState(getDefaultSiteId());
@@ -143,6 +136,7 @@ export default function ContentEnginePage() {
 
   const loadPipelines = useCallback(async () => {
     try {
+      setFetchError(null);
       const res = await fetch("/api/admin/content-engine/pipeline");
       if (res.ok) {
         const data = await res.json();
@@ -166,6 +160,7 @@ export default function ContentEnginePage() {
       }
     } catch (err) {
       console.warn("[content-engine] Failed to load pipelines:", err);
+      setFetchError("Failed to load pipelines. Check your connection and try again.");
       setPipelines([]);
     }
   }, []);
@@ -233,7 +228,7 @@ export default function ContentEnginePage() {
     setExpandedStages((prev) => ({ ...prev, [stageKey]: !prev[stageKey] }));
   };
 
-  // Summary counts — active = any in-progress stage status
+  // Summary counts
   const runningCount = pipelines.filter((p) => ACTIVE_STATUSES.includes(p.status)).length;
   const completedCount = pipelines.filter((p) => p.status === "complete").length;
   const failedCount = pipelines.filter((p) => p.status === "failed").length;
@@ -242,41 +237,50 @@ export default function ContentEnginePage() {
   // ─── Render ──────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-              <Brain className="h-7 w-7 text-violet-600" />
-              Content Engine
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              AI-powered content generation pipeline
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button size="sm" onClick={() => setShowNewPipeline(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Pipeline
-            </Button>
-          </div>
-        </div>
+    <div className="admin-page p-4 md:p-6">
+      <div className="max-w-5xl mx-auto space-y-6">
 
-        {/* Pipeline Visualization */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Pipeline Flow</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between overflow-x-auto py-4 gap-2">
+        {/* Header */}
+        <AdminPageHeader
+          title="Content Engine"
+          subtitle="AI-powered content generation pipeline"
+          action={
+            <div className="flex items-center gap-2">
+              <AdminButton variant="secondary" size="sm" onClick={handleRefresh} loading={isRefreshing}>
+                <RefreshCw size={13} />
+                Refresh
+              </AdminButton>
+              <AdminButton variant="primary" size="sm" onClick={() => setShowNewPipeline(true)}>
+                <Plus size={13} />
+                New Pipeline
+              </AdminButton>
+            </div>
+          }
+        />
+
+        {/* Error Banner */}
+        {fetchError && (
+          <AdminAlertBanner
+            severity="critical"
+            message={fetchError}
+            onDismiss={() => setFetchError(null)}
+            action={
+              <AdminButton variant="secondary" size="sm" onClick={handleRefresh}>
+                Retry
+              </AdminButton>
+            }
+          />
+        )}
+
+        {/* Pipeline Flow Visualization */}
+        <AdminCard>
+          <div style={{ padding: '6px 16px 2px' }}>
+            <AdminSectionLabel>Pipeline Flow</AdminSectionLabel>
+          </div>
+          <div style={{ padding: '8px 16px 20px' }}>
+            <div className="flex items-center justify-between overflow-x-auto py-2 gap-2">
               {(["researcher", "ideator", "scripter", "analyst"] as const).map((stage, idx) => {
                 const StageIcon = STAGE_ICONS[stage];
-                // Count active pipelines at each stage
                 const activeAtStage = pipelines.filter(
                   (p) => ACTIVE_STATUSES.includes(p.status) && getStageStatus(p.stages, stage) === "in_progress"
                 ).length;
@@ -288,123 +292,149 @@ export default function ContentEnginePage() {
                   <div key={stage} className="flex items-center flex-1 min-w-0">
                     <div className="flex flex-col items-center flex-1 min-w-0">
                       <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
-                          activeAtStage > 0
-                            ? "bg-violet-100 dark:bg-violet-900 text-violet-600 dark:text-violet-400 ring-2 ring-violet-400 ring-offset-2 dark:ring-offset-gray-950"
-                            : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500"
-                        }`}
+                        className="w-14 h-14 rounded-2xl flex items-center justify-center transition-colors"
+                        style={{
+                          backgroundColor: activeAtStage > 0 ? 'rgba(59,126,161,0.1)' : '#FAF8F4',
+                          border: activeAtStage > 0 ? '2px solid #3B7EA1' : '1px solid rgba(214,208,196,0.6)',
+                          color: activeAtStage > 0 ? '#3B7EA1' : '#A8A29E',
+                        }}
                       >
                         <StageIcon className="h-6 w-6" />
                       </div>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2">
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-system)',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#44403C',
+                          marginTop: 8,
+                        }}
+                      >
                         {STAGE_LABELS[stage]}
                       </span>
                       <div className="flex items-center gap-2 mt-1">
                         {activeAtStage > 0 && (
-                          <span className="text-xs bg-violet-100 dark:bg-violet-900 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full">
-                            {activeAtStage} active
-                          </span>
+                          <AdminStatusBadge status="running" label={`${activeAtStage} active`} />
                         )}
                         {completedAtStage > 0 && (
-                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 9,
+                              color: '#A8A29E',
+                            }}
+                          >
                             {completedAtStage} done
                           </span>
                         )}
                       </div>
                     </div>
                     {idx < 3 && (
-                      <ArrowRight className="h-5 w-5 text-gray-300 dark:text-gray-600 shrink-0 mx-1" />
+                      <ArrowRight size={16} style={{ color: '#D6D0C4', flexShrink: 0, margin: '0 4px' }} />
                     )}
                   </div>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </AdminCard>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <MiniStat label="Active" value={runningCount} color="text-blue-600 dark:text-blue-400" icon={Loader2} />
-          <MiniStat label="Paused" value={pausedCount} color="text-amber-600 dark:text-amber-400" icon={Clock} />
-          <MiniStat label="Complete" value={completedCount} color="text-green-600 dark:text-green-400" icon={CheckCircle} />
-          <MiniStat label="Failed" value={failedCount} color="text-red-600 dark:text-red-400" icon={AlertCircle} />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <AdminKPICard value={runningCount} label="Active" color="#3B7EA1" />
+          <AdminKPICard value={pausedCount} label="Paused" color="#C49A2A" />
+          <AdminKPICard value={completedCount} label="Complete" color="#2D5A3D" />
+          <AdminKPICard value={failedCount} label="Failed" color="#C8322B" />
         </div>
 
         {/* Quick Actions */}
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" size="sm" onClick={() => handleQuickAction("quick-post")}>
-            <Zap className="h-4 w-4 mr-2 text-amber-500" />
-            Quick Post
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleQuickAction("quick-article")}>
-            <FileText className="h-4 w-4 mr-2 text-blue-500" />
-            Quick Article
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleQuickAction("quick-video")}>
-            <Video className="h-4 w-4 mr-2 text-purple-500" />
-            Quick Video
-          </Button>
+        <div>
+          <AdminSectionLabel>Quick Actions</AdminSectionLabel>
+          <div className="flex flex-wrap gap-2">
+            <AdminButton variant="secondary" size="sm" onClick={() => handleQuickAction("quick-post")}>
+              <Zap size={12} style={{ color: '#C49A2A' }} />
+              Quick Post
+            </AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={() => handleQuickAction("quick-article")}>
+              <FileText size={12} style={{ color: '#3B7EA1' }} />
+              Quick Article
+            </AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={() => handleQuickAction("quick-video")}>
+              <Video size={12} style={{ color: '#7C3AED' }} />
+              Quick Video
+            </AdminButton>
+          </div>
         </div>
 
         {/* Pipeline History */}
         <section>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pipeline History</h2>
+          <AdminSectionLabel>Pipeline History</AdminSectionLabel>
+
           {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 rounded-xl" />
-              ))}
-            </div>
-          ) : pipelines.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Sparkles className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No pipelines yet</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  Start your first content pipeline to generate articles with AI.
-                </p>
-                <Button onClick={() => setShowNewPipeline(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
+            <AdminLoadingState label="Loading pipelines..." />
+          ) : pipelines.length === 0 && !fetchError ? (
+            <AdminEmptyState
+              icon={Sparkles}
+              title="No pipelines yet"
+              description="Start your first content pipeline to generate articles with AI."
+              action={
+                <AdminButton variant="primary" size="md" onClick={() => setShowNewPipeline(true)}>
+                  <Plus size={13} />
                   Start Pipeline
-                </Button>
-              </CardContent>
-            </Card>
+                </AdminButton>
+              }
+            />
           ) : (
             <div className="space-y-3">
               {pipelines.map((pipeline) => {
                 const isSelected = selectedPipeline?.id === pipeline.id;
-                const colors = STATUS_COLORS[pipeline.status] || STATUS_COLORS.paused;
 
                 return (
-                  <Card
+                  <AdminCard
                     key={pipeline.id}
-                    className={`cursor-pointer transition-all hover:shadow-md ${isSelected ? "ring-2 ring-violet-400 dark:ring-violet-600" : ""}`}
-                    onClick={() => setSelectedPipeline(isSelected ? null : pipeline)}
+                    className={`cursor-pointer transition-all ${isSelected ? 'ring-2' : ''}`}
+                    elevated={isSelected}
                   >
-                    <CardContent className="p-4">
+                    <div
+                      style={{ padding: '14px 16px' }}
+                      onClick={() => setSelectedPipeline(isSelected ? null : pipeline)}
+                    >
                       {/* Pipeline summary row */}
                       <div className="flex items-center gap-3">
                         <div className="shrink-0">
                           {ACTIVE_STATUSES.includes(pipeline.status) ? (
-                            <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                            <Loader2 size={18} className="animate-spin" style={{ color: '#3B7EA1' }} />
                           ) : pipeline.status === "complete" ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
+                            <CheckCircle size={18} style={{ color: '#2D5A3D' }} />
                           ) : pipeline.status === "failed" ? (
-                            <AlertCircle className="h-5 w-5 text-red-500" />
+                            <AlertCircle size={18} style={{ color: '#C8322B' }} />
                           ) : (
-                            <Clock className="h-5 w-5 text-amber-500" />
+                            <Clock size={18} style={{ color: '#C49A2A' }} />
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                            <span
+                              className="truncate"
+                              style={{
+                                fontFamily: 'var(--font-display)',
+                                fontWeight: 700,
+                                fontSize: 13,
+                                color: '#1C1917',
+                              }}
+                            >
                               {pipeline.topic}
-                            </h3>
-                            <Badge className={`text-xs ${colors.bg} ${colors.text} border-0`}>
-                              {pipeline.status}
-                            </Badge>
+                            </span>
+                            <AdminStatusBadge status={mapPipelineStatusToBadge(pipeline.status)} label={pipeline.status} />
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <div
+                            className="flex items-center gap-3 mt-1"
+                            style={{
+                              fontFamily: 'var(--font-system)',
+                              fontSize: 10,
+                              color: '#78716C',
+                            }}
+                          >
                             <span>{pipeline.siteName || pipeline.siteId}</span>
                             <span>{pipeline.language.toUpperCase()}</span>
                             <span>{formatDate(pipeline.createdAt)}</span>
@@ -412,16 +442,20 @@ export default function ContentEnginePage() {
                         </div>
                         <div className="shrink-0">
                           {isSelected ? (
-                            <ChevronDown className="h-5 w-5 text-gray-400" />
+                            <ChevronDown size={16} style={{ color: '#A8A29E' }} />
                           ) : (
-                            <ChevronRight className="h-5 w-5 text-gray-400" />
+                            <ChevronRight size={16} style={{ color: '#A8A29E' }} />
                           )}
                         </div>
                       </div>
 
                       {/* Expanded stages */}
                       {isSelected && (
-                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
+                        <div
+                          className="mt-4 pt-4 space-y-2"
+                          style={{ borderTop: '1px solid rgba(214,208,196,0.5)' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {(["researcher", "ideator", "scripter", "analyst"] as const).map((stageName) => {
                             const stageKey = `${pipeline.id}-${stageName}`;
                             const stage = pipeline.stages.find(
@@ -431,38 +465,74 @@ export default function ContentEnginePage() {
                             const isExpanded = expandedStages[stageKey];
 
                             return (
-                              <div key={stageName} className="rounded-lg border border-gray-100 dark:border-gray-800">
+                              <div
+                                key={stageName}
+                                className="rounded-lg"
+                                style={{
+                                  border: '1px solid rgba(214,208,196,0.5)',
+                                  backgroundColor: stageStatus === 'completed' ? 'rgba(45,90,61,0.03)' : '#FFFFFF',
+                                }}
+                              >
                                 <button
-                                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleStageExpansion(stageKey);
-                                  }}
+                                  className="w-full flex items-center gap-3 p-3 text-left rounded-lg transition-colors"
+                                  style={{ fontSize: 12 }}
+                                  onClick={() => toggleStageExpansion(stageKey)}
                                 >
                                   {getStageStatusIcon(stageStatus)}
-                                  <span className="font-medium text-sm text-gray-700 dark:text-gray-300 flex-1">
+                                  <span
+                                    className="flex-1"
+                                    style={{
+                                      fontFamily: 'var(--font-system)',
+                                      fontWeight: 600,
+                                      fontSize: 11,
+                                      color: '#44403C',
+                                    }}
+                                  >
                                     {STAGE_LABELS[stageName]}
                                   </span>
-                                  <span className="text-xs text-gray-400">
+                                  <span
+                                    style={{
+                                      fontFamily: 'var(--font-system)',
+                                      fontSize: 10,
+                                      color: '#A8A29E',
+                                    }}
+                                  >
                                     {stageStatus === "completed" && stage?.completedAt
                                       ? formatDate(stage.completedAt)
                                       : stageStatus}
                                   </span>
                                   {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                                    <ChevronDown size={14} style={{ color: '#A8A29E' }} />
                                   ) : (
-                                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                                    <ChevronRight size={14} style={{ color: '#A8A29E' }} />
                                   )}
                                 </button>
                                 {isExpanded && stage?.data && (
-                                  <div className="px-3 pb-3">
-                                    <pre className="text-xs bg-gray-50 dark:bg-gray-900 rounded-lg p-3 overflow-x-auto max-h-60">
+                                  <div style={{ padding: '0 12px 12px' }}>
+                                    <pre
+                                      className="overflow-x-auto max-h-60 rounded-lg"
+                                      style={{
+                                        fontFamily: 'var(--font-system)',
+                                        fontSize: 10,
+                                        backgroundColor: '#FAF8F4',
+                                        border: '1px solid rgba(214,208,196,0.4)',
+                                        padding: 12,
+                                        color: '#44403C',
+                                      }}
+                                    >
                                       {JSON.stringify(stage.data, null, 2)}
                                     </pre>
                                   </div>
                                 )}
                                 {isExpanded && !stage?.data && (
-                                  <div className="px-3 pb-3 text-xs text-gray-400 dark:text-gray-500">
+                                  <div
+                                    style={{
+                                      padding: '0 12px 12px',
+                                      fontFamily: 'var(--font-system)',
+                                      fontSize: 10,
+                                      color: '#A8A29E',
+                                    }}
+                                  >
                                     No data available for this stage.
                                   </div>
                                 )}
@@ -472,19 +542,40 @@ export default function ContentEnginePage() {
 
                           {/* Pipeline result */}
                           {pipeline.result && (
-                            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 p-3">
-                              <h4 className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
+                            <div
+                              className="rounded-lg p-3"
+                              style={{
+                                backgroundColor: 'rgba(45,90,61,0.04)',
+                                border: '1px solid rgba(45,90,61,0.15)',
+                              }}
+                            >
+                              <p
+                                style={{
+                                  fontFamily: 'var(--font-system)',
+                                  fontWeight: 600,
+                                  fontSize: 11,
+                                  color: '#2D5A3D',
+                                  marginBottom: 8,
+                                }}
+                              >
                                 Pipeline Result
-                              </h4>
-                              <pre className="text-xs overflow-x-auto max-h-40">
+                              </p>
+                              <pre
+                                className="overflow-x-auto max-h-40"
+                                style={{
+                                  fontFamily: 'var(--font-system)',
+                                  fontSize: 10,
+                                  color: '#44403C',
+                                }}
+                              >
                                 {JSON.stringify(pipeline.result, null, 2)}
                               </pre>
                             </div>
                           )}
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </AdminCard>
                 );
               })}
             </div>
@@ -492,102 +583,207 @@ export default function ContentEnginePage() {
         </section>
       </div>
 
-      {/* New Pipeline Dialog */}
-      <Dialog open={showNewPipeline} onOpenChange={setShowNewPipeline}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Content Pipeline</DialogTitle>
-            <DialogDescription>
-              Start an AI content generation pipeline. Optionally provide a topic, or let the AI choose.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="pipeline-site">Site</Label>
-              <Select value={newSiteId} onValueChange={setNewSiteId}>
-                <SelectTrigger id="pipeline-site">
-                  <SelectValue placeholder="Select site" />
-                </SelectTrigger>
-                <SelectContent>
+      {/* New Pipeline Modal */}
+      {showNewPipeline && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(28,25,23,0.4)' }}
+          onClick={() => setShowNewPipeline(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl"
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid rgba(214,208,196,0.6)',
+              boxShadow: '0 24px 48px rgba(28,25,23,0.12)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              className="flex items-center justify-between"
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid rgba(214,208,196,0.5)',
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    fontSize: 16,
+                    color: '#1C1917',
+                  }}
+                >
+                  New Content Pipeline
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 11,
+                    color: '#78716C',
+                    marginTop: 2,
+                  }}
+                >
+                  Start an AI content generation pipeline. Optionally provide a topic, or let the AI choose.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowNewPipeline(false)}
+                className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '16px 20px' }} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="pipeline-site"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    color: '#78716C',
+                    display: 'block',
+                    marginBottom: 6,
+                  }}
+                >
+                  Site
+                </label>
+                <select
+                  id="pipeline-site"
+                  className="admin-select"
+                  value={newSiteId}
+                  onChange={(e) => setNewSiteId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 12,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                >
                   {SITE_OPTIONS.map((site) => (
-                    <SelectItem key={site.id} value={site.id}>
+                    <option key={site.id} value={site.id}>
                       {site.name}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="pipeline-topic"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    color: '#78716C',
+                    display: 'block',
+                    marginBottom: 6,
+                  }}
+                >
+                  Topic (optional)
+                </label>
+                <input
+                  id="pipeline-topic"
+                  className="admin-input"
+                  placeholder="e.g., Best halal restaurants in Mayfair"
+                  value={newTopic}
+                  onChange={(e) => setNewTopic(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 12,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                />
+                <p
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 10,
+                    color: '#A8A29E',
+                    marginTop: 4,
+                  }}
+                >
+                  Leave blank to let the AI research and choose a topic.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="pipeline-language"
+                  style={{
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    color: '#78716C',
+                    display: 'block',
+                    marginBottom: 6,
+                  }}
+                >
+                  Language
+                </label>
+                <select
+                  id="pipeline-language"
+                  className="admin-select"
+                  value={newLanguage}
+                  onChange={(e) => setNewLanguage(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-system)',
+                    fontSize: 12,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(214,208,196,0.8)',
+                    backgroundColor: '#FFFFFF',
+                    color: '#1C1917',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="en">English</option>
+                  <option value="ar">Arabic</option>
+                </select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pipeline-topic">Topic (optional)</Label>
-              <Input
-                id="pipeline-topic"
-                placeholder="e.g., Best halal restaurants in Mayfair"
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Leave blank to let the AI research and choose a topic.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pipeline-language">Language</Label>
-              <Select value={newLanguage} onValueChange={setNewLanguage}>
-                <SelectTrigger id="pipeline-language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="ar">Arabic</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {/* Modal Footer */}
+            <div
+              className="flex items-center justify-end gap-2"
+              style={{
+                padding: '12px 20px 16px',
+                borderTop: '1px solid rgba(214,208,196,0.5)',
+              }}
+            >
+              <AdminButton variant="secondary" size="md" onClick={() => setShowNewPipeline(false)}>
+                Cancel
+              </AdminButton>
+              <AdminButton variant="primary" size="md" onClick={handleCreatePipeline} loading={isCreating} disabled={isCreating}>
+                {!isCreating && <Sparkles size={12} />}
+                {isCreating ? "Starting..." : "Start Pipeline"}
+              </AdminButton>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewPipeline(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreatePipeline} disabled={isCreating}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Start Pipeline
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// ─── Sub-components ──────────────────────────────────────────────
-
-function MiniStat({
-  label,
-  value,
-  color,
-  icon: Icon,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <Icon className={`h-5 w-5 ${color} shrink-0`} />
-        <div>
-          <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

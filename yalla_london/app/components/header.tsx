@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { useLanguage } from './language-provider'
 import { LanguageSwitcher } from './language-switcher'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 
 export function Header() {
@@ -34,7 +33,7 @@ export function Header() {
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-yl-gray-200 ${isRTL ? 'rtl' : 'ltr'}`}>
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-7">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
@@ -49,7 +48,7 @@ export function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-yl-gray-500 hover:text-yl-red font-medium transition-colors"
+                className="text-yl-gray-500 hover:text-yl-red font-medium transition-colors font-body"
               >
                 {item.name}
               </Link>
@@ -61,34 +60,32 @@ export function Header() {
             <div className="hidden md:block">
               <LanguageSwitcher />
             </div>
-            
+
             {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
+            <button
+              className="md:hidden p-2 rounded-[14px] text-yl-gray-500 hover:text-yl-charcoal hover:bg-yl-cream transition-colors"
               onClick={handleMobileMenuToggle}
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6text-yl-gray-500" />
+                <X className="h-6 w-6" />
               ) : (
-                <Menu className="h-6 w-6text-yl-gray-500" />
+                <Menu className="h-6 w-6" />
               )}
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-yl-gray-200 shadow-lg">
-            <nav className="px-6 py-4 space-y-4">
+            <nav className="px-7 py-4 space-y-4">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={handleMobileLinkClick}
-                  className="block text-yl-gray-500 hover:text-yl-red font-medium transition-colors py-2 border-b border-yl-gray-200 last:border-b-0"
+                  className="block text-yl-gray-500 hover:text-yl-red font-medium transition-colors font-body py-2 border-b border-yl-gray-200 last:border-b-0"
                 >
                   {item.name}
                 </Link>

@@ -4,8 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { TriBar, BrandButton, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,7 +15,6 @@ import {
   ShoppingBag,
   Clock,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 // ---------- Types ----------
@@ -68,26 +66,6 @@ interface SectionClientProps {
   }
 }
 
-// ---------- Animation Variants ----------
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0 },
-}
-
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-}
-
-const staggerItem = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-}
-
 // ---------- Component ----------
 
 export default function SectionClient({
@@ -125,7 +103,7 @@ export default function SectionClient({
   return (
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* ==================== HERO SECTION ==================== */}
-      <section className="relative h-[28rem] md:h-[32rem] overflow-hidden">
+      <section className="relative overflow-hidden pt-28 pb-16">
         <div className="absolute inset-0">
           <Image
             src={section.featured_image}
@@ -134,67 +112,45 @@ export default function SectionClient({
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
+          <div className="absolute inset-0 bg-yl-dark-navy/80" />
         </div>
 
-        <div className="relative z-10 h-full flex flex-col justify-end pb-12">
-          <div className="max-w-4xl mx-auto px-6 w-full">
-            {/* Breadcrumb */}
-            <motion.nav
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              aria-label="Breadcrumb"
-              className="mb-6"
-            >
-              <ol className="flex items-center gap-2 text-sm text-yl-gray-200">
-                <li>
-                  <Link
-                    href="/"
-                    className="hover:text-yl-gold transition-colors flex items-center gap-1"
-                  >
-                    <Home className="h-3.5 w-3.5" />
-                    {t('home')}
-                  </Link>
-                </li>
-                <li>
-                  <ChevronRight className={`h-3.5 w-3.5 text-yl-gray-300 ${isRTL ? 'rotate-180' : ''}`} />
-                </li>
-                <li>
-                  <Link
-                    href="/information"
-                    className="hover:text-yl-gold transition-colors"
-                  >
-                    {t('informationHub')}
-                  </Link>
-                </li>
-                <li>
-                  <ChevronRight className={`h-3.5 w-3.5 text-yl-gray-300 ${isRTL ? 'rotate-180' : ''}`} />
-                </li>
-                <li className="text-yl-gold font-medium">{sectionName}</li>
-              </ol>
-            </motion.nav>
+        <WatermarkStamp />
 
-            {/* Section Title */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.1 }}
-            >
+        <div className="relative z-10 flex flex-col justify-end">
+          <div className="max-w-7xl mx-auto px-7 w-full">
+            {/* Breadcrumb */}
+            <div className="mb-6">
+              <Breadcrumbs
+                items={[
+                  { label: language === 'en' ? 'Home' : 'الرئيسية', href: '/' },
+                  { label: language === 'en' ? 'Information' : 'المعلومات', href: '/information' },
+                  { label: sectionName },
+                ]}
+              />
+            </div>
+
+            {/* Section Label + Title */}
+            <div>
+              <SectionLabel>
+                {language === 'en' ? 'Information Hub' : 'مركز المعلومات'}
+              </SectionLabel>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-white mb-4">
                 {sectionName}
               </h1>
               <p className="text-lg md:text-xl text-yl-gray-200 max-w-2xl leading-relaxed">
                 {sectionDescription}
               </p>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
+      <TriBar />
+
       {/* ==================== BACK TO HUB LINK (TOP) ==================== */}
       <div className="bg-yl-cream border-b border-yl-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-3">
+        <div className="max-w-7xl mx-auto px-7 py-3">
           <Link
             href="/information"
             className="inline-flex items-center gap-2 text-sm text-yl-red hover:text-yl-dark-navy font-medium transition-colors"
@@ -210,7 +166,7 @@ export default function SectionClient({
       {/* ==================== AFFILIATE DISCLOSURE ==================== */}
       {showAffiliateDisclosure && (
         <div className="bg-yl-gold/10 border-b border-yl-gold/30">
-          <div className="max-w-4xl mx-auto px-6 py-3">
+          <div className="max-w-7xl mx-auto px-7 py-3">
             <p className="text-xs text-yl-gray-500 italic">{t('affiliateDisclosure')}</p>
           </div>
         </div>
@@ -218,13 +174,8 @@ export default function SectionClient({
 
       {/* ==================== CONTENT BODY ==================== */}
       <section className="py-12 md:py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-50px' }}
-          >
+        <div className="max-w-7xl mx-auto px-7">
+          <div>
             {section.subsections.map((subsection, index) => {
               const subTitle =
                 language === 'en' ? subsection.title_en : subsection.title_ar
@@ -241,28 +192,28 @@ export default function SectionClient({
                 index === Math.floor(section.subsections.length / 2) - 1
 
               return (
-                <motion.div key={subsection.id} variants={staggerItem}>
+                <div key={subsection.id}>
                   {/* Subsection Block */}
                   <div className="mb-10">
-                    <h2 className="text-2xl md:text-3xl font-heading font-bold text-[#a82924] mb-6">
+                    <h2 className="text-2xl md:text-3xl font-heading font-bold text-yl-red mb-6">
                       {subTitle}
                     </h2>
                     <div
-                      className="yalla-article-content"
+                      className="yalla-article-content font-body"
                       dangerouslySetInnerHTML={{ __html: sanitizeHtml(subContent) }}
                     />
                   </div>
 
                   {/* Tip Box */}
                   {showTipAfter && (
-                    <div className="mb-10 border-l-4 border-yl-gold bg-yl-gold/5 rounded-r-lg p-6">
+                    <div className="mb-10 border-l-4 border-yl-gold bg-yl-cream rounded-r-[14px] p-6">
                       <div className="flex items-start gap-3">
                         <Lightbulb className="h-5 w-5 text-yl-gold mt-0.5 flex-shrink-0" />
                         <div>
-                          <h3 className="font-heading font-semibold text-[#a82924] mb-1">
+                          <h3 className="font-heading font-semibold text-yl-red mb-1">
                             {t('travelTip')}
                           </h3>
-                          <p className="text-sm text-yl-gray-500 leading-relaxed">
+                          <p className="text-sm text-yl-gray-500 leading-relaxed font-body">
                             {language === 'en'
                               ? 'Bookmark this section for quick reference during your London trip. Our guides are regularly updated with the latest information.'
                               : 'احفظ هذا القسم للرجوع إليه بسرعة أثناء رحلتك إلى لندن. يتم تحديث أدلتنا بانتظام بأحدث المعلومات.'}
@@ -274,7 +225,7 @@ export default function SectionClient({
 
                   {/* Affiliate CTA Box */}
                   {showAffiliateCTA && (
-                    <div className="mb-10 bg-[#a82924] text-white rounded-xl p-8 text-center">
+                    <BrandCardLight hoverable={false} className="mb-10 p-8 text-center bg-yl-dark-navy border-none text-white">
                       <ShoppingBag className="h-8 w-8 text-yl-gold mx-auto mb-3" />
                       <h3 className="text-xl font-heading font-bold mb-2">
                         {language === 'en'
@@ -286,15 +237,13 @@ export default function SectionClient({
                           ? 'Save on London attractions, dining, and experiences with our curated deals and discount codes.'
                           : 'وفر على معالم لندن والمطاعم والتجارب مع عروضنا المختارة ورموز الخصم.'}
                       </p>
-                      <Button
-                        asChild
-                        className="bg-yl-gold text-yl-dark-navy hover:bg-yl-gold font-semibold"
+                      <BrandButton
+                        variant="gold"
+                        href="/information/coupons-deals"
                       >
-                        <Link href="/information/coupons-deals">
-                          {language === 'en' ? 'View Deals & Coupons' : 'عرض العروض والكوبونات'}
-                        </Link>
-                      </Button>
-                    </div>
+                        {language === 'en' ? 'View Deals & Coupons' : 'عرض العروض والكوبونات'}
+                      </BrandButton>
+                    </BrandCardLight>
                   )}
 
                   {/* Divider between subsections (not after last) */}
@@ -303,24 +252,19 @@ export default function SectionClient({
                     !showAffiliateCTA && (
                       <hr className="mb-10 border-yl-gray-200" />
                     )}
-                </motion.div>
+                </div>
               )
             })}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ==================== E-DOCUMENT SHOP CTA ==================== */}
       {section.slug !== 'e-document-shop' && (
         <section className="py-12 bg-yl-cream">
-          <div className="max-w-4xl mx-auto px-6">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeInUp}
-              transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-[#a82924] to-yl-dark-navy rounded-2xl p-8 md:p-10 text-center text-white"
+          <div className="max-w-7xl mx-auto px-7">
+            <div
+              className="bg-yl-dark-navy rounded-[14px] p-8 md:p-10 text-center text-white"
             >
               <BookOpen className="h-10 w-10 text-yl-gold mx-auto mb-4" />
               <h2 className="text-2xl md:text-3xl font-heading font-bold mb-3">
@@ -328,22 +272,21 @@ export default function SectionClient({
                   ? 'Download Our London Travel Guides'
                   : 'حمّل أدلة السفر إلى لندن'}
               </h2>
-              <p className="text-yl-gray-200 mb-6 max-w-lg mx-auto">
+              <p className="text-yl-gray-200 mb-6 max-w-lg mx-auto font-body">
                 {language === 'en'
                   ? 'Get detailed PDF guides, itinerary planners, and essential checklists for your London trip.'
                   : 'احصل على أدلة PDF مفصلة ومخططات الرحلات وقوائم التحقق الأساسية لرحلتك إلى لندن.'}
               </p>
-              <Button
-                asChild
+              <BrandButton
+                variant="gold"
                 size="lg"
-                className="bg-yl-gold text-yl-dark-navy hover:bg-yl-gold font-semibold"
+                href="/information/e-document-shop"
+                className="inline-flex items-center gap-2"
               >
-                <Link href="/information/e-document-shop">
-                  {t('eDocumentShop')}
-                  <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''} ml-2`} />
-                </Link>
-              </Button>
-            </motion.div>
+                {t('eDocumentShop')}
+                <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
+              </BrandButton>
+            </div>
           </div>
         </section>
       )}
@@ -351,19 +294,13 @@ export default function SectionClient({
       {/* ==================== RELATED ARTICLES ==================== */}
       {relatedArticles.length > 0 && (
         <section className={`py-12 md:py-16 ${section.slug !== 'e-document-shop' ? 'bg-white' : 'bg-yl-cream'}`}>
-          <div className="max-w-6xl mx-auto px-6">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={fadeInUp}
-              transition={{ duration: 0.6 }}
-            >
+          <div className="max-w-7xl mx-auto px-7">
+            <div>
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-heading font-bold gradient-text mb-3">
+                <h2 className="text-3xl font-heading font-bold text-yl-red mb-3">
                   {t('relatedArticles')}
                 </h2>
-                <p className="text-yl-gray-500 max-w-lg mx-auto">
+                <p className="text-yl-gray-500 max-w-lg mx-auto font-body">
                   {language === 'en'
                     ? `Explore more articles about ${section.name_en.toLowerCase()} in London.`
                     : `اكتشف المزيد من المقالات حول ${section.name_ar} في لندن.`}
@@ -377,7 +314,7 @@ export default function SectionClient({
                     href={`/information/articles/${article.slug}`}
                     className="group block"
                   >
-                    <Card className="overflow-hidden h-full hover:shadow-lg transition-shadow duration-300">
+                    <BrandCardLight className="overflow-hidden h-full">
                       <div className="relative h-48 overflow-hidden">
                         <Image
                           src={article.featured_image}
@@ -386,11 +323,11 @@ export default function SectionClient({
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       </div>
-                      <CardContent className="p-5">
-                        <h3 className="font-heading font-semibold text-[#a82924] group-hover:text-yl-red transition-colors mb-2 line-clamp-2">
+                      <div className="p-5">
+                        <h3 className="font-heading font-semibold text-yl-red group-hover:text-[#a82924] transition-colors mb-2 line-clamp-2">
                           {language === 'en' ? article.title_en : article.title_ar}
                         </h3>
-                        <p className="text-sm text-yl-gray-500 line-clamp-2 mb-3">
+                        <p className="text-sm text-yl-gray-500 line-clamp-2 mb-3 font-body">
                           {language === 'en' ? article.excerpt_en : article.excerpt_ar}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-yl-gray-500">
@@ -401,30 +338,32 @@ export default function SectionClient({
                               : `${article.reading_time} دقائق للقراءة`}
                           </span>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </BrandCardLight>
                   </Link>
                 ))}
               </div>
 
               {relatedArticles.length > 6 && (
                 <div className="text-center mt-8">
-                  <Button asChild variant="outline">
-                    <Link href="/information/articles">
-                      {t('viewAllArticles')}
-                      <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''} ml-2`} />
-                    </Link>
-                  </Button>
+                  <BrandButton
+                    variant="outline"
+                    href="/information/articles"
+                    className="inline-flex items-center gap-2"
+                  >
+                    {t('viewAllArticles')}
+                    <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
+                  </BrandButton>
                 </div>
               )}
-            </motion.div>
+            </div>
           </div>
         </section>
       )}
 
       {/* ==================== PREV / NEXT NAVIGATION ==================== */}
       <section className="py-10 bg-yl-cream border-t border-yl-gray-200">
-        <div className="max-w-4xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="flex items-center justify-between gap-4">
             {/* Previous Section */}
             {navigation.prev ? (
@@ -439,7 +378,7 @@ export default function SectionClient({
                   <span className="text-xs text-yl-gray-500 block">
                     {language === 'en' ? 'Previous' : 'السابق'}
                   </span>
-                  <span className="text-sm font-semibold text-[#a82924] group-hover:text-yl-red transition-colors truncate block">
+                  <span className="text-sm font-semibold text-yl-red group-hover:text-[#a82924] transition-colors truncate block">
                     {language === 'en' ? navigation.prev.name_en : navigation.prev.name_ar}
                   </span>
                 </div>
@@ -451,7 +390,7 @@ export default function SectionClient({
             {/* Back to Hub (center) */}
             <Link
               href="/information"
-              className="flex-shrink-0 text-sm font-medium text-yl-gray-500 hover:text-[#a82924] transition-colors hidden md:block"
+              className="flex-shrink-0 text-sm font-medium text-yl-gray-500 hover:text-yl-red transition-colors hidden md:block"
             >
               {language === 'en' ? 'All Sections' : 'جميع الأقسام'}
             </Link>
@@ -466,7 +405,7 @@ export default function SectionClient({
                   <span className="text-xs text-yl-gray-500 block">
                     {language === 'en' ? 'Next' : 'التالي'}
                   </span>
-                  <span className="text-sm font-semibold text-[#a82924] group-hover:text-yl-red transition-colors truncate block">
+                  <span className="text-sm font-semibold text-yl-red group-hover:text-[#a82924] transition-colors truncate block">
                     {language === 'en' ? navigation.next.name_en : navigation.next.name_ar}
                   </span>
                 </div>
@@ -483,7 +422,7 @@ export default function SectionClient({
 
       {/* ==================== BACK TO HUB LINK (BOTTOM) ==================== */}
       <div className="bg-white border-t border-yl-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-4 text-center">
+        <div className="max-w-7xl mx-auto px-7 py-4 text-center">
           <Link
             href="/information"
             className="inline-flex items-center gap-2 text-sm text-yl-red hover:text-yl-dark-navy font-medium transition-colors"

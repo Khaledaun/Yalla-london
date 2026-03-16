@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { BrandCardLight } from '@/components/brand-kit'
 import { SITES, getDefaultSiteId, isYachtSite as checkIsYachtSite } from '@/config/sites'
 
 function getSiteInfo(siteId?: string) {
@@ -296,7 +296,7 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
   const c = content[language]
 
   return (
-    <div className={`container mx-auto px-6 py-12 max-w-4xl ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className={`max-w-4xl mx-auto px-7 pt-28 pb-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
           {c.title}
@@ -311,91 +311,62 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
 
       <div className="space-y-6">
         {/* About Our Service */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.aboutTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.aboutIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.aboutItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.aboutTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.aboutIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.aboutItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Affiliate Relationships */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.affiliateTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.affiliateIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.affiliateItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.affiliateTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.affiliateIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.affiliateItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Content Accuracy */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.accuracyTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.accuracyIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.accuracyItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.accuracyTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.accuracyIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.accuracyItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* User Responsibilities */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.userTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.userIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.userItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.userTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.userIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.userItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Intellectual Property */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.ipTitle}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.ipTitle}</h2>
+          <div className="space-y-6">
             <div>
               <h3 className="font-semibold mb-2">{c.ipOurContentTitle}</h3>
-              <p className="text-yl-gray-500 mb-2">
-                {c.ipOurContentIntro}
-              </p>
+              <p className="text-yl-gray-500 mb-2">{c.ipOurContentIntro}</p>
               <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.ipOurContentItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
               </ul>
             </div>
-
             <div>
               <h3 className="font-semibold mb-2">{c.ipUserContentTitle}</h3>
               <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
@@ -404,110 +375,74 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
                 ))}
               </ul>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </BrandCardLight>
 
         {/* Digital Products */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.digitalTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.digitalIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.digitalItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.digitalTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.digitalIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.digitalItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Limitation of Liability */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.liabilityTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.liabilityIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.liabilityItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.liabilityTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.liabilityIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.liabilityItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Newsletter */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.newsletterTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.newsletterIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.newsletterItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.newsletterTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.newsletterIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.newsletterItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Governing Law */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.governingTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.governingIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.governingItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.governingTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.governingIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.governingItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Changes to Terms */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.changesTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.changesIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.changesItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.changesTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.changesIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.changesItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
         {/* Contact Us */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.contactTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.contactIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.contactItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.contactTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">{c.contactIntro}</p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.contactItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
       </div>
     </div>
   )

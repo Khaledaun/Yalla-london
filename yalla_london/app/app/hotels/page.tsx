@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Star, MapPin, Search } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 const hotels = {
   en: [
@@ -348,10 +349,19 @@ export default function HotelsPage() {
   return (
     <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pb-12 bg-gradient-to-b from-yl-dark-navy to-yl-dark-navy-light">
-        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-yl-gray-400 mb-8">{t.subtitle}</p>
+      <section className="relative pb-14 pt-28 bg-gradient-to-b from-yl-dark-navy to-yl-dark-navy-light overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
+          <Breadcrumbs
+            items={[
+              { label: isRTL ? 'الرئيسية' : 'Home', href: '/' },
+              { label: isRTL ? 'فنادق' : 'Hotels' },
+            ]}
+            className="justify-center mb-6 text-yl-gray-400"
+          />
+          <SectionLabel>{isRTL ? 'إقامات فاخرة' : 'Luxury Stays'}</SectionLabel>
+          <h1 className={`text-4xl md:text-5xl font-heading font-bold text-yl-parchment mb-4 ${isRTL ? 'font-arabic' : ''}`}>{t.title}</h1>
+          <p className="font-body text-lg text-yl-gray-400 mb-8 max-w-2xl mx-auto">{t.subtitle}</p>
 
           {/* Search Bar */}
           <div className="max-w-xl mx-auto relative">
@@ -361,24 +371,26 @@ export default function HotelsPage() {
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-yl-red`}
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg font-body focus:outline-none focus:ring-2 focus:ring-yl-gold`}
             />
           </div>
         </div>
-      </div>
+      </section>
+
+      <TriBar />
 
       {/* Area Filter */}
       <div className="bg-white border-b border-yl-gray-200 py-4 sticky top-16 z-40">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="flex items-center gap-3 overflow-x-auto pb-2">
             {t.areas.map((area) => (
               <button
                 key={area}
                 onClick={() => setSelectedArea(area)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-all duration-300 ease-yl ${
                   selectedArea === area
-                    ? 'bg-yl-dark-navy text-white'
-                    : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200'
+                    ? 'bg-yl-dark-navy text-yl-parchment'
+                    : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200 hover:text-yl-charcoal'
                 }`}
               >
                 {area}
@@ -389,49 +401,47 @@ export default function HotelsPage() {
       </div>
 
       {/* Hotels Grid */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto px-7 py-14">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredHotels.map((hotel) => (
-            <div key={hotel.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all group border border-yl-gray-200/50">
+            <BrandCardLight key={hotel.id} className="overflow-hidden group">
               <div className="relative h-56">
-                <Image src={hotel.image} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-3 py-1 bg-yl-dark-navy text-white text-xs font-semibold rounded-full`}>
-                  {hotel.badge}
+                <Image src={hotel.image} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl" />
+                <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
+                  <BrandTag color="blue">{hotel.badge}</BrandTag>
                 </span>
               </div>
               <div className="p-6">
                 {/* Rating */}
                 <div className="flex items-center gap-1 mb-2">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <Star key={i} className="w-4 h-4 text-yl-gold fill-yl-gold" />
                   ))}
-                  <span className="text-sm text-yl-gray-500 ml-2">{hotel.rating} ({hotel.reviews.toLocaleString()} {t.reviews})</span>
+                  <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider ml-2">{hotel.rating} ({hotel.reviews.toLocaleString()} {t.reviews})</span>
                 </div>
 
                 {/* Name & Location */}
-                <h3 className="text-xl font-semibold text-yl-charcoal mb-1 line-clamp-1">{hotel.name}</h3>
-                <p className="text-sm text-yl-gray-500 flex items-center gap-1 mb-3">
-                  <MapPin className="w-4 h-4" /> {hotel.location}
+                <h3 className={`text-xl font-heading font-bold text-yl-charcoal mb-1 line-clamp-1 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{hotel.name}</h3>
+                <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-3">
+                  <MapPin className="w-3.5 h-3.5 text-yl-gold" /> {hotel.location}
                 </p>
 
                 {/* Description */}
-                <p className="text-sm text-yl-gray-500 mb-4 line-clamp-3">{hotel.description}</p>
+                <p className="font-body text-sm text-yl-gray-500 mb-4 line-clamp-3 leading-relaxed">{hotel.description}</p>
 
                 {/* Amenities */}
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-5">
                   {hotel.amenities.map((amenity) => (
-                    <span key={amenity} className="px-2 py-1 bg-yl-gray-100 text-xs text-yl-gray-500 rounded">
-                      {amenity}
-                    </span>
+                    <BrandTag key={amenity} color="neutral">{amenity}</BrandTag>
                   ))}
                 </div>
 
                 {/* Price & CTA */}
                 <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
                   <div>
-                    <span className="text-xs text-yl-gray-500">{locale === 'en' ? 'From' : 'من'} </span>
-                    <span className="text-2xl font-bold text-yl-charcoal">£{hotel.price}</span>
-                    <span className="text-sm text-yl-gray-500">{t.perNight}</span>
+                    <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase">{locale === 'en' ? 'From' : 'من'} </span>
+                    <span className="text-2xl font-heading font-bold text-yl-charcoal">£{hotel.price}</span>
+                    <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider">{t.perNight}</span>
                   </div>
                   {(() => {
                     const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'hotels-page');
@@ -442,22 +452,26 @@ export default function HotelsPage() {
                         href={href}
                         target="_blank"
                         rel={rel}
-                        className={`${affLink ? 'affiliate-page-link' : ''} px-4 py-2 bg-yl-red text-white text-sm font-medium rounded-lg hover:bg-yl-red transition-colors`}
+                        className={`${affLink ? 'affiliate-page-link' : ''}`}
                         data-affiliate-partner={affLink?.partner || undefined}
                       >
-                        {affLink ? affLink.label : t.bookNow}
+                        <BrandButton variant="primary" size="sm" className="pointer-events-none">
+                          {affLink ? affLink.label : t.bookNow}
+                        </BrandButton>
                       </a>
                     );
                   })()}
                 </div>
               </div>
-            </div>
+            </BrandCardLight>
           ))}
         </div>
 
         {/* Price disclaimer */}
-        <p className="text-xs text-yl-gray-500 text-center mt-8">{t.metaNote}</p>
+        <p className="font-mono text-[10px] text-yl-gray-500 text-center mt-10 tracking-wider uppercase">{t.metaNote}</p>
       </div>
+
+      <TriBar />
     </div>
   )
 }

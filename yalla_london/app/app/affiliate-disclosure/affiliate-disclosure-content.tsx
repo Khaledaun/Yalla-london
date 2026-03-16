@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BrandCardLight } from '@/components/brand-kit'
 import { SITES, getDefaultSiteId } from '@/config/sites'
 
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
@@ -118,7 +118,7 @@ export default function AffiliateDisclosureContent() {
   const c = content[language]
 
   return (
-    <div className={`container mx-auto px-6 py-12 max-w-4xl ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className={`max-w-4xl mx-auto px-7 pt-28 pb-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
           {c.title}
@@ -132,73 +132,53 @@ export default function AffiliateDisclosureContent() {
       </div>
 
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.whatTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.whatItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.whatTitle}</h2>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.whatItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.partnersTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-yl-gray-500 mb-3">
-              {c.partnersIntro}
-            </p>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.partnersItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.partnersTitle}</h2>
+          <p className="text-yl-gray-500 mb-3">
+            {c.partnersIntro}
+          </p>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.partnersItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.editorialTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.editorialItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.editorialTitle}</h2>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.editorialItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.ftcTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.ftcItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.ftcTitle}</h2>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.ftcItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.questionsTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
-              {c.questionsItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <BrandCardLight className="p-6">
+          <h2 className="text-xl font-heading font-bold text-yl-charcoal mb-4">{c.questionsTitle}</h2>
+          <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
+            {c.questionsItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </BrandCardLight>
       </div>
     </div>
   )

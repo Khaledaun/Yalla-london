@@ -4,16 +4,10 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Mail, Phone, MapPin, Send, MessageSquare, Star } from 'lucide-react'
+import { Mail, MapPin, Send, MessageSquare, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { SITES, getDefaultSiteId } from '@/config/sites'
+import { TriBar, BrandButton, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
@@ -36,15 +30,8 @@ export default function YallaContactPage() {
   const t = (key: string) => getTranslation(language, key)
 
   const [formData, setFormData] = useState<ContactFormData>({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    category: '',
-    message: '',
-    priority: 'medium',
-    consent: false,
-    newsletter: false
+    name: '', email: '', phone: '', subject: '', category: '', message: '',
+    priority: 'medium', consent: false, newsletter: false
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -67,43 +54,25 @@ export default function YallaContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!formData.consent) {
       toast?.error?.('Please accept our privacy policy to continue') || alert('Please accept our privacy policy to continue')
       return
     }
-
     setIsSubmitting(true)
-
     try {
       const response = await fetch('/api/contact', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
-
       if (response.ok) {
         setSubmitted(true)
         toast?.success?.('Thank you! Your message has been sent successfully.') || alert('Thank you! Your message has been sent successfully.')
-
-        // Reset form
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          subject: '',
-          category: '',
-          message: '',
-          priority: 'medium',
-          consent: false,
-          newsletter: false
-        })
+        setFormData({ name: '', email: '', phone: '', subject: '', category: '', message: '', priority: 'medium', consent: false, newsletter: false })
       } else {
         throw new Error('Failed to send message')
       }
-    } catch (error) {
+    } catch {
       toast?.error?.('Something went wrong. Please try again later.') || alert('Something went wrong. Please try again later.')
     } finally {
       setIsSubmitting(false)
@@ -112,257 +81,195 @@ export default function YallaContactPage() {
 
   if (submitted) {
     return (
-      <div className={`container mx-auto px-6 py-12 max-w-2xl ${isRTL ? 'rtl' : 'ltr'}`}>
-        <Card>
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-yl-gray-100 rounded-full flex items-center justify-center mb-4">
-              <MessageSquare className="h-8 w-8 text-yl-charcoal" />
+      <div className={`bg-yl-cream min-h-screen pt-28 ${isRTL ? 'rtl' : 'ltr'}`}>
+        <div className="max-w-2xl mx-auto px-7 py-12">
+          <BrandCardLight className="p-8 text-center">
+            <div className="mx-auto w-16 h-16 bg-yl-cream rounded-full flex items-center justify-center mb-4">
+              <MessageSquare className="h-8 w-8 text-yl-red" />
             </div>
-            <CardTitle className="text-2xl text-yl-charcoal">Message Sent!</CardTitle>
-            <CardDescription>
+            <h2 className="text-2xl font-heading font-bold text-yl-charcoal mb-2">Message Sent!</h2>
+            <p className="text-yl-gray-500 font-body mb-6">
               Thank you for contacting us. We&apos;ll get back to you within 24 hours.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => setSubmitted(false)} variant="outline">
+            </p>
+            <BrandButton variant="outline" onClick={() => setSubmitted(false)}>
               Send Another Message
-            </Button>
-          </CardContent>
-        </Card>
+            </BrandButton>
+          </BrandCardLight>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className={`container mx-auto px-6 py-12 max-w-6xl ${isRTL ? 'rtl' : 'ltr'}`}>
-      <div className="text-center mb-12">
-        <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
-          Contact Us
-        </h1>
-        <p className="text-yl-gray-500 text-lg">
-          Get in touch with the Yalla London team. We&apos;d love to hear from you!
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Contact Information */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Get in Touch</CardTitle>
-              <CardDescription>
-                Multiple ways to reach us
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium">Email</h4>
-                  <p className="text-sm text-yl-gray-500">{CONTACT_EMAIL}</p>
-                  <p className="text-sm text-yl-gray-500">For general inquiries</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Star className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium">Press & Partnerships</h4>
-                  <p className="text-sm text-yl-gray-500">{PRESS_EMAIL}</p>
-                  <p className="text-sm text-yl-gray-500">For media and collaboration</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium">Location</h4>
-                  <p className="text-sm text-yl-gray-500">London, United Kingdom</p>
-                  <p className="text-sm text-yl-gray-500">Covering all of London</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Response Times</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span>General inquiries:</span>
-                  <span className="font-medium">24 hours</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Press requests:</span>
-                  <span className="font-medium">48 hours</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Technical issues:</span>
-                  <span className="font-medium">12 hours</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Partnerships:</span>
-                  <span className="font-medium">3-5 days</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+    <div className={`bg-yl-cream min-h-screen ${isRTL ? 'rtl' : 'ltr'}`}>
+      {/* Hero */}
+      <section className="bg-yl-dark-navy pt-28 pb-12 relative overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
+          <Breadcrumbs items={[
+            { label: 'Home', href: '/' },
+            { label: 'Contact' },
+          ]} />
+          <SectionLabel>Get in Touch</SectionLabel>
+          <h1 className="text-3xl md:text-4xl font-heading font-bold text-white mb-4">
+            Contact Us
+          </h1>
+          <p className="text-yl-gray-400 text-lg font-body">
+            Get in touch with the Yalla London team. We&apos;d love to hear from you!
+          </p>
         </div>
+      </section>
 
-        {/* Contact Form */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Send us a Message</CardTitle>
-              <CardDescription>
+      <TriBar />
+
+      <div className="max-w-7xl mx-auto px-7 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Contact Information */}
+          <div className="lg:col-span-1 space-y-6">
+            <BrandCardLight className="p-6">
+              <h3 className="font-heading font-bold text-yl-charcoal text-lg mb-1">Get in Touch</h3>
+              <p className="text-sm text-yl-gray-500 font-body mb-6">Multiple ways to reach us</p>
+              <div className="space-y-6">
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-heading font-medium text-yl-charcoal">Email</h4>
+                    <p className="text-sm text-yl-gray-500 font-body">{CONTACT_EMAIL}</p>
+                    <p className="text-sm text-yl-gray-500 font-body">For general inquiries</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Star className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-heading font-medium text-yl-charcoal">Press & Partnerships</h4>
+                    <p className="text-sm text-yl-gray-500 font-body">{PRESS_EMAIL}</p>
+                    <p className="text-sm text-yl-gray-500 font-body">For media and collaboration</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-heading font-medium text-yl-charcoal">Location</h4>
+                    <p className="text-sm text-yl-gray-500 font-body">London, United Kingdom</p>
+                    <p className="text-sm text-yl-gray-500 font-body">Covering all of London</p>
+                  </div>
+                </div>
+              </div>
+            </BrandCardLight>
+
+            <BrandCardLight className="p-6">
+              <h3 className="font-heading font-bold text-yl-charcoal text-lg mb-4">Response Times</h3>
+              <div className="space-y-3 text-sm font-body">
+                <div className="flex justify-between">
+                  <span className="text-yl-gray-500">General inquiries:</span>
+                  <span className="font-medium text-yl-charcoal">24 hours</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-yl-gray-500">Press requests:</span>
+                  <span className="font-medium text-yl-charcoal">48 hours</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-yl-gray-500">Technical issues:</span>
+                  <span className="font-medium text-yl-charcoal">12 hours</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-yl-gray-500">Partnerships:</span>
+                  <span className="font-medium text-yl-charcoal">3-5 days</span>
+                </div>
+              </div>
+            </BrandCardLight>
+          </div>
+
+          {/* Contact Form */}
+          <div className="lg:col-span-2">
+            <BrandCardLight className="p-6 md:p-8">
+              <h3 className="font-heading font-bold text-yl-charcoal text-lg mb-1">Send us a Message</h3>
+              <p className="text-sm text-yl-gray-500 font-body mb-6">
                 Fill out the form below and we&apos;ll get back to you as soon as possible
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </p>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">Name *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      required
-                      placeholder="Your full name"
-                    />
+                    <label htmlFor="name" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Name *</label>
+                    <input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} required placeholder="Your full name"
+                      className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      required
-                      placeholder="your@email.com"
-                    />
+                    <label htmlFor="email" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Email *</label>
+                    <input id="email" type="email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} required placeholder="your@email.com"
+                      className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="phone">Phone (Optional)</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="+44 ..."
-                    />
+                    <label htmlFor="phone" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Phone (Optional)</label>
+                    <input id="phone" type="tel" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="+44 ..."
+                      className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                   </div>
                   <div>
-                    <Label htmlFor="category">Category *</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => handleInputChange('category', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.value} value={category.value}>
-                            {category.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <label htmlFor="category" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Category *</label>
+                    <select id="category" value={formData.category} onChange={(e) => handleInputChange('category', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold">
+                      <option value="">Select a category</option>
+                      {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="subject">Subject *</Label>
-                  <Input
-                    id="subject"
-                    value={formData.subject}
-                    onChange={(e) => handleInputChange('subject', e.target.value)}
-                    required
-                    placeholder="Brief description of your inquiry"
-                  />
+                  <label htmlFor="subject" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Subject *</label>
+                  <input id="subject" value={formData.subject} onChange={(e) => handleInputChange('subject', e.target.value)} required placeholder="Brief description of your inquiry"
+                    className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                 </div>
 
                 <div>
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value) => handleInputChange('priority', value as 'low' | 'medium' | 'high')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low - General inquiry</SelectItem>
-                      <SelectItem value="medium">Medium - Standard request</SelectItem>
-                      <SelectItem value="high">High - Urgent matter</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <label htmlFor="priority" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Priority</label>
+                  <select id="priority" value={formData.priority} onChange={(e) => handleInputChange('priority', e.target.value as 'low' | 'medium' | 'high')}
+                    className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold">
+                    <option value="low">Low - General inquiry</option>
+                    <option value="medium">Medium - Standard request</option>
+                    <option value="high">High - Urgent matter</option>
+                  </select>
                 </div>
 
                 <div>
-                  <Label htmlFor="message">Message *</Label>
-                  <Textarea
-                    id="message"
-                    value={formData.message}
-                    onChange={(e) => handleInputChange('message', e.target.value)}
-                    required
-                    placeholder="Please provide detailed information about your inquiry..."
-                    rows={6}
-                  />
+                  <label htmlFor="message" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Message *</label>
+                  <textarea id="message" value={formData.message} onChange={(e) => handleInputChange('message', e.target.value)} required
+                    placeholder="Please provide detailed information about your inquiry..." rows={6}
+                    className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold resize-none" />
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-start space-x-2">
-                    <Checkbox
-                      id="consent"
-                      checked={formData.consent}
-                      onCheckedChange={(checked) => handleInputChange('consent', checked as boolean)}
-                      required
-                    />
-                    <Label htmlFor="consent" className="text-sm">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" checked={formData.consent} onChange={(e) => handleInputChange('consent', e.target.checked)} required
+                      className="mt-1 w-4 h-4 rounded border-yl-gray-300 text-yl-red focus:ring-yl-gold/30" />
+                    <span className="text-sm text-yl-gray-500 font-body">
                       I agree to the{' '}
-                      <Link href="/privacy" className="text-yl-blue hover:underline">
-                        Privacy Policy
-                      </Link>{' '}
+                      <Link href="/privacy" className="text-yl-red hover:underline">Privacy Policy</Link>{' '}
                       and consent to my data being processed for this inquiry. *
-                    </Label>
-                  </div>
-
-                  <div className="flex items-start space-x-2">
-                    <Checkbox
-                      id="newsletter"
-                      checked={formData.newsletter}
-                      onCheckedChange={(checked) => handleInputChange('newsletter', checked as boolean)}
-                    />
-                    <Label htmlFor="newsletter" className="text-sm">
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" checked={formData.newsletter} onChange={(e) => handleInputChange('newsletter', e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-yl-gray-300 text-yl-red focus:ring-yl-gold/30" />
+                    <span className="text-sm text-yl-gray-500 font-body">
                       Subscribe to our newsletter for London updates and recommendations (optional)
-                    </Label>
-                  </div>
+                    </span>
+                  </label>
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !formData.consent}
-                  className="w-full"
-                >
-                  {isSubmitting ? (
-                    'Sending...'
-                  ) : (
+                <BrandButton type="submit" variant="primary" className="w-full" disabled={isSubmitting || !formData.consent}>
+                  {isSubmitting ? 'Sending...' : (
                     <>
                       <Send className="mr-2 h-4 w-4" />
                       Send Message
                     </>
                   )}
-                </Button>
+                </BrandButton>
               </form>
-            </CardContent>
-          </Card>
+            </BrandCardLight>
+          </div>
         </div>
       </div>
     </div>

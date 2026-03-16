@@ -9,6 +9,7 @@ import {
   FileText, Crown, Sparkles, ArrowRight, Loader2
 } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,7 +22,7 @@ interface Product {
   slug: string
   description_en: string
   description_ar?: string
-  price: number          // display units (not cents)
+  price: number
   originalPrice: number | null
   currency: string
   type: string
@@ -32,7 +33,7 @@ interface Product {
 }
 
 // ---------------------------------------------------------------------------
-// Fallback products (shown when DB is empty or API unavailable)
+// Fallback products
 // ---------------------------------------------------------------------------
 
 const fallbackProducts: Product[] = [
@@ -102,7 +103,7 @@ const fallbackProducts: Product[] = [
 // Categories & text
 // ---------------------------------------------------------------------------
 
-const categories = [
+const categoriesList = [
   { id: 'all', label: { en: 'All Products', ar: 'جميع المنتجات' }, icon: FileText },
   { id: 'PDF_GUIDE', label: { en: 'Travel Guides', ar: 'أدلة السفر' }, icon: MapPin },
   { id: 'TEMPLATE', label: { en: 'Templates', ar: 'قوالب' }, icon: Utensils },
@@ -113,31 +114,25 @@ const categories = [
 const text = {
   en: {
     title: 'Digital Guides Shop',
-    subtitle: 'Expert guides crafted for Arab visitors to London',
+    subtitle: 'Expert guides crafted for visitors to London',
     search: 'Search guides...',
     addToCart: 'Add to Cart',
-    pages: 'pages',
-    reviews: 'reviews',
     checkout: 'Checkout',
     instantDownload: 'Instant digital download',
     securePayment: 'Secure payment',
     lifetime: 'Lifetime access',
-    viewDetails: 'View Details',
     loading: 'Loading products...',
     sold: 'sold',
   },
   ar: {
     title: 'متجر الأدلة الرقمية',
-    subtitle: 'أدلة متخصصة مصممة للزوار العرب في لندن',
+    subtitle: 'أدلة متخصصة مصممة للزوار في لندن',
     search: 'ابحث في الأدلة...',
     addToCart: 'أضف للسلة',
-    pages: 'صفحة',
-    reviews: 'تقييم',
     checkout: 'إتمام الشراء',
     instantDownload: 'تحميل رقمي فوري',
     securePayment: 'دفع آمن',
     lifetime: 'وصول مدى الحياة',
-    viewDetails: 'عرض التفاصيل',
     loading: 'جاري تحميل المنتجات...',
     sold: 'مبيعات',
   }
@@ -160,7 +155,6 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true)
   const [checkingOut, setCheckingOut] = useState(false)
 
-  // Fetch products from DB
   useEffect(() => {
     fetch('/api/shop/products')
       .then(async (res) => {
@@ -170,9 +164,7 @@ export default function ShopPage() {
           setProducts(data.products)
         }
       })
-      .catch(() => {
-        // Keep fallback products
-      })
+      .catch(() => { /* Keep fallback products */ })
       .finally(() => setLoading(false))
   }, [])
 
@@ -186,9 +178,7 @@ export default function ShopPage() {
   })
 
   const addToCart = (id: string) => {
-    if (!cart.includes(id)) {
-      setCart([...cart, id])
-    }
+    if (!cart.includes(id)) setCart([...cart, id])
   }
 
   const cartTotal = cart.reduce((sum, id) => {
@@ -201,55 +191,41 @@ export default function ShopPage() {
   const handleCheckout = useCallback(async () => {
     if (cart.length === 0 || checkingOut) return
     setCheckingOut(true)
-
-    // For MVP: checkout the first item in cart
-    // A full cart system would batch these
     const product = products.find(p => p.id === cart[0])
     if (!product) return
-
     const email = prompt('Enter your email to complete the purchase:')
-    if (!email) {
-      setCheckingOut(false)
-      return
-    }
-
+    if (!email) { setCheckingOut(false); return }
     try {
       const res = await fetch('/api/checkout/digital-product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          customerEmail: email,
-        }),
+        body: JSON.stringify({ productId: product.id, customerEmail: email }),
       })
-
       const data = await res.json()
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl
-      } else if (data.downloadUrl) {
-        // Free product
-        window.location.href = data.downloadUrl
-      } else {
-        alert(data.error || 'Checkout failed. Please try again.')
-      }
-    } catch {
-      alert('Checkout failed. Please try again.')
-    } finally {
-      setCheckingOut(false)
-    }
+      if (data.checkoutUrl) { window.location.href = data.checkoutUrl }
+      else if (data.downloadUrl) { window.location.href = data.downloadUrl }
+      else { alert(data.error || 'Checkout failed. Please try again.') }
+    } catch { alert('Checkout failed. Please try again.') }
+    finally { setCheckingOut(false) }
   }, [cart, products, checkingOut])
 
   return (
-    <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`bg-yl-cream min-h-screen ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pb-12 bg-gradient-to-b from-yl-dark-navy to-yl-dark-navy-light">
-        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
+      <section className="bg-yl-dark-navy pt-28 pb-12 relative overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
+          <Breadcrumbs items={[
+            { label: isRTL ? 'الرئيسية' : 'Home', href: '/' },
+            { label: isRTL ? 'المتجر' : 'Shop' },
+          ]} />
+          <SectionLabel>{isRTL ? 'أدلة رقمية' : 'Digital Guides'}</SectionLabel>
           <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-yl-gray-400 mb-4">{t.subtitle}</p>
+          <p className="text-xl text-yl-gray-400 font-body mb-4">{t.subtitle}</p>
           {/* Coming Soon Banner */}
           <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-yl-gold/20 border border-yl-gold/40 rounded-full mb-8">
             <Sparkles className="w-4 h-4 text-yl-gold" />
-            <span className="text-sm font-semibold text-yl-gold">
+            <span className="text-sm font-heading font-semibold text-yl-gold">
               {isRTL ? 'قريباً — الأدلة قيد التطوير' : 'Coming Soon — Guides are being prepared'}
             </span>
           </div>
@@ -257,36 +233,37 @@ export default function ShopPage() {
           {/* Trust Badges */}
           <div className="flex items-center justify-center gap-8 flex-wrap">
             <div className="flex items-center gap-2 text-yl-gray-400">
-              <Download className="w-5 h-5 text-yl-red" />
-              <span className="text-sm">{t.instantDownload}</span>
+              <Download className="w-5 h-5 text-yl-gold" />
+              <span className="text-sm font-body">{t.instantDownload}</span>
             </div>
             <div className="flex items-center gap-2 text-yl-gray-400">
-              <Check className="w-5 h-5 text-yl-charcoal" />
-              <span className="text-sm">{t.securePayment}</span>
+              <Check className="w-5 h-5 text-yl-gold" />
+              <span className="text-sm font-body">{t.securePayment}</span>
             </div>
             <div className="flex items-center gap-2 text-yl-gray-400">
               <Sparkles className="w-5 h-5 text-yl-gold" />
-              <span className="text-sm">{t.lifetime}</span>
+              <span className="text-sm font-body">{t.lifetime}</span>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <TriBar />
 
       {/* Filters & Search */}
       <div className="sticky top-16 z-40 bg-white shadow-sm py-4 border-b border-yl-gray-200">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Categories */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              {categories.map((cat) => {
+              {categoriesList.map((cat) => {
                 const Icon = cat.icon
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-colors ${
                       selectedCategory === cat.id
-                        ? 'bg-yl-dark-navy text-white'
+                        ? 'bg-yl-dark-navy text-yl-parchment'
                         : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200'
                     }`}
                   >
@@ -296,8 +273,6 @@ export default function ShopPage() {
                 )
               })}
             </div>
-
-            {/* Search */}
             <div className="relative">
               <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-yl-gray-500`} />
               <input
@@ -305,7 +280,7 @@ export default function ShopPage() {
                 placeholder={t.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 w-64 border border-yl-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-yl-red/20 focus:border-yl-red`}
+                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 w-64 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold`}
               />
             </div>
           </div>
@@ -313,102 +288,94 @@ export default function ShopPage() {
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto px-7 py-12">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-yl-red animate-spin" />
-            <span className="ml-3 text-yl-gray-500">{t.loading}</span>
+            <span className="ml-3 text-yl-gray-500 font-body">{t.loading}</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProducts.map((product) => {
               const sym = currencySymbol(product.currency)
               return (
-                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-yl-gray-200/50">
+                <BrandCardLight key={product.id} className="overflow-hidden group">
                   {/* Image */}
                   <Link href={`/shop/${product.slug}`}>
                     <div className="relative h-48">
                       {product.image ? (
-                        <Image src={product.image} alt={isRTL ? (product.name_ar || product.name_en) : product.name_en} fill className="object-cover" />
+                        <Image src={product.image} alt={isRTL ? (product.name_ar || product.name_en) : product.name_en} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-luxury flex items-center justify-center">
+                        <div className="w-full h-full bg-yl-dark-navy flex items-center justify-center">
                           <FileText className="w-16 h-16 text-white/30" />
                         </div>
                       )}
                       {product.featured && (
-                        <span className="absolute top-3 left-3 px-3 py-1 bg-yl-red text-white text-xs font-semibold rounded-full">
-                          {isRTL ? 'مميز' : 'Featured'}
-                        </span>
+                        <div className="absolute top-3 left-3">
+                          <BrandTag color="red">{isRTL ? 'مميز' : 'Featured'}</BrandTag>
+                        </div>
                       )}
                       {product.originalPrice && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-forest text-white text-xs font-semibold rounded-full">
-                          {Math.round((1 - product.price / product.originalPrice) * 100)}% Off
-                        </span>
+                        <div className="absolute top-3 right-3">
+                          <BrandTag color="blue">
+                            {Math.round((1 - product.price / product.originalPrice) * 100)}% Off
+                          </BrandTag>
+                        </div>
                       )}
                     </div>
                   </Link>
 
                   {/* Content */}
                   <div className="p-6">
-                    {/* Sales count */}
                     <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                        <span className="text-sm font-semibold">{product.salesCount}</span>
-                      </div>
-                      <span className="text-sm text-yl-gray-500">{t.sold}</span>
+                      <Star className="w-4 h-4 text-yl-gold fill-yl-gold" />
+                      <span className="font-mono text-[10px] tracking-wider uppercase">
+                        {product.salesCount} {t.sold}
+                      </span>
                     </div>
 
-                    {/* Title */}
                     <Link href={`/shop/${product.slug}`}>
-                      <h3 className="text-lg font-bold text-yl-charcoal mb-2 hover:text-yl-red transition-colors">
+                      <h3 className="text-lg font-heading font-bold text-yl-charcoal mb-2 group-hover:text-yl-red transition-colors">
                         {isRTL ? (product.name_ar || product.name_en) : product.name_en}
                       </h3>
                     </Link>
 
-                    {/* Description */}
-                    <p className="text-sm text-yl-gray-500 mb-4 line-clamp-2">
+                    <p className="text-sm text-yl-gray-500 font-body mb-4 line-clamp-2">
                       {isRTL ? (product.description_ar || product.description_en) : product.description_en}
                     </p>
 
-                    {/* Features */}
                     <div className="flex flex-wrap gap-2 mb-5">
                       {(product.features as string[]).slice(0, 3).map((feature, i) => (
-                        <span key={i} className="px-2 py-1 bg-yl-gray-100 text-xs text-yl-gray-500 rounded">
+                        <span key={i} className="px-2 py-1 bg-yl-cream font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 rounded-full border border-yl-gray-200/50">
                           {feature}
                         </span>
                       ))}
                     </div>
 
-                    {/* Price & CTA */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-yl-charcoal">{sym}{product.price.toFixed(2)}</span>
+                        <span className="text-2xl font-heading font-bold text-yl-charcoal">{sym}{product.price.toFixed(2)}</span>
                         {product.originalPrice && (
                           <span className="text-sm text-yl-gray-500 line-through">{sym}{product.originalPrice.toFixed(2)}</span>
                         )}
                       </div>
                       <button
                         onClick={() => addToCart(product.id)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-[14px] font-heading font-medium text-sm transition-all ${
                           cart.includes(product.id)
-                            ? 'bg-forest text-white'
-                            : 'bg-yl-red hover:bg-yl-red text-white'
+                            ? 'bg-yl-dark-navy text-white'
+                            : 'bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg'
                         }`}
                       >
                         {cart.includes(product.id) ? (
-                          <>
-                            <Check className="w-4 h-4" /> Added
-                          </>
+                          <><Check className="w-4 h-4" /> Added</>
                         ) : (
-                          <>
-                            <ShoppingCart className="w-4 h-4" /> {t.addToCart}
-                          </>
+                          <><ShoppingCart className="w-4 h-4" /> {t.addToCart}</>
                         )}
                       </button>
                     </div>
                   </div>
-                </div>
+                </BrandCardLight>
               )
             })}
           </div>
@@ -418,24 +385,22 @@ export default function ShopPage() {
       {/* Floating Cart Summary */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-4 px-6 py-4 bg-yl-dark-navy text-white rounded-full shadow-md">
+          <div className="flex items-center gap-4 px-6 py-4 bg-yl-dark-navy text-white rounded-full shadow-lg">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
-              <span className="font-medium">{cart.length} items</span>
+              <span className="font-heading font-medium">{cart.length} items</span>
             </div>
-            <div className="w-px h-6 bg-yl-charcoal" />
-            <span className="text-lg font-bold">£{cartTotal.toFixed(2)}</span>
+            <div className="w-px h-6 bg-white/20" />
+            <span className="text-lg font-heading font-bold">£{cartTotal.toFixed(2)}</span>
             <button
               onClick={handleCheckout}
               disabled={checkingOut}
-              className="flex items-center gap-2 px-4 py-2 bg-yl-red rounded-full font-semibold hover:bg-yl-red transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-yl-red rounded-full font-heading font-semibold text-sm hover:bg-[#a82924] transition-colors disabled:opacity-50"
             >
               {checkingOut ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <>
-                  {t.checkout} <ArrowRight className="w-4 h-4" />
-                </>
+                <>{t.checkout} <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
           </div>

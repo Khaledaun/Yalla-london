@@ -1,14 +1,13 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Mail, MapPin, Heart, Crown, Star, Coffee } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { ENTITY, getBrandDisclosure } from '@/config/entity'
 import { SITES, getDefaultSiteId } from '@/config/sites'
+import { TriBar, BrandButton, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
@@ -23,52 +22,29 @@ export default function AboutYallaLondon() {
   const t = (key: string) => getTranslation(language, key)
 
   const stats = [
-    {
-      number: '500+',
-      label_en: 'Places Explored',
-      label_ar: '\u0645\u0643\u0627\u0646 \u0645\u0633\u062a\u0643\u0634\u0641',
-      icon: MapPin
-    },
-    {
-      number: '50+',
-      label_en: 'Michelin Restaurants',
-      label_ar: '\u0645\u0637\u0639\u0645 \u0645\u064a\u0634\u0644\u0627\u0646',
-      icon: Star
-    },
-    {
-      number: '10+',
-      label_en: 'Years in London',
-      label_ar: '\u0633\u0646\u0648\u0627\u062a \u0641\u064a \u0644\u0646\u062f\u0646',
-      icon: Heart
-    },
-    {
-      number: '1000+',
-      label_en: 'Happy Travelers',
-      label_ar: '\u0645\u0633\u0627\u0641\u0631 \u0633\u0639\u064a\u062f',
-      icon: Crown
-    }
+    { number: '500+', label_en: 'Places Explored', label_ar: 'مكان مستكشف', icon: MapPin },
+    { number: '50+', label_en: 'Michelin Restaurants', label_ar: 'مطعم ميشلان', icon: Star },
+    { number: '10+', label_en: 'Years in London', label_ar: 'سنوات في لندن', icon: Heart },
+    { number: '1000+', label_en: 'Happy Travelers', label_ar: 'مسافر سعيد', icon: Crown }
   ]
 
   const values = [
     {
-      title_en: 'Authenticity',
-      title_ar: '\u0627\u0644\u0623\u0635\u0627\u0644\u0629',
+      title_en: 'Authenticity', title_ar: 'الأصالة',
       description_en: 'Every recommendation comes from personal experience and genuine passion for London\'s culture.',
-      description_ar: '\u0643\u0644 \u062a\u0648\u0635\u064a\u0629 \u062a\u0623\u062a\u064a \u0645\u0646 \u0627\u0644\u062a\u062c\u0631\u0628\u0629 \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0648\u0627\u0644\u0634\u063a\u0641 \u0627\u0644\u062d\u0642\u064a\u0642\u064a \u0644\u062b\u0642\u0627\u0641\u0629 \u0644\u0646\u062f\u0646.',
+      description_ar: 'كل توصية تأتي من التجربة الشخصية والشغف الحقيقي لثقافة لندن.',
       icon: Heart
     },
     {
-      title_en: 'Excellence',
-      title_ar: '\u0627\u0644\u062a\u0645\u064a\u0632',
+      title_en: 'Excellence', title_ar: 'التميز',
       description_en: 'Only the finest establishments make it to our curated list of recommendations.',
-      description_ar: '\u0641\u0642\u0637 \u0623\u0641\u0636\u0644 \u0627\u0644\u0645\u0624\u0633\u0633\u0627\u062a \u062a\u0635\u0644 \u0625\u0644\u0649 \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0648\u0635\u064a\u0627\u062a \u0627\u0644\u0645\u0646\u0633\u0642\u0629 \u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0646\u0627.',
+      description_ar: 'فقط أفضل المؤسسات تصل إلى قائمة التوصيات المنسقة الخاصة بنا.',
       icon: Crown
     },
     {
-      title_en: 'Cultural Bridge',
-      title_ar: '\u062c\u0633\u0631 \u062b\u0642\u0627\u0641\u064a',
+      title_en: 'Cultural Bridge', title_ar: 'جسر ثقافي',
       description_en: 'Connecting Arab travelers with London\'s rich heritage through bilingual insights.',
-      description_ar: '\u0631\u0628\u0637 \u0627\u0644\u0645\u0633\u0627\u0641\u0631\u064a\u0646 \u0627\u0644\u0639\u0631\u0628 \u0628\u0627\u0644\u062a\u0631\u0627\u062b \u0627\u0644\u063a\u0646\u064a \u0644\u0644\u0646\u062f\u0646 \u0645\u0646 \u062e\u0644\u0627\u0644 \u0631\u0624\u0649 \u062b\u0646\u0627\u0626\u064a\u0629 \u0627\u0644\u0644\u063a\u0629.',
+      description_ar: 'ربط المسافرين العرب بالتراث الغني للندن من خلال رؤى ثنائية اللغة.',
       icon: Coffee
     }
   ]
@@ -76,7 +52,7 @@ export default function AboutYallaLondon() {
   return (
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero Section */}
-      <section className="relative h-96 overflow-hidden">
+      <section className="relative overflow-hidden pt-28 pb-20">
         <div className="absolute inset-0">
           <Image
             src={founderImages[1]}
@@ -86,87 +62,77 @@ export default function AboutYallaLondon() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-yl-dark-navy/85 to-yl-gold/70" />
+          <div className="absolute inset-0 bg-yl-dark-navy/85" />
         </div>
+        <WatermarkStamp />
 
-        <div className="relative z-10 h-full flex items-center">
-          <div className="max-w-6xl mx-auto px-6 text-white">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="max-w-2xl"
-            >
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
-                {t('founderTitle')}
-              </h1>
-              <p className="text-xl md:text-2xl text-yl-gray-100/90">
-                {language === 'en'
-                  ? 'Your personal guide to London\'s most exclusive experiences'
-                  : '\u062f\u0644\u064a\u0644\u0643 \u0627\u0644\u0634\u062e\u0635\u064a \u0644\u0644\u062a\u062c\u0627\u0631\u0628 \u0627\u0644\u0623\u0643\u062b\u0631 \u062d\u0635\u0631\u064a\u0629 \u0641\u064a \u0644\u0646\u062f\u0646'
-                }
-              </p>
-            </motion.div>
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
+          <Breadcrumbs items={[
+            { label: language === 'en' ? 'Home' : 'الرئيسية', href: '/' },
+            { label: language === 'en' ? 'About' : 'حول' },
+          ]} />
+          <div className="max-w-2xl">
+            <SectionLabel>{language === 'en' ? 'Our Story' : 'قصتنا'}</SectionLabel>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold text-white mb-6">
+              {t('founderTitle')}
+            </h1>
+            <p className="text-xl md:text-2xl text-yl-gray-400 font-body">
+              {language === 'en'
+                ? 'Your personal guide to London\'s most exclusive experiences'
+                : 'دليلك الشخصي للتجارب الأكثر حصرية في لندن'
+              }
+            </p>
           </div>
         </div>
       </section>
 
+      <TriBar />
+
       {/* Founder Story */}
       <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="space-y-6"
-            >
-              <h2 className="text-4xl font-heading font-bold gradient-text">
-                {language === 'en' ? 'A Passionate Explorer' : '\u0645\u0633\u062a\u0643\u0634\u0641 \u0634\u063a\u0648\u0641'}
+            <div className="space-y-6">
+              <SectionLabel>{language === 'en' ? 'The Founder' : 'المؤسس'}</SectionLabel>
+              <h2 className="text-4xl font-heading font-bold text-yl-charcoal">
+                {language === 'en' ? 'A Passionate Explorer' : 'مستكشف شغوف'}
               </h2>
-              <div className="space-y-4 text-lg text-yl-gray-500 leading-relaxed">
+              <div className="space-y-4 text-lg text-yl-gray-500 font-body leading-relaxed">
                 <p>
                   {language === 'en'
                     ? 'After moving to London over a decade ago, I fell deeply in love with this incredible city. What started as personal curiosity evolved into an expertise in discovering London\'s most refined experiences.'
-                    : '\u0628\u0639\u062f \u0627\u0644\u0627\u0646\u062a\u0642\u0627\u0644 \u0625\u0644\u0649 \u0644\u0646\u062f\u0646 \u0645\u0646\u0630 \u0623\u0643\u062b\u0631 \u0645\u0646 \u0639\u0642\u062f\u060c \u0648\u0642\u0639\u062a \u0641\u064a \u062d\u0628 \u0639\u0645\u064a\u0642 \u0645\u0639 \u0647\u0630\u0647 \u0627\u0644\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0645\u0630\u0647\u0644\u0629. \u0645\u0627 \u0628\u062f\u0623 \u0643\u0641\u0636\u0648\u0644 \u0634\u062e\u0635\u064a \u062a\u0637\u0648\u0631 \u0625\u0644\u0649 \u062e\u0628\u0631\u0629 \u0641\u064a \u0627\u0643\u062a\u0634\u0627\u0641 \u0623\u0643\u062b\u0631 \u0627\u0644\u062a\u062c\u0627\u0631\u0628 \u062a\u0637\u0648\u0631\u0627\u064b \u0641\u064a \u0644\u0646\u062f\u0646.'
+                    : 'بعد الانتقال إلى لندن منذ أكثر من عقد، وقعت في حب عميق مع هذه المدينة المذهلة. ما بدأ كفضول شخصي تطور إلى خبرة في اكتشاف أكثر التجارب تطوراً في لندن.'
                   }
                 </p>
                 <p>
                   {language === 'en'
                     ? 'From secret speakeasies in Shoreditch to private viewings at world-renowned galleries, I\'ve spent years building relationships with London\'s most exclusive venues. My bilingual background allows me to bridge cultures, making London accessible to both English and Arabic-speaking travelers.'
-                    : '\u0645\u0646 \u0627\u0644\u0628\u0627\u0631\u0627\u062a \u0627\u0644\u0633\u0631\u064a\u0629 \u0641\u064a \u0634\u0648\u0631\u062f\u064a\u062a\u0634 \u0625\u0644\u0649 \u0627\u0644\u0639\u0631\u0648\u0636 \u0627\u0644\u062e\u0627\u0635\u0629 \u0641\u064a \u0627\u0644\u0635\u0627\u0644\u0627\u062a \u0627\u0644\u0645\u0634\u0647\u0648\u0631\u0629 \u0639\u0627\u0644\u0645\u064a\u0627\u064b\u060c \u0642\u0636\u064a\u062a \u0633\u0646\u0648\u0627\u062a \u0641\u064a \u0628\u0646\u0627\u0621 \u0639\u0644\u0627\u0642\u0627\u062a \u0645\u0639 \u0623\u0643\u062b\u0631 \u0627\u0644\u0623\u0645\u0627\u0643\u0646 \u062d\u0635\u0631\u064a\u0629 \u0641\u064a \u0644\u0646\u062f\u0646. \u062e\u0644\u0641\u064a\u062a\u064a \u062b\u0646\u0627\u0626\u064a\u0629 \u0627\u0644\u0644\u063a\u0629 \u062a\u0633\u0645\u062d \u0644\u064a \u0628\u0631\u0628\u0637 \u0627\u0644\u062b\u0642\u0627\u0641\u0627\u062a\u060c \u0645\u0645\u0627 \u064a\u062c\u0639\u0644 \u0644\u0646\u062f\u0646 \u0641\u064a \u0645\u062a\u0646\u0627\u0648\u0644 \u0627\u0644\u0645\u0633\u0627\u0641\u0631\u064a\u0646 \u0627\u0644\u0630\u064a\u0646 \u064a\u062a\u062d\u062f\u062b\u0648\u0646 \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u0629 \u0648\u0627\u0644\u0639\u0631\u0628\u064a\u0629.'
+                    : 'من البارات السرية في شورديتش إلى العروض الخاصة في الصالات المشهورة عالمياً، قضيت سنوات في بناء علاقات مع أكثر الأماكن حصرية في لندن. خلفيتي ثنائية اللغة تسمح لي بربط الثقافات، مما يجعل لندن في متناول المسافرين الذين يتحدثون الإنجليزية والعربية.'
                   }
                 </p>
                 <p>
                   {language === 'en'
                     ? 'Yalla London represents my commitment to sharing the sophisticated side of this magnificent city with discerning travelers who appreciate quality, authenticity, and exceptional experiences.'
-                    : '\u064a\u0627\u0644\u0627 \u0644\u0646\u062f\u0646 \u064a\u0645\u062b\u0644 \u0627\u0644\u062a\u0632\u0627\u0645\u064a \u0628\u0645\u0634\u0627\u0631\u0643\u0629 \u0627\u0644\u062c\u0627\u0646\u0628 \u0627\u0644\u0645\u062a\u0637\u0648\u0631 \u0645\u0646 \u0647\u0630\u0647 \u0627\u0644\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0631\u0627\u0626\u0639\u0629 \u0645\u0639 \u0627\u0644\u0645\u0633\u0627\u0641\u0631\u064a\u0646 \u0627\u0644\u0645\u0645\u064a\u0632\u064a\u0646 \u0627\u0644\u0630\u064a\u0646 \u064a\u0642\u062f\u0631\u0648\u0646 \u0627\u0644\u062c\u0648\u062f\u0629 \u0648\u0627\u0644\u0623\u0635\u0627\u0644\u0629 \u0648\u0627\u0644\u062a\u062c\u0627\u0631\u0628 \u0627\u0644\u0627\u0633\u062a\u062b\u0646\u0627\u0626\u064a\u0629.'
+                    : 'يالا لندن يمثل التزامي بمشاركة الجانب المتطور من هذه المدينة الرائعة مع المسافرين المميزين الذين يقدرون الجودة والأصالة والتجارب الاستثنائية.'
                   }
                 </p>
-                <p className="text-base text-yl-gray-500/80 italic">
+                <p className="text-base text-yl-gray-500/80 italic font-body">
                   {language === 'en'
-                    ? `\u2014 ${ENTITY.founder.name}, ${ENTITY.founder.title} of ${ENTITY.legalName}`
-                    : `\u2014 \u062e\u0627\u0644\u062f \u0646. \u0639\u0648\u0646\u060c \u0627\u0644\u0645\u0624\u0633\u0633 \u0648\u0627\u0644\u0631\u0626\u064a\u0633 \u0627\u0644\u062a\u0646\u0641\u064a\u0630\u064a \u0644\u0634\u0631\u0643\u0629 ${ENTITY.legalName}`
+                    ? `— ${ENTITY.founder.name}, ${ENTITY.founder.title} of ${ENTITY.legalName}`
+                    : `— خالد ن. عون، المؤسس والرئيس التنفيذي لشركة ${ENTITY.legalName}`
                   }
                 </p>
               </div>
-              <Button asChild size="lg" className="bg-yl-red hover:bg-[#a82924] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red">
-                <a href={`mailto:${CONTACT_EMAIL}`}>
+              <a href={`mailto:${CONTACT_EMAIL}`}>
+                <BrandButton variant="primary">
                   <Mail className="mr-2 h-5 w-5" />
-                  {language === 'en' ? 'Get in Touch' : '\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u064a'}
-                </a>
-              </Button>
-            </motion.div>
+                  {language === 'en' ? 'Get in Touch' : 'تواصل معي'}
+                </BrandButton>
+              </a>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="relative"
-            >
-              <div className="aspect-[3/4] rounded-2xl overflow-hidden luxury-shadow">
+            <div className="relative">
+              <div className="aspect-[3/4] rounded-[14px] overflow-hidden shadow-lg">
                 <Image
                   src={founderImages[0]}
                   alt="Founder portrait"
@@ -174,181 +140,143 @@ export default function AboutYallaLondon() {
                   className="object-cover"
                 />
               </div>
-              <div className="absolute -bottom-6 -left-6 bg-yl-gold text-yl-charcoal p-4 rounded-xl luxury-shadow">
-                <div className="text-2xl font-bold">10+</div>
-                <div className="text-sm font-medium">
-                  {language === 'en' ? 'Years Experience' : '\u0633\u0646\u0648\u0627\u062a \u062e\u0628\u0631\u0629'}
+              <div className="absolute -bottom-6 -left-6 bg-yl-dark-navy text-white p-4 rounded-[14px] shadow-lg">
+                <div className="text-2xl font-heading font-bold">10+</div>
+                <div className="text-sm font-body">
+                  {language === 'en' ? 'Years Experience' : 'سنوات خبرة'}
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
+
+      <TriBar />
 
       {/* Stats Section */}
       <section className="py-20 bg-yl-cream">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="text-4xl font-heading font-bold gradient-text mb-4">
-              {language === 'en' ? 'By the Numbers' : '\u0628\u0627\u0644\u0623\u0631\u0642\u0627\u0645'}
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="text-center mb-16">
+            <SectionLabel>{language === 'en' ? 'Our Impact' : 'تأثيرنا'}</SectionLabel>
+            <h2 className="text-4xl font-heading font-bold text-yl-charcoal mb-4">
+              {language === 'en' ? 'By the Numbers' : 'بالأرقام'}
             </h2>
-            <p className="text-xl text-yl-gray-500">
+            <p className="text-xl text-yl-gray-500 font-body">
               {language === 'en'
                 ? 'A testament to years of exploration and discovery'
-                : '\u0634\u0647\u0627\u062f\u0629 \u0639\u0644\u0649 \u0633\u0646\u0648\u0627\u062a \u0645\u0646 \u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641 \u0648\u0627\u0644\u0627\u0643\u062a\u0634\u0627\u0641'
+                : 'شهادة على سنوات من الاستكشاف والاكتشاف'
               }
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="text-center"
-              >
-                <Card className="p-6 border-0 luxury-shadow hover:shadow-xl transition-shadow duration-300">
-                  <CardContent className="p-0">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-yl-cream rounded-full flex items-center justify-center">
-                      <stat.icon className="h-8 w-8 text-yl-red" />
-                    </div>
-                    <div className="text-3xl font-bold text-yl-red mb-2">
-                      {stat.number}
-                    </div>
-                    <div className="text-yl-gray-500 font-medium">
-                      {language === 'en' ? stat.label_en : stat.label_ar}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <BrandCardLight key={index} className="p-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-yl-cream rounded-full flex items-center justify-center">
+                  <stat.icon className="h-8 w-8 text-yl-red" />
+                </div>
+                <div className="text-3xl font-heading font-bold text-yl-red mb-2">
+                  {stat.number}
+                </div>
+                <div className="text-yl-gray-500 font-body font-medium">
+                  {language === 'en' ? stat.label_en : stat.label_ar}
+                </div>
+              </BrandCardLight>
             ))}
           </div>
         </div>
       </section>
+
+      <TriBar />
 
       {/* Values Section */}
       <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="text-4xl font-heading font-bold gradient-text mb-4">
-              {language === 'en' ? 'My Values' : '\u0642\u064a\u0645\u064a'}
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="text-center mb-16">
+            <SectionLabel>{language === 'en' ? 'What We Believe' : 'ما نؤمن به'}</SectionLabel>
+            <h2 className="text-4xl font-heading font-bold text-yl-charcoal mb-4">
+              {language === 'en' ? 'My Values' : 'قيمي'}
             </h2>
-            <p className="text-xl text-yl-gray-500">
+            <p className="text-xl text-yl-gray-500 font-body">
               {language === 'en'
                 ? 'The principles that guide every recommendation'
-                : '\u0627\u0644\u0645\u0628\u0627\u062f\u0626 \u0627\u0644\u062a\u064a \u062a\u0648\u062c\u0647 \u0643\u0644 \u062a\u0648\u0635\u064a\u0629'
+                : 'المبادئ التي توجه كل توصية'
               }
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {values.map((value, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                className="text-center"
-              >
-                <Card className="p-8 border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full">
-                  <CardContent className="p-0">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-yl-cream to-yl-gray-200 rounded-full flex items-center justify-center">
-                      <value.icon className="h-10 w-10 text-yl-red" />
-                    </div>
-                    <h3 className="text-2xl font-heading font-bold mb-4 text-yl-charcoal">
-                      {language === 'en' ? value.title_en : value.title_ar}
-                    </h3>
-                    <p className="text-yl-gray-500 leading-relaxed">
-                      {language === 'en' ? value.description_en : value.description_ar}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <BrandCardLight key={index} className="p-8 text-center h-full">
+                <div className="w-20 h-20 mx-auto mb-6 bg-yl-cream rounded-full flex items-center justify-center">
+                  <value.icon className="h-10 w-10 text-yl-red" />
+                </div>
+                <h3 className="text-2xl font-heading font-bold mb-4 text-yl-charcoal">
+                  {language === 'en' ? value.title_en : value.title_ar}
+                </h3>
+                <p className="text-yl-gray-500 font-body leading-relaxed">
+                  {language === 'en' ? value.description_en : value.description_ar}
+                </p>
+              </BrandCardLight>
             ))}
           </div>
         </div>
       </section>
 
+      <TriBar />
+
       {/* Company Imprint */}
-      <section className="py-16 bg-yl-gray-100">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-3xl font-heading font-bold gradient-text mb-6 text-center">
-              {language === 'en' ? 'Company Information' : '\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0634\u0631\u0643\u0629'}
-            </h2>
-            <Card className="p-8 border-0 luxury-shadow">
-              <CardContent className="p-0 space-y-3 text-yl-gray-500">
-                <p className="font-semibold text-yl-charcoal text-lg">{ENTITY.legalName}</p>
-                <p>
-                  {language === 'en'
-                    ? `A ${ENTITY.jurisdiction} ${ENTITY.entityType}, United States`
-                    : `\u0634\u0631\u0643\u0629 \u0630\u0627\u062a \u0645\u0633\u0624\u0648\u0644\u064a\u0629 \u0645\u062d\u062f\u0648\u062f\u0629 \u0645\u0633\u062c\u0644\u0629 \u0641\u064a ${ENTITY.jurisdiction}\u060c \u0627\u0644\u0648\u0644\u0627\u064a\u0627\u062a \u0627\u0644\u0645\u062a\u062d\u062f\u0629`
-                  }
+      <section className="py-16 bg-yl-cream">
+        <div className="max-w-4xl mx-auto px-7">
+          <SectionLabel className="text-center">{language === 'en' ? 'Legal' : 'قانوني'}</SectionLabel>
+          <h2 className="text-3xl font-heading font-bold text-yl-charcoal mb-6 text-center">
+            {language === 'en' ? 'Company Information' : 'معلومات الشركة'}
+          </h2>
+          <BrandCardLight className="p-8">
+            <div className="space-y-3 text-yl-gray-500 font-body">
+              <p className="font-heading font-semibold text-yl-charcoal text-lg">{ENTITY.legalName}</p>
+              <p>
+                {language === 'en'
+                  ? `A ${ENTITY.jurisdiction} ${ENTITY.entityType}, United States`
+                  : `شركة ذات مسؤولية محدودة مسجلة في ${ENTITY.jurisdiction}، الولايات المتحدة`
+                }
+              </p>
+              <p>{getBrandDisclosure('Yalla London', language)}</p>
+              <div className="pt-3 border-t border-yl-gray-200">
+                <p className="text-sm">
+                  {language === 'en' ? 'Contact: ' : 'تواصل: '}
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="text-yl-red hover:underline">{CONTACT_EMAIL}</a>
                 </p>
-                <p>
-                  {getBrandDisclosure('Yalla London', language)}
-                </p>
-                <div className="pt-3 border-t border-stone/10">
-                  <p className="text-sm">
-                    {language === 'en' ? 'Contact: ' : '\u062a\u0648\u0627\u0635\u0644: '}
-                    <a href={`mailto:${CONTACT_EMAIL}`} className="text-yl-red hover:underline">{CONTACT_EMAIL}</a>
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </div>
+            </div>
+          </BrandCardLight>
         </div>
       </section>
 
+      <TriBar />
+
       {/* Contact CTA */}
-      <section className="py-20 bg-gradient-to-br from-yl-dark-navy via-yl-red to-yl-gold text-white">
-        <div className="max-w-4xl mx-auto text-center px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="text-4xl font-heading font-bold mb-6">
-              {language === 'en'
-                ? 'Let\'s Explore London Together'
-                : '\u062f\u0639\u0648\u0646\u0627 \u0646\u0633\u062a\u0643\u0634\u0641 \u0644\u0646\u062f\u0646 \u0645\u0639\u0627\u064b'
-              }
-            </h2>
-            <p className="text-xl mb-8 text-yl-gray-100/90">
-              {language === 'en'
-                ? 'Have questions about London? Looking for personalized recommendations? I\'d love to help you discover this amazing city.'
-                : '\u0644\u062f\u064a\u0643 \u0623\u0633\u0626\u0644\u0629 \u062d\u0648\u0644 \u0644\u0646\u062f\u0646\u061f \u062a\u0628\u062d\u062b \u0639\u0646 \u062a\u0648\u0635\u064a\u0627\u062a \u0634\u062e\u0635\u064a\u0629\u061f \u0623\u0648\u062f \u0623\u0646 \u0623\u0633\u0627\u0639\u062f\u0643 \u0641\u064a \u0627\u0643\u062a\u0634\u0627\u0641 \u0647\u0630\u0647 \u0627\u0644\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0645\u0630\u0647\u0644\u0629.'
-              }
-            </p>
-            <Button asChild size="lg" className="bg-white text-yl-dark-navy hover:bg-yl-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-              <a href={`mailto:${CONTACT_EMAIL}`}>
-                <Mail className="mr-2 h-5 w-5" />
-                {language === 'en' ? 'Send a Message' : '\u0623\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629'}
-              </a>
-            </Button>
-          </motion.div>
+      <section className="py-20 bg-yl-dark-navy text-white">
+        <div className="max-w-4xl mx-auto text-center px-7">
+          <SectionLabel>{language === 'en' ? 'Get Started' : 'ابدأ'}</SectionLabel>
+          <h2 className="text-4xl font-heading font-bold mb-6">
+            {language === 'en'
+              ? 'Let\'s Explore London Together'
+              : 'دعونا نستكشف لندن معاً'
+            }
+          </h2>
+          <p className="text-xl mb-8 text-yl-gray-400 font-body">
+            {language === 'en'
+              ? 'Have questions about London? Looking for personalized recommendations? I\'d love to help you discover this amazing city.'
+              : 'لديك أسئلة حول لندن؟ تبحث عن توصيات شخصية؟ أود أن أساعدك في اكتشاف هذه المدينة المذهلة.'
+            }
+          </p>
+          <a href={`mailto:${CONTACT_EMAIL}`}>
+            <BrandButton variant="primary">
+              <Mail className="mr-2 h-5 w-5" />
+              {language === 'en' ? 'Send a Message' : 'أرسل رسالة'}
+            </BrandButton>
+          </a>
         </div>
       </section>
     </div>

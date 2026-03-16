@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 import { getCategoryPhoto } from '@/data/news-photos'
 import {
   Calendar, ArrowLeft, ExternalLink, Newspaper, Clock,
@@ -13,7 +13,6 @@ import {
   ShoppingBag, Plane, Sparkles, Globe, Shield, BookOpen,
   ChevronRight,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
@@ -74,17 +73,17 @@ const CATEGORY_ICON_MAP: Record<NewsCategory, React.ElementType> = {
   strikes: AlertTriangle, popup: Sparkles, general: Globe,
 }
 
-const CATEGORY_COLOR_MAP: Record<NewsCategory, string> = {
-  transport: 'bg-blue-500/90 text-white',
-  events: 'bg-purple-500/90 text-white',
-  weather: 'bg-orange-500/90 text-white',
-  health: 'bg-red-500/90 text-white',
-  festivals: 'bg-green-500/90 text-white',
-  sales: 'bg-pink-500/90 text-white',
-  holidays: 'bg-teal-500/90 text-white',
-  strikes: 'bg-red-800/90 text-white',
-  popup: 'bg-indigo-500/90 text-white',
-  general: 'bg-gray-500/90 text-white',
+const CATEGORY_COLOR_MAP: Record<NewsCategory, 'red' | 'gold' | 'blue' | 'neutral'> = {
+  transport: 'blue',
+  events: 'gold',
+  weather: 'gold',
+  health: 'red',
+  festivals: 'blue',
+  sales: 'red',
+  holidays: 'blue',
+  strikes: 'red',
+  popup: 'gold',
+  general: 'neutral',
 }
 
 const CATEGORY_LABEL_EN: Record<NewsCategory, string> = {
@@ -99,23 +98,9 @@ const CATEGORY_LABEL_AR: Record<NewsCategory, string> = {
   holidays: 'عطلات', strikes: 'إضرابات', popup: 'مؤقت', general: 'عام',
 }
 
-/** Category-themed gradient for hero — legally safe, no copied images */
-const CATEGORY_GRADIENT: Record<NewsCategory, string> = {
-  transport: 'from-blue-800 via-blue-900 to-slate-950',
-  events: 'from-purple-800 via-purple-900 to-slate-950',
-  weather: 'from-orange-700 via-amber-900 to-slate-950',
-  health: 'from-red-800 via-red-900 to-slate-950',
-  festivals: 'from-green-700 via-emerald-900 to-slate-950',
-  sales: 'from-pink-700 via-rose-900 to-slate-950',
-  holidays: 'from-teal-700 via-teal-900 to-slate-950',
-  strikes: 'from-red-900 via-red-950 to-slate-950',
-  popup: 'from-indigo-700 via-indigo-900 to-slate-950',
-  general: 'from-stone-700 via-stone-900 to-slate-950',
-}
-
 const URGENCY_CONFIG: Record<string, { label_en: string; label_ar: string; color: string; icon: React.ElementType }> = {
-  breaking: { label_en: 'Breaking', label_ar: 'عاجل', color: 'bg-red-600 text-white animate-pulse', icon: Zap },
-  urgent: { label_en: 'Urgent', label_ar: 'مستعجل', color: 'bg-orange-500 text-white', icon: AlertTriangle },
+  breaking: { label_en: 'Breaking', label_ar: 'عاجل', color: 'bg-yl-red text-white animate-pulse', icon: Zap },
+  urgent: { label_en: 'Urgent', label_ar: 'مستعجل', color: 'bg-yl-gold text-yl-charcoal', icon: AlertTriangle },
   normal: { label_en: '', label_ar: '', color: '', icon: Clock },
   low: { label_en: '', label_ar: '', color: '', icon: Clock },
 }
@@ -124,17 +109,13 @@ function getCategoryIcon(category: string): React.ElementType {
   return CATEGORY_ICON_MAP[category as NewsCategory] ?? Globe
 }
 
-function getCategoryColor(category: string): string {
-  return CATEGORY_COLOR_MAP[category as NewsCategory] ?? CATEGORY_COLOR_MAP.general
+function getCategoryTagColor(category: string): 'red' | 'gold' | 'blue' | 'neutral' {
+  return CATEGORY_COLOR_MAP[category as NewsCategory] ?? 'neutral'
 }
 
 function getCategoryLabel(category: string, language: 'en' | 'ar'): string {
   if (language === 'ar') return CATEGORY_LABEL_AR[category as NewsCategory] ?? category
   return CATEGORY_LABEL_EN[category as NewsCategory] ?? category
-}
-
-function getCategoryGradient(category: string): string {
-  return CATEGORY_GRADIENT[category as NewsCategory] ?? CATEGORY_GRADIENT.general
 }
 
 // ---------------------------------------------------------------------------
@@ -158,20 +139,6 @@ function formatDateRange(start: string | null, end: string | null, language: 'en
 }
 
 // ---------------------------------------------------------------------------
-// Animation variants
-// ---------------------------------------------------------------------------
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } },
-}
-
-const fadeIn = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.6, ease: 'easeOut' } },
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -183,7 +150,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
   const announcement = language === 'en' ? item.announcement_en : item.announcement_ar
 
   const CategoryIcon = getCategoryIcon(item.news_category)
-  const categoryColor = getCategoryColor(item.news_category)
+  const categoryTagColor = getCategoryTagColor(item.news_category)
   const categoryLabel = getCategoryLabel(item.news_category, language)
   const urgencyConfig = URGENCY_CONFIG[item.urgency] ?? URGENCY_CONFIG.normal
   const showUrgency = item.urgency === 'breaking' || item.urgency === 'urgent'
@@ -202,7 +169,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* ----------------------------------------------------------------- */}
       {/* Hero Section — real photo with dark overlay for readability       */}
       {/* ----------------------------------------------------------------- */}
-      <section className={`relative min-h-[22rem] md:min-h-[26rem] overflow-hidden bg-gradient-to-br ${getCategoryGradient(item.news_category)}`}>
+      <section className="relative min-h-[22rem] md:min-h-[26rem] overflow-hidden bg-yl-dark-navy pt-28">
         {/* Background photo */}
         <Image
           src={heroImage}
@@ -215,15 +182,30 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
         {/* Dark gradient overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
 
+        <WatermarkStamp />
+
         <div className="relative z-10 h-full flex items-end">
-          <div className="max-w-4xl mx-auto px-6 pb-12 pt-24 w-full">
-            <motion.div variants={fadeUp} initial="hidden" animate="visible">
+          <div className="max-w-7xl mx-auto px-7 pb-12 w-full">
+            <div>
+              {/* Breadcrumbs */}
+              <Breadcrumbs
+                items={[
+                  { label: language === 'en' ? 'Home' : 'الرئيسية', href: '/' },
+                  { label: language === 'en' ? 'News' : 'الأخبار', href: '/news' },
+                  { label: categoryLabel },
+                ]}
+                className="mb-4"
+              />
+
+              {/* Section label */}
+              <SectionLabel>{language === 'en' ? 'London News' : 'أخبار لندن'}</SectionLabel>
+
               {/* Badges */}
               <div className="flex flex-wrap items-center gap-3 mb-5">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${categoryColor}`}>
+                <BrandTag color={categoryTagColor} className="gap-1.5">
                   <CategoryIcon className="h-3.5 w-3.5" />
                   {categoryLabel}
-                </span>
+                </BrandTag>
 
                 {showUrgency && (
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${urgencyConfig.color}`}>
@@ -233,10 +215,10 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
                 )}
 
                 {item.is_major && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-yl-gold text-yl-charcoal">
+                  <BrandTag color="gold" className="gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" />
                     {language === 'en' ? 'Featured' : 'مميز'}
-                  </span>
+                  </BrandTag>
                 )}
               </div>
 
@@ -257,31 +239,31 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
                   {item.source_name}
                 </span>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
+
+      <TriBar />
 
       {/* ----------------------------------------------------------------- */}
       {/* Article Content                                                    */}
       {/* ----------------------------------------------------------------- */}
       <section className="py-12 bg-white">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
+        <div className="max-w-7xl mx-auto px-7">
+          <div>
             {/* Action bar */}
             <div className="flex items-center justify-between mb-8 pb-6 border-b border-yl-gray-200">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/news">
-                  <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
-                  {language === 'en' ? 'Back to News' : 'العودة للأخبار'}
-                </Link>
-              </Button>
+              <BrandButton variant="outline" href="/news" size="sm" className="border-yl-gray-200 text-yl-charcoal hover:border-yl-gold hover:text-yl-gold">
+                <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
+                {language === 'en' ? 'Back to News' : 'العودة للأخبار'}
+              </BrandButton>
               <ShareButtons title={headline} excerpt={announcement} />
             </div>
 
             {/* Event date range */}
             {eventDateRange && (
-              <div className="mb-6 p-4 rounded-lg bg-yl-cream border border-yl-gray-200 flex items-center gap-3">
+              <div className="mb-6 p-4 rounded-[14px] bg-yl-cream border border-yl-gray-200 flex items-center gap-3">
                 <Calendar className="h-5 w-5 text-yl-red flex-shrink-0" />
                 <div>
                   <span className="text-xs font-medium uppercase tracking-wider text-yl-gray-500">
@@ -295,20 +277,14 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
             {/* ─────────────────────────────────────────────────────────── */}
             {/* Summary content — original commentary, fair-use compliant */}
             {/* ─────────────────────────────────────────────────────────── */}
-            <div className={`text-yl-charcoal text-lg leading-relaxed mb-8 whitespace-pre-line ${isRTL ? 'font-arabic' : ''}`}>
+            <div className={`text-yl-charcoal text-lg leading-relaxed mb-8 whitespace-pre-line font-body ${isRTL ? 'font-arabic' : ''}`}>
               {summary}
             </div>
 
             {/* ─────────────────────────────────────────────────────────── */}
             {/* Source Attribution Box — standardized format               */}
             {/* ─────────────────────────────────────────────────────────── */}
-            <motion.div
-              variants={fadeIn}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              className="rounded-xl border border-yl-gray-200 bg-yl-cream p-6 md:p-8 mb-6"
-            >
+            <BrandCardLight hoverable={false} className="p-6 md:p-8 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 h-12 w-12 rounded-full bg-yl-red/10 flex items-center justify-center">
@@ -329,22 +305,22 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
                   </div>
                 </div>
 
-                <Button
-                  asChild
-                  className="bg-yl-red hover:bg-yl-red text-white flex-shrink-0"
+                <a
+                  href={item.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center font-mono tracking-wider uppercase rounded-lg transition-all duration-300 bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg py-2 px-4 text-[9px] flex-shrink-0"
                 >
-                  <a href={item.source_url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    {language === 'en' ? 'Read Original Report' : 'اقرأ التقرير الأصلي'}
-                  </a>
-                </Button>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  {language === 'en' ? 'Read Original Report' : 'اقرأ التقرير الأصلي'}
+                </a>
               </div>
-            </motion.div>
+            </BrandCardLight>
 
             {/* ─────────────────────────────────────────────────────────── */}
             {/* Content Integrity Footer — fair-use compliance notice      */}
             {/* ─────────────────────────────────────────────────────────── */}
-            <div className="rounded-lg border border-yl-gray-200/50 bg-yl-gray-100/60 p-4 mb-8">
+            <div className="rounded-[14px] border border-yl-gray-200/50 bg-yl-gray-100/60 p-4 mb-8">
               <div className="flex items-start gap-3">
                 <Shield className="h-4 w-4 text-yl-red shrink-0 mt-0.5" />
                 <div className={`text-[11px] text-yl-gray-500 leading-relaxed ${isRTL ? 'font-arabic' : 'font-body'}`}>
@@ -368,18 +344,15 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
             {item.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-8">
                 {item.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 text-xs font-medium rounded-full bg-yl-gray-100 text-yl-gray-500 border border-yl-gray-200"
-                  >
+                  <BrandTag key={tag} color="neutral">
                     #{tag}
-                  </span>
+                  </BrandTag>
                 ))}
               </div>
             )}
 
             {/* "What this means for you" section — transformative value */}
-            <div className="rounded-xl border border-yl-gold/30 bg-yl-gold/5 p-6 mb-8">
+            <div className="rounded-[14px] border border-yl-gold/30 bg-yl-gold/5 p-6 mb-8">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="h-4 w-4 text-yl-gold" />
                 <h3 className={`text-sm font-bold text-yl-charcoal ${isRTL ? 'font-arabic' : 'font-heading'}`}>
@@ -394,14 +367,14 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
               <div className="mt-3">
                 <Link
                   href="/information"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-yl-red hover:text-yl-red transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-yl-red hover:text-[#a82924] transition-colors"
                 >
                   {language === 'en' ? 'Visit Information Hub' : 'زيارة مركز المعلومات'}
                   <ChevronRight className={`h-3 w-3 ${isRTL ? 'rotate-180' : ''}`} />
                 </Link>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -410,7 +383,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* ----------------------------------------------------------------- */}
       {relatedArticles.length > 0 && (
         <section className="py-12 bg-yl-cream">
-          <div className="max-w-6xl mx-auto px-6">
+          <div className="max-w-7xl mx-auto px-7">
             <RelatedArticles articles={relatedArticles} currentType="blog" />
           </div>
         </section>
@@ -420,7 +393,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* Follow Us                                                          */}
       {/* ----------------------------------------------------------------- */}
       <section className="py-10 bg-yl-cream border-t border-yl-gray-200">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+        <div className="max-w-7xl mx-auto px-7 text-center">
           <FollowUs variant="light" />
         </div>
       </section>
@@ -429,10 +402,10 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* Bottom CTA                                                         */}
       {/* ----------------------------------------------------------------- */}
       <section className="py-10 bg-white border-t border-yl-gray-200">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+        <div className="max-w-7xl mx-auto px-7 text-center">
           <Link
             href="/news"
-            className="inline-flex items-center gap-2 text-yl-red hover:text-yl-red font-medium transition-colors duration-200"
+            className="inline-flex items-center gap-2 text-yl-red hover:text-[#a82924] font-medium transition-colors duration-200"
           >
             <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
             {language === 'en' ? 'Back to All News' : 'العودة لجميع الأخبار'}

@@ -3385,6 +3385,71 @@ Private Key:    GOOGLE_ANALYTICS_PRIVATE_KEY → GOOGLE_SEARCH_CONSOLE_PRIVATE_K
 | CJ Advertiser Applications | Only Vrbo approved — apply to Booking.com, GetYourGuide, Viator, etc. | MEDIUM | Manual action needed |
 | Static Affiliate Env Vars | `BOOKING_AFFILIATE_ID`, `AGODA_AFFILIATE_ID` etc. all empty in Vercel | MEDIUM | Set when approved by each network |
 | Affiliate Injection Reach | CJ deep link fallback only covers Vrbo (hotel category) — other categories (restaurant, activity, transport) still empty | MEDIUM | Resolves as more CJ advertisers are approved |
+| ~~Assembly Stuck Loop~~ | ~~Drafts stuck in assembly phase cycling timeout → raw fallback → reset → timeout~~ | ~~CRITICAL~~ | **DONE** — March 16, 2026 |
+| ~~No Publishing Schedule~~ | ~~ContentScheduleRule table empty, schedule-executor exits immediately~~ | ~~CRITICAL~~ | **DONE** — Auto-seeded on first run |
+| ~~Orphaned BlogPosts~~ | ~~5 BlogPosts with content but published=false sitting 2h+~~ | ~~HIGH~~ | **DONE** — scheduled-publish auto-publishes |
+
+### Session: March 16, 2026 — Pipeline Throughput: Assembly Fix, Publishing Schedule, Orphan Recovery
+
+**3 interconnected pipeline issues diagnosed and fixed to achieve 4 articles/day target.**
+
+**Problem 1: Assembly Phase Stuck Loop (CRITICAL)**
+- **Root cause:** Three interacting bugs created an infinite loop:
+  1. Assembly `maxAttempts` was 3 (too low for timeout-prone AI phase)
+  2. Raw fallback (attempts >= 2) succeeded but `build-runner.ts:217` reset `phase_attempts` to 0
+  3. Next cron run: draft goes through AI assembly again (attempts 0-1 use AI), times out, cycles back
+  4. Diagnostic-agent sets attempts to 2 → raw fallback fires → reset to 0 → repeat forever
+- **Fixes applied:**
+  - `build-runner.ts`: Assembly `maxAttempts` raised from 3 to 5 (matches drafting)
+  - `build-runner.ts`: When assembly uses raw fallback (`aiModelUsed="fallback-raw"`), `phase_attempts` are NOT reset to 0 — they stay at current value so the draft advances permanently
+  - `phases.ts`: Raw fallback budget threshold raised from 15s to 20s (earlier fallback)
+  - `phases.ts`: Assembly AI `maxTokens` reduced (2000→1500 AR, 1200→1000 EN) to prevent timeouts
+
+**Problem 2: No Publishing Schedule (CRITICAL)**
+- **Root cause:** `ContentScheduleRule` table was empty — zero records. `schedule-executor` runs every 2h but exits immediately with "No active schedule rules found"
+- **Fix:** `schedule-executor/route.ts` now auto-seeds a default rule on first run if none exist:
+  - Name: "Daily Content (4 articles: 2 EN + 2 AR)"
+  - Language: `both` (creates 1 EN + 1 AR draft per run)
+  - Frequency: every 6 hours (up to 4 articles/day)
+  - Min hours between: 4 (prevents burst creation)
+  - Max posts per day: 4 (hard cap)
+  - Auto-publish: false (quality-gated via content-selector)
+
+**Problem 3: Orphaned BlogPosts (HIGH)**
+- **Root cause:** 5+ BlogPost records existed with `published=false` but had content. Created by content-selector's `promoteToBlogPost()` but never set to `published=true` — likely crashed between create and update
+- **Fix:** `scheduled-publish/route.ts` now auto-publishes orphaned BlogPosts (created 2h+ ago, have `content_en`, but `published=false`) instead of just logging them. Increased orphan query limit from 5 to 10.
+
+**Pipeline flow after fixes:**
+```
+schedule-executor (every 2h) → creates 2 drafts (1 EN + 1 AR) from TopicProposal
+    ↓
+content-builder (every 15 min) → advances through 8 phases
+    ↓ (assembly: raw fallback on attempts >= 2, NO reset to 0)
+content-selector (4x/day: 9am, 1pm, 5pm, 9pm) → promotes top 2 from reservoir → BlogPost
+    ↓
+scheduled-publish (2x/day: 9:15am, 4pm) → publishes ScheduledContent + auto-publishes orphans
+    ↓
+seo-agent (3x/day) → IndexNow submission to 3 engines
+```
+
+**Expected throughput:** 4 articles/day (2 EN + 2 AR) once pipeline clears the assembly backlog.
+
+**Files modified:**
+- `lib/content-pipeline/build-runner.ts` — assembly maxAttempts 3→5, raw fallback preserves attempts
+- `lib/content-pipeline/phases.ts` — assembly budget threshold 15s→20s, maxTokens reduced
+- `app/api/cron/schedule-executor/route.ts` — auto-seed default schedule rule
+- `app/api/cron/scheduled-publish/route.ts` — auto-publish orphaned BlogPosts
+
+**Why london-news isn't generating:**
+The Grok `allowed_domains` fix (changed from path-based `bbc.co.uk/news/england/london` to root domains `bbc.co.uk`) was committed in a previous session but **has NOT been deployed to Vercel yet**. Production cron logs still show the old error: `"Invalid domains for allowed_domains: bbc.co.uk/news/england/london"`. The code fix is correct — it just needs deployment.
+
+### Critical Rules Learned (March 16 Session)
+
+96. **Assembly raw fallback success must NOT reset `phase_attempts` to 0** — resetting allows the draft to re-enter AI assembly on future processing, causing the exact timeout loop the fallback was supposed to break. Keep attempts at their current value so subsequent phases see the draft as "resolved."
+97. **Assembly needs 5 maxAttempts, not 3** — assembly is the most timeout-prone phase (large prompts, full article HTML). With only 3 attempts, drafts get rejected before raw fallback has enough chances to work. Match drafting's 5-attempt cap.
+98. **Auto-seed ContentScheduleRule on first run** — a non-technical owner will never manually INSERT schedule rules into the database. The system must bootstrap itself. Auto-seeding a sensible default (4 articles/day, both languages) removes this manual dependency.
+99. **Orphaned BlogPosts (published=false with content) should be auto-published** — these are artifacts of crashes between `BlogPost.create()` and the subsequent `published=true` update. They already passed the pre-pub gate during content-selector promotion, so publishing them directly is safe.
+100. **Grok `allowed_domains` only accepts root domains** — `bbc.co.uk` works, `bbc.co.uk/news/england/london` does NOT. Grok API returns 400 for path-based domains. Always use the root domain without any path segments.
 
 ## Weekly Manual Checks
 

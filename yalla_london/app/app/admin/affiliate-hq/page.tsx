@@ -94,6 +94,7 @@ interface AffiliateHQData {
       sales: number;
       pages: Array<{ url: string; clicks: number }>;
       lastClickAt: string | null;
+      createdAt: string | null;
     }>;
   };
   systemHealth: {
@@ -685,62 +686,143 @@ function PageRow({ page }: { page: { id: string; title: string; slug: string; pu
   );
 }
 
-// ─── Tab 4: Links & Offers ──────────────────────────────────────────────────
+// ─── Tab 4: Links — Per-Link List ───────────────────────────────────────────
 
 function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
   const { links } = data;
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "sales" | "ctr" | "name">("clicks");
+  const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "date" | "lastClicked" | "url" | "name">("clicks");
+  const [filterAdvertiser, setFilterAdvertiser] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
   const linksList = links.linksList || [];
 
-  const sorted = [...linksList].sort((a, b) => {
-    if (sortBy === "name") return a.advertiser.localeCompare(b.advertiser);
-    return (b[sortBy] as number) - (a[sortBy] as number);
+  // Unique advertisers for filter dropdown
+  const advertisers = [...new Set<string>(linksList.map((l) => l.advertiser))].sort();
+
+  // Filter
+  const filtered = linksList.filter((l) => {
+    if (filterAdvertiser !== "all" && l.advertiser !== filterAdvertiser) return false;
+    if (filterStatus === "active" && !l.isActive) return false;
+    if (filterStatus === "inactive" && l.isActive) return false;
+    return true;
+  });
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case "name": return a.name.localeCompare(b.name);
+      case "url": return a.destinationUrl.localeCompare(b.destinationUrl);
+      case "revenue": return b.revenue - a.revenue;
+      case "date": {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return db - da;
+      }
+      case "lastClicked": {
+        const la = a.lastClickAt ? new Date(a.lastClickAt).getTime() : 0;
+        const lb = b.lastClickAt ? new Date(b.lastClickAt).getTime() : 0;
+        return lb - la;
+      }
+      default: return b.clicks - a.clicks;
+    }
   });
 
   // Totals
-  const totalClicks = linksList.reduce((s, l) => s + l.clicks, 0);
-  const totalRevenue = linksList.reduce((s, l) => s + l.revenue, 0);
-  const totalSales = linksList.reduce((s, l) => s + l.sales, 0);
+  const totalClicks = filtered.reduce((s, l) => s + l.clicks, 0);
+  const totalRevenue = filtered.reduce((s, l) => s + l.revenue, 0);
+  const totalSales = filtered.reduce((s, l) => s + l.sales, 0);
+
+  const fmtDate = (d: string | null) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    return `${dt.getDate()} ${dt.toLocaleString("en", { month: "short" })}`;
+  };
+
+  const shortUrl = (url: string) => {
+    return url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "");
+  };
 
   return (
     <div>
       {/* Summary KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))", gap: "0.5rem", marginBottom: "1rem" }}>
-        <KpiCard label="Total Links" value={String(links.total)} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <KpiCard label="Links" value={String(filtered.length)} />
         <KpiCard label="Clicks" value={String(totalClicks)} />
         <KpiCard label="Sales" value={String(totalSales)} />
         <KpiCard label="Revenue" value={totalRevenue > 0 ? `$${totalRevenue.toFixed(2)}` : "$0"} />
       </div>
 
-      {/* Sort Controls */}
-      <div style={{ display: "flex", gap: "0.25rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-        {(["clicks", "revenue", "sales", "ctr", "name"] as const).map((key) => (
+      {/* Filters Row */}
+      <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+        {/* Advertiser dropdown */}
+        <select
+          value={filterAdvertiser}
+          onChange={(e) => setFilterAdvertiser(e.target.value)}
+          style={{
+            padding: "0.3rem 0.5rem", borderRadius: 6, border: "1px solid #e5e7eb",
+            fontSize: "0.7rem", background: "#fff", color: "#374151",
+            maxWidth: "45%",
+          }}
+        >
+          <option value="all">All Partners</option>
+          {advertisers.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+
+        {/* Status filter */}
+        {(["all", "active", "inactive"] as const).map((s) => (
           <button
-            key={key}
-            onClick={() => setSortBy(key)}
+            key={s}
+            onClick={() => setFilterStatus(s)}
             style={{
-              padding: "0.25rem 0.6rem", borderRadius: 6, border: "1px solid #e5e7eb",
-              fontSize: "0.7rem", fontWeight: sortBy === key ? 700 : 400, cursor: "pointer",
-              background: sortBy === key ? "#1f2937" : "#fff",
-              color: sortBy === key ? "#fff" : "#374151",
+              padding: "0.2rem 0.5rem", borderRadius: 6, border: "1px solid #e5e7eb",
+              fontSize: "0.65rem", fontWeight: filterStatus === s ? 700 : 400, cursor: "pointer",
+              background: filterStatus === s ? "#1f2937" : "#fff",
+              color: filterStatus === s ? "#fff" : "#374151",
             }}
           >
-            {key === "ctr" ? "CTR" : key.charAt(0).toUpperCase() + key.slice(1)}
+            {s === "all" ? "All" : s === "active" ? "Active" : "Inactive"}
           </button>
         ))}
       </div>
 
-      {/* Links List */}
+      {/* Sort Controls */}
+      <div style={{ display: "flex", gap: "0.25rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
+        {(["clicks", "revenue", "date", "lastClicked", "url", "name"] as const).map((key) => {
+          const labels: Record<string, string> = { clicks: "Clicks", revenue: "Revenue", date: "Date", lastClicked: "Last Click", url: "URL", name: "Name" };
+          return (
+            <button
+              key={key}
+              onClick={() => setSortBy(key)}
+              style={{
+                padding: "0.2rem 0.5rem", borderRadius: 6, border: "1px solid #e5e7eb",
+                fontSize: "0.65rem", fontWeight: sortBy === key ? 700 : 400, cursor: "pointer",
+                background: sortBy === key ? "#C49A2A" : "#fff",
+                color: sortBy === key ? "#fff" : "#374151",
+              }}
+            >
+              {labels[key]}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Links List — individual links */}
       {sorted.length === 0 ? (
         <div style={{ padding: "2rem 1rem", textAlign: "center", color: "#9ca3af", fontSize: "0.85rem" }}>
-          No affiliate links yet. Tap <strong>Sync Advertisers</strong> in the Actions tab to generate deep links for approved partners.
+          {linksList.length === 0
+            ? <>No affiliate links yet. Tap <strong>Sync Advertisers</strong> in the Actions tab.</>
+            : "No links match your filters."
+          }
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
           {sorted.map((link) => {
             const isExpanded = expandedId === link.id;
-            const shortDest = link.destinationUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+            const destShort = shortUrl(link.destinationUrl);
+            const destDisplay = destShort.length > 40 ? destShort.substring(0, 40) + "…" : destShort;
+
             return (
               <div
                 key={link.id}
@@ -750,18 +832,18 @@ function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; on
                   overflow: "hidden",
                 }}
               >
-                {/* Link Row — tappable */}
+                {/* Main row — tappable */}
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : link.id)}
-                  style={{ padding: "0.6rem 0.75rem", cursor: "pointer" }}
+                  style={{ padding: "0.5rem 0.65rem", cursor: "pointer" }}
                 >
-                  {/* Top line: Advertiser + Status */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#111827" }}>
-                      {link.advertiser}
+                  {/* Row 1: Link name + status */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.3rem", marginBottom: "0.15rem" }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "#111827", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {link.name || link.advertiser}
                     </div>
                     <span style={{
-                      fontSize: "0.65rem", fontWeight: 600, padding: "0.15rem 0.5rem", borderRadius: 10,
+                      fontSize: "0.6rem", fontWeight: 600, padding: "0.1rem 0.4rem", borderRadius: 8, whiteSpace: "nowrap",
                       background: link.isActive ? "#dcfce7" : "#fee2e2",
                       color: link.isActive ? "#166534" : "#991b1b",
                     }}>
@@ -769,62 +851,60 @@ function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; on
                     </span>
                   </div>
 
-                  {/* Second line: Category + destination domain */}
-                  <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: "0.4rem" }}>
-                    {link.category || "uncategorized"} &middot; {shortDest}
+                  {/* Row 2: URL + advertiser */}
+                  <div style={{ fontSize: "0.65rem", color: "#6b7280", marginBottom: "0.35rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {destDisplay} &middot; {link.advertiser}
                   </div>
 
-                  {/* Stats row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.25rem" }}>
+                  {/* Row 3: Stats grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.2rem" }}>
                     <StatCell label="Clicks" value={String(link.clicks)} />
-                    <StatCell label="CTR" value={link.ctr > 0 ? `${link.ctr}%` : "—"} />
-                    <StatCell label="Sales" value={String(link.sales)} highlight={link.sales > 0} />
                     <StatCell label="Revenue" value={link.revenue > 0 ? `$${link.revenue.toFixed(2)}` : "—"} highlight={link.revenue > 0} />
+                    <StatCell label="Added" value={fmtDate(link.createdAt)} />
+                    <StatCell label="Last Click" value={fmtDate(link.lastClickAt)} />
                   </div>
                 </div>
 
-                {/* Expanded Detail */}
+                {/* Expanded detail */}
                 {isExpanded && (
-                  <div style={{ padding: "0.5rem 0.75rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8" }}>
-                    {/* Link name */}
-                    <div style={{ fontSize: "0.75rem", color: "#374151", marginBottom: "0.4rem" }}>
-                      <strong>Link:</strong> {link.name}
+                  <div style={{ padding: "0.5rem 0.65rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8" }}>
+                    {/* Full destination URL */}
+                    <div style={{ fontSize: "0.7rem", color: "#374151", marginBottom: "0.3rem", wordBreak: "break-all" }}>
+                      <strong>URL:</strong> {link.destinationUrl}
                     </div>
 
-                    {/* Destination URL */}
-                    <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: "0.4rem", wordBreak: "break-all" }}>
-                      <strong>Destination:</strong> {link.destinationUrl}
+                    {/* Tracking URL */}
+                    <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginBottom: "0.3rem", wordBreak: "break-all" }}>
+                      <strong>Tracking:</strong> {link.affiliateUrl.length > 100 ? link.affiliateUrl.substring(0, 100) + "…" : link.affiliateUrl}
                     </div>
 
-                    {/* Tracking URL (truncated) */}
-                    <div style={{ fontSize: "0.7rem", color: "#6b7280", marginBottom: "0.6rem", wordBreak: "break-all" }}>
-                      <strong>Tracking:</strong> {link.affiliateUrl.length > 80 ? link.affiliateUrl.substring(0, 80) + "..." : link.affiliateUrl}
+                    {/* Extra stats */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.2rem", marginBottom: "0.4rem" }}>
+                      <StatCell label="Sales" value={String(link.sales)} highlight={link.sales > 0} />
+                      <StatCell label="CTR" value={link.ctr > 0 ? `${link.ctr}%` : "—"} />
+                      <StatCell label="Type" value={link.linkType || "—"} />
                     </div>
 
-                    {/* Pages where this link was clicked */}
-                    {link.pages.length > 0 ? (
-                      <div>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.3rem" }}>Pages with clicks</div>
+                    {/* Pages where clicked */}
+                    {link.pages.length > 0 && (
+                      <div style={{ marginBottom: "0.3rem" }}>
+                        <div style={{ fontSize: "0.7rem", fontWeight: 600, marginBottom: "0.2rem", color: "#374151" }}>Clicked on:</div>
                         {link.pages.map((p) => {
                           const slug = p.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "") || "/";
                           return (
-                            <div key={p.url} style={{ display: "flex", justifyContent: "space-between", padding: "0.2rem 0", fontSize: "0.7rem", color: "#374151" }}>
+                            <div key={p.url} style={{ display: "flex", justifyContent: "space-between", padding: "0.15rem 0", fontSize: "0.65rem", color: "#6b7280" }}>
                               <span style={{ maxWidth: "75%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{slug}</span>
-                              <span style={{ fontWeight: 600 }}>{p.clicks} clicks</span>
+                              <span style={{ fontWeight: 600, color: "#374151" }}>{p.clicks}</span>
                             </div>
                           );
                         })}
                       </div>
-                    ) : (
-                      <div style={{ fontSize: "0.7rem", color: "#9ca3af", fontStyle: "italic" }}>
-                        No click data yet — clicks will appear here once visitors tap this link on your articles.
-                      </div>
                     )}
 
-                    {/* Last click */}
-                    {link.lastClickAt && (
-                      <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: "0.4rem" }}>
-                        Last click: {new Date(link.lastClickAt).toLocaleDateString()}
+                    {link.createdAt && (
+                      <div style={{ fontSize: "0.6rem", color: "#9ca3af" }}>
+                        Created: {new Date(link.createdAt).toLocaleDateString()}
+                        {link.lastClickAt && <> &middot; Last click: {new Date(link.lastClickAt).toLocaleDateString()}</>}
                       </div>
                     )}
                   </div>

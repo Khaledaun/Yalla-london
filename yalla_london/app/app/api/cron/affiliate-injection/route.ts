@@ -233,6 +233,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         affiliates: [
           { name: "TheFork", url: "https://www.thefork.co.uk/london", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`, category: "restaurant" },
           { name: "OpenTable", url: "https://www.opentable.co.uk/london", param: `?ref=${process.env.OPENTABLE_AFFILIATE_ID || ""}`, category: "restaurant" },
+          { name: "TripAdvisor Restaurants", url: "https://www.tripadvisor.co.uk/Restaurants-g186338-London_England.html", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "restaurant" },
         ],
       },
       {
@@ -240,6 +241,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         affiliates: [
           { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
           { name: "Viator", url: "https://www.viator.com/London/d737", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "TripAdvisor Experiences", url: "https://www.tripadvisor.co.uk/Attractions-g186338-London_England.html", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "activity" },
         ],
       },
       {
@@ -247,6 +249,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         affiliates: [
           { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`, category: "tickets" },
           { name: "Ticketmaster", url: "https://www.ticketmaster.co.uk", param: `?tm_link=${process.env.TICKETMASTER_AFFILIATE_ID || ""}`, category: "tickets" },
+          { name: "London Theatre Direct", url: "https://www.londontheatredirect.com", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "tickets" },
         ],
       },
       {
@@ -665,6 +668,10 @@ async function handleAffiliateInjection(request: NextRequest) {
     const cjLinkRules = await getAffiliateRulesFromCjLinks(getDefaultSiteId());
     console.log(`[affiliate-injection] Rule sources: CJ=${cjLinkRules.length} rules, postsNeedingInjection=${needsInjection.length}`);
 
+    let skippedSuppressed = 0;
+    let skippedNoMatch = 0;
+    const diagnosticSamples: string[] = [];
+
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
@@ -686,6 +693,19 @@ async function handleAffiliateInjection(request: NextRequest) {
 
       const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en);
       const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
+
+      // Diagnostic: log why first 3 uninjected posts got 0 matches
+      if (enResult.count === 0 && arResult.count === 0 && diagnosticSamples.length < 3) {
+        const titleLower = (post.title_en || "").toLowerCase();
+        const isSuppressed = SUPPRESS_AFFILIATES_KEYWORDS.filter(k => titleLower.includes(k)).length >= 2;
+        if (isSuppressed) {
+          skippedSuppressed++;
+          diagnosticSamples.push(`"${post.title_en?.slice(0, 50)}" → suppressed (religious/non-commercial)`);
+        } else {
+          skippedNoMatch++;
+          diagnosticSamples.push(`"${post.title_en?.slice(0, 50)}" → 0 matches from ${mergedRules.length} rules`);
+        }
+      }
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({
@@ -722,7 +742,7 @@ async function handleAffiliateInjection(request: NextRequest) {
       durationMs: duration,
       itemsProcessed: injected,
       itemsSucceeded: injected,
-      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length, postsInjected: injected, cjRulesLoaded: cjLinkRules.length },
+      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length, postsInjected: injected, cjRulesLoaded: cjLinkRules.length, skippedSuppressed, skippedNoMatch, diagnosticSamples },
     }).catch((logErr) => console.warn("[affiliate-injection] Failed to log execution:", logErr instanceof Error ? logErr.message : logErr));
 
     return NextResponse.json({

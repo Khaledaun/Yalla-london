@@ -296,7 +296,7 @@ Return only valid JSON. All string values must be properly escaped.${getLocaleDi
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
-      phaseBudgetHint: 'light',  // Outline is fast — 15s cap per provider prevents $0.03 OpenAI fallback
+      phaseBudgetHint: 'medium',  // Outline needs 20-30s — 1500-2500 token JSON output times out at 15s cap
       siteId: draft.site_id,
       taskType: "content_outline",
       calledFrom: "phases/outline",

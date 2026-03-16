@@ -277,26 +277,17 @@ Return JSON:
 ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic." : ""}`;
 
   try {
-    const outlineTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
+    const outlineTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 12_000) : 35_000;
     const outline = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. CRITICAL: Never include years in article titles. Keep titles timeless and evergreen. Each H2 section MUST begin with a 40-60 word direct answer before any lists or detailed explanations — this is essential for AI search engine citations.
+      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines with 6-10 sections targeting 1500-2500 words, 3+ internal links, 2+ affiliate placements. Never include years in titles — keep them evergreen. Each H2 must open with a 40-60 word direct answer (essential for AI search citations).
 
-AUTHENTICITY PLANNING (Jan 2026 Google Authenticity Update):
-- For each section, include at least 1 keyPoint that is a specific sensory or experiential detail (what you see/smell/taste/hear at the location)
-- Include at least 1 "insider tip" keyPoint per section (something only a visitor would know)
-- Plan at least 1 section with an honest caveat or limitation (signals authenticity to Google)
-- Plan for price-specific details (£/€/$ amounts) in at least 3 sections
-${isArabic(draft.locale) ? "- For Arabic: plan insider tips as نصيحة/نصيحتنا and sensory details using رائحة/مذاق/أجواء" : ""}
-GEO CITABILITY (AI search engines — ChatGPT, Perplexity, Google AI Overviews):
-- Each section should include at least 1 verifiable statistic or data point (price, distance, capacity, rating)
-- Plan 2+ source attributions across the article ("According to [tourism board/official source]", "As rated by [authority]")
-- Each H2 section must open with a self-contained paragraph of 40-80 words that directly answers the section question — AI systems extract these verbatim
-- Plan at least 1 comparison table or structured list (AI extracts these for side-by-side answers)
+AUTHENTICITY: Include 1 sensory/experiential detail per section, 1 insider tip per section, 1 honest caveat, price details (£/€/$) in 3+ sections.${isArabic(draft.locale) ? " Arabic: use نصيحة/نصيحتنا for tips, رائحة/مذاق/أجواء for sensory." : ""}
+GEO CITABILITY: 1+ statistic per section, 2+ source attributions, 40-80 word self-contained opening paragraphs, 1+ comparison table.
 Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: isArabic(draft.locale) ? 2500 : 1500,
+      maxTokens: isArabic(draft.locale) ? 2000 : 1200,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
-      phaseBudgetHint: 'medium',  // Outline needs 20-30s — 1500-2500 token JSON output times out at 15s cap
+      phaseBudgetHint: 'heavy',  // Outline needs 25-35s — JSON output with complex structure
       siteId: draft.site_id,
       taskType: "content_outline",
       calledFrom: "phases/outline",

@@ -374,6 +374,7 @@ export async function GET(request: NextRequest) {
         sales,
         pages,
         lastClickAt: link.lastClickAt,
+        createdAt: link.createdAt,
       };
     });
 

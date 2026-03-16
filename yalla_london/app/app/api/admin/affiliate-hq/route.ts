@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get all published articles with content for link counting
     const allArticles = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, siteId },
+      where: { published: true, deletedAt: null, ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}) },
       select: {
         id: true, title_en: true, slug: true, content_en: true,
         created_at: true, published_at: true, siteId: true,
@@ -698,14 +698,17 @@ export async function POST(request: NextRequest) {
 
         // Coverage check
         try {
-          const totalPub = await diagPrisma.blogPost.count({ where: { published: true, deletedAt: null, siteId: defSite } });
+          const totalPub = await diagPrisma.blogPost.count({ where: { published: true, deletedAt: null, OR: [{ siteId: defSite }, { siteId: null }] } });
           const withAffs = await diagPrisma.blogPost.count({
             where: {
-              published: true, deletedAt: null, siteId: defSite,
-              OR: [
-                { content_en: { contains: 'rel="sponsored' } },
-                { content_en: { contains: "affiliate-recommendation" } },
-                { content_en: { contains: 'rel="noopener sponsored"' } },
+              published: true, deletedAt: null,
+              AND: [
+                { OR: [{ siteId: defSite }, { siteId: null }] },
+                { OR: [
+                  { content_en: { contains: 'rel="sponsored' } },
+                  { content_en: { contains: "affiliate-recommendation" } },
+                  { content_en: { contains: 'rel="noopener sponsored"' } },
+                ] },
               ],
             },
           });

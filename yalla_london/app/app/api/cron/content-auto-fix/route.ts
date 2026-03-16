@@ -485,10 +485,10 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below 800 words ──
-  // Blog articles that bypassed the quality gate (1000w min). Threshold is 800w to
-  // catch thin content that hurts site quality while allowing news/info pages which
-  // have their own lower thresholds.
+  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below 1000 words ──
+  // Blog articles that bypassed the quality gate (1000w min as per standards.ts).
+  // Aligned to match CONTENT_QUALITY.minWords (was 800, now 1000).
+  // News/info pages have their own lower thresholds via CONTENT_TYPE_THRESHOLDS.
   // GUARD: Skip articles with active campaign enhancement tasks — unpublishing mid-campaign
   // wastes AI budget and erases the duplicate/thin flag marker.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
@@ -532,12 +532,12 @@ async function handleAutoFix(request: NextRequest) {
         }
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
-        if (wordCount < 800) {
+        if (wordCount < 1000) {
           await prisma.blogPost.update({
             where: { id: post.id },
             data: {
               published: false,
-              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < 800w minimum] ${(post.title_en || "").slice(0, 100)}`,
+              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < 1000w minimum] ${(post.title_en || "").slice(0, 100)}`,
             },
           });
           thinUnpublished++;
@@ -611,20 +611,22 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 14. CHRONIC INDEXING FAILURES — improve content on pages Google won't index ──
-  // Pages submitted 10+ times without indexing likely have content quality issues.
-  // Flag them with specific remediation needs so seo-deep-review can fix them.
+  // ── 14. CHRONIC INDEXING FAILURES — fix & resubmit pages Google won't index ──
+  // Pages submitted 5+ times without indexing likely have content quality issues.
+  // Lowered from 10 to 5 to catch problems earlier (report showed 5-14 attempt pages).
+  // Now actively fixes: thin meta descriptions, missing meta, and resets submission
+  // attempts to trigger resubmission via IndexNow on next seo-agent run.
   let chronicIndexingFixed = 0;
   if (Date.now() - cronStart < BUDGET_MS - 8_000) {
     try {
       const chronicPages = await prisma.uRLIndexingStatus.findMany({
         where: {
           site_id: { in: activeSiteIds },
-          status: { in: ["submitted", "discovered", "pending_review"] },
-          submission_attempts: { gte: 10 },
+          status: { in: ["submitted", "discovered", "pending_review", "error"] },
+          submission_attempts: { gte: 5 },
         },
-        select: { url: true, site_id: true, submission_attempts: true },
-        take: 10,
+        select: { url: true, site_id: true, submission_attempts: true, id: true },
+        take: 20,
       });
 
       for (const page of chronicPages) {
@@ -637,34 +639,78 @@ async function handleAutoFix(request: NextRequest) {
         // Find the BlogPost and check content quality
         const post = await prisma.blogPost.findFirst({
           where: { slug, siteId: page.site_id },
-          select: { id: true, content_en: true, meta_title_en: true, meta_description_en: true, seo_score: true, tags: true },
+          select: { id: true, content_en: true, title_en: true, meta_title_en: true, meta_description_en: true, seo_score: true, tags: true },
         });
         if (!post) continue;
 
         const contentText = (post.content_en || "").replace(/<[^>]+>/g, " ").trim();
         const wordCount = contentText.split(/\s+/).filter(Boolean).length;
 
-        // Add "needs-indexing-review" tag if not already tagged
-        const currentTags = (post.tags || []) as string[];
-        if (currentTags.includes("needs-indexing-review")) continue;
-
         const issues: string[] = [];
-        if (wordCount < 800) issues.push(`thin (${wordCount}w)`);
-        if (!post.meta_description_en || post.meta_description_en.length < 120) issues.push("weak meta desc");
-        if ((post.seo_score || 0) < 70) issues.push(`low SEO score (${post.seo_score})`);
+        const updateData: Record<string, unknown> = {};
 
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: {
-            tags: [...currentTags, "needs-indexing-review"],
-            updated_at: new Date(),
-          },
-        });
+        // Fix 1: Thin content → unpublish (will be caught by Section 12 too, but be explicit)
+        if (wordCount < 1000) {
+          issues.push(`thin (${wordCount}w)`);
+        }
+
+        // Fix 2: Missing or short meta description → auto-generate from content
+        const metaDesc = post.meta_description_en || "";
+        if (metaDesc.length < 120 || metaDesc.startsWith("[AUTO-")) {
+          const firstParagraph = contentText.split(/[.!?]/).slice(0, 2).join(". ").trim();
+          if (firstParagraph.length >= 60) {
+            const trimmedMeta = firstParagraph.length > 155 ? firstParagraph.slice(0, 152) + "..." : firstParagraph + ".";
+            updateData.meta_description_en = trimmedMeta;
+            issues.push("fixed meta desc");
+          } else {
+            issues.push("weak meta desc (too short to auto-fix)");
+          }
+        }
+
+        // Fix 3: Missing meta title → generate from title
+        if (!post.meta_title_en || post.meta_title_en.length < 20) {
+          const title = post.title_en || "";
+          if (title.length >= 20 && title.length <= 60) {
+            updateData.meta_title_en = title;
+            issues.push("fixed meta title");
+          } else if (title.length > 60) {
+            updateData.meta_title_en = title.slice(0, 57) + "...";
+            issues.push("fixed meta title (trimmed)");
+          }
+        }
+
+        // Tag for review and apply fixes
+        const currentTags = (post.tags || []) as string[];
+        if (!currentTags.includes("needs-indexing-review")) {
+          updateData.tags = [...currentTags, "needs-indexing-review"];
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          updateData.updated_at = new Date();
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: updateData,
+          });
+        }
+
+        // Reset submission attempts so IndexNow resubmits with improved content
+        // Only reset if we actually fixed something (meta desc or meta title)
+        if (issues.some(i => i.startsWith("fixed"))) {
+          await prisma.uRLIndexingStatus.update({
+            where: { id: page.id },
+            data: {
+              submission_attempts: 0,
+              status: "discovered",
+              last_error: `[content-auto-fix] Reset after fixes: ${issues.join(", ")}`,
+            },
+          });
+        }
+
         chronicIndexingFixed++;
-        console.log(`[content-auto-fix] Flagged chronic indexing failure: ${slug} (${page.submission_attempts} attempts, issues: ${issues.join(", ") || "unknown"})`);
+        console.log(`[content-auto-fix] Chronic indexing fix: ${slug} (${page.submission_attempts} attempts, ${issues.join(", ") || "no fixable issues"})`);
       }
       if (chronicIndexingFixed > 0) {
-        console.log(`[content-auto-fix] Flagged ${chronicIndexingFixed} chronic indexing failures for review`);
+        console.log(`[content-auto-fix] Fixed ${chronicIndexingFixed} chronic indexing failures`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

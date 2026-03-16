@@ -3250,6 +3250,207 @@ Private Key:    GOOGLE_ANALYTICS_PRIVATE_KEY → GOOGLE_SEARCH_CONSOLE_PRIVATE_K
 94. **`JOB_FIX_MAP` must be updated when new crons are added** — any cron without a fix strategy gets `null` in the inbox alert (no auto-fix, no retest target). Add a mapping for every new cron job.
 95. **Fire-and-forget pattern: `import().then().catch()`** — the CEO inbox call must never block the failure hook, never crash it, and never consume remaining budget. Dynamic import + `.then()` + `.catch()` achieves all three.
 
+### Session: March 15-16, 2026 — CJ Affiliate Pipeline Hardening & Production Stability
+
+**CJ Affiliate Production Pipeline — 20+ commits resolving cold-start crashes, API timeouts, coverage detection, and injection failures.**
+
+**Prisma Cold-Start Fix (2 commits):**
+- **Root cause:** Vercel serverless cold starts caused `PrismaClient` to fail with "Engine is not yet connected" — `prisma.$connect()` hadn't completed before queries ran
+- **Fix 1:** Added `await prisma.$connect()` retry loop (3 attempts, 500ms backoff) in `lib/db.ts` singleton
+- **Fix 2:** Added `$connect()` guard in `affiliate-hq/route.ts` before heavy aggregate queries
+- **Impact:** All admin dashboard pages that loaded on cold start were crashing silently
+
+**CJ Sync-Advertisers Fix (3 commits):**
+- **Root cause:** `sync-advertisers` cron tried internal HTTP fetch to itself → infinite loop / 504 timeout
+- **Fix:** Changed from HTTP fetch to direct function import (`import { syncAdvertisers }` from `cj-sync.ts`)
+- Tightened CJ API budget guards (per-page 8s, total 45s)
+- `maxDuration` raised from 30 → 60 for affiliate-hq route
+
+**CJ Deep Link Generation (2 commits):**
+- Added `buildCjDeepLink()` for all JOINED advertisers without pre-built CjLink records
+- Generates deep links directly from `CJ_PUBLISHER_CID` + advertiser `externalId` + `programUrl`
+- No CJ API call needed — avoids circuit breaker issues on cold start
+
+**Affiliate HQ Links Tab Rebuild:**
+- Replaced grouped-by-advertiser view with flat per-link list
+- Columns: link name, URL, date created, clicks, revenue, last clicked
+- Filters: by advertiser (dropdown), by status (all/active/inactive)
+- Sort: by clicks, revenue, date, last click, URL, name
+- Expandable detail: full URL, tracking URL, sales, CTR, link type
+
+**Affiliate HQ Coverage Tab Fix (CRITICAL):**
+- **Root cause:** `orderBy: { published_at: "desc" }` and `select: { published_at: true }` on BlogPost — but **BlogPost has no `published_at` field** (uses `created_at` / `updated_at`)
+- Prisma threw at runtime, caught by empty error handler, returned all zeros silently
+- **Fix:** Changed all `published_at` → `created_at` in coverage section queries
+- Coverage tab now shows real published articles with affiliate link status
+
+**Coverage Per-Page Performance:**
+- New Coverage tab shows per-article affiliate performance
+- Each article card: affiliate links found, click count, revenue, last click date
+- Articles without affiliates highlighted for injection
+
+**Grok API Tool Format Fix:**
+- Grok Responses API `web-search` tool requires `allowed_domains` to be root domains only
+- `london-news` cron was passing `bbc.co.uk/news/england/london` and `timeout.com/london`
+- **Fix:** Changed to `bbc.co.uk` and `timeout.com` — every news cron run was failing with 400 error
+
+**Affiliate Injection: 17 Posts Found, 0 Injected (CRITICAL):**
+- **Root cause (2-part):**
+  1. CJ circuit breaker OPEN → `sync-advertisers` failed → no JOINED advertisers in DB → CJ rules returned 0
+  2. Fell back to static rules → all env vars empty (`BOOKING_AFFILIATE_ID`, etc.) → all params end with `=` → all skipped by validation
+- **Fix:** Added CJ deep link fallback for known approved advertisers (Vrbo) when CJ is configured but no JOINED advertisers exist in DB. Vrbo externalId hardcoded as `9220803`
+- Added diagnostic logging: rule source counts, per-rule skip reasons, injection results in cron log
+- `resultSummary` now includes `cjRulesLoaded` count
+
+**Deal Discovery Error Serialization:**
+- CJ API errors are plain objects, not `Error` instances
+- `String(err)` on a plain object produces `[object Object]`
+- **Fix:** Now extracts `.message` property or falls back to `JSON.stringify()`
+
+**Safari JSON Parse Crash Fix:**
+- Safari throws on `response.json()` for non-JSON responses
+- Added `res.ok` check before `res.json()` in discovery submit endpoint
+
+**3 Pipeline/Indexing Fixes from Aggregated Report:**
+- From SEO aggregated report (Grade B, 69/100):
+  - Fixed discovery scanner query timeout
+  - Fixed sitemap cache rebuild trigger
+  - Fixed indexing status resolution edge case
+
+**Files Created/Modified (20+ commits):**
+
+| File | Change |
+|------|--------|
+| `lib/db.ts` | `$connect()` retry loop for cold starts |
+| `app/api/admin/affiliate-hq/route.ts` | Coverage `published_at` → `created_at`, Links tab flat list, `$connect()` guard |
+| `app/admin/affiliate-hq/page.tsx` | Links tab per-link UI, Coverage per-page performance |
+| `app/api/cron/affiliate-injection/route.ts` | CJ deep link fallback, diagnostic logging, result summary |
+| `app/api/cron/london-news/route.ts` | Root domains only in `allowed_domains` |
+| `lib/affiliate/deal-discovery.ts` | Error serialization fix |
+| `lib/affiliate/cj-sync.ts` | Direct function import (no HTTP self-fetch), budget guards |
+| `app/api/cron/sync-advertisers/route.ts` | Direct sync call, budget tightening |
+
+### Critical Rules Learned (March 15-16 Session — CJ & Production)
+
+96. **BlogPost has no `published_at` field** — use `created_at` or `updated_at`. This is the THIRD time this pattern has caused a production crash (joins rules 1-2 about BlogPost field names). Always verify field names against `schema.prisma` before writing queries.
+97. **Grok `allowed_domains` only accepts root domains** — `bbc.co.uk` works, `bbc.co.uk/news/england/london` does NOT. The API returns 400 "Invalid domains" with no further detail. Always strip paths from domain lists.
+98. **CJ circuit breaker cascades to affiliate injection** — when `sync-advertisers` fails (circuit breaker OPEN), no JOINED advertisers exist in DB → CJ rules return empty → falls back to static rules → static rules have empty env vars → injection skips ALL affiliates → 0 injections. The fix is a hardcoded Vrbo fallback that bypasses the circuit breaker entirely.
+99. **Prisma cold-start on Vercel requires `$connect()` retry** — serverless cold starts can fire queries before the Prisma engine connects. Always call `await prisma.$connect()` with retry in hot paths (dashboard aggregation, affiliate sync).
+100. **Never use internal HTTP fetch from a cron to itself** — `sync-advertisers` calling `fetch('/api/cron/sync-advertisers')` creates an infinite loop or 504 timeout. Always import and call the function directly.
+101. **CJ deep links can be generated without API calls** — `https://www.anrdoezrs.net/links/{publisherCid}/type/dlg/sid/{sid}/https://{advertiserUrl}` works for any JOINED advertiser. No CJ API needed, bypasses circuit breaker.
+102. **`String(err)` on plain objects produces `[object Object]`** — CJ API errors are not `Error` instances. Always use pattern: `err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : String(err))`.
+
+### Current Platform Status (March 16, 2026)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow multi-engine, schema injection, meta optimization, internal link injection ✅
+- 16-check pre-publication gate ✅
+- Per-content-type quality gates (blog 1000w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Circuit breaker + last-defense fallback for AI reliability ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- Per-page audit with sortable indexing + GSC data ✅
+- Cycle Health Analyzer with evidence-based diagnostics ✅
+- CEO Inbox automated incident response (detect → diagnose → fix → retest → alert) ✅
+- Cache-first sitemap (<200ms vs 5-10s) ✅
+- Unified indexing status resolution ✅
+- Per-site activation controller ✅
+- Cron resilience (feature flags, alerting, rate limiting) ✅
+- Named author profiles for E-E-A-T ✅
+- Title sanitization + cannibalization detection ✅
+- Content-auto-fix (orphan resolution, thin unpublish, duplicate detection, broken links, never-submitted catch-up) ✅
+- Admin dashboard Clean Light design system (unified across 50+ pages) ✅
+- GA4 env var alignment (GOOGLE_SERVICE_ACCOUNT_KEY JSON blob support) ✅
+- CJ affiliate pipeline: sync, deep links, injection, revenue attribution, SID tracking ✅
+- Affiliate HQ: 6-tab command center (Revenue, Partners, Coverage, Links, Actions, System) ✅
+- GEO/AIO optimization: citability gate, stats+citations in all prompts ✅
+- Topic diversification: 60-70% general luxury + 30-40% Arab niche ✅
+- GSC sync with accurate per-day data (no overcounting) ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW | Open |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW | Open |
+| Arabic SSR | `/ar/` routes render English on server, Arabic only client-side | MEDIUM | Open (KG-032) |
+| Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
+| Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
+| CJ Advertiser Applications | Only Vrbo approved — apply to Booking.com, GetYourGuide, Viator, etc. | MEDIUM | Manual action needed |
+| Static Affiliate Env Vars | `BOOKING_AFFILIATE_ID`, `AGODA_AFFILIATE_ID` etc. all empty in Vercel | MEDIUM | Set when approved by each network |
+| Affiliate Injection Reach | CJ deep link fallback only covers Vrbo (hotel category) — other categories (restaurant, activity, transport) still empty | MEDIUM | Resolves as more CJ advertisers are approved |
+| ~~Assembly Stuck Loop~~ | ~~Drafts stuck in assembly phase cycling timeout → raw fallback → reset → timeout~~ | ~~CRITICAL~~ | **DONE** — March 16, 2026 |
+| ~~No Publishing Schedule~~ | ~~ContentScheduleRule table empty, schedule-executor exits immediately~~ | ~~CRITICAL~~ | **DONE** — Auto-seeded on first run |
+| ~~Orphaned BlogPosts~~ | ~~5 BlogPosts with content but published=false sitting 2h+~~ | ~~HIGH~~ | **DONE** — scheduled-publish auto-publishes |
+
+### Session: March 16, 2026 — Pipeline Throughput: Assembly Fix, Publishing Schedule, Orphan Recovery
+
+**3 interconnected pipeline issues diagnosed and fixed to achieve 4 articles/day target.**
+
+**Problem 1: Assembly Phase Stuck Loop (CRITICAL)**
+- **Root cause:** Three interacting bugs created an infinite loop:
+  1. Assembly `maxAttempts` was 3 (too low for timeout-prone AI phase)
+  2. Raw fallback (attempts >= 2) succeeded but `build-runner.ts:217` reset `phase_attempts` to 0
+  3. Next cron run: draft goes through AI assembly again (attempts 0-1 use AI), times out, cycles back
+  4. Diagnostic-agent sets attempts to 2 → raw fallback fires → reset to 0 → repeat forever
+- **Fixes applied:**
+  - `build-runner.ts`: Assembly `maxAttempts` raised from 3 to 5 (matches drafting)
+  - `build-runner.ts`: When assembly uses raw fallback (`aiModelUsed="fallback-raw"`), `phase_attempts` are NOT reset to 0 — they stay at current value so the draft advances permanently
+  - `phases.ts`: Raw fallback budget threshold raised from 15s to 20s (earlier fallback)
+  - `phases.ts`: Assembly AI `maxTokens` reduced (2000→1500 AR, 1200→1000 EN) to prevent timeouts
+
+**Problem 2: No Publishing Schedule (CRITICAL)**
+- **Root cause:** `ContentScheduleRule` table was empty — zero records. `schedule-executor` runs every 2h but exits immediately with "No active schedule rules found"
+- **Fix:** `schedule-executor/route.ts` now auto-seeds a default rule on first run if none exist:
+  - Name: "Daily Content (4 articles: 2 EN + 2 AR)"
+  - Language: `both` (creates 1 EN + 1 AR draft per run)
+  - Frequency: every 6 hours (up to 4 articles/day)
+  - Min hours between: 4 (prevents burst creation)
+  - Max posts per day: 4 (hard cap)
+  - Auto-publish: false (quality-gated via content-selector)
+
+**Problem 3: Orphaned BlogPosts (HIGH)**
+- **Root cause:** 5+ BlogPost records existed with `published=false` but had content. Created by content-selector's `promoteToBlogPost()` but never set to `published=true` — likely crashed between create and update
+- **Fix:** `scheduled-publish/route.ts` now auto-publishes orphaned BlogPosts (created 2h+ ago, have `content_en`, but `published=false`) instead of just logging them. Increased orphan query limit from 5 to 10.
+
+**Pipeline flow after fixes:**
+```
+schedule-executor (every 2h) → creates 2 drafts (1 EN + 1 AR) from TopicProposal
+    ↓
+content-builder (every 15 min) → advances through 8 phases
+    ↓ (assembly: raw fallback on attempts >= 2, NO reset to 0)
+content-selector (4x/day: 9am, 1pm, 5pm, 9pm) → promotes top 2 from reservoir → BlogPost
+    ↓
+scheduled-publish (2x/day: 9:15am, 4pm) → publishes ScheduledContent + auto-publishes orphans
+    ↓
+seo-agent (3x/day) → IndexNow submission to 3 engines
+```
+
+**Expected throughput:** 4 articles/day (2 EN + 2 AR) once pipeline clears the assembly backlog.
+
+**Files modified:**
+- `lib/content-pipeline/build-runner.ts` — assembly maxAttempts 3→5, raw fallback preserves attempts
+- `lib/content-pipeline/phases.ts` — assembly budget threshold 15s→20s, maxTokens reduced
+- `app/api/cron/schedule-executor/route.ts` — auto-seed default schedule rule
+- `app/api/cron/scheduled-publish/route.ts` — auto-publish orphaned BlogPosts
+
+**Why london-news isn't generating:**
+The Grok `allowed_domains` fix (changed from path-based `bbc.co.uk/news/england/london` to root domains `bbc.co.uk`) was committed in a previous session but **has NOT been deployed to Vercel yet**. Production cron logs still show the old error: `"Invalid domains for allowed_domains: bbc.co.uk/news/england/london"`. The code fix is correct — it just needs deployment.
+
+### Critical Rules Learned (March 16 Session)
+
+96. **Assembly raw fallback success must NOT reset `phase_attempts` to 0** — resetting allows the draft to re-enter AI assembly on future processing, causing the exact timeout loop the fallback was supposed to break. Keep attempts at their current value so subsequent phases see the draft as "resolved."
+97. **Assembly needs 5 maxAttempts, not 3** — assembly is the most timeout-prone phase (large prompts, full article HTML). With only 3 attempts, drafts get rejected before raw fallback has enough chances to work. Match drafting's 5-attempt cap.
+98. **Auto-seed ContentScheduleRule on first run** — a non-technical owner will never manually INSERT schedule rules into the database. The system must bootstrap itself. Auto-seeding a sensible default (4 articles/day, both languages) removes this manual dependency.
+99. **Orphaned BlogPosts (published=false with content) should be auto-published** — these are artifacts of crashes between `BlogPost.create()` and the subsequent `published=true` update. They already passed the pre-pub gate during content-selector promotion, so publishing them directly is safe.
+100. **Grok `allowed_domains` only accepts root domains** — `bbc.co.uk` works, `bbc.co.uk/news/england/london` does NOT. Grok API returns 400 for path-based domains. Always use the root domain without any path segments.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

@@ -123,6 +123,32 @@ async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRu
     }
 
     console.log(`[affiliate-injection] Loaded ${rules.length} CJ-based rules with ${links.length} active links`);
+
+    // If CJ is configured but no JOINED advertisers found, generate fallback deep links
+    // for known approved advertisers (Vrbo approved March 12, 2026)
+    if (rules.length === 0 && publisherCid) {
+      console.warn(`[affiliate-injection] CJ configured but 0 JOINED advertisers — using fallback deep links. Run sync-advertisers to populate.`);
+      const FALLBACK_ADVERTISERS: Array<{ name: string; url: string; category: string; externalId: string }> = [
+        { name: "Vrbo", url: "https://www.vrbo.com/", category: "hotel", externalId: "9220803" },
+      ];
+      const fallbackRules: AffiliateRule[] = [];
+      for (const adv of FALLBACK_ADVERTISERS) {
+        const deepLink = buildCjDeepLink(publisherCid, adv.externalId, adv.url, `${siteId}_cj`);
+        const cat = adv.category;
+        const existing = fallbackRules.find(r => r.keywords.includes(cat));
+        const entry = { name: adv.name, url: deepLink, param: "", category: cat };
+        if (existing) {
+          existing.affiliates.push(entry);
+        } else {
+          fallbackRules.push({
+            keywords: CATEGORY_KEYWORDS[cat] || [cat],
+            affiliates: [entry],
+          });
+        }
+      }
+      return fallbackRules;
+    }
+
     return rules;
   } catch (err) {
     console.warn(`[affiliate-injection] CjLink rules load failed:`, (err as Error).message);
@@ -506,12 +532,16 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
     // Require minimum relevance: either title match OR 2+ body mentions
     if (categoryScore < MIN_KEYWORD_OCCURRENCES) continue;
 
+    let skippedEmpty = 0;
     for (const aff of rule.affiliates) {
       // Skip affiliates with empty tracking params (env var not set)
-      if (aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) continue;
+      if (aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) { skippedEmpty++; continue; }
       if (!matches.some((m) => m.name === aff.name)) {
         matches.push({ keyword: bestKeyword, ...aff, score: Math.min(categoryScore * 10, 100) });
       }
+    }
+    if (skippedEmpty > 0 && skippedEmpty === rule.affiliates.length) {
+      console.warn(`[affiliate-injection] All ${skippedEmpty} affiliates skipped for keyword "${bestKeyword}" — env vars not configured`);
     }
   }
 
@@ -633,6 +663,7 @@ async function handleAffiliateInjection(request: NextRequest) {
     const dbRulesCache = new Map<string, AffiliateRule[] | null>();
     // Load CjLink-based rules once (global, not per-site — CjLink has no siteId)
     const cjLinkRules = await getAffiliateRulesFromCjLinks(getDefaultSiteId());
+    console.log(`[affiliate-injection] Rule sources: CJ=${cjLinkRules.length} rules, postsNeedingInjection=${needsInjection.length}`);
 
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
@@ -685,7 +716,7 @@ async function handleAffiliateInjection(request: NextRequest) {
       durationMs: duration,
       itemsProcessed: injected,
       itemsSucceeded: injected,
-      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length },
+      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length, postsInjected: injected, cjRulesLoaded: cjLinkRules.length },
     }).catch((logErr) => console.warn("[affiliate-injection] Failed to log execution:", logErr instanceof Error ? logErr.message : logErr));
 
     return NextResponse.json({

@@ -793,7 +793,94 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
     }
 
-    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance` }, { status: 400 });
+    // -------------------------------------------------------------------------
+    // review_fix — Diagnose and fix a published BlogPost (expand thin content, trim meta)
+    // -------------------------------------------------------------------------
+    if (action === "review_fix") {
+      const blogPostId = (body.blogPostId as string | undefined) ?? "";
+      if (!blogPostId) return NextResponse.json({ error: "blogPostId is required" }, { status: 400 });
+      try {
+        const post = await prisma.blogPost.findUnique({ where: { id: blogPostId } });
+        if (!post) return NextResponse.json({ success: false, error: "Blog post not found" }, { status: 404 });
+
+        const contentEn = (post.content_en || "").toString();
+        const wordCountEn = contentEn.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+
+        // Diagnose issues
+        const issues: string[] = [];
+        if (wordCountEn < 800) issues.push(`English content too thin: ${wordCountEn} words (need 800+)`);
+        if (!contentEn.includes('class="affiliate') && !contentEn.includes('rel="sponsored"') && !contentEn.includes('data-affiliate')) issues.push("No affiliate links found");
+        if ((contentEn.match(/class="internal-link"/g) || []).length < 2) issues.push("Fewer than 2 internal links");
+        const metaDescLen = (post.meta_description_en || "").toString().length;
+        if (metaDescLen > 160) issues.push(`Meta description too long: ${metaDescLen} chars`);
+        if (metaDescLen > 0 && metaDescLen < 120) issues.push(`Meta description too short: ${metaDescLen} chars`);
+
+        if (issues.length === 0) {
+          return NextResponse.json({ success: true, message: "No issues found — article looks healthy", issues: [], wordCount: wordCountEn });
+        }
+
+        // Fix: expand thin content with AI
+        const updateData: Record<string, unknown> = {};
+        let fixSummary = "";
+
+        if (wordCountEn < 800) {
+          try {
+            const { generateJSON } = await import("@/lib/ai/provider");
+            const prompt = `You are a luxury travel editor expanding a published article that is too short.
+
+ARTICLE TITLE: "${post.title_en}"
+CURRENT WORD COUNT: ${wordCountEn} — NEED AT LEAST 1,000 WORDS
+
+CURRENT ARTICLE HTML:
+${contentEn.substring(0, 6000)}
+
+TASK: Expand to 1,000+ words. For each H2 section add 1-2 paragraphs with specific details. Add a "Practical Tips" section if needed. Do NOT remove existing links. Return the COMPLETE expanded HTML.
+
+Return JSON: { "html": "<article>...full expanded HTML...</article>", "wordCount": 1200 }`;
+            const result = await generateJSON<Record<string, unknown>>(prompt, {
+              systemPrompt: "Luxury travel editor. Expand articles to meet minimum word counts. Return only valid JSON.",
+              maxTokens: 2000,
+              temperature: 0.5,
+              timeoutMs: 45_000,
+              taskType: "content_expansion",
+              calledFrom: "content-matrix/review_fix",
+            });
+
+            const expandedHtml = (result.html as string) || "";
+            const expandedWords = expandedHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+            if (expandedWords > wordCountEn && expandedHtml.length > contentEn.length) {
+              const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
+              updateData.content_en = sanitizeContentBody(expandedHtml);
+              fixSummary += `Expanded EN from ${wordCountEn} to ${expandedWords} words. `;
+            } else {
+              fixSummary += `AI expansion returned ${expandedWords} words (not better). `;
+            }
+          } catch (aiErr) {
+            fixSummary += `AI expansion failed: ${(aiErr as Error).message}. `;
+          }
+        }
+
+        // Fix meta description length
+        if (metaDescLen > 160) {
+          const trimmed = (post.meta_description_en || "").toString().substring(0, 155).replace(/\s+\S*$/, "...");
+          updateData.meta_description_en = trimmed;
+          fixSummary += `Trimmed meta description to ${trimmed.length} chars. `;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await prisma.blogPost.update({ where: { id: blogPostId }, data: updateData });
+        }
+
+        logManualAction(req, { action: "review_fix", resource: "blogpost", resourceId: blogPostId, success: true, summary: fixSummary || "Issues diagnosed, no auto-fixes applied" }).catch(() => {});
+        return NextResponse.json({ success: true, message: fixSummary || "Issues diagnosed — manual fixes needed", issues, fixes: Object.keys(updateData), wordCount: wordCountEn });
+      } catch (err) {
+        console.warn("[content-matrix] review_fix failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "review_fix", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Review & Fix failed", error: err instanceof Error ? err.message : String(err) }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Review & Fix failed: ${err instanceof Error ? err.message : "Unknown"}` }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance, review_fix` }, { status: 400 });
   } catch (err) {
     console.warn("[content-matrix] POST handler error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });

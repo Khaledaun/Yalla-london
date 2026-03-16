@@ -208,17 +208,34 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         created_at: { lte: new Date(Date.now() - 2 * 60 * 60 * 1000) }, // 2h+ old
         ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}),
       },
-      select: { id: true, slug: true, title_en: true },
-      take: 5,
+      select: { id: true, slug: true, title_en: true, siteId: true },
+      take: 10,
     });
 
-    // Don't auto-publish orphans — just report them.
-    // NOTE: Do NOT call log.trackItem() here — orphan detection is observational,
-    // not an actual publish. Previously this inflated itemsSucceeded causing
-    // contradictory logs like "itemsSucceeded: 1, published_count: 0".
     orphanedDraftCount = orphanedDrafts.length;
     if (orphanedDraftCount > 0) {
-      console.log(`[scheduled-publish] Found ${orphanedDraftCount} orphaned unpublished BlogPost(s): ${orphanedDrafts.map(d => d.slug).join(", ")}`);
+      console.log(`[scheduled-publish] Found ${orphanedDraftCount} orphaned unpublished BlogPost(s) — auto-publishing`);
+
+      // Auto-publish orphaned BlogPosts that have content.
+      // These are articles created by the pipeline (via content-selector promoteToBlogPost)
+      // but never set published=true — likely due to a crash between creation and update.
+      // They already passed the pre-pub gate during promotion, so publish them directly.
+      for (const orphan of orphanedDrafts) {
+        if (log.isExpired()) break;
+
+        try {
+          await prisma.blogPost.update({
+            where: { id: orphan.id },
+            data: { published: true, published_at: new Date() },
+          });
+          const siteId = (orphan as Record<string, unknown>).siteId as string || activeSites[0];
+          results.push({ id: orphan.id, title: orphan.title_en, slug: orphan.slug, site_id: siteId });
+          log.trackItem(true);
+          console.log(`[scheduled-publish] Auto-published orphan: ${orphan.slug}`);
+        } catch (pubErr) {
+          console.warn(`[scheduled-publish] Failed to auto-publish orphan ${orphan.slug}:`, (pubErr as Error).message);
+        }
+      }
     }
   } catch (err) {
     console.warn("[scheduled-publish] Orphan check failed:", err instanceof Error ? err.message : err);

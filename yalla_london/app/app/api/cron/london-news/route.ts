@@ -13,9 +13,9 @@ import { logCronExecution } from "@/lib/cron-logger";
 const TRUSTED_SOURCES = [
   { name: "Transport for London", domain: "tfl.gov.uk", categories: ["transport", "strikes"] },
   { name: "Visit London", domain: "visitlondon.com", categories: ["events", "festivals", "popup"] },
-  { name: "BBC London", domain: "bbc.co.uk/news/england/london", categories: ["general", "weather", "health"] },
+  { name: "BBC London", domain: "bbc.co.uk", categories: ["general", "weather", "health"] },
   { name: "Evening Standard", domain: "standard.co.uk", categories: ["events", "sales", "general"] },
-  { name: "Time Out London", domain: "timeout.com/london", categories: ["events", "festivals", "popup", "sales"] },
+  { name: "Time Out London", domain: "timeout.com", categories: ["events", "festivals", "popup", "sales"] },
   { name: "GOV.UK", domain: "gov.uk", categories: ["holidays", "health", "regulation"] },
   { name: "Met Office London", domain: "metoffice.gov.uk", categories: ["weather"] },
   { name: "London Theatre", domain: "londontheatre.co.uk", categories: ["events"] },

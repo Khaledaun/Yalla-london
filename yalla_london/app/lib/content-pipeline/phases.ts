@@ -609,7 +609,7 @@ export async function phaseAssembly(
   // falling back. The old threshold (1) meant assembly AI polish NEVER ran after
   // the first failure — raw HTML was always used. With >= 2, assembly gets one
   // chance to run with full budget on the next cron cycle.
-  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 15_000) || attempts >= 2;
+  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 20_000) || attempts >= 2;
 
   if (useFallback) {
     console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);
@@ -694,7 +694,7 @@ Return JSON:
     const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - bufferMs, 10_000) : 30_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: isArabic(draft.locale) ? 2000 : 1200,
+      maxTokens: isArabic(draft.locale) ? 1500 : 1000,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
       phaseBudgetHint: 'heavy',

@@ -211,13 +211,13 @@ export async function runDealDiscovery(budgetMs = 50_000, siteId?: string): Prom
           }
         } catch (err) {
           result.errors.push(
-            `Failed to process product ${product.adId}: ${err instanceof Error ? err.message : String(err)}`
+            `Failed to process product ${product.adId}: ${err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : JSON.stringify(err))}`
           );
         }
       }
     } catch (err) {
       result.errors.push(
-        `Search failed for "${keyword}": ${err instanceof Error ? err.message : String(err)}`
+        `Search failed for "${keyword}": ${err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : JSON.stringify(err))}`
       );
     }
   }

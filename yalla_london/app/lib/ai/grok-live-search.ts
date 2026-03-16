@@ -148,9 +148,9 @@ export async function searchWeb(
   const tool: Record<string, any> = { type: 'web_search' };
 
   if (options.allowedDomains?.length) {
-    tool.web_search = { allowed_domains: options.allowedDomains.slice(0, 5) };
+    tool.filters = { allowed_domains: options.allowedDomains.slice(0, 5) };
   } else if (options.excludedDomains?.length) {
-    tool.web_search = { excluded_domains: options.excludedDomains.slice(0, 5) };
+    tool.filters = { excluded_domains: options.excludedDomains.slice(0, 5) };
   }
 
   return callResponsesAPI(query, [tool], options);
@@ -166,14 +166,18 @@ export async function searchX(
 ): Promise<GrokSearchResult> {
   const tool: Record<string, any> = { type: 'x_search' };
 
+  const filters: Record<string, any> = {};
   if (options.allowedHandles?.length) {
-    tool.allowed_x_handles = options.allowedHandles;
+    filters.allowed_x_handles = options.allowedHandles;
   }
   if (options.fromDate) {
-    tool.from_date = options.fromDate;
+    filters.from_date = options.fromDate;
   }
   if (options.toDate) {
-    tool.to_date = options.toDate;
+    filters.to_date = options.toDate;
+  }
+  if (Object.keys(filters).length > 0) {
+    tool.filters = filters;
   }
 
   return callResponsesAPI(query, [tool], options);
@@ -190,16 +194,20 @@ export async function searchAll(
   const tools: any[] = [{ type: 'web_search' }, { type: 'x_search' }];
 
   if (options.allowedDomains?.length) {
-    tools[0].web_search = { allowed_domains: options.allowedDomains.slice(0, 5) };
+    tools[0].filters = { allowed_domains: options.allowedDomains.slice(0, 5) };
   }
+  const xFilters: Record<string, any> = {};
   if (options.allowedHandles?.length) {
-    tools[1].allowed_x_handles = options.allowedHandles;
+    xFilters.allowed_x_handles = options.allowedHandles;
   }
   if (options.fromDate) {
-    tools[1].from_date = options.fromDate;
+    xFilters.from_date = options.fromDate;
   }
   if (options.toDate) {
-    tools[1].to_date = options.toDate;
+    xFilters.to_date = options.toDate;
+  }
+  if (Object.keys(xFilters).length > 0) {
+    tools[1].filters = xFilters;
   }
 
   return callResponsesAPI(query, tools, { ...options, inlineCitations: true });

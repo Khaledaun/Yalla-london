@@ -47,6 +47,23 @@ export async function runContentSelector(
   try {
     const { prisma } = await import("@/lib/db");
 
+    // ── Cleanup stale "started" markers ──
+    // If a previous run crashed without completing, its "started" marker stays forever,
+    // blocking all future runs via the dedup guard. Mark any "started" entries older than
+    // 5 minutes as "failed" so the dedup guard doesn't permanently block.
+    try {
+      await prisma.cronJobLog.updateMany({
+        where: {
+          job_name: "content-selector",
+          status: "started",
+          started_at: { lt: new Date(Date.now() - 5 * 60_000) },
+        },
+        data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
+      });
+    } catch (cleanupErr) {
+      console.warn("[content-selector] Stale marker cleanup failed:", cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
+    }
+
     // ── Dedup guard: prevent concurrent content-selector runs ──
     // Write a "started" marker FIRST so concurrent runs can see it immediately.
     // Previous approach only checked for completed logs (written at END), allowing

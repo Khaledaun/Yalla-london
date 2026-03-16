@@ -138,18 +138,23 @@ async function handleScheduleExecutor(request: NextRequest) {
           continue;
         }
 
-        // Check frequency: when was the last draft created by this rule?
-        const lastCreated = await prisma.articleDraft.findFirst({
+        // Check frequency: when did schedule-executor itself last create drafts?
+        // CRITICAL: Must check schedule-executor's OWN production history, not ALL drafts.
+        // content-builder-create independently creates drafts every 30 min — checking all
+        // ArticleDrafts means hoursSince is always < 1h, which is always < min_hours_between (4h),
+        // causing the rule to ALWAYS be skipped. (Bug found March 16, 2026)
+        const lastSuccessfulRun = await prisma.cronJobLog.findFirst({
           where: {
-            site_id: { in: activeSiteIds },
-            created_at: { gte: new Date(Date.now() - rule.frequency_hours * 60 * 60 * 1000) },
+            job_name: "schedule-executor",
+            status: "completed",
+            items_succeeded: { gt: 0 },
           },
-          orderBy: { created_at: "desc" },
-          select: { created_at: true },
+          orderBy: { started_at: "desc" },
+          select: { started_at: true },
         });
 
-        if (lastCreated) {
-          const hoursSince = (Date.now() - lastCreated.created_at.getTime()) / (60 * 60 * 1000);
+        if (lastSuccessfulRun) {
+          const hoursSince = (Date.now() - lastSuccessfulRun.started_at.getTime()) / (60 * 60 * 1000);
           if (hoursSince < rule.min_hours_between) {
             results.skipped++;
             continue;

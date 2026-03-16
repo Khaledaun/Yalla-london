@@ -226,6 +226,63 @@ async function handlePost(request: NextRequest) {
     return NextResponse.json({ success: true, message: `Article "${existingPost.title_en}" deleted` });
   }
 
+  // ─── SAVE TO RESERVOIR (ArticleDraft) ────────────────────────────────────────
+  // Saves to the content pipeline as an ArticleDraft in "reservoir" phase
+  // so it goes through quality gate and publishing flow
+  if (action === "reservoir") {
+    const titleEn = (body.titleEn || "").trim();
+    if (!titleEn) {
+      return NextResponse.json({ success: false, error: "Title is required" }, { status: 400 });
+    }
+
+    const slug = body.slug || titleEn
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .substring(0, 80);
+
+    const contentEn = body.contentEn || "";
+    const wordCount = contentEn.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+
+    try {
+      const draft = await prisma.articleDraft.create({
+        data: {
+          keyword: body.keyword || titleEn,
+          slug,
+          locale: body.language || "en",
+          site_id: siteId,
+          current_phase: "reservoir",
+          phase_attempts: 0,
+          quality_score: body.seoScore || 65,
+          word_count: wordCount,
+          assembled_html: contentEn,
+          seo_meta: {
+            metaTitle: body.metaTitleEn || titleEn.substring(0, 60),
+            metaDescription: body.metaDescriptionEn || "",
+            tags: body.tags || [],
+            keywords: body.keywords || [],
+          },
+          research_data: body.researchData || {},
+        },
+      });
+
+      logManualAction(request, { action: "simple-write-reservoir", resource: "article-draft", resourceId: draft.id, siteId, success: true, summary: `Saved to reservoir: "${titleEn}" (${wordCount} words)` }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        id: draft.id,
+        slug,
+        published: false,
+        message: `Saved to reservoir (${wordCount} words). Will be published automatically when it passes the quality gate.`,
+      });
+    } catch (dbError) {
+      const msg = dbError instanceof Error ? dbError.message : "Unknown database error";
+      console.error("[simple-write] Reservoir save error:", msg);
+      return NextResponse.json({ success: false, error: "Failed to save to reservoir. Please try again." }, { status: 500 });
+    }
+  }
+
   // ─── SAVE or PUBLISH ────────────────────────────────────────────────────────
   const titleEn = (body.titleEn || "").trim();
   if (!titleEn) {

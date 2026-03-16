@@ -128,24 +128,26 @@ async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRu
     // for known approved advertisers (Vrbo approved March 12, 2026)
     if (rules.length === 0 && publisherCid) {
       console.warn(`[affiliate-injection] CJ configured but 0 JOINED advertisers — using fallback deep links. Run sync-advertisers to populate.`);
-      const FALLBACK_ADVERTISERS: Array<{ name: string; url: string; category: string; externalId: string }> = [
-        { name: "Vrbo", url: "https://www.vrbo.com/", category: "hotel", externalId: "9220803" },
+      const vrboDeepLink = buildCjDeepLink(publisherCid, "9220803", "https://www.vrbo.com/", `${siteId}_cj`);
+      const vrboEntry = { name: "Vrbo", url: vrboDeepLink, param: "", category: "hotel" };
+
+      // Vrbo is relevant for ALL travel content (vacation rentals, stays, accommodation)
+      // Create rules for multiple categories so Vrbo matches broadly — not just hotel articles
+      const fallbackRules: AffiliateRule[] = [
+        {
+          keywords: CATEGORY_KEYWORDS["hotel"] || ["hotel"],
+          affiliates: [vrboEntry],
+        },
+        {
+          // Broad travel keywords — matches most London travel articles
+          keywords: ["london", "travel", "visit", "guide", "best", "top", "trip", "holiday", "vacation", "weekend", "luxury", "سفر", "لندن", "زيارة", "دليل"],
+          affiliates: [{ ...vrboEntry, category: "travel" }],
+        },
+        {
+          keywords: CATEGORY_KEYWORDS["activity"] || ["tour"],
+          affiliates: [{ ...vrboEntry, category: "activity" }],
+        },
       ];
-      const fallbackRules: AffiliateRule[] = [];
-      for (const adv of FALLBACK_ADVERTISERS) {
-        const deepLink = buildCjDeepLink(publisherCid, adv.externalId, adv.url, `${siteId}_cj`);
-        const cat = adv.category;
-        const existing = fallbackRules.find(r => r.keywords.includes(cat));
-        const entry = { name: adv.name, url: deepLink, param: "", category: cat };
-        if (existing) {
-          existing.affiliates.push(entry);
-        } else {
-          fallbackRules.push({
-            keywords: CATEGORY_KEYWORDS[cat] || [cat],
-            affiliates: [entry],
-          });
-        }
-      }
       return fallbackRules;
     }
 

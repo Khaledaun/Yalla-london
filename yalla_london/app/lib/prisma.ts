@@ -164,6 +164,15 @@ function getPrismaClient(): PrismaClient {
     // on warm serverless instances (Vercel reuses the process)
     globalThis.__prisma = client;
 
+    // Eagerly start the engine connection so the first query doesn't race
+    // against engine initialization. On Vercel cold starts, the lazy proxy
+    // triggers engine init + $queryRaw simultaneously, causing:
+    // "Engine is not yet connected. Backtrace [{ fn: start_thread }]"
+    // $connect() is idempotent — safe to call multiple times.
+    baseClient.$connect().catch(() => {
+      // Non-fatal — first query will retry connection automatically
+    });
+
     // Release connections when the serverless process exits so the
     // PgBouncer slot is freed for other instances.
     if (typeof process !== "undefined") {

@@ -672,6 +672,7 @@ export async function GET(request: NextRequest) {
   // Track metrics
   let itemsFound = 0;
   let itemsPublished = 0;
+  let itemsUpdated = 0;
   let itemsSkipped = 0;
   let factsFlagged = 0;
   let itemsArchived = 0;
@@ -814,6 +815,7 @@ export async function GET(request: NextRequest) {
             category: template.news_category,
             updated: true,
           });
+          itemsUpdated++;
           continue;
         }
 
@@ -1013,6 +1015,7 @@ export async function GET(request: NextRequest) {
             category: (liveItem.category || "general") as string,
             updated: true,
           });
+          itemsUpdated++;
           continue;
         }
 
@@ -1147,11 +1150,12 @@ export async function GET(request: NextRequest) {
             month: currentMonth,
             templates_active: activeTemplates.length,
             templates_selected: selectedTemplates.length,
+            items_updated: itemsUpdated,
             items_archived: itemsArchived,
             created_items: createdItems,
             recent_categories_skipped: [...recentCategories],
             grok_status: grokResult.status,
-            grok_error: grokResult.errorMessage || undefined,
+            grok_error: grokResult.errorMessage || null,
             errors: errors.length > 0 ? errors : undefined,
           },
         },
@@ -1159,19 +1163,22 @@ export async function GET(request: NextRequest) {
     }
 
     // 9. Log cron execution
+    const itemsSucceeded = itemsPublished + itemsUpdated;
     await logCronExecution("london-news", "completed", {
       durationMs,
       itemsProcessed: itemsFound,
-      itemsSucceeded: itemsPublished,
+      itemsSucceeded,
       itemsFailed: itemsSkipped,
       resultSummary: {
         runType,
         month: currentMonth,
         published: itemsPublished,
+        updated: itemsUpdated,
         skipped: itemsSkipped,
         archived: itemsArchived,
         factsFlagged,
         grokStatus: grokResult.status,
+        grokError: grokResult.errorMessage || null,
       },
     });
 
@@ -1186,6 +1193,7 @@ export async function GET(request: NextRequest) {
         templatesActive: activeTemplates.length,
         itemsFound,
         itemsPublished,
+        itemsUpdated,
         itemsSkipped,
         itemsArchived,
         factsFlagged,

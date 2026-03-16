@@ -2793,6 +2793,30 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                       >
                                         Index
                                       </ActionButton>
+                                      <ActionButton
+                                        onClick={async () => {
+                                          setActionLoading(`fix-${item.id}`);
+                                          try {
+                                            const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "review_fix", blogPostId: item.id }) });
+                                            const j = await r.json().catch(() => ({ success: false, error: "Bad response" }));
+                                            if (j.success) {
+                                              const msg = j.issues?.length > 0
+                                                ? `${j.message || "Fixed"}\nIssues: ${j.issues.join(", ")}`
+                                                : "No issues found";
+                                              setActionResult((prev) => ({ ...prev, [item.id]: `✅ ${msg}` }));
+                                              fetchData();
+                                            } else {
+                                              setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${j.error ?? "Failed"}` }));
+                                            }
+                                          } catch (e) {
+                                            setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                                          } finally { setActionLoading(null); }
+                                        }}
+                                        loading={actionLoading === `fix-${item.id}`}
+                                        variant="amber"
+                                      >
+                                        Review & Fix
+                                      </ActionButton>
                                     </>
                                   )}
                                 </div>

@@ -5,10 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/components/language-provider";
 import { getTranslation } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from "@/components/brand-kit";
 import {
   ArrowRight,
   MapPin,
@@ -21,7 +18,6 @@ import {
   Tag,
   Loader2,
 } from "lucide-react";
-import { motion } from "framer-motion";
 
 interface EventItem {
   id: string | number;
@@ -131,7 +127,6 @@ export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showVipOnly, setShowVipOnly] = useState(false);
-  // Initialize with fallback events so SSR HTML always has content for crawlers
   const [events, setEvents] = useState<EventItem[]>(FALLBACK_EVENTS);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(false);
@@ -148,11 +143,9 @@ export default function EventsPage() {
               setCategories(data.categories);
             }
           }
-          // If no DB events, keep the fallback events already initialized
         }
-        // On error, keep the fallback events already initialized
       } catch {
-        // Silently keep fallback events
+        // Keep fallback events
       }
     }
     fetchEvents();
@@ -174,14 +167,6 @@ export default function EventsPage() {
     const matchesVip = !showVipOnly || event.vipAvailable;
     return matchesCategory && matchesSearch && matchesVip;
   });
-
-  const categoryColors: Record<string, string> = {
-    Football: "bg-yl-gray-100 text-yl-charcoal",
-    Theatre: "bg-yl-red/10 text-yl-red",
-    Festival: "bg-yl-gold/10 text-yl-charcoal",
-    Exhibition: "bg-yl-blue/10 text-yl-charcoal",
-    Experience: "bg-yl-gray-200 text-yl-charcoal",
-  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -222,55 +207,52 @@ export default function EventsPage() {
   };
 
   return (
-    <div className={`${isRTL ? "rtl" : "ltr"}`}>
+    <div className={`bg-yl-cream font-body ${isRTL ? "rtl" : "ltr"}`}>
       {/* Hero Section */}
-      <section className="relative h-96 flex items-center justify-center overflow-hidden">
+      <section className="relative overflow-hidden bg-yl-dark-navy text-white pt-28 pb-16">
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200&h=800&fit=crop"
             alt="London Events"
             fill
-            className="object-cover"
+            className="object-cover opacity-30"
             priority
           />
-          <div className="absolute inset-0 bg-black/50" />
         </div>
-        <motion.div
-          className="relative z-10 text-center text-white px-6 max-w-4xl mx-auto"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-        >
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
+        <WatermarkStamp position="right" opacity={0.06} />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
+          <Breadcrumbs items={[
+            { label: language === "en" ? "Home" : "الرئيسية", href: "/" },
+            { label: language === "en" ? "Events" : "فعاليات" },
+          ]} />
+          <SectionLabel>{language === "en" ? "Events & Tickets" : "فعاليات وتذاكر"}</SectionLabel>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6 mt-4">
             {language === "en"
               ? "London Events & Tickets"
-              : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
+              : "فعاليات وتذاكر لندن"}
           </h1>
-          <p className="text-xl md:text-2xl text-yl-gray-400">
+          <p className="text-xl md:text-2xl text-yl-gray-400 max-w-3xl mx-auto mb-8">
             {language === "en"
               ? "Book premium tickets for the best London experiences"
-              : "\u0627\u062d\u062c\u0632 \u062a\u0630\u0627\u0643\u0631 \u0645\u0645\u064a\u0632\u0629 \u0644\u0623\u0641\u0636\u0644 \u062a\u062c\u0627\u0631\u0628 \u0644\u0646\u062f\u0646"}
+              : "احجز تذاكر مميزة لأفضل تجارب لندن"}
           </p>
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <Badge className="bg-white/20 text-white text-sm px-4 py-1">
-              <Ticket className="h-4 w-4 mr-1" />
-              {language === "en"
-                ? "Verified Tickets"
-                : "\u062a\u0630\u0627\u0643\u0631 \u0645\u0639\u062a\u0645\u062f\u0629"}
-            </Badge>
-            <Badge className="bg-white/20 text-white text-sm px-4 py-1">
-              <Star className="h-4 w-4 mr-1" />
-              {language === "en"
-                ? "VIP Packages"
-                : "\u0628\u0627\u0642\u0627\u062a VIP"}
-            </Badge>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <span className="font-mono text-[10px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
+              <Ticket className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+              {language === "en" ? "Verified Tickets" : "تذاكر معتمدة"}
+            </span>
+            <span className="font-mono text-[10px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
+              <Star className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+              {language === "en" ? "VIP Packages" : "باقات VIP"}
+            </span>
           </div>
-        </motion.div>
+        </div>
       </section>
+      <TriBar />
 
-      {/* Static explainer — always in SSR HTML for crawlers and slow connections */}
+      {/* Static explainer */}
       <section className="bg-yl-cream border-b border-yl-gray-200 py-6">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <p className="text-yl-gray-500 text-sm leading-relaxed max-w-3xl">
             {language === "en"
               ? "Yalla London curates the best events for Arab visitors — from Premier League football at Emirates Stadium and Stamford Bridge, to award-winning West End musicals like Hamilton and The Lion King, luxury Thames dinner cruises with halal menus, seasonal festivals, world-class exhibitions at the V&A and British Museum, and exclusive VIP experiences across the city."
@@ -281,51 +263,47 @@ export default function EventsPage() {
 
       {/* Search & Filter Bar */}
       <section className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
+        <div className="max-w-7xl mx-auto px-7 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
               <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-yl-gray-500`} />
-              <Input
+              <input
                 placeholder={
                   language === "en"
                     ? "Search events, venues..."
-                    : "\u0627\u0628\u062d\u062b \u0639\u0646 \u0641\u0639\u0627\u0644\u064a\u0627\u062a\u060c \u0623\u0645\u0627\u0643\u0646..."
+                    : "ابحث عن فعاليات، أماكن..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 border border-yl-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold`}
               />
             </div>
             <div className="flex gap-2 flex-wrap">
               {categories.map((cat) => (
-                <Button
+                <button
                   key={cat}
-                  variant={selectedCategory === cat ? "default" : "outline"}
-                  size="sm"
                   onClick={() => setSelectedCategory(cat)}
-                  className={
+                  className={`font-mono text-[10px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
                     selectedCategory === cat
-                      ? "bg-yl-red hover:bg-[#a82924]"
-                      : ""
-                  }
+                      ? "bg-yl-dark-navy text-yl-parchment"
+                      : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
+                  }`}
                 >
                   {cat === "All"
                     ? language === "en"
                       ? "All"
-                      : "\u0627\u0644\u0643\u0644"
+                      : "الكل"
                     : cat}
-                </Button>
+                </button>
               ))}
-              <Button
-                variant={showVipOnly ? "default" : "outline"}
-                size="sm"
+              <button
                 onClick={() => setShowVipOnly(!showVipOnly)}
-                className={
-                  showVipOnly ? "bg-yl-gold hover:bg-yl-gold text-white" : ""
-                }
+                className={`font-mono text-[10px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
+                  showVipOnly ? "bg-yl-gold text-yl-charcoal" : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
+                }`}
               >
-                <Star className="h-3 w-3 mr-1" /> VIP
-              </Button>
+                <Star className="h-3 w-3 inline mr-1 -mt-0.5" /> VIP
+              </button>
             </div>
           </div>
         </div>
@@ -333,32 +311,32 @@ export default function EventsPage() {
 
       {/* Events Grid */}
       <section className="py-12 bg-yl-cream">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-heading font-bold text-yl-charcoal">
               {loading
                 ? language === "en"
                   ? "Loading Events..."
-                  : "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0627\u062a..."
+                  : "جاري تحميل الفعاليات..."
                 : language === "en"
                   ? `${filteredEvents.length} Events Available`
-                  : `${filteredEvents.length} \u0641\u0639\u0627\u0644\u064a\u0629 \u0645\u062a\u0627\u062d\u0629`}
+                  : `${filteredEvents.length} فعالية متاحة`}
             </h2>
             <div className="flex items-center gap-2 text-sm text-yl-gray-500">
               <Tag className="h-4 w-4" />
               {language === "en"
                 ? "Powered by trusted ticket partners"
-                : "\u0645\u062f\u0639\u0648\u0645 \u0645\u0646 \u0634\u0631\u0643\u0627\u0621 \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0645\u0648\u062b\u0648\u0642\u064a\u0646"}
+                : "مدعوم من شركاء التذاكر الموثوقين"}
             </div>
           </div>
 
           {loading ? (
             <div className="text-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-primary mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-yl-red mb-4" />
               <p className="text-yl-gray-500">
                 {language === "en"
                   ? "Loading events..."
-                  : "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0627\u062a..."}
+                  : "جاري تحميل الفعاليات..."}
               </p>
             </div>
           ) : filteredEvents.length === 0 ? (
@@ -366,9 +344,9 @@ export default function EventsPage() {
               <p className="text-yl-gray-500 text-lg">
                 {language === "en"
                   ? "No events match your filters"
-                  : "\u0644\u0627 \u062a\u0648\u062c\u062f \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u062a\u0637\u0627\u0628\u0642 \u0627\u0644\u062a\u0635\u0641\u064a\u0629"}
+                  : "لا توجد فعاليات تطابق التصفية"}
               </p>
-              <Button
+              <BrandButton
                 variant="outline"
                 className="mt-4"
                 onClick={() => {
@@ -377,125 +355,101 @@ export default function EventsPage() {
                   setShowVipOnly(false);
                 }}
               >
-                {language === "en"
-                  ? "Clear Filters"
-                  : "\u0645\u0633\u062d \u0627\u0644\u062a\u0635\u0641\u064a\u0629"}
-              </Button>
+                {language === "en" ? "Clear Filters" : "مسح التصفية"}
+              </BrandButton>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredEvents.map((event, index) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 bg-white h-full flex flex-col">
-                    <div className="relative aspect-video">
-                      <Image
-                        src={
-                          event.image ||
-                          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop"
-                        }
-                        alt={event.title[language] || event.title.en}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="object-cover"
-                      />
-                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
-                        <Badge
-                          className={
-                            categoryColors[event.category] ||
-                            "bg-yl-gray-100 text-yl-charcoal"
-                          }
-                        >
-                          {event.category}
-                        </Badge>
-                        {event.vipAvailable && (
-                          <Badge className="bg-yl-gold text-white">
-                            VIP
-                          </Badge>
-                        )}
-                      </div>
-                      <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yl-gold text-yl-gold" />
-                          <span className="text-sm font-medium text-yl-charcoal">
-                            {event.rating}
-                          </span>
-                        </div>
-                      </div>
-                      {event.soldOut && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                          <Badge className="bg-red-600 text-white text-lg px-4 py-2">
-                            {language === "en"
-                              ? "SOLD OUT"
-                              : "\u0646\u0641\u062f\u062a \u0627\u0644\u062a\u0630\u0627\u0643\u0631"}
-                          </Badge>
-                        </div>
+              {filteredEvents.map((event) => (
+                <BrandCardLight key={event.id} className="overflow-hidden flex flex-col">
+                  <div className="relative aspect-video">
+                    <Image
+                      src={
+                        event.image ||
+                        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop"
+                      }
+                      alt={event.title[language] || event.title.en}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                    <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
+                      <BrandTag color="neutral">{event.category}</BrandTag>
+                      {event.vipAvailable && (
+                        <BrandTag color="gold">VIP</BrandTag>
                       )}
                     </div>
-                    <CardContent className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-semibold mb-2 text-yl-charcoal">
-                        {event.title[language] || event.title.en}
-                      </h3>
-                      <p className="text-yl-gray-500 leading-relaxed mb-4 flex-1">
-                        {event.description[language] || event.description.en}
-                      </p>
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2 text-sm text-yl-gray-500">
-                          <Calendar className="h-4 w-4 flex-shrink-0" />
-                          <span>{formatDate(event.date)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-yl-gray-500">
-                          <Clock className="h-4 w-4 flex-shrink-0" />
-                          <span>{event.time}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-yl-gray-500">
-                          <MapPin className="h-4 w-4 flex-shrink-0" />
-                          <span>{event.venue}</span>
-                        </div>
-                      </div>
-                      {event.ticketProvider && (
-                        <div className="mb-4">
-                          <span className="inline-flex items-center gap-1 text-xs text-yl-gray-500">
-                            <Ticket className="h-3 w-3" />
-                            {language === "en"
-                              ? "via"
-                              : "\u0639\u0628\u0631"}{" "}
-                            {event.ticketProvider}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mt-auto">
-                        <span className="text-lg font-bold text-brand-primary">
-                          {event.price}
+                    <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-yl-gold text-yl-gold" />
+                        <span className="text-sm font-medium text-yl-charcoal">
+                          {event.rating}
                         </span>
-                        <Button
-                          className="bg-yl-red hover:bg-[#a82924] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red"
-                          disabled={event.soldOut}
-                          onClick={() => handleBooking(event)}
-                        >
-                          {event.soldOut
-                            ? language === "en"
-                              ? "Sold Out"
-                              : "\u0646\u0641\u062f\u062a"
-                            : language === "en"
-                              ? "Get Tickets"
-                              : "\u0627\u062d\u0635\u0644 \u0639\u0644\u0649 \u062a\u0630\u0627\u0643\u0631"}
-                          {!event.soldOut && (
-                            <ExternalLink
-                              className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
-                            />
-                          )}
-                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                    </div>
+                    {event.soldOut && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <BrandTag color="red" className="text-lg px-4 py-2">
+                          {language === "en" ? "SOLD OUT" : "نفدت التذاكر"}
+                        </BrandTag>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6 flex-1 flex flex-col">
+                    <h3 className="text-xl font-heading font-semibold mb-2 text-yl-charcoal">
+                      {event.title[language] || event.title.en}
+                    </h3>
+                    <p className="text-yl-gray-500 leading-relaxed mb-4 flex-1 text-sm">
+                      {event.description[language] || event.description.en}
+                    </p>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-yl-gray-500">
+                        <Calendar className="h-4 w-4 flex-shrink-0" />
+                        <span>{formatDate(event.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-yl-gray-500">
+                        <Clock className="h-4 w-4 flex-shrink-0" />
+                        <span>{event.time}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-yl-gray-500">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span>{event.venue}</span>
+                      </div>
+                    </div>
+                    {event.ticketProvider && (
+                      <div className="mb-4">
+                        <span className="font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
+                          <Ticket className="h-3 w-3 inline mr-1 -mt-0.5" />
+                          {language === "en" ? "via" : "عبر"}{" "}
+                          {event.ticketProvider}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mt-auto">
+                      <span className="text-lg font-bold text-yl-red">
+                        {event.price}
+                      </span>
+                      <BrandButton
+                        variant="primary"
+                        disabled={event.soldOut}
+                        onClick={() => handleBooking(event)}
+                      >
+                        {event.soldOut
+                          ? language === "en"
+                            ? "Sold Out"
+                            : "نفدت"
+                          : language === "en"
+                            ? "Get Tickets"
+                            : "احصل على تذاكر"}
+                        {!event.soldOut && (
+                          <ExternalLink
+                            className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
+                          />
+                        )}
+                      </BrandButton>
+                    </div>
+                  </div>
+                </BrandCardLight>
               ))}
             </div>
           )}
@@ -504,36 +458,40 @@ export default function EventsPage() {
 
       {/* Past Events */}
       {pastEvents.length > 0 && (
-        <section className="py-8 bg-yl-cream/50">
-          <div className="max-w-6xl mx-auto px-6">
-            <h3 className="text-lg font-semibold text-yl-gray-500 mb-4">
-              {language === "en" ? "Past Events" : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0633\u0627\u0628\u0642\u0629"}
-            </h3>
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {pastEvents.slice(0, 8).map((event) => (
-                <div key={event.id} className="p-3 bg-white/60 rounded-lg border border-gray-200 opacity-70">
-                  <p className="text-sm font-medium text-yl-charcoal truncate">{event.title[language] || event.title.en}</p>
-                  <p className="text-xs text-yl-gray-500 mt-1">{formatDate(event.date)} — {event.venue}</p>
-                </div>
-              ))}
+        <>
+          <TriBar />
+          <section className="py-8 bg-yl-cream/50">
+            <div className="max-w-7xl mx-auto px-7">
+              <h3 className="text-lg font-heading font-semibold text-yl-gray-500 mb-4">
+                {language === "en" ? "Past Events" : "فعاليات سابقة"}
+              </h3>
+              <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {pastEvents.slice(0, 8).map((event) => (
+                  <div key={event.id} className="p-3 bg-white/60 rounded-[14px] border border-yl-gray-200 opacity-70">
+                    <p className="text-sm font-medium text-yl-charcoal truncate">{event.title[language] || event.title.en}</p>
+                    <p className="text-xs text-yl-gray-500 mt-1">{formatDate(event.date)} — {event.venue}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </>
       )}
 
       {/* Affiliate Partners */}
+      <TriBar />
       <section className="py-12 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="text-center mb-8">
-            <h3 className="text-xl font-semibold text-yl-charcoal mb-2">
+            <h3 className="text-xl font-heading font-semibold text-yl-charcoal mb-2">
               {language === "en"
                 ? "Our Trusted Ticket Partners"
-                : "\u0634\u0631\u0643\u0627\u0621 \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0645\u0648\u062b\u0648\u0642\u064a\u0646"}
+                : "شركاء التذاكر الموثوقين"}
             </h3>
             <p className="text-yl-gray-500 text-sm">
               {language === "en"
                 ? "We partner with leading ticket providers to bring you the best deals"
-                : "\u0646\u062a\u0639\u0627\u0648\u0646 \u0645\u0639 \u0645\u0632\u0648\u062f\u064a \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0631\u0627\u0626\u062f\u064a\u0646 \u0644\u0646\u0642\u062f\u0645 \u0644\u0643 \u0623\u0641\u0636\u0644 \u0627\u0644\u0639\u0631\u0648\u0636"}
+                : "نتعاون مع مزودي التذاكر الرائدين لنقدم لك أفضل العروض"}
             </p>
           </div>
           <div className="flex justify-center gap-8 flex-wrap">
@@ -541,13 +499,11 @@ export default function EventsPage() {
               (partner) => (
                 <div
                   key={partner}
-                  className="text-center px-6 py-4 rounded-lg border border-yl-gray-200 hover:border-yl-gold/40 hover:bg-yl-cream transition-all"
+                  className="text-center px-6 py-4 rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/30 hover:bg-yl-cream transition-all"
                 >
                   <span className="font-semibold text-yl-gray-500">{partner}</span>
-                  <span className="block text-xs text-yl-gray-500 mt-1">
-                    {language === "en"
-                      ? "Verified Partner"
-                      : "\u0634\u0631\u064a\u0643 \u0645\u0639\u062a\u0645\u062f"}
+                  <span className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mt-1">
+                    {language === "en" ? "Verified Partner" : "شريك معتمد"}
                   </span>
                 </div>
               ),
@@ -557,56 +513,33 @@ export default function EventsPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-yl-dark-navy via-yl-red to-yl-gold text-white">
-        <div className="max-w-4xl mx-auto text-center px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h2 className="text-4xl font-heading font-bold mb-6">
-              {language === "en"
-                ? "Can't Find What You're Looking For?"
-                : "\u0644\u0627 \u062a\u062c\u062f \u0645\u0627 \u062a\u0628\u062d\u062b \u0639\u0646\u0647\u061f"}
-            </h2>
-            <p className="text-xl mb-8 text-yl-gray-300/90">
-              {language === "en"
-                ? "Contact us for personalized event recommendations and exclusive VIP access"
-                : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u062a\u0648\u0635\u064a\u0627\u062a \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0645\u062e\u0635\u0635\u0629 \u0648\u0648\u0635\u0648\u0644 VIP \u062d\u0635\u0631\u064a"}
-            </p>
-            <div className="flex gap-4 justify-center flex-wrap">
-              <Button
-                asChild
-                size="lg"
-                className="bg-white text-yl-charcoal hover:bg-yl-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                <Link href="/contact">
-                  {language === "en"
-                    ? "Contact Us"
-                    : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627"}
-                  <ArrowRight
-                    className={`h-5 w-5 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
-                  />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white/10"
-              >
-                <Link href="/recommendations">
-                  {language === "en"
-                    ? "View All Recommendations"
-                    : "\u0639\u0631\u0636 \u062c\u0645\u064a\u0639 \u0627\u0644\u062a\u0648\u0635\u064a\u0627\u062a"}
-                  <MapPin
-                    className={`h-5 w-5 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
-                  />
-                </Link>
-              </Button>
-            </div>
-          </motion.div>
+      <TriBar />
+      <section className="py-20 bg-yl-dark-navy text-white">
+        <div className="max-w-4xl mx-auto text-center px-7">
+          <h2 className="text-4xl font-heading font-bold mb-6">
+            {language === "en"
+              ? "Can't Find What You're Looking For?"
+              : "لا تجد ما تبحث عنه؟"}
+          </h2>
+          <p className="text-xl mb-8 text-yl-gray-400">
+            {language === "en"
+              ? "Contact us for personalized event recommendations and exclusive VIP access"
+              : "اتصل بنا للحصول على توصيات فعاليات مخصصة ووصول VIP حصري"}
+          </p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <Link href="/contact">
+              <BrandButton variant="gold">
+                {language === "en" ? "Contact Us" : "اتصل بنا"}
+                <ArrowRight className={`h-5 w-5 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`} />
+              </BrandButton>
+            </Link>
+            <Link href="/recommendations">
+              <BrandButton variant="outline" className="border-white text-white hover:bg-white/10">
+                {language === "en" ? "View All Recommendations" : "عرض جميع التوصيات"}
+                <MapPin className={`h-5 w-5 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`} />
+              </BrandButton>
+            </Link>
+          </div>
         </div>
       </section>
     </div>

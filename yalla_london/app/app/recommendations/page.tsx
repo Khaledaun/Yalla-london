@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Star, MapPin, Phone, Globe, Search } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink, type AffiliateCategory } from '@/lib/affiliate/page-affiliate-links'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 const recommendations = [
   {
@@ -206,15 +207,21 @@ export default function RecommendationsPage() {
   return (
     <div className={`bg-yl-cream min-h-screen ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero */}
-      <section className="bg-gradient-to-b from-yl-dark-navy to-yl-dark-navy-light pb-12">
-        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
+      <section className="relative bg-yl-dark-navy pb-12 pt-28 overflow-hidden">
+        <WatermarkStamp position="right" />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
+          <Breadcrumbs items={[
+            { label: locale === 'en' ? 'Home' : 'الرئيسية', href: '/' },
+            { label: locale === 'en' ? 'Recommendations' : 'توصياتنا' },
+          ]} />
+          <SectionLabel>{locale === 'en' ? 'Curated for You' : 'مختارة لك'}</SectionLabel>
           <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">
             {locale === 'en' ? 'Our Recommendations' : 'توصياتنا'}
           </h1>
-          <p className="text-xl text-yl-gray-400 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-yl-gray-400 mb-8 max-w-2xl mx-auto font-body">
             {locale === 'en'
-              ? 'Handpicked luxury hotels, restaurants, and experiences across London — curated for Arab travellers'
-              : 'فنادق ومطاعم وتجارب فاخرة مختارة بعناية في جميع أنحاء لندن — مختارة للمسافرين العرب'}
+              ? 'Handpicked luxury hotels, restaurants, and experiences across London — curated for discerning travellers'
+              : 'فنادق ومطاعم وتجارب فاخرة مختارة بعناية في جميع أنحاء لندن — مختارة للمسافرين المميزين'}
           </p>
           <div className="max-w-xl mx-auto relative">
             <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-yl-gray-500`} />
@@ -223,30 +230,32 @@ export default function RecommendationsPage() {
               placeholder={locale === 'en' ? 'Search recommendations...' : 'ابحث في التوصيات...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-yl-red`}
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-[14px] text-lg font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold`}
             />
           </div>
         </div>
       </section>
 
+      <TriBar />
+
       {/* Type Filter */}
       <div className="bg-white border-b border-yl-gray-200 py-4 sticky top-16 z-40">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="flex items-center gap-3 overflow-x-auto pb-2">
             {(['all', 'hotel', 'restaurant', 'attraction'] as const).map((type) => (
               <button
                 key={type}
                 onClick={() => setSelectedType(type)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-colors ${
                   selectedType === type
-                    ? 'bg-yl-dark-navy text-white'
+                    ? 'bg-yl-dark-navy text-yl-parchment'
                     : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200'
                 }`}
               >
                 {labels[type]}
               </button>
             ))}
-            <span className="text-sm text-yl-gray-500 ml-auto">
+            <span className="font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 ml-auto">
               {filtered.length} {locale === 'en' ? 'results' : 'نتيجة'}
             </span>
           </div>
@@ -254,10 +263,10 @@ export default function RecommendationsPage() {
       </div>
 
       {/* Recommendations Grid */}
-      <section className="max-w-6xl mx-auto px-6 py-12">
+      <section className="max-w-7xl mx-auto px-7 py-12">
         <div className="grid md:grid-cols-2 gap-8">
           {filtered.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all group border border-yl-gray-200/50">
+            <BrandCardLight key={item.id} className="overflow-hidden group">
               <div className="relative aspect-video">
                 <Image
                   src={item.image}
@@ -266,16 +275,16 @@ export default function RecommendationsPage() {
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
-                  <span className="px-3 py-1 bg-white/90 backdrop-blur text-yl-charcoal text-xs font-semibold rounded-full">
+                <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
+                  <BrandTag color="neutral">
                     {labels[item.type as keyof typeof labels]}
-                  </span>
+                  </BrandTag>
                 </div>
               </div>
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-yl-charcoal mb-2">
+                    <h3 className="text-xl font-heading font-semibold text-yl-charcoal mb-2">
                       {locale === 'en' ? item.name_en : item.name_ar}
                     </h3>
                     <div className="flex items-center gap-2 mb-2">
@@ -283,37 +292,36 @@ export default function RecommendationsPage() {
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star
                             key={i}
-                            className={`h-4 w-4 ${i < Math.floor(item.rating) ? 'fill-amber-500 text-amber-500' : 'text-sand'}`}
+                            className={`h-4 w-4 ${i < Math.floor(item.rating) ? 'fill-yl-gold text-yl-gold' : 'text-yl-gray-300'}`}
                           />
                         ))}
                       </div>
-                      <span className="text-sm text-yl-gray-500">{item.rating}</span>
+                      <span className="font-mono text-[10px] tracking-wider text-yl-gray-500">{item.rating}</span>
                     </div>
                   </div>
                   <div className={`${isRTL ? 'text-left' : 'text-right'}`}>
-                    <div className="text-lg font-semibold text-yl-red">{item.price_range}</div>
+                    <div className="text-lg font-heading font-semibold text-yl-red">{item.price_range}</div>
                   </div>
                 </div>
 
-                <p className="text-sm text-yl-gray-500 leading-relaxed mb-4">
+                <p className="text-sm text-yl-gray-500 font-body leading-relaxed mb-4">
                   {locale === 'en' ? item.description_en : item.description_ar}
                 </p>
 
                 <div className="flex items-center gap-2 text-sm text-yl-gray-500 mb-4">
-                  <MapPin className="h-4 w-4 shrink-0" />
-                  <span>{locale === 'en' ? item.address_en : item.address_ar}</span>
+                  <MapPin className="h-4 w-4 shrink-0 text-yl-gold" />
+                  <span className="font-body">{locale === 'en' ? item.address_en : item.address_ar}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(locale === 'en' ? item.features_en : item.features_ar).map((feature) => (
-                    <span key={feature} className="px-2 py-1 bg-yl-gray-100 text-xs text-yl-gray-500 rounded-full border border-yl-gray-200/50">
+                    <span key={feature} className="px-2 py-1 bg-yl-cream font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 rounded-full border border-yl-gray-200/50">
                       {feature}
                     </span>
                   ))}
                 </div>
 
                 {(() => {
-                  const itemName = locale === 'en' ? item.name_en : item.name_ar;
                   const affLink = getPageAffiliateLink(item.name_en, item.type as AffiliateCategory, 'yalla-london', 'recommendations');
                   return (
                   <div className="flex flex-col gap-2 pt-4 border-t border-yl-gray-200">
@@ -321,7 +329,7 @@ export default function RecommendationsPage() {
                       {item.phone && (
                         <a
                           href={`tel:${item.phone}`}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-lg text-sm text-yl-gray-500 hover:bg-yl-gray-100 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
                         >
                           <Phone className="h-4 w-4" />
                           {locale === 'en' ? 'Call' : 'اتصل'}
@@ -331,7 +339,7 @@ export default function RecommendationsPage() {
                         href={item.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-lg text-sm text-yl-gray-500 hover:bg-yl-gray-100 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
                       >
                         <Globe className="h-4 w-4" />
                         {locale === 'en' ? 'Official Site' : 'الموقع الرسمي'}
@@ -342,7 +350,7 @@ export default function RecommendationsPage() {
                         href={affLink.url}
                         target="_blank"
                         rel="noopener sponsored"
-                        className={`${affLink.trackingClass} flex items-center justify-center gap-2 px-4 py-2.5 bg-yl-red text-white text-sm font-semibold rounded-lg hover:bg-yl-red transition-colors`}
+                        className={`${affLink.trackingClass} flex items-center justify-center gap-2 px-4 py-2.5 bg-yl-red text-white text-sm font-heading font-semibold rounded-[14px] hover:bg-[#a82924] hover:-translate-y-0.5 transition-all shadow-lg`}
                         data-affiliate-partner={affLink.partner}
                       >
                         {affLink.label} →
@@ -352,32 +360,43 @@ export default function RecommendationsPage() {
                   );
                 })()}
               </div>
-            </div>
+            </BrandCardLight>
           ))}
         </div>
 
         {filtered.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-xl text-yl-gray-500">
+            <p className="text-xl text-yl-gray-500 font-body">
               {locale === 'en' ? 'No recommendations found matching your search.' : 'لم يتم العثور على توصيات تطابق بحثك.'}
             </p>
           </div>
         )}
+      </section>
 
-        {/* Cross-linking */}
-        <div className="mt-16 text-center">
-          <p className="text-yl-gray-500 mb-4">
+      <TriBar />
+
+      {/* Cross-linking */}
+      <section className="bg-yl-dark-navy py-16">
+        <div className="max-w-7xl mx-auto px-7 text-center">
+          <SectionLabel>{locale === 'en' ? 'Explore More' : 'استكشف المزيد'}</SectionLabel>
+          <h2 className="text-3xl font-heading font-bold text-white mb-8">
             {locale === 'en' ? 'Looking for more?' : 'تبحث عن المزيد؟'}
-          </p>
+          </h2>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/hotels" className="px-6 py-3 bg-yl-dark-navy text-white rounded-full text-sm font-medium hover:bg-yl-dark-navy-light transition-colors">
-              {locale === 'en' ? 'All Luxury Hotels' : 'جميع الفنادق الفاخرة'}
+            <Link href="/hotels">
+              <BrandButton variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                {locale === 'en' ? 'All Luxury Hotels' : 'جميع الفنادق الفاخرة'}
+              </BrandButton>
             </Link>
-            <Link href="/experiences" className="px-6 py-3 bg-yl-dark-navy text-white rounded-full text-sm font-medium hover:bg-yl-dark-navy-light transition-colors">
-              {locale === 'en' ? 'All Experiences' : 'جميع التجارب'}
+            <Link href="/experiences">
+              <BrandButton variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                {locale === 'en' ? 'All Experiences' : 'جميع التجارب'}
+              </BrandButton>
             </Link>
-            <Link href="/london-by-foot" className="px-6 py-3 bg-yl-red text-white rounded-full text-sm font-medium hover:bg-yl-red transition-colors">
-              {locale === 'en' ? 'London Walking Guides' : 'أدلة المشي في لندن'}
+            <Link href="/london-by-foot">
+              <BrandButton variant="primary">
+                {locale === 'en' ? 'London Walking Guides' : 'أدلة المشي في لندن'}
+              </BrandButton>
             </Link>
           </div>
         </div>

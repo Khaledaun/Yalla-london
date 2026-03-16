@@ -674,12 +674,18 @@ async function handleAffiliateInjection(request: NextRequest) {
       if (!dbRulesCache.has(postSiteId)) {
         dbRulesCache.set(postSiteId, await getAffiliateRulesFromDB(postSiteId));
       }
-      // Merge: DB rules > CjLink rules > static rules (priority order)
-      const dbRules = dbRulesCache.get(postSiteId) ?? null;
-      const mergedRules = dbRules || (cjLinkRules.length > 0 ? cjLinkRules : null);
+      // Merge: DB rules + CjLink rules + static rules (additive, priority by order)
+      // findMatches() deduplicates by affiliate name — first match wins
+      const dbRules = dbRulesCache.get(postSiteId) ?? [];
+      const staticRules = getAffiliateRulesForSite(postSiteId);
+      const mergedRules = [
+        ...dbRules,                        // DB-configured rules (highest priority)
+        ...(cjLinkRules || []),             // CJ deep link rules (e.g., Vrbo)
+        ...staticRules,                     // Comprehensive static rules (all categories)
+      ];
 
-      const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules, post.title_en);
-      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
+      const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en);
+      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({

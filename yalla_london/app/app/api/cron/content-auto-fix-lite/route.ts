@@ -414,14 +414,14 @@ async function handleAutoFixLite(request: NextRequest) {
   }
 
   // ── 7. NEVER-SUBMITTED CATCH-UP ──────────────────────────────────────
-  // Find published articles that have no URLIndexingStatus record and track them.
+  // Find published articles AND news items that have no URLIndexingStatus record.
   // Prevents "never submitted" gap where ensureUrlTracked() failed silently on publish.
+  // Also catches news items (previously only blog posts were scanned).
   let neverSubmittedFixed = 0;
   if (Date.now() - cronStart < BUDGET_MS - 12_000) {
     try {
       const { getSiteDomain } = await import("@/config/sites");
-      // Find ALL published posts — increased from 50 to 200 to ensure we catch every article.
-      // With 37 never-submitted pages, the old limit of 50 only checked the most recent posts.
+      // Find ALL published blog posts
       const untrackedPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
@@ -429,33 +429,54 @@ async function handleAutoFixLite(request: NextRequest) {
           deletedAt: null,
         },
         select: { slug: true, siteId: true },
-        take: 200,
+        take: 500,
         orderBy: { created_at: "desc" },
       }), "never-submitted-catchup") as Array<{ slug: string; siteId: string }>;
 
-      // Build all URLs, then batch-check which ones are already tracked (1 query instead of N)
-      const postUrls = untrackedPosts.map((post) => {
+      // Build all URLs for blog posts
+      const postUrls: Array<{ url: string; siteId: string; slug: string }> = untrackedPosts.map((post) => {
         const domain = getSiteDomain(post.siteId);
         return { url: `${domain}/blog/${post.slug}`, siteId: post.siteId, slug: post.slug };
       });
 
+      // Also check news items (were previously missing from never-submitted scan)
+      try {
+        const newsItems = await withPoolRetry(async () => prisma.newsItem.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+          },
+          select: { slug: true, siteId: true },
+          take: 100,
+          orderBy: { created_at: "desc" },
+        }), "never-submitted-news") as Array<{ slug: string; siteId: string }>;
+
+        for (const news of newsItems) {
+          const domain = getSiteDomain(news.siteId);
+          postUrls.push({ url: `${domain}/news/${news.slug}`, siteId: news.siteId, slug: news.slug });
+        }
+      } catch {
+        // NewsItem table may not exist — proceed with blog posts only
+      }
+
+      // Batch-check which URLs are already tracked (1 query instead of N)
       const existingUrls = await withPoolRetry(async () => prisma.uRLIndexingStatus.findMany({
         where: { url: { in: postUrls.map((p) => p.url) } },
         select: { url: true },
       }), "never-submitted-existing-check") as Array<{ url: string }>;
 
-      const trackedSet = new Set(existingUrls.map((e) => e.url));
+      const trackedSet = new Set<string>(existingUrls.map((e) => e.url));
       const untracked = postUrls.filter((p) => !trackedSet.has(p.url));
 
-      // Track missing URLs — increased to 50 per run to clear 131-page backlog faster
+      // Track missing URLs — process all untracked (up to 100) to clear backlog in one run
       const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
-      for (const post of untracked.slice(0, 50)) {
+      for (const post of untracked.slice(0, 100)) {
         if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
-        await ensureUrlTracked(post.url, post.siteId, `blog/${post.slug}`);
+        await ensureUrlTracked(post.url, post.siteId, post.slug);
         neverSubmittedFixed++;
       }
       if (neverSubmittedFixed > 0) {
-        console.log(`[auto-fix-lite] Tracked ${neverSubmittedFixed} previously untracked URLs`);
+        console.log(`[auto-fix-lite] Tracked ${neverSubmittedFixed} previously untracked URLs (${untracked.length} total untracked found)`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

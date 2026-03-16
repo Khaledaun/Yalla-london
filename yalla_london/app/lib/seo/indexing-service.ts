@@ -1475,7 +1475,7 @@ export async function retryFailedIndexing(
           {
             status: "submitted",
             last_submitted_at: { lt: sevenDaysAgo },
-            submission_attempts: { lt: 5 }, // Don't retry endlessly
+            submission_attempts: { lt: 15 }, // Cap aligned with google-indexing route
           },
         ],
       },

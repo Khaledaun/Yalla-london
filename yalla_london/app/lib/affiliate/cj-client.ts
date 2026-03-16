@@ -460,6 +460,17 @@ async function cjFetch(
 
     if (!response.ok) {
       const body = await response.text().catch(() => "");
+
+      // 404 = endpoint deprecated/removed — do NOT trip circuit breaker
+      // (deprecation is not a transient failure, retrying won't help)
+      if (response.status === 404) {
+        console.warn(`[cj-client] 404 from ${urlObj.hostname}: ${body.substring(0, 300)}`);
+        throw createCjError(
+          `CJ API endpoint deprecated (404): ${urlObj.hostname} — ${body.substring(0, 200)}`,
+          404
+        );
+      }
+
       if (retryCount < MAX_RETRIES && response.status >= 500) {
         const delay = RETRY_BASE_MS * Math.pow(2, retryCount);
         console.warn(
@@ -487,6 +498,9 @@ async function cjFetch(
 
     return text;
   } catch (err) {
+    // 404 (deprecated endpoint) — rethrow WITHOUT tripping circuit breaker
+    if (err && typeof err === "object" && "statusCode" in err && (err as CjApiError).statusCode === 404) { throw err; }
+    // Rate limit or auth errors — record failure and rethrow
     if (err && typeof err === "object" && "isRateLimit" in err) { recordCjFailure(); throw err; }
     if (err && typeof err === "object" && "isAuth" in err) { recordCjFailure(); throw err; }
 
@@ -526,6 +540,9 @@ const ADVERTISER_LOOKUP_URL =
   "https://advertiser-lookup.api.cj.com/v2/advertiser-lookup";
 const LINK_SEARCH_URL =
   "https://link-search.api.cj.com/v2/link-search";
+// DEPRECATED: product-search.api.cj.com returns 404 as of March 2026.
+// CJ migrated product search to GraphQL at ads.api.cj.com/query.
+// searchProducts() now returns empty results to avoid tripping circuit breaker.
 const PRODUCT_SEARCH_URL =
   "https://product-search.api.cj.com/v2/product-search";
 const COMMISSION_DETAIL_URL =
@@ -613,6 +630,11 @@ export async function searchLinks(opts: {
 
 /**
  * Search CJ product catalog (114M+ products).
+ *
+ * DEPRECATED: product-search.api.cj.com returns 404 as of March 2026.
+ * CJ migrated to GraphQL at ads.api.cj.com/query.
+ * Returns empty results to avoid tripping the shared circuit breaker
+ * which would cascade-block healthy APIs (advertiser-lookup, link-search).
  */
 export async function searchProducts(opts: {
   advertiserIds?: string[];
@@ -623,23 +645,13 @@ export async function searchProducts(opts: {
   pageNumber?: number;
   recordsPerPage?: number;
 }): Promise<CjPaginatedResponse<CjProductRecord>> {
-  const params: Record<string, string> = {};
-
-  if (opts.advertiserIds?.length) {
-    params["advertiser-ids"] = opts.advertiserIds.join(",");
-  }
-  if (opts.keywords) params["keywords"] = opts.keywords;
-  if (opts.lowPrice !== undefined) params["low-price"] = String(opts.lowPrice);
-  if (opts.highPrice !== undefined)
-    params["high-price"] = String(opts.highPrice);
-  if (opts.currency) params["currency"] = opts.currency;
-  const wsId = getWebsiteId();
-  if (wsId) params["website-id"] = wsId;
-  params["page-number"] = String(opts.pageNumber || 1);
-  params["records-per-page"] = String(opts.recordsPerPage || 100);
-
-  const xml = await cjFetch(PRODUCT_SEARCH_URL, params);
-  return parsePaginatedResponse(xml, "product", parseProduct);
+  // Product search endpoint is deprecated (404). Return empty results
+  // without calling cjFetch() — prevents circuit breaker cascade.
+  console.warn(
+    `[cj-client] searchProducts() skipped — product-search.api.cj.com is deprecated (404). ` +
+    `Keywords: "${opts.keywords || "none"}". Migrate to ads.api.cj.com/query GraphQL API.`
+  );
+  return { records: [], totalMatched: 0, recordsReturned: 0, pageNumber: 1 };
 }
 
 /**

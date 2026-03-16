@@ -233,7 +233,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
                 )}
 
                 {item.is_major && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-yalla-gold-500 text-charcoal">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-yl-gold text-yl-charcoal">
                     <Sparkles className="h-3.5 w-3.5" />
                     {language === 'en' ? 'Featured' : 'مميز'}
                   </span>
@@ -241,7 +241,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
               </div>
 
               {/* Headline */}
-              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight ${isRTL ? 'font-arabic' : 'font-display'}`}>
+              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                 {headline}
               </h1>
 
@@ -269,7 +269,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
         <div className="max-w-4xl mx-auto px-6">
           <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
             {/* Action bar */}
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-sand">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-yl-gray-200">
               <Button asChild variant="outline" size="sm">
                 <Link href="/news">
                   <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
@@ -281,13 +281,13 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
 
             {/* Event date range */}
             {eventDateRange && (
-              <div className="mb-6 p-4 rounded-lg bg-cream border border-sand flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-london-600 flex-shrink-0" />
+              <div className="mb-6 p-4 rounded-lg bg-yl-cream border border-yl-gray-200 flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-yl-red flex-shrink-0" />
                 <div>
-                  <span className="text-xs font-medium uppercase tracking-wider text-stone">
+                  <span className="text-xs font-medium uppercase tracking-wider text-yl-gray-500">
                     {language === 'en' ? 'Event Dates' : 'تواريخ الفعالية'}
                   </span>
-                  <p className="text-charcoal font-semibold text-sm mt-0.5">{eventDateRange}</p>
+                  <p className="text-yl-charcoal font-semibold text-sm mt-0.5">{eventDateRange}</p>
                 </div>
               </div>
             )}
@@ -295,7 +295,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
             {/* ─────────────────────────────────────────────────────────── */}
             {/* Summary content — original commentary, fair-use compliant */}
             {/* ─────────────────────────────────────────────────────────── */}
-            <div className={`text-charcoal text-lg leading-relaxed mb-8 whitespace-pre-line ${isRTL ? 'font-arabic' : ''}`}>
+            <div className={`text-yl-charcoal text-lg leading-relaxed mb-8 whitespace-pre-line ${isRTL ? 'font-arabic' : ''}`}>
               {summary}
             </div>
 
@@ -307,21 +307,21 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true }}
-              className="rounded-xl border border-sand bg-cream p-6 md:p-8 mb-6"
+              className="rounded-xl border border-yl-gray-200 bg-yl-cream p-6 md:p-8 mb-6"
             >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 h-12 w-12 rounded-full bg-london-600/10 flex items-center justify-center">
-                    <Newspaper className="h-6 w-6 text-london-600" />
+                  <div className="flex-shrink-0 h-12 w-12 rounded-full bg-yl-red/10 flex items-center justify-center">
+                    <Newspaper className="h-6 w-6 text-yl-red" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-stone mb-1">
+                    <p className="text-xs font-medium uppercase tracking-wider text-yl-gray-500 mb-1">
                       {language === 'en' ? 'Source' : 'المصدر'}
                     </p>
-                    <p className={`text-charcoal font-semibold ${isRTL ? 'font-arabic' : 'font-display'}`}>
+                    <p className={`text-yl-charcoal font-semibold ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                       {item.source_name}
                     </p>
-                    <p className="text-xs text-stone mt-1">
+                    <p className="text-xs text-yl-gray-500 mt-1">
                       {language === 'en'
                         ? `Published ${formatDate(item.published_at, language)}`
                         : `نُشر ${formatDate(item.published_at, language)}`}
@@ -331,7 +331,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
 
                 <Button
                   asChild
-                  className="bg-london-600 hover:bg-london-700 text-white flex-shrink-0"
+                  className="bg-yl-red hover:bg-yl-red text-white flex-shrink-0"
                 >
                   <a href={item.source_url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -344,17 +344,17 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
             {/* ─────────────────────────────────────────────────────────── */}
             {/* Content Integrity Footer — fair-use compliance notice      */}
             {/* ─────────────────────────────────────────────────────────── */}
-            <div className="rounded-lg border border-sand/50 bg-cream-100/60 p-4 mb-8">
+            <div className="rounded-lg border border-yl-gray-200/50 bg-yl-gray-100/60 p-4 mb-8">
               <div className="flex items-start gap-3">
-                <Shield className="h-4 w-4 text-london-600 shrink-0 mt-0.5" />
-                <div className={`text-[11px] text-stone leading-relaxed ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+                <Shield className="h-4 w-4 text-yl-red shrink-0 mt-0.5" />
+                <div className={`text-[11px] text-yl-gray-500 leading-relaxed ${isRTL ? 'font-arabic' : 'font-body'}`}>
                   <p>
                     {language === 'en'
                       ? 'This post contains original commentary and a summary of publicly reported information. For full context, read the original reporting at the linked source.'
                       : 'يحتوي هذا المنشور على تعليقات أصلية وملخص لمعلومات مُبلغ عنها علنيًا. للسياق الكامل، اقرأ التقارير الأصلية من المصدر المرتبط.'}
                   </p>
                   {item.published_at && (
-                    <p className="mt-1.5 text-stone/60">
+                    <p className="mt-1.5 text-yl-gray-500/60">
                       {language === 'en'
                         ? `Last updated: ${formatDate(item.published_at, language)}`
                         : `آخر تحديث: ${formatDate(item.published_at, language)}`}
@@ -370,7 +370,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
                 {item.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-3 py-1 text-xs font-medium rounded-full bg-cream-100 text-stone border border-sand"
+                    className="px-3 py-1 text-xs font-medium rounded-full bg-yl-gray-100 text-yl-gray-500 border border-yl-gray-200"
                   >
                     #{tag}
                   </span>
@@ -379,14 +379,14 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
             )}
 
             {/* "What this means for you" section — transformative value */}
-            <div className="rounded-xl border border-yalla-gold-400/30 bg-yalla-gold-500/5 p-6 mb-8">
+            <div className="rounded-xl border border-yl-gold/30 bg-yl-gold/5 p-6 mb-8">
               <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="h-4 w-4 text-yalla-gold-600" />
-                <h3 className={`text-sm font-bold text-charcoal ${isRTL ? 'font-arabic' : 'font-display'}`}>
+                <BookOpen className="h-4 w-4 text-yl-gold" />
+                <h3 className={`text-sm font-bold text-yl-charcoal ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                   {language === 'en' ? 'What This Means for Visitors' : 'ماذا يعني هذا للزوار'}
                 </h3>
               </div>
-              <p className={`text-sm text-stone leading-relaxed ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+              <p className={`text-sm text-yl-gray-500 leading-relaxed ${isRTL ? 'font-arabic' : 'font-body'}`}>
                 {language === 'en'
                   ? `This ${getCategoryLabel(item.news_category, 'en').toLowerCase()} update may affect your London plans. Check the original source for the latest details, and visit our Information Hub for up-to-date travel guidance.`
                   : `قد يؤثر تحديث ${getCategoryLabel(item.news_category, 'ar')} هذا على خططك في لندن. تحقق من المصدر الأصلي لآخر التفاصيل، وقم بزيارة مركز المعلومات لدينا للحصول على إرشادات سفر محدثة.`}
@@ -394,7 +394,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
               <div className="mt-3">
                 <Link
                   href="/information"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-london-600 hover:text-london-700 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-yl-red hover:text-yl-red transition-colors"
                 >
                   {language === 'en' ? 'Visit Information Hub' : 'زيارة مركز المعلومات'}
                   <ChevronRight className={`h-3 w-3 ${isRTL ? 'rotate-180' : ''}`} />
@@ -409,7 +409,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* Related Articles                                                   */}
       {/* ----------------------------------------------------------------- */}
       {relatedArticles.length > 0 && (
-        <section className="py-12 bg-cream">
+        <section className="py-12 bg-yl-cream">
           <div className="max-w-6xl mx-auto px-6">
             <RelatedArticles articles={relatedArticles} currentType="blog" />
           </div>
@@ -419,7 +419,7 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* ----------------------------------------------------------------- */}
       {/* Follow Us                                                          */}
       {/* ----------------------------------------------------------------- */}
-      <section className="py-10 bg-cream border-t border-sand">
+      <section className="py-10 bg-yl-cream border-t border-yl-gray-200">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <FollowUs variant="light" />
         </div>
@@ -428,11 +428,11 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
       {/* ----------------------------------------------------------------- */}
       {/* Bottom CTA                                                         */}
       {/* ----------------------------------------------------------------- */}
-      <section className="py-10 bg-white border-t border-sand">
+      <section className="py-10 bg-white border-t border-yl-gray-200">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <Link
             href="/news"
-            className="inline-flex items-center gap-2 text-london-600 hover:text-london-700 font-medium transition-colors duration-200"
+            className="inline-flex items-center gap-2 text-yl-red hover:text-yl-red font-medium transition-colors duration-200"
           >
             <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
             {language === 'en' ? 'Back to All News' : 'العودة لجميع الأخبار'}

@@ -65,9 +65,9 @@ const difficultyColor: Record<string, string> = {
 
 export default function LondonByFootPage() {
   return (
-    <div className="bg-cream font-editorial">
+    <div className="bg-yl-cream font-body">
       {/* Hero Section */}
-      <section className="relative bg-charcoal text-white overflow-hidden">
+      <section className="relative bg-yl-dark-navy text-white overflow-hidden">
         <div className="absolute inset-0 opacity-30">
           <Image
             src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1600&q=80"
@@ -79,13 +79,13 @@ export default function LondonByFootPage() {
         </div>
         <div className="relative max-w-6xl mx-auto px-6 py-20 md:py-28 text-center">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <Footprints className="h-8 w-8 text-yalla-gold-400" />
-            <span className="text-yalla-gold-400 font-mono text-sm uppercase tracking-widest">Walking Guides</span>
+            <Footprints className="h-8 w-8 text-yl-gold" />
+            <span className="text-yl-gold font-mono text-sm uppercase tracking-widest">Walking Guides</span>
           </div>
-          <h1 className="text-4xl md:text-6xl font-display font-bold mb-6">
+          <h1 className="text-4xl md:text-6xl font-heading font-bold mb-6">
             London by Foot
           </h1>
-          <p className="text-xl md:text-2xl text-cream-300 max-w-3xl mx-auto mb-8">
+          <p className="text-xl md:text-2xl text-yl-gray-400 max-w-3xl mx-auto mb-8">
             The best way to discover London is on foot. Five curated walking routes through the city&apos;s most iconic landmarks, hidden gems, and secret corners — with maps, photos, and insider tips.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
@@ -99,8 +99,8 @@ export default function LondonByFootPage() {
       {/* Walks Grid */}
       <section className="max-w-6xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-display font-bold text-charcoal mb-4">Choose Your Walk</h2>
-          <p className="text-stone max-w-2xl mx-auto">
+          <h2 className="text-3xl font-heading font-bold text-yl-charcoal mb-4">Choose Your Walk</h2>
+          <p className="text-yl-gray-500 max-w-2xl mx-auto">
             Each route has been walked, photographed, and written by locals who know London inside out. Choose your adventure below.
           </p>
         </div>
@@ -108,7 +108,7 @@ export default function LondonByFootPage() {
         <div className="grid gap-8">
           {walks.map((walk, index) => (
             <Link key={walk.slug} href={`/london-by-foot/${walk.slug}`} className="group">
-              <article className={`bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50 ${index % 2 === 1 ? 'md:flex-row-reverse' : ''} md:flex`}>
+              <article className={`bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all border border-yl-gray-200/50 ${index % 2 === 1 ? 'md:flex-row-reverse' : ''} md:flex`}>
                 {/* Image */}
                 <div className="relative md:w-2/5 aspect-[16/10] md:aspect-auto">
                   <Image
@@ -127,21 +127,21 @@ export default function LondonByFootPage() {
 
                 {/* Content */}
                 <div className="p-6 md:p-8 md:w-3/5 flex flex-col justify-center">
-                  <div className="flex items-center gap-4 text-sm text-stone mb-3">
+                  <div className="flex items-center gap-4 text-sm text-yl-gray-500 mb-3">
                     <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {walk.distance}</span>
                     <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {walk.duration}</span>
                   </div>
-                  <h3 className="text-2xl font-display font-bold text-charcoal mb-2 group-hover:text-london-600 transition-colors">
+                  <h3 className="text-2xl font-heading font-bold text-yl-charcoal mb-2 group-hover:text-yl-red transition-colors">
                     {walk.title}
                   </h3>
-                  <p className="text-london-600 font-medium mb-3">{walk.subtitle}</p>
-                  <p className="text-stone text-sm mb-4 line-clamp-3">{walk.intro}</p>
-                  <div className="flex items-center gap-2 text-sm text-stone mb-4">
+                  <p className="text-yl-red font-medium mb-3">{walk.subtitle}</p>
+                  <p className="text-yl-gray-500 text-sm mb-4 line-clamp-3">{walk.intro}</p>
+                  <div className="flex items-center gap-2 text-sm text-yl-gray-500 mb-4">
                     <span className="font-medium">{walk.stops.length} stops</span>
                     <span className="text-sand">|</span>
                     <span>{walk.startPoint} → {walk.endPoint}</span>
                   </div>
-                  <div className="flex items-center gap-1 text-london-600 font-medium text-sm group-hover:gap-2 transition-all">
+                  <div className="flex items-center gap-1 text-yl-red font-medium text-sm group-hover:gap-2 transition-all">
                     Read the full guide <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
@@ -152,19 +152,19 @@ export default function LondonByFootPage() {
       </section>
 
       {/* PDF Guide CTA */}
-      <section className="bg-gradient-to-br from-charcoal to-london-900 text-white py-16">
+      <section className="bg-gradient-to-br from-yl-dark-navy to-yl-dark-navy text-white py-16">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <Download className="w-12 h-12 text-yalla-gold-400 mx-auto mb-6" />
-          <h2 className="text-3xl font-display font-bold mb-4">
+          <Download className="w-12 h-12 text-yl-gold mx-auto mb-6" />
+          <h2 className="text-3xl font-heading font-bold mb-4">
             Take London With You
           </h2>
-          <p className="text-cream-300 text-lg mb-8 max-w-2xl mx-auto">
+          <p className="text-yl-gray-400 text-lg mb-8 max-w-2xl mx-auto">
             Download our premium PDF walking guides with offline maps, hidden gems not in the free guides, insider restaurant recommendations, and minute-by-minute timing for each route.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               href="/recommendations"
-              className="px-8 py-4 bg-yalla-gold-500 text-charcoal font-semibold rounded-full hover:bg-yalla-gold-400 transition-colors"
+              className="px-8 py-4 bg-yl-gold text-yl-charcoal font-semibold rounded-full hover:bg-yl-gold transition-colors"
             >
               Browse All Guides
             </Link>
@@ -181,7 +181,7 @@ export default function LondonByFootPage() {
       {/* SEO Content Section */}
       <section className="max-w-4xl mx-auto px-6 py-16">
         <div className="prose prose-stone max-w-none">
-          <h2 className="text-2xl font-display font-bold text-charcoal">Why Walk London?</h2>
+          <h2 className="text-2xl font-heading font-bold text-yl-charcoal">Why Walk London?</h2>
           <p>
             London is one of the world&apos;s great walking cities. Unlike many capitals, its major landmarks are close together, connected by parks, riverside paths, and charming side streets that no bus or taxi can access. Walking lets you discover the London that exists between the famous sights — the hidden courtyards, the blue plaques marking where legends lived, the neighbourhood cafés where locals gather, and the views that open up unexpectedly around every corner.
           </p>

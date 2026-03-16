@@ -86,7 +86,7 @@ export default function AboutYallaLondon() {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-london-900/85 to-yalla-gold-500/70" />
+          <div className="absolute inset-0 bg-gradient-to-r from-yl-dark-navy/85 to-yl-gold/70" />
         </div>
 
         <div className="relative z-10 h-full flex items-center">
@@ -97,10 +97,10 @@ export default function AboutYallaLondon() {
               transition={{ duration: 0.8 }}
               className="max-w-2xl"
             >
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-6">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6">
                 {t('founderTitle')}
               </h1>
-              <p className="text-xl md:text-2xl text-cream-100/90">
+              <p className="text-xl md:text-2xl text-yl-gray-100/90">
                 {language === 'en'
                   ? 'Your personal guide to London\'s most exclusive experiences'
                   : '\u062f\u0644\u064a\u0644\u0643 \u0627\u0644\u0634\u062e\u0635\u064a \u0644\u0644\u062a\u062c\u0627\u0631\u0628 \u0627\u0644\u0623\u0643\u062b\u0631 \u062d\u0635\u0631\u064a\u0629 \u0641\u064a \u0644\u0646\u062f\u0646'
@@ -122,10 +122,10 @@ export default function AboutYallaLondon() {
               transition={{ duration: 0.8 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-display font-bold gradient-text">
+              <h2 className="text-4xl font-heading font-bold gradient-text">
                 {language === 'en' ? 'A Passionate Explorer' : '\u0645\u0633\u062a\u0643\u0634\u0641 \u0634\u063a\u0648\u0641'}
               </h2>
-              <div className="space-y-4 text-lg text-stone leading-relaxed">
+              <div className="space-y-4 text-lg text-yl-gray-500 leading-relaxed">
                 <p>
                   {language === 'en'
                     ? 'After moving to London over a decade ago, I fell deeply in love with this incredible city. What started as personal curiosity evolved into an expertise in discovering London\'s most refined experiences.'
@@ -144,14 +144,14 @@ export default function AboutYallaLondon() {
                     : '\u064a\u0627\u0644\u0627 \u0644\u0646\u062f\u0646 \u064a\u0645\u062b\u0644 \u0627\u0644\u062a\u0632\u0627\u0645\u064a \u0628\u0645\u0634\u0627\u0631\u0643\u0629 \u0627\u0644\u062c\u0627\u0646\u0628 \u0627\u0644\u0645\u062a\u0637\u0648\u0631 \u0645\u0646 \u0647\u0630\u0647 \u0627\u0644\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0631\u0627\u0626\u0639\u0629 \u0645\u0639 \u0627\u0644\u0645\u0633\u0627\u0641\u0631\u064a\u0646 \u0627\u0644\u0645\u0645\u064a\u0632\u064a\u0646 \u0627\u0644\u0630\u064a\u0646 \u064a\u0642\u062f\u0631\u0648\u0646 \u0627\u0644\u062c\u0648\u062f\u0629 \u0648\u0627\u0644\u0623\u0635\u0627\u0644\u0629 \u0648\u0627\u0644\u062a\u062c\u0627\u0631\u0628 \u0627\u0644\u0627\u0633\u062a\u062b\u0646\u0627\u0626\u064a\u0629.'
                   }
                 </p>
-                <p className="text-base text-stone/80 italic">
+                <p className="text-base text-yl-gray-500/80 italic">
                   {language === 'en'
                     ? `\u2014 ${ENTITY.founder.name}, ${ENTITY.founder.title} of ${ENTITY.legalName}`
                     : `\u2014 \u062e\u0627\u0644\u062f \u0646. \u0639\u0648\u0646\u060c \u0627\u0644\u0645\u0624\u0633\u0633 \u0648\u0627\u0644\u0631\u0626\u064a\u0633 \u0627\u0644\u062a\u0646\u0641\u064a\u0630\u064a \u0644\u0634\u0631\u0643\u0629 ${ENTITY.legalName}`
                   }
                 </p>
               </div>
-              <Button asChild size="lg" className="bg-brand-primary hover:bg-london-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600">
+              <Button asChild size="lg" className="bg-yl-red hover:bg-[#a82924] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red">
                 <a href={`mailto:${CONTACT_EMAIL}`}>
                   <Mail className="mr-2 h-5 w-5" />
                   {language === 'en' ? 'Get in Touch' : '\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u064a'}
@@ -174,7 +174,7 @@ export default function AboutYallaLondon() {
                   className="object-cover"
                 />
               </div>
-              <div className="absolute -bottom-6 -left-6 bg-yalla-gold-500 text-charcoal p-4 rounded-xl luxury-shadow">
+              <div className="absolute -bottom-6 -left-6 bg-yl-gold text-yl-charcoal p-4 rounded-xl luxury-shadow">
                 <div className="text-2xl font-bold">10+</div>
                 <div className="text-sm font-medium">
                   {language === 'en' ? 'Years Experience' : '\u0633\u0646\u0648\u0627\u062a \u062e\u0628\u0631\u0629'}
@@ -186,7 +186,7 @@ export default function AboutYallaLondon() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-cream">
+      <section className="py-20 bg-yl-cream">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center mb-16"
@@ -195,10 +195,10 @@ export default function AboutYallaLondon() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-display font-bold gradient-text mb-4">
+            <h2 className="text-4xl font-heading font-bold gradient-text mb-4">
               {language === 'en' ? 'By the Numbers' : '\u0628\u0627\u0644\u0623\u0631\u0642\u0627\u0645'}
             </h2>
-            <p className="text-xl text-stone">
+            <p className="text-xl text-yl-gray-500">
               {language === 'en'
                 ? 'A testament to years of exploration and discovery'
                 : '\u0634\u0647\u0627\u062f\u0629 \u0639\u0644\u0649 \u0633\u0646\u0648\u0627\u062a \u0645\u0646 \u0627\u0644\u0627\u0633\u062a\u0643\u0634\u0627\u0641 \u0648\u0627\u0644\u0627\u0643\u062a\u0634\u0627\u0641'
@@ -218,13 +218,13 @@ export default function AboutYallaLondon() {
               >
                 <Card className="p-6 border-0 luxury-shadow hover:shadow-xl transition-shadow duration-300">
                   <CardContent className="p-0">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-cream rounded-full flex items-center justify-center">
-                      <stat.icon className="h-8 w-8 text-brand-primary" />
+                    <div className="w-16 h-16 mx-auto mb-4 bg-yl-cream rounded-full flex items-center justify-center">
+                      <stat.icon className="h-8 w-8 text-yl-red" />
                     </div>
-                    <div className="text-3xl font-bold text-brand-primary mb-2">
+                    <div className="text-3xl font-bold text-yl-red mb-2">
                       {stat.number}
                     </div>
-                    <div className="text-stone font-medium">
+                    <div className="text-yl-gray-500 font-medium">
                       {language === 'en' ? stat.label_en : stat.label_ar}
                     </div>
                   </CardContent>
@@ -245,10 +245,10 @@ export default function AboutYallaLondon() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-display font-bold gradient-text mb-4">
+            <h2 className="text-4xl font-heading font-bold gradient-text mb-4">
               {language === 'en' ? 'My Values' : '\u0642\u064a\u0645\u064a'}
             </h2>
-            <p className="text-xl text-stone">
+            <p className="text-xl text-yl-gray-500">
               {language === 'en'
                 ? 'The principles that guide every recommendation'
                 : '\u0627\u0644\u0645\u0628\u0627\u062f\u0626 \u0627\u0644\u062a\u064a \u062a\u0648\u062c\u0647 \u0643\u0644 \u062a\u0648\u0635\u064a\u0629'
@@ -268,13 +268,13 @@ export default function AboutYallaLondon() {
               >
                 <Card className="p-8 border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full">
                   <CardContent className="p-0">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cream to-cream-200 rounded-full flex items-center justify-center">
-                      <value.icon className="h-10 w-10 text-brand-primary" />
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-yl-cream to-yl-gray-200 rounded-full flex items-center justify-center">
+                      <value.icon className="h-10 w-10 text-yl-red" />
                     </div>
-                    <h3 className="text-2xl font-display font-bold mb-4 text-charcoal">
+                    <h3 className="text-2xl font-heading font-bold mb-4 text-yl-charcoal">
                       {language === 'en' ? value.title_en : value.title_ar}
                     </h3>
-                    <p className="text-stone leading-relaxed">
+                    <p className="text-yl-gray-500 leading-relaxed">
                       {language === 'en' ? value.description_en : value.description_ar}
                     </p>
                   </CardContent>
@@ -286,7 +286,7 @@ export default function AboutYallaLondon() {
       </section>
 
       {/* Company Imprint */}
-      <section className="py-16 bg-cream-100">
+      <section className="py-16 bg-yl-gray-100">
         <div className="max-w-4xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -294,12 +294,12 @@ export default function AboutYallaLondon() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl font-display font-bold gradient-text mb-6 text-center">
+            <h2 className="text-3xl font-heading font-bold gradient-text mb-6 text-center">
               {language === 'en' ? 'Company Information' : '\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0634\u0631\u0643\u0629'}
             </h2>
             <Card className="p-8 border-0 luxury-shadow">
-              <CardContent className="p-0 space-y-3 text-stone">
-                <p className="font-semibold text-charcoal text-lg">{ENTITY.legalName}</p>
+              <CardContent className="p-0 space-y-3 text-yl-gray-500">
+                <p className="font-semibold text-yl-charcoal text-lg">{ENTITY.legalName}</p>
                 <p>
                   {language === 'en'
                     ? `A ${ENTITY.jurisdiction} ${ENTITY.entityType}, United States`
@@ -312,7 +312,7 @@ export default function AboutYallaLondon() {
                 <div className="pt-3 border-t border-stone/10">
                   <p className="text-sm">
                     {language === 'en' ? 'Contact: ' : '\u062a\u0648\u0627\u0635\u0644: '}
-                    <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-primary hover:underline">{CONTACT_EMAIL}</a>
+                    <a href={`mailto:${CONTACT_EMAIL}`} className="text-yl-red hover:underline">{CONTACT_EMAIL}</a>
                   </p>
                 </div>
               </CardContent>
@@ -322,7 +322,7 @@ export default function AboutYallaLondon() {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-20 bg-gradient-to-br from-london-900 via-london-600 to-yalla-gold-500 text-white">
+      <section className="py-20 bg-gradient-to-br from-yl-dark-navy via-yl-red to-yl-gold text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -330,19 +330,19 @@ export default function AboutYallaLondon() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-display font-bold mb-6">
+            <h2 className="text-4xl font-heading font-bold mb-6">
               {language === 'en'
                 ? 'Let\'s Explore London Together'
                 : '\u062f\u0639\u0648\u0646\u0627 \u0646\u0633\u062a\u0643\u0634\u0641 \u0644\u0646\u062f\u0646 \u0645\u0639\u0627\u064b'
               }
             </h2>
-            <p className="text-xl mb-8 text-cream-100/90">
+            <p className="text-xl mb-8 text-yl-gray-100/90">
               {language === 'en'
                 ? 'Have questions about London? Looking for personalized recommendations? I\'d love to help you discover this amazing city.'
                 : '\u0644\u062f\u064a\u0643 \u0623\u0633\u0626\u0644\u0629 \u062d\u0648\u0644 \u0644\u0646\u062f\u0646\u061f \u062a\u0628\u062d\u062b \u0639\u0646 \u062a\u0648\u0635\u064a\u0627\u062a \u0634\u062e\u0635\u064a\u0629\u061f \u0623\u0648\u062f \u0623\u0646 \u0623\u0633\u0627\u0639\u062f\u0643 \u0641\u064a \u0627\u0643\u062a\u0634\u0627\u0641 \u0647\u0630\u0647 \u0627\u0644\u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0645\u0630\u0647\u0644\u0629.'
               }
             </p>
-            <Button asChild size="lg" className="bg-white text-london-900 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+            <Button asChild size="lg" className="bg-white text-yl-dark-navy hover:bg-yl-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               <a href={`mailto:${CONTACT_EMAIL}`}>
                 <Mail className="mr-2 h-5 w-5" />
                 {language === 'en' ? 'Send a Message' : '\u0623\u0631\u0633\u0644 \u0631\u0633\u0627\u0644\u0629'}

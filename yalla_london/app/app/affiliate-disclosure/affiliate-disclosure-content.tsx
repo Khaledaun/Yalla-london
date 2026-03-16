@@ -120,13 +120,13 @@ export default function AffiliateDisclosureContent() {
   return (
     <div className={`container mx-auto px-6 py-12 max-w-4xl ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
+        <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
           {c.title}
         </h1>
-        <p className="text-stone">
+        <p className="text-yl-gray-500">
           {c.lastUpdated}: February 2026
         </p>
-        <p className="text-stone mt-4 leading-relaxed">
+        <p className="text-yl-gray-500 mt-4 leading-relaxed">
           {c.intro}
         </p>
       </div>
@@ -137,7 +137,7 @@ export default function AffiliateDisclosureContent() {
             <CardTitle>{c.whatTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.whatItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -150,10 +150,10 @@ export default function AffiliateDisclosureContent() {
             <CardTitle>{c.partnersTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.partnersIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.partnersItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -166,7 +166,7 @@ export default function AffiliateDisclosureContent() {
             <CardTitle>{c.editorialTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.editorialItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -179,7 +179,7 @@ export default function AffiliateDisclosureContent() {
             <CardTitle>{c.ftcTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.ftcItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -192,7 +192,7 @@ export default function AffiliateDisclosureContent() {
             <CardTitle>{c.questionsTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.questionsItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}

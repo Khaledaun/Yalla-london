@@ -53,7 +53,20 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Brand Kit v2 — Yalla London
+        // Brand Kit v2 — Yalla London (yl-* shorthand palette)
+        'yl-red': '#C8322B',
+        'yl-gold': '#C49A2A',
+        'yl-blue': '#4A7BA8',
+        'yl-charcoal': '#1C1917',
+        'yl-parchment': '#EDE9E1',
+        'yl-cream': '#F5F0E8',
+        'yl-navy': '#1A2332',
+        'yl-dark-navy': '#0F1621',
+        'yl-gray': {
+          100: '#F7F5F2', 200: '#E8E3DB', 300: '#D4CFC5',
+          400: '#A09A8E', 500: '#7A746A', 600: '#5A5449',
+        },
+        // Brand Kit v2 — Yalla London (full scales)
         london: {
           50: '#fef2f2',
           100: '#fde3e3',
@@ -172,6 +185,13 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
         'soft': '12px',
         'card': '16px',
+        'yl-sm': '6px',
+        'yl-md': '10px',
+        'yl-lg': '14px',
+        'yl-xl': '20px',
+      },
+      transitionTimingFunction: {
+        'yl': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       },
       boxShadow: {
         'sm': '0 1px 3px rgba(28, 25, 23, 0.06)',
@@ -232,6 +252,9 @@ const config: Config = {
         'editorial': ['var(--font-editorial)'],
         'mono': ['var(--font-system)'],
         'arabic': ['var(--font-arabic)'],
+        // Brand Kit v2 aliases
+        'heading': ['Anybody', 'sans-serif'],
+        'body': ['Source Serif 4', 'Georgia', 'serif'],
         // Legacy aliases
         'serif': ['var(--font-editorial)'],
         'cairo': ['var(--font-arabic)'],

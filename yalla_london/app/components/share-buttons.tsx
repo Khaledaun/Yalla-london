@@ -165,7 +165,7 @@ export function ShareButtons({
   return (
     <div className={`flex items-center ${isBar ? 'gap-1' : 'gap-1.5'} flex-wrap`}>
       {/* Label */}
-      <span className="font-sans text-xs font-medium uppercase tracking-[1px] text-stone mr-1">
+      <span className="font-sans text-xs font-medium uppercase tracking-[1px] text-yl-gray-500 mr-1">
         {language === 'en' ? 'Share' : 'مشاركة'}
       </span>
 
@@ -181,7 +181,7 @@ export function ShareButtons({
             target="_blank"
             rel="noopener noreferrer"
             className={`
-              inline-flex items-center justify-center rounded-full border border-sand bg-white text-stone
+              inline-flex items-center justify-center rounded-full border border-yl-gray-200 bg-white text-yl-gray-500
               transition-all duration-200
               ${isBar ? 'w-9 h-9' : 'w-8 h-8'}
               ${platform.color}
@@ -198,9 +198,9 @@ export function ShareButtons({
       <button
         onClick={handleCopy}
         className={`
-          inline-flex items-center justify-center rounded-full border border-sand bg-white text-stone
+          inline-flex items-center justify-center rounded-full border border-yl-gray-200 bg-white text-yl-gray-500
           transition-all duration-200
-          hover:bg-yalla-gold-500 hover:text-charcoal hover:border-yalla-gold-500
+          hover:bg-yl-gold hover:text-yl-charcoal hover:border-yl-gold
           ${isBar ? 'w-9 h-9' : 'w-8 h-8'}
         `}
         aria-label={language === 'en' ? 'Copy link' : 'نسخ الرابط'}

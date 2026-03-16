@@ -147,31 +147,31 @@ export default function SectionClient({
               aria-label="Breadcrumb"
               className="mb-6"
             >
-              <ol className="flex items-center gap-2 text-sm text-cream-200">
+              <ol className="flex items-center gap-2 text-sm text-yl-gray-200">
                 <li>
                   <Link
                     href="/"
-                    className="hover:text-yalla-gold-400 transition-colors flex items-center gap-1"
+                    className="hover:text-yl-gold transition-colors flex items-center gap-1"
                   >
                     <Home className="h-3.5 w-3.5" />
                     {t('home')}
                   </Link>
                 </li>
                 <li>
-                  <ChevronRight className={`h-3.5 w-3.5 text-cream-300 ${isRTL ? 'rotate-180' : ''}`} />
+                  <ChevronRight className={`h-3.5 w-3.5 text-yl-gray-300 ${isRTL ? 'rotate-180' : ''}`} />
                 </li>
                 <li>
                   <Link
                     href="/information"
-                    className="hover:text-yalla-gold-400 transition-colors"
+                    className="hover:text-yl-gold transition-colors"
                   >
                     {t('informationHub')}
                   </Link>
                 </li>
                 <li>
-                  <ChevronRight className={`h-3.5 w-3.5 text-cream-300 ${isRTL ? 'rotate-180' : ''}`} />
+                  <ChevronRight className={`h-3.5 w-3.5 text-yl-gray-300 ${isRTL ? 'rotate-180' : ''}`} />
                 </li>
-                <li className="text-yalla-gold-400 font-medium">{sectionName}</li>
+                <li className="text-yl-gold font-medium">{sectionName}</li>
               </ol>
             </motion.nav>
 
@@ -181,10 +181,10 @@ export default function SectionClient({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.1 }}
             >
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-4">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-white mb-4">
                 {sectionName}
               </h1>
-              <p className="text-lg md:text-xl text-cream-200 max-w-2xl leading-relaxed">
+              <p className="text-lg md:text-xl text-yl-gray-200 max-w-2xl leading-relaxed">
                 {sectionDescription}
               </p>
             </motion.div>
@@ -193,11 +193,11 @@ export default function SectionClient({
       </section>
 
       {/* ==================== BACK TO HUB LINK (TOP) ==================== */}
-      <div className="bg-cream border-b border-sand">
+      <div className="bg-yl-cream border-b border-yl-gray-200">
         <div className="max-w-4xl mx-auto px-6 py-3">
           <Link
             href="/information"
-            className="inline-flex items-center gap-2 text-sm text-london-700 hover:text-london-900 font-medium transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-yl-red hover:text-yl-dark-navy font-medium transition-colors"
           >
             <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
             {language === 'en'
@@ -209,9 +209,9 @@ export default function SectionClient({
 
       {/* ==================== AFFILIATE DISCLOSURE ==================== */}
       {showAffiliateDisclosure && (
-        <div className="bg-yalla-gold-400/10 border-b border-yalla-gold-400/30">
+        <div className="bg-yl-gold/10 border-b border-yl-gold/30">
           <div className="max-w-4xl mx-auto px-6 py-3">
-            <p className="text-xs text-stone italic">{t('affiliateDisclosure')}</p>
+            <p className="text-xs text-yl-gray-500 italic">{t('affiliateDisclosure')}</p>
           </div>
         </div>
       )}
@@ -244,7 +244,7 @@ export default function SectionClient({
                 <motion.div key={subsection.id} variants={staggerItem}>
                   {/* Subsection Block */}
                   <div className="mb-10">
-                    <h2 className="text-2xl md:text-3xl font-display font-bold text-london-800 mb-6">
+                    <h2 className="text-2xl md:text-3xl font-heading font-bold text-[#a82924] mb-6">
                       {subTitle}
                     </h2>
                     <div
@@ -255,14 +255,14 @@ export default function SectionClient({
 
                   {/* Tip Box */}
                   {showTipAfter && (
-                    <div className="mb-10 border-l-4 border-yalla-gold-400 bg-yalla-gold-400/5 rounded-r-lg p-6">
+                    <div className="mb-10 border-l-4 border-yl-gold bg-yl-gold/5 rounded-r-lg p-6">
                       <div className="flex items-start gap-3">
-                        <Lightbulb className="h-5 w-5 text-yalla-gold-500 mt-0.5 flex-shrink-0" />
+                        <Lightbulb className="h-5 w-5 text-yl-gold mt-0.5 flex-shrink-0" />
                         <div>
-                          <h3 className="font-display font-semibold text-london-800 mb-1">
+                          <h3 className="font-heading font-semibold text-[#a82924] mb-1">
                             {t('travelTip')}
                           </h3>
-                          <p className="text-sm text-stone leading-relaxed">
+                          <p className="text-sm text-yl-gray-500 leading-relaxed">
                             {language === 'en'
                               ? 'Bookmark this section for quick reference during your London trip. Our guides are regularly updated with the latest information.'
                               : 'احفظ هذا القسم للرجوع إليه بسرعة أثناء رحلتك إلى لندن. يتم تحديث أدلتنا بانتظام بأحدث المعلومات.'}
@@ -274,21 +274,21 @@ export default function SectionClient({
 
                   {/* Affiliate CTA Box */}
                   {showAffiliateCTA && (
-                    <div className="mb-10 bg-london-800 text-white rounded-xl p-8 text-center">
-                      <ShoppingBag className="h-8 w-8 text-yalla-gold-400 mx-auto mb-3" />
-                      <h3 className="text-xl font-display font-bold mb-2">
+                    <div className="mb-10 bg-[#a82924] text-white rounded-xl p-8 text-center">
+                      <ShoppingBag className="h-8 w-8 text-yl-gold mx-auto mb-3" />
+                      <h3 className="text-xl font-heading font-bold mb-2">
                         {language === 'en'
                           ? 'Exclusive Deals for Yalla London Visitors'
                           : 'عروض حصرية لزوار يلا لندن'}
                       </h3>
-                      <p className="text-cream-200 text-sm mb-4 max-w-md mx-auto">
+                      <p className="text-yl-gray-200 text-sm mb-4 max-w-md mx-auto">
                         {language === 'en'
                           ? 'Save on London attractions, dining, and experiences with our curated deals and discount codes.'
                           : 'وفر على معالم لندن والمطاعم والتجارب مع عروضنا المختارة ورموز الخصم.'}
                       </p>
                       <Button
                         asChild
-                        className="bg-yalla-gold-400 text-london-900 hover:bg-yalla-gold-500 font-semibold"
+                        className="bg-yl-gold text-yl-dark-navy hover:bg-yl-gold font-semibold"
                       >
                         <Link href="/information/coupons-deals">
                           {language === 'en' ? 'View Deals & Coupons' : 'عرض العروض والكوبونات'}
@@ -301,7 +301,7 @@ export default function SectionClient({
                   {index < section.subsections.length - 1 &&
                     !showTipAfter &&
                     !showAffiliateCTA && (
-                      <hr className="mb-10 border-sand" />
+                      <hr className="mb-10 border-yl-gray-200" />
                     )}
                 </motion.div>
               )
@@ -312,7 +312,7 @@ export default function SectionClient({
 
       {/* ==================== E-DOCUMENT SHOP CTA ==================== */}
       {section.slug !== 'e-document-shop' && (
-        <section className="py-12 bg-cream">
+        <section className="py-12 bg-yl-cream">
           <div className="max-w-4xl mx-auto px-6">
             <motion.div
               initial="hidden"
@@ -320,15 +320,15 @@ export default function SectionClient({
               viewport={{ once: true }}
               variants={fadeInUp}
               transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-london-800 to-london-900 rounded-2xl p-8 md:p-10 text-center text-white"
+              className="bg-gradient-to-br from-[#a82924] to-yl-dark-navy rounded-2xl p-8 md:p-10 text-center text-white"
             >
-              <BookOpen className="h-10 w-10 text-yalla-gold-400 mx-auto mb-4" />
-              <h2 className="text-2xl md:text-3xl font-display font-bold mb-3">
+              <BookOpen className="h-10 w-10 text-yl-gold mx-auto mb-4" />
+              <h2 className="text-2xl md:text-3xl font-heading font-bold mb-3">
                 {language === 'en'
                   ? 'Download Our London Travel Guides'
                   : 'حمّل أدلة السفر إلى لندن'}
               </h2>
-              <p className="text-cream-200 mb-6 max-w-lg mx-auto">
+              <p className="text-yl-gray-200 mb-6 max-w-lg mx-auto">
                 {language === 'en'
                   ? 'Get detailed PDF guides, itinerary planners, and essential checklists for your London trip.'
                   : 'احصل على أدلة PDF مفصلة ومخططات الرحلات وقوائم التحقق الأساسية لرحلتك إلى لندن.'}
@@ -336,7 +336,7 @@ export default function SectionClient({
               <Button
                 asChild
                 size="lg"
-                className="bg-yalla-gold-400 text-london-900 hover:bg-yalla-gold-500 font-semibold"
+                className="bg-yl-gold text-yl-dark-navy hover:bg-yl-gold font-semibold"
               >
                 <Link href="/information/e-document-shop">
                   {t('eDocumentShop')}
@@ -350,7 +350,7 @@ export default function SectionClient({
 
       {/* ==================== RELATED ARTICLES ==================== */}
       {relatedArticles.length > 0 && (
-        <section className={`py-12 md:py-16 ${section.slug !== 'e-document-shop' ? 'bg-white' : 'bg-cream'}`}>
+        <section className={`py-12 md:py-16 ${section.slug !== 'e-document-shop' ? 'bg-white' : 'bg-yl-cream'}`}>
           <div className="max-w-6xl mx-auto px-6">
             <motion.div
               initial="hidden"
@@ -360,10 +360,10 @@ export default function SectionClient({
               transition={{ duration: 0.6 }}
             >
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-display font-bold gradient-text mb-3">
+                <h2 className="text-3xl font-heading font-bold gradient-text mb-3">
                   {t('relatedArticles')}
                 </h2>
-                <p className="text-stone max-w-lg mx-auto">
+                <p className="text-yl-gray-500 max-w-lg mx-auto">
                   {language === 'en'
                     ? `Explore more articles about ${section.name_en.toLowerCase()} in London.`
                     : `اكتشف المزيد من المقالات حول ${section.name_ar} في لندن.`}
@@ -387,13 +387,13 @@ export default function SectionClient({
                         />
                       </div>
                       <CardContent className="p-5">
-                        <h3 className="font-display font-semibold text-london-800 group-hover:text-london-600 transition-colors mb-2 line-clamp-2">
+                        <h3 className="font-heading font-semibold text-[#a82924] group-hover:text-yl-red transition-colors mb-2 line-clamp-2">
                           {language === 'en' ? article.title_en : article.title_ar}
                         </h3>
-                        <p className="text-sm text-stone line-clamp-2 mb-3">
+                        <p className="text-sm text-yl-gray-500 line-clamp-2 mb-3">
                           {language === 'en' ? article.excerpt_en : article.excerpt_ar}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-stone">
+                        <div className="flex items-center gap-2 text-xs text-yl-gray-500">
                           <Clock className="h-3.5 w-3.5" />
                           <span>
                             {language === 'en'
@@ -423,7 +423,7 @@ export default function SectionClient({
       )}
 
       {/* ==================== PREV / NEXT NAVIGATION ==================== */}
-      <section className="py-10 bg-cream border-t border-sand">
+      <section className="py-10 bg-yl-cream border-t border-yl-gray-200">
         <div className="max-w-4xl mx-auto px-6">
           <div className="flex items-center justify-between gap-4">
             {/* Previous Section */}
@@ -432,14 +432,14 @@ export default function SectionClient({
                 href={`/information/${navigation.prev.slug}`}
                 className="group flex items-center gap-3 text-left flex-1 min-w-0"
               >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-london-100 group-hover:bg-london-200 flex items-center justify-center transition-colors">
-                  <ArrowLeft className={`h-5 w-5 text-london-700 ${isRTL ? 'rotate-180' : ''}`} />
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-red/20 group-hover:bg-yl-red/40 flex items-center justify-center transition-colors">
+                  <ArrowLeft className={`h-5 w-5 text-yl-red ${isRTL ? 'rotate-180' : ''}`} />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-xs text-stone block">
+                  <span className="text-xs text-yl-gray-500 block">
                     {language === 'en' ? 'Previous' : 'السابق'}
                   </span>
-                  <span className="text-sm font-semibold text-london-800 group-hover:text-london-600 transition-colors truncate block">
+                  <span className="text-sm font-semibold text-[#a82924] group-hover:text-yl-red transition-colors truncate block">
                     {language === 'en' ? navigation.prev.name_en : navigation.prev.name_ar}
                   </span>
                 </div>
@@ -451,7 +451,7 @@ export default function SectionClient({
             {/* Back to Hub (center) */}
             <Link
               href="/information"
-              className="flex-shrink-0 text-sm font-medium text-stone hover:text-london-800 transition-colors hidden md:block"
+              className="flex-shrink-0 text-sm font-medium text-yl-gray-500 hover:text-[#a82924] transition-colors hidden md:block"
             >
               {language === 'en' ? 'All Sections' : 'جميع الأقسام'}
             </Link>
@@ -463,15 +463,15 @@ export default function SectionClient({
                 className="group flex items-center gap-3 text-right flex-1 min-w-0 justify-end"
               >
                 <div className="min-w-0">
-                  <span className="text-xs text-stone block">
+                  <span className="text-xs text-yl-gray-500 block">
                     {language === 'en' ? 'Next' : 'التالي'}
                   </span>
-                  <span className="text-sm font-semibold text-london-800 group-hover:text-london-600 transition-colors truncate block">
+                  <span className="text-sm font-semibold text-[#a82924] group-hover:text-yl-red transition-colors truncate block">
                     {language === 'en' ? navigation.next.name_en : navigation.next.name_ar}
                   </span>
                 </div>
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-london-100 group-hover:bg-london-200 flex items-center justify-center transition-colors">
-                  <ArrowRight className={`h-5 w-5 text-london-700 ${isRTL ? 'rotate-180' : ''}`} />
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-red/20 group-hover:bg-yl-red/40 flex items-center justify-center transition-colors">
+                  <ArrowRight className={`h-5 w-5 text-yl-red ${isRTL ? 'rotate-180' : ''}`} />
                 </div>
               </Link>
             ) : (
@@ -482,11 +482,11 @@ export default function SectionClient({
       </section>
 
       {/* ==================== BACK TO HUB LINK (BOTTOM) ==================== */}
-      <div className="bg-white border-t border-sand">
+      <div className="bg-white border-t border-yl-gray-200">
         <div className="max-w-4xl mx-auto px-6 py-4 text-center">
           <Link
             href="/information"
-            className="inline-flex items-center gap-2 text-sm text-london-700 hover:text-london-900 font-medium transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-yl-red hover:text-yl-dark-navy font-medium transition-colors"
           >
             <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
             {language === 'en'

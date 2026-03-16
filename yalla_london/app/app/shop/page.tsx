@@ -240,32 +240,32 @@ export default function ShopPage() {
   }, [cart, products, checkingOut])
 
   return (
-    <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pb-12 bg-gradient-to-b from-charcoal to-charcoal-light">
+      <div className="pb-12 bg-gradient-to-b from-yl-dark-navy to-yl-dark-navy-light">
         <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-cream-300 mb-4">{t.subtitle}</p>
+          <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">{t.title}</h1>
+          <p className="text-xl text-yl-gray-400 mb-4">{t.subtitle}</p>
           {/* Coming Soon Banner */}
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-yalla-gold-500/20 border border-yalla-gold-500/40 rounded-full mb-8">
-            <Sparkles className="w-4 h-4 text-yalla-gold-400" />
-            <span className="text-sm font-semibold text-yalla-gold-300">
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-yl-gold/20 border border-yl-gold/40 rounded-full mb-8">
+            <Sparkles className="w-4 h-4 text-yl-gold" />
+            <span className="text-sm font-semibold text-yl-gold">
               {isRTL ? 'قريباً — الأدلة قيد التطوير' : 'Coming Soon — Guides are being prepared'}
             </span>
           </div>
 
           {/* Trust Badges */}
           <div className="flex items-center justify-center gap-8 flex-wrap">
-            <div className="flex items-center gap-2 text-cream-300">
-              <Download className="w-5 h-5 text-london-600" />
+            <div className="flex items-center gap-2 text-yl-gray-400">
+              <Download className="w-5 h-5 text-yl-red" />
               <span className="text-sm">{t.instantDownload}</span>
             </div>
-            <div className="flex items-center gap-2 text-cream-300">
-              <Check className="w-5 h-5 text-forest" />
+            <div className="flex items-center gap-2 text-yl-gray-400">
+              <Check className="w-5 h-5 text-yl-charcoal" />
               <span className="text-sm">{t.securePayment}</span>
             </div>
-            <div className="flex items-center gap-2 text-cream-300">
-              <Sparkles className="w-5 h-5 text-yalla-gold-400" />
+            <div className="flex items-center gap-2 text-yl-gray-400">
+              <Sparkles className="w-5 h-5 text-yl-gold" />
               <span className="text-sm">{t.lifetime}</span>
             </div>
           </div>
@@ -273,7 +273,7 @@ export default function ShopPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="sticky top-16 z-40 bg-white shadow-sm py-4 border-b border-sand">
+      <div className="sticky top-16 z-40 bg-white shadow-sm py-4 border-b border-yl-gray-200">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Categories */}
@@ -284,10 +284,10 @@ export default function ShopPage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red ${
                       selectedCategory === cat.id
-                        ? 'bg-charcoal text-white'
-                        : 'bg-cream-100 text-stone hover:bg-cream-200'
+                        ? 'bg-yl-dark-navy text-white'
+                        : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -299,13 +299,13 @@ export default function ShopPage() {
 
             {/* Search */}
             <div className="relative">
-              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-stone`} />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-yl-gray-500`} />
               <input
                 type="text"
                 placeholder={t.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 w-64 border border-sand rounded-full focus:outline-none focus:ring-2 focus:ring-london-600/20 focus:border-london-600`}
+                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 w-64 border border-yl-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-yl-red/20 focus:border-yl-red`}
               />
             </div>
           </div>
@@ -316,15 +316,15 @@ export default function ShopPage() {
       <div className="max-w-6xl mx-auto px-6 py-12">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-london-600 animate-spin" />
-            <span className="ml-3 text-stone">{t.loading}</span>
+            <Loader2 className="w-8 h-8 text-yl-red animate-spin" />
+            <span className="ml-3 text-yl-gray-500">{t.loading}</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProducts.map((product) => {
               const sym = currencySymbol(product.currency)
               return (
-                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-shadow border border-sand/50">
+                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-yl-gray-200/50">
                   {/* Image */}
                   <Link href={`/shop/${product.slug}`}>
                     <div className="relative h-48">
@@ -336,7 +336,7 @@ export default function ShopPage() {
                         </div>
                       )}
                       {product.featured && (
-                        <span className="absolute top-3 left-3 px-3 py-1 bg-london-600 text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 left-3 px-3 py-1 bg-yl-red text-white text-xs font-semibold rounded-full">
                           {isRTL ? 'مميز' : 'Featured'}
                         </span>
                       )}
@@ -356,25 +356,25 @@ export default function ShopPage() {
                         <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                         <span className="text-sm font-semibold">{product.salesCount}</span>
                       </div>
-                      <span className="text-sm text-stone">{t.sold}</span>
+                      <span className="text-sm text-yl-gray-500">{t.sold}</span>
                     </div>
 
                     {/* Title */}
                     <Link href={`/shop/${product.slug}`}>
-                      <h3 className="text-lg font-bold text-charcoal mb-2 hover:text-london-600 transition-colors">
+                      <h3 className="text-lg font-bold text-yl-charcoal mb-2 hover:text-yl-red transition-colors">
                         {isRTL ? (product.name_ar || product.name_en) : product.name_en}
                       </h3>
                     </Link>
 
                     {/* Description */}
-                    <p className="text-sm text-stone mb-4 line-clamp-2">
+                    <p className="text-sm text-yl-gray-500 mb-4 line-clamp-2">
                       {isRTL ? (product.description_ar || product.description_en) : product.description_en}
                     </p>
 
                     {/* Features */}
                     <div className="flex flex-wrap gap-2 mb-5">
                       {(product.features as string[]).slice(0, 3).map((feature, i) => (
-                        <span key={i} className="px-2 py-1 bg-cream-100 text-xs text-stone rounded">
+                        <span key={i} className="px-2 py-1 bg-yl-gray-100 text-xs text-yl-gray-500 rounded">
                           {feature}
                         </span>
                       ))}
@@ -383,17 +383,17 @@ export default function ShopPage() {
                     {/* Price & CTA */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-charcoal">{sym}{product.price.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-yl-charcoal">{sym}{product.price.toFixed(2)}</span>
                         {product.originalPrice && (
-                          <span className="text-sm text-stone line-through">{sym}{product.originalPrice.toFixed(2)}</span>
+                          <span className="text-sm text-yl-gray-500 line-through">{sym}{product.originalPrice.toFixed(2)}</span>
                         )}
                       </div>
                       <button
                         onClick={() => addToCart(product.id)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-red ${
                           cart.includes(product.id)
                             ? 'bg-forest text-white'
-                            : 'bg-london-600 hover:bg-london-700 text-white'
+                            : 'bg-yl-red hover:bg-yl-red text-white'
                         }`}
                       >
                         {cart.includes(product.id) ? (
@@ -418,17 +418,17 @@ export default function ShopPage() {
       {/* Floating Cart Summary */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-4 px-6 py-4 bg-charcoal text-white rounded-full shadow-elegant">
+          <div className="flex items-center gap-4 px-6 py-4 bg-yl-dark-navy text-white rounded-full shadow-md">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
               <span className="font-medium">{cart.length} items</span>
             </div>
-            <div className="w-px h-6 bg-cream-900" />
+            <div className="w-px h-6 bg-yl-charcoal" />
             <span className="text-lg font-bold">£{cartTotal.toFixed(2)}</span>
             <button
               onClick={handleCheckout}
               disabled={checkingOut}
-              className="flex items-center gap-2 px-4 py-2 bg-london-600 rounded-full font-semibold hover:bg-london-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-yl-red rounded-full font-semibold hover:bg-yl-red transition-colors disabled:opacity-50"
             >
               {checkingOut ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

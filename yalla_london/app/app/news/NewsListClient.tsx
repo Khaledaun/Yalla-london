@@ -91,7 +91,7 @@ const CATEGORY_BADGE_COLOR: Record<NewsCategory, string> = {
   holidays: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
   strikes: 'bg-red-700/20 text-red-300 border-red-700/30',
   popup: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-  general: 'bg-stone-500/20 text-stone-300 border-stone-500/30',
+  general: 'bg-stone-500/20 text-yl-gray-500-300 border-stone-500/30',
 }
 
 // ---------------------------------------------------------------------------
@@ -159,27 +159,27 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
   const regularItems = filtered.filter((i) => !i.is_major && i.urgency !== 'breaking' && i.urgency !== 'urgent')
 
   return (
-    <div className={`min-h-screen bg-cream ${isRTL ? 'rtl font-arabic' : 'ltr font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-yl-cream ${isRTL ? 'rtl font-arabic' : 'ltr font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* ════════ Moving News Ticker ════════ */}
       <NewsTicker items={items as unknown as Parameters<typeof NewsTicker>[0]['items']} speed={50} />
 
       {/* ════════ Hero ════════ */}
-      <section className="bg-charcoal text-cream-100 py-12 md:py-16">
+      <section className="bg-yl-dark-navy text-yl-gray-100 py-12 md:py-16">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center gap-2 mb-4">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
             </span>
-            <span className="font-sans text-[11px] font-semibold tracking-[2px] uppercase text-yalla-gold-500 border border-yalla-gold-500/30 px-2.5 py-1 rounded">
+            <span className="font-sans text-[11px] font-semibold tracking-[2px] uppercase text-yl-gold border border-yl-gold/30 px-2.5 py-1 rounded">
               {isAr ? 'لندن اليوم' : 'LONDON TODAY'}
             </span>
           </div>
-          <h1 className={`font-display text-4xl md:text-5xl font-bold text-cream-100 mb-4 ${isRTL ? 'font-arabic' : ''}`}>
+          <h1 className={`font-heading text-4xl md:text-5xl font-bold text-yl-gray-100 mb-4 ${isRTL ? 'font-arabic' : ''}`}>
             {isAr ? 'أخبار وتحديثات لندن' : 'London News & Updates'}
           </h1>
-          <p className={`font-editorial text-lg font-light text-stone max-w-2xl ${isRTL ? 'font-arabic' : ''}`}>
+          <p className={`font-body text-lg font-light text-yl-gray-500 max-w-2xl ${isRTL ? 'font-arabic' : ''}`}>
             {isAr
               ? 'ملخصات أصلية لأحدث أخبار لندن — مواصلات، فعاليات، نصائح سفر — مع روابط للمصادر الأصلية.'
               : 'Original summaries of the latest London news — transport, events, travel tips — with links to full original reporting.'}
@@ -188,7 +188,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
       </section>
 
       {/* ════════ Filters ════════ */}
-      <section className="sticky top-[52px] z-30 bg-white/95 backdrop-blur-sm border-b border-sand/40 py-3">
+      <section className="sticky top-[52px] z-30 bg-white/95 backdrop-blur-sm border-b border-yl-gray-200/40 py-3">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             {/* Category Filters — scrollable on mobile */}
@@ -201,8 +201,8 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     onClick={() => setActiveCategory(cat.key)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-sans text-[11px] font-medium tracking-[1px] uppercase transition-all duration-200 whitespace-nowrap shrink-0 ${
                       activeCategory === cat.key
-                        ? 'bg-charcoal text-cream'
-                        : 'bg-cream-100 text-stone hover:bg-sand/50'
+                        ? 'bg-yl-dark-navy text-cream'
+                        : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-sand/50'
                     }`}
                   >
                     <Icon size={11} />
@@ -214,13 +214,13 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
 
             {/* Search */}
             <div className="relative flex-1 sm:max-w-xs">
-              <Search size={14} className={`absolute top-1/2 -translate-y-1/2 text-stone ${isRTL ? 'right-3' : 'left-3'}`} />
+              <Search size={14} className={`absolute top-1/2 -translate-y-1/2 text-yl-gray-500 ${isRTL ? 'right-3' : 'left-3'}`} />
               <input
                 type="text"
                 placeholder={isAr ? 'بحث في الأخبار...' : 'Search news...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full py-2 bg-cream-100 border border-sand/40 rounded text-sm font-editorial text-charcoal placeholder:text-stone/50 focus:outline-none focus:border-yalla-gold-500 transition-colors ${isRTL ? 'pr-9 pl-4' : 'pl-9 pr-4'}`}
+                className={`w-full py-2 bg-yl-gray-100 border border-yl-gray-200/40 rounded text-sm font-body text-yl-charcoal placeholder:text-yl-gray-500/50 focus:outline-none focus:border-yl-gold transition-colors ${isRTL ? 'pr-9 pl-4' : 'pl-9 pr-4'}`}
               />
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     className={`block rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 group ${
                       isBreaking
                         ? 'bg-red-50 border-2 border-red-300/50'
-                        : 'bg-london-600/5 border-2 border-london-600/20 hover:border-london-600/40'
+                        : 'bg-yl-red/5 border-2 border-yl-red/20 hover:border-yl-red/40'
                     }`}
                   >
                     <div className="flex items-stretch">
@@ -285,17 +285,17 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                           <span className={`font-sans text-[11px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border bg-white/80 ${getCategoryBadgeColor(item.news_category).replace(/text-\w+-300/g, (m) => m.replace('300', '700')).replace(/bg-\w+-500\/20/g, (m) => m.replace('500/20', '100')).replace(/border-\w+-500\/30/g, (m) => m.replace('500/30', '300'))}`}>
                             {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
                           </span>
-                          <span className="font-sans text-[11px] text-stone tracking-[1px]">
+                          <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
                             {timeAgo(item.published_at, isAr)}
                           </span>
-                          <span className="font-sans text-[11px] text-stone tracking-[1px]">
+                          <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
                             · {item.source_name}
                           </span>
                         </div>
-                        <h2 className={`font-display text-lg md:text-xl font-bold text-charcoal group-hover:text-london-600 transition-colors mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                        <h2 className={`font-heading text-lg md:text-xl font-bold text-yl-charcoal group-hover:text-yl-red transition-colors mb-2 ${isRTL ? 'font-arabic' : ''}`}>
                           {isAr ? item.headline_ar : item.headline_en}
                         </h2>
-                        <p className={`font-editorial text-sm font-light text-stone line-clamp-2 ${isRTL ? 'font-arabic' : ''}`}>
+                        <p className={`font-body text-sm font-light text-yl-gray-500 line-clamp-2 ${isRTL ? 'font-arabic' : ''}`}>
                           {truncateSummary(isAr ? item.summary_ar : item.summary_en, 200)}
                         </p>
                       </div>
@@ -319,13 +319,13 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                   <Link
                     key={item.id}
                     href={`/news/${item.slug}`}
-                    className="group bg-white border border-sand/40 rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+                    className="group bg-white border border-yl-gray-200/40 rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
                   >
                     {/* Tri-color bar */}
                     <div className="flex h-[3px] w-full">
-                      <div className="flex-1 bg-london-600" />
-                      <div className="flex-1 bg-yalla-gold-500" />
-                      <div className="flex-1 bg-thames-500" />
+                      <div className="flex-1 bg-yl-red" />
+                      <div className="flex-1 bg-yl-gold" />
+                      <div className="flex-1 bg-yl-blue" />
                     </div>
 
                     {/* Category photo thumbnail — curated Unsplash photos */}
@@ -355,18 +355,18 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     {/* Card Content */}
                     <div className="p-5">
                       <div className="flex items-center gap-2 mb-3">
-                        <Clock size={10} className="text-stone/50" />
-                        <span className="font-sans text-[11px] text-stone tracking-[1px]">
+                        <Clock size={10} className="text-yl-gray-500/50" />
+                        <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
                           {timeAgo(item.published_at, isAr)}
                         </span>
-                        <span className="font-sans text-[11px] text-stone tracking-[1px]">
+                        <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
                           · {item.source_name}
                         </span>
                       </div>
-                      <h3 className={`font-display text-base font-bold text-charcoal group-hover:text-london-600 transition-colors mb-2 line-clamp-2 ${isRTL ? 'font-arabic' : ''}`}>
+                      <h3 className={`font-heading text-base font-bold text-yl-charcoal group-hover:text-yl-red transition-colors mb-2 line-clamp-2 ${isRTL ? 'font-arabic' : ''}`}>
                         {isAr ? item.headline_ar : item.headline_en}
                       </h3>
-                      <p className={`font-editorial text-[11px] font-light text-stone line-clamp-3 mb-3 ${isRTL ? 'font-arabic' : ''}`}>
+                      <p className={`font-body text-[11px] font-light text-yl-gray-500 line-clamp-3 mb-3 ${isRTL ? 'font-arabic' : ''}`}>
                         {truncateSummary(isAr ? item.summary_ar : item.summary_en, 160)}
                       </p>
 
@@ -376,7 +376,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                           {item.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
-                              className="font-sans text-[11px] tracking-[1px] uppercase text-stone/60 bg-cream-100 px-1.5 py-0.5 rounded"
+                              className="font-sans text-[11px] tracking-[1px] uppercase text-yl-gray-500/60 bg-yl-gray-100 px-1.5 py-0.5 rounded"
                             >
                               {tag}
                             </span>
@@ -386,12 +386,12 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     </div>
 
                     {/* Boarding pass footer */}
-                    <div className="border-t border-dashed border-sand/40 px-5 py-2.5 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-stone/50">
+                    <div className="border-t border-dashed border-yl-gray-200/40 px-5 py-2.5 flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-yl-gray-500/50">
                         {isAr ? 'اقرأ المزيد' : 'READ MORE'}
                         <ArrowIcon size={8} />
                       </span>
-                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-stone/50">
+                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-yl-gray-500/50">
                         <ExternalLink size={7} />
                         {isAr ? 'المصدر' : 'SOURCE'}
                       </span>
@@ -402,11 +402,11 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
             </div>
           ) : (
             <div className="text-center py-20">
-              <Newspaper size={48} className="mx-auto text-stone/30 mb-4" />
-              <h3 className={`font-display text-xl font-bold text-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+              <Newspaper size={48} className="mx-auto text-yl-gray-500/30 mb-4" />
+              <h3 className={`font-heading text-xl font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
                 {isAr ? 'لا توجد أخبار' : 'No news found'}
               </h3>
-              <p className={`font-editorial text-sm font-light text-stone ${isRTL ? 'font-arabic' : ''}`}>
+              <p className={`font-body text-sm font-light text-yl-gray-500 ${isRTL ? 'font-arabic' : ''}`}>
                 {isAr
                   ? 'جرب تغيير الفئة أو مصطلح البحث.'
                   : 'Try changing the category or search term.'}
@@ -417,11 +417,11 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
       </section>
 
       {/* ════════ Content Integrity Notice ════════ */}
-      <section className="py-6 border-t border-sand/40">
+      <section className="py-6 border-t border-yl-gray-200/40">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-cream-100/80 border border-sand/30">
-            <Shield size={16} className="text-london-600 shrink-0 mt-0.5" />
-            <p className={`text-[11px] text-stone leading-relaxed ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-yl-gray-100/80 border border-yl-gray-200/30">
+            <Shield size={16} className="text-yl-red shrink-0 mt-0.5" />
+            <p className={`text-[11px] text-yl-gray-500 leading-relaxed ${isRTL ? 'font-arabic' : 'font-body'}`}>
               {isAr
                 ? 'يحتوي هذا القسم على ملخصات وتعليقات أصلية لمعلومات مُبلغ عنها علنيًا. للسياق الكامل، اقرأ التقارير الأصلية من المصادر المرتبطة.'
                 : 'This section contains original commentary and summaries of publicly reported information. For full context, read the original reporting at the linked sources.'}
@@ -431,12 +431,12 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
       </section>
 
       {/* ════════ CTA Section ════════ */}
-      <section className="py-16 bg-charcoal">
+      <section className="py-16 bg-yl-dark-navy">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className={`font-display text-2xl md:text-3xl font-bold text-cream-100 mb-4 ${isRTL ? 'font-arabic' : ''}`}>
+          <h2 className={`font-heading text-2xl md:text-3xl font-bold text-yl-gray-100 mb-4 ${isRTL ? 'font-arabic' : ''}`}>
             {isAr ? 'هل تريد المزيد من نصائح لندن؟' : 'Want More London Tips?'}
           </h2>
-          <p className={`font-editorial text-base font-light text-stone mb-8 max-w-xl mx-auto ${isRTL ? 'font-arabic' : ''}`}>
+          <p className={`font-body text-base font-light text-yl-gray-500 mb-8 max-w-xl mx-auto ${isRTL ? 'font-arabic' : ''}`}>
             {isAr
               ? 'استكشف أدلتنا المتعمقة ومقالاتنا وتوصياتنا المنسقة لتحقيق أقصى استفادة من زيارتك للندن.'
               : 'Explore our in-depth guides, articles, and curated recommendations to make the most of your London visit.'}
@@ -444,13 +444,13 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
             <Link
               href="/information"
-              className={`px-6 py-3 bg-london-600 text-cream rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
+              className={`px-6 py-3 bg-yl-red text-cream rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-yl-red ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
             >
               {isAr ? 'مركز المعلومات' : 'Information Hub'}
             </Link>
             <Link
               href="/blog"
-              className={`px-6 py-3 bg-transparent border border-cream-100/30 text-cream-100 rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-cream-100/10 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
+              className={`px-6 py-3 bg-transparent border border-yl-gray-100/30 text-yl-gray-100 rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-yl-gray-100/10 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
             >
               {isAr ? 'حكايات لندن' : 'London Stories'}
             </Link>

@@ -80,17 +80,17 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
     return (
       <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center`}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-charcoal mb-4">
+          <h1 className="text-2xl font-bold text-yl-charcoal mb-4">
             {language === 'en' ? 'Article Not Found' : 'المقال غير موجود'}
           </h1>
-          <p className="text-stone mb-6">
+          <p className="text-yl-gray-500 mb-6">
             {language === 'en'
               ? 'The article you\'re looking for doesn\'t exist or has been removed.'
               : 'المقال الذي تبحث عنه غير موجود أو تم حذفه.'
             }
           </p>
           <Link href="/information/articles">
-            <Button className="bg-london-600 hover:bg-london-700">
+            <Button className="bg-yl-red hover:bg-yl-red">
               <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
               {language === 'en' ? 'Back to Articles' : 'العودة للمقالات'}
             </Button>
@@ -123,14 +123,14 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
               transition={{ duration: 0.8 }}
             >
               <div className="mb-4">
-                <span className="bg-yalla-gold-500 text-charcoal px-4 py-2 rounded-full text-sm font-medium">
+                <span className="bg-yl-gold text-yl-charcoal px-4 py-2 rounded-full text-sm font-medium">
                   {article.category ? (language === 'en' ? article.category.name_en : article.category.name_ar) : ''}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
+              <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">
                 {language === 'en' ? article.title_en : article.title_ar}
               </h1>
-              <div className="flex items-center justify-center gap-6 text-cream-200">
+              <div className="flex items-center justify-center gap-6 text-yl-gray-200">
                 <span className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
                   {formatDate(article.created_at)}
@@ -196,7 +196,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
 
       {/* FAQ Section */}
       {article.faq_questions && article.faq_questions.length > 0 && (
-        <section className="py-12 bg-cream">
+        <section className="py-12 bg-yl-cream">
           <div className="max-w-4xl mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -204,7 +204,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <h2 className="text-3xl font-display font-bold mb-8 gradient-text text-center">
+              <h2 className="text-3xl font-heading font-bold mb-8 gradient-text text-center">
                 {language === 'en' ? 'Frequently Asked Questions' : 'الأسئلة الشائعة'}
               </h2>
               <div className="space-y-4">
@@ -224,15 +224,15 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
                     >
                       <button
                         onClick={() => toggleFaq(index)}
-                        className="w-full flex items-center justify-between p-6 text-left hover:bg-cream-100 transition-colors"
+                        className="w-full flex items-center justify-between p-6 text-left hover:bg-yl-gray-100 transition-colors"
                       >
-                        <span className="text-lg font-semibold text-charcoal pr-4">
+                        <span className="text-lg font-semibold text-yl-charcoal pr-4">
                           {question}
                         </span>
                         {isOpen ? (
-                          <ChevronUp className="h-5 w-5 text-london-600 flex-shrink-0" />
+                          <ChevronUp className="h-5 w-5 text-yl-red flex-shrink-0" />
                         ) : (
-                          <ChevronDown className="h-5 w-5 text-stone flex-shrink-0" />
+                          <ChevronDown className="h-5 w-5 text-yl-gray-500 flex-shrink-0" />
                         )}
                       </button>
                       <AnimatePresence>
@@ -244,7 +244,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
                             transition={{ duration: 0.3 }}
                             className="overflow-hidden"
                           >
-                            <div className="px-6 pb-6 text-stone leading-relaxed border-t border-cream-200 pt-4">
+                            <div className="px-6 pb-6 text-yl-gray-500 leading-relaxed border-t border-yl-gray-200 pt-4">
                               {answer}
                             </div>
                           </motion.div>
@@ -267,19 +267,19 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="bg-gradient-to-r from-london-600 to-london-800 rounded-2xl p-8 md:p-12 text-white text-center luxury-shadow"
+            className="bg-gradient-to-r from-yl-red to-[#a82924] rounded-2xl p-8 md:p-12 text-white text-center luxury-shadow"
           >
-            <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-yalla-gold-500" />
-            <h3 className="text-2xl md:text-3xl font-display font-bold mb-4">
+            <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-yl-gold" />
+            <h3 className="text-2xl md:text-3xl font-heading font-bold mb-4">
               {language === 'en' ? 'Download Our London Planner' : 'حمّل مخطط لندن الخاص بنا'}
             </h3>
-            <p className="text-cream-200 mb-6 max-w-xl mx-auto">
+            <p className="text-yl-gray-200 mb-6 max-w-xl mx-auto">
               {language === 'en'
                 ? 'Get our comprehensive London travel planner with insider tips, itineraries, and exclusive recommendations for Arab visitors.'
                 : 'احصل على مخطط السفر الشامل للندن مع نصائح من الداخل وجداول الرحلات وتوصيات حصرية للزوار العرب.'
               }
             </p>
-            <Button asChild className="bg-yalla-gold-500 hover:bg-yalla-gold-600 text-charcoal font-semibold px-8 py-3">
+            <Button asChild className="bg-yl-gold hover:bg-yl-gold text-yl-charcoal font-semibold px-8 py-3">
               <Link href="/shop">
                 {language === 'en' ? 'Get the Planner' : 'احصل على المخطط'}
               </Link>
@@ -289,7 +289,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
       </section>
 
       {/* Follow Us CTA */}
-      <section className="py-10 bg-cream border-t border-sand">
+      <section className="py-10 bg-yl-cream border-t border-yl-gray-200">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <FollowUs variant="light" />
         </div>

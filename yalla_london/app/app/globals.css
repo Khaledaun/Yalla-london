@@ -3,9 +3,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Brand Kit v2 — Design Tokens & Animations */
+/* Brand Kit v2 — Design Tokens, Animations & Mobile */
 @import './yalla-tokens.css';
 @import './yalla-animations.css';
+@import './yalla-mobile.css';
 
 /* Zenitha Yachts — Maritime Design Tokens */
 @import './zenitha-tokens.css';
@@ -44,7 +45,7 @@
   --font-editorial: 'Source Serif 4', Georgia, serif;
   --font-body: 'Source Serif 4', Georgia, serif;
   --font-system: 'IBM Plex Mono', 'Courier New', monospace;
-  --font-arabic: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  --font-arabic: 'Noto Sans Arabic', 'IBM Plex Sans Arabic', sans-serif;
   /* Legacy aliases */
   --font-inter: 'Source Serif 4', Georgia, serif;
   --font-serif: 'Source Serif 4', Georgia, serif;

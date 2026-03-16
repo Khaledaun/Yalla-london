@@ -68,7 +68,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
           />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-warm-charcoal dark:text-cream-100 group-hover:text-burgundy-800 transition-colors line-clamp-2 text-sm leading-snug">
+          <h4 className="font-semibold text-warm-charcoal dark:text-yl-gray-100 group-hover:text-burgundy-800 transition-colors line-clamp-2 text-sm leading-snug">
             <Link href={blogUrl}>{displayTitle}</Link>
           </h4>
           <div className="flex items-center gap-2 mt-2 text-xs text-warm-gray">
@@ -124,7 +124,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
       {/* Content */}
       <div className="p-6 space-y-4">
         {/* Title */}
-        <h3 className="text-xl md:text-2xl font-serif font-bold text-warm-charcoal dark:text-cream-100 group-hover:text-burgundy-800 transition-colors leading-tight">
+        <h3 className="text-xl md:text-2xl font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 group-hover:text-burgundy-800 transition-colors leading-tight">
           <Link href={blogUrl} className="hover:text-burgundy-700">
             {displayTitle}
           </Link>
@@ -149,7 +149,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
                   </span>
                 </div>
               )}
-              <span className="font-medium text-warm-charcoal dark:text-cream-200">
+              <span className="font-medium text-warm-charcoal dark:text-yl-gray-200">
                 {article.author.name}
               </span>
             </div>
@@ -164,7 +164,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
 
         {/* Excerpt */}
         {article.excerpt && (
-          <p className="text-warm-gray dark:text-cream-300 leading-relaxed line-clamp-3">
+          <p className="text-warm-gray dark:text-yl-gray-300 leading-relaxed line-clamp-3">
             {article.excerpt}
           </p>
         )}
@@ -189,7 +189,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
                 href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-cream-200 dark:bg-cream-800 flex items-center justify-center text-warm-gray hover:bg-blue-600 hover:text-white transition-all duration-300"
+                className="w-8 h-8 rounded-full bg-yl-gray-200 dark:bg-yl-charcoal flex items-center justify-center text-warm-gray hover:bg-blue-600 hover:text-white transition-all duration-300"
               >
                 <Facebook size={14} />
               </a>
@@ -197,7 +197,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
                 href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}&text=${encodeURIComponent(displayTitle)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-cream-200 dark:bg-cream-800 flex items-center justify-center text-warm-gray hover:bg-sky-500 hover:text-white transition-all duration-300"
+                className="w-8 h-8 rounded-full bg-yl-gray-200 dark:bg-yl-charcoal flex items-center justify-center text-warm-gray hover:bg-sky-500 hover:text-white transition-all duration-300"
               >
                 <Twitter size={14} />
               </a>

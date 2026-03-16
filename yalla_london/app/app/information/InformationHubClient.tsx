@@ -107,7 +107,7 @@ export default function InformationHubClient({ sections, articles }: Information
   return (
     <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-cream to-cream-200 py-20">
+      <section className="bg-gradient-to-br from-yl-cream to-yl-gray-200 py-20">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -115,10 +115,10 @@ export default function InformationHubClient({ sections, articles }: Information
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-4xl sm:text-5xl font-display font-bold gradient-text mb-4">
+            <h1 className="text-4xl sm:text-5xl font-heading font-bold gradient-text mb-4">
               {t('informationHub')}
             </h1>
-            <p className="text-xl text-stone max-w-2xl mx-auto">
+            <p className="text-xl text-yl-gray-500 max-w-2xl mx-auto">
               {t('informationHubSubtitle')}
             </p>
           </motion.div>
@@ -146,17 +146,17 @@ export default function InformationHubClient({ sections, articles }: Information
                     <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full group cursor-pointer">
                       <CardContent className="p-6 flex flex-col h-full">
                         <div className="flex items-center gap-4 mb-4">
-                          <div className="w-12 h-12 rounded-xl bg-cream flex items-center justify-center group-hover:bg-yalla-gold-400/10 transition-colors duration-300">
-                            <IconComponent className="h-6 w-6 text-london-800 group-hover:text-yalla-gold-400 transition-colors duration-300" />
+                          <div className="w-12 h-12 rounded-xl bg-yl-cream flex items-center justify-center group-hover:bg-yl-gold/10 transition-colors duration-300">
+                            <IconComponent className="h-6 w-6 text-[#a82924] group-hover:text-yl-gold transition-colors duration-300" />
                           </div>
-                          <h3 className="text-lg font-semibold text-charcoal group-hover:text-london-800 transition-colors duration-300">
+                          <h3 className="text-lg font-semibold text-yl-charcoal group-hover:text-[#a82924] transition-colors duration-300">
                             {name}
                           </h3>
                         </div>
-                        <p className="text-stone text-sm leading-relaxed flex-1 mb-4">
+                        <p className="text-yl-gray-500 text-sm leading-relaxed flex-1 mb-4">
                           {description}
                         </p>
-                        <div className={`flex items-center text-sm font-medium text-london-800 group-hover:text-yalla-gold-400 transition-colors duration-300 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex items-center text-sm font-medium text-[#a82924] group-hover:text-yl-gold transition-colors duration-300 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <span>{t('learnMore')}</span>
                           <ArrowRight className={`h-4 w-4 ${isRTL ? 'mr-2 rotate-180' : 'ml-2'} group-hover:translate-x-1 transition-transform duration-300`} />
                         </div>
@@ -171,7 +171,7 @@ export default function InformationHubClient({ sections, articles }: Information
       </section>
 
       {/* Featured Articles */}
-      <section className="py-16 bg-gradient-to-b from-white to-cream/30">
+      <section className="py-16 bg-gradient-to-b from-white to-yl-cream/30">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center mb-12"
@@ -179,10 +179,10 @@ export default function InformationHubClient({ sections, articles }: Information
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <h2 className="text-3xl sm:text-4xl font-display font-bold text-charcoal mb-3">
+            <h2 className="text-3xl sm:text-4xl font-heading font-bold text-yl-charcoal mb-3">
               {t('informationArticles')}
             </h2>
-            <p className="text-stone max-w-xl mx-auto">
+            <p className="text-yl-gray-500 max-w-xl mx-auto">
               {language === 'en'
                 ? 'In-depth guides and tips to help you make the most of your London adventure'
                 : 'أدلة ونصائح متعمقة لمساعدتك على الاستفادة القصوى من مغامرتك في لندن'
@@ -216,25 +216,25 @@ export default function InformationHubClient({ sections, articles }: Information
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
-                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-brand-primary">
+                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-yl-red">
                           {categoryName}
                         </span>
                       </div>
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
-                      <div className="flex items-center gap-4 text-sm text-stone mb-3">
+                      <div className="flex items-center gap-4 text-sm text-yl-gray-500 mb-3">
                         <span className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
                           {article.reading_time} {language === 'en' ? 'min read' : 'دقيقة للقراءة'}
                         </span>
                       </div>
-                      <h3 className="text-xl font-semibold mb-3 text-charcoal group-hover:text-brand-primary transition-colors line-clamp-2">
+                      <h3 className="text-xl font-semibold mb-3 text-yl-charcoal group-hover:text-yl-red transition-colors line-clamp-2">
                         {title}
                       </h3>
-                      <p className="text-stone leading-relaxed flex-1 mb-4 line-clamp-3">
+                      <p className="text-yl-gray-500 leading-relaxed flex-1 mb-4 line-clamp-3">
                         {excerpt}
                       </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-london-800 transition-colors">
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-yl-red hover:text-[#a82924] transition-colors">
                         <Link href={`/information/articles/${article.slug}`}>
                           {t('readMore')}
                           <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
@@ -254,7 +254,7 @@ export default function InformationHubClient({ sections, articles }: Information
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <Button asChild size="lg" className="bg-london-800 hover:bg-london-800/90 text-white px-8">
+            <Button asChild size="lg" className="bg-[#a82924] hover:bg-[#a82924]/90 text-white px-8">
               <Link href="/information/articles">
                 {t('viewAllArticles')}
                 <ArrowRight className={`h-4 w-4 ${isRTL ? 'mr-2 rotate-180' : 'ml-2'}`} />
@@ -265,7 +265,7 @@ export default function InformationHubClient({ sections, articles }: Information
       </section>
 
       {/* E-Document Shop CTA */}
-      <section className="py-16 bg-london-800">
+      <section className="py-16 bg-[#a82924]">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="flex flex-col md:flex-row items-center justify-between gap-8"
@@ -275,10 +275,10 @@ export default function InformationHubClient({ sections, articles }: Information
           >
             <div className="text-center md:text-left">
               <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
-                <div className="w-12 h-12 rounded-xl bg-yalla-gold-400/20 flex items-center justify-center">
-                  <Download className="h-6 w-6 text-yalla-gold-400" />
+                <div className="w-12 h-12 rounded-xl bg-yl-gold/20 flex items-center justify-center">
+                  <Download className="h-6 w-6 text-yl-gold" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-display font-bold text-white">
+                <h2 className="text-2xl sm:text-3xl font-heading font-bold text-white">
                   {t('downloadPlanner')}
                 </h2>
               </div>
@@ -289,7 +289,7 @@ export default function InformationHubClient({ sections, articles }: Information
                 }
               </p>
             </div>
-            <Button asChild size="lg" className="bg-yalla-gold-400 hover:bg-yalla-gold-400/90 text-london-800 font-semibold px-8 whitespace-nowrap">
+            <Button asChild size="lg" className="bg-yl-gold hover:bg-yl-gold/90 text-[#a82924] font-semibold px-8 whitespace-nowrap">
               <Link href="/shop">
                 <FileText className={`h-5 w-5 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                 {language === 'en' ? 'Visit the Shop' : 'زيارة المتجر'}
@@ -300,7 +300,7 @@ export default function InformationHubClient({ sections, articles }: Information
       </section>
 
       {/* Newsletter Signup */}
-      <section className="py-16 bg-gradient-to-br from-cream to-cream-200">
+      <section className="py-16 bg-gradient-to-br from-yl-cream to-yl-gray-200">
         <div className="max-w-2xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -308,16 +308,16 @@ export default function InformationHubClient({ sections, articles }: Information
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <div className="w-16 h-16 rounded-full bg-london-800/10 flex items-center justify-center mx-auto mb-6">
-              <Mail className="h-8 w-8 text-london-800" />
+            <div className="w-16 h-16 rounded-full bg-[#a82924]/10 flex items-center justify-center mx-auto mb-6">
+              <Mail className="h-8 w-8 text-[#a82924]" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-display font-bold text-charcoal mb-3">
+            <h2 className="text-2xl sm:text-3xl font-heading font-bold text-yl-charcoal mb-3">
               {language === 'en'
                 ? 'Stay Updated with London Tips'
                 : 'ابقَ على اطلاع بنصائح لندن'
               }
             </h2>
-            <p className="text-stone mb-8 max-w-md mx-auto">
+            <p className="text-yl-gray-500 mb-8 max-w-md mx-auto">
               {language === 'en'
                 ? 'Subscribe to our newsletter for the latest London travel tips, exclusive deals, and seasonal guides delivered to your inbox.'
                 : 'اشترك في نشرتنا الإخبارية للحصول على أحدث نصائح السفر إلى لندن والعروض الحصرية والأدلة الموسمية مباشرة إلى بريدك الإلكتروني.'
@@ -327,10 +327,10 @@ export default function InformationHubClient({ sections, articles }: Information
               <input
                 type="email"
                 placeholder={language === 'en' ? 'Enter your email' : 'أدخل بريدك الإلكتروني'}
-                className="flex-1 px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-yalla-gold-400 focus:border-transparent text-sm"
+                className="flex-1 px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-yl-gold focus:border-transparent text-sm"
                 dir={isRTL ? 'rtl' : 'ltr'}
               />
-              <Button className="bg-london-800 hover:bg-london-800/90 text-white px-6">
+              <Button className="bg-[#a82924] hover:bg-[#a82924]/90 text-white px-6">
                 {language === 'en' ? 'Subscribe' : 'اشترك'}
               </Button>
             </div>
@@ -342,7 +342,7 @@ export default function InformationHubClient({ sections, articles }: Information
       <section className="py-6 bg-white border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <motion.p
-            className="text-xs text-stone/60 text-center"
+            className="text-xs text-yl-gray-500/60 text-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.5 }}

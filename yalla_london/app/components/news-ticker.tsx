@@ -127,7 +127,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
   return (
     <div
       className={cn(
-        'relative w-full overflow-hidden bg-charcoal border-b border-white/10',
+        'relative w-full overflow-hidden bg-yl-dark-navy border-b border-white/10',
         className
       )}
       dir={isRTL ? 'rtl' : 'ltr'}
@@ -137,7 +137,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
       {/* Left label */}
       <div className={cn(
         'absolute top-0 bottom-0 z-10 flex items-center px-3 md:px-4',
-        'bg-london-600',
+        'bg-yl-red',
         isRTL ? 'right-0' : 'left-0'
       )}>
         <Newspaper className="w-3.5 h-3.5 text-white mr-1.5" />
@@ -154,8 +154,8 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
       <div className={cn(
         'absolute top-0 bottom-0 w-16 z-10 pointer-events-none',
         isRTL
-          ? 'left-0 bg-gradient-to-r from-charcoal to-transparent'
-          : 'right-0 bg-gradient-to-l from-charcoal to-transparent'
+          ? 'left-0 bg-gradient-to-r from-yl-dark-navy to-transparent'
+          : 'right-0 bg-gradient-to-l from-yl-dark-navy to-transparent'
       )} />
 
       {/* Scrolling content */}
@@ -214,8 +214,8 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
 
                 {/* Headline text */}
                 <span className={cn(
-                  'text-xs text-white/80 group-hover:text-yalla-gold-400 transition-colors duration-200',
-                  isAr ? 'font-arabic' : 'font-editorial',
+                  'text-xs text-white/80 group-hover:text-yl-gold transition-colors duration-200',
+                  isAr ? 'font-arabic' : 'font-body',
                   item.is_major && 'font-semibold text-white'
                 )}>
                   {displayText}
@@ -227,7 +227,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
                 </span>
 
                 <ChevronRight className={cn(
-                  'w-3 h-3 text-white/20 group-hover:text-yalla-gold-400 transition-colors shrink-0',
+                  'w-3 h-3 text-white/20 group-hover:text-yl-gold transition-colors shrink-0',
                   isRTL && 'rotate-180'
                 )} />
               </Link>

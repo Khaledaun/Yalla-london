@@ -71,12 +71,13 @@ async function handleAutoFixLite(request: NextRequest) {
 
   // ── 1. STUCK DRAFT RECOVERY ────────────────────────────────────────────
   try {
-    // Drafting phase legitimately takes multiple cron runs (1 section per run,
-    // 6-10 sections per article). Use a longer staleness window for drafting
-    // to avoid resetting drafts that are making normal progress.
-    // Other phases complete in a single run — 1h is genuinely stuck.
-    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
-    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    // Content-builder processes 1 draft per 15-min cron run. With N drafts in the
+    // pipeline, each draft waits ~N*15min between updates. Using 1h threshold caused
+    // false "stuck" detection on queued drafts (20 recoveries/hour on healthy drafts).
+    // Use 2h for non-drafting phases (matches sweeper's STUCK_THRESHOLD_MS) and 4h for
+    // drafting (6-10 sections × 15min per section = 1.5-2.5h per article).
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
     const stuckDrafts = await withPoolRetry(async () => prisma.articleDraft.findMany({
       where: {
         site_id: { in: activeSiteIds },
@@ -84,11 +85,11 @@ async function handleAutoFixLite(request: NextRequest) {
           in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
         },
         OR: [
-          // Drafting phase: only stuck if no update for 3+ hours
-          // (multi-section articles legitimately take 2+ hours across runs)
-          { current_phase: "drafting", updated_at: { lt: threeHoursAgo } },
-          // All other phases: stuck after 1 hour (they should complete in 1 run)
-          { current_phase: { not: "drafting" }, updated_at: { lt: oneHourAgo } },
+          // Drafting phase: only stuck if no update for 4+ hours
+          // (6-10 sections × 15min per section = 1.5-2.5h per article, plus queue time)
+          { current_phase: "drafting", updated_at: { lt: fourHoursAgo } },
+          // All other phases: stuck after 2 hours (matches sweeper threshold)
+          { current_phase: { not: "drafting" }, updated_at: { lt: twoHoursAgo } },
         ],
       },
       select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
@@ -105,7 +106,7 @@ async function handleAutoFixLite(request: NextRequest) {
           where: { id: draft.id },
           data: {
             current_phase: "rejected",
-            rejection_reason: `Stuck in "${draft.current_phase}" for 1+ hours after ${attempts} attempts — auto-rejected by content-auto-fix-lite`,
+            rejection_reason: `Stuck in "${draft.current_phase}" for 2+ hours after ${attempts} attempts — auto-rejected by content-auto-fix-lite`,
             completed_at: new Date(),
             updated_at: new Date(),
           },

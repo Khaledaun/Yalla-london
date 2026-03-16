@@ -77,8 +77,8 @@ async function handlePost(request: NextRequest) {
       const contentType = CONTENT_TYPES[pageType] || CONTENT_TYPES.guide;
 
       const systemPrompt = language === "en"
-        ? `You are a luxury travel content strategist for "${site.name}" (${site.destination}). Plan articles for Arab travelers. Return only valid JSON.`
-        : `أنت استراتيجي محتوى سفر فاخر لـ "${site.name}" (${site.destination}). خطط مقالات للمسافرين العرب. أعد JSON فقط.`;
+        ? `You are a luxury travel content strategist for "${site.name}" (${site.destination}). Plan articles for international luxury travelers, with special expertise for Arab and Gulf visitors. Each H2 must open with a 40-60 word direct answer (essential for AI search citations). Return only valid JSON.`
+        : `أنت استراتيجي محتوى سفر فاخر لـ "${site.name}" (${site.destination}). خطط مقالات للمسافرين الدوليين مع خبرة خاصة للمسافرين العرب. أعد JSON فقط.`;
 
       const prompt = language === "en"
         ? `Plan an article about "${keyword}" for ${site.name} (${site.destination}).
@@ -86,13 +86,25 @@ Content type: ${contentType.label} (target ${contentType.targetWords}+ words).
 ${body.longtails?.length ? `Secondary keywords: ${body.longtails.join(", ")}` : ""}
 ${body.questions?.length ? `Questions to answer:\n${body.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
+AUDIENCE: Primary = international luxury travelers (broadest SEO reach). Secondary = Arab/Gulf travelers (niche differentiator). Do NOT force Arab/Islamic angles on general topics.
+
+STRUCTURE REQUIREMENTS:
+- 5-7 H2 headings with H3 subheadings where needed
+- At least 2 H2s should be phrased as questions (for AIO/GEO citation)
+- Include "Key Takeaways" as final H2
+- Plan for 3+ internal links, 2+ affiliate/booking links
+- Each section should have a 40-60 word direct answer opening (GEO citability)
+
+AUTHENTICITY: Plan 1 sensory/experiential detail per section, 2-3 insider tips total, 1 honest caveat.
+GEO CITABILITY: Plan 1+ statistic per section with source attribution, 1 comparison table.
+
 Return JSON:
 {
-  "title": "Compelling title with '${keyword}' (50-60 chars)",
-  "headings": ["H2 heading 1", "H2 heading 2", "H2 heading 3", "H2 heading 4", "H2 heading 5", "Key Takeaways"],
+  "title": "Compelling title with '${keyword}' — no year, evergreen (50-60 chars)",
+  "headings": ["H2 heading 1", "H2 as question?", "H2 heading 3", "H2 as question?", "H2 heading 5", "Key Takeaways"],
   "subheadings": {"H2 heading 1": ["H3 sub-topic A", "H3 sub-topic B"]},
-  "metaTitle": "SEO title with keyword (50-60 chars)",
-  "metaDescription": "SEO description with keyword and CTA (120-160 chars)",
+  "metaTitle": "SEO title with keyword near start (50-60 chars)",
+  "metaDescription": "SEO description with keyword + CTA (120-160 chars)",
   "keywords": ["${keyword}", "secondary1", "secondary2", "secondary3"],
   "targetWordCount": ${contentType.targetWords},
   "angleDescription": "Brief description of the article's unique angle"
@@ -100,10 +112,13 @@ Return JSON:
         : `خطط مقالة عن "${keyword}" لـ ${site.name} (${site.destination}).
 نوع المحتوى: ${contentType.labelAr || contentType.label} (${contentType.targetWords}+ كلمة).
 
+هيكل: 5-7 عناوين H2 مع عناوين فرعية H3. عنوانان على الأقل كأسئلة. "نصائح رئيسية" كآخر H2.
+الأصالة: تفاصيل حسية في كل قسم، 2-3 نصائح من الداخل، ملاحظة صادقة واحدة.
+
 أرجع JSON:
 {
   "title": "عنوان جذاب مع '${keyword}' (50-60 حرف)",
-  "headings": ["عنوان فرعي 1", "عنوان فرعي 2", "عنوان فرعي 3", "عنوان فرعي 4", "نصائح رئيسية"],
+  "headings": ["عنوان فرعي 1", "سؤال؟", "عنوان فرعي 3", "سؤال؟", "نصائح رئيسية"],
   "subheadings": {},
   "metaTitle": "عنوان SEO (50-60 حرف)",
   "metaDescription": "وصف SEO مع CTA (120-160 حرف)",
@@ -159,8 +174,8 @@ Return JSON:
       const { generateJSON } = await import("@/lib/ai/provider");
 
       const systemPrompt = language === "en"
-        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details and insider tips. Never use generic phrases like "nestled in the heart of". Return only valid JSON.`
-        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أعد JSON فقط.`;
+        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for international luxury travelers with special expertise for Arab/Gulf visitors. Include sensory details, insider tips, and honest observations. Never use: "nestled in the heart of", "whether you're a", "look no further", "in this comprehensive guide", "it's worth noting". Return only valid JSON.`
+        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين الدوليين مع خبرة للمسافرين العرب. أضف تفاصيل حسية ونصائح. أعد JSON فقط.`;
 
       const allHeadings: string[] = outline.headings || [];
       const midpoint = Math.ceil(allHeadings.length / 2);
@@ -184,13 +199,18 @@ Write ONLY these sections (the remaining sections will be written separately):
 ${headingsFormatted}
 
 REQUIREMENTS:
-1. Start with a compelling opening paragraph (mention "${keyword}" in the first sentence)
-2. Each H2 section: 200-300 words, with sensory details
-3. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
-4. Include 1-2 internal links: <a href="/blog/RELATED-TOPIC">anchor text</a>
-5. Include 1 affiliate link: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
-6. Short paragraphs (2-3 sentences)
-7. Include at least 1 insider tip
+1. Opening paragraph: 50-80 words, mention "${keyword}" in first sentence, place the reader IN the experience with a sensory detail
+2. Each H2 section: 200-300 words minimum
+3. Each H2 opens with a 40-60 word direct answer paragraph (GEO citability — self-contained, citable by AI search)
+4. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
+5. 1-2 internal links: <a href="/blog/RELATED-TOPIC">descriptive anchor text</a>
+6. 1 affiliate link: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
+7. Short paragraphs (2-3 sentences max)
+8. 1 insider tip with specific detail (price, address, time)
+9. 1 statistic with source attribution (e.g. "according to Visit London")
+10. NEVER use generic AI phrases: "nestled", "whether you're", "look no further", "it's worth noting"
+
+AUTHENTICITY: Include 1 sensory detail (smell, sound, texture), 1 price in £, 1 specific time/day recommendation.
 
 Return JSON:
 {
@@ -199,6 +219,8 @@ Return JSON:
         : `اكتب الجزء الأول من مقالة عن "${keyword}" لـ ${site.name}.
 اكتب هذه الأقسام فقط:
 ${headingsFormatted}
+
+المتطلبات: 200-300 كلمة لكل قسم. كل H2 يبدأ بفقرة إجابة مباشرة 40-60 كلمة. تفاصيل حسية، نصائح محددة، إحصائية واحدة مع المصدر.
 
 أرجع JSON:
 {
@@ -247,8 +269,8 @@ ${headingsFormatted}
       const { generateJSON } = await import("@/lib/ai/provider");
 
       const systemPrompt = language === "en"
-        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details and honest observations. Return only valid JSON.`
-        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أعد JSON فقط.`;
+        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for international luxury travelers with special expertise for Arab/Gulf visitors. Include sensory details and honest observations. Never use: "nestled in the heart of", "whether you're a", "look no further", "in conclusion". Return only valid JSON.`
+        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين الدوليين مع خبرة للمسافرين العرب. أعد JSON فقط.`;
 
       const allHeadings: string[] = outline.headings || [];
       const midpoint = Math.ceil(allHeadings.length / 2);
@@ -279,12 +301,17 @@ ${headingsFormatted}
 
 REQUIREMENTS:
 1. Continue naturally from where the first part left off
-2. Each H2 section: 200-300 words, with sensory details
-3. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
-4. Include 1-2 internal links: <a href="/blog/RELATED-TOPIC">anchor text</a>
-5. Include 1 affiliate link: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
-6. End with a "Key Takeaways" summary and a clear CTA
-7. Mention one honest limitation — imperfection signals authenticity
+2. Each H2 section: 200-300 words minimum
+3. Each H2 opens with a 40-60 word direct answer paragraph (GEO citability)
+4. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
+5. 1-2 internal links: <a href="/blog/RELATED-TOPIC">descriptive anchor text</a>
+6. 1 affiliate link: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
+7. End with "Key Takeaways" (3-5 bullet points) + clear CTA with booking link
+8. Mention one honest limitation or caveat — imperfection signals authenticity
+9. 1 statistic with source attribution
+10. Include a comparison table (<table>) if comparing options/venues/hotels
+
+AUTHENTICITY: 1 "we noticed" or "from our experience" phrase, 1 specific price in £, 1 specific address or landmark reference.
 
 Return JSON:
 {
@@ -293,6 +320,8 @@ Return JSON:
         : `أكمل الجزء الثاني من مقالة عن "${keyword}" لـ ${site.name}.
 اكتب هذه الأقسام المتبقية:
 ${headingsFormatted}
+
+المتطلبات: 200-300 كلمة لكل قسم. اختم بـ "نصائح رئيسية" + CTA. ملاحظة صادقة واحدة. إحصائية مع المصدر. جدول مقارنة إن أمكن.
 
 أرجع JSON:
 {
@@ -341,8 +370,8 @@ ${headingsFormatted}
       const contentType = CONTENT_TYPES[outline.pageType] || CONTENT_TYPES.guide;
 
       const systemPrompt = language === "en"
-        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details, insider tips, and honest observations. Never use generic phrases like "nestled in the heart of" or "whether you're a". Return only valid JSON.`
-        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أضف تفاصيل حسية ونصائح داخلية. أعد JSON فقط.`;
+        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for international luxury travelers with special expertise for Arab/Gulf visitors. Include sensory details, insider tips, statistics with sources, and honest observations. Never use: "nestled in the heart of", "whether you're a", "look no further". Each H2 opens with 40-60 word direct answer. Return only valid JSON.`
+        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين الدوليين مع خبرة للمسافرين العرب. أعد JSON فقط.`;
 
       const headingsOutline = (outline.headings || []).map((h: string, i: number) => {
         const subs = outline.subheadings?.[h];
@@ -506,6 +535,98 @@ ${bodyPreview}${articleBody.length > 3000 ? "\n... [اختصار]" : ""}
       return NextResponse.json({
         success: false,
         error: `Phase 3 failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+      }, { status: 500 });
+    }
+  }
+
+  // ─── EXPAND / FIX ────────────────────────────────────────────────────
+  // Takes existing article content and expands it (adds sections, stats, affiliate links)
+  // or fixes common issues (thin content, missing structure, generic phrases)
+  if (action === "expand") {
+    const articleBody = body.body || "";
+    const keyword = body.keyword?.trim() || "";
+    const targetWords = body.targetWords || 1500;
+    const currentWords = countWords(articleBody);
+
+    if (!articleBody || currentWords < 50) {
+      return NextResponse.json({ success: false, error: "Article body is too short to expand. Use 'generate' for new articles." }, { status: 400 });
+    }
+
+    try {
+      const { generateJSON } = await import("@/lib/ai/provider");
+
+      const systemPrompt = language === "en"
+        ? `You are a senior luxury travel editor for "${site.name}" (${site.destination}). Expand and improve existing articles for international luxury travelers. Add substance, statistics, insider tips, and affiliate links. Never use: "nestled in the heart of", "whether you're a", "look no further", "it's worth noting", "in conclusion". Return only valid JSON.`
+        : `أنت محرر سفر فاخر أول لـ "${site.name}" (${site.destination}). وسّع وحسّن المقالات الحالية. أعد JSON فقط.`;
+
+      // Truncate to fit prompt window
+      const bodyPreview = articleBody.substring(0, 6000);
+
+      const prompt = language === "en"
+        ? `EXPAND this ${currentWords}-word article to ${targetWords}+ words. Topic: "${keyword || "luxury travel"}".
+
+CURRENT ARTICLE:
+${bodyPreview}${articleBody.length > 6000 ? "\n... [truncated]" : ""}
+
+EXPANSION REQUIREMENTS:
+1. Keep ALL existing content — do NOT remove or rewrite existing paragraphs
+2. ADD 2-3 new H2 sections with 200-300 words each
+3. ADD specific statistics with source attributions (e.g. "according to Visit London, 2025")
+4. ADD 1-2 insider tips with prices in £ and specific addresses
+5. ADD 1 comparison table (<table>) comparing top options
+6. ADD 2+ affiliate links: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
+7. ADD 2+ internal links: <a href="/blog/RELATED-TOPIC">descriptive anchor</a>
+8. Ensure "Key Takeaways" section exists at the end with 3-5 bullet points + CTA
+9. Each new H2 opens with a 40-60 word direct answer paragraph (GEO citability)
+10. ADD 1 honest caveat or limitation — imperfection signals authenticity
+
+BANNED PHRASES: "nestled", "whether you're", "look no further", "it's worth noting", "in conclusion", "in this guide"
+
+Return JSON:
+{
+  "body": "The FULL expanded HTML article (existing content + new sections)",
+  "addedSections": ["Section name 1", "Section name 2"],
+  "improvements": ["what was added/improved"]
+}`
+        : `وسّع هذه المقالة (${currentWords} كلمة) إلى ${targetWords}+ كلمة. الموضوع: "${keyword}".
+
+المقالة الحالية:
+${bodyPreview}${articleBody.length > 6000 ? "\n... [اختصار]" : ""}
+
+أضف 2-3 أقسام H2 جديدة (200-300 كلمة لكل قسم)، إحصائيات مع المصدر، نصائح بأسعار، جدول مقارنة، روابط تابعة، روابط داخلية.
+
+أرجع JSON:
+{
+  "body": "HTML المقالة الكاملة الموسّعة",
+  "addedSections": ["اسم القسم 1"],
+  "improvements": ["ما تم إضافته"]
+}`;
+
+      const result = await generateJSON<Record<string, unknown>>(prompt, {
+        systemPrompt,
+        maxTokens: language === "ar" ? 3500 : 2500,
+        temperature: 0.6,
+        timeoutMs: 50_000,
+        taskType: "content_expansion",
+        calledFrom: "ai-generate:expand",
+      });
+
+      const expandedBody = (result.body as string) || articleBody;
+      return NextResponse.json({
+        success: true,
+        action: "expand",
+        keyword,
+        language,
+        body: expandedBody,
+        wordCount: countWords(expandedBody),
+        previousWordCount: currentWords,
+        addedSections: result.addedSections || [],
+        improvements: result.improvements || [],
+      });
+    } catch (err) {
+      return NextResponse.json({
+        success: false,
+        error: `Expand failed: ${err instanceof Error ? err.message : "Unknown error"}`,
       }, { status: 500 });
     }
   }
@@ -785,8 +906,8 @@ async function generateArticle(
   // content type guidelines already include quality requirements. Keep system prompt short
   // to maximize output tokens within the AI timeout window.
   const systemPrompt = language === "en"
-    ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details, insider tips, and honest observations. Never use generic phrases like "nestled in the heart of" or "whether you're a". Return only valid JSON.`
-    : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أضف تفاصيل حسية ونصائح داخلية. أعد JSON فقط.`;
+    ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for international luxury travelers with special expertise for Arab/Gulf visitors. Include sensory details, insider tips, and honest observations. Never use: "nestled in the heart of", "whether you're a", "look no further", "in this comprehensive guide", "it's worth noting". Each H2 must open with a 40-60 word direct answer (GEO citability). Include 1+ statistic with source per section. Return only valid JSON.`
+    : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين الدوليين مع خبرة للمسافرين العرب. أضف تفاصيل حسية ونصائح. كل H2 يبدأ بإجابة مباشرة 40-60 كلمة. أعد JSON فقط.`;
 
   const typeGuidelines = language === "en"
     ? contentType.promptGuidelinesEN

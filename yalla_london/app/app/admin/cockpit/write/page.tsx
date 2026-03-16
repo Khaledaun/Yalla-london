@@ -9,10 +9,14 @@
  * - SEO fields (meta title, description) with live character counts
  * - Category picker
  * - Save Draft / Publish buttons
+ * - Expand/Fix button for thin articles
+ * - Bulk AI generation (multiple articles on demand)
+ * - Auto-save to reservoir when not publishing
  * - Article list for quick editing
  *
- * Feeds directly into the content pipeline:
- * → BlogPost table → SEO gate → Affiliate injection → IndexNow
+ * Feeds into the content pipeline:
+ * → ArticleDraft (reservoir) → Quality gate → BlogPost → SEO → Affiliate injection → IndexNow
+ * → OR direct BlogPost (publish) → SEO gate → Affiliate injection → IndexNow
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -58,6 +62,13 @@ interface CategoryOption {
   slug: string;
 }
 
+interface BulkItem {
+  keyword: string;
+  status: "pending" | "generating" | "done" | "error";
+  result?: string;
+  wordCount?: number;
+}
+
 // ─── Formatting Toolbar ─────────────────────────────────────────────────────
 
 function FormatBar() {
@@ -75,15 +86,15 @@ function FormatBar() {
       <FmtBtn onClick={() => exec("formatBlock", "<h3>")} title="Heading 3">H3</FmtBtn>
       <FmtBtn onClick={() => exec("formatBlock", "<p>")} title="Paragraph">P</FmtBtn>
       <span className="w-px bg-zinc-700 mx-1" />
-      <FmtBtn onClick={() => exec("insertUnorderedList")} title="Bullet list">•</FmtBtn>
+      <FmtBtn onClick={() => exec("insertUnorderedList")} title="Bullet list">&#8226;</FmtBtn>
       <FmtBtn onClick={() => exec("insertOrderedList")} title="Numbered list">1.</FmtBtn>
       <FmtBtn onClick={() => exec("formatBlock", "<blockquote>")} title="Quote">&ldquo;</FmtBtn>
       <span className="w-px bg-zinc-700 mx-1" />
       <FmtBtn onClick={() => {
         const url = prompt("Enter link URL:");
         if (url) exec("createLink", url);
-      }} title="Add link">🔗</FmtBtn>
-      <FmtBtn onClick={() => exec("removeFormat")} title="Clear formatting">✕</FmtBtn>
+      }} title="Add link">&#128279;</FmtBtn>
+      <FmtBtn onClick={() => exec("removeFormat")} title="Clear formatting">&#10005;</FmtBtn>
     </div>
   );
 }
@@ -114,7 +125,7 @@ function CharCount({ value, min, max, label }: { value: string; min: number; max
 
 // ─── Word Count ─────────────────────────────────────────────────────────────
 
-function wordCount(html: string): number {
+function countWords(html: string): number {
   return html.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 }
 
@@ -124,7 +135,7 @@ export default function SimpleWriterPage() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
 
-  const [view, setView] = useState<"list" | "editor">(editId ? "editor" : "list");
+  const [view, setView] = useState<"list" | "editor" | "bulk">(editId ? "editor" : "list");
   const [articles, setArticles] = useState<ArticleListItem[]>([]);
   const [drafts, setDrafts] = useState<ArticleListItem[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -147,6 +158,63 @@ export default function SimpleWriterPage() {
   const [aiPhase, setAiPhase] = useState(0); // 0=idle, 1=outline, 2=writing-part1, 3=writing-part2, 4=polishing
   const [aiKeyword, setAiKeyword] = useState("");
   const [showAiPanel, setShowAiPanel] = useState(false);
+
+  // Expand state
+  const [expanding, setExpanding] = useState(false);
+
+  // Bulk generation state
+  const [bulkKeywords, setBulkKeywords] = useState("");
+  const [bulkItems, setBulkItems] = useState<BulkItem[]>([]);
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  // ─── Expand / Fix ─────────────────────────────────────────────────────
+
+  const expandArticle = useCallback(async () => {
+    const body = editorRef.current?.innerHTML || "";
+    const wc = countWords(body);
+    if (wc < 50) {
+      setSaveResult("Error: Article too short to expand. Write at least 50 words first, or use AI Generate.");
+      return;
+    }
+
+    setExpanding(true);
+    setSaveResult("Expanding article — adding sections, stats, and affiliate links...");
+
+    try {
+      const res = await fetch("/api/admin/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "expand",
+          body,
+          keyword: titleEn || aiKeyword || "",
+          targetWords: Math.max(1500, wc + 500),
+          language: "en",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveResult(`Expand failed: ${err.error || `Server ${res.status}`}`);
+        return;
+      }
+
+      const json = await res.json();
+      if (json.success && json.body) {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = json.body;
+        }
+        const improvements = json.improvements?.length ? `: ${json.improvements.join(", ")}` : "";
+        setSaveResult(`Expanded from ${json.previousWordCount} to ${json.wordCount} words${improvements}`);
+      } else {
+        setSaveResult(`Expand failed: ${json.error || "No expanded content returned"}`);
+      }
+    } catch (e) {
+      setSaveResult(`Error: ${e instanceof Error ? e.message : "Network error"}`);
+    } finally {
+      setExpanding(false);
+    }
+  }, [titleEn, aiKeyword]);
 
   // ─── AI Generate ──────────────────────────────────────────────────────
 
@@ -173,8 +241,6 @@ export default function SimpleWriterPage() {
       }
 
       // ─── 4-Phase Article Generation ──────────────────────────────────
-      // Phase 1: Outline → Phase 2a: Write first half → Phase 2b: Write second half → Phase 3: Polish SEO
-      // Each phase is a separate API call to avoid Vercel 60s timeout
       const keyword = aiKeyword.trim();
       if (!keyword) {
         setSaveResult("Error: Enter a keyword or pick a topic first");
@@ -183,7 +249,7 @@ export default function SimpleWriterPage() {
 
       // Phase 1: Research & Outline
       setAiPhase(1);
-      setSaveResult("Step 1/4: Planning outline and keywords…");
+      setSaveResult("Step 1/4: Planning outline and keywords...");
 
       const res1 = await fetch("/api/admin/ai-generate", {
         method: "POST",
@@ -214,7 +280,7 @@ export default function SimpleWriterPage() {
       // Phase 2a: Write First Half
       setAiPhase(2);
       const headingCount = (outline.headings || []).length;
-      setSaveResult(`Step 2/4: Writing first half (${Math.ceil(headingCount / 2)} of ${headingCount} sections)…`);
+      setSaveResult(`Step 2/4: Writing first half (${Math.ceil(headingCount / 2)} of ${headingCount} sections)...`);
 
       const res2a = await fetch("/api/admin/ai-generate", {
         method: "POST",
@@ -244,7 +310,7 @@ export default function SimpleWriterPage() {
 
       // Phase 2b: Write Second Half
       setAiPhase(3);
-      setSaveResult(`Step 3/4: Writing second half (${json2a.wordCount || 0} words so far)…`);
+      setSaveResult(`Step 3/4: Writing second half (${json2a.wordCount || 0} words so far)...`);
 
       const res2b = await fetch("/api/admin/ai-generate", {
         method: "POST",
@@ -259,7 +325,6 @@ export default function SimpleWriterPage() {
       });
       if (!res2b.ok) {
         const err2b = await res2b.json().catch(() => ({}));
-        // First half is already written — show what we have
         setSaveResult(`First half written (${json2a.wordCount || 0} words) but second half failed: ${err2b.error || res2b.status}. You can still edit and publish.`);
         setTags((outline.keywords || []).join(", "));
         setShowAiPanel(false);
@@ -274,14 +339,14 @@ export default function SimpleWriterPage() {
       }
 
       // Show full article
-      const fullBody = json2b.body; // Server already combined both halves
+      const fullBody = json2b.body;
       if (editorRef.current) {
         editorRef.current.innerHTML = fullBody;
       }
 
       // Phase 3: Polish SEO
       setAiPhase(4);
-      setSaveResult(`Step 4/4: Polishing SEO (${json2b.wordCount || 0} words written)…`);
+      setSaveResult(`Step 4/4: Polishing SEO (${json2b.wordCount || 0} words written)...`);
 
       const res3 = await fetch("/api/admin/ai-generate", {
         method: "POST",
@@ -296,7 +361,6 @@ export default function SimpleWriterPage() {
       });
       if (!res3.ok) {
         const err3 = await res3.json().catch(() => ({}));
-        // Phase 3 is non-critical — article is already written
         setSaveResult(`Article written (${json2b.wordCount || 0} words) but SEO polish failed: ${err3.error || res3.status}. You can still publish.`);
         setTags((outline.keywords || []).join(", "));
         setShowAiPanel(false);
@@ -323,6 +387,107 @@ export default function SimpleWriterPage() {
       setAiPhase(0);
     }
   }, [aiKeyword]);
+
+  // ─── Bulk AI Generation ──────────────────────────────────────────────
+
+  const startBulkGeneration = useCallback(async () => {
+    const keywords = bulkKeywords.split("\n").map(k => k.trim()).filter(Boolean);
+    if (keywords.length === 0) {
+      setSaveResult("Error: Enter at least one keyword (one per line)");
+      return;
+    }
+    if (keywords.length > 10) {
+      setSaveResult("Error: Maximum 10 articles at a time to avoid timeouts");
+      return;
+    }
+
+    const items: BulkItem[] = keywords.map(k => ({ keyword: k, status: "pending" as const }));
+    setBulkItems(items);
+    setBulkRunning(true);
+    setSaveResult(null);
+
+    // Process sequentially (one at a time to avoid provider overload)
+    for (let i = 0; i < items.length; i++) {
+      // Update status to generating
+      setBulkItems(prev => prev.map((item, idx) => idx === i ? { ...item, status: "generating" } : item));
+
+      try {
+        // Phase 1: Outline
+        const res1 = await fetch("/api/admin/ai-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "phase1_outline", keyword: items[i].keyword, language: "en" }),
+        });
+        if (!res1.ok) throw new Error(`Outline failed (${res1.status})`);
+        const json1 = await res1.json();
+        if (!json1.success) throw new Error(json1.error || "Outline failed");
+
+        // Phase 2a: Write first half
+        const res2a = await fetch("/api/admin/ai-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "phase2a_write", keyword: items[i].keyword, outline: json1.outline, language: "en" }),
+        });
+        if (!res2a.ok) throw new Error(`Write part 1 failed (${res2a.status})`);
+        const json2a = await res2a.json();
+        if (!json2a.success) throw new Error(json2a.error || "Write part 1 failed");
+
+        // Phase 2b: Write second half
+        const res2b = await fetch("/api/admin/ai-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "phase2b_write", keyword: items[i].keyword, outline: json1.outline, previousBody: json2a.body, language: "en" }),
+        });
+        if (!res2b.ok) throw new Error(`Write part 2 failed (${res2b.status})`);
+        const json2b = await res2b.json();
+        if (!json2b.success) throw new Error(json2b.error || "Write part 2 failed");
+
+        // Phase 3: Polish
+        const res3 = await fetch("/api/admin/ai-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "phase3_polish", keyword: items[i].keyword, outline: json1.outline, body: json2b.body, language: "en" }),
+        });
+        const json3 = res3.ok ? await res3.json().catch(() => null) : null;
+
+        // Auto-save to reservoir
+        const content = json3?.content || {};
+        const saveRes = await fetch("/api/admin/simple-write", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "reservoir",
+            titleEn: json1.outline.title || items[i].keyword,
+            contentEn: json2b.body,
+            keyword: items[i].keyword,
+            metaTitleEn: content.metaTitleEn || json1.outline.metaTitle || "",
+            metaDescriptionEn: content.metaDescriptionEn || json1.outline.metaDescription || "",
+            tags: content.tags || json1.outline.keywords || [],
+            keywords: json1.outline.keywords || [items[i].keyword],
+            seoScore: content.seoScore || 70,
+          }),
+        });
+        const saveJson = saveRes.ok ? await saveRes.json().catch(() => null) : null;
+
+        const wc = json2b.wordCount || countWords(json2b.body || "");
+        setBulkItems(prev => prev.map((item, idx) => idx === i ? {
+          ...item,
+          status: "done",
+          wordCount: wc,
+          result: saveJson?.success ? `Saved to reservoir (${wc} words)` : `Generated ${wc} words but save failed`,
+        } : item));
+      } catch (e) {
+        setBulkItems(prev => prev.map((item, idx) => idx === i ? {
+          ...item,
+          status: "error",
+          result: e instanceof Error ? e.message : "Unknown error",
+        } : item));
+      }
+    }
+
+    setBulkRunning(false);
+    setSaveResult(`Bulk generation complete: ${items.length} articles processed. Check the reservoir.`);
+  }, [bulkKeywords]);
 
   // ─── Data Loading ───────────────────────────────────────────────────────
 
@@ -390,26 +555,33 @@ export default function SimpleWriterPage() {
     setView("editor");
   };
 
-  // ─── Save / Publish ─────────────────────────────────────────────────────
+  // ─── Save / Publish / Reservoir ───────────────────────────────────────
 
-  const save = async (publish: boolean) => {
+  const save = async (action: "save" | "publish" | "reservoir") => {
     setSaving(true);
     setSaveResult(null);
     try {
       const contentEn = editorRef.current?.innerHTML || "";
+      const payload: Record<string, unknown> = {
+        action,
+        id: articleId || undefined,
+        titleEn,
+        contentEn,
+        metaTitleEn: metaTitleEn || titleEn.substring(0, 60),
+        metaDescriptionEn,
+        categoryId: categoryId || undefined,
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      };
+
+      // Reservoir needs keyword
+      if (action === "reservoir") {
+        payload.keyword = aiKeyword || titleEn;
+      }
+
       const res = await fetch("/api/admin/simple-write", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: publish ? "publish" : "save",
-          id: articleId || undefined,
-          titleEn,
-          contentEn,
-          metaTitleEn: metaTitleEn || titleEn.substring(0, 60),
-          metaDescriptionEn,
-          categoryId: categoryId || undefined,
-          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-        }),
+        body: JSON.stringify(payload),
       });
 
       // Handle non-OK responses before trying to parse JSON
@@ -419,9 +591,8 @@ export default function SimpleWriterPage() {
           const errJson = await res.json();
           errorMsg = errJson.error || errorMsg;
         } catch {
-          // Safari throws "The string did not match the expected pattern" for non-JSON
           errorMsg = res.status === 504
-            ? "Request timed out — please try again"
+            ? "Request timed out -- please try again"
             : `Server error (${res.status}). Please try again.`;
         }
         setSaveResult(`Error: ${errorMsg}`);
@@ -432,13 +603,15 @@ export default function SimpleWriterPage() {
       try {
         json = await res.json();
       } catch {
-        setSaveResult("Error: Invalid response from server — please try again");
+        setSaveResult("Error: Invalid response from server -- please try again");
         return;
       }
 
       if (json.success) {
-        setArticleId(json.id);
-        setIsPublished(json.published);
+        if (action !== "reservoir") {
+          setArticleId(json.id);
+          setIsPublished(json.published);
+        }
         setSaveResult(json.message);
         fetchList(); // refresh sidebar
       } else {
@@ -451,10 +624,105 @@ export default function SimpleWriterPage() {
     }
   };
 
+  // ─── Bulk View ────────────────────────────────────────────────────────
+
+  if (view === "bulk") {
+    const doneCount = bulkItems.filter(i => i.status === "done").length;
+    const errorCount = bulkItems.filter(i => i.status === "error").length;
+
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100">
+        <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+            <button onClick={() => { setView("list"); fetchList(); }} className="text-sm text-zinc-400 hover:text-zinc-200">
+              &larr; Back
+            </button>
+            <h1 className="text-base font-bold text-white">Bulk AI Generate</h1>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+          <div className="rounded-lg border border-violet-800/50 bg-violet-950/30 px-4 py-3 space-y-3">
+            <p className="text-xs font-medium text-violet-300">
+              Enter keywords (one per line, max 10). Each will be generated as a full article and saved to the reservoir automatically.
+            </p>
+            <textarea
+              value={bulkKeywords}
+              onChange={(e) => setBulkKeywords(e.target.value)}
+              placeholder={"luxury hotels mayfair london\nbest afternoon tea london\nhalal restaurants soho london"}
+              rows={6}
+              disabled={bulkRunning}
+              className="w-full text-sm px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 outline-none resize-none disabled:opacity-50"
+            />
+            <button
+              onClick={startBulkGeneration}
+              disabled={bulkRunning || !bulkKeywords.trim()}
+              className="w-full py-2.5 rounded-lg text-sm font-medium bg-violet-700 hover:bg-violet-600 text-white border border-violet-600 disabled:opacity-50"
+            >
+              {bulkRunning ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Generating {doneCount + errorCount}/{bulkItems.length}...
+                </span>
+              ) : (
+                `Generate ${bulkKeywords.split("\n").filter(k => k.trim()).length || 0} Articles`
+              )}
+            </button>
+          </div>
+
+          {/* Bulk progress */}
+          {bulkItems.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
+                Progress: {doneCount} done, {errorCount} errors, {bulkItems.length - doneCount - errorCount} remaining
+              </p>
+              {bulkItems.map((item, i) => (
+                <div key={i} className={`px-3 py-2.5 rounded-lg border ${
+                  item.status === "done" ? "border-emerald-800 bg-emerald-950/20" :
+                  item.status === "error" ? "border-red-800 bg-red-950/20" :
+                  item.status === "generating" ? "border-violet-800 bg-violet-950/20" :
+                  "border-zinc-800 bg-zinc-900/30"
+                }`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-zinc-200 truncate">{item.keyword}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${
+                      item.status === "done" ? "bg-emerald-900/50 text-emerald-300" :
+                      item.status === "error" ? "bg-red-900/50 text-red-300" :
+                      item.status === "generating" ? "bg-violet-900/50 text-violet-300" :
+                      "bg-zinc-800 text-zinc-500"
+                    }`}>
+                      {item.status === "generating" ? (
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 border border-violet-400 border-t-transparent rounded-full animate-spin" />
+                          writing
+                        </span>
+                      ) : item.status}
+                    </span>
+                  </div>
+                  {item.result && (
+                    <p className={`text-xs mt-1 ${item.status === "error" ? "text-red-400" : "text-zinc-500"}`}>{item.result}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {saveResult && (
+            <div className={`text-xs rounded-lg px-3 py-2 ${
+              saveResult.startsWith("Error") ? "bg-red-950/40 text-red-300 border border-red-800" : "bg-emerald-950/40 text-emerald-300 border border-emerald-800"
+            }`}>
+              {saveResult}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ─── Editor View ────────────────────────────────────────────────────────
 
   if (view === "editor") {
-    const wc = wordCount(editorRef.current?.innerHTML || "");
+    const wc = countWords(editorRef.current?.innerHTML || "");
     const wcColor = wc < 300 ? "text-red-400" : wc < 1000 ? "text-amber-400" : "text-emerald-400";
 
     return (
@@ -466,28 +734,49 @@ export default function SimpleWriterPage() {
               onClick={() => { setView("list"); fetchList(); }}
               className="text-sm text-zinc-400 hover:text-zinc-200"
             >
-              ← Back
+              &larr; Back
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setShowAiPanel(!showAiPanel)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-900/50 hover:bg-violet-800/50 text-violet-300 border border-violet-700"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-violet-900/50 hover:bg-violet-800/50 text-violet-300 border border-violet-700"
               >
                 AI
               </button>
               <button
-                onClick={() => save(false)}
-                disabled={saving || !titleEn.trim()}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-50"
+                onClick={expandArticle}
+                disabled={expanding || aiGenerating}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-900/50 hover:bg-amber-800/50 text-amber-300 border border-amber-700 disabled:opacity-50"
+                title="Expand thin article: adds sections, stats, affiliate links"
               >
-                {saving ? "Saving…" : "Save Draft"}
+                {expanding ? (
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 border border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    Expanding
+                  </span>
+                ) : "Expand"}
               </button>
               <button
-                onClick={() => save(true)}
+                onClick={() => save("reservoir")}
                 disabled={saving || !titleEn.trim()}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-600 disabled:opacity-50"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 border border-blue-700 disabled:opacity-50"
+                title="Save to pipeline reservoir (auto-publishes after quality gate)"
               >
-                {saving ? "Publishing…" : isPublished ? "Update" : "Publish"}
+                {saving ? "..." : "Queue"}
+              </button>
+              <button
+                onClick={() => save("save")}
+                disabled={saving || !titleEn.trim()}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-50"
+              >
+                {saving ? "..." : "Draft"}
+              </button>
+              <button
+                onClick={() => save("publish")}
+                disabled={saving || !titleEn.trim()}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white border border-emerald-600 disabled:opacity-50"
+              >
+                {saving ? "..." : isPublished ? "Update" : "Publish"}
               </button>
             </div>
           </div>
@@ -503,7 +792,7 @@ export default function SimpleWriterPage() {
                   type="text"
                   value={aiKeyword}
                   onChange={(e) => setAiKeyword(e.target.value)}
-                  placeholder="Keyword (e.g. halal restaurants London)"
+                  placeholder="Keyword (e.g. luxury hotels mayfair)"
                   className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 outline-none"
                 />
                 <button
@@ -522,11 +811,11 @@ export default function SimpleWriterPage() {
                 {aiGenerating ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {aiPhase === 1 ? "Step 1/4: Planning outline…" :
-                     aiPhase === 2 ? "Step 2/4: Writing first half…" :
-                     aiPhase === 3 ? "Step 3/4: Writing second half…" :
-                     aiPhase === 4 ? "Step 4/4: Polishing SEO…" :
-                     "Generating…"}
+                    {aiPhase === 1 ? "Step 1/4: Planning outline..." :
+                     aiPhase === 2 ? "Step 2/4: Writing first half..." :
+                     aiPhase === 3 ? "Step 3/4: Writing second half..." :
+                     aiPhase === 4 ? "Step 4/4: Polishing SEO..." :
+                     "Generating..."}
                   </span>
                 ) : (
                   "Generate Full Article"
@@ -541,14 +830,14 @@ export default function SimpleWriterPage() {
                   />
                 </div>
               )}
-              <p className="text-xs text-zinc-500">4-step generation: Outline → Write (2 parts) → Polish. ~1,500 words with SEO and affiliate links.</p>
+              <p className="text-xs text-zinc-500">4-step generation: Outline &rarr; Write (2 parts) &rarr; Polish. ~1,500 words with SEO, stats, and affiliate links.</p>
             </div>
           </div>
         )}
 
         {/* Save result toast */}
         {saveResult && (
-          <div className={`max-w-2xl mx-auto px-4 mt-2`}>
+          <div className="max-w-2xl mx-auto px-4 mt-2">
             <div className={`text-xs rounded-lg px-3 py-2 ${
               saveResult.startsWith("Error") ? "bg-red-950/40 text-red-300 border border-red-800" : "bg-emerald-950/40 text-emerald-300 border border-emerald-800"
             }`}>
@@ -564,7 +853,7 @@ export default function SimpleWriterPage() {
             type="text"
             value={titleEn}
             onChange={(e) => setTitleEn(e.target.value)}
-            placeholder="Article title…"
+            placeholder="Article title..."
             className="w-full text-2xl font-bold bg-transparent border-none outline-none text-white placeholder:text-zinc-600"
             autoFocus
           />
@@ -590,7 +879,7 @@ export default function SimpleWriterPage() {
                 // Force re-render to update word count
                 setTitleEn((prev) => prev);
               }}
-              data-placeholder="Start writing your article…"
+              data-placeholder="Start writing your article..."
             />
           </div>
 
@@ -609,7 +898,7 @@ export default function SimpleWriterPage() {
                   type="text"
                   value={metaTitleEn}
                   onChange={(e) => setMetaTitleEn(e.target.value)}
-                  placeholder={titleEn || "SEO title…"}
+                  placeholder={titleEn || "SEO title..."}
                   className="w-full text-sm px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                 />
               </div>
@@ -621,7 +910,7 @@ export default function SimpleWriterPage() {
                 <textarea
                   value={metaDescriptionEn}
                   onChange={(e) => setMetaDescriptionEn(e.target.value)}
-                  placeholder="Brief description for search results…"
+                  placeholder="Brief description for search results..."
                   rows={3}
                   className="w-full text-sm px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 resize-none"
                 />
@@ -664,16 +953,16 @@ export default function SimpleWriterPage() {
       <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/admin/cockpit" className="text-sm text-zinc-400 hover:text-zinc-200">← Cockpit</Link>
+            <Link href="/admin/cockpit" className="text-sm text-zinc-400 hover:text-zinc-200">&larr; Cockpit</Link>
             <h1 className="text-base font-bold text-white">Write</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/admin/cockpit/bulk-generate"
+            <button
+              onClick={() => setView("bulk")}
               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-900/50 hover:bg-violet-800/50 text-violet-300 border border-violet-700"
             >
               Bulk AI
-            </Link>
+            </button>
             <button
               onClick={newArticle}
               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
@@ -687,7 +976,7 @@ export default function SimpleWriterPage() {
       {/* Article List */}
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-2">
         {loading ? (
-          <div className="text-center py-8 text-zinc-500 text-sm">Loading articles…</div>
+          <div className="text-center py-8 text-zinc-500 text-sm">Loading articles...</div>
         ) : (
           <>
             {/* Published articles */}

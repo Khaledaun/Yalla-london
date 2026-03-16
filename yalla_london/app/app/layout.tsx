@@ -143,18 +143,18 @@ export default async function RootLayout({
         {/* DNS prefetch for common image CDNs used in content */}
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
 
-        {/* Yalla London fonts — preload hint starts download early, stylesheet applies on load */}
+        {/* Yalla London fonts — Brand Kit v2: Anybody (headings), Source Serif 4 (body), IBM Plex Mono (data/nav), Noto Sans Arabic (Arabic) */}
         {!isYachtSite && (
           <>
             <link
               rel="preload"
               as="style"
-              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
+              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
               crossOrigin=""
             />
             {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only */}
             <link
-              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap"
+              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
               rel="stylesheet"
             />
           </>
@@ -177,14 +177,24 @@ export default async function RootLayout({
           </>
         )}
 
-        {/* PWA Meta Tags — theme-color and title from site config */}
+        {/* PWA Meta Tags — Brand Kit v2 */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content={currentSiteConfig?.primaryColor || "#C8322B"} />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="theme-color" content={isYachtSite ? (currentSiteConfig?.primaryColor || "#0F1621") : "#0F1621"} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content={currentSiteConfig?.name || brandConfig.siteName} />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        {!isYachtSite && (
+          <>
+            <link rel="icon" type="image/png" sizes="32x32" href="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-32px-favicon.png" />
+            <link rel="icon" type="image/png" sizes="192x192" href="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-icon-192.png" />
+            <link rel="apple-touch-icon" href="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-icon-apple-touch.png" />
+          </>
+        )}
+        {isYachtSite && (
+          <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        )}
 
         {/* Geo-targeting Meta Tags — per-site destination */}
         <meta name="geo.region" content={geo.region} />

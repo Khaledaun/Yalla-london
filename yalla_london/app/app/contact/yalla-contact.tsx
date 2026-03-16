@@ -115,10 +115,10 @@ export default function YallaContactPage() {
       <div className={`container mx-auto px-6 py-12 max-w-2xl ${isRTL ? 'rtl' : 'ltr'}`}>
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mb-4">
-              <MessageSquare className="h-8 w-8 text-forest" />
+            <div className="mx-auto w-16 h-16 bg-yl-gray-100 rounded-full flex items-center justify-center mb-4">
+              <MessageSquare className="h-8 w-8 text-yl-charcoal" />
             </div>
-            <CardTitle className="text-2xl text-forest">Message Sent!</CardTitle>
+            <CardTitle className="text-2xl text-yl-charcoal">Message Sent!</CardTitle>
             <CardDescription>
               Thank you for contacting us. We&apos;ll get back to you within 24 hours.
             </CardDescription>
@@ -136,10 +136,10 @@ export default function YallaContactPage() {
   return (
     <div className={`container mx-auto px-6 py-12 max-w-6xl ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="text-center mb-12">
-        <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
+        <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
           Contact Us
         </h1>
-        <p className="text-stone text-lg">
+        <p className="text-yl-gray-500 text-lg">
           Get in touch with the Yalla London team. We&apos;d love to hear from you!
         </p>
       </div>
@@ -156,29 +156,29 @@ export default function YallaContactPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
+                <Mail className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Email</h4>
-                  <p className="text-sm text-stone">{CONTACT_EMAIL}</p>
-                  <p className="text-sm text-stone">For general inquiries</p>
+                  <p className="text-sm text-yl-gray-500">{CONTACT_EMAIL}</p>
+                  <p className="text-sm text-yl-gray-500">For general inquiries</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <Star className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
+                <Star className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Press & Partnerships</h4>
-                  <p className="text-sm text-stone">{PRESS_EMAIL}</p>
-                  <p className="text-sm text-stone">For media and collaboration</p>
+                  <p className="text-sm text-yl-gray-500">{PRESS_EMAIL}</p>
+                  <p className="text-sm text-yl-gray-500">For media and collaboration</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
+                <MapPin className="h-5 w-5 text-yl-gold mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Location</h4>
-                  <p className="text-sm text-stone">London, United Kingdom</p>
-                  <p className="text-sm text-stone">Covering all of London</p>
+                  <p className="text-sm text-yl-gray-500">London, United Kingdom</p>
+                  <p className="text-sm text-yl-gray-500">Covering all of London</p>
                 </div>
               </div>
             </CardContent>
@@ -327,7 +327,7 @@ export default function YallaContactPage() {
                     />
                     <Label htmlFor="consent" className="text-sm">
                       I agree to the{' '}
-                      <Link href="/privacy" className="text-thames-500 hover:underline">
+                      <Link href="/privacy" className="text-yl-blue hover:underline">
                         Privacy Policy
                       </Link>{' '}
                       and consent to my data being processed for this inquiry. *

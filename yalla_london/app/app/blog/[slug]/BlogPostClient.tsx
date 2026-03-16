@@ -188,20 +188,20 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
   // Not found state
   if (!post) {
     return (
-      <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center bg-cream`}>
+      <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center bg-yl-cream`}>
         <div className="text-center px-6">
-          <div className="w-16 h-16 rounded-full bg-london-600/10 flex items-center justify-center mx-auto mb-6">
-            <BookOpen className="h-8 w-8 text-london-600" />
+          <div className="w-16 h-16 rounded-full bg-yl-red/10 flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="h-8 w-8 text-yl-red" />
           </div>
-          <h1 className={`text-2xl font-bold text-charcoal mb-3 ${isRTL ? 'font-arabic' : 'font-display'}`}>
+          <h1 className={`text-2xl font-bold text-yl-charcoal mb-3 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
             {language === 'en' ? 'Article Not Found' : 'المقال غير موجود'}
           </h1>
-          <p className={`text-stone mb-8 max-w-md ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+          <p className={`text-yl-gray-500 mb-8 max-w-md ${isRTL ? 'font-arabic' : 'font-body'}`}>
             {language === 'en'
               ? 'The article you\'re looking for doesn\'t exist or has been moved.'
               : 'المقال الذي تبحث عنه غير موجود أو تم نقله.'}
           </p>
-          <Button asChild className="bg-london-600 hover:bg-london-700 text-white">
+          <Button asChild className="bg-yl-red hover:bg-yl-red text-white">
             <Link href="/blog">
               <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
               {language === 'en' ? 'Back to Stories' : 'العودة للقصص'}
@@ -221,28 +221,28 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
   const readingTime = post.reading_time || 5
 
   return (
-    <div className={`${isRTL ? 'rtl' : 'ltr'} bg-cream`}>
+    <div className={`${isRTL ? 'rtl' : 'ltr'} bg-yl-cream`}>
 
       {/* ═══ Reading Progress Bar ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 h-[3px] bg-transparent">
         <div
-          className="h-full bg-gradient-to-r from-london-600 via-yalla-gold-500 to-thames-500 transition-[width] duration-150"
+          className="h-full bg-gradient-to-r from-yl-red via-yl-gold to-yl-blue transition-[width] duration-150"
           style={{ width: `${readProgress}%` }}
         />
       </div>
 
       {/* ═══ Breadcrumb ═══ */}
-      <nav className="bg-white border-b border-sand/50">
+      <nav className="bg-white border-b border-yl-gray-200/50">
         <div className="max-w-5xl mx-auto px-6 py-3">
-          <ol className="flex items-center gap-1.5 text-xs font-sans tracking-wide text-stone/60">
+          <ol className="flex items-center gap-1.5 text-xs font-sans tracking-wide text-yl-gray-500/60">
             <li>
-              <Link href="/" className="hover:text-london-600 transition-colors">
+              <Link href="/" className="hover:text-yl-red transition-colors">
                 {language === 'en' ? 'Home' : 'الرئيسية'}
               </Link>
             </li>
             <li><ChevronRight className={`h-3 w-3 ${isRTL ? 'rotate-180' : ''}`} /></li>
             <li>
-              <Link href="/blog" className="hover:text-london-600 transition-colors">
+              <Link href="/blog" className="hover:text-yl-red transition-colors">
                 {language === 'en' ? 'Stories' : 'القصص'}
               </Link>
             </li>
@@ -252,7 +252,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 <li>
                   <Link
                     href={`/blog/category/${post.category.slug}`}
-                    className="hover:text-london-600 transition-colors"
+                    className="hover:text-yl-red transition-colors"
                   >
                     {categoryName}
                   </Link>
@@ -260,7 +260,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
               </>
             )}
             <li><ChevronRight className={`h-3 w-3 ${isRTL ? 'rotate-180' : ''}`} /></li>
-            <li className="text-charcoal truncate max-w-[200px]">{title}</li>
+            <li className="text-yl-charcoal truncate max-w-[200px]">{title}</li>
           </ol>
         </div>
       </nav>
@@ -280,7 +280,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
               priority
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-london-800 via-charcoal to-london-900" />
+            <div className="w-full h-full bg-gradient-to-br from-[#a82924] via-yl-dark-navy to-yl-dark-navy" />
           )}
           {/* Cinematic gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
@@ -299,7 +299,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 {categoryName && (
                   <Link
                     href={`/blog/category/${post.category?.slug}`}
-                    className="inline-flex items-center gap-1.5 bg-yalla-gold-500 text-charcoal px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider hover:bg-yalla-gold-400 transition-colors"
+                    className="inline-flex items-center gap-1.5 bg-yl-gold text-yl-charcoal px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider hover:bg-yl-gold transition-colors"
                   >
                     {categoryName}
                   </Link>
@@ -311,13 +311,13 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
               </div>
 
               {/* Title */}
-              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-[1.15] max-w-4xl ${isRTL ? 'font-arabic' : 'font-display'}`}>
+              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-[1.15] max-w-4xl ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                 {title}
               </h1>
 
               {/* Excerpt */}
               {excerpt && (
-                <p className={`text-white/75 text-lg md:text-xl leading-relaxed max-w-3xl mb-6 ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+                <p className={`text-white/75 text-lg md:text-xl leading-relaxed max-w-3xl mb-6 ${isRTL ? 'font-arabic' : 'font-body'}`}>
                   {excerpt}
                 </p>
               )}
@@ -325,7 +325,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
               {/* Author row */}
               <div className="flex flex-wrap items-center gap-4 text-white/60 text-sm">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-london-600 flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-9 h-9 rounded-full bg-yl-red flex items-center justify-center text-white font-bold text-sm">
                     {post.author?.name_en ? post.author.name_en.split(' ').map(w => w[0]).join('').slice(0, 2) : 'YL'}
                   </div>
                   <div>
@@ -353,9 +353,9 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
 
       {/* ═══ Tri-color Bar ═══ */}
       <div className="flex h-[3px] w-full">
-        <div className="flex-1 bg-london-600" />
-        <div className="flex-1 bg-yalla-gold-500" />
-        <div className="flex-1 bg-thames-500" />
+        <div className="flex-1 bg-yl-red" />
+        <div className="flex-1 bg-yl-gold" />
+        <div className="flex-1 bg-yl-blue" />
       </div>
 
       {/* ═══ Article Body — Two Column Layout ═══ */}
@@ -371,7 +371,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
                 {/* Mobile share bar */}
-                <div className="flex items-center justify-between mb-8 pb-6 border-b border-sand lg:hidden">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-yl-gray-200 lg:hidden">
                   <Button asChild variant="outline" size="sm">
                     <Link href="/blog">
                       <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
@@ -381,7 +381,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsLiked(!isLiked)}
-                      className={`p-2 rounded-full border transition-colors ${isLiked ? 'text-red-500 border-red-200 bg-red-50' : 'text-stone border-sand hover:border-london-300'}`}
+                      className={`p-2 rounded-full border transition-colors ${isLiked ? 'text-red-500 border-red-200 bg-red-50' : 'text-yl-gray-500 border-yl-gray-200 hover:border-yl-red/60'}`}
                     >
                       <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                     </button>
@@ -391,7 +391,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 {/* ─── Article HTML Content ─── */}
                 {isThinContent ? (
                   <div className="text-center py-12">
-                    <p className="text-stone text-lg">
+                    <p className="text-yl-gray-500 text-lg">
                       {language === 'en'
                         ? 'This article is being updated. Please check back soon.'
                         : 'هذا المقال قيد التحديث. يرجى العودة قريباً.'}
@@ -408,10 +408,10 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
 
                 {/* ─── Tags ─── */}
                 {publicTags.length > 0 && (
-                  <div className="mt-12 pt-8 border-t border-sand">
+                  <div className="mt-12 pt-8 border-t border-yl-gray-200">
                     <div className="flex items-center gap-2 mb-4">
-                      <Tag className="h-4 w-4 text-stone/50" />
-                      <span className={`text-xs font-medium uppercase tracking-wider text-stone/60 ${isRTL ? 'font-arabic' : 'font-sans'}`}>
+                      <Tag className="h-4 w-4 text-yl-gray-500/50" />
+                      <span className={`text-xs font-medium uppercase tracking-wider text-yl-gray-500/60 ${isRTL ? 'font-arabic' : 'font-sans'}`}>
                         {language === 'en' ? 'Topics' : 'المواضيع'}
                       </span>
                     </div>
@@ -420,7 +420,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                         <Link
                           key={tag}
                           href={`/blog?tag=${encodeURIComponent(tag)}`}
-                          className="px-3.5 py-1.5 text-sm rounded-full bg-cream border border-sand text-stone hover:border-london-400 hover:text-london-600 hover:bg-london-50 transition-all duration-200"
+                          className="px-3.5 py-1.5 text-sm rounded-full bg-yl-cream border border-yl-gray-200 text-yl-gray-500 hover:border-yl-red/80 hover:text-yl-red hover:bg-yl-red/5 transition-all duration-200"
                         >
                           #{tag}
                         </Link>
@@ -430,23 +430,23 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 )}
 
                 {/* ─── Author Card ─── */}
-                <div className="mt-10 p-6 md:p-8 rounded-xl bg-cream border border-sand/60">
+                <div className="mt-10 p-6 md:p-8 rounded-xl bg-yl-cream border border-yl-gray-200/60">
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-london-600 to-london-800 flex items-center justify-center text-white font-display font-bold text-lg shrink-0">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yl-red to-[#a82924] flex items-center justify-center text-white font-heading font-bold text-lg shrink-0">
                       {post.author?.name_en ? post.author.name_en.split(' ').map(w => w[0]).join('').slice(0, 2) : 'YL'}
                     </div>
                     <div className="flex-1">
-                      <h4 className={`font-bold text-charcoal mb-1 ${isRTL ? 'font-arabic' : 'font-display'}`}>
+                      <h4 className={`font-bold text-yl-charcoal mb-1 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                         {language === 'en'
                           ? (post.author?.name_en || 'Yalla London Editorial')
                           : (post.author?.name_ar || 'فريق تحرير يلا لندن')}
                       </h4>
                       {post.author?.title_en && (
-                        <p className={`text-xs text-stone/70 mb-1.5 ${isRTL ? 'font-arabic' : 'font-sans'}`}>
+                        <p className={`text-xs text-yl-gray-500/70 mb-1.5 ${isRTL ? 'font-arabic' : 'font-sans'}`}>
                           {post.author.title_en}
                         </p>
                       )}
-                      <p className={`text-sm text-stone leading-relaxed ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+                      <p className={`text-sm text-yl-gray-500 leading-relaxed ${isRTL ? 'font-arabic' : 'font-body'}`}>
                         {language === 'en'
                           ? (post.author?.bio_en || 'Curating the best of London for Arab travellers — luxury hotels, halal dining, hidden gems, and insider tips from our editorial team.')
                           : (post.author?.bio_ar || 'نقدم أفضل ما في لندن للمسافرين العرب — فنادق فاخرة، مطاعم حلال، أماكن مخفية، ونصائح من فريقنا التحريري.')}
@@ -454,17 +454,17 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                       {post.author && (post.author.linkedin_url || post.author.twitter_url || post.author.instagram_url) && (
                         <div className="flex gap-3 mt-3">
                           {post.author.linkedin_url && (
-                            <a href={post.author.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-stone/50 hover:text-london-600 transition-colors text-xs font-medium">
+                            <a href={post.author.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-yl-gray-500/50 hover:text-yl-red transition-colors text-xs font-medium">
                               LinkedIn
                             </a>
                           )}
                           {post.author.twitter_url && (
-                            <a href={post.author.twitter_url} target="_blank" rel="noopener noreferrer" className="text-stone/50 hover:text-london-600 transition-colors text-xs font-medium">
+                            <a href={post.author.twitter_url} target="_blank" rel="noopener noreferrer" className="text-yl-gray-500/50 hover:text-yl-red transition-colors text-xs font-medium">
                               X/Twitter
                             </a>
                           )}
                           {post.author.instagram_url && (
-                            <a href={post.author.instagram_url} target="_blank" rel="noopener noreferrer" className="text-stone/50 hover:text-london-600 transition-colors text-xs font-medium">
+                            <a href={post.author.instagram_url} target="_blank" rel="noopener noreferrer" className="text-yl-gray-500/50 hover:text-yl-red transition-colors text-xs font-medium">
                               Instagram
                             </a>
                           )}
@@ -475,8 +475,8 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 </div>
 
                 {/* ─── Mobile Share Buttons (bottom) ─── */}
-                <div className="mt-8 p-5 rounded-xl bg-cream-100 border border-sand/40 lg:hidden">
-                  <p className={`text-xs font-medium text-stone/60 mb-3 ${isRTL ? 'font-arabic' : 'font-sans uppercase tracking-wider'}`}>
+                <div className="mt-8 p-5 rounded-xl bg-yl-gray-100 border border-yl-gray-200/40 lg:hidden">
+                  <p className={`text-xs font-medium text-yl-gray-500/60 mb-3 ${isRTL ? 'font-arabic' : 'font-sans uppercase tracking-wider'}`}>
                     {language === 'en' ? 'Share This Story' : 'شارك هذه القصة'}
                   </p>
                   <ShareButtons title={title} excerpt={excerpt} variant="bar" />
@@ -496,19 +496,19 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 </Button>
 
                 {/* Share card */}
-                <div className="p-5 rounded-xl bg-cream border border-sand/60">
+                <div className="p-5 rounded-xl bg-yl-cream border border-yl-gray-200/60">
                   <div className="flex items-center gap-2 mb-4">
-                    <Share2 className="h-4 w-4 text-stone/50" />
-                    <span className="text-xs font-sans font-medium uppercase tracking-wider text-stone/60">
+                    <Share2 className="h-4 w-4 text-yl-gray-500/50" />
+                    <span className="text-xs font-sans font-medium uppercase tracking-wider text-yl-gray-500/60">
                       {language === 'en' ? 'Share' : 'مشاركة'}
                     </span>
                   </div>
                   <ShareButtons title={title} excerpt={excerpt} variant="bar" />
-                  <div className="mt-4 pt-4 border-t border-sand/40">
+                  <div className="mt-4 pt-4 border-t border-yl-gray-200/40">
                     <button
                       onClick={() => setIsLiked(!isLiked)}
                       className={`flex items-center gap-2 text-sm transition-colors w-full ${
-                        isLiked ? 'text-red-500' : 'text-stone hover:text-red-500'
+                        isLiked ? 'text-red-500' : 'text-yl-gray-500 hover:text-red-500'
                       }`}
                     >
                       <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -523,12 +523,12 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 {post.category && (
                   <Link
                     href={`/blog/category/${post.category.slug}`}
-                    className="block p-5 rounded-xl bg-gradient-to-br from-london-600 to-london-800 text-white hover:from-london-700 hover:to-london-900 transition-all duration-300 group"
+                    className="block p-5 rounded-xl bg-gradient-to-br from-yl-red to-[#a82924] text-white hover:from-yl-red hover:to-yl-dark-navy transition-all duration-300 group"
                   >
                     <span className="text-xs font-sans font-medium uppercase tracking-widest text-white/50 block mb-2">
                       {language === 'en' ? 'Category' : 'الفئة'}
                     </span>
-                    <span className={`text-lg font-bold block mb-1 ${isRTL ? 'font-arabic' : 'font-display'}`}>
+                    <span className={`text-lg font-bold block mb-1 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                       {categoryName}
                     </span>
                     <span className="text-xs text-white/60 flex items-center gap-1 group-hover:gap-2 transition-all">
@@ -540,10 +540,10 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
 
                 {/* Tags */}
                 {publicTags.length > 0 && (
-                  <div className="p-5 rounded-xl bg-cream border border-sand/60">
+                  <div className="p-5 rounded-xl bg-yl-cream border border-yl-gray-200/60">
                     <div className="flex items-center gap-2 mb-3">
-                      <Tag className="h-3.5 w-3.5 text-stone/50" />
-                      <span className="text-xs font-sans font-medium uppercase tracking-wider text-stone/60">
+                      <Tag className="h-3.5 w-3.5 text-yl-gray-500/50" />
+                      <span className="text-xs font-sans font-medium uppercase tracking-wider text-yl-gray-500/60">
                         {language === 'en' ? 'Topics' : 'المواضيع'}
                       </span>
                     </div>
@@ -552,7 +552,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                         <Link
                           key={tag}
                           href={`/blog?tag=${encodeURIComponent(tag)}`}
-                          className="px-2.5 py-1 text-xs rounded-full bg-white border border-sand text-stone hover:border-london-400 hover:text-london-600 transition-all duration-200"
+                          className="px-2.5 py-1 text-xs rounded-full bg-white border border-yl-gray-200 text-yl-gray-500 hover:border-yl-red/80 hover:text-yl-red transition-all duration-200"
                         >
                           {tag}
                         </Link>
@@ -562,18 +562,18 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 )}
 
                 {/* CTA banner */}
-                <div className="p-5 rounded-xl bg-yalla-gold-500/10 border border-yalla-gold-400/30">
-                  <span className={`text-sm font-bold text-charcoal block mb-2 ${isRTL ? 'font-arabic' : 'font-display'}`}>
+                <div className="p-5 rounded-xl bg-yl-gold/10 border border-yl-gold/30">
+                  <span className={`text-sm font-bold text-yl-charcoal block mb-2 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
                     {language === 'en' ? 'Planning a London Trip?' : 'تخطط لرحلة لندن؟'}
                   </span>
-                  <p className={`text-xs text-stone leading-relaxed mb-3 ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+                  <p className={`text-xs text-yl-gray-500 leading-relaxed mb-3 ${isRTL ? 'font-arabic' : 'font-body'}`}>
                     {language === 'en'
                       ? 'Browse our curated guides for hotels, restaurants, and experiences.'
                       : 'تصفح أدلتنا المختارة للفنادق والمطاعم والتجارب.'}
                   </p>
                   <Link
                     href="/information"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-london-600 hover:text-london-700 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-yl-red hover:text-yl-red transition-colors"
                   >
                     {language === 'en' ? 'Information Hub' : 'مركز المعلومات'}
                     <ChevronRight className={`h-3 w-3 ${isRTL ? 'rotate-180' : ''}`} />
@@ -586,12 +586,12 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
       </section>
 
       {/* ═══ Explore More CTA ═══ */}
-      <section className="py-16 bg-charcoal">
+      <section className="py-16 bg-yl-dark-navy">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className={`text-2xl md:text-3xl font-bold text-cream-100 mb-4 ${isRTL ? 'font-arabic' : 'font-display'}`}>
+          <h2 className={`text-2xl md:text-3xl font-bold text-yl-gray-100 mb-4 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
             {language === 'en' ? 'Discover More London Stories' : 'اكتشف المزيد من قصص لندن'}
           </h2>
-          <p className={`text-stone text-base mb-8 max-w-xl mx-auto ${isRTL ? 'font-arabic' : 'font-editorial'}`}>
+          <p className={`text-yl-gray-500 text-base mb-8 max-w-xl mx-auto ${isRTL ? 'font-arabic' : 'font-body'}`}>
             {language === 'en'
               ? 'From hidden restaurants to luxury hotels — explore our curated guides to London\'s finest experiences.'
               : 'من المطاعم المخفية إلى الفنادق الفاخرة — اكتشف أدلتنا المختارة لأفضل تجارب لندن.'}
@@ -599,13 +599,13 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/blog"
-              className="px-6 py-3 bg-london-600 text-white rounded hover:bg-london-700 transition-colors font-medium text-sm"
+              className="px-6 py-3 bg-yl-red text-white rounded hover:bg-yl-red transition-colors font-medium text-sm"
             >
               {language === 'en' ? 'Browse All Stories' : 'تصفح جميع القصص'}
             </Link>
             <Link
               href="/information"
-              className="px-6 py-3 border border-cream-100/30 text-cream-100 rounded hover:bg-cream-100/10 transition-colors font-medium text-sm"
+              className="px-6 py-3 border border-yl-gray-100/30 text-yl-gray-100 rounded hover:bg-yl-gray-100/10 transition-colors font-medium text-sm"
             >
               {language === 'en' ? 'Travel Guides' : 'أدلة السفر'}
             </Link>
@@ -618,7 +618,7 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
 
       {/* ═══ Sticky Mobile Share Bar ═══ */}
       {showStickyShare && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-sand py-3 px-6 lg:hidden">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-yl-gray-200 py-3 px-6 lg:hidden">
           <ShareButtons title={title} excerpt={excerpt} variant="bar" />
         </div>
       )}

@@ -116,7 +116,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
   return (
     <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <section className="bg-gradient-to-br from-cream to-cream-200 py-16">
+      <section className="bg-gradient-to-br from-yl-cream to-yl-gray-200 py-16">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -124,10 +124,10 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-4xl sm:text-5xl font-display font-bold gradient-text mb-4">
+            <h1 className="text-4xl sm:text-5xl font-heading font-bold gradient-text mb-4">
               {t('blog')}
             </h1>
-            <p className="text-xl text-stone max-w-2xl mx-auto">
+            <p className="text-xl text-yl-gray-500 max-w-2xl mx-auto">
               {language === 'en'
                 ? 'Discover the stories behind London\'s most luxurious experiences'
                 : 'اكتشف القصص وراء أكثر التجارب الفاخرة في لندن'
@@ -148,7 +148,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
           >
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-yl-gray-500" />
                 <Input
                   placeholder={language === 'en' ? 'Search stories...' : 'البحث في القصص...'}
                   value={searchTerm}
@@ -170,7 +170,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-sm text-stone">
+            <div className="text-sm text-yl-gray-500">
               {filteredPosts.length} {language === 'en' ? 'stories found' : 'قصة موجودة'}
             </div>
           </motion.div>
@@ -206,13 +206,13 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
-                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-brand-primary">
+                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-yl-red">
                           {categoryName}
                         </span>
                       </div>
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
-                      <div className="flex items-center gap-4 text-sm text-stone mb-3">
+                      <div className="flex items-center gap-4 text-sm text-yl-gray-500 mb-3">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           {formatDate(post.created_at)}
@@ -222,13 +222,13 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                           {language === 'en' ? 'Editorial Team' : 'فريق التحرير'}
                         </span>
                       </div>
-                      <h3 className="text-xl font-semibold mb-3 text-charcoal group-hover:text-brand-primary transition-colors line-clamp-2">
+                      <h3 className="text-xl font-semibold mb-3 text-yl-charcoal group-hover:text-yl-red transition-colors line-clamp-2">
                         {title}
                       </h3>
-                      <p className="text-stone leading-relaxed flex-1 mb-4 line-clamp-3">
+                      <p className="text-yl-gray-500 leading-relaxed flex-1 mb-4 line-clamp-3">
                         {excerpt}
                       </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-london-800 transition-colors">
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-yl-red hover:text-[#a82924] transition-colors">
                         <Link href={`/blog/${post.slug}`}>
                           {t('readMore')}
                           <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
@@ -248,7 +248,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <p className="text-xl text-stone">
+              <p className="text-xl text-yl-gray-500">
                 {language === 'en'
                   ? 'No stories found matching your criteria.'
                   : 'لم يتم العثور على قصص تطابق معاييرك.'
@@ -260,7 +260,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
       </section>
 
       {/* Follow Us */}
-      <section className="py-10 bg-charcoal">
+      <section className="py-10 bg-yl-dark-navy">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <FollowUs variant="dark" showLabel={true} />
         </div>

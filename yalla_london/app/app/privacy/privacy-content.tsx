@@ -349,13 +349,13 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
   return (
     <div className={`container mx-auto px-6 py-12 max-w-4xl ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
+        <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
           {c.title}
         </h1>
-        <p className="text-stone">
+        <p className="text-yl-gray-500">
           {c.lastUpdated}: February 2026
         </p>
-        <p className="text-stone mt-4 leading-relaxed">
+        <p className="text-yl-gray-500 mt-4 leading-relaxed">
           {c.intro}
         </p>
       </div>
@@ -369,10 +369,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
           <CardContent className="space-y-6">
             <div>
               <h3 className="font-semibold mb-2">{c.dataCollectPersonalTitle}</h3>
-              <p className="text-stone mb-2">
+              <p className="text-yl-gray-500 mb-2">
                 {c.dataCollectPersonalIntro}
               </p>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.dataCollectPersonalItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -381,10 +381,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
 
             <div>
               <h3 className="font-semibold mb-2">{c.dataCollectAutoTitle}</h3>
-              <p className="text-stone mb-2">
+              <p className="text-yl-gray-500 mb-2">
                 {c.dataCollectAutoIntro}
               </p>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.dataCollectAutoItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -399,10 +399,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.howWeUseTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.howWeUseIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.howWeUseItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -416,13 +416,13 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.cookiesTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <p className="text-stone">
+            <p className="text-yl-gray-500">
               {c.cookiesIntro}
             </p>
 
             <div>
               <h3 className="font-semibold mb-2">{c.cookiesEssentialTitle}</h3>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.cookiesEssentialItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -431,7 +431,7 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
 
             <div>
               <h3 className="font-semibold mb-2">{c.cookiesAnalyticsTitle}</h3>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.cookiesAnalyticsItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -440,7 +440,7 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
 
             <div>
               <h3 className="font-semibold mb-2">{c.cookiesThirdPartyTitle}</h3>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.cookiesThirdPartyItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -455,10 +455,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.thirdPartyTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.thirdPartyIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.thirdPartyItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -472,10 +472,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.affiliateTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.affiliateIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.affiliateItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -489,10 +489,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.retentionTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.retentionIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.retentionItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -506,10 +506,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.rightsTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.rightsIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.rightsItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -523,10 +523,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.securityTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.securityIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.securityItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -540,10 +540,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.childrenTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.childrenIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.childrenItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -557,10 +557,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.transfersTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.transfersIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.transfersItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -574,10 +574,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.updatesTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.updatesIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.updatesItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -591,10 +591,10 @@ export default function PrivacyPolicy({ siteId }: { siteId?: string }) {
             <CardTitle>{c.contactTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.contactIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.contactItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}

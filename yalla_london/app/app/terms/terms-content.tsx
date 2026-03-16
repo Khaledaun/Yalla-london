@@ -298,13 +298,13 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
   return (
     <div className={`container mx-auto px-6 py-12 max-w-4xl ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
+        <h1 className="text-3xl md:text-4xl font-heading font-bold text-yl-charcoal mb-4">
           {c.title}
         </h1>
-        <p className="text-stone">
+        <p className="text-yl-gray-500">
           {c.lastUpdated}: February 2026
         </p>
-        <p className="text-stone mt-4 leading-relaxed">
+        <p className="text-yl-gray-500 mt-4 leading-relaxed">
           {c.intro}
         </p>
       </div>
@@ -316,10 +316,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.aboutTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.aboutIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.aboutItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -333,10 +333,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.affiliateTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.affiliateIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.affiliateItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -350,10 +350,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.accuracyTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.accuracyIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.accuracyItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -367,10 +367,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.userTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.userIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.userItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -386,10 +386,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
           <CardContent className="space-y-6">
             <div>
               <h3 className="font-semibold mb-2">{c.ipOurContentTitle}</h3>
-              <p className="text-stone mb-2">
+              <p className="text-yl-gray-500 mb-2">
                 {c.ipOurContentIntro}
               </p>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.ipOurContentItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -398,7 +398,7 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
 
             <div>
               <h3 className="font-semibold mb-2">{c.ipUserContentTitle}</h3>
-              <ul className="list-disc list-inside text-stone space-y-2">
+              <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
                 {c.ipUserContentItems.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -413,10 +413,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.digitalTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.digitalIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.digitalItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -430,10 +430,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.liabilityTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.liabilityIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.liabilityItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -447,10 +447,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.newsletterTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.newsletterIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.newsletterItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -464,10 +464,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.governingTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.governingIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.governingItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -481,10 +481,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.changesTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.changesIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.changesItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -498,10 +498,10 @@ export default function TermsOfUse({ siteId }: { siteId?: string }) {
             <CardTitle>{c.contactTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-stone mb-3">
+            <p className="text-yl-gray-500 mb-3">
               {c.contactIntro}
             </p>
-            <ul className="list-disc list-inside text-stone space-y-2">
+            <ul className="list-disc list-inside text-yl-gray-500 space-y-2">
               {c.contactItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}

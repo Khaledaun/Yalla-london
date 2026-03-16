@@ -27,7 +27,7 @@ export function LanguageSwitcher() {
       variant="outline"
       size="sm"
       onClick={toggleLanguage}
-      className="flex items-center gap-2 bg-white/80 hover:bg-white border-sand hover:border-stone"
+      className="flex items-center gap-2 bg-white/80 hover:bg-white border-yl-gray-200 hover:border-stone"
     >
       <Globe className="h-4 w-4" />
       <span className="font-medium">

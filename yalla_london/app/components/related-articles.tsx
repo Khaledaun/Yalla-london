@@ -75,13 +75,13 @@ export function RelatedArticles({ articles, currentType }: RelatedArticlesProps)
       {/* Section header */}
       <div className="text-center mb-10">
         <div className="flex items-center justify-center gap-3 mb-4">
-          <span className="h-px w-12 bg-yalla-gold-400" />
-          <span className="text-sm font-medium uppercase tracking-widest text-yalla-gold-400">
+          <span className="h-px w-12 bg-yl-gold" />
+          <span className="text-sm font-medium uppercase tracking-widest text-yl-gold">
             {t('relatedArticles')}
           </span>
-          <span className="h-px w-12 bg-yalla-gold-400" />
+          <span className="h-px w-12 bg-yl-gold" />
         </div>
-        <h2 className={`text-3xl font-bold text-charcoal ${isRTL ? 'font-arabic' : 'font-display'}`}>
+        <h2 className={`text-3xl font-bold text-yl-charcoal ${isRTL ? 'font-arabic' : 'font-heading'}`}>
           {sectionTitle}
         </h2>
       </div>
@@ -109,7 +109,7 @@ export function RelatedArticles({ articles, currentType }: RelatedArticlesProps)
           return (
             <motion.div key={article.slug} variants={cardVariants}>
               <Link href={href} className="group block h-full">
-                <article className="h-full bg-cream rounded-card overflow-hidden shadow-card transition-shadow duration-300 hover:shadow-hover flex flex-col">
+                <article className="h-full bg-yl-cream rounded-card overflow-hidden shadow-sm transition-shadow duration-300 hover:shadow-md flex flex-col">
                   {/* Image */}
                   <div className="relative overflow-hidden">
                     <Image
@@ -124,14 +124,14 @@ export function RelatedArticles({ articles, currentType }: RelatedArticlesProps)
                     <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} flex gap-2`}>
                       {/* Category badge */}
                       {categoryName && (
-                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-london-600 text-white">
+                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yl-red text-white">
                           {categoryName}
                         </span>
                       )}
 
                       {/* Cross-type badge */}
                       {isCrossType && (
-                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yalla-gold-400 text-charcoal">
+                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yl-gold text-yl-charcoal">
                           {typeBadgeLabel}
                         </span>
                       )}
@@ -141,21 +141,21 @@ export function RelatedArticles({ articles, currentType }: RelatedArticlesProps)
                   {/* Content */}
                   <div className="flex flex-col flex-1 p-5">
                     <h3
-                      className={`text-lg font-bold text-charcoal mb-2 line-clamp-2 group-hover:text-london-600 transition-colors duration-200 ${
-                        isRTL ? 'font-arabic' : 'font-display'
+                      className={`text-lg font-bold text-yl-charcoal mb-2 line-clamp-2 group-hover:text-yl-red transition-colors duration-200 ${
+                        isRTL ? 'font-arabic' : 'font-heading'
                       }`}
                     >
                       {title}
                     </h3>
 
-                    <p className="text-sm text-stone leading-relaxed mb-4 line-clamp-3 flex-1">
+                    <p className="text-sm text-yl-gray-500 leading-relaxed mb-4 line-clamp-3 flex-1">
                       {truncateText(excerpt, 120)}
                     </p>
 
                     {/* Footer: reading time + read more */}
-                    <div className="flex items-center justify-between pt-3 border-t border-sand">
+                    <div className="flex items-center justify-between pt-3 border-t border-yl-gray-200">
                       {article.reading_time ? (
-                        <span className="flex items-center gap-1.5 text-xs text-stone">
+                        <span className="flex items-center gap-1.5 text-xs text-yl-gray-500">
                           <Clock className="w-3.5 h-3.5" />
                           {article.reading_time} {language === 'en' ? 'min read' : 'دقيقة للقراءة'}
                         </span>
@@ -163,7 +163,7 @@ export function RelatedArticles({ articles, currentType }: RelatedArticlesProps)
                         <span />
                       )}
 
-                      <span className="flex items-center gap-1 text-sm font-medium text-london-600 group-hover:gap-2 transition-all duration-200">
+                      <span className="flex items-center gap-1 text-sm font-medium text-yl-red group-hover:gap-2 transition-all duration-200">
                         {t('readMore')}
                         <ArrowIcon className="w-4 h-4" />
                       </span>

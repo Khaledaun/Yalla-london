@@ -204,24 +204,24 @@ function NewsCarouselSkeleton() {
   return (
     <div className="w-full animate-pulse">
       <div className="flex items-center gap-3 mb-6">
-        <div className="h-6 w-6 rounded bg-sand" />
-        <div className="h-6 w-40 rounded bg-sand" />
+        <div className="h-6 w-6 rounded bg-yl-gray-200" />
+        <div className="h-6 w-40 rounded bg-yl-gray-200" />
       </div>
-      <div className="rounded-2xl border border-sand bg-cream overflow-hidden">
+      <div className="rounded-2xl border border-yl-gray-200 bg-yl-cream overflow-hidden">
         <div className="flex flex-col md:flex-row">
-          <div className="w-full md:w-2/5 h-48 md:h-64 bg-sand" />
+          <div className="w-full md:w-2/5 h-48 md:h-64 bg-yl-gray-200" />
           <div className="flex-1 p-6 space-y-4">
             <div className="flex gap-2">
-              <div className="h-6 w-20 rounded-full bg-sand" />
-              <div className="h-6 w-16 rounded-full bg-sand" />
+              <div className="h-6 w-20 rounded-full bg-yl-gray-200" />
+              <div className="h-6 w-16 rounded-full bg-yl-gray-200" />
             </div>
-            <div className="h-5 w-3/4 rounded bg-sand" />
-            <div className="h-4 w-full rounded bg-sand" />
-            <div className="h-4 w-5/6 rounded bg-sand" />
-            <div className="h-4 w-2/3 rounded bg-sand" />
+            <div className="h-5 w-3/4 rounded bg-yl-gray-200" />
+            <div className="h-4 w-full rounded bg-yl-gray-200" />
+            <div className="h-4 w-5/6 rounded bg-yl-gray-200" />
+            <div className="h-4 w-2/3 rounded bg-yl-gray-200" />
             <div className="flex justify-between items-center pt-4">
-              <div className="h-4 w-24 rounded bg-sand" />
-              <div className="h-9 w-32 rounded-full bg-sand" />
+              <div className="h-4 w-24 rounded bg-yl-gray-200" />
+              <div className="h-9 w-32 rounded-full bg-yl-gray-200" />
             </div>
           </div>
         </div>
@@ -305,18 +305,18 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
       {/* Section header                                                      */}
       {/* ------------------------------------------------------------------ */}
       <div className="flex items-center gap-3 mb-8">
-        <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-london-600/10">
-          <Newspaper className="w-5 h-5 text-london-600" />
+        <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-yl-red/10">
+          <Newspaper className="w-5 h-5 text-yl-red" />
         </span>
         <h2
           className={cn(
-            'text-2xl md:text-3xl font-bold text-charcoal',
-            isRTL ? 'font-arabic' : 'font-display'
+            'text-2xl md:text-3xl font-bold text-yl-charcoal',
+            isRTL ? 'font-arabic' : 'font-heading'
           )}
         >
           {sectionTitle}
         </h2>
-        <span className="hidden sm:block flex-1 h-px bg-gradient-to-r from-yalla-gold-400/40 to-transparent" />
+        <span className="hidden sm:block flex-1 h-px bg-gradient-to-r from-yl-gold/40 to-transparent" />
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -351,8 +351,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                   <article
                     className={cn(
                       'relative rounded-2xl overflow-hidden transition-shadow duration-300 group/card',
-                      'bg-cream shadow-card hover:shadow-hover',
-                      item.is_major && 'ring-1 ring-yalla-gold-400/50'
+                      'bg-yl-cream shadow-sm hover:shadow-md',
+                      item.is_major && 'ring-1 ring-yl-gold/50'
                     )}
                     style={{
                       border: '2px solid transparent',
@@ -369,7 +369,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                         animation: 'rotateBorder 4s linear infinite',
                       }}
                     />
-                    <div className="absolute inset-0 rounded-2xl bg-cream" style={{ margin: '2px', zIndex: -1 }} />
+                    <div className="absolute inset-0 rounded-2xl bg-yl-cream" style={{ margin: '2px', zIndex: -1 }} />
 
                     <style jsx>{`
                       @property --border-angle {
@@ -393,11 +393,11 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                             sizes="(max-width: 768px) 100vw, 40vw"
                           />
                           {/* Gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-charcoal/30 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-charcoal/10" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy/30 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-yl-dark-navy/10" />
 
                           {/* Image credit */}
                           {item.image_credit && (
-                            <span className="absolute bottom-2 right-2 text-[11px] text-white/70 bg-charcoal/50 px-1.5 py-0.5 rounded">
+                            <span className="absolute bottom-2 right-2 text-[11px] text-white/70 bg-yl-dark-navy/50 px-1.5 py-0.5 rounded">
                               {item.image_credit}
                             </span>
                           )}
@@ -460,7 +460,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                             )}
 
                             {/* Date */}
-                            <span className="flex items-center gap-1 text-xs text-stone ml-auto">
+                            <span className="flex items-center gap-1 text-xs text-yl-gray-500 ml-auto">
                               <Clock className="w-3 h-3" />
                               {formatDate(item.published_at, language)}
                             </span>
@@ -470,7 +470,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           {announcement && (
                             <p
                               className={cn(
-                                'text-sm font-bold text-london-700 mb-2 leading-snug',
+                                'text-sm font-bold text-yl-red mb-2 leading-snug',
                                 isRTL ? 'font-arabic' : 'font-sans'
                               )}
                             >
@@ -481,8 +481,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           {/* Headline */}
                           <h3
                             className={cn(
-                              'text-lg md:text-xl font-bold text-charcoal mb-2 leading-tight',
-                              isRTL ? 'font-arabic' : 'font-display'
+                              'text-lg md:text-xl font-bold text-yl-charcoal mb-2 leading-tight',
+                              isRTL ? 'font-arabic' : 'font-heading'
                             )}
                           >
                             {headline}
@@ -491,7 +491,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           {/* Summary */}
                           <p
                             className={cn(
-                              'text-sm text-stone leading-relaxed mb-4',
+                              'text-sm text-yl-gray-500 leading-relaxed mb-4',
                               isRTL ? 'font-arabic' : 'font-sans'
                             )}
                           >
@@ -503,13 +503,13 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                         </div>
 
                         {/* Bottom: source + CTA */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-sand">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-yl-gray-200">
                           {/* Source */}
                           <a
                             href={item.source_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs text-stone hover:text-london-600 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs text-yl-gray-500 hover:text-yl-red transition-colors"
                           >
                             {sourceLabel}: {item.source_name}
                             <ExternalLink className="w-3 h-3" />
@@ -520,7 +520,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                             href={`/news/${item.slug}`}
                             className={cn(
                               'inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold',
-                              'bg-london-600 text-white hover:bg-london-700',
+                              'bg-yl-red text-white hover:bg-[#a82924]',
                               'transition-all duration-200 hover:gap-3 shadow-sm hover:shadow-md'
                             )}
                           >
@@ -531,8 +531,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
 
                         {/* Event dates if applicable */}
                         {(item.event_start_date || item.event_end_date) && (
-                          <div className="mt-3 flex items-center gap-2 text-xs text-stone">
-                            <Calendar className="w-3.5 h-3.5 text-yalla-gold-500" />
+                          <div className="mt-3 flex items-center gap-2 text-xstext-yl-gray-500">
+                            <Calendar className="w-3.5 h-3.5 text-yl-gold" />
                             <span>
                               {item.event_start_date && formatDate(item.event_start_date, language)}
                               {item.event_start_date && item.event_end_date && ' — '}
@@ -547,8 +547,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                     {/* Related articles pills                                */}
                     {/* ---------------------------------------------------- */}
                     {item.related_article_slugs && item.related_article_slugs.length > 0 && (
-                      <div className="px-5 md:px-6 pb-4 pt-2 border-t border-sand/50">
-                        <p className="text-xs font-medium text-stone mb-2">{relatedLabel}</p>
+                      <div className="px-5 md:px-6 pb-4 pt-2 border-t border-yl-gray-200/50">
+                        <p className="text-xs font-medium text-yl-gray-500 mb-2">{relatedLabel}</p>
                         <div className="flex flex-wrap gap-2">
                           {item.related_article_slugs.slice(0, 3).map((slug) => (
                             <Link
@@ -556,8 +556,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                               href={`/blog/${slug}`}
                               className={cn(
                                 'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium',
-                                'bg-cream-100 text-charcoal border border-sand/80',
-                                'hover:border-yalla-gold-400 hover:text-london-600 transition-colors duration-200'
+                                'bg-yl-gray-100 text-yl-charcoal border border-yl-gray-200/80',
+                                'hover:border-yl-gold hover:text-yl-red transition-colors duration-200'
                               )}
                             >
                               <ArrowIcon className="w-3 h-3" />
@@ -582,16 +582,16 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
             <CarouselPrevious
               className={cn(
                 'hidden sm:flex -left-4 md:-left-5 h-10 w-10 rounded-full',
-                'bg-cream border-sand text-charcoal shadow-card',
-                'hover:bg-london-600 hover:text-white hover:border-london-600',
+                'bg-yl-cream border-yl-gray-200 text-yl-charcoal shadow-sm',
+                'hover:bg-yl-red hover:text-white hover:border-yl-red',
                 'transition-all duration-200'
               )}
             />
             <CarouselNext
               className={cn(
                 'hidden sm:flex -right-4 md:-right-5 h-10 w-10 rounded-full',
-                'bg-cream border-sand text-charcoal shadow-card',
-                'hover:bg-london-600 hover:text-white hover:border-london-600',
+                'bg-yl-cream border-yl-gray-200 text-yl-charcoal shadow-sm',
+                'hover:bg-yl-red hover:text-white hover:border-yl-red',
                 'transition-all duration-200'
               )}
             />
@@ -605,7 +605,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
           {newsItems.map((item, index) => (
             <span
               key={item.id}
-              className="w-2 h-2 rounded-full bg-sand"
+              className="w-2 h-2 rounded-full bg-yl-gray-200"
               aria-label={`Slide ${index + 1}`}
             />
           ))}

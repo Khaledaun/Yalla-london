@@ -637,7 +637,7 @@ async function RelatedArticlesLoader({
   const { RelatedArticles } = await import("@/components/related-articles");
 
   return (
-    <section className="py-14 bg-cream border-t border-sand/50">
+    <section className="py-14 bg-yl-cream border-t border-yl-gray-200/50">
       <div className="max-w-6xl mx-auto px-6">
         <RelatedArticles articles={articles} currentType="blog" />
       </div>
@@ -708,7 +708,7 @@ export default async function BlogPostPage({ params }: Props) {
       {/* Related articles stream in after the main content via Suspense.
           This eliminates a DB query from the critical render path —
           the page HTML arrives immediately, related articles load async. */}
-      <Suspense fallback={<div className="py-14 bg-cream" aria-hidden="true" />}>
+      <Suspense fallback={<div className="py-14 bg-yl-cream" aria-hidden="true" />}>
         <RelatedArticlesLoader
           slug={slug}
           dbOnly={isDb}

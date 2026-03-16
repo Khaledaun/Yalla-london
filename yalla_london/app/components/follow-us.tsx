@@ -111,7 +111,7 @@ const SOCIAL_PLATFORMS = [
     icon: SnapchatIcon,
     href: 'https://snapchat.com/add/yallalondon',
     hoverBg: 'hover:bg-[#FFFC00]',
-    hoverColor: 'hover:text-charcoal hover:border-[#FFFC00]',
+    hoverColor: 'hover:text-yl-charcoal hover:border-[#FFFC00]',
   },
 ]
 
@@ -142,9 +142,9 @@ export function FollowUs({
   const isDark = variant === 'dark'
   const isSm = size === 'sm'
 
-  const baseBg = isDark ? 'bg-graphite border-stone/20' : 'bg-white border-sand'
-  const baseText = isDark ? 'text-cream-200' : 'text-stone'
-  const labelColor = isDark ? 'text-cream-100' : 'text-charcoal'
+  const baseBg = isDark ? 'bg-graphite border-stone/20' : 'bg-white border-yl-gray-200'
+  const baseText = isDark ? 'text-yl-gray-200' : 'text-yl-gray-500'
+  const labelColor = isDark ? 'text-yl-gray-100' : 'text-yl-charcoal'
   const btnSize = isSm ? 'w-9 h-9' : 'w-10 h-10'
   const iconSize = isSm ? 'w-4 h-4' : 'w-[18px] h-[18px]'
 

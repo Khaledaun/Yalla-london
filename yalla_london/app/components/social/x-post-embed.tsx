@@ -244,7 +244,7 @@ export function XPostGrid({
         <h3
           className={cn(
             'text-xl font-bold text-gray-900',
-            isRTL ? 'font-arabic' : 'font-display',
+            isRTL ? 'font-arabic' : 'font-heading',
           )}
         >
           {isRTL ? titleAr : title}

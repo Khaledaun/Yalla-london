@@ -11,15 +11,15 @@ export default function NotFound() {
   const t = (key: string) => getTranslation(language, key)
 
   return (
-    <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br from-cream to-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
+    <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br from-yl-cream to-yl-gray-100 ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="max-w-md w-full mx-auto px-6 text-center">
         <div className="mb-8">
-          <h1 className="text-8xl sm:text-9xl font-display font-bold text-sand select-none">404</h1>
+          <h1 className="text-8xl sm:text-9xl font-heading font-bold text-sand select-none">404</h1>
           <div className="relative -mt-8">
-            <h2 className="text-xl sm:text-2xl font-display font-bold text-charcoal mb-4">
+            <h2 className="text-xl sm:text-2xl font-heading font-bold text-yl-charcoal mb-4">
               {t('pageNotFound') || 'Page Not Found'}
             </h2>
-            <p className="text-stone mb-8">
+            <p className="text-yl-gray-500 mb-8">
               {t('pageNotFoundMessage') || 'The page you are looking for does not exist or has been moved.'}
             </p>
           </div>
@@ -50,8 +50,8 @@ export default function NotFound() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-sand">
-          <p className="text-sm text-stone">
+        <div className="mt-8 pt-8 border-t border-yl-gray-200">
+          <p className="text-sm text-yl-gray-500">
             {t('errorCode') || 'Error Code'}: 404 | {t('pageNotFound') || 'Page Not Found'}
           </p>
         </div>

@@ -150,7 +150,7 @@ export function CookieConsentBanner() {
         <CardContent>
           {!showSettings ? (
             <div>
-              <p className="text-sm text-stone mb-4">
+              <p className="text-sm text-yl-gray-500 mb-4">
                 {isAr
                   ? 'نستخدم ملفات تعريف الارتباط لتحسين تجربتك وتحليل استخدام الموقع وتقديم محتوى مخصص. يمكنك اختيار ملفات تعريف الارتباط التي تقبلها أدناه. ملفات تعريف الارتباط الأساسية نشطة دائمًا.'
                   : 'We use cookies to enhance your experience, analyze site usage, and provide personalized content. You can choose which cookies to accept below. Essential cookies are always active.'}
@@ -191,7 +191,7 @@ export function CookieConsentBanner() {
                     <h4 className="font-medium">
                       {isAr ? 'ملفات تعريف الارتباط الضرورية' : 'Necessary Cookies'}
                     </h4>
-                    <p className="text-sm text-stone">
+                    <p className="text-sm text-yl-gray-500">
                       {isAr
                         ? 'أساسية لعمل الموقع والأمان والميزات الأساسية.'
                         : 'Essential for website functionality, security, and basic features.'}
@@ -206,7 +206,7 @@ export function CookieConsentBanner() {
                     <h4 className="font-medium">
                       {isAr ? 'ملفات تعريف الارتباط التحليلية' : 'Analytics Cookies'}
                     </h4>
-                    <p className="text-sm text-stone">
+                    <p className="text-sm text-yl-gray-500">
                       {isAr
                         ? 'تساعدنا على فهم كيفية تفاعل الزوار مع موقعنا.'
                         : 'Help us understand how visitors interact with our website.'}
@@ -224,7 +224,7 @@ export function CookieConsentBanner() {
                     <h4 className="font-medium">
                       {isAr ? 'ملفات تعريف الارتباط الوظيفية' : 'Functional Cookies'}
                     </h4>
-                    <p className="text-sm text-stone">
+                    <p className="text-sm text-yl-gray-500">
                       {isAr
                         ? 'تتذكر تفضيلاتك وتحسن الوظائف.'
                         : 'Remember your preferences and enhance functionality.'}
@@ -242,7 +242,7 @@ export function CookieConsentBanner() {
                     <h4 className="font-medium">
                       {isAr ? 'ملفات تعريف الارتباط التسويقية' : 'Marketing Cookies'}
                     </h4>
-                    <p className="text-sm text-stone">
+                    <p className="text-sm text-yl-gray-500">
                       {isAr
                         ? 'تُستخدم لعرض إعلانات ذات صلة وقياس فعالية الحملات.'
                         : 'Used to show relevant advertisements and measure campaign effectiveness.'}
@@ -270,18 +270,18 @@ export function CookieConsentBanner() {
             </div>
           )}
 
-          <p className="text-xs text-stone mt-4">
+          <p className="text-xs text-yl-gray-500 mt-4">
             {isAr ? (
               <>
                 باستمرارك في استخدام موقعنا، فإنك توافق على{' '}
-                <Link href="/privacy" className="underline hover:text-charcoal">سياسة الخصوصية</Link> و{' '}
-                <Link href="/terms" className="underline hover:text-charcoal">شروط الاستخدام</Link>.
+                <Link href="/privacy" className="underline hover:text-yl-charcoal">سياسة الخصوصية</Link> و{' '}
+                <Link href="/terms" className="underline hover:text-yl-charcoal">شروط الاستخدام</Link>.
               </>
             ) : (
               <>
                 By continuing to use our website, you agree to our{' '}
-                <Link href="/privacy" className="underline hover:text-charcoal">Privacy Policy</Link> and{' '}
-                <Link href="/terms" className="underline hover:text-charcoal">Terms of Use</Link>.
+                <Link href="/privacy" className="underline hover:text-yl-charcoal">Privacy Policy</Link> and{' '}
+                <Link href="/terms" className="underline hover:text-yl-charcoal">Terms of Use</Link>.
               </>
             )}
           </p>

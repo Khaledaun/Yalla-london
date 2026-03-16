@@ -238,7 +238,7 @@ export function AkeaHomepage({ locale = 'en', initialArticles, featuredArticles,
   const t = text[locale]
 
   return (
-    <div className="min-h-screen bg-cream-50 dark:bg-cream-950" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-yl-cream dark:bg-yl-dark-navy" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header - only show if explicitly enabled */}
       {showHeader && <AkeaHeader locale={locale} />}
 
@@ -251,7 +251,7 @@ export function AkeaHomepage({ locale = 'en', initialArticles, featuredArticles,
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-8">
         <div className="flex items-center justify-center gap-4">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold-400/50 to-transparent" />
-          <h2 className="text-2xl md:text-3xl font-serif font-bold text-warm-charcoal dark:text-cream-100 px-4">
+          <h2 className="text-2xl md:text-3xl font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 px-4">
             {t.latestStories}
           </h2>
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold-400/50 to-transparent" />
@@ -268,13 +268,13 @@ export function AkeaHomepage({ locale = 'en', initialArticles, featuredArticles,
               <div className="space-y-10">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="card-elegant p-0 overflow-hidden animate-pulse">
-                    <div className="aspect-[16/9] bg-cream-200 dark:bg-cream-800" />
+                    <div className="aspect-[16/9] bg-yl-gray-200 dark:bg-yl-charcoal" />
                     <div className="p-6 space-y-4">
-                      <div className="h-8 bg-cream-200 dark:bg-cream-800 rounded w-3/4" />
-                      <div className="h-4 bg-cream-200 dark:bg-cream-800 rounded w-1/2" />
+                      <div className="h-8 bg-yl-gray-200 dark:bg-yl-charcoal rounded w-3/4" />
+                      <div className="h-4 bg-yl-gray-200 dark:bg-yl-charcoal rounded w-1/2" />
                       <div className="space-y-2">
-                        <div className="h-4 bg-cream-200 dark:bg-cream-800 rounded w-full" />
-                        <div className="h-4 bg-cream-200 dark:bg-cream-800 rounded w-5/6" />
+                        <div className="h-4 bg-yl-gray-200 dark:bg-yl-charcoal rounded w-full" />
+                        <div className="h-4 bg-yl-gray-200 dark:bg-yl-charcoal rounded w-5/6" />
                       </div>
                     </div>
                   </div>
@@ -294,7 +294,7 @@ export function AkeaHomepage({ locale = 'en', initialArticles, featuredArticles,
                 <div className="text-center pt-8">
                   <button
                     onClick={loadMore}
-                    className="px-8 py-3.5 bg-burgundy-800 text-white rounded-lg font-semibold shadow-luxury hover:bg-burgundy-700 hover:shadow-elegant transition-all duration-300 hover:-translate-y-1"
+                    className="px-8 py-3.5 bg-burgundy-800 text-white rounded-lg font-semibold shadow-lg hover:bg-burgundy-700 hover:shadow-md transition-all duration-300 hover:-translate-y-1"
                   >
                     {t.loadMore}
                   </button>
@@ -302,13 +302,13 @@ export function AkeaHomepage({ locale = 'en', initialArticles, featuredArticles,
 
                 {/* Pagination */}
                 <div className="flex items-center justify-center gap-2 pt-6">
-                  <span className="w-10 h-10 rounded-xl bg-burgundy-800 text-white flex items-center justify-center text-sm font-semibold shadow-luxury">
+                  <span className="w-10 h-10 rounded-xl bg-burgundy-800 text-white flex items-center justify-center text-sm font-semibold shadow-lg">
                     {page}
                   </span>
-                  <span className="w-10 h-10 rounded-xl bg-cream-200 dark:bg-cream-800 text-warm-charcoal dark:text-cream-200 flex items-center justify-center text-sm font-medium hover:bg-gold-400 hover:text-burgundy-900 cursor-pointer transition-all duration-300">
+                  <span className="w-10 h-10 rounded-xl bg-yl-gray-200 dark:bg-yl-charcoal text-warm-charcoal dark:text-yl-gray-200 flex items-center justify-center text-sm font-medium hover:bg-gold-400 hover:text-burgundy-900 cursor-pointer transition-all duration-300">
                     {page + 1}
                   </span>
-                  <span className="w-10 h-10 rounded-xl bg-cream-200 dark:bg-cream-800 text-warm-charcoal dark:text-cream-200 flex items-center justify-center text-sm font-medium hover:bg-gold-400 hover:text-burgundy-900 cursor-pointer transition-all duration-300">
+                  <span className="w-10 h-10 rounded-xl bg-yl-gray-200 dark:bg-yl-charcoal text-warm-charcoal dark:text-yl-gray-200 flex items-center justify-center text-sm font-medium hover:bg-gold-400 hover:text-burgundy-900 cursor-pointer transition-all duration-300">
                     {page + 2}
                   </span>
                 </div>

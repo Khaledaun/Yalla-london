@@ -334,29 +334,29 @@ export default function ExperiencesPage() {
   })
 
   return (
-    <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pb-12 bg-gradient-to-b from-charcoal to-charcoal-light">
+      <div className="pb-12 bg-gradient-to-b from-yl-dark-navy to-yl-dark-navy-light">
         <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-cream-300 mb-8">{t.subtitle}</p>
+          <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">{t.title}</h1>
+          <p className="text-xl text-yl-gray-400 mb-8">{t.subtitle}</p>
 
           {/* Search Bar */}
           <div className="max-w-xl mx-auto relative">
-            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-stone`} />
+            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-yl-gray-500`} />
             <input
               type="text"
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-london-600`}
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-yl-red`}
             />
           </div>
         </div>
       </div>
 
       {/* Category Filter */}
-      <div className="bg-white border-b border-sand py-4 sticky top-16 z-40">
+      <div className="bg-white border-b border-yl-gray-200 py-4 sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center gap-3 overflow-x-auto pb-2">
             {t.categories.map((cat) => (
@@ -365,8 +365,8 @@ export default function ExperiencesPage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === cat
-                    ? 'bg-charcoal text-white'
-                    : 'bg-cream-100 text-stone hover:bg-cream-200'
+                    ? 'bg-yl-dark-navy text-white'
+                    : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200'
                 }`}
               >
                 {cat}
@@ -380,11 +380,11 @@ export default function ExperiencesPage() {
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredExperiences.map((exp) => (
-            <div key={exp.id} className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all group border border-sand/50">
+            <div key={exp.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all group border border-yl-gray-200/50">
               <div className="relative aspect-[4/3]">
                 <Image src={exp.image} alt={exp.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
                 {exp.featured && (
-                  <span className="absolute top-3 left-3 px-3 py-1 bg-london-600 text-white text-xs font-semibold rounded-full">
+                  <span className="absolute top-3 left-3 px-3 py-1 bg-yl-red text-white text-xs font-semibold rounded-full">
                     {t.featured}
                   </span>
                 )}
@@ -393,21 +393,21 @@ export default function ExperiencesPage() {
                 </div>
               </div>
               <div className="p-5">
-                <div className="text-xs text-london-600 font-medium mb-1">{exp.category}</div>
-                <h3 className="font-bold text-charcoal mb-2 line-clamp-2">{exp.title}</h3>
-                <p className="text-sm text-stone mb-3 line-clamp-2">{exp.description}</p>
-                <div className="flex items-center gap-3 text-sm text-stone mb-3">
+                <div className="text-xs text-yl-red font-medium mb-1">{exp.category}</div>
+                <h3 className="font-bold text-yl-charcoal mb-2 line-clamp-2">{exp.title}</h3>
+                <p className="text-sm text-yl-gray-500 mb-3 line-clamp-2">{exp.description}</p>
+                <div className="flex items-center gap-3 text-sm text-yl-gray-500 mb-3">
                   <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {exp.location}</span>
                   <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {exp.duration}</span>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-sand">
+                <div className="flex items-center justify-between pt-3 border-t border-yl-gray-200">
                   <div>
                     {exp.price === 0 ? (
                       <span className="text-lg font-bold text-green-600">{t.free}</span>
                     ) : (
                       <>
-                        <span className="text-xs text-stone">{t.from} </span>
-                        <span className="text-lg font-bold text-charcoal">£{exp.price}</span>
+                        <span className="text-xs text-yl-gray-500">{t.from} </span>
+                        <span className="text-lg font-bold text-yl-charcoal">£{exp.price}</span>
                       </>
                     )}
                   </div>
@@ -420,7 +420,7 @@ export default function ExperiencesPage() {
                         href={href}
                         target="_blank"
                         rel={rel}
-                        className={`${affLink ? 'affiliate-page-link' : ''} px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors`}
+                        className={`${affLink ? 'affiliate-page-link' : ''} px-4 py-2 bg-yl-red text-white text-sm font-medium rounded-lg hover:bg-yl-red transition-colors`}
                         data-affiliate-partner={affLink?.partner || undefined}
                       >
                         {affLink ? affLink.label : t.bookNow}

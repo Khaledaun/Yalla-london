@@ -8,10 +8,10 @@ import {
   Download, ArrowRight, Sparkles, Calendar,
   TrendingUp, BookOpen, Ticket, Compass, Map, Train, Utensils, Users, Gem
 } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { NewsCarousel } from '@/components/news-carousel'
 import { NewsTicker } from '@/components/news-ticker'
 import { FollowUs } from '@/components/follow-us'
+import { TriBar, BrandButton, BrandTag, BrandCard, BrandCardLight, SectionLabel, WatermarkStamp } from '@/components/brand-kit'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 
 interface YallaHomepageProps {
@@ -60,15 +60,15 @@ const HERO_INTERVAL_MS = 3000
 
 const heroContent = {
   en: {
-    title: 'Discover London',
-    subtitle: 'Like Never Before',
+    titleLine1: 'Experience London',
+    titleLine2: 'Your Way',
     description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
     cta: 'Start Exploring',
     ctaLink: '/blog',
   },
   ar: {
-    title: 'اكتشف لندن',
-    subtitle: 'كما لم ترها من قبل',
+    titleLine1: 'اكتشف لندن',
+    titleLine2: 'على طريقتك',
     description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
     cta: 'ابدأ الاستكشاف',
     ctaLink: '/blog',
@@ -294,80 +294,18 @@ const text = {
   },
 }
 
-// ─── Animated Tube Train Section Divider ──────────────────────────────────────
-
-function TubeTrainDivider() {
-  return (
-    <div className="relative w-full max-w-6xl mx-auto py-6 overflow-hidden">
-      {/* Track — tri-color rail */}
-      <div className="flex h-[3px] w-full rounded-full overflow-hidden">
-        <div className="flex-1 bg-london-600/30" />
-        <div className="flex-1 bg-yalla-gold-500/30" />
-        <div className="flex-1 bg-thames-500/30" />
-      </div>
-
-      {/* Animated Tube Train shuttling back and forth */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2"
-        style={{
-          animation: 'tubeShuttle 6s ease-in-out infinite',
-        }}
-      >
-        <svg width="72" height="26" viewBox="0 0 72 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Train body */}
-          <rect x="2" y="3" width="68" height="16" rx="8" fill="#C8322B" />
-          {/* Roof stripe */}
-          <rect x="8" y="3" width="56" height="2.5" rx="1.25" fill="#A02820" />
-          {/* Windows */}
-          <rect x="9" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
-          <rect x="21" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
-          <rect x="33" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
-          <rect x="45" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
-          {/* Door */}
-          <rect x="58" y="6" width="8" height="9" rx="1.5" fill="#3B7EA1" />
-          <circle cx="64" cy="10.5" r="0.7" fill="#C49A2A" />
-          {/* Front light */}
-          <circle cx="4.5" cy="11" r="1.8" fill="#C49A2A" />
-          {/* Wheels */}
-          <circle cx="14" cy="22" r="2.8" fill="#1C1917" />
-          <circle cx="14" cy="22" r="1.3" fill="#78716C" />
-          <circle cx="36" cy="22" r="2.8" fill="#1C1917" />
-          <circle cx="36" cy="22" r="1.3" fill="#78716C" />
-          <circle cx="58" cy="22" r="2.8" fill="#1C1917" />
-          <circle cx="58" cy="22" r="1.3" fill="#78716C" />
-          {/* Tri-color stripe along bottom */}
-          <rect x="5" y="17" width="20" height="1.5" rx="0.75" fill="#C8322B" opacity="0.5" />
-          <rect x="27" y="17" width="20" height="1.5" rx="0.75" fill="#C49A2A" opacity="0.5" />
-          <rect x="49" y="17" width="20" height="1.5" rx="0.75" fill="#3B7EA1" opacity="0.5" />
-        </svg>
-      </div>
-
-      {/* Keyframes injected via style tag (scoped to this component) */}
-      <style jsx>{`
-        @keyframes tubeShuttle {
-          0% { left: -80px; }
-          45% { left: calc(100% + 8px); }
-          50% { left: calc(100% + 8px); transform: translateY(-50%) scaleX(-1); }
-          95% { left: -80px; transform: translateY(-50%) scaleX(-1); }
-          100% { left: -80px; transform: translateY(-50%) scaleX(1); }
-        }
-      `}</style>
-    </div>
-  )
-}
-
 // ─── Section Header ──────────────────────────────────────────────────────────
 
-function SectionHeader({ title, href, linkText, icon: Icon }: { title: string; href: string; linkText: string; icon?: React.ElementType }) {
+function SectionHeader({ title, href, linkText, icon: Icon, isArabic }: { title: string; href: string; linkText: string; icon?: React.ElementType; isArabic?: boolean }) {
   return (
     <div className="flex items-center justify-between mb-8">
       <div className="flex items-center gap-3">
-        {Icon && <Icon className="w-5 h-5 text-london-600" />}
-        <h2 className="text-2xl md:text-3xl font-display font-bold text-charcoal">{title}</h2>
+        {Icon && <Icon className="w-5 h-5 text-yl-gold" />}
+        <h2 className={`text-2xl md:text-3xl font-heading font-bold text-yl-charcoal ${isArabic ? 'font-arabic' : ''}`}>{title}</h2>
       </div>
-      <Link href={href} className="group flex items-center gap-1.5 text-sm font-semibold text-london-600 hover:text-london-700 transition-colors">
+      <Link href={href} className="group flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-wider uppercase text-yl-red hover:text-yl-gold transition-colors duration-300 ease-yl">
         {linkText}
-        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300 ease-yl" />
       </Link>
     </div>
   )
@@ -395,13 +333,12 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   }, [nextSlide])
 
   return (
-    <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* ═══ BREAKING NEWS TICKER ═══ */}
       <NewsTicker speed={45} />
 
       {/* ═══ HERO ═══ */}
-      {/* Explicit h-[85vh] prevents CLS — the container has a fixed height before images load */}
       <section className="relative h-[60vh] sm:h-[70vh] md:h-[85vh] flex items-end overflow-hidden">
         {/* Rotating Background Images */}
         {HERO_IMAGES.map((img, i) => (
@@ -411,88 +348,72 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             alt={img.alt}
             fill
             sizes="100vw"
-            className={`object-cover transition-opacity duration-1000 ease-in-out ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
+            className={`object-cover transition-opacity duration-1000 ease-yl ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
             priority={i === 0}
           />
         ))}
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/60 to-transparent" />
+        {/* Dark Navy Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/60 to-transparent" />
+
+        {/* Watermark Stamp */}
+        <WatermarkStamp />
 
         {/* Content */}
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16 md:pb-24">
-          <motion.div
-            initial={{ opacity: 1, y: 0 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="max-w-2xl"
-          >
-            {/* Tricolor Accent */}
-            <div className="flex gap-1 mb-6">
-              <div className="w-8 h-1 bg-london-600 rounded-full" />
-              <div className="w-8 h-1 bg-yalla-gold-500 rounded-full" />
-              <div className="w-8 h-1 bg-thames-500 rounded-full" />
-            </div>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-7 pb-16 md:pb-24">
+          <div className="max-w-2xl">
+            {/* Section label */}
+            <SectionLabel className="mb-4">
+              {isRTL ? 'دليلك الفاخر' : 'Your Luxury Guide'}
+            </SectionLabel>
 
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-bold text-white leading-tight mb-2">
-              {hero.title}
+            <h1 className={`text-4xl sm:text-5xl md:text-7xl font-heading font-extrabold leading-tight mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+              <span className="text-yl-parchment">{hero.titleLine1}</span>
+              <br />
+              <span className="text-yl-red">{hero.titleLine2}</span>
             </h1>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-yalla-gold-400 leading-tight mb-6">
-              {hero.subtitle}
-            </h2>
-            <p className="text-lg text-cream-300 mb-8 max-w-xl leading-relaxed">
+            <p className="font-body text-lg text-yl-gray-400 mb-8 max-w-xl leading-relaxed">
               {hero.description}
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link
-                href={hero.ctaLink}
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors shadow-elegant"
-              >
-                {hero.cta} <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="/shop"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
-              >
-                <Download className="w-4 h-4" /> {locale === 'ar' ? 'تحميل الدليل' : 'Get the Guide'}
-              </Link>
+              <BrandButton variant="primary" size="lg" href={hero.ctaLink}>
+                {hero.cta} <ArrowRight className="w-4 h-4 ml-2" />
+              </BrandButton>
+              <BrandButton variant="outline" size="lg" href="/shop">
+                <Download className="w-4 h-4 mr-2" /> {locale === 'ar' ? 'تحميل الدليل' : 'Get the Guide'}
+              </BrandButton>
             </div>
-          </motion.div>
+          </div>
 
           {/* Quick Navigation Pills */}
-          <motion.div
-            initial={{ opacity: 1, y: 0 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="flex flex-wrap gap-3 mt-10"
-          >
+          <div className="flex flex-wrap gap-3 mt-10">
             {t.quickLinks.map((label, i) => (
               <React.Fragment key={i}>
-                {i > 0 && <span className="text-white/40 select-none mx-1" aria-hidden="true">|</span>}
+                {i > 0 && <span className="text-white/30 select-none mx-1" aria-hidden="true">|</span>}
                 <Link
                   href={t.quickLinksHref[i]}
-                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-semibold rounded-full border border-white/20 hover:bg-white/25 hover:border-yalla-gold-400/50 hover:text-yalla-gold-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-all"
+                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-yl-parchment font-mono text-[10px] tracking-[1.5px] uppercase rounded-full border border-white/20 hover:bg-white/20 hover:border-yl-gold/50 hover:text-yl-gold transition-all duration-300 ease-yl"
                 >
                   {label}
                 </Link>
               </React.Fragment>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Tube Train Divider */}
-      <TubeTrainDivider />
+      {/* Tri-bar Divider */}
+      <TriBar />
 
       {/* ═══ TRENDING BAR ═══ */}
-      <div className="bg-cream-50 border-b border-sand py-3 px-6">
-        <div className="max-w-6xl mx-auto flex items-center gap-6 overflow-x-auto">
-          <div className="flex items-center gap-2 text-xs font-bold text-london-600 uppercase tracking-wider whitespace-nowrap">
+      <div className="bg-yl-cream border-b border-yl-gray-200 py-3 px-7">
+        <div className="max-w-7xl mx-auto flex items-center gap-6 overflow-x-auto">
+          <div className="flex items-center gap-2 font-mono text-[10px] font-bold text-yl-red uppercase tracking-widest whitespace-nowrap">
             <TrendingUp className="w-4 h-4" />
             {t.trending}
           </div>
-          <div className="w-px h-4 bg-sand" />
+          <div className="w-px h-4 bg-yl-gray-300" />
           {t.trendingItems.map((item, i) => (
-            <span key={i} className="text-sm text-stone whitespace-nowrap hover:text-charcoal transition-colors cursor-pointer">
+            <span key={i} className="font-body text-sm text-yl-gray-500 whitespace-nowrap hover:text-yl-charcoal transition-colors duration-300 ease-yl cursor-pointer">
               {item}
             </span>
           ))}
@@ -500,35 +421,35 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       </div>
 
       {/* ═══ LONDON TODAY NEWS CAROUSEL ═══ */}
-      <section className="max-w-6xl mx-auto px-6 pt-10 pb-4">
+      <section className="max-w-7xl mx-auto px-7 pt-10 pb-4">
         <NewsCarousel />
       </section>
 
-      <TubeTrainDivider />
+      <TriBar />
 
       {/* ═══ FEATURED + ARTICLES ═══ */}
-      <section className="max-w-6xl mx-auto px-6 py-16">
-        <SectionHeader title={t.latestStories} href="/blog" linkText={t.viewAll} icon={BookOpen} />
+      <section className="max-w-7xl mx-auto px-7 py-16">
+        <SectionHeader title={t.latestStories} href="/blog" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Featured Article — Large */}
           <Link href={`/blog/${featured.slug}`} className="lg:col-span-3 group">
-            <article className="relative h-full min-h-[400px] rounded-2xl overflow-hidden shadow-luxury">
-              <Image src={featured.image} alt={featured.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/40 to-transparent" />
+            <article className="relative h-full min-h-[400px] rounded-[14px] overflow-hidden border border-white/5">
+              <Image src={featured.image} alt={featured.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl" />
+              <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-8">
-                <span className="inline-block px-3 py-1 bg-london-600 text-white text-xs font-bold uppercase tracking-wider rounded-full mb-4">
+                <BrandTag color="red" className="mb-4">
                   {featured.category}
-                </span>
-                <h3 className="text-2xl md:text-3xl font-display font-bold text-white mb-3 group-hover:text-yalla-gold-300 transition-colors">
+                </BrandTag>
+                <h3 className={`text-2xl md:text-3xl font-heading font-bold text-yl-parchment mb-3 group-hover:text-yl-gold transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>
                   {featured.title}
                 </h3>
-                <p className="text-cream-300 text-sm mb-4 max-w-lg line-clamp-2">{featured.excerpt}</p>
-                <div className="flex items-center gap-4 text-xs text-cream-400">
+                <p className="font-body text-sm text-yl-gray-400 mb-4 max-w-lg line-clamp-2">{featured.excerpt}</p>
+                <div className="flex items-center gap-4 font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
                   <span>{featured.author}</span>
-                  <span className="w-1 h-1 bg-cream-400 rounded-full" />
+                  <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
                   <span>{featured.date}</span>
-                  <span className="w-1 h-1 bg-cream-400 rounded-full" />
+                  <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {featured.readTime}</span>
                 </div>
               </div>
@@ -539,74 +460,76 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           <div className="lg:col-span-2 flex flex-col gap-5">
             {articles[locale].map((article) => (
               <Link key={article.id} href={`/blog/${article.slug}`} className="group">
-                <article className="flex gap-4 bg-white rounded-xl p-4 shadow-card hover:shadow-luxury transition-shadow border border-sand/50">
-                  <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
-                    <Image src={article.image} alt={article.title} fill className="object-cover" />
-                  </div>
-                  <div className="flex flex-col justify-center min-w-0">
-                    <span className="text-xs font-semibold text-london-600 uppercase tracking-wide mb-1">{article.category}</span>
-                    <h4 className="text-sm font-bold text-charcoal group-hover:text-london-600 transition-colors line-clamp-2 mb-1.5">
-                      {article.title}
-                    </h4>
-                    <div className="flex items-center gap-2 text-xs text-stone">
-                      <span>{article.date}</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {article.readTime}</span>
+                <BrandCardLight hoverable className="p-0">
+                  <article className="flex gap-4 p-4">
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
+                      <Image src={article.image} alt={article.title} fill className="object-cover" />
                     </div>
-                  </div>
-                </article>
+                    <div className="flex flex-col justify-center min-w-0">
+                      <span className="font-mono text-[9px] font-semibold text-yl-red uppercase tracking-wider mb-1">{article.category}</span>
+                      <h4 className={`text-sm font-heading font-bold text-yl-charcoal group-hover:text-yl-red transition-colors duration-300 ease-yl line-clamp-2 mb-1.5 ${isRTL ? 'font-arabic' : ''}`}>
+                        {article.title}
+                      </h4>
+                      <div className="flex items-center gap-2 font-mono text-[10px] text-yl-gray-500 tracking-wider">
+                        <span>{article.date}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {article.readTime}</span>
+                      </div>
+                    </div>
+                  </article>
+                </BrandCardLight>
               </Link>
             ))}
 
             {/* Newsletter Compact */}
-            <div className="bg-gradient-to-br from-charcoal to-charcoal-light rounded-xl p-6 flex-1 min-h-[140px]">
+            <BrandCard hoverable={false} className="p-6 flex-1 min-h-[140px]">
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-yalla-gold-400" />
-                <h3 className="text-sm font-bold text-white">{t.newsletter}</h3>
+                <Sparkles className="w-4 h-4 text-yl-gold" />
+                <h3 className={`font-heading text-sm font-bold text-yl-parchment ${isRTL ? 'font-arabic' : ''}`}>{t.newsletter}</h3>
               </div>
-              <p className="text-xs text-cream-400 mb-3 line-clamp-2">{t.newsletterDesc}</p>
+              <p className="font-body text-xs text-yl-gray-400 mb-3 line-clamp-2">{t.newsletterDesc}</p>
               <div className="flex gap-2">
                 <input
                   type="email"
                   placeholder={t.emailPlaceholder}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/10 border border-white/20 text-white placeholder-cream-500 focus:outline-none focus:ring-1 focus:ring-london-600"
+                  className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-yl-parchment placeholder-yl-gray-500 focus:outline-none focus:ring-2 focus:ring-yl-gold/20 focus:border-yl-gold transition-all duration-300 ease-yl"
                 />
-                <button className="px-4 py-2 bg-london-600 text-white text-xs font-bold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-400 transition-colors whitespace-nowrap">
+                <button className="px-4 py-2 bg-yl-red text-white font-mono text-[10px] font-bold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl whitespace-nowrap">
                   {t.subscribeBtn}
                 </button>
               </div>
-            </div>
+            </BrandCard>
           </div>
         </div>
       </section>
 
-      <TubeTrainDivider />
+      <TriBar />
 
       {/* ═══ EVENTS ═══ */}
       <section className="bg-white py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <SectionHeader title={t.upcomingEvents} href="/events" linkText={t.viewAll} icon={Ticket} />
+        <div className="max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.upcomingEvents} href="/events" linkText={t.viewAll} icon={Ticket} isArabic={isRTL} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {events[locale].map((event) => (
-              <div key={event.id} className="group bg-cream rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
+              <div key={event.id} className="group bg-yl-cream rounded-[14px] overflow-hidden border border-yl-gray-200 hover:-translate-y-1 hover:border-yl-gold/30 hover:shadow-lg transition-all duration-400 ease-yl">
                 <div className="relative h-44">
-                  <Image src={event.image} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 to-transparent" />
-                  <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-elegant`}>
-                    <div className="text-2xl font-display font-bold text-charcoal leading-none">{event.day}</div>
-                    <div className="text-xs font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
+                  <Image src={event.image} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/50 to-transparent" />
+                  <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-md`}>
+                    <div className="text-2xl font-heading font-bold text-yl-charcoal leading-none">{event.day}</div>
+                    <div className="font-mono text-[9px] font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
                   </div>
                 </div>
                 <div className="p-5">
-                  <h3 className="font-bold text-charcoal mb-1.5 group-hover:text-london-600 transition-colors">{event.title}</h3>
-                  <p className="text-sm text-stone flex items-center gap-1.5 mb-4">
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-1.5 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{event.title}</h3>
+                  <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-4">
                     <MapPin className="w-3.5 h-3.5" /> {event.venue}
                   </p>
-                  <span className="block text-sm font-bold text-charcoal mb-3">{event.price}</span>
-                  <Link href="/events" className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
+                  <span className="block font-mono text-sm font-bold text-yl-charcoal tracking-wider mb-3">{event.price}</span>
+                  <BrandButton variant="primary" size="sm" href="/events" className="w-full justify-center">
                     {t.getTickets}
-                  </Link>
+                  </BrandButton>
                 </div>
               </div>
             ))}
@@ -614,13 +537,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
-      <TubeTrainDivider />
+      <TriBar />
 
       {/* ═══ INFORMATION HUB ═══ */}
-      <section className="bg-cream py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <SectionHeader title={t.informationHub} href="/information" linkText={t.viewAll} icon={BookOpen} />
-          <p className="text-stone text-sm -mt-4 mb-8">{t.informationHubSubtitle}</p>
+      <section className="bg-yl-cream py-16">
+        <div className="max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.informationHub} href="/information" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
+          <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.informationHubSubtitle}</p>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {t.infoSections.map((section, i) => {
@@ -630,58 +553,55 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               const IconComp = iconMap[section.icon] || BookOpen
               return (
                 <Link key={i} href="/information" className="group">
-                  <div className="bg-white rounded-2xl p-5 text-center shadow-card hover:shadow-luxury transition-all border border-sand/50 h-full flex flex-col items-center justify-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-london-600/10 flex items-center justify-center group-hover:bg-london-600 transition-colors">
-                      <IconComp className="w-6 h-6 text-london-600 group-hover:text-white transition-colors" />
+                  <BrandCardLight className="p-5 text-center h-full flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-yl-red/10 flex items-center justify-center group-hover:bg-yl-red transition-colors duration-300 ease-yl">
+                      <IconComp className="w-6 h-6 text-yl-red group-hover:text-white transition-colors duration-300 ease-yl" />
                     </div>
-                    <h3 className="text-sm font-bold text-charcoal group-hover:text-london-600 transition-colors">{section.title}</h3>
-                    <p className="text-xs text-stone leading-relaxed">{section.desc}</p>
-                  </div>
+                    <h3 className={`text-sm font-heading font-bold text-yl-charcoal group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{section.title}</h3>
+                    <p className="font-body text-xs text-yl-gray-500 leading-relaxed">{section.desc}</p>
+                  </BrandCardLight>
                 </Link>
               )
             })}
           </div>
 
           <div className="text-center mt-8">
-            <Link
-              href="/information"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors"
-            >
-              <BookOpen className="w-4 h-4" />
+            <BrandButton variant="primary" size="md" href="/information">
+              <BookOpen className="w-4 h-4 mr-2" />
               {t.exploreHub}
-              <ArrowRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
-            </Link>
+              <ArrowRight className={`w-4 h-4 ml-2 ${isRTL ? 'rotate-180' : ''}`} />
+            </BrandButton>
           </div>
         </div>
       </section>
 
-      <TubeTrainDivider />
+      <TriBar />
 
       {/* ═══ GUIDES ═══ */}
-      <section className="bg-white py-16 bg-pattern-arabesque">
-        <div className="max-w-6xl mx-auto px-6">
-          <SectionHeader title={t.pdfGuides} href="/shop" linkText={t.viewAll} icon={Download} />
-          <p className="text-stone text-sm -mt-4 mb-8">{t.guidesSubtitle}</p>
+      <section className="bg-white py-16">
+        <div className="max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.pdfGuides} href="/shop" linkText={t.viewAll} icon={Download} isArabic={isRTL} />
+          <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.guidesSubtitle}</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {guides[locale].map((guide) => (
-              <div key={guide.id} className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
+              <div key={guide.id} className="group bg-white rounded-[14px] overflow-hidden border border-yl-gray-200 shadow-sm hover:-translate-y-1 hover:border-yl-gold/30 hover:shadow-lg transition-all duration-400 ease-yl">
                 <div className="relative h-52">
-                  <Image src={guide.image} alt={guide.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
+                  <Image src={guide.image} alt={guide.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/60 to-transparent" />
                   {guide.badge && (
-                    <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-3 py-1 bg-yalla-gold-500 text-white text-xs font-bold rounded-full`}>
-                      {guide.badge}
+                    <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
+                      <BrandTag color="gold">{guide.badge}</BrandTag>
                     </span>
                   )}
                   <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-lg font-bold text-white">{guide.title}</h3>
+                    <h3 className={`text-lg font-heading font-bold text-white ${isRTL ? 'font-arabic' : ''}`}>{guide.title}</h3>
                   </div>
                 </div>
                 <div className="p-5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold text-charcoal">{guide.price}</span>
-                    <span className="flex items-center gap-2 px-4 py-2.5 bg-stone/20 text-stone text-sm font-semibold rounded-lg cursor-default">
+                    <span className="font-heading text-xl font-bold text-yl-charcoal">{guide.price}</span>
+                    <span className="flex items-center gap-2 px-4 py-2.5 bg-yl-gray-100 text-yl-gray-500 font-mono text-[10px] tracking-wider uppercase rounded-lg cursor-default">
                       <Clock className="w-4 h-4" /> {t.downloadNow}
                     </span>
                   </div>
@@ -692,28 +612,28 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
-      <TubeTrainDivider />
+      <TriBar />
 
       {/* ═══ EXPERIENCES ═══ */}
       <section className="bg-white py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <SectionHeader title={t.topExperiences} href="/experiences" linkText={t.viewAll} icon={Star} />
+        <div className="max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.topExperiences} href="/experiences" linkText={t.viewAll} icon={Star} isArabic={isRTL} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
             {experiences[locale].map((exp) => {
               const expAffLink = getPageAffiliateLink(exp.title, 'experience', 'yalla-london', 'homepage');
               return (
               <div key={exp.id}>
                 <Link href="/experiences" className="group">
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 shadow-card group-hover:shadow-luxury transition-all">
-                    <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-transparent to-transparent" />
+                  <div className="relative aspect-[3/4] rounded-[14px] overflow-hidden mb-3 border border-white/5 hover:-translate-y-1 hover:shadow-lg transition-all duration-400 ease-yl">
+                    <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy/70 via-transparent to-transparent" />
                     <div className="absolute bottom-4 left-4 right-4">
-                      <h3 className="font-bold text-white text-sm group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
+                      <h3 className={`font-heading font-bold text-white text-sm group-hover:text-yl-gold transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{exp.title}</h3>
                     </div>
                   </div>
                   <div className="flex items-center justify-between px-1">
-                    <span className="text-sm font-bold text-charcoal">{exp.price}</span>
-                    <span className="text-xs font-semibold text-london-600 group-hover:underline">{t.bookNow}</span>
+                    <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{exp.price}</span>
+                    <span className="font-mono text-[10px] font-semibold text-yl-red tracking-wider uppercase group-hover:underline">{t.bookNow}</span>
                   </div>
                 </Link>
                 {expAffLink && (
@@ -721,7 +641,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     href={expAffLink.url}
                     target="_blank"
                     rel="noopener sponsored"
-                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-london-600/90 text-white text-xs font-semibold rounded-lg hover:bg-london-700 transition-colors`}
+                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-yl-red text-white font-mono text-[10px] font-semibold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl`}
                     data-affiliate-partner={expAffLink.partner}
                   >
                     {expAffLink.label}
@@ -734,43 +654,48 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
-      <TubeTrainDivider />
+      <TriBar />
 
       {/* ═══ HOTELS ═══ */}
-      <section className="bg-cream py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <SectionHeader title={t.luxuryHotels} href="/hotels" linkText={t.viewAll} />
+      <section className="bg-yl-cream py-16">
+        <div className="max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.luxuryHotels} href="/hotels" linkText={t.viewAll} isArabic={isRTL} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {hotels[locale].map((hotel) => {
               const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'homepage');
               return (
               <div key={hotel.id} className="group">
                 <Link href="/hotels">
-                <div className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
+                <BrandCardLight className="overflow-hidden">
                   <div className="relative h-52">
-                    <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                    {hotel.badge && (
+                      <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
+                        <BrandTag color="blue">{hotel.badge}</BrandTag>
+                      </span>
+                    )}
                   </div>
                   <div className="p-5">
-                    <h3 className="text-lg font-bold text-charcoal mb-1 group-hover:text-london-600 transition-colors">{hotel.name}</h3>
-                    <p className="text-sm text-stone flex items-center gap-1.5 mb-1">
+                    <h3 className={`text-lg font-heading font-bold text-yl-charcoal mb-1 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{hotel.name}</h3>
+                    <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-1">
                       <MapPin className="w-3.5 h-3.5" /> {hotel.location}
                     </p>
-                    <p className="text-xs font-medium text-london-600/80 mb-4">{hotel.category}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-sand">
-                      <span className="text-sm font-bold text-charcoal">{hotel.price}</span>
-                      <span className="px-4 py-2 border-2 border-charcoal text-charcoal text-sm font-semibold rounded-lg group-hover:bg-charcoal group-hover:text-white transition-colors">
+                    <p className="font-mono text-[9px] font-medium text-yl-gold tracking-wider uppercase mb-4">{hotel.category}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
+                      <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{hotel.price}</span>
+                      <span className="px-4 py-2 border border-yl-charcoal text-yl-charcoal font-mono text-[10px] font-semibold tracking-wider uppercase rounded-lg group-hover:bg-yl-charcoal group-hover:text-white transition-all duration-300 ease-yl">
                         {t.viewDeals}
                       </span>
                     </div>
                   </div>
-                </div>
+                </BrandCardLight>
                 </Link>
                 {affLink && (
                   <a
                     href={affLink.url}
                     target="_blank"
                     rel="noopener sponsored"
-                    className={`${affLink.trackingClass} mt-2 block text-center py-2.5 bg-london-600 text-white text-sm font-semibold rounded-xl hover:bg-london-700 transition-colors`}
+                    className={`${affLink.trackingClass} mt-2 block text-center py-2.5 bg-yl-red text-white font-mono text-[11px] font-semibold tracking-wider uppercase rounded-xl hover:bg-[#a82924] transition-all duration-300 ease-yl`}
                     data-affiliate-partner={affLink.partner}
                   >
                     {affLink.label} →
@@ -784,13 +709,16 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       </section>
 
       {/* ═══ TRAVELER TESTIMONIALS ═══ */}
-      <section className="bg-cream py-16">
-        <div className="max-w-6xl mx-auto px-6">
+      <section className="bg-yl-cream py-16">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-charcoal mb-3">
+            <SectionLabel className="mb-3 text-center justify-center">
+              {locale === 'ar' ? 'شهادات' : 'Testimonials'}
+            </SectionLabel>
+            <h2 className={`text-2xl md:text-3xl font-heading font-bold text-yl-charcoal mb-3 ${isRTL ? 'font-arabic' : ''}`}>
               {locale === 'ar' ? 'ماذا يقول مسافرونا' : 'What Our Travelers Say'}
             </h2>
-            <p className="text-stone max-w-xl mx-auto">
+            <p className="font-body text-yl-gray-500 max-w-xl mx-auto">
               {locale === 'ar'
                 ? 'آلاف المسافرين العرب يثقون بنا لتخطيط رحلاتهم إلى لندن'
                 : 'Thousands of Arab travelers trust us to plan their London trips'}
@@ -798,34 +726,34 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TESTIMONIALS.map((item, i) => (
-              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-sand/50">
+              <BrandCardLight key={i} hoverable={false} className="p-6">
                 <div className="flex items-center gap-1 mb-3">
                   {[...Array(5)].map((_, s) => (
-                    <Star key={s} className={`w-4 h-4 ${s < item.stars ? 'text-yalla-gold-400 fill-yalla-gold-400' : 'text-zinc-200'}`} />
+                    <Star key={s} className={`w-4 h-4 ${s < item.stars ? 'text-yl-gold fill-yl-gold' : 'text-yl-gray-300'}`} />
                   ))}
                 </div>
-                <p className="text-charcoal text-sm leading-relaxed mb-4 italic">&ldquo;{locale === 'ar' ? item.textAr : item.textEn}&rdquo;</p>
-                <div className="flex items-center gap-3 pt-3 border-t border-sand/50">
-                  <div className="w-9 h-9 rounded-full bg-london-600 text-white flex items-center justify-center text-sm font-bold">
+                <p className="font-body text-yl-charcoal text-sm leading-relaxed mb-4 italic">&ldquo;{locale === 'ar' ? item.textAr : item.textEn}&rdquo;</p>
+                <div className="flex items-center gap-3 pt-3 border-t border-yl-gray-200">
+                  <div className="w-9 h-9 rounded-full bg-yl-red text-white flex items-center justify-center font-mono text-[10px] font-bold tracking-wider">
                     {item.initials}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-charcoal">{item.name}</p>
-                    <p className="text-xs text-stone">{locale === 'ar' ? item.locationAr : item.location}</p>
+                    <p className="text-sm font-heading font-semibold text-yl-charcoal">{item.name}</p>
+                    <p className="font-mono text-[10px] text-yl-gray-500 tracking-wider">{locale === 'ar' ? item.locationAr : item.location}</p>
                   </div>
                 </div>
-              </div>
+              </BrandCardLight>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══ BOTTOM TUBE DIVIDER ═══ */}
-      <TubeTrainDivider />
+      {/* ═══ BOTTOM TRI-BAR ═══ */}
+      <TriBar />
 
       {/* ═══ FOLLOW US ═══ */}
-      <section className="bg-charcoal py-12">
-        <div className="max-w-6xl mx-auto px-6 text-center">
+      <section className="bg-yl-dark-navy py-12">
+        <div className="max-w-7xl mx-auto px-7 text-center">
           <FollowUs variant="dark" showLabel={true} />
         </div>
       </section>

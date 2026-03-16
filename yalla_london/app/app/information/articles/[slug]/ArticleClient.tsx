@@ -5,9 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 import { Calendar, User, ArrowLeft, Heart, BookOpen, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
@@ -90,10 +89,10 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
             }
           </p>
           <Link href="/information/articles">
-            <Button className="bg-yl-red hover:bg-yl-red">
+            <BrandButton className="bg-yl-red hover:bg-[#a82924] text-white">
               <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
               {language === 'en' ? 'Back to Articles' : 'العودة للمقالات'}
-            </Button>
+            </BrandButton>
           </Link>
         </div>
       </div>
@@ -103,7 +102,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
   return (
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero Section */}
-      <section className="relative h-96 overflow-hidden">
+      <section className="relative h-96 overflow-hidden pt-28">
         <div className="absolute inset-0">
           <Image
             src={article.featured_image}
@@ -116,16 +115,12 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
         </div>
 
         <div className="relative z-10 h-full flex items-center">
-          <div className="max-w-4xl mx-auto px-6 text-white text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
+          <div className="max-w-7xl mx-auto px-7 text-white text-center">
+            <div>
               <div className="mb-4">
-                <span className="bg-yl-gold text-yl-charcoal px-4 py-2 rounded-full text-sm font-medium">
+                <BrandTag color="red">
                   {article.category ? (language === 'en' ? article.category.name_en : article.category.name_ar) : ''}
-                </span>
+                </BrandTag>
               </div>
               <h1 className="text-4xl md:text-5xl font-heading font-bold mb-6">
                 {language === 'en' ? article.title_en : article.title_ar}
@@ -144,38 +139,32 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
                   {language === 'en' ? `${article.reading_time} min read` : `${article.reading_time} دقائق للقراءة`}
                 </span>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Article Content */}
       <section className="py-12 bg-white">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="max-w-none"
-          >
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="max-w-none">
             {/* Action Buttons */}
-            <div className="flex items-center justify-between mb-8 pb-6 border-b">
-              <Button asChild variant="outline" size="sm">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-yl-gray-200">
+              <BrandButton asChild variant="outline" className="border-yl-gray-200 text-yl-charcoal hover:bg-yl-cream">
                 <Link href="/information/articles">
                   <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
                   {language === 'en' ? 'Back to Articles' : 'العودة للمقالات'}
                 </Link>
-              </Button>
+              </BrandButton>
 
               <div className="flex items-center gap-3">
-                <Button
+                <BrandButton
                   variant="outline"
-                  size="sm"
                   onClick={() => setIsLiked(!isLiked)}
-                  className={`${isLiked ? 'text-red-500 border-red-200' : ''}`}
+                  className={`border-yl-gray-200 ${isLiked ? 'text-red-500 border-red-200' : 'text-yl-charcoal'} hover:bg-yl-cream`}
                 >
                   <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
-                </Button>
+                </BrandButton>
                 <ShareButtons
                   title={language === 'en' ? article.title_en : article.title_ar}
                   excerpt={language === 'en' ? article.excerpt_en : article.excerpt_ar}
@@ -190,21 +179,16 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
                 __html: sanitizeHtml(language === 'en' ? article.content_en : article.content_ar)
               }}
             />
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* FAQ Section */}
       {article.faq_questions && article.faq_questions.length > 0 && (
         <section className="py-12 bg-yl-cream">
-          <div className="max-w-4xl mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-            >
-              <h2 className="text-3xl font-heading font-bold mb-8 gradient-text text-center">
+          <div className="max-w-7xl mx-auto px-7">
+            <div>
+              <h2 className="text-3xl font-heading font-bold mb-8 text-yl-charcoal text-center">
                 {language === 'en' ? 'Frequently Asked Questions' : 'الأسئلة الشائعة'}
               </h2>
               <div className="space-y-4">
@@ -214,19 +198,15 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
                   const isOpen = openFaqIndex === index
 
                   return (
-                    <motion.div
+                    <div
                       key={index}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                      className="bg-white rounded-lg luxury-shadow overflow-hidden"
+                      className="bg-white rounded-[14px] border border-yl-gray-200 overflow-hidden"
                     >
                       <button
                         onClick={() => toggleFaq(index)}
                         className="w-full flex items-center justify-between p-6 text-left hover:bg-yl-gray-100 transition-colors"
                       >
-                        <span className="text-lg font-semibold text-yl-charcoal pr-4">
+                        <span className="text-lg font-heading font-semibold text-yl-charcoal pr-4">
                           {question}
                         </span>
                         {isOpen ? (
@@ -235,62 +215,50 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
                           <ChevronDown className="h-5 w-5 text-yl-gray-500 flex-shrink-0" />
                         )}
                       </button>
-                      <AnimatePresence>
-                        {isOpen && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-6 pb-6 text-yl-gray-500 leading-relaxed border-t border-yl-gray-200 pt-4">
-                              {answer}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
+                      {isOpen && (
+                        <div className="overflow-hidden">
+                          <div className="px-6 pb-6 text-yl-gray-500 font-body leading-relaxed border-t border-yl-gray-200 pt-4">
+                            {answer}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
-            </motion.div>
+            </div>
           </div>
         </section>
       )}
 
+      <TriBar />
+
       {/* Affiliate CTA Banner */}
       <section className="py-12 bg-white">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="bg-gradient-to-r from-yl-red to-[#a82924] rounded-2xl p-8 md:p-12 text-white text-center luxury-shadow"
-          >
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="bg-yl-dark-navy rounded-[14px] p-8 md:p-12 text-white text-center">
             <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-yl-gold" />
             <h3 className="text-2xl md:text-3xl font-heading font-bold mb-4">
               {language === 'en' ? 'Download Our London Planner' : 'حمّل مخطط لندن الخاص بنا'}
             </h3>
-            <p className="text-yl-gray-200 mb-6 max-w-xl mx-auto">
+            <p className="text-white/80 mb-6 max-w-xl mx-auto font-body">
               {language === 'en'
                 ? 'Get our comprehensive London travel planner with insider tips, itineraries, and exclusive recommendations for Arab visitors.'
                 : 'احصل على مخطط السفر الشامل للندن مع نصائح من الداخل وجداول الرحلات وتوصيات حصرية للزوار العرب.'
               }
             </p>
-            <Button asChild className="bg-yl-gold hover:bg-yl-gold text-yl-charcoal font-semibold px-8 py-3">
+            <BrandButton asChild className="bg-yl-gold hover:bg-[#b08a25] text-yl-charcoal font-semibold px-8 py-3">
               <Link href="/shop">
                 {language === 'en' ? 'Get the Planner' : 'احصل على المخطط'}
               </Link>
-            </Button>
-          </motion.div>
+            </BrandButton>
+          </div>
         </div>
       </section>
 
       {/* Follow Us CTA */}
       <section className="py-10 bg-yl-cream border-t border-yl-gray-200">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+        <div className="max-w-7xl mx-auto px-7 text-center">
           <FollowUs variant="light" />
         </div>
       </section>
@@ -298,7 +266,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
       {/* Related Articles (Internal Backlinks) */}
       {relatedArticles.length > 0 && (
         <section className="py-12 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
+          <div className="max-w-7xl mx-auto px-7">
             <RelatedArticles articles={relatedArticles} currentType="information" />
           </div>
         </section>

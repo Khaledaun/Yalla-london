@@ -7,6 +7,7 @@ import { useLanguage } from '@/components/language-provider'
 import { NewsTicker } from '@/components/news-ticker'
 import { FollowUs } from '@/components/follow-us'
 import { getCategoryPhoto } from '@/data/news-photos'
+import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 import {
   Newspaper, Train, Calendar, Lightbulb, Search, AlertTriangle,
   Cloud, Heart, Music, ShoppingBag, Plane, Sparkles, Globe,
@@ -67,31 +68,17 @@ const CATEGORY_LABEL: Record<NewsCategory, { en: string; ar: string }> = {
   general: { en: 'General', ar: 'عام' },
 }
 
-/** Category-themed gradient thumbnails — legally safe, no copied images */
-const CATEGORY_GRADIENT: Record<NewsCategory, string> = {
-  transport: 'from-blue-700 via-blue-900 to-slate-900',
-  events: 'from-purple-700 via-purple-900 to-slate-900',
-  weather: 'from-orange-600 via-amber-800 to-slate-900',
-  health: 'from-red-700 via-red-900 to-slate-900',
-  festivals: 'from-green-600 via-emerald-800 to-slate-900',
-  sales: 'from-pink-600 via-rose-800 to-slate-900',
-  holidays: 'from-teal-600 via-teal-800 to-slate-900',
-  strikes: 'from-red-800 via-red-950 to-slate-900',
-  popup: 'from-indigo-600 via-indigo-800 to-slate-900',
-  general: 'from-stone-600 via-stone-800 to-slate-900',
-}
-
-const CATEGORY_BADGE_COLOR: Record<NewsCategory, string> = {
-  transport: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  events: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  weather: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-  health: 'bg-red-500/20 text-red-300 border-red-500/30',
-  festivals: 'bg-green-500/20 text-green-300 border-green-500/30',
-  sales: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
-  holidays: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
-  strikes: 'bg-red-700/20 text-red-300 border-red-700/30',
-  popup: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-  general: 'bg-stone-500/20 text-yl-gray-500-300 border-stone-500/30',
+const CATEGORY_TAG_COLOR: Record<NewsCategory, 'red' | 'gold' | 'blue' | 'neutral'> = {
+  transport: 'blue',
+  events: 'gold',
+  weather: 'gold',
+  health: 'red',
+  festivals: 'blue',
+  sales: 'red',
+  holidays: 'blue',
+  strikes: 'red',
+  popup: 'gold',
+  general: 'neutral',
 }
 
 // ---------------------------------------------------------------------------
@@ -107,12 +94,8 @@ function getCategoryLabel(category: string, lang: 'en' | 'ar'): string {
   return labels ? labels[lang] : category
 }
 
-function getCategoryGradient(category: string): string {
-  return CATEGORY_GRADIENT[category as NewsCategory] ?? CATEGORY_GRADIENT.general
-}
-
-function getCategoryBadgeColor(category: string): string {
-  return CATEGORY_BADGE_COLOR[category as NewsCategory] ?? CATEGORY_BADGE_COLOR.general
+function getCategoryTagColor(category: string): 'red' | 'gold' | 'blue' | 'neutral' {
+  return CATEGORY_TAG_COLOR[category as NewsCategory] ?? 'neutral'
 }
 
 function timeAgo(dateStr: string, isAr: boolean): string {
@@ -165,16 +148,24 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
       <NewsTicker items={items as unknown as Parameters<typeof NewsTicker>[0]['items']} speed={50} />
 
       {/* ════════ Hero ════════ */}
-      <section className="bg-yl-dark-navy text-yl-gray-100 py-12 md:py-16">
-        <div className="max-w-6xl mx-auto px-6">
+      <section className="relative bg-yl-dark-navy text-yl-gray-100 py-12 md:py-16 pt-28">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
+          {/* Breadcrumbs */}
+          <Breadcrumbs
+            items={[
+              { label: isAr ? 'الرئيسية' : 'Home', href: '/' },
+              { label: isAr ? 'الأخبار' : 'News' },
+            ]}
+            className="mb-4"
+          />
+
           <div className="flex items-center gap-2 mb-4">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yl-red opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yl-red" />
             </span>
-            <span className="font-sans text-[11px] font-semibold tracking-[2px] uppercase text-yl-gold border border-yl-gold/30 px-2.5 py-1 rounded">
-              {isAr ? 'لندن اليوم' : 'LONDON TODAY'}
-            </span>
+            <SectionLabel className="mb-0">{isAr ? 'لندن اليوم' : 'LONDON TODAY'}</SectionLabel>
           </div>
           <h1 className={`font-heading text-4xl md:text-5xl font-bold text-yl-gray-100 mb-4 ${isRTL ? 'font-arabic' : ''}`}>
             {isAr ? 'أخبار وتحديثات لندن' : 'London News & Updates'}
@@ -187,9 +178,11 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
         </div>
       </section>
 
+      <TriBar />
+
       {/* ════════ Filters ════════ */}
       <section className="sticky top-[52px] z-30 bg-white/95 backdrop-blur-sm border-b border-yl-gray-200/40 py-3">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             {/* Category Filters — scrollable on mobile */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
@@ -199,10 +192,10 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                   <button
                     key={cat.key}
                     onClick={() => setActiveCategory(cat.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-sans text-[11px] font-medium tracking-[1px] uppercase transition-all duration-200 whitespace-nowrap shrink-0 ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] font-body text-[11px] font-medium tracking-[1px] uppercase transition-all duration-200 whitespace-nowrap shrink-0 ${
                       activeCategory === cat.key
                         ? 'bg-yl-dark-navy text-cream'
-                        : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-sand/50'
+                        : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200/50'
                     }`}
                   >
                     <Icon size={11} />
@@ -220,7 +213,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                 placeholder={isAr ? 'بحث في الأخبار...' : 'Search news...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full py-2 bg-yl-gray-100 border border-yl-gray-200/40 rounded text-sm font-body text-yl-charcoal placeholder:text-yl-gray-500/50 focus:outline-none focus:border-yl-gold transition-colors ${isRTL ? 'pr-9 pl-4' : 'pl-9 pr-4'}`}
+                className={`w-full py-2 bg-yl-gray-100 border border-yl-gray-200/40 rounded-[14px] text-sm font-body text-yl-charcoal placeholder:text-yl-gray-500/50 focus:outline-none focus:border-yl-gold transition-colors ${isRTL ? 'pr-9 pl-4' : 'pl-9 pr-4'}`}
               />
             </div>
           </div>
@@ -230,10 +223,10 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
       {/* ════════ Breaking / Major News ════════ */}
       {majorItems.length > 0 && (
         <section className="py-8">
-          <div className="max-w-6xl mx-auto px-6">
+          <div className="max-w-7xl mx-auto px-7">
             <div className="flex items-center gap-2 mb-5">
-              <Zap size={14} className="text-red-500" />
-              <span className="font-sans text-[11px] font-semibold tracking-[2px] uppercase text-red-600">
+              <Zap size={14} className="text-yl-red" />
+              <span className="font-body text-[11px] font-semibold tracking-[2px] uppercase text-yl-red">
                 {isAr ? 'تحديثات عاجلة' : 'BREAKING & IMPORTANT'}
               </span>
             </div>
@@ -245,9 +238,9 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                   <Link
                     key={item.id}
                     href={`/news/${item.slug}`}
-                    className={`block rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 group ${
+                    className={`block rounded-[14px] overflow-hidden hover:shadow-lg transition-all duration-200 group ${
                       isBreaking
-                        ? 'bg-red-50 border-2 border-red-300/50'
+                        ? 'bg-yl-red/5 border-2 border-yl-red/30'
                         : 'bg-yl-red/5 border-2 border-yl-red/20 hover:border-yl-red/40'
                     }`}
                   >
@@ -262,7 +255,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                             ) : photo ? (
                               <Image src={photo.thumbnail} alt={isAr ? photo.alt_ar : photo.alt_en} fill className="object-cover" sizes="144px" />
                             ) : (
-                              <div className={`w-full h-full bg-gradient-to-br ${getCategoryGradient(item.news_category)} flex items-center justify-center`}>
+                              <div className="w-full h-full bg-yl-dark-navy flex items-center justify-center">
                                 <Icon size={32} className="text-white/40" />
                               </div>
                             )}
@@ -275,20 +268,20 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           {/* Urgency badge */}
                           {(item.urgency === 'breaking' || item.urgency === 'urgent') && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider ${
-                              isBreaking ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[14px] text-[11px] font-bold uppercase tracking-wider ${
+                              isBreaking ? 'bg-yl-red text-white' : 'bg-yl-gold text-yl-charcoal'
                             }`}>
                               <Zap size={9} />
                               {isBreaking ? (isAr ? 'عاجل' : 'BREAKING') : (isAr ? 'مهم' : 'URGENT')}
                             </span>
                           )}
-                          <span className={`font-sans text-[11px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border bg-white/80 ${getCategoryBadgeColor(item.news_category).replace(/text-\w+-300/g, (m) => m.replace('300', '700')).replace(/bg-\w+-500\/20/g, (m) => m.replace('500/20', '100')).replace(/border-\w+-500\/30/g, (m) => m.replace('500/30', '300'))}`}>
+                          <BrandTag color={getCategoryTagColor(item.news_category)}>
                             {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
-                          </span>
-                          <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
+                          </BrandTag>
+                          <span className="font-body text-[11px] text-yl-gray-500 tracking-[1px]">
                             {timeAgo(item.published_at, isAr)}
                           </span>
-                          <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
+                          <span className="font-body text-[11px] text-yl-gray-500 tracking-[1px]">
                             · {item.source_name}
                           </span>
                         </div>
@@ -310,7 +303,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
 
       {/* ════════ Regular News Grid ════════ */}
       <section className="py-10">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-7">
           {regularItems.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {regularItems.map((item) => {
@@ -319,14 +312,10 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                   <Link
                     key={item.id}
                     href={`/news/${item.slug}`}
-                    className="group bg-white border border-yl-gray-200/40 rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+                    className="group bg-white border border-yl-gray-200/40 rounded-[14px] overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
                   >
                     {/* Tri-color bar */}
-                    <div className="flex h-[3px] w-full">
-                      <div className="flex-1 bg-yl-red" />
-                      <div className="flex-1 bg-yl-gold" />
-                      <div className="flex-1 bg-yl-blue" />
-                    </div>
+                    <TriBar />
 
                     {/* Category photo thumbnail — curated Unsplash photos */}
                     {(() => {
@@ -338,16 +327,18 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                           ) : photo ? (
                             <Image src={photo.url} alt={isAr ? photo.alt_ar : photo.alt_en} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
                           ) : (
-                            <div className={`w-full h-full bg-gradient-to-br ${getCategoryGradient(item.news_category)} flex items-center justify-center`}>
+                            <div className="w-full h-full bg-yl-dark-navy flex items-center justify-center">
                               <Icon size={48} className="text-white/15" />
                             </div>
                           )}
                           {/* Gradient overlay for readability */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                           {/* Category badge */}
-                          <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} font-sans text-[11px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border backdrop-blur-sm ${getCategoryBadgeColor(item.news_category)}`}>
-                            {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
-                          </span>
+                          <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
+                            <BrandTag color={getCategoryTagColor(item.news_category)}>
+                              {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
+                            </BrandTag>
+                          </div>
                         </div>
                       )
                     })()}
@@ -356,10 +347,10 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     <div className="p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <Clock size={10} className="text-yl-gray-500/50" />
-                        <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
+                        <span className="font-body text-[11px] text-yl-gray-500 tracking-[1px]">
                           {timeAgo(item.published_at, isAr)}
                         </span>
-                        <span className="font-sans text-[11px] text-yl-gray-500 tracking-[1px]">
+                        <span className="font-body text-[11px] text-yl-gray-500 tracking-[1px]">
                           · {item.source_name}
                         </span>
                       </div>
@@ -374,12 +365,9 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                       {item.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {item.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="font-sans text-[11px] tracking-[1px] uppercase text-yl-gray-500/60 bg-yl-gray-100 px-1.5 py-0.5 rounded"
-                            >
+                            <BrandTag key={tag} color="neutral" className="text-[9px]">
                               {tag}
-                            </span>
+                            </BrandTag>
                           ))}
                         </div>
                       )}
@@ -387,11 +375,11 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
 
                     {/* Boarding pass footer */}
                     <div className="border-t border-dashed border-yl-gray-200/40 px-5 py-2.5 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-yl-gray-500/50">
+                      <span className="inline-flex items-center gap-1 font-body text-[11px] tracking-[1.5px] uppercase text-yl-gray-500/50">
                         {isAr ? 'اقرأ المزيد' : 'READ MORE'}
                         <ArrowIcon size={8} />
                       </span>
-                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-yl-gray-500/50">
+                      <span className="inline-flex items-center gap-1 font-body text-[11px] tracking-[1.5px] uppercase text-yl-gray-500/50">
                         <ExternalLink size={7} />
                         {isAr ? 'المصدر' : 'SOURCE'}
                       </span>
@@ -418,8 +406,8 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
 
       {/* ════════ Content Integrity Notice ════════ */}
       <section className="py-6 border-t border-yl-gray-200/40">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-yl-gray-100/80 border border-yl-gray-200/30">
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="flex items-start gap-3 p-4 rounded-[14px] bg-yl-gray-100/80 border border-yl-gray-200/30">
             <Shield size={16} className="text-yl-red shrink-0 mt-0.5" />
             <p className={`text-[11px] text-yl-gray-500 leading-relaxed ${isRTL ? 'font-arabic' : 'font-body'}`}>
               {isAr
@@ -431,8 +419,9 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
       </section>
 
       {/* ════════ CTA Section ════════ */}
-      <section className="py-16 bg-yl-dark-navy">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+      <section className="relative py-16 bg-yl-dark-navy">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
           <h2 className={`font-heading text-2xl md:text-3xl font-bold text-yl-gray-100 mb-4 ${isRTL ? 'font-arabic' : ''}`}>
             {isAr ? 'هل تريد المزيد من نصائح لندن؟' : 'Want More London Tips?'}
           </h2>
@@ -442,18 +431,12 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
               : 'Explore our in-depth guides, articles, and curated recommendations to make the most of your London visit.'}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <Link
-              href="/information"
-              className={`px-6 py-3 bg-yl-red text-cream rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-yl-red ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
-            >
+            <BrandButton variant="primary" href="/information" size="md">
               {isAr ? 'مركز المعلومات' : 'Information Hub'}
-            </Link>
-            <Link
-              href="/blog"
-              className={`px-6 py-3 bg-transparent border border-yl-gray-100/30 text-yl-gray-100 rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-yl-gray-100/10 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
-            >
+            </BrandButton>
+            <BrandButton variant="outline" href="/blog" size="md">
               {isAr ? 'حكايات لندن' : 'London Stories'}
-            </Link>
+            </BrandButton>
           </div>
           <FollowUs variant="dark" showLabel={true} />
         </div>

@@ -218,6 +218,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   const dbResult: SystemStatus["db"] = { connected: false, latencyMs: 0, error: null };
   let dbOk = false;
 
+  // Explicitly connect on every cold start — the lazy proxy triggers engine
+  // init + query simultaneously, which races on Vercel serverless cold starts
+  // and produces "Engine is not yet connected" errors.
+  try {
+    await prisma.$connect();
+  } catch {
+    // $connect may fail if already connected (safe to ignore)
+  }
+
   try {
     const t0 = Date.now();
     await prisma.$queryRaw`SELECT 1`;
@@ -225,8 +234,9 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     dbResult.connected = true;
     dbOk = true;
   } catch (firstErr) {
-    // Cold start: engine not yet connected — explicitly connect and retry once
+    // Retry once after small delay — PgBouncer slot may have freed
     try {
+      await new Promise((r) => setTimeout(r, 1000));
       await prisma.$connect();
       const t0 = Date.now();
       await prisma.$queryRaw`SELECT 1`;

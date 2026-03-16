@@ -64,7 +64,7 @@ export default function AboutYallaLondon() {
           />
           <div className="absolute inset-0 bg-yl-dark-navy/85" />
         </div>
-        <WatermarkStamp position="right" />
+        <WatermarkStamp />
 
         <div className="relative z-10 max-w-7xl mx-auto px-7">
           <Breadcrumbs items={[

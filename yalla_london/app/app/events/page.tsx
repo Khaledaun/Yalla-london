@@ -219,7 +219,7 @@ export default function EventsPage() {
             priority
           />
         </div>
-        <WatermarkStamp position="right" opacity={0.06} />
+        <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
           <Breadcrumbs items={[
             { label: language === "en" ? "Home" : "الرئيسية", href: "/" },

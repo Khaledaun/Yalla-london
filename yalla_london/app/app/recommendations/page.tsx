@@ -208,7 +208,7 @@ export default function RecommendationsPage() {
     <div className={`bg-yl-cream min-h-screen ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero */}
       <section className="relative bg-yl-dark-navy pb-12 pt-28 overflow-hidden">
-        <WatermarkStamp position="right" />
+        <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
           <Breadcrumbs items={[
             { label: locale === 'en' ? 'Home' : 'الرئيسية', href: '/' },

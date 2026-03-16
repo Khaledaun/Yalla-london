@@ -90,7 +90,7 @@ export default function ArticleListClient({ articles }: ArticleListClientProps) 
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero Section */}
       <section className="bg-yl-dark-navy pt-28 pb-16 relative overflow-hidden">
-        <WatermarkStamp position="right" />
+        <WatermarkStamp />
         <div className="max-w-7xl mx-auto px-7 relative z-10">
           <Breadcrumbs items={[
             { label: language === 'en' ? 'Home' : 'الرئيسية', href: '/' },

@@ -100,7 +100,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
       <section className="bg-yl-dark-navy pt-28 pb-16 relative overflow-hidden">
-        <WatermarkStamp position="right" />
+        <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
           <Breadcrumbs items={[
             { label: language === 'en' ? 'Home' : 'الرئيسية', href: '/' },

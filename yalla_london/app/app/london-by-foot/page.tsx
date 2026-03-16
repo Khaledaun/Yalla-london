@@ -78,7 +78,7 @@ export default function LondonByFootPage() {
             priority
           />
         </div>
-        <WatermarkStamp position="right" />
+        <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
           <Breadcrumbs items={[
             { label: 'Home', href: '/' },

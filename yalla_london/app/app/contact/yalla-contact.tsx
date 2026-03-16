@@ -104,7 +104,7 @@ export default function YallaContactPage() {
     <div className={`bg-yl-cream min-h-screen ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero */}
       <section className="bg-yl-dark-navy pt-28 pb-12 relative overflow-hidden">
-        <WatermarkStamp position="right" />
+        <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
           <Breadcrumbs items={[
             { label: 'Home', href: '/' },

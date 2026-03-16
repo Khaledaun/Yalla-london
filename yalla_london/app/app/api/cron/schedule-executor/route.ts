@@ -74,20 +74,42 @@ async function handleScheduleExecutor(request: NextRequest) {
     });
 
     if (rules.length === 0) {
-      const durationMs = Date.now() - cronStart;
-      const { logCronExecution: logCron1 } = await import("@/lib/cron-logger");
-      await logCron1("schedule-executor", "completed", {
-        durationMs,
-        itemsProcessed: 0,
-        resultSummary: { message: "No active schedule rules found" },
-      }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
+      // Auto-seed a default schedule rule for 4 articles/day (2 EN + 2 AR)
+      // This ensures the pipeline starts producing content immediately after deployment
+      // without requiring manual DB inserts from a non-technical owner.
+      try {
+        const seededRule = await prisma.contentScheduleRule.create({
+          data: {
+            name: "Daily Content (4 articles: 2 EN + 2 AR)",
+            content_type: "blog_post",
+            language: "both",
+            frequency_hours: 6,         // Check every 6 hours (4x/day)
+            min_hours_between: 4,        // At least 4h between batch creations
+            max_posts_per_day: 4,        // Hard cap: 4 articles/day
+            auto_publish: false,         // Publish via content-selector (quality gated)
+            preferred_times: ["05:00", "11:00", "17:00", "23:00"],
+            is_active: true,
+          },
+        });
+        rules.push(seededRule);
+        console.log(`[schedule-executor] Auto-seeded default schedule rule: ${seededRule.id}`);
+      } catch (seedErr) {
+        console.warn("[schedule-executor] Failed to seed default rule:", (seedErr as Error).message);
+        const durationMs = Date.now() - cronStart;
+        const { logCronExecution: logCron1 } = await import("@/lib/cron-logger");
+        await logCron1("schedule-executor", "completed", {
+          durationMs,
+          itemsProcessed: 0,
+          resultSummary: { message: "No active schedule rules found, seed failed" },
+        }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
 
-      return NextResponse.json({
-        success: true,
-        message: "No active schedule rules",
-        ...results,
-        durationMs,
-      });
+        return NextResponse.json({
+          success: true,
+          message: "No active schedule rules",
+          ...results,
+          durationMs,
+        });
+      }
     }
 
     for (const rule of rules) {

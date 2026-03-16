@@ -214,7 +214,13 @@ export async function runContentBuilder(
 
     if (result.success) {
       updateData.current_phase = result.nextPhase;
-      updateData.phase_attempts = 0;
+      // When assembly used raw fallback (aiModelUsed="fallback-raw"), keep phase_attempts
+      // intact so the draft doesn't loop back through AI assembly on a future re-queue.
+      // Raw fallback permanently resolves assembly — resetting to 0 would let the draft
+      // re-enter assembly with AI attempts on future processing, causing timeout loops.
+      updateData.phase_attempts = (currentPhase === "assembly" && result.aiModelUsed === "fallback-raw")
+        ? (draftRecord.phase_attempts as number || 0)
+        : 0;
       updateData.last_error = null;
       updateData.phase_started_at = new Date();
 
@@ -252,10 +258,12 @@ export async function runContentBuilder(
       const phaseError = result.error || `Phase "${currentPhase}" returned failure with no error details`;
       updateData.last_error = phaseError;
 
-      // Drafting phase gets 5 attempts (complex, transient JSON parse errors common
-      // especially for Arabic content with dir="rtl" HTML attributes).
+      // Drafting and assembly get 5 attempts (complex AI phases with transient errors).
+      // Assembly in particular has timeout loops where AI polish fails repeatedly —
+      // 5 attempts gives the raw fallback (triggers at attempts >= 2) multiple chances
+      // and prevents premature rejection.
       // All other phases get 3 attempts.
-      const maxAttempts = currentPhase === "drafting" ? 5 : 3;
+      const maxAttempts = (currentPhase === "drafting" || currentPhase === "assembly") ? 5 : 3;
       const currentAttempts = ((draftRecord.phase_attempts as number) || 0) + 1;
       const wasRejected = currentAttempts >= maxAttempts;
       if (wasRejected) {

@@ -191,9 +191,9 @@ export async function GET(request: NextRequest) {
       where: { published: true, deletedAt: null, ...(siteId ? { OR: [{ siteId }, { siteId: null }] } : {}) },
       select: {
         id: true, title_en: true, slug: true, content_en: true,
-        created_at: true, published_at: true, siteId: true,
+        created_at: true, siteId: true,
       },
-      orderBy: { published_at: "desc" },
+      orderBy: { created_at: "desc" },
       take: 200,
     });
 
@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
         id: article.id,
         title: article.title_en,
         slug: article.slug,
-        publishedAt: article.published_at,
+        publishedAt: article.created_at,
         hasAffiliateLinks,
         linkCount,
         affiliateClicks,

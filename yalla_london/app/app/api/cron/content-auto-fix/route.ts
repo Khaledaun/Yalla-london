@@ -56,6 +56,7 @@ async function handleAutoFix(request: NextRequest) {
     orphansFixed: 0,
     thinUnpublished: 0,
     duplicatesFlagged: 0,
+    arabicContentBackfilled: 0,
     errors: [] as string[],
   };
 
@@ -768,9 +769,87 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 16. ARABIC CONTENT BACKFILL — translate EN→AR for articles published with English fallback ──
+  // When an AR draft wasn't ready, select-runner copies content_en into content_ar as a placeholder.
+  // This section detects those articles (content_ar === content_en) and generates real Arabic via AI.
+  // Budget: ~25-40s per article (AI translation). Max 2 per run to stay within budget.
+  if (Date.now() - cronStart < BUDGET_MS - 30_000) {
+    try {
+      // Find articles where content_ar is exactly the same as content_en (English fallback)
+      // Use raw query since Prisma doesn't support column-to-column comparison
+      const dupeContentPosts: Array<{ id: string; title_en: string; slug: string; content_en: string }> = await prisma.$queryRawUnsafe(
+        `SELECT id, title_en, slug, LEFT(content_en, 6000) as content_en
+         FROM "BlogPost"
+         WHERE published = true
+           AND "deletedAt" IS NULL
+           AND "siteId" = ANY($1)
+           AND content_en != ''
+           AND content_ar = content_en
+         ORDER BY created_at DESC
+         LIMIT 5`,
+        activeSiteIds,
+      );
+
+      if (dupeContentPosts.length > 0) {
+        console.log(`[content-auto-fix] Found ${dupeContentPosts.length} articles with English-in-Arabic fallback — backfilling`);
+        const { generateCompletion } = await import("@/lib/ai/provider");
+        const { SITES, getDefaultSiteId } = await import("@/config/sites");
+        let backfilled = 0;
+
+        for (const post of dupeContentPosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 25_000) break;
+          if (backfilled >= 2) break; // Max 2 per run
+
+          try {
+            // Truncate content to avoid huge prompts
+            const enContent = (post.content_en || "").substring(0, 5000);
+            const siteId = getDefaultSiteId();
+            const site = SITES[siteId];
+
+            const messages = [
+              { role: "system" as const, content: site?.systemPromptEN || "You are a professional Arabic translator specializing in luxury travel content." },
+              { role: "user" as const, content: `Translate this English travel article into Arabic. Maintain the HTML structure, headings (h2, h3), paragraph tags, and links. Write naturally in Modern Standard Arabic (فصحى). Add dir="rtl" lang="ar" to the wrapping element. Keep all href URLs unchanged. Do NOT translate brand names, hotel names, or restaurant names.\n\nTitle: ${post.title_en}\n\nContent:\n${enContent}` },
+            ];
+
+            const arResult = await generateCompletion(messages, {
+              maxTokens: 3500, // Arabic is ~2.5x more token-dense
+              taskType: "arabic-backfill",
+              calledFrom: "content-auto-fix-s16",
+              phaseBudgetHint: "heavy",
+              timeoutMs: 40_000,
+            });
+
+            if (arResult.content && arResult.content.length > 200) {
+              // Wrap in RTL article tag if not already present
+              let arHtml = arResult.content;
+              if (!arHtml.includes('dir="rtl"') && !arHtml.includes("dir='rtl'")) {
+                arHtml = `<article dir="rtl" lang="ar">${arHtml}</article>`;
+              }
+
+              await prisma.blogPost.update({
+                where: { id: post.id },
+                data: { content_ar: arHtml },
+              });
+              results.arabicContentBackfilled++;
+              backfilled++;
+              console.log(`[content-auto-fix] Backfilled Arabic content for: ${post.slug} (${arHtml.length} chars)`);
+            }
+          } catch (postErr) {
+            const msg = postErr instanceof Error ? postErr.message : String(postErr);
+            console.warn(`[content-auto-fix] Arabic backfill failed for ${post.slug}:`, msg);
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`arabic-backfill: ${msg}`);
+      console.warn("[content-auto-fix] Arabic content backfill failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -792,7 +871,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}`,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}`,
   });
 }
 

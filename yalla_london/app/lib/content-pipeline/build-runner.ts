@@ -85,14 +85,46 @@ export async function runContentBuilder(
       // Build a set of paired IDs and their phases so we can prioritize drafts
       // whose bilingual partner is further ahead (the lagging draft needs to catch up).
       const pairedPhaseMap = new Map<string, number>();
+      // Track AR drafts whose EN pair is already in reservoir/published — these need
+      // maximum priority boost to prevent EN publishing with English-in-Arabic fallback.
+      const arDraftsWithReadyEnPair = new Set<string>();
+
+      // Collect paired IDs that are NOT in the current allDrafts list
+      // (they've already advanced past the pipeline — reservoir, published, etc.)
+      const missingPairedIds: string[] = [];
       for (const d of allDrafts) {
         const pid = d.paired_draft_id as string | null;
         if (pid) {
-          // Check if the paired draft is also in the list
           const paired = allDrafts.find(x => (x.id as string) === pid);
           if (paired) {
             pairedPhaseMap.set(d.id as string, phaseOrder[paired.current_phase as string] || 0);
+          } else if ((d.locale as string) === "ar") {
+            // AR draft whose EN pair is NOT in the pipeline query — check if EN is in reservoir/published
+            missingPairedIds.push(pid);
           }
+        }
+      }
+
+      // Look up missing paired drafts to check if they're in reservoir/published
+      if (missingPairedIds.length > 0) {
+        try {
+          const pairedStatuses = await prisma.articleDraft.findMany({
+            where: { id: { in: missingPairedIds } },
+            select: { id: true, current_phase: true, paired_draft_id: true },
+          });
+          for (const ps of pairedStatuses) {
+            const phase = ps.current_phase as string;
+            if (phase === "reservoir" || phase === "published") {
+              // The EN pair is ready/published — its AR partner gets max priority
+              const arDraftId = ps.paired_draft_id as string;
+              if (arDraftId) arDraftsWithReadyEnPair.add(arDraftId);
+            }
+          }
+          if (arDraftsWithReadyEnPair.size > 0) {
+            console.log(`[content-builder] ${arDraftsWithReadyEnPair.size} AR draft(s) have EN pair in reservoir/published — boosting priority`);
+          }
+        } catch (pairLookupErr) {
+          console.warn("[content-builder] Paired status lookup failed (non-fatal):", pairLookupErr instanceof Error ? pairLookupErr.message : pairLookupErr);
         }
       }
 
@@ -107,7 +139,13 @@ export async function runContentBuilder(
         // for bilingual publishing. +5 priority boost per phase gap.
         const aPartnerAhead = pairedPhaseMap.has(a.id as string) ? Math.max(0, (pairedPhaseMap.get(a.id as string) || 0) - orderA) : 0;
         const bPartnerAhead = pairedPhaseMap.has(b.id as string) ? Math.max(0, (pairedPhaseMap.get(b.id as string) || 0) - orderB) : 0;
-        return (orderB + bStuck + bPartnerAhead) - (orderA + aStuck + aPartnerAhead);
+        // CRITICAL: AR drafts whose EN pair is in reservoir/published get +20 boost.
+        // Without this, EN publishes with English content in content_ar because the
+        // AR draft is still weeks behind in the backlog. This ensures AR catches up
+        // before content-selector gives up waiting and publishes EN-only.
+        const aEnReady = arDraftsWithReadyEnPair.has(a.id as string) ? 20 : 0;
+        const bEnReady = arDraftsWithReadyEnPair.has(b.id as string) ? 20 : 0;
+        return (orderB + bStuck + bPartnerAhead + bEnReady) - (orderA + aStuck + aPartnerAhead + aEnReady);
       });
 
       draft = allDrafts[0] || null;

@@ -1059,7 +1059,6 @@ function TemplateCard({
             size="sm"
             onClick={handleSendTemplateTest}
             loading={isSendingTest}
-            title="Send test email"
           >
             <Send size={12} />
           </AdminButton>
@@ -1068,7 +1067,6 @@ function TemplateCard({
             size="sm"
             onClick={handleDuplicate}
             loading={isDuplicating}
-            title="Duplicate template"
           >
             <Copy size={12} />
           </AdminButton>

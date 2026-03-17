@@ -63,7 +63,9 @@ export async function runContentBuilder(
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          phase_attempts: { lt: 5 }, // Must match maxAttempts for drafting phase (line ~339)
+          // Use highest maxAttempts (drafting=8) so no phase's drafts fall into limbo.
+          // Individual phase rejection is handled in the processing loop via getMaxAttempts().
+          phase_attempts: { lt: getMaxAttempts("drafting") },
           // Soft-lock: skip drafts actively being processed by another runner (within last 5 min)
           // 300s allows a full phase cycle to complete before another runner picks it up.
           // Previous 180s was too short — slow AI calls (30-50s) + overlapping crons
@@ -315,9 +317,9 @@ export async function runContentBuilder(
     // value (atomically incremented by both) exceeds maxAttempts.
     // Re-check the ACTUAL DB value and reject if needed.
     if (!result.success && updated.current_phase !== "rejected") {
-      const maxAttempts = currentPhase === "drafting" ? 5 : 3;
+      const raceMaxAttempts = getMaxAttempts(currentPhase);
       const actualAttempts = updated.phase_attempts || 0;
-      if (actualAttempts >= maxAttempts) {
+      if (actualAttempts >= raceMaxAttempts) {
         await prisma.articleDraft.update({
           where: { id: draftRecord.id as string },
           data: {
@@ -410,6 +412,77 @@ export async function runContentBuilder(
       }
     }
 
+    // Track all processed draft IDs to avoid double-processing
+    const processedIds = new Set<string>([draftRecord.id as string, ...(pairedId ? [pairedId] : [])]);
+
+    // ── Second heavy-phase draft: clear backlog faster ──────────────────────
+    // With 150+ drafts in drafting, processing only 1 per 15-min cron = 2+ days to clear.
+    // When first draft's drafting call finishes early (1-2 sections, 30-60s used),
+    // pick up a second draft from the heavy backlog to double throughput.
+    if (result.success && deadline.remainingMs() > 60_000 && ["drafting", "assembly"].includes(currentPhase)) {
+      try {
+        const secondDraft = await prisma.articleDraft.findFirst({
+          where: {
+            id: { notIn: Array.from(processedIds) },
+            site_id: { in: activeSites },
+            current_phase: { in: ["drafting", "assembly"] },
+            phase_attempts: { lt: getMaxAttempts("drafting") },
+            OR: [
+              { phase_started_at: null },
+              { phase_started_at: { lt: new Date(Date.now() - 300 * 1000) } },
+            ],
+          },
+          orderBy: { updated_at: "asc" },
+        });
+        if (secondDraft && deadline.remainingMs() > 30_000) {
+          console.log(`[content-builder] Second heavy draft: "${secondDraft.current_phase}" for ${secondDraft.id} (budget: ${Math.round(deadline.remainingMs() / 1000)}s)`);
+          await prisma.articleDraft.update({
+            where: { id: secondDraft.id as string },
+            data: { phase_started_at: new Date() },
+          });
+          processedIds.add(secondDraft.id as string);
+          try {
+            const secondResult = await runPhase(secondDraft as any, SITES[secondDraft.site_id as string], deadline.remainingMs());
+            const secondUpdate: Record<string, unknown> = { updated_at: new Date() };
+            if (secondResult.success) {
+              secondUpdate.current_phase = secondResult.nextPhase;
+              secondUpdate.phase_attempts = 0;
+              secondUpdate.last_error = null;
+              secondUpdate.phase_started_at = new Date();
+              // Carry forward phase data
+              if (secondResult.data.research_data) secondUpdate.research_data = secondResult.data.research_data;
+              if (secondResult.data.outline_data) secondUpdate.outline_data = secondResult.data.outline_data;
+              if (secondResult.data.assembled_html) secondUpdate.assembled_html = secondResult.data.assembled_html;
+              if (secondResult.data.sections_json) secondUpdate.sections_json = secondResult.data.sections_json;
+              if (secondResult.data.seo_meta) secondUpdate.seo_meta = secondResult.data.seo_meta;
+              if (secondResult.data.word_count !== undefined) secondUpdate.word_count = secondResult.data.word_count;
+              // IMPORTANT: If assembly used raw fallback, preserve attempts (don't reset to 0)
+              if (secondDraft.current_phase === "assembly" && secondResult.data.aiModelUsed === "fallback-raw") {
+                secondUpdate.phase_attempts = secondDraft.phase_attempts;
+              }
+              if (secondResult.nextPhase === "reservoir" || secondResult.nextPhase === "rejected") {
+                secondUpdate.completed_at = new Date();
+              }
+            } else {
+              secondUpdate.phase_started_at = new Date();
+              secondUpdate.phase_attempts = { increment: 1 };
+              secondUpdate.last_error = secondResult.error || `Phase failed`;
+            }
+            await prisma.articleDraft.update({ where: { id: secondDraft.id as string }, data: secondUpdate });
+            additionalResults.push({ draftId: secondDraft.id as string, phase: secondDraft.current_phase as string, success: secondResult.success });
+          } catch (secondErr) {
+            console.warn(`[content-builder] Second heavy draft failed:`, secondErr instanceof Error ? secondErr.message : secondErr);
+            await prisma.articleDraft.update({
+              where: { id: secondDraft.id as string },
+              data: { phase_started_at: null, updated_at: new Date() },
+            }).catch(() => {});
+          }
+        }
+      } catch (secondLookupErr) {
+        console.warn("[content-builder] Second heavy draft lookup failed (non-fatal):", secondLookupErr instanceof Error ? secondLookupErr.message : secondLookupErr);
+      }
+    }
+
     // ── Multi-draft processing: advance additional light-phase drafts if budget allows ──
     // After sweeper resets 40+ drafts, processing 1 draft per 15-min run creates a days-long
     // backlog. Light phases (research, outline, images, seo, scoring) complete in 5-15s,
@@ -417,7 +490,6 @@ export async function runContentBuilder(
     // need 30s+ and are never batched.
     const LIGHT_PHASES = new Set(["research", "outline", "images", "seo", "scoring"]);
     const MAX_ADDITIONAL_DRAFTS = 4;
-    const processedIds = new Set([draftRecord.id as string, ...(pairedId ? [pairedId] : [])]);
 
     if (result.success && deadline.remainingMs() > 60_000) {
       try {
@@ -426,7 +498,7 @@ export async function runContentBuilder(
             id: { notIn: Array.from(processedIds) },
             site_id: { in: activeSites },
             current_phase: { in: Array.from(LIGHT_PHASES) },
-            phase_attempts: { lt: 5 },
+            phase_attempts: { lt: getMaxAttempts("images") }, // Light phases max=3
             OR: [
               { phase_started_at: null },
               { phase_started_at: { lt: new Date(Date.now() - 300 * 1000) } },

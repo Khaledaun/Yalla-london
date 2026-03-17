@@ -40,11 +40,19 @@ export function DynamicHeader() {
             : 'bg-yl-dark-navy/95 backdrop-blur-xl'
         }`}
       >
-        <div className="max-w-[1400px] mx-auto px-5 sm:px-7 lg:px-10">
-          <div className="flex justify-between items-center py-4 md:py-5">
-            {/* Logo — "YALLA" in parchment, "LONDON" in yl-red */}
-            <Link href="/" className="flex items-center group">
-              <span className="font-heading font-bold text-2xl md:text-[28px] tracking-wider">
+        <div className="max-w-7xl mx-auto px-5 sm:px-7">
+          <div className="flex justify-between items-center py-3.5">
+            {/* Logo — stamp + "YALLA LONDON" wordmark */}
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <Image
+                src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-100px.png"
+                alt="Yalla London"
+                width={36}
+                height={36}
+                className="rounded-full"
+                priority
+              />
+              <span className="font-heading font-bold text-xl tracking-wider">
                 <span className="text-yl-parchment">YALLA</span>
                 <span className="text-yl-red ml-1.5">LONDON</span>
               </span>

@@ -242,6 +242,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   const flatProviderStatus = {
     active: providerStatus.active,
     activeProvider: providerStatus.activeProvider,
+    domainVerified: providerStatus.domainVerified,
+    sendingFrom: providerStatus.sendingFrom,
     resend: providerStatus.providers.resend.configured,
     sendgrid: providerStatus.providers.sendgrid.configured,
     smtp: providerStatus.providers.smtp.configured,

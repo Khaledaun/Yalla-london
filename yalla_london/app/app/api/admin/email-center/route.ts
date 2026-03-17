@@ -300,11 +300,16 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
 
+    // In Resend sandbox mode, force onboarding@resend.dev as sender
+    const isSandboxTest = Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED;
+    const testFrom = isSandboxTest ? "Yalla London <onboarding@resend.dev>" : undefined;
+
     const result = await sendEmail({
       to,
       subject: "Cockpit Test Email",
       html: "<p>This is a test email from your Cockpit dashboard.</p>",
       plainText: "This is a test email from your Cockpit dashboard.",
+      from: testFrom,
     });
 
     const providerStatus = buildProviderStatus();
@@ -487,11 +492,21 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       language,
     });
 
+    // In Resend sandbox mode (domain not verified), force onboarding@resend.dev as sender.
+    // Otherwise Resend returns 403 because unverified domains can't send.
+    const isSandbox = Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED;
+    const siteConfig = getSiteConfig(siteId);
+    const siteName = siteConfig?.name || "Yalla London";
+    const sandboxFrom = isSandbox
+      ? `${siteName} <onboarding@resend.dev>`
+      : undefined; // let sendEmail() use its normal fallback
+
     const result = await sendEmail({
       to,
       subject: welcomeEmail.subject,
       html: welcomeEmail.html,
       plainText: welcomeEmail.plainText,
+      from: sandboxFrom,
     });
 
     logManualAction(request, {

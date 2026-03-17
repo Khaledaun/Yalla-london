@@ -37,7 +37,14 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-yl-red hover:text-yl-charcoal transition-colors font-heading">
+            <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold text-yl-red hover:text-yl-charcoal transition-colors font-heading">
+              <img
+                src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-100px.png"
+                alt="Yalla London"
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
               Yalla London
             </Link>
           </div>

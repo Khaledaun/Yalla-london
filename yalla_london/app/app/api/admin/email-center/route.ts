@@ -13,6 +13,8 @@ import { logManualAction } from "@/lib/action-logger";
 interface ProviderStatus {
   active: boolean;
   activeProvider: "resend" | "sendgrid" | "smtp" | null;
+  domainVerified: boolean;
+  sendingFrom: string;
   providers: {
     resend: { configured: boolean; envKey: string };
     sendgrid: { configured: boolean; envKey: string };

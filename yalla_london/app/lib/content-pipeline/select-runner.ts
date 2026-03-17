@@ -43,6 +43,7 @@ export async function runContentSelector(
 ): Promise<SelectRunnerResult> {
   const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
   const cronStart = Date.now();
+  let dedupMarkerId: string | null = null;
 
   try {
     const { prisma } = await import("@/lib/db");
@@ -107,7 +108,6 @@ export async function runContentSelector(
     // CRITICAL: Track the marker ID so we can UPDATE it on success/failure
     // instead of creating a new log entry (which leaves this one abandoned
     // and triggers false "Stale marker — run likely crashed" failures).
-    let dedupMarkerId: string | null = null;
     try {
       const marker = await prisma.cronJobLog.create({
         data: {

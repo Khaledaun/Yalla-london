@@ -33,6 +33,7 @@ import {
   Inbox,
   Loader2,
   MousePointerClick,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -118,13 +119,17 @@ export default function EmailCampaignsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newCampaign, setNewCampaign] = useState({ name: "", subject: "", htmlContent: "<p>Your email content here</p>" });
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; messageId?: string } | null>(null);
+  const [providerStatus, setProviderStatus] = useState<{ activeProvider: string; configured: boolean } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
       setError(null);
-      const [templatesRes, campaignsRes] = await Promise.allSettled([
+      const [templatesRes, campaignsRes, emailCenterRes] = await Promise.allSettled([
         fetch("/api/admin/email-templates"),
         fetch("/api/admin/email-campaigns"),
+        fetch("/api/admin/email-center"),
       ]);
 
       if (templatesRes.status === "fulfilled" && templatesRes.value.ok) {
@@ -169,6 +174,17 @@ export default function EmailCampaignsPage() {
         );
       } else {
         setCampaigns([]);
+      }
+      // Load provider status
+      if (emailCenterRes.status === "fulfilled" && emailCenterRes.value.ok) {
+        const ecData = await emailCenterRes.value.json();
+        const prov = ecData.provider;
+        if (prov) {
+          setProviderStatus({
+            activeProvider: prov.activeProvider || "none",
+            configured: prov.active ?? false,
+          });
+        }
       }
     } catch (err) {
       console.warn("[email-campaigns] Failed to load data:", err);
@@ -223,6 +239,49 @@ export default function EmailCampaignsPage() {
       toast.error("Network error creating campaign");
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setIsSendingTest(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/admin/email-center", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_send",
+          to: "khaled.aun@gmail.com",
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        setTestResult({
+          success: false,
+          message: errBody.error || `Failed (${res.status})`,
+        });
+        toast.error("Test email failed");
+      } else {
+        const data = await res.json();
+        setTestResult({
+          success: data.success ?? true,
+          message: data.success ? "Test email sent! Check your inbox." : (data.error || "Unknown error"),
+          messageId: data.messageId || data.result?.messageId,
+        });
+        if (data.success) {
+          toast.success("Test email sent to khaled.aun@gmail.com");
+        } else {
+          toast.error(data.error || "Test email failed");
+        }
+      }
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message: `Network error: ${err instanceof Error ? err.message : "unknown"}`,
+      });
+      toast.error("Network error sending test email");
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -309,6 +368,101 @@ export default function EmailCampaignsPage() {
             color="#C8322B"
           />
         </div>
+
+        {/* Provider Status + Send Test */}
+        <AdminCard>
+          <div className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: providerStatus?.configured
+                      ? "rgba(45,90,61,0.08)"
+                      : "rgba(200,50,43,0.08)",
+                  }}
+                >
+                  <Zap
+                    size={18}
+                    color={providerStatus?.configured ? "#2D5A3D" : "#C8322B"}
+                  />
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 700,
+                      fontSize: 14,
+                      color: "#1C1917",
+                    }}
+                  >
+                    Email Provider:{" "}
+                    <span style={{ color: providerStatus?.configured ? "#2D5A3D" : "#C8322B" }}>
+                      {providerStatus?.activeProvider || "Not configured"}
+                    </span>
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 11,
+                      color: "#78716C",
+                      marginTop: 2,
+                    }}
+                  >
+                    {providerStatus?.configured
+                      ? "Resend is connected. Send a test email to verify delivery."
+                      : "Set RESEND_API_KEY in Vercel env vars to enable email sending."}
+                  </p>
+                </div>
+              </div>
+              <AdminButton
+                variant="primary"
+                size="sm"
+                onClick={handleSendTest}
+                loading={isSendingTest}
+                disabled={!providerStatus?.configured}
+              >
+                <Send size={13} />
+                Send Test Email
+              </AdminButton>
+            </div>
+            {testResult && (
+              <div
+                className="mt-3 p-3 rounded-lg"
+                style={{
+                  backgroundColor: testResult.success ? "rgba(45,90,61,0.06)" : "rgba(200,50,43,0.06)",
+                  borderLeft: `3px solid ${testResult.success ? "#2D5A3D" : "#C8322B"}`,
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: "var(--font-system)",
+                    fontSize: 12,
+                    color: testResult.success ? "#2D5A3D" : "#C8322B",
+                    fontWeight: 600,
+                  }}
+                >
+                  {testResult.success ? "Sent successfully" : "Failed"}
+                </p>
+                <p
+                  style={{
+                    fontFamily: "var(--font-system)",
+                    fontSize: 11,
+                    color: "#78716C",
+                    marginTop: 2,
+                  }}
+                >
+                  {testResult.message}
+                  {testResult.messageId && (
+                    <span style={{ display: "block", fontSize: 10, marginTop: 2, color: "#A8A29E" }}>
+                      Message ID: {testResult.messageId}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+        </AdminCard>
 
         {/* Tabs */}
         <AdminTabs tabs={tabItems} activeTab={activeTab} onTabChange={setActiveTab} />

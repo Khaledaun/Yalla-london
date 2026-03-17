@@ -213,7 +213,8 @@ export default function EmailCampaignsPage() {
     }
     setIsCreating(true);
     try {
-      const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london";
+      // Read siteId from cookie or let server default — never hardcode a specific site
+      const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || undefined;
       const res = await fetch("/api/admin/email-campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -243,6 +244,13 @@ export default function EmailCampaignsPage() {
   };
 
   const handleSendTest = async () => {
+    // Prompt admin for test recipient — never hardcode personal email in client JS
+    const testRecipient = window.prompt("Send test email to:", "");
+    if (!testRecipient || !testRecipient.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
     setIsSendingTest(true);
     setTestResult(null);
     try {
@@ -251,7 +259,7 @@ export default function EmailCampaignsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "test_send",
-          to: "khaled.aun@gmail.com",
+          to: testRecipient,
         }),
       });
       if (!res.ok) {
@@ -265,11 +273,11 @@ export default function EmailCampaignsPage() {
         const data = await res.json();
         setTestResult({
           success: data.success ?? true,
-          message: data.success ? "Test email sent! Check your inbox." : (data.error || "Unknown error"),
+          message: data.success ? `Test email sent to ${testRecipient}! Check your inbox.` : (data.error || "Unknown error"),
           messageId: data.messageId || data.result?.messageId,
         });
         if (data.success) {
-          toast.success("Test email sent to khaled.aun@gmail.com");
+          toast.success(`Test email sent to ${testRecipient}`);
         } else {
           toast.error(data.error || "Test email failed");
         }
@@ -280,6 +288,49 @@ export default function EmailCampaignsPage() {
         message: `Network error: ${err instanceof Error ? err.message : "unknown"}`,
       });
       toast.error("Network error sending test email");
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  const handleSendWelcome = async () => {
+    const testRecipient = window.prompt("Send welcome email to:", "");
+    if (!testRecipient || !testRecipient.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsSendingTest(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/admin/email-center", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send_welcome",
+          to: testRecipient,
+          language: "en",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setTestResult({
+        success: data.success ?? false,
+        message: data.success
+          ? `Welcome email sent to ${testRecipient}! Check your inbox.`
+          : (data.error || `Failed (${res.status})`),
+        messageId: data.messageId,
+      });
+      if (data.success) {
+        toast.success(`Welcome email sent to ${testRecipient}`);
+      } else {
+        toast.error(data.error || "Welcome email failed");
+      }
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message: `Network error: ${err instanceof Error ? err.message : "unknown"}`,
+      });
+      toast.error("Network error sending welcome email");
     } finally {
       setIsSendingTest(false);
     }
@@ -415,16 +466,28 @@ export default function EmailCampaignsPage() {
                   </p>
                 </div>
               </div>
-              <AdminButton
-                variant="primary"
-                size="sm"
-                onClick={handleSendTest}
-                loading={isSendingTest}
-                disabled={!providerStatus?.configured}
-              >
-                <Send size={13} />
-                Send Test Email
-              </AdminButton>
+              <div className="flex gap-2">
+                <AdminButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSendTest}
+                  loading={isSendingTest}
+                  disabled={!providerStatus?.configured}
+                >
+                  <Send size={13} />
+                  Send Test
+                </AdminButton>
+                <AdminButton
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSendWelcome}
+                  loading={isSendingTest}
+                  disabled={!providerStatus?.configured}
+                >
+                  <Mail size={13} />
+                  Send Welcome
+                </AdminButton>
+              </div>
             </div>
             {testResult && (
               <div

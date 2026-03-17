@@ -76,7 +76,7 @@ export function EmailCapture({
   const translations = {
     en: {
       title: 'Get Your Free Guide',
-      subtitle: 'Join 10,000+ travelers who plan smarter trips',
+      subtitle: 'Plan smarter trips with exclusive insider guides',
       emailPlaceholder: 'Enter your email',
       cta: 'Send Me The Guide',
       ctaLoading: 'Sending...',
@@ -90,7 +90,7 @@ export function EmailCapture({
     },
     ar: {
       title: 'احصل على دليلك المجاني',
-      subtitle: 'انضم إلى أكثر من 10,000 مسافر يخططون لرحلات أذكى',
+      subtitle: 'خطط لرحلات أذكى مع أدلة حصرية للمسافرين',
       emailPlaceholder: 'أدخل بريدك الإلكتروني',
       cta: 'أرسل لي الدليل',
       ctaLoading: 'جاري الإرسال...',
@@ -462,7 +462,8 @@ export function StickyFooterCTA({
         }),
       });
       setStatus('success');
-    } catch {
+    } catch (err) {
+      console.warn("[sticky-footer-cta] Subscribe failed:", err instanceof Error ? err.message : err);
       setStatus('idle');
     }
   };

@@ -1,3 +1,5 @@
+export {};
+
 /**
  * Seed 10 Branded Email Templates for Yalla London
  *

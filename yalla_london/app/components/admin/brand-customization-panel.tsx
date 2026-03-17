@@ -514,7 +514,7 @@ export function BrandCustomizationPanel() {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="hello@yourbrand.com"
+                    placeholder="info@yourbrand.com"
                   />
                 </div>
 

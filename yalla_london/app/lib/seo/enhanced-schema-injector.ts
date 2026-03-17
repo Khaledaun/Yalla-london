@@ -54,7 +54,7 @@ export class EnhancedSchemaInjector {
       siteName: config?.name || effectiveSiteId,
       description: config ? `Luxury ${config.destination} travel guide` : 'Luxury travel guide',
       contact: {
-        email: `hello@${domain}`,
+        email: `info@${domain}`,
         social: {} as Record<string, string>,
       }
     };

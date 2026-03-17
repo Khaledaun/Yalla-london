@@ -223,7 +223,7 @@ export function ZenithaLuxuryAffiliateDisclosure() {
           <P>
             If you have questions about our affiliate relationships or this disclosure, contact us
             at{' '}
-            <a href="mailto:hello@zenitha.luxury" style={{ color: C.gold }}>hello@zenitha.luxury</a>.
+            <a href="mailto:info@zenitha.luxury" style={{ color: C.gold }}>info@zenitha.luxury</a>.
           </P>
 
           {/* Back link */}

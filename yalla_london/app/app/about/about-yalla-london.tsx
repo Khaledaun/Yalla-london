@@ -10,7 +10,7 @@ import { SITES, getDefaultSiteId } from '@/config/sites'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
-const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
+const CONTACT_EMAIL = `info@${SITE_DOMAIN}`
 
 // Hero background — self-hosted or brand gradient (no external stock photos)
 const HERO_BG = '/images/hero/london-city-night.jpg'

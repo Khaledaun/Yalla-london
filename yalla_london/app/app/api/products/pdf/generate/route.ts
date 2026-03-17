@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         secondaryColor: siteConfig?.secondaryColor || "#d4af37",
         logoUrl: `${siteUrl}/images/${siteConfig?.slug || currentSiteId}-logo.svg`,
         siteName,
-        contactEmail: `hello@${siteConfig?.domain || "zenitha.luxury"}`,
+        contactEmail: `info@${siteConfig?.domain || "zenitha.luxury"}`,
         website: siteUrl,
       },
       includeAffiliate: true,

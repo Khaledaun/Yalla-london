@@ -9,7 +9,7 @@ function getSiteInfo(siteId?: string) {
   const resolvedId = siteId || getDefaultSiteId()
   const site = SITES[resolvedId]
   const domain = site?.domain || 'zenitha.luxury'
-  const email = `hello@${domain}`
+  const email = `info@${domain}`
   const isYacht = checkIsYachtSite(resolvedId)
   const name = site?.name || (isYacht ? 'Zenitha Yachts' : 'Yalla London')
   const nameAr = isYacht ? 'زينيثا يخوت' : 'يلا لندن'

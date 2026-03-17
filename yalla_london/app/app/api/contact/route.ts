@@ -52,7 +52,7 @@ async function sendEmail(data: ContactFormData) {
       },
       body: JSON.stringify({
         personalizations: [{
-          to: [{ email: process.env.CONTACT_EMAIL || `hello@${_siteDomain}` }],
+          to: [{ email: process.env.CONTACT_EMAIL || `info@${_siteDomain}` }],
           subject: `[${data.category}] ${data.subject}`
         }],
         from: {

@@ -47,7 +47,7 @@ Website details:
 - URL: https://www.{{siteDomain}}
 - Category: Travel / Luxury Travel
 - Description: "{{siteName}} is a luxury travel guide for international visitors, featuring curated hotel reviews, restaurant recommendations, cultural experiences, and insider tips. Published by Zenitha.Luxury LLC."
-- Contact: hello@{{siteDomain}}
+- Contact: info@{{siteDomain}}
 
 Complete all required fields and submit. Screenshot the confirmation.`,
     priority: 'medium',

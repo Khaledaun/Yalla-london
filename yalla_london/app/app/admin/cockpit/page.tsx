@@ -6012,7 +6012,7 @@ function EmailEditor({ config, onChange }: { config: Record<string, unknown>; on
           <input
             value={(config.fromEmail as string) || ""}
             onChange={(e) => onChange("fromEmail", e.target.value)}
-            placeholder="e.g. hello@yalla-london.com"
+            placeholder="e.g. info@yalla-london.com"
             className="w-full bg-stone-50 text-stone-600 rounded px-2 py-1 border border-stone-200 text-xs"
           />
         </div>

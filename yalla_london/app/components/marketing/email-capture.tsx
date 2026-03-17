@@ -121,18 +121,15 @@ export function EmailCapture({
     setStatus('loading');
 
     try {
-      const response = await fetch('/api/leads', {
+      const response = await fetch('/api/newsletter/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          lead_type: 'PDF_GUIDE',
-          source,
-          tags: [...tags, `guide:${guideSlug}`],
-          metadata: {
-            guide_slug: guideSlug,
-            guide_name: displayName,
-          },
+          language: locale,
+          source: source || 'pdf_guide',
+          firstName: null,
+          lastName: null,
         }),
       });
 
@@ -455,14 +452,13 @@ export function StickyFooterCTA({
     setStatus('loading');
 
     try {
-      await fetch('/api/leads', {
+      await fetch('/api/newsletter/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          lead_type: 'PDF_GUIDE',
+          language: isArabic ? 'ar' : 'en',
           source: 'sticky-footer',
-          tags: [`guide:${guideSlug}`],
         }),
       });
       setStatus('success');

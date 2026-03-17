@@ -1,9 +1,12 @@
 /**
  * Welcome Email Template
  *
- * Uses the design system brand provider to generate a branded welcome email
- * for new subscribers. Table-based layout for maximum email client compatibility
+ * Professional branded welcome email for new subscribers.
+ * Table-based layout for maximum email client compatibility
  * (Gmail, Outlook, Apple Mail, Yahoo). All styles are inline.
+ *
+ * Uses real brand assets: logo PNG, hero photography, branded color palette.
+ * No emojis — luxury brand standard.
  *
  * Brand colors sourced from lib/design/destination-themes.ts via brand-provider.ts
  */
@@ -17,8 +20,10 @@ interface WelcomeEmailOptions {
   siteId?: string;
   language?: "en" | "ar";
   unsubscribeUrl?: string;
-  /** Override the hero image URL (defaults to dynamic OG image) */
+  /** Override the hero image URL (defaults to site hero photography) */
   heroImageUrl?: string;
+  /** Override the logo image URL (defaults to site PNG stamp) */
+  logoUrl?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -30,6 +35,28 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+/**
+ * Site-specific hero images and logo paths.
+ * All paths are relative to the site root (public/).
+ */
+const SITE_HERO_IMAGES: Record<string, string> = {
+  "yalla-london": "/images/hero/tower-bridge.jpg",
+  "arabaldives": "/images/hero/tower-bridge.jpg", // placeholder until Maldives photos added
+  "french-riviera": "/images/hero/tower-bridge.jpg",
+  "istanbul": "/images/hero/tower-bridge.jpg",
+  "thailand": "/images/hero/tower-bridge.jpg",
+  "zenitha-yachts-med": "/images/hero/tower-bridge.jpg",
+};
+
+const SITE_LOGO_IMAGES: Record<string, string> = {
+  "yalla-london": "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+  "arabaldives": "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+  "french-riviera": "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+  "istanbul": "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+  "thailand": "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+  "zenitha-yachts-med": "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+};
 
 export function renderWelcomeEmail(options: WelcomeEmailOptions = {}): {
   html: string;
@@ -52,15 +79,19 @@ export function renderWelcomeEmail(options: WelcomeEmailOptions = {}): {
 
   const content = getContent(brand, name, siteUrl, unsubUrl, isAr);
 
-  // Hero image: use dynamic OG endpoint or custom override
   const heroImageUrl = options.heroImageUrl
-    || `${siteUrl}/api/og?siteId=${encodeURIComponent(siteId)}&title=${encodeURIComponent(isAr ? `مرحباً بك في ${brand.name}` : `Welcome to ${brand.name}`)}&tagline=${encodeURIComponent(isAr ? "اكتشف تجارب سفر فاخرة" : "Discover Luxury Travel Experiences")}`;
+    || `${siteUrl}${SITE_HERO_IMAGES[siteId] || "/images/hero/tower-bridge.jpg"}`;
 
-  const html = buildHtml(brand, content, dir, align, siteUrl, unsubUrl, domain, isAr, heroImageUrl);
+  const logoUrl = options.logoUrl
+    || `${siteUrl}${SITE_LOGO_IMAGES[siteId] || "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png"}`;
+
+  const html = buildHtml(brand, content, dir, align, siteUrl, unsubUrl, domain, isAr, heroImageUrl, logoUrl);
   const plainText = buildPlainText(brand, content, siteUrl, unsubUrl, isAr);
+
+  // Professional subject — no emojis for luxury brand
   const subject = isAr
-    ? `مرحباً بك في ${brand.name}! 🎉`
-    : `Welcome to ${brand.name}! 🎉`;
+    ? `مرحباً بك في ${brand.name}`
+    : `Welcome to ${brand.name}`;
 
   return { html, plainText, subject };
 }
@@ -71,7 +102,7 @@ interface EmailContent {
   greeting: string;
   headline: string;
   intro: string;
-  features: Array<{ icon: string; title: string; desc: string }>;
+  features: Array<{ initial: string; title: string; desc: string }>;
   cta: string;
   ctaUrl: string;
   closing: string;
@@ -83,39 +114,39 @@ function getContent(
   brand: BrandProfile,
   name: string | null,
   siteUrl: string,
-  unsubUrl: string,
+  _unsubUrl: string,
   isAr: boolean,
 ): EmailContent {
   if (isAr) {
     return {
-      greeting: name ? `مرحباً ${name}!` : "مرحباً بك!",
+      greeting: name ? `مرحباً ${name}،` : "مرحباً بك،",
       headline: `أهلاً وسهلاً في ${brand.name}`,
-      intro: `يسعدنا انضمامك إلينا. ستحصل على أفضل الأدلة الحصرية والنصائح لتخطيط رحلات لا تُنسى.`,
+      intro: `يسعدنا انضمامك إلينا. ستحصل على أفضل الأدلة الحصرية والنصائح المحلية لتخطيط رحلات فاخرة لا تُنسى.`,
       features: [
-        { icon: "🏨", title: "أفضل الفنادق", desc: "مراجعات حقيقية لأفضل الفنادق الفاخرة والحلال" },
-        { icon: "🍽️", title: "أدلة الطعام", desc: "اكتشف أفضل المطاعم الحلال والمميزة" },
-        { icon: "📍", title: "تجارب حصرية", desc: "نصائح من الداخل لا تجدها في أي مكان آخر" },
+        { initial: "H", title: "أفضل الفنادق", desc: "مراجعات حقيقية لأفضل الفنادق الفاخرة والحلال" },
+        { initial: "D", title: "أدلة الطعام", desc: "اكتشف أفضل المطاعم الحلال والمميزة في المدينة" },
+        { initial: "E", title: "تجارب حصرية", desc: "نصائح من الداخل وتوصيات محلية لا تجدها في أي مكان آخر" },
       ],
       cta: "اكتشف أحدث المقالات",
       ctaUrl: `${siteUrl}/blog`,
-      closing: "نتمنى لك رحلات سعيدة!",
+      closing: "نتمنى لك رحلات سعيدة،",
       footer: `© ${new Date().getFullYear()} ${ENTITY.legalName}. جميع الحقوق محفوظة.`,
       unsubscribe: "إلغاء الاشتراك",
     };
   }
 
   return {
-    greeting: name ? `Hi ${name}!` : "Welcome!",
+    greeting: name ? `Hi ${name},` : "Welcome,",
     headline: `Welcome to ${brand.name}`,
-    intro: `We're thrilled to have you. You'll receive exclusive guides, insider tips, and curated recommendations to help you plan unforgettable trips.`,
+    intro: `We're delighted to have you. You'll receive curated guides, insider recommendations, and expert tips to help you plan extraordinary trips.`,
     features: [
-      { icon: "🏨", title: "Luxury Hotels", desc: "Honest reviews of the best luxury and halal-friendly hotels" },
-      { icon: "🍽️", title: "Food Guides", desc: "Discover the finest halal restaurants and hidden gems" },
-      { icon: "📍", title: "Insider Tips", desc: "Local recommendations you won't find anywhere else" },
+      { initial: "H", title: "Luxury Hotels", desc: "Honest reviews of the finest luxury and halal-friendly hotels" },
+      { initial: "D", title: "Dining Guides", desc: "Discover the best halal restaurants and hidden culinary gems" },
+      { initial: "E", title: "Exclusive Experiences", desc: "Local insider tips and recommendations you won't find anywhere else" },
     ],
     cta: "Explore Latest Articles",
     ctaUrl: `${siteUrl}/blog`,
-    closing: "Happy travels!",
+    closing: "Happy travels,",
     footer: `© ${new Date().getFullYear()} ${ENTITY.legalName}. All rights reserved.`,
     unsubscribe: "Unsubscribe",
   };
@@ -133,30 +164,32 @@ function buildHtml(
   domain: string,
   isAr: boolean,
   heroImageUrl: string,
+  logoUrl: string,
 ): string {
   const c = brand.colors;
   const fontFamily = isAr
     ? "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif"
     : "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
-  // Feature rows
+  // Feature rows — branded colored circles with initials, no emojis
+  const featureColors = [c.primary, brand.colors.secondary, brand.colors.accent];
   const featureRows = content.features
     .map(
-      (f) => `
+      (f, i) => `
         <tr>
-          <td style="padding: 12px 0; border-bottom: 1px solid ${c.background};">
+          <td style="padding: 14px 0; ${i < content.features.length - 1 ? `border-bottom: 1px solid rgba(0,0,0,0.06);` : ""}">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td width="48" style="vertical-align: top; padding-${isAr ? "left" : "right"}: 16px;">
-                  <div style="width: 44px; height: 44px; border-radius: 12px; background: ${c.background}; text-align: center; line-height: 44px; font-size: 22px;">
-                    ${f.icon}
+                <td width="52" style="vertical-align: top; padding-${isAr ? "left" : "right"}: 16px;">
+                  <div style="width: 44px; height: 44px; border-radius: 50%; background: ${featureColors[i % featureColors.length]}; text-align: center; line-height: 44px; font-size: 18px; font-weight: 700; color: #FFFFFF; font-family: ${fontFamily};">
+                    ${f.initial}
                   </div>
                 </td>
                 <td style="vertical-align: top;">
                   <p style="margin: 0 0 2px; font-family: ${fontFamily}; font-size: 15px; font-weight: 700; color: ${c.text};">
                     ${escapeHtml(f.title)}
                   </p>
-                  <p style="margin: 0; font-family: ${fontFamily}; font-size: 13px; color: ${c.textLight}; line-height: 1.5;">
+                  <p style="margin: 0; font-family: ${fontFamily}; font-size: 13px; color: #6B7280; line-height: 1.5;">
                     ${escapeHtml(f.desc)}
                   </p>
                 </td>
@@ -184,54 +217,65 @@ function buildHtml(
   </noscript>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: ${c.background}; font-family: ${fontFamily}; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+<body style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: ${fontFamily}; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
 
   <!-- Outer wrapper -->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${c.background};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F3F4F6;">
     <tr>
       <td align="center" style="padding: 32px 16px;">
 
         <!-- Email container -->
-        <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; width: 100%; background-color: ${c.surface}; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+        <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; width: 100%; background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
-          <!-- Top accent bar — tricolor brand stripe -->
+          <!-- Hero image — real photography -->
           <tr>
-            <td>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td style="height: 4px; background: ${c.primary}; width: 33.33%;"></td>
-                  <td style="height: 4px; background: ${brand.colors.secondary}; width: 33.34%;"></td>
-                  <td style="height: 4px; background: ${brand.colors.accent}; width: 33.33%;"></td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Hero image banner -->
-          <tr>
-            <td style="padding: 0; text-align: center; background: ${c.primary};">
-              <a href="${escapeHtml(siteUrl)}" target="_blank" style="display: block;">
+            <td style="padding: 0; text-align: center; position: relative;">
+              <a href="${escapeHtml(siteUrl)}" target="_blank" style="display: block; text-decoration: none;">
                 <img src="${escapeHtml(heroImageUrl)}"
                      width="580"
-                     alt="${escapeHtml(brand.name)} — ${isAr ? "اكتشف تجارب سفر فاخرة" : "Discover Luxury Travel"}"
-                     style="display: block; width: 100%; max-width: 580px; height: auto; border: 0; outline: none; text-decoration: none;"
+                     alt="${escapeHtml(brand.name)}"
+                     style="display: block; width: 100%; max-width: 580px; height: auto; min-height: 200px; border: 0; outline: none; text-decoration: none; object-fit: cover;"
                 />
               </a>
             </td>
           </tr>
 
-          <!-- Brand name -->
+          <!-- Logo + brand name row -->
           <tr>
-            <td style="padding: 24px 40px 8px; text-align: center;">
-              <p style="margin: 0; font-family: ${fontFamily}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: ${brand.colors.secondary};">
+            <td style="padding: 28px 40px 4px; text-align: center;">
+              <a href="${escapeHtml(siteUrl)}" target="_blank" style="text-decoration: none;">
+                <img src="${escapeHtml(logoUrl)}"
+                     width="64" height="64"
+                     alt="${escapeHtml(brand.name)} logo"
+                     style="display: inline-block; width: 64px; height: 64px; border: 0; outline: none; border-radius: 50%;"
+                />
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 40px 0; text-align: center;">
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; color: ${brand.colors.secondary};">
                 ${escapeHtml(brand.name)}
               </p>
             </td>
           </tr>
 
+          <!-- Thin accent line -->
+          <tr>
+            <td style="padding: 16px 40px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="height: 2px; background: ${c.primary}; width: 33.33%;"></td>
+                  <td style="height: 2px; background: ${brand.colors.secondary}; width: 33.34%;"></td>
+                  <td style="height: 2px; background: ${brand.colors.accent}; width: 33.33%;"></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
           <!-- Greeting -->
           <tr>
-            <td style="padding: 0 40px 8px; text-align: ${align};">
+            <td style="padding: 24px 40px 8px; text-align: ${align};">
               <p style="margin: 0; font-family: ${fontFamily}; font-size: 22px; font-weight: 700; color: ${c.text};">
                 ${content.greeting}
               </p>
@@ -240,32 +284,25 @@ function buildHtml(
 
           <!-- Intro -->
           <tr>
-            <td style="padding: 8px 40px 24px; text-align: ${align};">
-              <p style="margin: 0; font-family: ${fontFamily}; font-size: 15px; color: ${c.textLight}; line-height: 1.7;">
+            <td style="padding: 4px 40px 24px; text-align: ${align};">
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 15px; color: #4B5563; line-height: 1.7;">
                 ${escapeHtml(content.intro)}
               </p>
             </td>
           </tr>
 
-          <!-- Divider -->
+          <!-- Section heading -->
           <tr>
-            <td style="padding: 0 40px;">
-              <hr style="border: none; height: 1px; background: linear-gradient(90deg, ${c.primary}, ${brand.colors.secondary}, ${brand.colors.accent}); margin: 0;" />
-            </td>
-          </tr>
-
-          <!-- What you'll get section -->
-          <tr>
-            <td style="padding: 24px 40px 8px; text-align: ${align};">
-              <p style="margin: 0; font-family: ${fontFamily}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: ${brand.colors.secondary};">
+            <td style="padding: 0 40px 8px; text-align: ${align};">
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: ${brand.colors.secondary};">
                 ${isAr ? "ماذا ستحصل عليه" : "What you'll get"}
               </p>
             </td>
           </tr>
 
-          <!-- Features list -->
+          <!-- Features list — branded circles, no emojis -->
           <tr>
-            <td style="padding: 8px 40px 24px;">
+            <td style="padding: 4px 40px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 ${featureRows}
               </table>
@@ -278,11 +315,19 @@ function buildHtml(
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
                 <tr>
                   <td style="border-radius: 8px; background: ${c.primary};">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(content.ctaUrl)}" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="17%" strokecolor="${c.primary}" fillcolor="${c.primary}">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:bold;">${escapeHtml(content.cta)}</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
                     <a href="${escapeHtml(content.ctaUrl)}"
-                       style="display: inline-block; padding: 14px 36px; font-family: ${fontFamily}; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; border-radius: 8px; letter-spacing: 0.3px;"
+                       style="display: inline-block; padding: 14px 40px; font-family: ${fontFamily}; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; border-radius: 8px; letter-spacing: 0.3px;"
                        target="_blank">
-                      ${escapeHtml(content.cta)} →
+                      ${escapeHtml(content.cta)}
                     </a>
+                    <!--<![endif]-->
                   </td>
                 </tr>
               </table>
@@ -291,24 +336,24 @@ function buildHtml(
 
           <!-- Closing -->
           <tr>
-            <td style="padding: 0 40px 32px; text-align: ${align};">
-              <p style="margin: 0; font-family: ${fontFamily}; font-size: 14px; color: ${c.textLight}; line-height: 1.6;">
+            <td style="padding: 0 40px 28px; text-align: ${align};">
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 14px; color: #6B7280; line-height: 1.6;">
                 ${escapeHtml(content.closing)}<br />
-                <span style="color: ${brand.colors.secondary}; font-weight: 600;">— ${isAr ? "فريق" : "The"} ${escapeHtml(brand.name)} ${isAr ? "" : "Team"}</span>
+                <strong style="color: ${c.text};">${isAr ? "فريق" : "The"} ${escapeHtml(brand.name)} ${isAr ? "" : "Team"}</strong>
               </p>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="padding: 24px 40px; background: ${c.background}; border-top: 1px solid rgba(0,0,0,0.05); text-align: center;">
-              <p style="margin: 0 0 8px; font-family: ${fontFamily}; font-size: 11px; color: ${c.textLight};">
+            <td style="padding: 20px 40px; background: #F9FAFB; border-top: 1px solid #E5E7EB; text-align: center;">
+              <p style="margin: 0 0 6px; font-family: ${fontFamily}; font-size: 11px; color: #9CA3AF;">
                 ${escapeHtml(content.footer)}
               </p>
               <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px;">
                 <a href="${escapeHtml(siteUrl)}" style="color: ${brand.colors.accent}; text-decoration: none;">${escapeHtml(domain)}</a>
-                &nbsp;&nbsp;·&nbsp;&nbsp;
-                <a href="${escapeHtml(unsubUrl)}" style="color: ${c.textLight}; text-decoration: underline;">${escapeHtml(content.unsubscribe)}</a>
+                &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+                <a href="${escapeHtml(unsubUrl)}" style="color: #9CA3AF; text-decoration: underline;">${escapeHtml(content.unsubscribe)}</a>
               </p>
             </td>
           </tr>
@@ -335,7 +380,7 @@ function buildPlainText(
   isAr: boolean,
 ): string {
   const features = content.features
-    .map((f) => `${f.icon} ${f.title}: ${f.desc}`)
+    .map((f) => `• ${f.title}: ${f.desc}`)
     .join("\n");
 
   return [

@@ -596,12 +596,99 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   }
 
   // -------------------------------------------------------------------------
+  // Action: test_template — Send a specific template to a test address
+  // -------------------------------------------------------------------------
+  if (action === "test_template") {
+    const to = body.to as string | undefined;
+    const templateId = body.templateId as string | undefined;
+
+    if (!to || typeof to !== "string" || !to.includes("@")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or missing 'to' email address" },
+        { status: 400 },
+      );
+    }
+    if (!templateId) {
+      return NextResponse.json(
+        { success: false, error: "Missing required field: templateId" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const template = await prisma.emailTemplate.findUnique({
+        where: { id: templateId },
+        select: { id: true, name: true, subject: true, htmlContent: true, site: true },
+      });
+
+      if (!template) {
+        return NextResponse.json(
+          { success: false, error: "Template not found" },
+          { status: 404 },
+        );
+      }
+
+      const htmlContent = template.htmlContent || "<p>This template has no content yet.</p>";
+      const templateSubject = template.subject || `[Test] ${template.name}`;
+
+      // Apply preview merge tags so {{first_name}} etc. render with sample data
+      const { buildPreviewContext } = await import("@/lib/email/personalization");
+      const siteId = template.site || getDefaultSiteId();
+      const siteConfig = getSiteConfig(siteId);
+      const previewContext = buildPreviewContext(to, siteConfig?.name || "Yalla London");
+
+      // In Resend sandbox mode, force onboarding@resend.dev as sender
+      const isSandbox = Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED;
+      const siteName = siteConfig?.name || "Yalla London";
+      const sandboxFrom = isSandbox ? `${siteName} <onboarding@resend.dev>` : undefined;
+
+      const result = await sendEmail({
+        to,
+        subject: `[Test] ${templateSubject}`,
+        html: htmlContent,
+        plainText: `Test email for template: ${template.name}`,
+        from: sandboxFrom,
+        mergeTagContext: previewContext,
+      });
+
+      const providerStatus = buildProviderStatus();
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-template",
+        resourceId: templateId,
+        success: result.success,
+        summary: result.success
+          ? `Test email for template '${template.name}' sent to ${to} via ${providerStatus.activeProvider}`
+          : `Test email for template '${template.name}' to ${to} failed`,
+        details: { subAction: "test_template", to, templateId, templateName: template.name, provider: providerStatus.activeProvider },
+        ...(result.success ? {} : { error: result.error || "Unknown send error" }),
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+      return NextResponse.json({
+        success: result.success,
+        error: result.success ? undefined : result.error,
+        provider: providerStatus.activeProvider,
+        templateName: template.name,
+        messageId: result.messageId,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send test template";
+      console.warn("[email-center] test_template failed:", message);
+      return NextResponse.json(
+        { success: false, error: "Could not send test template — database error" },
+        { status: 500 },
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Unknown action
   // -------------------------------------------------------------------------
   return NextResponse.json(
     {
       success: false,
-      error: `Unknown action: ${action}. Valid actions: test_send, create_template, send_campaign, send_welcome`,
+      error: `Unknown action: ${action}. Valid actions: test_send, test_template, create_template, send_campaign, send_welcome`,
     },
     { status: 400 },
   );

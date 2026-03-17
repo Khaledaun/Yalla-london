@@ -14,6 +14,7 @@
  */
 
 import juice from "juice";
+import { applyMergeTags, type MergeTagContext } from "./personalization";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,6 +51,8 @@ export interface RenderOptions {
   secondaryColor: string;
   unsubscribeUrl?: string;
   preheaderText?: string;
+  /** Optional merge-tag context for personalization (e.g. {{first_name}}) */
+  mergeTagContext?: MergeTagContext;
 }
 
 export interface RenderResult {
@@ -163,14 +166,25 @@ ${bodyRows}
 
   // Use juice to inline any CSS that lives in the <style> tag
   // (the media queries are preserved since juice keeps @media by default)
-  const html = juice(rawHtml, {
+  let html = juice(rawHtml, {
     preserveMediaQueries: true,
     preserveFontFaces: true,
     preserveImportant: true,
     removeStyleTags: false,
   });
 
-  return { html, plainText };
+  // Apply merge-tag personalization if context is provided
+  // e.g. {{first_name}} → "Khaled", {{email}} → "khaled@example.com"
+  if (options.mergeTagContext) {
+    html = applyMergeTags(html, options.mergeTagContext);
+  }
+
+  let finalPlainText = plainText;
+  if (options.mergeTagContext) {
+    finalPlainText = applyMergeTags(plainText, options.mergeTagContext);
+  }
+
+  return { html, plainText: finalPlainText };
 }
 
 // ---------------------------------------------------------------------------

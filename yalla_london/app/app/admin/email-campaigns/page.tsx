@@ -617,6 +617,7 @@ export default function EmailCampaignsPage() {
                     key={template.id}
                     template={template}
                     onDuplicated={loadData}
+                    promptForRecipient={promptForRecipient}
                   />
                 ))}
               </div>
@@ -899,11 +900,14 @@ export default function EmailCampaignsPage() {
 function TemplateCard({
   template,
   onDuplicated,
+  promptForRecipient,
 }: {
   template: EmailTemplate;
   onDuplicated: () => void;
+  promptForRecipient: (label: string) => string | null;
 }) {
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   const handleDuplicate = async () => {
     setIsDuplicating(true);
@@ -935,6 +939,39 @@ function TemplateCard({
       toast.error("Failed to duplicate template");
     } finally {
       setIsDuplicating(false);
+    }
+  };
+
+  const handleSendTemplateTest = async () => {
+    const testRecipient = promptForRecipient(`Send test of "${template.name}" to`);
+    if (!testRecipient) return;
+
+    setIsSendingTest(true);
+    try {
+      const res = await fetch("/api/admin/email-center", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_template",
+          templateId: template.id,
+          to: testRecipient,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        toast.error(errBody.error || `Failed to send test (${res.status})`);
+      } else {
+        const data = await res.json();
+        if (data.success) {
+          toast.success(`Test email sent to ${testRecipient}`);
+        } else {
+          toast.error(data.error || "Test email failed");
+        }
+      }
+    } catch (err) {
+      toast.error(`Network error: ${err instanceof Error ? err.message : "unknown"}`);
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -1017,6 +1054,14 @@ function TemplateCard({
               Edit
             </AdminButton>
           </Link>
+          <AdminButton
+            variant="ghost"
+            size="sm"
+            onClick={handleSendTemplateTest}
+            loading={isSendingTest}
+          >
+            <Send size={12} />
+          </AdminButton>
           <AdminButton
             variant="ghost"
             size="sm"

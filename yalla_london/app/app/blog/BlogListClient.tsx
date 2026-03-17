@@ -172,7 +172,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                 <BrandCardLight key={post.id} className="overflow-hidden group h-full flex flex-col">
                   <div className="relative aspect-video">
                     <Image
-                      src={post.featured_image || '/images/placeholder-blog.jpg'}
+                      src={post.featured_image || '/images/placeholder-blog.svg'}
                       alt={title}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

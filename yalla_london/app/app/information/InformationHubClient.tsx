@@ -192,7 +192,7 @@ export default function InformationHubClient({ sections, articles }: Information
                   <BrandCardLight className="overflow-hidden h-full group hover:shadow-xl transition-all duration-300">
                     <div className="relative aspect-video">
                       <Image
-                        src={article.featured_image || '/images/placeholder-blog.jpg'}
+                        src={article.featured_image || '/images/placeholder-blog.svg'}
                         alt={title}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

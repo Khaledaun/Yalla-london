@@ -92,7 +92,7 @@ export function ZenithaLuxuryTerms() {
           <P>
             Welcome to Zenitha.Luxury (&ldquo;the Website&rdquo;), operated by{' '}
             <strong style={{ color: C.ivory }}>Zenitha.Luxury LLC</strong>, a Delaware limited liability
-            company founded by Khaled N. Aun. By accessing or using this website and any of the
+            company founded by Khaled Aun. By accessing or using this website and any of the
             websites in the Zenitha network (collectively, &ldquo;the Services&rdquo;), you agree to
             be bound by these Terms of Service.
           </P>

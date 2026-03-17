@@ -106,9 +106,9 @@ export const luxuryGuideTemplate: BrandConfig = {
   businessType: 'luxury-guide',
 
   logos: {
-    wordmark: '/branding/yalla-london/brand-kit/01-logos-svg/yalla-wordmark-dark.svg',
-    wordmarkAr: '/branding/yalla-london/brand-kit/01-logos-svg/yalla-arabic-dark.svg',
-    stacked: '/branding/yalla-london/brand-kit/01-logos-svg/yalla-stacked-dark.svg',
+    wordmark: '/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png',
+    wordmarkAr: '/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png',
+    stacked: '/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-500px.png',
     alt: 'Yalla London',
     altAr: 'يلّا لندن',
   },

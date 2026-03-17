@@ -112,7 +112,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const founderSchema = {
     "@context": "https://schema.org",
     "@type": "Person",
-    name: "Khaled N. Aun",
+    name: "Khaled Aun",
     jobTitle: "Founder & CEO",
     knowsAbout: [
       "London travel",
@@ -152,7 +152,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
     },
     founder: {
       "@type": "Person",
-      name: "Khaled N. Aun",
+      name: "Khaled Aun",
     },
   };
 

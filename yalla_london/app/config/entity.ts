@@ -79,7 +79,7 @@ export const ENTITY: EntityConfig = {
   country: "US",
 
   founder: {
-    name: "Khaled N. Aun",
+    name: "Khaled Aun",
     title: "Founder & CEO",
   },
 

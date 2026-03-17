@@ -12,10 +12,8 @@ import { TriBar, BrandButton, BrandCardLight, SectionLabel, WatermarkStamp, Brea
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
-const founderImages = [
-  'https://media.cntraveller.com/photos/66b1f6248feace68eac032f7/16:9/w_3200,h_1800,c_limit/south%20asian%20heritage%20month.jpg',
-  'https://studioindigo.co.uk/wp-content/uploads/2024/10/StudioIndigo_portfolio_MayfairGallery_HERO.jpg'
-]
+// Hero background — self-hosted or brand gradient (no external stock photos)
+const HERO_BG = '/images/hero/london-city-night.jpg'
 
 export default function AboutYallaLondon() {
   const { language, isRTL } = useLanguage()
@@ -55,8 +53,8 @@ export default function AboutYallaLondon() {
       <section className="relative overflow-hidden pt-28 pb-20">
         <div className="absolute inset-0">
           <Image
-            src={founderImages[1]}
-            alt="Founder workspace"
+            src={HERO_BG}
+            alt="London cityscape"
             fill
             sizes="100vw"
             className="object-cover"
@@ -119,7 +117,7 @@ export default function AboutYallaLondon() {
                 <p className="text-base text-yl-gray-500/80 italic font-body">
                   {language === 'en'
                     ? `— ${ENTITY.founder.name}, ${ENTITY.founder.title} of ${ENTITY.legalName}`
-                    : `— خالد ن. عون، المؤسس والرئيس التنفيذي لشركة ${ENTITY.legalName}`
+                    : `— خالد عون، المؤسس والرئيس التنفيذي لشركة ${ENTITY.legalName}`
                   }
                 </p>
               </div>
@@ -132,12 +130,14 @@ export default function AboutYallaLondon() {
             </div>
 
             <div className="relative">
-              <div className="aspect-[3/4] rounded-[14px] overflow-hidden shadow-lg">
+              <div className="aspect-[3/4] rounded-[14px] overflow-hidden shadow-lg bg-gradient-to-br from-yl-dark-navy via-yl-navy to-yl-charcoal flex items-center justify-center">
+                {/* Brand stamp placeholder — replace with actual founder photo when available */}
                 <Image
-                  src={founderImages[0]}
-                  alt="Founder portrait"
-                  fill
-                  className="object-cover"
+                  src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-500px.png"
+                  alt="Yalla London"
+                  width={200}
+                  height={200}
+                  className="opacity-20"
                 />
               </div>
               <div className="absolute -bottom-6 -left-6 bg-yl-dark-navy text-white p-4 rounded-[14px] shadow-lg">

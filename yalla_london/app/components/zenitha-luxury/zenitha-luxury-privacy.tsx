@@ -97,7 +97,7 @@ export function ZenithaLuxuryPrivacy() {
             Yalla Riviera, Yalla Istanbul, and Yalla Thailand.
           </P>
           <P>
-            Zenitha.Luxury LLC is a Delaware limited liability company founded by Khaled N. Aun.
+            Zenitha.Luxury LLC is a Delaware limited liability company founded by Khaled Aun.
             This Privacy Policy explains how we collect, use, store, and protect your personal data
             when you visit our websites or interact with our services.
           </P>

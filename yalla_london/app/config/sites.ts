@@ -437,7 +437,7 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "London Guide", ar: "دليل لندن" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Khaled Aun", role: "Founder", url: "/about" },
       { name: "Yalla London Editorial", role: "Editorial Team", url: "/about" },
     ],
     socialLinks: {
@@ -714,7 +714,7 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "Maldives Guide", ar: "دليل المالديف" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Khaled Aun", role: "Founder", url: "/about" },
       { name: "Arabaldives Editorial", role: "Editorial Team", url: "/about" },
     ],
     socialLinks: {
@@ -998,7 +998,7 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "Riviera Guide", ar: "دليل الريفييرا" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Khaled Aun", role: "Founder", url: "/about" },
       { name: "Yalla Riviera Editorial", role: "Editorial Team", url: "/about" },
     ],
     socialLinks: {
@@ -1275,7 +1275,7 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "Istanbul Guide", ar: "دليل إسطنبول" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Khaled Aun", role: "Founder", url: "/about" },
       { name: "Yalla Istanbul Editorial", role: "Editorial Team", url: "/about" },
     ],
     socialLinks: {
@@ -1552,7 +1552,7 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "Thailand Guide", ar: "دليل تايلاند" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Khaled Aun", role: "Founder", url: "/about" },
       { name: "Yalla Thailand Editorial", role: "Editorial Team", url: "/about" },
     ],
     socialLinks: {
@@ -1812,7 +1812,7 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "Yacht Charter Guide", ar: "دليل تأجير اليخوت" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder", url: "/about" },
+      { name: "Khaled Aun", role: "Founder", url: "/about" },
       { name: "Zenitha Yachts Editorial", role: "Editorial Team", url: "/about" },
     ],
     socialLinks: {
@@ -1846,7 +1846,7 @@ Always respond with valid JSON.`,
     primaryKeywordsAR: ["سفر فاخر", "زينيثا لوكشري"],
     categoryName: { en: "Luxury Travel", ar: "السفر الفاخر" },
     authors: [
-      { name: "Khaled N. Aun", role: "Founder & CEO", url: "/about" },
+      { name: "Khaled Aun", role: "Founder & CEO", url: "/about" },
     ],
     socialLinks: {
       instagram: "https://instagram.com/zenithaluxury",

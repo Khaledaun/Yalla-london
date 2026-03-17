@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         ],
         properties: {
           logo: 'https://i.pinimg.com/736x/fc/41/c5/fc41c56045c5b08eb352453e0b891d97.jpg',
-          contactEmail: `hello@${_siteRawDomain}`
+          contactEmail: `info@${_siteRawDomain}`
         },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

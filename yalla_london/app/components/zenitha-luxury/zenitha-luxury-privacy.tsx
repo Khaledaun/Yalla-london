@@ -280,7 +280,7 @@ export function ZenithaLuxuryPrivacy() {
             </p>
             <p className="mt-1">
               <strong style={{ color: C.text }}>General inquiries:</strong>{' '}
-              <a href="mailto:hello@zenitha.luxury" style={{ color: C.gold }}>hello@zenitha.luxury</a>
+              <a href="mailto:info@zenitha.luxury" style={{ color: C.gold }}>info@zenitha.luxury</a>
             </p>
           </div>
 

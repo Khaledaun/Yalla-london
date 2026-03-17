@@ -59,7 +59,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     const descriptionAR = getSiteDescription(resolvedSiteId, 'ar');
     const localizedName = language === 'en' ? siteName : nameAr;
     const localizedDescription = language === 'en' ? descriptionEN : descriptionAR;
-    const contactEmail = `hello@${siteConfig?.domain || 'zenitha.luxury'}`;
+    const contactEmail = `info@${siteConfig?.domain || 'zenitha.luxury'}`;
 
     // Zenitha Yachts uses TravelAgency as a more precise entity type for yacht charter
     const isZenitha = resolvedSiteId === "zenitha-yachts-med";

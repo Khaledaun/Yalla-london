@@ -205,7 +205,7 @@ export function ZenithaLuxuryAbout() {
             <p className="mt-2"><strong style={{ color: '#D6D0C4' }}>Entity Type:</strong> Limited Liability Company</p>
             <p className="mt-2"><strong style={{ color: '#D6D0C4' }}>Founded:</strong> 2025</p>
             <p className="mt-2"><strong style={{ color: '#D6D0C4' }}>Website:</strong> zenitha.luxury</p>
-            <p className="mt-2"><strong style={{ color: '#D6D0C4' }}>Contact:</strong> hello@zenitha.luxury</p>
+            <p className="mt-2"><strong style={{ color: '#D6D0C4' }}>Contact:</strong> info@zenitha.luxury</p>
           </div>
         </div>
       </section>

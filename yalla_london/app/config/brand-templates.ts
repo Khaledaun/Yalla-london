@@ -167,7 +167,7 @@ export const luxuryGuideTemplate: BrandConfig = {
   ],
 
   contact: {
-    email: `hello@${DEFAULT_DOMAIN}`,
+    email: `info@${DEFAULT_DOMAIN}`,
     social: {
       instagram: 'https://instagram.com/yallalondon',
       tiktok: 'https://tiktok.com/@yallalondon'

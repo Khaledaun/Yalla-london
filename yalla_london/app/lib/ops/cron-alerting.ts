@@ -11,7 +11,7 @@
  *   - Logs alert history to CronJobLog for dashboard visibility
  *
  * Configuration:
- *   ALERT_EMAIL — Recipient address (defaults to hello@<domain>)
+ *   ALERT_EMAIL — Recipient address (defaults to info@<domain>)
  *   ALERT_COOLDOWN_HOURS — Hours between repeated alerts for same job (default: 4)
  */
 
@@ -165,9 +165,9 @@ async function sendFailureDigest(failures: CronFailure[]): Promise<boolean> {
   if (!alertEmail) {
     try {
       const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
-      alertEmail = `hello@${getSiteDomain(getDefaultSiteId())}`;
+      alertEmail = `info@${getSiteDomain(getDefaultSiteId())}`;
     } catch {
-      alertEmail = "hello@zenitha.luxury";
+      alertEmail = "info@zenitha.luxury";
     }
   }
 

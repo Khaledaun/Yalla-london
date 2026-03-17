@@ -6,7 +6,7 @@ import { BrandCardLight } from '@/components/brand-kit'
 import { SITES, getDefaultSiteId } from '@/config/sites'
 
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
-const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
+const CONTACT_EMAIL = `info@${SITE_DOMAIN}`
 
 const content = {
   en: {

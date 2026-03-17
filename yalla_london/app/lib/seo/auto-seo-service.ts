@@ -46,7 +46,7 @@ export class AutoSEOService {
       siteName,
       description: siteDesc,
       contact: {
-        email: `hello@${domain}`,
+        email: `info@${domain}`,
         social: {
           twitter: 'https://twitter.com/zenithaluxury',
           instagram: 'https://instagram.com/zenithaluxury'

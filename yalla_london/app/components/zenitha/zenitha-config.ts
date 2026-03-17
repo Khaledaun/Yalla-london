@@ -12,7 +12,7 @@ export const ZENITHA_DOMAIN = 'zenithayachts.com';
 
 export const ZENITHA_CONTACT = {
   /** General inquiries / footer */
-  email: `hello@${ZENITHA_DOMAIN}`,
+  email: `info@${ZENITHA_DOMAIN}`,
   /** Charter-specific inquiries / contact page / inquiry form */
   charterEmail: `charters@${ZENITHA_DOMAIN}`,
   /** WhatsApp Business number (country code + number, no plus sign).

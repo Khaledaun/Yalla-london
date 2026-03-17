@@ -37,14 +37,14 @@ export function ZenithaLuxuryContact() {
             {/* General */}
             <ContactCard
               title="General Inquiries"
-              email="hello@zenitha.luxury"
+              email="info@zenitha.luxury"
               description="For questions about Zenitha.Luxury, our brands, or partnership opportunities."
             />
 
             {/* Press */}
             <ContactCard
               title="Press & Media"
-              email="hello@zenitha.luxury"
+              email="info@zenitha.luxury"
               description="For press inquiries, interview requests, or media kits."
             />
 
@@ -58,7 +58,7 @@ export function ZenithaLuxuryContact() {
             {/* Advertising */}
             <ContactCard
               title="Advertising & Affiliates"
-              email="hello@zenitha.luxury"
+              email="info@zenitha.luxury"
               description="For advertising, affiliate partnerships, or sponsored content across our brands."
             />
           </div>

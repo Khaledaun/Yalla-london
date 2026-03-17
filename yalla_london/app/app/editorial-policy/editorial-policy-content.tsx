@@ -7,7 +7,7 @@ export default function EditorialPolicyContent({ siteId }: { siteId: string }) {
   const siteName = site?.name || "Zenitha";
   const destination = site?.destination || "luxury travel";
   const domain = site?.domain || "zenitha.luxury";
-  const email = `hello@${domain}`;
+  const email = `info@${domain}`;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">

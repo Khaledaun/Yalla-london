@@ -51,7 +51,7 @@ function buildBrandDefaults() {
     logoUrl: `/images/${cfg?.slug ?? getDefaultSiteId()}-logo.png`,
     siteName: cfg?.name ?? 'Yalla London',
     siteUrl,
-    supportEmail: `hello@${domain}`,
+    supportEmail: `info@${domain}`,
     companyAddress: 'Zenitha.Luxury LLC, Delaware, United States',
   }
 }

@@ -352,8 +352,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             priority={i === 0}
           />
         ))}
-        {/* Dark Navy Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/60 to-transparent" />
+        {/* Dark Navy Gradient Overlay — stronger at top for ticker readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/60 to-yl-dark-navy/30" />
 
         {/* Watermark Stamp */}
         <WatermarkStamp />
@@ -362,16 +362,24 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <div className="relative z-10 w-full max-w-7xl mx-auto px-7 pb-16 md:pb-24">
           <div className="max-w-2xl">
             {/* Section label */}
-            <SectionLabel className="mb-4">
-              {isRTL ? 'دليلك الفاخر' : 'Your Luxury Guide'}
-            </SectionLabel>
+            <span style={{ textShadow: '0 1px 6px rgba(15,22,33,0.5)' }}>
+              <SectionLabel className="mb-4">
+                {isRTL ? 'دليلك الفاخر' : 'Your Luxury Guide'}
+              </SectionLabel>
+            </span>
 
-            <h1 className={`text-4xl sm:text-5xl md:text-7xl font-heading font-extrabold leading-tight mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+            <h1
+              className={`text-4xl sm:text-5xl md:text-7xl font-heading font-extrabold leading-tight mb-2 ${isRTL ? 'font-arabic' : ''}`}
+              style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+            >
               <span className="text-yl-parchment">{hero.titleLine1}</span>
               <br />
               <span className="text-yl-red">{hero.titleLine2}</span>
             </h1>
-            <p className="font-body text-lg text-yl-gray-400 mb-8 max-w-xl leading-relaxed">
+            <p
+              className="font-body text-lg text-yl-gray-400 mb-8 max-w-xl leading-relaxed"
+              style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}
+            >
               {hero.description}
             </p>
             <div className="flex flex-wrap gap-4">

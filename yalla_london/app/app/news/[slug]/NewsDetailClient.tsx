@@ -179,8 +179,8 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
           sizes="100vw"
           priority
         />
-        {/* Dark gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+        {/* Dark gradient overlay for text readability — stronger at top for header area */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/40" />
 
         <WatermarkStamp />
 
@@ -223,7 +223,10 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
               </div>
 
               {/* Headline */}
-              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight ${isRTL ? 'font-arabic' : 'font-heading'}`}>
+              <h1
+                className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight ${isRTL ? 'font-arabic' : 'font-heading'}`}
+                style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+              >
                 {headline}
               </h1>
 

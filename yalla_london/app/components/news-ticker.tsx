@@ -127,7 +127,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
   return (
     <div
       className={cn(
-        'relative w-full overflow-hidden bg-yl-dark-navy border-b border-white/10',
+        'relative z-20 w-full overflow-hidden bg-yl-dark-navy border-b border-white/10',
         className
       )}
       dir={isRTL ? 'rtl' : 'ltr'}

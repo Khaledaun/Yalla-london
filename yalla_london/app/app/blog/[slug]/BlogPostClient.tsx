@@ -279,8 +279,8 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#a82924] via-yl-dark-navy to-yl-dark-navy" />
           )}
-          {/* Cinematic gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+          {/* Cinematic gradient overlay — stronger at top for header readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/35" />
         </div>
 
         {/* Hero content — aligned bottom-left, editorial style */}
@@ -304,13 +304,19 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
               </div>
 
               {/* Title */}
-              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-[1.15] max-w-4xl ${isRTL ? 'font-arabic tracking-normal' : 'font-heading'}`}>
+              <h1
+                className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-[1.15] max-w-4xl ${isRTL ? 'font-arabic tracking-normal' : 'font-heading'}`}
+                style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+              >
                 {title}
               </h1>
 
               {/* Excerpt */}
               {excerpt && (
-                <p className={`text-white/75 text-lg md:text-xl leading-relaxed max-w-3xl mb-6 ${isRTL ? 'font-arabic tracking-normal' : 'font-body'}`}>
+                <p
+                  className={`text-white/75 text-lg md:text-xl leading-relaxed max-w-3xl mb-6 ${isRTL ? 'font-arabic tracking-normal' : 'font-body'}`}
+                  style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}
+                >
                   {excerpt}
                 </p>
               )}

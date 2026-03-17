@@ -226,6 +226,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
   return NextResponse.json({
     providerStatus: flatProviderStatus,
+    provider: flatProviderStatus, // Alias — email-campaigns page reads ecData.provider
     campaigns,
     templates,
     subscriberCount: subscriberTotal,

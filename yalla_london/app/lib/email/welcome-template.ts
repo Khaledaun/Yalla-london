@@ -17,6 +17,8 @@ interface WelcomeEmailOptions {
   siteId?: string;
   language?: "en" | "ar";
   unsubscribeUrl?: string;
+  /** Override the hero image URL (defaults to dynamic OG image) */
+  heroImageUrl?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -50,7 +52,11 @@ export function renderWelcomeEmail(options: WelcomeEmailOptions = {}): {
 
   const content = getContent(brand, name, siteUrl, unsubUrl, isAr);
 
-  const html = buildHtml(brand, content, dir, align, siteUrl, unsubUrl, domain, isAr);
+  // Hero image: use dynamic OG endpoint or custom override
+  const heroImageUrl = options.heroImageUrl
+    || `${siteUrl}/api/og?siteId=${encodeURIComponent(siteId)}&title=${encodeURIComponent(isAr ? `مرحباً بك في ${brand.name}` : `Welcome to ${brand.name}`)}&tagline=${encodeURIComponent(isAr ? "اكتشف تجارب سفر فاخرة" : "Discover Luxury Travel Experiences")}`;
+
+  const html = buildHtml(brand, content, dir, align, siteUrl, unsubUrl, domain, isAr, heroImageUrl);
   const plainText = buildPlainText(brand, content, siteUrl, unsubUrl, isAr);
   const subject = isAr
     ? `مرحباً بك في ${brand.name}! 🎉`
@@ -126,6 +132,7 @@ function buildHtml(
   unsubUrl: string,
   domain: string,
   isAr: boolean,
+  heroImageUrl: string,
 ): string {
   const c = brand.colors;
   const fontFamily = isAr
@@ -200,12 +207,25 @@ function buildHtml(
             </td>
           </tr>
 
-          <!-- Logo + brand header -->
+          <!-- Hero image banner -->
           <tr>
-            <td style="padding: 32px 40px 16px; text-align: center;">
-              <h1 style="margin: 0; font-family: ${fontFamily}; font-size: 28px; font-weight: 800; color: ${c.primary}; letter-spacing: -0.5px;">
+            <td style="padding: 0; text-align: center; background: ${c.primary};">
+              <a href="${escapeHtml(siteUrl)}" target="_blank" style="display: block;">
+                <img src="${escapeHtml(heroImageUrl)}"
+                     width="580"
+                     alt="${escapeHtml(brand.name)} — ${isAr ? "اكتشف تجارب سفر فاخرة" : "Discover Luxury Travel"}"
+                     style="display: block; width: 100%; max-width: 580px; height: auto; border: 0; outline: none; text-decoration: none;"
+                />
+              </a>
+            </td>
+          </tr>
+
+          <!-- Brand name -->
+          <tr>
+            <td style="padding: 24px 40px 8px; text-align: center;">
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: ${brand.colors.secondary};">
                 ${escapeHtml(brand.name)}
-              </h1>
+              </p>
             </td>
           </tr>
 

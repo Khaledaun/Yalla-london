@@ -119,9 +119,12 @@ export default function EmailCampaignsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newCampaign, setNewCampaign] = useState({ name: "", subject: "", htmlContent: "<p>Your email content here</p>" });
+  const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({ name: "", subject: "", htmlBody: "<p>Your template content here</p>" });
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; messageId?: string } | null>(null);
-  const [providerStatus, setProviderStatus] = useState<{ activeProvider: string; configured: boolean } | null>(null);
+  const [providerStatus, setProviderStatus] = useState<{ activeProvider: string; configured: boolean; domainVerified?: boolean; sendingFrom?: string } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -178,11 +181,13 @@ export default function EmailCampaignsPage() {
       // Load provider status
       if (emailCenterRes.status === "fulfilled" && emailCenterRes.value.ok) {
         const ecData = await emailCenterRes.value.json();
-        const prov = ecData.provider;
+        const prov = ecData.provider || ecData.providerStatus;
         if (prov) {
           setProviderStatus({
             activeProvider: prov.activeProvider || "none",
             configured: prov.active ?? false,
+            domainVerified: prov.domainVerified ?? false,
+            sendingFrom: prov.sendingFrom || "",
           });
         }
       }
@@ -243,13 +248,33 @@ export default function EmailCampaignsPage() {
     }
   };
 
-  const handleSendTest = async () => {
-    // Prompt admin for test recipient — never hardcode personal email in client JS
-    const testRecipient = window.prompt("Send test email to:", "");
-    if (!testRecipient || !testRecipient.includes("@")) {
-      toast.error("Please enter a valid email address");
-      return;
+  // Resend sandbox can only send to the account owner's email.
+  // Show a clear message and pre-fill the prompt.
+  const isSandbox = providerStatus?.activeProvider === "resend" && !providerStatus?.domainVerified;
+
+  const promptForRecipient = (label: string): string | null => {
+    if (isSandbox) {
+      const msg =
+        "⚠️ Resend sandbox mode — can only send to your account email.\n\n" +
+        "Enter your Resend account email:";
+      const addr = window.prompt(msg, "");
+      if (!addr || !addr.includes("@")) {
+        toast.error("Please enter your Resend account email");
+        return null;
+      }
+      return addr;
     }
+    const addr = window.prompt(`${label}:`, "");
+    if (!addr || !addr.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return null;
+    }
+    return addr;
+  };
+
+  const handleSendTest = async () => {
+    const testRecipient = promptForRecipient("Send test email to");
+    if (!testRecipient) return;
 
     setIsSendingTest(true);
     setTestResult(null);
@@ -294,11 +319,8 @@ export default function EmailCampaignsPage() {
   };
 
   const handleSendWelcome = async () => {
-    const testRecipient = window.prompt("Send welcome email to:", "");
-    if (!testRecipient || !testRecipient.includes("@")) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
+    const testRecipient = promptForRecipient("Send welcome email to");
+    if (!testRecipient) return;
 
     setIsSendingTest(true);
     setTestResult(null);
@@ -333,6 +355,40 @@ export default function EmailCampaignsPage() {
       toast.error("Network error sending welcome email");
     } finally {
       setIsSendingTest(false);
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!newTemplate.name.trim() || !newTemplate.subject.trim()) {
+      toast.error("Name and subject are required");
+      return;
+    }
+    setIsCreatingTemplate(true);
+    try {
+      const res = await fetch("/api/admin/email-center", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_template",
+          name: newTemplate.name.trim(),
+          subject: newTemplate.subject.trim(),
+          htmlBody: newTemplate.htmlBody,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        toast.success("Template created");
+        setShowCreateTemplateModal(false);
+        setNewTemplate({ name: "", subject: "", htmlBody: "<p>Your template content here</p>" });
+        await loadData();
+      } else {
+        toast.error(data.error || "Failed to create template");
+      }
+    } catch (err) {
+      console.warn("[email-campaigns] Create template failed:", err);
+      toast.error("Network error creating template");
+    } finally {
+      setIsCreatingTemplate(false);
     }
   };
 
@@ -460,9 +516,11 @@ export default function EmailCampaignsPage() {
                       marginTop: 2,
                     }}
                   >
-                    {providerStatus?.configured
-                      ? "Resend is connected. Send a test email to verify delivery."
-                      : "Set RESEND_API_KEY in Vercel env vars to enable email sending."}
+                    {!providerStatus?.configured
+                      ? "Set RESEND_API_KEY in Vercel env vars to enable email sending."
+                      : isSandbox
+                        ? "Resend sandbox mode — can only send to your account email. Verify your domain to send to anyone."
+                        : "Resend is connected and domain verified. Ready to send."}
                   </p>
                 </div>
               </div>
@@ -535,12 +593,10 @@ export default function EmailCampaignsPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <AdminSectionLabel>Email Templates</AdminSectionLabel>
-              <Link href="/admin/design-studio?type=email">
-                <AdminButton variant="primary" size="sm">
-                  <Plus size={13} />
-                  Create Template
-                </AdminButton>
-              </Link>
+              <AdminButton variant="primary" size="sm" onClick={() => setShowCreateTemplateModal(true)}>
+                <Plus size={13} />
+                Create Template
+              </AdminButton>
             </div>
             {templates.length === 0 ? (
               <AdminEmptyState
@@ -548,12 +604,10 @@ export default function EmailCampaignsPage() {
                 title="No templates yet"
                 description="Create your first email template to start sending campaigns."
                 action={
-                  <Link href="/admin/design-studio?type=email">
-                    <AdminButton variant="primary" size="sm">
-                      <Plus size={13} />
-                      Create Template
-                    </AdminButton>
-                  </Link>
+                  <AdminButton variant="primary" size="sm" onClick={() => setShowCreateTemplateModal(true)}>
+                    <Plus size={13} />
+                    Create Template
+                  </AdminButton>
                 }
               />
             ) : (
@@ -622,6 +676,113 @@ export default function EmailCampaignsPage() {
           </div>
         )}
       </div>
+
+      {/* Create Template Modal */}
+      {showCreateTemplateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(28,25,23,0.4)" }}
+          onClick={() => setShowCreateTemplateModal(false)}
+        >
+          <div
+            className="admin-card-elevated w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h2
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
+                  fontSize: 18,
+                  color: "#1C1917",
+                  marginBottom: 20,
+                }}
+              >
+                Create Email Template
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#78716C",
+                    }}
+                  >
+                    Template Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newTemplate.name}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                    placeholder="e.g. Welcome Email, Monthly Newsletter"
+                    className="admin-input mt-1.5"
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#78716C",
+                    }}
+                  >
+                    Default Subject
+                  </label>
+                  <input
+                    type="text"
+                    value={newTemplate.subject}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
+                    placeholder="e.g. Welcome to Yalla London!"
+                    className="admin-input mt-1.5"
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#78716C",
+                    }}
+                  >
+                    HTML Content
+                  </label>
+                  <textarea
+                    value={newTemplate.htmlBody}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, htmlBody: e.target.value })}
+                    rows={6}
+                    className="admin-input mt-1.5 font-mono"
+                    style={{ resize: "vertical", fontSize: 11 }}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <AdminButton variant="ghost" size="sm" onClick={() => setShowCreateTemplateModal(false)}>
+                  Cancel
+                </AdminButton>
+                <AdminButton
+                  variant="primary"
+                  size="sm"
+                  onClick={handleCreateTemplate}
+                  loading={isCreatingTemplate}
+                >
+                  <Plus size={13} />
+                  Create Template
+                </AdminButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Campaign Modal */}
       {showCreateModal && (

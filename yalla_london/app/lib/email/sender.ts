@@ -64,7 +64,8 @@ function detectProvider(): ProviderName {
  * otherwise constructs from site domain.
  */
 function getDefaultFrom(): string {
-  if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
+  const emailFrom = (process.env.EMAIL_FROM || "").trim();
+  if (emailFrom) return emailFrom;
 
   // If using Resend and no custom domain is verified yet, use their sandbox address.
   // This lets test emails work immediately after adding RESEND_API_KEY.

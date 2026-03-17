@@ -50,13 +50,14 @@ export async function runContentSelector(
     // ── Cleanup stale "started" markers ──
     // If a previous run crashed without completing, its "started" marker stays forever,
     // blocking all future runs via the dedup guard. Mark any "started" entries older than
-    // 5 minutes as "failed" so the dedup guard doesn't permanently block.
+    // 90 seconds as "failed" (max budget is 53s + 10s overhead = ~63s, so 90s is safe).
+    // Previous value of 5 minutes blocked the platform for 4+ min after a single crash.
     try {
       await prisma.cronJobLog.updateMany({
         where: {
           job_name: "content-selector",
           status: "started",
-          started_at: { lt: new Date(Date.now() - 5 * 60_000) },
+          started_at: { lt: new Date(Date.now() - 90_000) },
         },
         data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
       });

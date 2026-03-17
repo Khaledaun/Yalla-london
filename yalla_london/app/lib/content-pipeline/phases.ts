@@ -358,13 +358,13 @@ export async function phaseDrafting(
   }
 
   // Budget-aware section cap: maxDuration is 300s (5 min on Vercel Pro).
-  // Each AI call takes ~15-35s depending on provider and locale.
-  // With 280s usable budget, we can reliably process 3-4 sections per run.
+  // Each AI call takes ~30-60s depending on provider and locale (Arabic ~2.5x slower).
+  // Conservative estimate: 60s per section. With 280s usable budget = 4 sections max.
   // The loop below also checks remaining budget before each section,
   // so we'll stop early if time runs out.
   const remainingSections = sections.length - currentIndex;
   const maxSectionsThisRun = budgetRemainingMs !== undefined
-    ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / 45_000)))
+    ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / 60_000)))
     : Math.min(remainingSections, 3);
   let sectionsWritten = 0;
 
@@ -487,7 +487,7 @@ CRITICAL JSON RULES:
         const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 2000 : 1500),
+          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 3500 : 1500),
           temperature: 0.7,
           timeoutMs: sectionTimeout,
           phaseBudgetHint: 'heavy',
@@ -533,6 +533,14 @@ CRITICAL JSON RULES:
         }
         // Final retry failed
         if (sectionsWritten === 0) {
+          // If we already have sections from previous runs, don't count this as a
+          // full failure — return success:true with no new sections. This prevents
+          // phase_attempts from incrementing on transient timeouts when partial
+          // progress already exists, avoiding premature rejection of 60%-done drafts.
+          if (currentIndex > 0) {
+            console.warn(`[drafting] Section ${sectionIdx + 1} failed but ${currentIndex} prior sections exist — deferring to next run`);
+            break; // Falls through to success:true with sectionsWritten=0
+          }
           return {
             success: false,
             nextPhase: "drafting",

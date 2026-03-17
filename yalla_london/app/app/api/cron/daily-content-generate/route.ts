@@ -867,12 +867,12 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // Dynamic timeout: use remaining deadline time (capped at 20s per call, min 10s)
-    // Reduced EN cap from 22s to 20s to leave more time for Arabic generation.
-    // At 20s cap: EN(20s) + overhead(3s) = 23s elapsed → 30s remaining > 18s threshold → AR runs.
+    // Dynamic timeout: use remaining deadline time (capped at 30s per call, min 10s).
+    // Previous 20s cap was too tight — with 3 providers at 50/25/25 split, each fallback
+    // got only ~5s. Raised to 30s so the provider chain has enough time for 2+ real attempts.
     const aiTimeoutMs = deadline
-      ? Math.max(10_000, Math.min(20_000, deadline.remainingMs() - 5_000))
-      : 20_000;
+      ? Math.max(10_000, Math.min(30_000, deadline.remainingMs() - 5_000))
+      : 30_000;
     // Pass timeoutMs INTO generateJSON so the provider fallback chain respects
     // the per-call budget. Previously only the outer Promise.race had the timeout,
     // but the inner provider chain used its default 25s budget — meaning grok alone

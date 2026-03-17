@@ -276,12 +276,13 @@ export async function runContentBuilder(
       const phaseError = result.error || `Phase "${currentPhase}" returned failure with no error details`;
       updateData.last_error = phaseError;
 
-      // Drafting and assembly get 5 attempts (complex AI phases with transient errors).
-      // Assembly in particular has timeout loops where AI polish fails repeatedly —
-      // 5 attempts gives the raw fallback (triggers at attempts >= 2) multiple chances
-      // and prevents premature rejection.
+      // Drafting gets 8 attempts — multi-section articles need 2-3 cron runs to complete
+      // (each run writes 1-3 sections). With only 5 attempts, 8-section drafts were
+      // rejected before finishing. Assembly gets 5 (raw fallback at attempts >= 2).
       // All other phases get 3 attempts.
-      const maxAttempts = (currentPhase === "drafting" || currentPhase === "assembly") ? 5 : 3;
+      const maxAttempts = currentPhase === "drafting" ? 8
+        : currentPhase === "assembly" ? 5
+        : 3;
       const currentAttempts = ((draftRecord.phase_attempts as number) || 0) + 1;
       const wasRejected = currentAttempts >= maxAttempts;
       if (wasRejected) {

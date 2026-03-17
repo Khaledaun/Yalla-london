@@ -249,17 +249,85 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     smtp: providerStatus.providers.smtp.configured,
   };
 
+  // -------------------------------------------------------------------------
+  // Compute stats for cockpit email center page
+  // -------------------------------------------------------------------------
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = new Date(todayStart.getTime() - 7 * 86_400_000);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const sentCampaigns = campaigns.filter(c => c.status === "sent");
+  const emailsSentToday = sentCampaigns.filter(c => c.sentAt && new Date(c.sentAt) >= todayStart).reduce((sum, c) => sum + c.recipientCount, 0);
+  const emailsSentThisWeek = sentCampaigns.filter(c => c.sentAt && new Date(c.sentAt) >= weekStart).reduce((sum, c) => sum + c.recipientCount, 0);
+  const totalSent = sentCampaigns.reduce((sum, c) => sum + c.recipientCount, 0);
+  const totalOpened = sentCampaigns.reduce((sum, c) => sum + (c.openRate ? Math.round(c.recipientCount * (c.openRate / 100)) : 0), 0);
+  const totalClicked = sentCampaigns.reduce((sum, c) => sum + (c.clickRate ? Math.round(c.recipientCount * (c.clickRate / 100)) : 0), 0);
+
+  let subscribersThisMonth = 0;
+  try {
+    subscribersThisMonth = await prisma.subscriber.count({
+      where: { site_id: { in: activeSiteIds }, createdAt: { gte: monthStart } },
+    });
+  } catch {
+    // Table may not exist yet
+  }
+
+  // Env vars configured (for cockpit config panel)
+  const configuredEnvVars: string[] = [];
+  if (process.env.RESEND_API_KEY) configuredEnvVars.push("RESEND_API_KEY");
+  if (process.env.SENDGRID_API_KEY) configuredEnvVars.push("SENDGRID_API_KEY");
+  if (process.env.SMTP_HOST) configuredEnvVars.push("SMTP_HOST");
+  if (process.env.EMAIL_FROM) configuredEnvVars.push("EMAIL_FROM");
+  if (process.env.RESEND_DOMAIN_VERIFIED) configuredEnvVars.push("RESEND_DOMAIN_VERIFIED");
+
+  // Setup steps for the cockpit banner
+  const setupSteps = [
+    { label: "Email provider", done: providerStatus.active, hint: "Add RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_HOST to Vercel env vars" },
+    { label: "Domain verification", done: providerStatus.domainVerified, hint: "Verify your domain at resend.com/domains, then set RESEND_DOMAIN_VERIFIED=true" },
+    { label: "Sender address", done: Boolean(process.env.EMAIL_FROM), hint: "Set EMAIL_FROM to 'Brand Name <info@yourdomain.com>' in Vercel" },
+  ];
+
   return NextResponse.json({
     providerStatus: flatProviderStatus,
-    provider: flatProviderStatus, // Alias — email-campaigns page reads ecData.provider
+    provider: {
+      ...flatProviderStatus,
+      // Cockpit email page expects these fields:
+      fromAddress: providerStatus.sendingFrom,
+      sandboxMode: Boolean(process.env.RESEND_API_KEY) && !process.env.RESEND_DOMAIN_VERIFIED,
+      configuredEnvVars,
+    },
     campaigns,
-    templates,
+    templates: templates.map(t => ({ ...t, updatedAt: t.updatedAt })),
     subscriberCount: subscriberTotal,
     subscribers: {
       total: subscriberTotal,
       bySite: subscribersBySite,
     },
     recentActivity,
+    // Cockpit email center fields:
+    stats: {
+      totalTemplates: templates.length,
+      totalCampaigns: campaigns.length,
+      totalSubscribers: subscriberTotal,
+      subscribersThisMonth,
+      emailsSentToday,
+      emailsSentThisWeek,
+      openRate: totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0,
+      clickRate: totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0,
+    },
+    recentCampaigns: campaigns.slice(0, 5).map(c => ({
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      sentCount: c.recipientCount,
+      openCount: c.openRate ? Math.round(c.recipientCount * (c.openRate / 100)) : 0,
+      clickCount: c.clickRate ? Math.round(c.recipientCount * (c.clickRate / 100)) : 0,
+      scheduledAt: null as string | null,
+      sentAt: c.sentAt,
+    })),
+    setupComplete: setupSteps.every(s => s.done),
+    setupSteps,
   });
 });
 

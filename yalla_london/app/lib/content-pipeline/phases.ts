@@ -1092,12 +1092,37 @@ export async function phaseScoring(
   if (h3Count >= 2) seoScore += 5;
 
   // Internal links (max 10 points)
-  const internalLinks = (html.match(/class="internal-link"/gi) || []).length;
+  // Must detect ALL injection patterns: SEO agent uses "related-articles"/"related-link",
+  // content-auto-fix uses "related-link", and drafting phase may add "internal-link".
+  // Also count actual <a> tags with internal site domains.
+  const internalLinkPatterns = [
+    /class="internal-link"/gi,
+    /class="related-articles"/gi,
+    /class="related-link"/gi,
+    /href="\/blog\//gi,         // relative blog links
+    /href="\/ar\/blog\//gi,     // Arabic blog links
+  ];
+  const internalLinks = internalLinkPatterns.reduce(
+    (count, pattern) => count + (html.match(pattern) || []).length, 0,
+  );
   if (internalLinks >= 3) seoScore += 10;
   else if (internalLinks >= 1) seoScore += 5;
 
   // Affiliate placements (max 5 points)
-  const affiliates = (html.match(/class="affiliate-placeholder"/gi) || []).length;
+  // Must detect ALL injection patterns: affiliate-injection cron uses "affiliate-recommendation",
+  // content pipeline uses "affiliate-placeholder"/"affiliate-cta-block", and CJ adds rel="sponsored".
+  const affiliatePatterns = [
+    /class="affiliate-placeholder"/gi,
+    /class="affiliate-recommendation"/gi,
+    /class="affiliate-cta-block"/gi,
+    /rel="sponsored"/gi,
+    /rel="noopener sponsored"/gi,
+    /data-affiliate-id/gi,
+    /data-affiliate-partner/gi,
+  ];
+  const affiliates = affiliatePatterns.reduce(
+    (count, pattern) => count + (html.match(pattern) || []).length, 0,
+  );
   if (affiliates >= 2) seoScore += 5;
   else if (affiliates >= 1) seoScore += 3;
 

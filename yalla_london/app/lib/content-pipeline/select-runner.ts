@@ -103,9 +103,13 @@ export async function runContentSelector(
       console.log("[content-selector] Another run started within 60s — skipping to prevent duplicate promotions");
       return { success: true, message: "Dedup: skipped (recent run exists)", durationMs: Date.now() - cronStart };
     }
-    // Write "started" marker immediately so concurrent invocations see it
+    // Write "started" marker immediately so concurrent invocations see it.
+    // CRITICAL: Track the marker ID so we can UPDATE it on success/failure
+    // instead of creating a new log entry (which leaves this one abandoned
+    // and triggers false "Stale marker — run likely crashed" failures).
+    let dedupMarkerId: string | null = null;
     try {
-      await prisma.cronJobLog.create({
+      const marker = await prisma.cronJobLog.create({
         data: {
           job_name: "content-selector",
           status: "started",
@@ -115,6 +119,7 @@ export async function runContentSelector(
           items_succeeded: 0,
         },
       });
+      dedupMarkerId = marker.id;
     } catch (err) {
       console.warn("[content-selector] Failed to write dedup marker:", err instanceof Error ? err.message : String(err));
     }
@@ -464,20 +469,55 @@ export async function runContentSelector(
 
     const durationMs = Date.now() - cronStart;
 
-    await logCronExecution("content-selector", "completed", {
-      durationMs,
-      itemsProcessed: published.length,
-      resultSummary: {
-        reservoirCandidates: candidates.length,
-        publishReady: publishReady.length,
-        needsEnhancement: needsEnhancement.length,
-        enhancedCount,
-        selected: selected.length,
-        published: published.length,
-        articles: published,
-        skippedReasons: skippedReasons.length > 0 ? skippedReasons : undefined,
-      },
-    });
+    // CRITICAL: Update the ORIGINAL "started" marker instead of creating a new log entry.
+    // Previously logCronExecution() created a NEW entry, leaving the marker abandoned →
+    // stale cleanup marked it "failed" with "Stale marker — run likely crashed".
+    if (dedupMarkerId) {
+      try {
+        await prisma.cronJobLog.update({
+          where: { id: dedupMarkerId },
+          data: {
+            status: "completed",
+            completed_at: new Date(),
+            duration_ms: durationMs,
+            items_processed: published.length,
+            items_succeeded: published.length,
+            result_summary: {
+              reservoirCandidates: candidates.length,
+              publishReady: publishReady.length,
+              needsEnhancement: needsEnhancement.length,
+              enhancedCount,
+              selected: selected.length,
+              published: published.length,
+              articles: published,
+              skippedReasons: skippedReasons.length > 0 ? skippedReasons : undefined,
+            } as Record<string, unknown>,
+          },
+        });
+      } catch (err) {
+        console.warn("[content-selector] Failed to close dedup marker:", err instanceof Error ? err.message : String(err));
+        // Fallback: create a separate log entry so the run is still recorded
+        await logCronExecution("content-selector", "completed", {
+          durationMs,
+          itemsProcessed: published.length,
+          resultSummary: {
+            reservoirCandidates: candidates.length,
+            published: published.length,
+            note: "Marker update failed — created separate log entry",
+          },
+        }).catch(() => {});
+      }
+    } else {
+      // No marker was created (DB was down during startup) — use legacy approach
+      await logCronExecution("content-selector", "completed", {
+        durationMs,
+        itemsProcessed: published.length,
+        resultSummary: {
+          reservoirCandidates: candidates.length,
+          published: published.length,
+        },
+      }).catch(() => {});
+    }
 
     return {
       success: true,
@@ -509,10 +549,33 @@ export async function runContentSelector(
       console.error(`[content-selector] Stack trace:\n${errStack}`);
     }
 
-    await logCronExecution("content-selector", "failed", {
-      durationMs,
-      errorMessage: `[${errType}] ${errMsg}`,
-    }).catch(err => console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err));
+    // Close the dedup marker as "failed" (same fix as success path — update original, don't create new)
+    if (dedupMarkerId) {
+      try {
+        // Re-import prisma — it may not be in scope if the crash happened early
+        const { prisma: db } = await import("@/lib/db");
+        await db.cronJobLog.update({
+          where: { id: dedupMarkerId },
+          data: {
+            status: "failed",
+            completed_at: new Date(),
+            duration_ms: durationMs,
+            error_message: `[${errType}] ${errMsg}`,
+          },
+        });
+      } catch (markerErr) {
+        console.warn("[content-selector] Failed to close dedup marker on error:", markerErr instanceof Error ? markerErr.message : String(markerErr));
+        await logCronExecution("content-selector", "failed", {
+          durationMs,
+          errorMessage: `[${errType}] ${errMsg}`,
+        }).catch(() => {});
+      }
+    } else {
+      await logCronExecution("content-selector", "failed", {
+        durationMs,
+        errorMessage: `[${errType}] ${errMsg}`,
+      }).catch(err => console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err));
+    }
 
     return {
       success: false,

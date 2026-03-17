@@ -70,10 +70,10 @@ function getDefaultFrom(): string {
     // Dynamic import to avoid circular dependency issues at module scope
     const { getDefaultSiteId, getSiteDomain } = require("@/config/sites");
     const domain = getSiteDomain(getDefaultSiteId());
-    return `notifications@${domain}`;
+    return `info@${domain}`;
   } catch (err) {
     console.warn("[email:sender] Could not resolve default site domain for FROM address:", err instanceof Error ? err.message : err);
-    return "notifications@zenitha.luxury";
+    return "info@zenitha.luxury";
   }
 }
 

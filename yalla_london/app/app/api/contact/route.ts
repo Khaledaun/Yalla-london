@@ -56,7 +56,7 @@ async function sendEmail(data: ContactFormData) {
           subject: `[${data.category}] ${data.subject}`
         }],
         from: {
-          email: process.env.FROM_EMAIL || `noreply@${_siteDomain}`,
+          email: process.env.FROM_EMAIL || `info@${_siteDomain}`,
           name: `${_siteName} Contact Form`
         },
         content: [{

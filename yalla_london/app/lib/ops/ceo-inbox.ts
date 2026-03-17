@@ -169,10 +169,12 @@ export async function handleCronFailureNotice(
       console.warn("[ceo-inbox] Queue health check failed (non-fatal):", queueErr instanceof Error ? queueErr.message : queueErr);
     }
 
-    // 3. Send email notification (non-blocking)
-    sendAlertEmail(jobName, diagnosis, fixStrategy).catch(
-      (err) => console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
-    );
+    // 3. Email notifications DISABLED per Khaled's instruction.
+    // Dashboard inbox alerts are the primary notification channel.
+    // To re-enable: uncomment the sendAlertEmail call below.
+    // sendAlertEmail(jobName, diagnosis, fixStrategy).catch(
+    //   (err) => console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
+    // );
 
     // 4. Attempt auto-fix
     let fixResult: { attempted: boolean; success: boolean; message: string } | null = null;
@@ -305,10 +307,10 @@ export async function retestCronJob(
       retestResult,
     });
 
-    // Send follow-up email
-    sendRetestEmail(jobName, retestResult).catch(
-      (err) => console.warn("[ceo-inbox] Retest email failed:", err instanceof Error ? err.message : err),
-    );
+    // Follow-up email DISABLED per Khaled's instruction.
+    // sendRetestEmail(jobName, retestResult).catch(
+    //   (err) => console.warn("[ceo-inbox] Retest email failed:", err instanceof Error ? err.message : err),
+    // );
 
     return retestResult;
   } catch (err) {

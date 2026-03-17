@@ -177,7 +177,7 @@ export class NotificationManager {
                   // Send to admin email addresses
             const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
             const domain = getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\/(www\.)?/, '');
-            const adminEmails = [`admin@${domain}`];
+            const adminEmails = [`info@${domain}`];
             results.email = await this.email.send(notification, adminEmails);
             break;
         }

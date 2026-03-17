@@ -63,7 +63,7 @@ const SITE_LIST = Object.values(SITE_CONFIG).map((s) => ({
 
 const QUICK_CREATE_ITEMS = [
   { title: "Social Post", icon: ImageIcon, href: "/admin/design-studio?type=social", description: "Create a social media graphic" },
-  { title: "Email Template", icon: Mail, href: "/admin/design-studio?type=email", description: "Design an email layout" },
+  { title: "Email Template", icon: Mail, href: "/admin/email-campaigns", description: "Create & edit email templates" },
   { title: "PDF Guide", icon: FileText, href: "/admin/pdf-generator", description: "Generate a travel guide PDF" },
   { title: "Video", icon: Film, href: "/admin/video-studio", description: "Produce a short video" },
   { title: "Blog Header", icon: Layout, href: "/admin/design-studio?type=blog-header", description: "Design a blog header image" },

@@ -76,6 +76,43 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+
+    // Seed action: create all 10 branded templates at once
+    if (body.action === "seed_templates") {
+      const siteId = body.site || "yalla-london";
+      const { getYallaLondonTemplates } = await import("@/lib/email/template-library");
+      const defs = getYallaLondonTemplates(siteId);
+      let created = 0;
+      let skipped = 0;
+      const results: Array<{ name: string; status: string; id?: string }> = [];
+
+      for (const t of defs) {
+        const existing = await prisma.emailTemplate.findFirst({
+          where: { name: t.name, site: siteId },
+        });
+        if (existing) {
+          skipped++;
+          results.push({ name: t.name, status: "skipped", id: existing.id });
+          continue;
+        }
+        const tpl = await prisma.emailTemplate.create({
+          data: {
+            name: t.name,
+            site: siteId,
+            type: t.type,
+            subject: t.subject,
+            description: t.description,
+            htmlContent: t.html,
+            isDefault: false,
+          },
+        });
+        created++;
+        results.push({ name: t.name, status: "created", id: tpl.id });
+      }
+
+      return NextResponse.json({ created, skipped, total: defs.length, results });
+    }
+
     const { name, site, type, subject, htmlContent, jsonContent, description, isDefault } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {

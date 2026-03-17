@@ -616,7 +616,7 @@ export default function EmailCampaignsPage() {
                         if (!res.ok) throw new Error("Seed failed");
                         const data = await res.json();
                         toast.success(`Created ${data.created} templates (${data.skipped} already existed)`);
-                        fetchTemplates();
+                        loadData();
                       } catch {
                         toast.error("Failed to seed templates");
                       } finally {

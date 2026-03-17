@@ -44,7 +44,17 @@ These are not suggestions. These are hard rules for every commit:
 
 7. **Test the actual flow, not just the code**: Before declaring any pipeline "fixed," verify that records actually flow from step A → step B → step C in the database. Check the tables.
 
-8. **Development Monitor Standard (MANDATORY)**: Every development plan, feature batch, or multi-task project MUST be registered in `lib/dev-tasks/plan-registry.ts` with:
+8. **Read before acting (MANDATORY — PREVENTS REPEATED MISTAKES)**: Before making ANY code change to the content pipeline, AI provider system, cron jobs, or SEO infrastructure, you MUST:
+   - Read `lib/content-pipeline/constants.ts` — the single source of truth for all retry caps, budget values, and thresholds
+   - Read the "Critical Rules Learned" sections at the bottom of this file (rules 1–110+) — these document EVERY bug pattern that has caused production failures
+   - Read `docs/AUDIT-LOG.md` — the persistent tracking of all audit findings and known gaps
+   - Check the queue monitor snapshot (`/api/admin/queue-monitor`) to understand current pipeline health before touching pipeline code
+   - Cross-reference your planned change against the known gap IDs (KG-xxx) to ensure you're not reintroducing a fixed bug
+   - **If your change touches retry logic, attempt counting, or budget allocation**: verify the value exists in `constants.ts` and import it — NEVER hardcode a new magic number
+   - **If your change touches BlogPost fields**: verify against `prisma/schema.prisma` — BlogPost has NO `title` field (use `title_en`/`title_ar`), NO `quality_score` (use `seo_score`), NO `published_at` (use `created_at`)
+   - **Rationale**: 70%+ of production bugs in this project have been regressions — the same mistake made twice because the previous fix wasn't read. This rule exists because we've learned the hard way that tribal knowledge in CLAUDE.md is the only thing preventing infinite bug cycles.
+
+9. **Development Monitor Standard (MANDATORY)**: Every development plan, feature batch, or multi-task project MUST be registered in `lib/dev-tasks/plan-registry.ts` with:
    - Structured task definitions (id, phase, testType, due dates, dependencies)
    - Live test implementations in `lib/dev-tasks/live-tests.ts` that produce **real, visible output** (actual API data, actual rendered images, actual sent emails, actual scan results) — NOT just code file existence checks
    - Each task MUST have a `testType` that maps to a live test function
@@ -89,6 +99,10 @@ There are **3 distinct workstreams** in this repo. They share infrastructure but
 |-----|---------|
 | `docs/plans/MASTER-BUILD-PLAN.md` | **Strategic master plan — read at start of every session** |
 | `docs/plans/STAGE-A-EXECUTION-PLAN.md` | Executable implementation plan for infrastructure completion (Stage A) |
+| `docs/AUDIT-LOG.md` | **Persistent audit findings — READ BEFORE ANY PIPELINE CHANGE** |
+| `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform |
+| `lib/content-pipeline/constants.ts` | **Pipeline constants — single source of truth for ALL retry/budget values** |
+| `lib/content-pipeline/queue-monitor.ts` | Queue health enforcement (6 rules, auto-fix, dashboard API) |
 | `docs/business-plans/YACHT-CHARTER-DEVELOPMENT-PLAN.md` | Full technical blueprint for Zenitha Yachts (Prisma models, API routes, phase plan) |
 | `config/sites/zenitha-yachts-med.audit.json` | SEO audit config for yacht site |
 | `public/branding/zenitha-yachts/` | Design & branding assets (upload here) |
@@ -3443,6 +3457,83 @@ seo-agent (3x/day) → IndexNow submission to 3 engines
 **Why london-news isn't generating:**
 The Grok `allowed_domains` fix (changed from path-based `bbc.co.uk/news/england/london` to root domains `bbc.co.uk`) was committed in a previous session but **has NOT been deployed to Vercel yet**. Production cron logs still show the old error: `"Invalid domains for allowed_domains: bbc.co.uk/news/england/london"`. The code fix is correct — it just needs deployment.
 
+### Session: March 17, 2026 — Pipeline Stall Diagnosis, Queue Monitor & Architectural Hardening
+
+**Full 200-entry operations log analysis revealing 9 root causes across 7 files, plus architectural hardening with centralized constants and queue monitor.**
+
+**Problem:** Pipeline STALLED — 151 drafts stuck in drafting, 60 in assembly, 0 published in 4h, 22 rejected in 4h. Content-selector crashed ("Stale marker"). AI providers timing out with "only 2s remaining in budget."
+
+**Root Cause Analysis (9 issues found and fixed):**
+
+| # | Root Cause | Fix | File |
+|---|-----------|-----|------|
+| 1 | Section budget divisor 45s too optimistic (Arabic takes 45-60s) | Changed to 60s per section | `phases.ts:367` |
+| 2 | Arabic maxTokens 2000 (needs 3500 — Arabic is 2.5x more token-dense) | Restored to 3500 | `phases.ts:490` |
+| 3 | First-section timeout incremented `phase_attempts` even when prior sections existed | Partial-progress protection: defer to next run | `phases.ts:535` |
+| 4 | Drafting maxAttempts was 5 (8-section articles need 2-3 cron runs) | Raised to 8 | `build-runner.ts:284` |
+| 5 | AI first provider got 65% of budget (13s of 20s), fallbacks starved | Reduced to 50% default | `provider.ts:672` |
+| 6 | AI 5s minimum floor overallocated when `remaining < 5s` | Capped at `Math.max(500, remaining - 500)` | `provider.ts:715` |
+| 7 | Per-article AI timeout capped at 20s (too tight for 3 providers) | Raised to 30s | `daily-content-generate:874` |
+| 8 | Content-selector stale marker window was 5 minutes (blocked publishing) | Reduced to 90 seconds | `select-runner.ts:59` |
+| 9 | Drafting backlog reject threshold was 36h (too generous) | Reduced to 24h | `diagnostic-agent.ts:790` |
+
+**3 Audit-Found Bugs Fixed:**
+
+| Bug | Severity | Fix |
+|-----|----------|-----|
+| Negative timeout when `remaining < 500ms` (`remaining - 500` = negative) | CRITICAL | Floor at `Math.max(500, remaining - 500)` |
+| `failure-hooks.ts` said assembly maxAttempts=3 but `build-runner.ts` said 5 | HIGH | Both now import from `constants.ts` |
+| Never-submitted pages batch only 100/run (141 backlog) | HIGH | Increased to 200/run |
+
+**NEW: Centralized Pipeline Constants (`lib/content-pipeline/constants.ts`):**
+Single source of truth for ALL retry caps, budget values, and thresholds:
+- `MAX_ATTEMPTS` per phase: drafting=8, assembly=5, others=3
+- `LIFETIME_RECOVERY_CAP`: 5 total recovery attempts
+- `ASSEMBLY_RAW_FALLBACK_ATTEMPTS`: 2 (triggers instant HTML concatenation)
+- `ASSEMBLY_BUDGET_THRESHOLD_MS`: 20s
+- `SECTION_BUDGET_MS`: 60s per section
+- `SELECTOR_STALE_MARKER_MS`: 90s
+- `AI_FIRST_PROVIDER_SHARE`: light=0.45, medium=0.50, heavy=0.55
+- Plus 8 more constants covering diagnostics, indexing, and active draft detection
+
+**NEW: Queue Monitor (`lib/content-pipeline/queue-monitor.ts` + `/api/admin/queue-monitor`):**
+Strict pipeline health enforcement with 6 rules:
+
+| Rule ID | Name | Severity | Auto-Fix |
+|---------|------|----------|----------|
+| `near-max-attempts` | Drafts near rejection | critical/high | No (manual review) |
+| `stuck-24h` | Stuck >24h | critical/high | Yes (reject) |
+| `drafting-backlog` | Drafting queue >50 | critical/high | Yes (reject old) |
+| `assembly-stuck` | Assembly should have raw-fallbacked | high | Yes (unlock) |
+| `diagnostic-stuck` | MAX_RECOVERIES_EXCEEDED artifacts | medium | Yes (reject) |
+| `pipeline-stalled` | Zero progress in 4h | critical | No (investigate) |
+
+- Overall health: healthy / degraded / stalled / critical
+- Recommended actions in plain English
+- API: GET snapshot, POST fix/fix-all with audit trail
+
+**Known Gaps Cross-Referenced:**
+- KG-025 (race conditions): Verified resolved — atomic claiming confirmed
+- KG-030 (build-runner single-site): Verified resolved — loops all sites
+- KG-043 (empty catch blocks): Verified resolved — all log with tags
+- KG-018 (dual pipelines): Open by design — both paths have pre-pub gate
+- **NEW: Assembly raw fallback contract** — `phases.ts` must keep `attempts >= 2` check aligned with `ASSEMBLY_RAW_FALLBACK_ATTEMPTS` in constants.ts
+
+**Files Created:**
+- `lib/content-pipeline/constants.ts` — centralized constants (single source of truth)
+- `lib/content-pipeline/queue-monitor.ts` — queue health enforcement (6 rules + auto-fix)
+- `app/api/admin/queue-monitor/route.ts` — dashboard API
+
+**Files Modified:**
+- `lib/ai/provider.ts` — budget split 65%→50%, negative timeout fix
+- `lib/content-pipeline/build-runner.ts` — imports `getMaxAttempts()` from constants
+- `lib/content-pipeline/phases.ts` — section budget 45s→60s, Arabic maxTokens 2000→3500, partial-progress protection
+- `lib/content-pipeline/select-runner.ts` — stale marker 5min→90s
+- `lib/ops/failure-hooks.ts` — imports `getMaxAttempts()` from constants
+- `lib/ops/diagnostic-agent.ts` — backlog reject 36h→24h
+- `app/api/cron/daily-content-generate/route.ts` — AI timeout 20s→30s
+- `app/api/cron/content-auto-fix-lite/route.ts` — batch 100→200
+
 ### Critical Rules Learned (March 16 Session)
 
 96. **Assembly raw fallback success must NOT reset `phase_attempts` to 0** — resetting allows the draft to re-enter AI assembly on future processing, causing the exact timeout loop the fallback was supposed to break. Keep attempts at their current value so subsequent phases see the draft as "resolved."
@@ -3450,6 +3541,58 @@ The Grok `allowed_domains` fix (changed from path-based `bbc.co.uk/news/england/
 98. **Auto-seed ContentScheduleRule on first run** — a non-technical owner will never manually INSERT schedule rules into the database. The system must bootstrap itself. Auto-seeding a sensible default (4 articles/day, both languages) removes this manual dependency.
 99. **Orphaned BlogPosts (published=false with content) should be auto-published** — these are artifacts of crashes between `BlogPost.create()` and the subsequent `published=true` update. They already passed the pre-pub gate during content-selector promotion, so publishing them directly is safe.
 100. **Grok `allowed_domains` only accepts root domains** — `bbc.co.uk` works, `bbc.co.uk/news/england/london` does NOT. Grok API returns 400 for path-based domains. Always use the root domain without any path segments.
+
+### Critical Rules Learned (March 17 Session — Pipeline Stall & Queue Monitor)
+
+101. **NEVER hardcode retry counts, budget values, or threshold numbers inline** — import from `lib/content-pipeline/constants.ts`. Every past attempt-count mismatch (failure-hooks saying 3, build-runner saying 5) happened because the same value was hardcoded in multiple files. Constants.ts is the single source of truth.
+102. **AI provider first-provider share must be ≤50% for default tasks** — at 65%, a 20s budget gives first provider 13s and leaves only 7s for 2+ fallbacks (2.3s each — useless). At 50%, first gets 10s and each fallback gets 5s (a real attempt). Only 'heavy' tasks (campaign-enhance) should go above 50%.
+103. **`Math.min(x, remaining - buffer)` can go negative** — when `remaining < buffer`, the result is negative. Always wrap with `Math.max(floor, remaining - buffer)` where floor is the minimum usable value (e.g., 500ms for a timeout).
+104. **Drafting maxAttempts must be higher than assembly** — drafting is multi-section (6-8 sections), each section takes one AI call, and each timeout counts as an attempt. Assembly is single-call with raw fallback at attempt 2. Drafting=8, Assembly=5 is the correct ratio.
+105. **Partial progress in drafting must NOT increment `phase_attempts`** — when `sectionsWritten === 0` but `currentIndex > 0` (prior sections exist), return `success: true`. This defers to the next cron run without penalizing the draft. Otherwise, 8-section articles are rejected after 5 transient timeouts even though they're 60% complete.
+106. **Content-selector stale marker window must be ≤90s** — max cron budget is 53s + overhead ≈ 63s. A 5-minute window blocks ALL publishing for 4+ minutes after any crash. 90s is generous enough to cover the longest possible run.
+107. **Queue Monitor API is the health dashboard** — `/api/admin/queue-monitor` returns 6 health rules with auto-fix. Before investigating pipeline issues manually, check this endpoint first. It diagnoses stuck-24h, drafting-backlog, assembly-stuck, diagnostic-stuck, near-max-attempts, and pipeline-stalled.
+108. **Assembly raw fallback contract is brittle** — `phases.ts` checks `attempts >= 2` to trigger raw fallback. `constants.ts` exports `ASSEMBLY_RAW_FALLBACK_ATTEMPTS = 2`. `diagnostic-agent.ts` sets attempts to this value when forcing raw fallback. If ANY of these three files changes the threshold independently, assembly enters an infinite timeout loop. Always verify all three are aligned.
+109. **Read docs/AUDIT-LOG.md before any pipeline change** — this file tracks ALL known gaps (KG-xxx) with status, severity, and resolution details. 70%+ of production bugs were regressions of previously-fixed issues. Reading the audit log before coding prevents re-introducing fixed bugs.
+110. **Every new session MUST start by checking queue health** — call `/api/admin/queue-monitor` or read recent CronJobLog entries. If the pipeline is stalled/critical, fix that FIRST before adding any new features. A stalled pipeline means zero revenue — nothing else matters.
+
+### Current Platform Status (March 17, 2026)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow multi-engine (Bing + Yandex + api.indexnow.org), schema injection, meta optimization, internal link injection ✅
+- 16-check pre-publication gate ✅
+- Per-content-type quality gates (blog 1000w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Circuit breaker + last-defense fallback for AI reliability ✅
+- **NEW: Centralized pipeline constants (single source of truth for all retry/budget values)** ✅
+- **NEW: Queue Monitor with 6 health rules + auto-fix + dashboard API** ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- Per-page audit with sortable indexing + GSC data ✅
+- CEO Inbox automated incident response (detect → diagnose → fix → retest → alert) ✅
+- Cycle Health Analyzer with evidence-based diagnostics ✅
+- Cache-first sitemap (<200ms vs 5-10s) ✅
+- CJ affiliate pipeline: sync, deep links, injection, revenue attribution, SID tracking ✅
+- Affiliate HQ: 6-tab command center ✅
+- GEO/AIO optimization: citability gate, stats+citations in all prompts ✅
+- Topic diversification: 60-70% general luxury + 30-40% Arab niche ✅
+- GSC sync with accurate per-day data ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+- Admin dashboard Clean Light design system ✅
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW | Open |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW | Open |
+| Arabic SSR | `/ar/` routes render English on server, Arabic only client-side | MEDIUM | Open (KG-032) |
+| Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
+| Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
+| Assembly Contract | `phases.ts >= 2` must stay aligned with `constants.ts` | MEDIUM | Documented (new) |
 
 ## Weekly Manual Checks
 

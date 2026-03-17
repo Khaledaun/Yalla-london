@@ -149,12 +149,32 @@ export async function handleCronFailureNotice(
 
     console.log(`[ceo-inbox] Alert created for "${jobName}" (id=${entry.id}): ${diagnosis.plain}`);
 
-    // 2. Send email notification (non-blocking)
+    // 2. Check queue health for context-aware diagnosis
+    // The queue monitor knows about known gaps and past fixes — its snapshot helps
+    // the auto-fix choose the right strategy (e.g., backlog vs stuck vs stalled).
+    try {
+      const { getQueueSnapshot } = await import("@/lib/content-pipeline/queue-monitor");
+      const snapshot = await getQueueSnapshot();
+      if (snapshot.overallHealth === "critical" || snapshot.overallHealth === "stalled") {
+        console.log(`[ceo-inbox] Queue health: ${snapshot.overallHealth} — ${snapshot.totalActive} active drafts, rules: ${snapshot.healthRules.map(r => r.id).join(", ")}`);
+        // Run auto-fixes from queue monitor first (clears backlog before retrying the failed cron)
+        const { autoFixAll } = await import("@/lib/content-pipeline/queue-monitor");
+        const queueFixes = await autoFixAll();
+        const totalFixed = queueFixes.reduce((s, r) => s + r.affectedCount, 0);
+        if (totalFixed > 0) {
+          console.log(`[ceo-inbox] Queue auto-fix cleared ${totalFixed} stuck drafts before retrying "${jobName}"`);
+        }
+      }
+    } catch (queueErr) {
+      console.warn("[ceo-inbox] Queue health check failed (non-fatal):", queueErr instanceof Error ? queueErr.message : queueErr);
+    }
+
+    // 3. Send email notification (non-blocking)
     sendAlertEmail(jobName, diagnosis, fixStrategy).catch(
       (err) => console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
     );
 
-    // 3. Attempt auto-fix
+    // 4. Attempt auto-fix
     let fixResult: { attempted: boolean; success: boolean; message: string } | null = null;
     if (fixStrategy) {
       fixResult = await attemptAutoFix(jobName, fixStrategy, baseUrl);

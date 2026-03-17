@@ -50,7 +50,7 @@ export default function AboutZenithaYachts() {
 
   const team = [
     {
-      name_en: 'Khaled N. Aun',
+      name_en: 'Khaled Aun',
       name_ar: '\u062e\u0627\u0644\u062f \u0646. \u0639\u0648\u0646',
       role_en: 'Founder & CEO',
       role_ar: '\u0627\u0644\u0645\u0624\u0633\u0633 \u0648\u0627\u0644\u0631\u0626\u064a\u0633 \u0627\u0644\u062a\u0646\u0641\u064a\u0630\u064a',

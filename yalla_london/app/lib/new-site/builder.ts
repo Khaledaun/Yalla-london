@@ -483,8 +483,8 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
           site_id: siteRecord.id,
         },
         {
-          name_en: 'Khaled N. Aun',
-          name_ar: 'خالد ن. عون',
+          name_en: 'Khaled Aun',
+          name_ar: 'خالد عون',
           slug: `${config.siteId}-khaled`,
           title_en: 'Founder & Travel Director',
           title_ar: 'المؤسس ومدير السفر',

@@ -59,7 +59,7 @@ async function handleCreate(request: NextRequest) {
       const reservoirCount = await prisma.articleDraft.count({
         where: { site_id: siteId, current_phase: "reservoir" },
       });
-      if (reservoirCount >= 10) {
+      if (reservoirCount >= 20) {
         fullReservoirs.push(`${siteId}(${reservoirCount})`);
         continue;
       }
@@ -217,6 +217,9 @@ async function handleCreate(request: NextRequest) {
             generation_strategy: strategy + "_ar",
             phase_started_at: new Date(),
             paired_draft_id: en.id,
+            // Share pre-populated research with AR draft — saves one full research phase
+            // (AR uses the same keyword data/content strategy, just generates in Arabic)
+            research_data: prePopulatedResearch,
           },
         });
 

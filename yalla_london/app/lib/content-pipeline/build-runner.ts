@@ -79,6 +79,20 @@ export async function runContentBuilder(
       const phaseOrder: Record<string, number> = {
         scoring: 7, seo: 6, images: 5, assembly: 4, drafting: 3, outline: 2, research: 1,
       };
+      // Build a set of paired IDs and their phases so we can prioritize drafts
+      // whose bilingual partner is further ahead (the lagging draft needs to catch up).
+      const pairedPhaseMap = new Map<string, number>();
+      for (const d of allDrafts) {
+        const pid = d.paired_draft_id as string | null;
+        if (pid) {
+          // Check if the paired draft is also in the list
+          const paired = allDrafts.find(x => (x.id as string) === pid);
+          if (paired) {
+            pairedPhaseMap.set(d.id as string, phaseOrder[paired.current_phase as string] || 0);
+          }
+        }
+      }
+
       allDrafts.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         const orderA = phaseOrder[a.current_phase as string] || 0;
         const orderB = phaseOrder[b.current_phase as string] || 0;
@@ -86,7 +100,11 @@ export async function runContentBuilder(
         // they need a full-budget run, not another shared-budget attempt
         const aStuck = ((a.phase_attempts as number) || 0) >= 3 && ((a.last_error as string) || "").includes("Budget too low") ? -10 : 0;
         const bStuck = ((b.phase_attempts as number) || 0) >= 3 && ((b.last_error as string) || "").includes("Budget too low") ? -10 : 0;
-        return (orderB + bStuck) - (orderA + aStuck);
+        // Boost drafts whose paired draft is further ahead — they need to catch up
+        // for bilingual publishing. +5 priority boost per phase gap.
+        const aPartnerAhead = pairedPhaseMap.has(a.id as string) ? Math.max(0, (pairedPhaseMap.get(a.id as string) || 0) - orderA) : 0;
+        const bPartnerAhead = pairedPhaseMap.has(b.id as string) ? Math.max(0, (pairedPhaseMap.get(b.id as string) || 0) - orderB) : 0;
+        return (orderB + bStuck + bPartnerAhead) - (orderA + aStuck + aPartnerAhead);
       });
 
       draft = allDrafts[0] || null;
@@ -315,6 +333,85 @@ export async function runContentBuilder(
       }
     }
 
+    // ── PAIRED DRAFT CATCH-UP: Process the bilingual partner if it's behind ──
+    // Arabic drafts lag behind English because build-runner processes 1 draft/run.
+    // EN reaches reservoir while AR is still in research/outline/drafting.
+    // content-selector then publishes EN with empty content_ar.
+    // Fix: after processing EN, check if its AR pair is behind — if so, process AR too.
+    // This halves the time for bilingual pairs to complete together.
+    const pairedId = draftRecord.paired_draft_id as string | null;
+    const additionalResults: Array<{ draftId: string; phase: string; success: boolean }> = [];
+
+    if (result.success && pairedId && deadline.remainingMs() > 30_000) {
+      try {
+        const pairedDraft = await prisma.articleDraft.findUnique({ where: { id: pairedId } });
+        if (pairedDraft) {
+          const pairedPhase = pairedDraft.current_phase as string;
+          const pipelinePhases = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
+          const isPairedInPipeline = pipelinePhases.includes(pairedPhase);
+          const pairedAttempts = (pairedDraft.phase_attempts as number) || 0;
+          const pairedSite = SITES[pairedDraft.site_id as string];
+
+          if (isPairedInPipeline && pairedAttempts < 5 && pairedSite) {
+            console.log(`[content-builder] 🔗 Paired draft ${pairedId} (locale: ${pairedDraft.locale}, phase: ${pairedPhase}) — processing to keep bilingual pair in sync`);
+
+            // Claim the paired draft
+            await prisma.articleDraft.update({
+              where: { id: pairedId },
+              data: { phase_started_at: new Date() },
+            });
+
+            try {
+              const pairedResult = await runPhase(pairedDraft as any, pairedSite, deadline.remainingMs());
+              const pairedUpdate: Record<string, unknown> = { updated_at: new Date() };
+
+              if (pairedResult.success) {
+                pairedUpdate.current_phase = pairedResult.nextPhase;
+                pairedUpdate.phase_attempts = (pairedPhase === "assembly" && pairedResult.aiModelUsed === "fallback-raw")
+                  ? (pairedAttempts) : 0;
+                pairedUpdate.last_error = null;
+                pairedUpdate.phase_started_at = new Date();
+                if (pairedResult.data.research_data) pairedUpdate.research_data = pairedResult.data.research_data;
+                if (pairedResult.data.outline_data) pairedUpdate.outline_data = pairedResult.data.outline_data;
+                if (pairedResult.data.sections_data) pairedUpdate.sections_data = pairedResult.data.sections_data;
+                if (pairedResult.data.assembled_html) pairedUpdate.assembled_html = pairedResult.data.assembled_html;
+                if (pairedResult.data.assembled_html_alt) pairedUpdate.assembled_html_alt = pairedResult.data.assembled_html_alt;
+                if (pairedResult.data.seo_meta) pairedUpdate.seo_meta = pairedResult.data.seo_meta;
+                if (pairedResult.data.images_data) pairedUpdate.images_data = pairedResult.data.images_data;
+                if (pairedResult.data.topic_title) pairedUpdate.topic_title = pairedResult.data.topic_title;
+                if (pairedResult.data.sections_total !== undefined) pairedUpdate.sections_total = pairedResult.data.sections_total;
+                if (pairedResult.data.sections_completed !== undefined) pairedUpdate.sections_completed = pairedResult.data.sections_completed;
+                if (pairedResult.data.quality_score !== undefined) pairedUpdate.quality_score = pairedResult.data.quality_score;
+                if (pairedResult.data.seo_score !== undefined) pairedUpdate.seo_score = pairedResult.data.seo_score;
+                if (pairedResult.data.word_count !== undefined) pairedUpdate.word_count = pairedResult.data.word_count;
+                if (pairedResult.aiModelUsed) pairedUpdate.ai_model_used = pairedResult.aiModelUsed;
+                if (pairedResult.nextPhase === "reservoir" || pairedResult.nextPhase === "rejected") {
+                  pairedUpdate.completed_at = new Date();
+                }
+              } else {
+                pairedUpdate.phase_started_at = new Date();
+                pairedUpdate.phase_attempts = { increment: 1 };
+                pairedUpdate.last_error = pairedResult.error || `Phase "${pairedPhase}" failed`;
+              }
+
+              await prisma.articleDraft.update({ where: { id: pairedId }, data: pairedUpdate });
+              additionalResults.push({ draftId: pairedId, phase: pairedPhase, success: pairedResult.success });
+              console.log(`[content-builder] 🔗 Paired draft ${pairedId}: phase "${pairedPhase}" → ${pairedResult.success ? pairedResult.nextPhase : "FAILED"}`);
+            } catch (pairedErr) {
+              console.warn(`[content-builder] Paired draft ${pairedId} processing failed:`, pairedErr instanceof Error ? pairedErr.message : pairedErr);
+              await prisma.articleDraft.update({
+                where: { id: pairedId },
+                data: { phase_started_at: null, updated_at: new Date() },
+              }).catch(() => {});
+              additionalResults.push({ draftId: pairedId, phase: pairedPhase, success: false });
+            }
+          }
+        }
+      } catch (pairErr) {
+        console.warn("[content-builder] Paired draft lookup failed (non-fatal):", pairErr instanceof Error ? pairErr.message : pairErr);
+      }
+    }
+
     // ── Multi-draft processing: advance additional light-phase drafts if budget allows ──
     // After sweeper resets 40+ drafts, processing 1 draft per 15-min run creates a days-long
     // backlog. Light phases (research, outline, images, seo, scoring) complete in 5-15s,
@@ -322,13 +419,13 @@ export async function runContentBuilder(
     // need 30s+ and are never batched.
     const LIGHT_PHASES = new Set(["research", "outline", "images", "seo", "scoring"]);
     const MAX_ADDITIONAL_DRAFTS = 4;
-    const additionalResults: Array<{ draftId: string; phase: string; success: boolean }> = [];
+    const processedIds = new Set([draftRecord.id as string, ...(pairedId ? [pairedId] : [])]);
 
     if (result.success && deadline.remainingMs() > 60_000) {
       try {
         const moreDrafts = await prisma.articleDraft.findMany({
           where: {
-            id: { not: draftRecord.id as string },
+            id: { notIn: Array.from(processedIds) },
             site_id: { in: activeSites },
             current_phase: { in: Array.from(LIGHT_PHASES) },
             phase_attempts: { lt: 5 },

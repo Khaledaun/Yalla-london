@@ -96,24 +96,39 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
               console.warn(
                 `[Scheduled Publish] Pre-pub gate BLOCKED ${postData.slug}: ${gateResult.blockers.join("; ")}`
               );
-              // Don't publish — mark as failed with reason
-              await prisma.scheduledContent.update({
-                where: { id: item.id },
-                data: { status: "failed" },
-              });
+              // Don't publish — but allow retry up to 3 times instead of permanent failure.
+              // Previous behavior: permanent "failed" status → article never published.
+              // New behavior: increment attempt counter, only mark "failed" after 3 attempts.
+              const currentAttempts = ((item as Record<string, unknown>).publish_attempts as number) || 0;
+              const maxAttempts = 3;
+              if (currentAttempts + 1 >= maxAttempts) {
+                await prisma.scheduledContent.update({
+                  where: { id: item.id },
+                  data: { status: "failed" },
+                });
+                console.warn(`[Scheduled Publish] Permanently failed ${postData.slug} after ${maxAttempts} gate failures`);
+              } else {
+                // Keep as "pending" — will retry on next cron run
+                await prisma.scheduledContent.update({
+                  where: { id: item.id },
+                  data: { status: "pending" },
+                }).catch(() => {});
+                console.log(`[Scheduled Publish] Gate blocked ${postData.slug} (attempt ${currentAttempts + 1}/${maxAttempts}) — will retry`);
+              }
               log.trackItem(false);
               continue;
             }
           } catch (gateErr) {
-            // Gate check failed — fail CLOSED: skip publish rather than risk broken content
+            // Gate check failed — fail CLOSED: skip this attempt but allow retry
             console.warn(
-              `[Scheduled Publish] Pre-pub gate error for ${postData.slug} — skipping publish (fail closed):`,
+              `[Scheduled Publish] Pre-pub gate error for ${postData.slug} — skipping this attempt (fail closed):`,
               gateErr
             );
+            // Keep as "pending" for retry — gate errors are often transient (timeouts, DB pool)
             await prisma.scheduledContent.update({
               where: { id: item.id },
-              data: { status: "failed" },
-            });
+              data: { status: "pending" },
+            }).catch(() => {});
             log.trackItem(false);
             continue;
           }

@@ -56,7 +56,7 @@ export function ZenithaLuxuryAbout() {
 
           <p>
             Zenitha.Luxury LLC is the parent company behind a growing portfolio
-            of luxury travel brands. Founded by Khaled N. Aun in 2025, the
+            of luxury travel brands. Founded by Khaled Aun in 2025, the
             company is registered as a Delaware limited liability company with a
             single mission: to build the most trusted network of destination-specific
             travel resources in the world.
@@ -147,7 +147,7 @@ export function ZenithaLuxuryAbout() {
                 margin: 0,
               }}
             >
-              Khaled N. Aun
+              Khaled Aun
             </h3>
             <div
               style={{

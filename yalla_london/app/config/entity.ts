@@ -84,11 +84,9 @@ export const ENTITY: EntityConfig = {
   },
 
   contact: {
-    // Primary operational inbox — admin@zenitha.luxury (Outlook)
-    adminEmail: "admin@zenitha.luxury",
-    // Public-facing legal contact (routes to admin@zenitha.luxury)
-    legalEmail: "legal@zenitha.luxury",
-    // Public-facing general contact (routes to info@zenitha.luxury)
+    // All public-facing emails use info@ — single contact address per Khaled's instruction
+    adminEmail: "info@zenitha.luxury",
+    legalEmail: "info@zenitha.luxury",
     generalEmail: "info@zenitha.luxury",
     website: "https://zenitha.luxury",
   },

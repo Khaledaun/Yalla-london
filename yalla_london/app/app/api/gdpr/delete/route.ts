@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
     const domain = getSiteDomain(siteId || getDefaultSiteId());
-    const privacyEmail = `privacy@${domain}`;
+    const privacyEmail = `info@${domain}`;
 
     return NextResponse.json({
       success: true,

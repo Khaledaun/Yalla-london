@@ -50,19 +50,41 @@ export async function runContentSelector(
     // ── Cleanup stale "started" markers ──
     // If a previous run crashed without completing, its "started" marker stays forever,
     // blocking all future runs via the dedup guard. Mark any "started" entries older than
-    // 90 seconds as "failed" (max budget is 53s + 10s overhead = ~63s, so 90s is safe).
-    // Previous value of 5 minutes blocked the platform for 4+ min after a single crash.
+    // 65 seconds as "failed" (max budget is 53s + cold-start ≈ 60s).
+    // CRITICAL: Must be <= dedup guard window (60s) to prevent 30s blocking gap.
     try {
       await prisma.cronJobLog.updateMany({
         where: {
           job_name: "content-selector",
           status: "started",
-          started_at: { lt: new Date(Date.now() - 90_000) },
+          started_at: { lt: new Date(Date.now() - 65_000) },
         },
         data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
       });
     } catch (cleanupErr) {
       console.warn("[content-selector] Stale marker cleanup failed:", cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
+    }
+
+    // ── Revert drafts stuck in "promoting" from crashed runs ──
+    // When content-selector crashes mid-promotion, drafts stay in "promoting" forever.
+    // Revert any "promoting" drafts older than 2 minutes back to "reservoir".
+    try {
+      const stuckPromoting = await prisma.articleDraft.updateMany({
+        where: {
+          current_phase: "promoting",
+          updated_at: { lt: new Date(Date.now() - 120_000) },
+        },
+        data: {
+          current_phase: "reservoir",
+          last_error: "Reverted from promoting — previous content-selector run crashed",
+          updated_at: new Date(),
+        },
+      });
+      if (stuckPromoting.count > 0) {
+        console.log(`[content-selector] Reverted ${stuckPromoting.count} stuck "promoting" draft(s) back to reservoir`);
+      }
+    } catch (revertErr) {
+      console.warn("[content-selector] Promoting revert failed:", revertErr instanceof Error ? revertErr.message : String(revertErr));
     }
 
     // ── Dedup guard: prevent concurrent content-selector runs ──
@@ -72,7 +94,7 @@ export async function runContentSelector(
     const recentRun = await prisma.cronJobLog.findFirst({
       where: {
         job_name: "content-selector",
-        status: { in: ["started", "completed"] },
+        status: "started",
         started_at: { gte: new Date(Date.now() - 60_000) },
       },
       orderBy: { started_at: "desc" },

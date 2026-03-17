@@ -83,6 +83,25 @@ async function handleContentSelector(request: NextRequest) {
     const errMsg = error instanceof Error ? error.message : String(error);
     const durationMs = Date.now() - cronStart;
 
+    // CRITICAL: Revert any drafts stuck in "promoting" phase from this crashed run.
+    // Without this, crashed runs leave drafts orphaned in "promoting" forever.
+    try {
+      const { prisma } = await import("@/lib/db");
+      const reverted = await prisma.articleDraft.updateMany({
+        where: { current_phase: "promoting" },
+        data: {
+          current_phase: "reservoir",
+          last_error: `Crash revert: ${errMsg.slice(0, 200)}`,
+          updated_at: new Date(),
+        },
+      });
+      if (reverted.count > 0) {
+        console.log(`[content-selector] Crash recovery: reverted ${reverted.count} "promoting" draft(s) to reservoir`);
+      }
+    } catch (revertErr) {
+      console.warn("[content-selector] Crash revert failed:", revertErr instanceof Error ? revertErr.message : String(revertErr));
+    }
+
     await logCronExecution("content-selector", "failed", {
       durationMs,
       errorMessage: errMsg,

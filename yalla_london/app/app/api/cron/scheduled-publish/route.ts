@@ -239,9 +239,11 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         if (log.isExpired()) break;
 
         try {
+          // BlogPost has NO published_at field (uses created_at/updated_at).
+          // Previous code crashed on every orphan with Prisma "Unknown field" error.
           await prisma.blogPost.update({
             where: { id: orphan.id },
-            data: { published: true, published_at: new Date() },
+            data: { published: true },
           });
           const siteId = (orphan as Record<string, unknown>).siteId as string || activeSites[0];
           results.push({ id: orphan.id, title: orphan.title_en, slug: orphan.slug, site_id: siteId });
@@ -249,6 +251,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
           console.log(`[scheduled-publish] Auto-published orphan: ${orphan.slug}`);
         } catch (pubErr) {
           console.warn(`[scheduled-publish] Failed to auto-publish orphan ${orphan.slug}:`, (pubErr as Error).message);
+          log.trackItem(false);
         }
       }
     }

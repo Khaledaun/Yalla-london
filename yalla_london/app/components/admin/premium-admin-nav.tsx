@@ -188,11 +188,11 @@ export const adminNavigation: NavItem[] = [
     description: 'AI-powered 4-agent content generation pipeline'
   },
   {
-    id: 'email-campaigns',
-    label: 'Email Campaigns',
+    id: 'email-center',
+    label: 'Email Center',
     icon: Mail,
-    href: '/admin/email-campaigns',
-    description: 'Email templates, campaigns, and send history'
+    href: '/admin/cockpit/email',
+    description: 'Email status, test send, campaigns overview'
   },
   {
     id: 'social-calendar',

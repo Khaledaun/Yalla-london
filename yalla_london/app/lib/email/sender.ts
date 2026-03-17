@@ -63,26 +63,28 @@ function detectProvider(): ProviderName {
  * Build the default "from" address. Uses EMAIL_FROM env var if set,
  * otherwise constructs from site domain.
  */
-function getDefaultFrom(): string {
+function getDefaultFrom(siteId?: string): string {
   const emailFrom = (process.env.EMAIL_FROM || "").trim();
   if (emailFrom) return emailFrom;
 
   // If using Resend and no custom domain is verified yet, use their sandbox address.
   // This lets test emails work immediately after adding RESEND_API_KEY.
-  // Once you verify yalla-london.com in Resend dashboard → Domains, set EMAIL_FROM
-  // to "Yalla London <info@yalla-london.com>" in Vercel env vars.
+  // IMPORTANT: Resend sandbox only sends to the account owner's email address.
+  // To send to any recipient, verify your domain at https://resend.com/domains
+  // then set RESEND_DOMAIN_VERIFIED=true and EMAIL_FROM in Vercel env vars.
   if (process.env.RESEND_API_KEY && !process.env.RESEND_DOMAIN_VERIFIED) {
-    return "Yalla London <onboarding@resend.dev>";
+    return "Zenitha <onboarding@resend.dev>";
   }
 
   try {
     // Use site.domain directly (e.g. "yalla-london.com") — NOT getSiteDomain()
     // which returns a full URL like "https://www.yalla-london.com"
     const { getDefaultSiteId, SITES } = require("@/config/sites");
-    const siteId = getDefaultSiteId();
-    const site = SITES[siteId];
+    const resolvedSiteId = siteId || getDefaultSiteId();
+    const site = SITES[resolvedSiteId];
     const domain = site?.domain || "zenitha.luxury";
-    return `Yalla London <info@${domain}>`;
+    const brandName = site?.name || "Zenitha";
+    return `${brandName} <info@${domain}>`;
   } catch (err) {
     console.warn("[email:sender] Could not resolve default site domain for FROM address:", err instanceof Error ? err.message : err);
     return "Zenitha <info@zenitha.luxury>";
@@ -177,6 +179,19 @@ async function sendViaResend(payload: ProviderPayload): Promise<SendEmailResult>
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");
+    // Detect Resend sandbox restriction (403 = domain not verified, can only send to owner)
+    if (response.status === 403 && errorBody.includes("testing emails")) {
+      return {
+        success: false,
+        error: `Resend sandbox mode: can only send to your own email. To send to any recipient, verify your domain at https://resend.com/domains and set RESEND_DOMAIN_VERIFIED=true in Vercel env vars.`,
+      };
+    }
+    if (response.status === 422 && errorBody.includes("from")) {
+      return {
+        success: false,
+        error: `Invalid "from" address. Set EMAIL_FROM env var to a valid format like "Brand Name <info@yourdomain.com>" in Vercel.`,
+      };
+    }
     return {
       success: false,
       error: `Resend API error ${response.status}: ${errorBody.slice(0, 300)}`,
@@ -447,4 +462,28 @@ function escapeHtml(str: string): string {
  */
 export function getActiveProvider(): ProviderName {
   return detectProvider();
+}
+
+/**
+ * Returns diagnostic info about the email system configuration.
+ * Used by the dashboard email-center and cockpit to show status.
+ */
+export function getEmailDiagnostics(): {
+  provider: ProviderName;
+  domainVerified: boolean;
+  sandboxMode: boolean;
+  fromAddress: string;
+  configuredEnvVars: string[];
+} {
+  const provider = detectProvider();
+  const domainVerified = Boolean(process.env.RESEND_DOMAIN_VERIFIED);
+  const sandboxMode = provider === "resend" && !domainVerified;
+  const fromAddress = getDefaultFrom();
+  const configuredEnvVars: string[] = [];
+  if (process.env.RESEND_API_KEY) configuredEnvVars.push("RESEND_API_KEY");
+  if (process.env.SENDGRID_API_KEY) configuredEnvVars.push("SENDGRID_API_KEY");
+  if (process.env.SMTP_HOST) configuredEnvVars.push("SMTP_HOST");
+  if (process.env.EMAIL_FROM) configuredEnvVars.push("EMAIL_FROM");
+  if (process.env.RESEND_DOMAIN_VERIFIED) configuredEnvVars.push("RESEND_DOMAIN_VERIFIED");
+  return { provider, domainVerified, sandboxMode, fromAddress, configuredEnvVars };
 }

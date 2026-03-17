@@ -754,7 +754,10 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
   try {
     const { prisma: p0 } = await import("@/lib/db");
 
-    // 0a: Stuck >24h (reduced from 48h — if it hasn't progressed in 24h, it won't)
+    // 0a: Stuck >24h — use BOTH updated_at AND created_at checks.
+    // updated_at catches drafts truly untouched for 24h.
+    // created_at catches drafts where diagnostic-agent keeps refreshing updated_at
+    // (e.g., clearing locks) but the draft never actually advances — prevents 100h+ stuck loops.
     const rejectedOld = await p0.articleDraft.updateMany({
       where: {
         current_phase: {
@@ -767,6 +770,23 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
         last_error: "[diagnostic-agent] Auto-rejected: stuck >24h without progress",
       },
     });
+    // 0a-age: Created >48h ago and still in pipeline — regardless of updated_at.
+    // Catches drafts where diagnostic agent keeps touching updated_at but draft never advances.
+    const rejectedTooOld = await p0.articleDraft.updateMany({
+      where: {
+        current_phase: {
+          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+        },
+        created_at: { lt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+      },
+      data: {
+        current_phase: "rejected",
+        last_error: "[diagnostic-agent] Auto-rejected: created >48h ago — exceeded maximum pipeline age",
+      },
+    });
+    if (rejectedTooOld.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0a-age: Rejected ${rejectedTooOld.count} drafts created >48h ago`);
+    }
 
     // 0a2: Stuck >12h with 2+ attempts — repeated failures, not worth retrying
     const rejectedStuckRetries = await p0.articleDraft.updateMany({

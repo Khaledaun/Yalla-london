@@ -147,14 +147,37 @@ async function subscribeHandler(request: NextRequest) {
       },
     });
 
-    // NOTE: Welcome email / confirmation email NOT sent yet.
-    // Email sending will be activated when RESEND_API_KEY is configured
-    // and the domain is verified in Resend.
-    // For now, subscribers are stored in the database for future activation.
-
+    // Mask email in logs for GDPR — only show first char + domain
+    const [localPart, domainPart] = normalizedEmail.split("@");
+    const maskedEmail = `${localPart[0]}***@${domainPart}`;
     console.log(
-      `[newsletter] New subscriber: ${normalizedEmail} (site=${siteId}, source=${source})`,
+      `[newsletter] New subscriber: ${maskedEmail} (site=${siteId}, source=${source})`,
     );
+
+    // Send welcome email if an email provider is configured
+    try {
+      const { sendEmail } = await import("@/lib/email/sender");
+      const { renderWelcomeEmail } = await import("@/lib/email/welcome-template");
+      const welcomeEmail = renderWelcomeEmail({
+        recipientName: firstName || undefined,
+        siteId,
+        language: language as "en" | "ar",
+      });
+      const result = await sendEmail({
+        to: normalizedEmail,
+        subject: welcomeEmail.subject,
+        html: welcomeEmail.html,
+        plainText: welcomeEmail.plainText,
+      });
+      if (result.success) {
+        console.log(`[newsletter] Welcome email sent to ${maskedEmail} via ${result.messageId || "unknown"}`);
+      } else {
+        console.warn(`[newsletter] Welcome email failed for ${maskedEmail}:`, result.error);
+      }
+    } catch (emailErr) {
+      // Welcome email is non-blocking — subscriber is already saved
+      console.warn("[newsletter] Welcome email error:", emailErr instanceof Error ? emailErr.message : emailErr);
+    }
 
     return NextResponse.json({
       success: true,

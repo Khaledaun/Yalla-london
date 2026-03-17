@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { sendEmail } from "@/lib/email/sender";
-import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
+import { renderWelcomeEmail } from "@/lib/email/welcome-template";
+import { getDefaultSiteId, getActiveSiteIds, getSiteDomain, getSiteConfig } from "@/config/sites";
 import { logManualAction } from "@/lib/action-logger";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,12 @@ function buildProviderStatus(): ProviderStatus {
 
   const resendDomainVerified = Boolean(process.env.RESEND_DOMAIN_VERIFIED);
 
+  // Build dynamic domain for instructions — never hardcode a specific site
+  const defaultSiteId = getDefaultSiteId();
+  const siteConfig = getSiteConfig(defaultSiteId);
+  const siteDomain = siteConfig?.domain || "zenitha.luxury";
+  const siteName = siteConfig?.name || "Zenitha";
+
   let setupInstructions =
     "Email is configured and ready to send. No action needed.";
   if (!active) {
@@ -56,9 +63,9 @@ function buildProviderStatus(): ProviderStatus {
   } else if (resendConfigured && !resendDomainVerified) {
     setupInstructions =
       "Resend API key is set — test emails work using onboarding@resend.dev. " +
-      "To send from your own domain: (1) Go to resend.com → Domains → Add Domain → enter yalla-london.com, " +
+      `To send from your own domain: (1) Go to resend.com → Domains → Add Domain → enter ${siteDomain}, ` +
       "(2) Add the DNS records Resend gives you in Cloudflare, " +
-      "(3) Once verified, add EMAIL_FROM=Yalla London <info@yalla-london.com> and RESEND_DOMAIN_VERIFIED=true in Vercel env vars, " +
+      `(3) Once verified, add EMAIL_FROM=${siteName} <info@${siteDomain}> and RESEND_DOMAIN_VERIFIED=true in Vercel env vars, ` +
       "(4) Redeploy.";
   }
 
@@ -68,7 +75,7 @@ function buildProviderStatus(): ProviderStatus {
     domainVerified: resendConfigured ? resendDomainVerified : true,
     sendingFrom: resendConfigured && !resendDomainVerified
       ? "onboarding@resend.dev (Resend sandbox — test only)"
-      : process.env.EMAIL_FROM || `info@yalla-london.com`,
+      : process.env.EMAIL_FROM || `info@${siteDomain}`,
     providers: {
       resend: { configured: resendConfigured, envKey: "RESEND_API_KEY" },
       sendgrid: { configured: sendgridConfigured, envKey: "SENDGRID_API_KEY" },
@@ -194,6 +201,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const grouped = await prisma.subscriber.groupBy({
       by: ["site_id"],
+      where: { site_id: { in: activeSiteIds } },
       _count: { id: true },
     });
     for (const row of grouped) {
@@ -308,7 +316,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         : `Test email to ${to} failed`,
       details: { subAction: "test_send", to, provider: providerStatus.activeProvider },
       ...(result.success ? {} : { error: result.error || "Unknown send error", fix: "Check email provider configuration in Vercel env vars (RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_*)." }),
-    }).catch(() => {});
+    }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json({
       success: result.success,
@@ -356,7 +364,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         success: true,
         summary: `Created email template '${name}'`,
         details: { subAction: "create_template", name, subject },
-      }).catch(() => {});
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
 
       return NextResponse.json({ success: true, id: template.id });
     } catch (err: unknown) {
@@ -372,7 +380,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         summary: `Failed to create email template '${name}'`,
         error: message,
         fix: "Check that the EmailTemplate table exists in the database. Run 'npx prisma db push' if needed.",
-      }).catch(() => {});
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
 
       return NextResponse.json(
         { success: false, error: "Could not save template — database error" },
@@ -427,7 +435,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         success: true,
         summary: `Started sending campaign '${campaign.name}'`,
         details: { subAction: "send_campaign", campaignId, campaignName: campaign.name, recipientCount: campaign.recipientCount },
-      }).catch(() => {});
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
 
       return NextResponse.json({ success: true });
     } catch (err: unknown) {
@@ -443,7 +451,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         summary: "Failed to start email campaign",
         error: message,
         fix: "Check that the EmailCampaign table exists and the campaign ID is valid.",
-      }).catch(() => {});
+      }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
 
       return NextResponse.json(
         {
@@ -456,12 +464,59 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   }
 
   // -------------------------------------------------------------------------
+  // Action: send_welcome — Send branded welcome email using design system
+  // -------------------------------------------------------------------------
+  if (action === "send_welcome") {
+    const to = body.to as string | undefined;
+    const recipientName = body.name as string | undefined;
+    const siteId = (body.siteId as string | undefined) ?? getDefaultSiteId();
+    const language = (body.language as "en" | "ar" | undefined) ?? "en";
+
+    if (!to || typeof to !== "string" || !to.includes("@")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or missing 'to' email address" },
+        { status: 400 },
+      );
+    }
+
+    const welcomeEmail = renderWelcomeEmail({
+      recipientName: recipientName || undefined,
+      siteId,
+      language,
+    });
+
+    const result = await sendEmail({
+      to,
+      subject: welcomeEmail.subject,
+      html: welcomeEmail.html,
+      plainText: welcomeEmail.plainText,
+    });
+
+    logManualAction(request, {
+      action: "email-center-action",
+      resource: "email",
+      success: result.success,
+      summary: result.success
+        ? `Welcome email sent to ${to}`
+        : `Welcome email to ${to} failed`,
+      details: { subAction: "send_welcome", to, siteId, language },
+      ...(result.success ? {} : { error: result.error || "Unknown send error" }),
+    }).catch((err: unknown) => console.warn("[email-center] action log failed:", err instanceof Error ? err.message : err));
+
+    return NextResponse.json({
+      success: result.success,
+      error: result.success ? undefined : result.error,
+      messageId: result.messageId,
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Unknown action
   // -------------------------------------------------------------------------
   return NextResponse.json(
     {
       success: false,
-      error: `Unknown action: ${action}. Valid actions: test_send, create_template, send_campaign`,
+      error: `Unknown action: ${action}. Valid actions: test_send, create_template, send_campaign, send_welcome`,
     },
     { status: 400 },
   );

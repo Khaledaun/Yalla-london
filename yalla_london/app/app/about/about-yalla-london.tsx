@@ -71,10 +71,13 @@ export default function AboutYallaLondon() {
           ]} />
           <div className="max-w-2xl">
             <SectionLabel>{language === 'en' ? 'Our Story' : 'قصتنا'}</SectionLabel>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold text-white mb-6">
+            <h1
+              className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold text-white mb-6"
+              style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+            >
               {t('founderTitle')}
             </h1>
-            <p className="text-xl md:text-2xl text-yl-gray-400 font-body">
+            <p className="text-xl md:text-2xl text-yl-gray-400 font-body" style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}>
               {language === 'en'
                 ? 'Your personal guide to London\'s most exclusive experiences'
                 : 'دليلك الشخصي للتجارب الأكثر حصرية في لندن'

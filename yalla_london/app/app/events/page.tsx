@@ -218,6 +218,7 @@ export default function EventsPage() {
             className="object-cover opacity-30"
             priority
           />
+          <div className="absolute inset-0 bg-yl-dark-navy/40" />
         </div>
         <WatermarkStamp />
         <div className="relative z-10 max-w-7xl mx-auto px-7 text-center">
@@ -226,12 +227,15 @@ export default function EventsPage() {
             { label: language === "en" ? "Events" : "فعاليات" },
           ]} />
           <SectionLabel>{language === "en" ? "Events & Tickets" : "فعاليات وتذاكر"}</SectionLabel>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6 mt-4">
+          <h1
+            className="text-4xl sm:text-5xl md:text-6xl font-heading font-bold mb-6 mt-4"
+            style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+          >
             {language === "en"
               ? "London Events & Tickets"
               : "فعاليات وتذاكر لندن"}
           </h1>
-          <p className="text-xl md:text-2xl text-yl-gray-400 max-w-3xl mx-auto mb-8">
+          <p className="text-xl md:text-2xl text-yl-gray-400 max-w-3xl mx-auto mb-8" style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}>
             {language === "en"
               ? "Book premium tickets for the best London experiences"
               : "احجز تذاكر مميزة لأفضل تجارب لندن"}

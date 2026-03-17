@@ -9,7 +9,7 @@ import {
   TrendingUp, BookOpen, Ticket, Compass, Map, Train, Utensils, Users, Gem
 } from 'lucide-react'
 import { NewsCarousel } from '@/components/news-carousel'
-import { NewsTicker } from '@/components/news-ticker'
+import { NewsSideBanner } from '@/components/news-side-banner'
 import { FollowUs } from '@/components/follow-us'
 import { TriBar, BrandButton, BrandTag, BrandCard, BrandCardLight, SectionLabel, WatermarkStamp } from '@/components/brand-kit'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
@@ -335,12 +335,12 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   return (
     <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* ═══ BREAKING NEWS TICKER ═══ */}
-      <NewsTicker speed={45} />
+      {/* ═══ NEWS SIDE BANNER — floats on right edge ═══ */}
+      <NewsSideBanner />
 
-      {/* ═══ HERO ═══ */}
-      <section className="relative h-[60vh] sm:h-[70vh] md:h-[85vh] flex items-end overflow-hidden">
-        {/* Rotating Background Images */}
+      {/* ═══ HERO — Full-screen immersive ═══ */}
+      <section className="relative h-screen min-h-[600px] flex items-end overflow-hidden">
+        {/* Rotating Background Images — full bleed */}
         {HERO_IMAGES.map((img, i) => (
           <Image
             key={img.src}
@@ -352,14 +352,26 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             priority={i === 0}
           />
         ))}
-        {/* Dark Navy Gradient Overlay — stronger at top for ticker readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/60 to-yl-dark-navy/30" />
+        {/* Cinematic gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/50 to-yl-dark-navy/20" />
 
-        {/* Watermark Stamp */}
+        {/* Watermark Stamps — multiple for immersive feel */}
         <WatermarkStamp />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <img
+            src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png"
+            alt=""
+            className="absolute left-[-60px] top-[15%] w-[200px] h-[200px] opacity-[0.04] object-contain rotate-[-15deg]"
+          />
+          <img
+            src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png"
+            alt=""
+            className="absolute right-[10%] top-[8%] w-[160px] h-[160px] opacity-[0.03] object-contain rotate-[12deg]"
+          />
+        </div>
 
         {/* Content */}
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-7 pb-16 md:pb-24">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-7 pb-20 md:pb-28">
           <div className="max-w-2xl">
             {/* Section label */}
             <span style={{ textShadow: '0 1px 6px rgba(15,22,33,0.5)' }}>
@@ -369,15 +381,15 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             </span>
 
             <h1
-              className={`text-4xl sm:text-5xl md:text-7xl font-heading font-extrabold leading-tight mb-2 ${isRTL ? 'font-arabic' : ''}`}
-              style={{ textShadow: '0 2px 12px rgba(15,22,33,0.7), 0 1px 3px rgba(15,22,33,0.5)' }}
+              className={`text-5xl sm:text-6xl md:text-8xl font-heading font-extrabold leading-[1.05] mb-4 ${isRTL ? 'font-arabic' : ''}`}
+              style={{ textShadow: '0 2px 16px rgba(15,22,33,0.8), 0 1px 4px rgba(15,22,33,0.6)' }}
             >
               <span className="text-yl-parchment">{hero.titleLine1}</span>
               <br />
               <span className="text-yl-red">{hero.titleLine2}</span>
             </h1>
             <p
-              className="font-body text-lg text-yl-gray-400 mb-8 max-w-xl leading-relaxed"
+              className="font-body text-lg md:text-xl text-yl-gray-400 mb-10 max-w-xl leading-relaxed"
               style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}
             >
               {hero.description}
@@ -393,7 +405,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </div>
 
           {/* Quick Navigation Pills */}
-          <div className="flex flex-wrap gap-3 mt-10">
+          <div className="flex flex-wrap gap-3 mt-12">
             {t.quickLinks.map((label, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <span className="text-white/30 select-none mx-1" aria-hidden="true">|</span>}
@@ -405,6 +417,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 </Link>
               </React.Fragment>
             ))}
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center pt-2">
+            <div className="w-1 h-2.5 rounded-full bg-white/50 animate-pulse" />
           </div>
         </div>
       </section>
@@ -436,7 +455,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <TriBar />
 
       {/* ═══ FEATURED + ARTICLES ═══ */}
-      <section className="max-w-7xl mx-auto px-7 py-16">
+      <section className="relative max-w-7xl mx-auto px-7 py-16">
+        {/* Subtle watermark */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute -right-20 top-10 w-[250px] h-[250px] opacity-[0.03] object-contain rotate-[8deg]" />
+        </div>
         <SectionHeader title={t.latestStories} href="/blog" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -515,8 +538,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <TriBar />
 
       {/* ═══ EVENTS ═══ */}
-      <section className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-7">
+      <section className="relative bg-white py-16 overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.upcomingEvents} href="/events" linkText={t.viewAll} icon={Ticket} isArabic={isRTL} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {events[locale].map((event) => (
@@ -586,8 +610,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <TriBar />
 
       {/* ═══ GUIDES ═══ */}
-      <section className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-7">
+      <section className="relative bg-white py-16 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute right-[-40px] top-[20%] w-[180px] h-[180px] opacity-[0.03] object-contain rotate-[20deg]" />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.pdfGuides} href="/shop" linkText={t.viewAll} icon={Download} isArabic={isRTL} />
           <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.guidesSubtitle}</p>
 
@@ -623,8 +650,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <TriBar />
 
       {/* ═══ EXPERIENCES ═══ */}
-      <section className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-7">
+      <section className="relative bg-white py-16 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute -left-16 bottom-10 w-[220px] h-[220px] opacity-[0.04] object-contain rotate-[-10deg]" />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.topExperiences} href="/experiences" linkText={t.viewAll} icon={Star} isArabic={isRTL} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
             {experiences[locale].map((exp) => {
@@ -665,8 +695,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <TriBar />
 
       {/* ═══ HOTELS ═══ */}
-      <section className="bg-yl-cream py-16">
-        <div className="max-w-7xl mx-auto px-7">
+      <section className="relative bg-yl-cream py-16 overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.luxuryHotels} href="/hotels" linkText={t.viewAll} isArabic={isRTL} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {hotels[locale].map((hotel) => {

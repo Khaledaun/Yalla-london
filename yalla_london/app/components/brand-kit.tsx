@@ -11,10 +11,12 @@ import Link from 'next/link';
 /* ── 1.1 TRI-COLOR BAR ── */
 export function TriBar({ className = '' }: { className?: string }) {
   return (
-    <div className={`flex h-[3px] w-full ${className}`} aria-hidden="true">
+    <div className={`relative flex h-[3px] w-full ${className}`} aria-hidden="true">
       <span className="flex-1 bg-yl-red" />
       <span className="flex-1 bg-yl-gold" />
       <span className="flex-1 bg-yl-blue" />
+      {/* Shimmer overlay */}
+      <span className="absolute inset-0 animate-brand-shimmer" />
     </div>
   );
 }
@@ -208,6 +210,23 @@ export function WatermarkStamp({ className = '' }: { className?: string }) {
         alt=""
         className="absolute right-0 bottom-0 w-[300px] h-[300px] opacity-[0.08] object-contain"
       />
+    </div>
+  );
+}
+
+/* ── PAGE WATERMARKS — multiple scattered stamps for rich brand presence ── */
+export function PageWatermarks({ className = '' }: { className?: string }) {
+  const stamp = '/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png';
+  return (
+    <div className={`fixed inset-0 pointer-events-none z-[1] overflow-hidden ${className}`} aria-hidden="true">
+      {/* Top-left — subtle, rotated, floating */}
+      <img src={stamp} alt="" className="absolute -top-10 -left-10 w-[280px] h-[280px] opacity-[0.04] object-contain animate-brand-float" style={{ '--float-rotation': '-15deg' } as React.CSSProperties} />
+      {/* Mid-right — gentle pulse */}
+      <img src={stamp} alt="" className="absolute top-[35%] -right-8 w-[240px] h-[240px] opacity-[0.05] object-contain rotate-[10deg] animate-brand-pulse" />
+      {/* Bottom-left — floating with different delay */}
+      <img src={stamp} alt="" className="absolute bottom-[15%] -left-12 w-[260px] h-[260px] opacity-[0.04] object-contain animate-brand-float" style={{ '--float-rotation': '-8deg', animationDelay: '3s' } as React.CSSProperties} />
+      {/* Bottom-right — larger, pulsing */}
+      <img src={stamp} alt="" className="absolute -bottom-8 -right-8 w-[350px] h-[350px] opacity-[0.06] object-contain rotate-[5deg] animate-brand-pulse" style={{ animationDelay: '2s' }} />
     </div>
   );
 }

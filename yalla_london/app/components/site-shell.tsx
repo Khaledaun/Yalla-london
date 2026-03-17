@@ -12,6 +12,7 @@ import { ZenithaFooter } from '@/components/zenitha/zenitha-footer';
 import { ZenithaLuxuryHeader } from '@/components/zenitha-luxury/zenitha-luxury-header';
 import { ZenithaLuxuryFooter } from '@/components/zenitha-luxury/zenitha-luxury-footer';
 import { isYachtSite as checkYacht, isParentBrandSite as checkParent } from '@/config/sites';
+import { PageWatermarks } from '@/components/brand-kit';
 
 /**
  * SiteShell — Renders the correct header/footer based on siteId.
@@ -59,7 +60,8 @@ export function SiteShell({
   return (
     <div className="min-h-screen flex flex-col">
       <DynamicHeader />
-      <main id="main-content" className="flex-1 pt-20">{children}</main>
+      <PageWatermarks />
+      <main id="main-content" className="flex-1 pt-24">{children}</main>
       <Footer />
     </div>
   );

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ShoppingBag, Ticket } from 'lucide-react';
 import { useBrandConfig, useNavigationTranslations } from '@/hooks/use-brand-config';
 import { useLanguage } from '@/components/language-provider';
 import { TriBar } from '@/components/brand-kit';
@@ -54,65 +54,77 @@ export function DynamicHeader() {
               />
               <span className="font-heading font-bold text-xl tracking-wider">
                 <span className="text-yl-parchment">YALLA</span>
-                <span className="text-yl-red ml-1">LONDON</span>
+                <span className="text-yl-red ml-1.5">LONDON</span>
               </span>
             </Link>
 
-            {/* Desktop Navigation — mono 10px, 1.5px tracking, uppercase */}
-            <nav className="hidden lg:flex items-center gap-1">
+            {/* Desktop Navigation — mono, uppercase */}
+            <nav className="hidden lg:flex items-center gap-1.5">
               {navigation.map((item) => (
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`relative px-3.5 py-2 font-mono text-[10px] font-medium uppercase text-yl-gray-400 transition-all duration-300 ease-yl hover:text-yl-parchment group whitespace-nowrap ${
-                    isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-[1.5px]'
+                  className={`relative px-4 py-2.5 font-mono text-[11px] font-medium uppercase text-yl-gray-400 transition-all duration-300 ease-yl hover:text-yl-parchment group whitespace-nowrap ${
+                    isRTL ? 'font-arabic tracking-normal text-[14px] normal-case' : 'tracking-[1.5px]'
                   }`}
                 >
                   <span className="relative z-10">
                     {language === 'en' ? item.labelEn : item.labelAr}
                   </span>
                   {/* Hover underline — gold accent, width 0→100% */}
-                  <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-yl-gold scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-yl origin-left" />
+                  <span className="absolute bottom-1.5 left-3 right-3 h-0.5 bg-yl-gold scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-yl origin-left" />
                 </Link>
               ))}
             </nav>
 
-            {/* Language Toggle & CTA */}
-            <div className="flex items-center gap-3">
+            {/* Action Buttons + Language Toggle */}
+            <div className="flex items-center gap-2 md:gap-3">
               {/* Language Toggle */}
               <button
                 onClick={toggleLanguage}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-300 ease-yl hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-gold ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-300 ease-yl hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-gold ${
                   language === 'en'
-                    ? 'font-arabic text-[13px] font-medium text-yl-gray-400 hover:text-yl-parchment'
-                    : 'font-mono text-[10px] font-medium tracking-[1.5px] uppercase text-yl-gray-400 hover:text-yl-parchment'
+                    ? 'font-arabic text-[14px] font-medium text-yl-gray-400 hover:text-yl-parchment'
+                    : 'font-mono text-[11px] font-medium tracking-[1.5px] uppercase text-yl-gray-400 hover:text-yl-parchment'
                 }`}
               >
                 {language === 'en' ? 'عربي' : 'EN'}
               </button>
 
-              {/* CTA Button — Red bg, white text, mono */}
+              {/* Shop Button — outline style */}
               <Link
-                href="/contact"
-                className={`hidden lg:flex items-center px-4 py-2 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg ${
+                href="/shop"
+                className={`hidden lg:flex items-center gap-2 px-4 py-2.5 border border-white/20 text-yl-parchment rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 hover:text-yl-gold ${
                   isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-wider'
                 }`}
               >
-                {language === 'en' ? 'Get in Touch' : 'تواصل معنا'}
+                <ShoppingBag className="w-3.5 h-3.5" />
+                {language === 'en' ? 'Shop' : 'متجر'}
               </Link>
 
-              {/* Mobile menu button — select dropdown per v2 spec */}
+              {/* Book Now Button — Red bg, prominent CTA */}
+              <Link
+                href="/experiences"
+                className={`hidden lg:flex items-center gap-2 px-5 py-2.5 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg ${
+                  isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-wider'
+                }`}
+              >
+                <Ticket className="w-3.5 h-3.5" />
+                {language === 'en' ? 'Book Now' : 'احجز الآن'}
+              </Link>
+
+              {/* Mobile menu button */}
               <button
-                className="lg:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-yl-parchment hover:text-white transition-colors"
+                className="lg:hidden p-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center text-yl-parchment hover:text-white transition-colors"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
               >
                 {isMenuOpen ? (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 ) : (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 )}
@@ -156,16 +168,27 @@ export function DynamicHeader() {
                 </span>
               </button>
 
-              {/* Mobile CTA */}
-              <div className="pt-3 px-4">
+              {/* Mobile CTAs — Shop + Book Now */}
+              <div className="pt-3 px-4 flex gap-3">
                 <Link
-                  href="/contact"
-                  className={`flex items-center justify-center w-full px-5 py-3 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] ${
+                  href="/shop"
+                  className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 border border-white/20 text-yl-parchment rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 ${
                     isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  {language === 'en' ? 'Get in Touch' : 'تواصل معنا'}
+                  <ShoppingBag className="w-4 h-4" />
+                  {language === 'en' ? 'Shop' : 'متجر'}
+                </Link>
+                <Link
+                  href="/experiences"
+                  className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] ${
+                    isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Ticket className="w-4 h-4" />
+                  {language === 'en' ? 'Book Now' : 'احجز الآن'}
                 </Link>
               </div>
 

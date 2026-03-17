@@ -669,11 +669,14 @@ export async function generateCompletion(
   // Phase-aware budget split ratios
   const hint = options.phaseBudgetHint;
   const isSingleProvider = availableProviders.length === 1;
+  // First provider share reduced from 65%→50% default. With 20s total budget,
+  // 65% gave first provider 13s and left only 7s for 2+ fallbacks (2.3s each).
+  // At 50%, first gets 10s and fallbacks share 10s (5s each) — enough for a real attempt.
   const firstSharePct = isSingleProvider ? 0.95 // Single provider: give it almost everything
-    : hint === 'light' ? 0.50
-    : hint === 'medium' ? 0.55
-    : hint === 'heavy' ? 0.65 // Heavy tasks (campaign-enhance) need more time for first provider
-    : 0.65; // default (backwards compatible)
+    : hint === 'light' ? 0.45
+    : hint === 'medium' ? 0.50
+    : hint === 'heavy' ? 0.55 // Heavy tasks (campaign-enhance) — first provider still gets majority
+    : 0.50; // default — balanced split for reliable fallback
   const maxPerProviderMs = isSingleProvider ? 50_000 // Single provider: no cap
     : hint === 'light' ? 15_000
     : hint === 'medium' ? 25_000
@@ -712,7 +715,14 @@ export async function generateCompletion(
       rawShare = Math.floor((remaining - 1_000) / remainingProviders);
     }
 
-    const providerTimeout = Math.max(Math.min(rawShare, maxPerProviderMs), 5_000);
+    // Ensure minimum 5s per provider, but NEVER exceed actual remaining budget.
+    // Previous bug: the 5s floor could overallocate when remaining < 5s, causing
+    // later providers to get "only 2s remaining" and be skipped entirely.
+    // Guard against negative values when remaining < 500ms (e.g. clock drift).
+    const providerTimeout = Math.min(
+      Math.max(rawShare, 5_000),        // At least 5s (or rawShare if bigger)
+      Math.max(500, remaining - 500)    // But never exceed remaining budget (floor 500ms)
+    );
     const attemptStart = Date.now();
     try {
       const result = await callProvider(provider, messages, apiKey, {

@@ -783,19 +783,19 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       },
     });
 
-    // 0a3: Drafting backlog — reject drafts stuck in drafting for >36h based on
+    // 0a3: Drafting backlog — reject drafts stuck in drafting for >24h based on
     // created_at (not updated_at, which gets refreshed by build-runner every run).
-    // With 200+ drafts queued, each gets ~1 run per 55h cycle. If they can't complete
-    // drafting within 36h of creation, they never will — reject and clear the backlog.
+    // With 200+ drafts queued, each gets ~1 run per 55h cycle. 24h is generous
+    // (a draft should complete in 2-4h max). Lowered from 36h to clear backlogs faster.
     const rejectedDraftingBacklog = await p0.articleDraft.updateMany({
       where: {
         current_phase: "drafting",
-        created_at: { lt: new Date(Date.now() - 36 * 60 * 60 * 1000) },
+        created_at: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         phase_attempts: { gte: 1 },
       },
       data: {
         current_phase: "rejected",
-        last_error: "[diagnostic-agent] Auto-rejected: stuck in drafting >36h — backlog clearance",
+        last_error: "[diagnostic-agent] Auto-rejected: stuck in drafting >24h — backlog clearance",
       },
     });
     if (rejectedDraftingBacklog.count > 0) {

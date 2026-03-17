@@ -14,6 +14,7 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
+import { getMaxAttempts } from "@/lib/content-pipeline/constants";
 
 const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -276,12 +277,9 @@ export async function runContentBuilder(
       const phaseError = result.error || `Phase "${currentPhase}" returned failure with no error details`;
       updateData.last_error = phaseError;
 
-      // Drafting and assembly get 5 attempts (complex AI phases with transient errors).
-      // Assembly in particular has timeout loops where AI polish fails repeatedly —
-      // 5 attempts gives the raw fallback (triggers at attempts >= 2) multiple chances
-      // and prevents premature rejection.
-      // All other phases get 3 attempts.
-      const maxAttempts = (currentPhase === "drafting" || currentPhase === "assembly") ? 5 : 3;
+      // Use centralized constants — single source of truth for all attempt caps.
+      // See lib/content-pipeline/constants.ts for rationale per phase.
+      const maxAttempts = getMaxAttempts(currentPhase);
       const currentAttempts = ((draftRecord.phase_attempts as number) || 0) + 1;
       const wasRejected = currentAttempts >= maxAttempts;
       if (wasRejected) {

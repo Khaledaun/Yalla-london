@@ -475,6 +475,36 @@
   transform-origin: bottom;
 }
 
+/* ── Brand Animations ── */
+@keyframes brand-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes brand-pulse {
+  0%, 100% { opacity: 0.04; }
+  50% { opacity: 0.08; }
+}
+
+@keyframes brand-float {
+  0%, 100% { transform: translateY(0) rotate(var(--float-rotation, 0deg)); }
+  50% { transform: translateY(-8px) rotate(var(--float-rotation, 0deg)); }
+}
+
+.animate-brand-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(196, 154, 42, 0.15) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: brand-shimmer 3s ease-in-out infinite;
+}
+
+.animate-brand-pulse {
+  animation: brand-pulse 6s ease-in-out infinite;
+}
+
+.animate-brand-float {
+  animation: brand-float 8s ease-in-out infinite;
+}
+
 /* Scrollbar utilities */
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;

@@ -718,9 +718,10 @@ export async function generateCompletion(
     // Ensure minimum 5s per provider, but NEVER exceed actual remaining budget.
     // Previous bug: the 5s floor could overallocate when remaining < 5s, causing
     // later providers to get "only 2s remaining" and be skipped entirely.
+    // Guard against negative values when remaining < 500ms (e.g. clock drift).
     const providerTimeout = Math.min(
-      Math.max(rawShare, 5_000),  // At least 5s (or rawShare if bigger)
-      remaining - 500             // But never exceed what's actually left (500ms buffer)
+      Math.max(rawShare, 5_000),        // At least 5s (or rawShare if bigger)
+      Math.max(500, remaining - 500)    // But never exceed remaining budget (floor 500ms)
     );
     const attemptStart = Date.now();
     try {

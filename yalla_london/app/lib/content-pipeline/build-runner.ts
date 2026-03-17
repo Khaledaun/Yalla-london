@@ -14,6 +14,7 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
+import { getMaxAttempts } from "@/lib/content-pipeline/constants";
 
 const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -276,13 +277,9 @@ export async function runContentBuilder(
       const phaseError = result.error || `Phase "${currentPhase}" returned failure with no error details`;
       updateData.last_error = phaseError;
 
-      // Drafting gets 8 attempts — multi-section articles need 2-3 cron runs to complete
-      // (each run writes 1-3 sections). With only 5 attempts, 8-section drafts were
-      // rejected before finishing. Assembly gets 5 (raw fallback at attempts >= 2).
-      // All other phases get 3 attempts.
-      const maxAttempts = currentPhase === "drafting" ? 8
-        : currentPhase === "assembly" ? 5
-        : 3;
+      // Use centralized constants — single source of truth for all attempt caps.
+      // See lib/content-pipeline/constants.ts for rationale per phase.
+      const maxAttempts = getMaxAttempts(currentPhase);
       const currentAttempts = ((draftRecord.phase_attempts as number) || 0) + 1;
       const wasRejected = currentAttempts >= maxAttempts;
       if (wasRejected) {

@@ -25,6 +25,8 @@ export interface SendEmailOptions {
   plainText?: string;
   from?: string;
   replyTo?: string;
+  /** Optional merge-tag context — replaces {{first_name}}, {{email}}, etc. in html/plainText/subject */
+  mergeTagContext?: import("./personalization").MergeTagContext;
 }
 
 export interface SendEmailResult {
@@ -104,9 +106,19 @@ function getDefaultFrom(siteId?: string): string {
 export async function sendEmail(
   options: SendEmailOptions
 ): Promise<SendEmailResult> {
-  const { to, subject, html, plainText, replyTo } = options;
+  let { to, subject, html, plainText, replyTo } = options;
   const from = options.from || getDefaultFrom();
   const recipients = Array.isArray(to) ? to : [to];
+
+  // Apply merge-tag personalization if context provided
+  if (options.mergeTagContext) {
+    const { applyMergeTags } = await import("./personalization");
+    html = applyMergeTags(html, options.mergeTagContext);
+    subject = applyMergeTags(subject, options.mergeTagContext);
+    if (plainText) {
+      plainText = applyMergeTags(plainText, options.mergeTagContext);
+    }
+  }
 
   if (recipients.length === 0) {
     return { success: false, error: "No recipients specified" };

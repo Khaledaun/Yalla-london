@@ -1048,6 +1048,8 @@ model Subscriber {
   id                    String      @id @default(cuid())
   site_id               String?     // Multi-tenant scoping
   email                 String
+  first_name            String?     // For email personalization (merge tags)
+  last_name             String?     // For email personalization (merge tags)
   status                SubscriberStatus @default(PENDING)
   source                String?     // exit_intent, newsletter_signup, content_gate
   preferences_json      Json?       // Newsletter preferences, frequency, topics

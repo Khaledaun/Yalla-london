@@ -31,6 +31,9 @@
     "app/api/cron/**/*.ts": {
       "maxDuration": 60
     },
+    "app/api/cron/content-builder/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/content-builder-create/**/*.ts": {
       "maxDuration": 300
     },
@@ -131,11 +134,11 @@
     },
     {
       "path": "/api/cron/content-builder-create",
-      "schedule": "7,37 * * * *"
+      "schedule": "7 */1 * * *"
     },
     {
       "path": "/api/cron/content-selector",
-      "schedule": "0 9,13,17,21 * * *"
+      "schedule": "0 7,9,11,13,15,17,19,21 * * *"
     },
     {
       "path": "/api/cron/affiliate-injection",
@@ -144,6 +147,10 @@
     {
       "path": "/api/cron/scheduled-publish",
       "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "15 12 * * *"
     },
     {
       "path": "/api/cron/seo-agent",

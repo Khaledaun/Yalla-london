@@ -573,8 +573,38 @@ export async function promoteToBlogPost(
     try {
       pairedDraft = await prisma.articleDraft.findUnique({ where: { id: pairedDraftId } });
       if (pairedDraft && !(pairedDraft.assembled_html as string)) {
-        console.log(`[content-selector] Paired draft ${pairedDraftId} has no assembled HTML yet — publishing single-language`);
-        pairedDraft = null;
+        // ── ARABIC PUBLISHING FIX ──
+        // Instead of immediately publishing EN-only when AR pair isn't ready,
+        // check if the AR draft is still advancing. If it's still in the pipeline
+        // (not rejected/stuck), WAIT for it — revert EN to reservoir and let the
+        // next content-selector run try again once AR catches up.
+        // This prevents publishing articles with empty content_ar.
+        const arPhase = pairedDraft.current_phase as string;
+        const arAttempts = (pairedDraft.phase_attempts as number) || 0;
+        const arError = (pairedDraft.last_error as string) || "";
+        const arIsRejected = arPhase === "rejected";
+        const arIsStuck = arAttempts >= 5 || arError.includes("MAX_RECOVERIES_EXCEEDED");
+        const arUpdatedAt = pairedDraft.updated_at ? new Date(pairedDraft.updated_at as string).getTime() : 0;
+        const arStaleHours = (Date.now() - arUpdatedAt) / (1000 * 60 * 60);
+        const arIsAbandoned = arStaleHours > 48; // Not touched in 2 days
+
+        if (arIsRejected || arIsStuck || arIsAbandoned) {
+          // AR is permanently failed — proceed with EN-only publication
+          console.log(`[content-selector] Paired AR draft ${pairedDraftId} is ${arIsRejected ? 'rejected' : arIsStuck ? 'stuck (5+ attempts)' : 'abandoned (48h+)'} — publishing EN-only`);
+          pairedDraft = null;
+        } else {
+          // AR is still advancing — DON'T publish EN yet, wait for AR to catch up
+          console.log(`[content-selector] Paired AR draft ${pairedDraftId} still in pipeline (phase: ${arPhase}, attempts: ${arAttempts}) — deferring EN publication to wait for bilingual pair`);
+          await prisma.articleDraft.update({
+            where: { id: draft.id as string },
+            data: {
+              current_phase: "reservoir",
+              last_error: `Waiting for paired AR draft (phase: ${arPhase}) — will publish together`,
+              updated_at: new Date(),
+            },
+          }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
+          return null;
+        }
       }
     } catch (pairErr) {
       console.warn(`[select-runner] Failed to fetch paired draft ${pairedDraftId}:`, pairErr instanceof Error ? pairErr.message : pairErr);

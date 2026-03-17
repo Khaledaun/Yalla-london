@@ -197,7 +197,14 @@ export function generateBrandedTemplate(
     "brochure": () => brochureTemplate(brand, isRTL),
   };
 
-  return generators[category]();
+  const generator = generators[category];
+  if (!generator) {
+    // Fallback to travel-guide template for unsupported categories (e.g. "email")
+    console.warn(`[brand-design-system] Unknown template category "${category}", falling back to travel-guide`);
+    return generators["travel-guide"]();
+  }
+
+  return generator();
 }
 
 /**

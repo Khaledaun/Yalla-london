@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import {
   AdminCard,
@@ -908,6 +907,54 @@ function TemplateCard({
 }) {
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editSubject, setEditSubject] = useState(template.subject || "");
+  const [editHtml, setEditHtml] = useState("");
+  const [isLoadingHtml, setIsLoadingHtml] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleOpenEditor = async () => {
+    setIsLoadingHtml(true);
+    setShowEditor(true);
+    try {
+      const res = await fetch(`/api/admin/email-templates?search=${encodeURIComponent(template.name)}&site=${template.siteId}`);
+      const data = res.ok ? await res.json() : null;
+      const found = data?.templates?.find((t: Record<string, unknown>) => t.id === template.id);
+      setEditHtml(found?.htmlContent || "");
+      setEditSubject(found?.subject || template.subject || "");
+    } catch {
+      toast.error("Failed to load template content");
+    } finally {
+      setIsLoadingHtml(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/admin/email-templates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: template.id,
+          subject: editSubject,
+          htmlContent: editHtml,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Template saved");
+        setShowEditor(false);
+        onDuplicated(); // reload list
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || "Failed to save template");
+      }
+    } catch {
+      toast.error("Failed to save template");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDuplicate = async () => {
     setIsDuplicating(true);
@@ -1048,12 +1095,12 @@ function TemplateCard({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/admin/design-studio?type=email&id=${template.id}`} className="flex-1">
-            <AdminButton variant="secondary" size="sm" className="w-full">
+          <div className="flex-1">
+            <AdminButton variant="secondary" size="sm" className="w-full" onClick={handleOpenEditor}>
               <Edit size={12} />
               Edit
             </AdminButton>
-          </Link>
+          </div>
           <AdminButton
             variant="ghost"
             size="sm"
@@ -1072,6 +1119,123 @@ function TemplateCard({
           </AdminButton>
         </div>
       </div>
+
+      {/* Inline Template Editor Modal */}
+      {showEditor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(28,25,23,0.5)" }}
+          onClick={() => setShowEditor(false)}
+        >
+          <div
+            className="admin-card-elevated w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    color: "#1C1917",
+                  }}
+                >
+                  Edit: {template.name}
+                </h2>
+                <AdminButton variant="ghost" size="sm" onClick={() => setShowEditor(false)}>
+                  <RefreshCw size={12} />
+                </AdminButton>
+              </div>
+
+              {isLoadingHtml ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="animate-spin" size={24} color="#78716C" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Subject Line */}
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: "var(--font-system)",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        color: "#78716C",
+                      }}
+                    >
+                      Subject Line
+                    </label>
+                    <input
+                      type="text"
+                      value={editSubject}
+                      onChange={(e) => setEditSubject(e.target.value)}
+                      placeholder="Email subject line"
+                      className="admin-input mt-1.5"
+                    />
+                  </div>
+
+                  {/* Merge Tags Helper */}
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      background: "rgba(59,126,161,0.06)",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontFamily: "var(--font-system)",
+                      color: "#3B7EA1",
+                    }}
+                  >
+                    <strong>Merge tags:</strong>{" "}
+                    {"{{first_name}} {{last_name}} {{full_name}} {{email}} {{site_name}} {{unsubscribe_url}} {{current_year}}"}
+                  </div>
+
+                  {/* HTML Content */}
+                  <div>
+                    <label
+                      style={{
+                        fontFamily: "var(--font-system)",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        color: "#78716C",
+                      }}
+                    >
+                      HTML Content
+                    </label>
+                    <textarea
+                      value={editHtml}
+                      onChange={(e) => setEditHtml(e.target.value)}
+                      rows={16}
+                      className="admin-input mt-1.5 font-mono"
+                      style={{ resize: "vertical", fontSize: 11, lineHeight: 1.5 }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-6">
+                <AdminButton variant="ghost" size="sm" onClick={() => setShowEditor(false)}>
+                  Cancel
+                </AdminButton>
+                <AdminButton
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSaveTemplate}
+                  loading={isSaving}
+                  disabled={isLoadingHtml}
+                >
+                  <CheckCircle size={13} />
+                  Save Template
+                </AdminButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminCard>
   );
 }

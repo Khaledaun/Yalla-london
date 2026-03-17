@@ -248,6 +248,85 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 
 **New cron needed:** `design-auto-generate` — auto-creates social assets when new article publishes (slot: 12:00 UTC)
 
+#### B.1.1: Canva Connect API Integration
+
+**Goal:** Connect Canva's design platform so the system can programmatically create, brand, and export social graphics, article thumbnails, OG images, PDF covers, and Etsy product mockups — all per-site branded.
+
+**Why Canva over DALL-E/Midjourney alone:**
+- DALL-E/Midjourney generate raw images — but branded social posts need text overlays, logos, consistent layouts, brand colors
+- Canva Connect API provides: template-based design creation, brand kit enforcement, text/image replacement, batch export
+- Canva handles the "last mile" that raw AI images can't: typography, layout, multi-format export (story, post, carousel, cover)
+- Khaled already knows Canva — zero learning curve for reviewing/tweaking designs
+
+**Canva Connect API capabilities to integrate:**
+
+|Capability|API Endpoint|Platform Use Case|Priority|
+|----------|-----------|----------------|--------|
+|**Create design from template**|`POST /designs`|Social post from article → branded Instagram/Twitter/LinkedIn card|P0|
+|**Brand Kit enforcement**|Brand Kit API|Auto-apply per-site colors, fonts, logos to every design|P0|
+|**Autofill text/images**|Autofill API|Replace template placeholders with article title, hero image, CTA|P0|
+|**Export to image**|`POST /designs/{id}/exports`|PNG/JPG for social posts, OG images, thumbnails|P0|
+|**Export to PDF**|`POST /designs/{id}/exports`|PDF lead magnets, travel guides, brand one-pagers|P1|
+|**Asset upload**|Asset Upload API|Push AI-generated photos (DALL-E) into Canva for template use|P1|
+|**Template library**|`GET /brand-templates`|List available templates per brand kit — show in admin UI|P1|
+|**Folder management**|Folder API|Organize exports by site, content type, campaign|P2|
+|**Design comments**|Comments API|Khaled reviews designs with comments from iPhone|P2|
+
+**Integration architecture:**
+
+```
+Article Published (BlogPost)
+    ↓
+design-auto-generate cron (12:00 UTC)
+    ↓
+1. Fetch article: title, hero image, excerpt, site brand
+2. Select Canva template (by content type + platform)
+3. Canva Autofill API: inject title, image, brand colors
+4. Canva Export API: PNG for social, JPG for OG, PDF for guide
+5. Store exports in Media Library (S3 + DB)
+6. Auto-attach to social posts (Social Calendar)
+7. Auto-set as OG image on BlogPost
+    ↓
+Dashboard: Khaled sees generated designs, can open in Canva to tweak
+```
+
+**Per-site Canva Brand Kits:**
+
+|Site|Brand Kit|Primary Colors|Logo|
+|----|---------|-------------|-----|
+|Yalla London|`yl-brand-kit`|Navy #0A1628, Red #C8322B, Gold #C49A2A|Yalla stamp|
+|Arabaldives|`arab-brand-kit`|Turquoise #0D9488, Coral #F97316|Arabaldives mark|
+|Yalla Riviera|`yr-brand-kit`|Mediterranean navy, Champagne gold, Lavender|YR mark|
+|Yalla Istanbul|`yi-brand-kit`|Burgundy, Copper|YI mark|
+|Yalla Thailand|`yt-brand-kit`|Emerald #059669, Golden amber|YT mark|
+|Zenitha Yachts|`zy-brand-kit`|Navy, Gold, Aegean blue|ZY mark|
+
+**Env vars needed:**
+```
+CANVA_API_KEY=your-canva-connect-api-key
+CANVA_BRAND_KIT_ID_YALLA_LONDON=kit-id
+CANVA_BRAND_KIT_ID_ARABALDIVES=kit-id
+CANVA_BRAND_KIT_ID_YALLA_RIVIERA=kit-id
+CANVA_BRAND_KIT_ID_YALLA_ISTANBUL=kit-id
+CANVA_BRAND_KIT_ID_YALLA_THAILAND=kit-id
+CANVA_BRAND_KIT_ID_ZENITHA_YACHTS=kit-id
+```
+
+**Files to create:**
+- `lib/design/canva-client.ts` — API client with rate limiting, circuit breaker, retry
+- `lib/design/canva-templates.ts` — Template registry mapping content types to Canva template IDs
+- `lib/design/auto-design.ts` — Orchestrator: article → template selection → autofill → export → store
+- `app/api/admin/canva/route.ts` — Admin API: list templates, preview designs, trigger generation
+- `app/api/cron/design-auto-generate/route.ts` — Cron: auto-create designs for new articles
+
+**Canva Connect API access:** Requires Canva developer account at https://www.canva.com/developers/ — apply for Connect API access (free tier available for development, production requires approval).
+
+**Relationship to existing design tools:**
+- Konva canvas editor: KEEP — for quick in-browser edits, canvas-based design
+- Canva: ADD — for template-based branded content at scale
+- DALL-E: ADD — for raw AI image generation (feeds INTO Canva templates as asset)
+- Flow: DALL-E generates hero image → uploaded to Canva → Canva template adds text/branding → export
+
 ### B.2: PDF System Completion
 
 **Goal:** Professional PDF lead magnets for email capture, downloadable guides per site.
@@ -332,6 +411,105 @@ Content pipeline (topics → 8-phase → reservoir → BlogPost bilingual with a
 |UTM tracking          |❌ Not built                                |Track which social posts / emails drive affiliate clicks            |
 
 **New cron needed:** `email-digest` — weekly subscriber digest (slot: 14:00 UTC Sunday)
+
+#### B.6.1: Email Marketing System — Resend (Chosen Provider)
+
+**Decision: Resend is the primary email marketing provider.** Reasons:
+- Best developer experience (REST API, React Email templates, webhooks)
+- Generous free tier (100 emails/day, 3,000/month) — enough for launch
+- Pro plan $20/month for 50K emails when needed
+- Native Next.js/React integration (can render React components as email HTML)
+- Domain verification supports all 6 sites
+- Webhook events: delivered, opened, clicked, bounced, complained — feeds dashboard
+
+**NOT using Mailchimp/ConvertKit/SendGrid for marketing** — those are heavyweight platforms designed for manual marketers. Resend + our existing email builder + subscriber cron = same functionality, fully automated, no external dashboard dependency. Khaled never has to leave the cockpit.
+
+**Email flow architecture:**
+
+```
+SUBSCRIBER ACQUISITION:
+  Website footer form → POST /api/newsletter/subscribe
+      ↓
+  Resend: add to audience → send welcome email (bilingual EN/AR)
+      ↓
+  Subscriber record in DB (status: confirmed, siteId, language, interests)
+
+AUTOMATED SEQUENCES:
+  Welcome (Day 0): "Thanks for subscribing — here's our best content"
+  Day 3: Top 3 articles for their interests
+  Day 7: "Your weekly {site} digest"
+  Ongoing: Weekly digest every Sunday 14:00 UTC
+
+TRIGGER-BASED:
+  New article published → notify subscribers interested in that category
+  Deal alert → subscribers who opted into deal notifications
+  Content milestone → "We just published our 100th article"
+
+REVENUE:
+  Every email includes 2+ affiliate links (matching article content)
+  UTM tracking: ?utm_source=email&utm_medium=digest&utm_campaign={week}
+  CJ SID: email_{siteId}_{articleSlug}
+```
+
+**Env vars needed:**
+```
+RESEND_API_KEY=re_xxxxxxxxxxxxx
+RESEND_AUDIENCE_ID_YALLA_LONDON=aud_xxxxx
+RESEND_WEBHOOK_SECRET=whsec_xxxxx
+```
+
+**Files to create/modify:**
+- `lib/email/resend-client.ts` — NEW: Resend API client (audiences, contacts, broadcasts, webhooks)
+- `lib/email/sender.ts` — MODIFY: Resend is already priority #1 provider, just needs API key
+- `app/api/webhooks/resend/route.ts` — NEW: Webhook handler for delivery/open/click/bounce events
+- `app/api/cron/email-digest/route.ts` — NEW: Weekly digest cron (Sunday 14:00 UTC)
+- `lib/email/templates/` — NEW: React Email templates (welcome, digest, deal-alert, milestone)
+
+#### B.6.2: Google Workspace Connection for Agent Use
+
+**Current state:** Google Workspace is on `zenitha.luxury` domain. Primary domain changed from `worldtme.com` → `zenitha.luxury` (Feb 2026). The account `admin@zenitha.luxury` is an **Outlook inbox** (NOT Gmail). The Google Workspace admin is `aunk.adv@gmail.com`.
+
+**What agents need Google for:**
+
+|Capability|Google Service|Current Status|What's Needed|
+|----------|-------------|-------------|-------------|
+|**See analytics**|GA4 Data API|✅ CONNECTED|Nothing — working via service account|
+|**See search data**|GSC API|✅ CONNECTED|Nothing — working via service account|
+|**Send transactional email**|Gmail API or SMTP relay|❌ NOT CONNECTED|See options below|
+|**Send marketing email**|N/A — use Resend|✅ DECIDED|Resend handles all marketing email|
+|**Read/manage calendar**|Google Calendar API|❌ NOT CONNECTED|OAuth2 + Calendar scope|
+|**Store/share files**|Google Drive API|❌ NOT CONNECTED|OAuth2 + Drive scope|
+|**Sync data to sheets**|Google Sheets API|❌ NOT CONNECTED|OAuth2 + Sheets scope|
+
+**Best approach for Google agent access:**
+
+**Option A (RECOMMENDED): Service Account with Domain-Wide Delegation**
+- Uses the EXISTING service account (already has GA4 + GSC access)
+- Grant domain-wide delegation in Google Workspace Admin Console
+- Service account can then impersonate `admin@zenitha.luxury` for Gmail, Calendar, Drive
+- No OAuth2 flow needed — just add scopes to the existing service account
+- Steps:
+  1. Google Cloud Console → IAM → Service Account → Enable domain-wide delegation
+  2. Google Workspace Admin → Security → API Controls → Domain-wide delegation
+  3. Add client ID of service account + scopes: `gmail.send`, `calendar`, `drive.file`
+  4. Service account can now act as `admin@zenitha.luxury` for those services
+
+**Option B: OAuth2 with Refresh Token (for personal Google account)**
+- Only if Khaled wants to use `khaled.aun@gmail.com` or `aunk.adv@gmail.com` directly
+- Requires one-time OAuth2 consent flow → refresh token → store in env var
+- More complex, token can expire
+
+**Option C: Google Workspace SMTP Relay (email only)**
+- Configure SMTP relay in Workspace Admin → Apps → Google Workspace → Gmail → Routing
+- Use `SMTP_HOST=smtp-relay.gmail.com`, `SMTP_PORT=587`
+- Our existing `lib/email/sender.ts` SMTP provider handles this natively
+- Only covers email sending, not Calendar/Drive/Sheets
+
+**Recommended setup order:**
+1. **Email sending:** Use Resend (already built, just add API key) — DON'T complicate with Gmail API
+2. **Calendar sync:** Service account delegation (when needed for content calendar sync)
+3. **Drive storage:** Service account delegation (when needed for brand asset management)
+4. **Sheets sync:** Service account delegation (when needed for revenue reporting)
 
 ### B.7: Business Intelligence Layer
 

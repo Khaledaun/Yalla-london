@@ -1209,7 +1209,9 @@ export async function promoteToBlogPost(
         ...missingLanguageTags,
         site.destination.toLowerCase(),
       ];
-      return allTags.filter(t => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
+      // Keep "missing-arabic" and "missing-english" tags — content-auto-fix uses them
+      // to identify articles needing Arabic/English backfill. Only filter internal pipeline tags.
+      return allTags.filter(t => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-"));
     })(),
     published: true,
     featured_image: featuredImage,

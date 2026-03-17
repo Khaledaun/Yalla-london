@@ -13,6 +13,8 @@ import { logManualAction } from "@/lib/action-logger";
 interface ProviderStatus {
   active: boolean;
   activeProvider: "resend" | "sendgrid" | "smtp" | null;
+  domainVerified: boolean;
+  sendingFrom: string;
   providers: {
     resend: { configured: boolean; envKey: string };
     sendgrid: { configured: boolean; envKey: string };
@@ -39,6 +41,8 @@ function buildProviderStatus(): ProviderStatus {
 
   const active = activeProvider !== null;
 
+  const resendDomainVerified = Boolean(process.env.RESEND_DOMAIN_VERIFIED);
+
   let setupInstructions =
     "Email is configured and ready to send. No action needed.";
   if (!active) {
@@ -49,11 +53,22 @@ function buildProviderStatus(): ProviderStatus {
       "SENDGRID_API_KEY (sendgrid.com), " +
       "or all three of SMTP_HOST + SMTP_USER + SMTP_PASS for a custom SMTP server. " +
       "Redeploy after adding the variable.";
+  } else if (resendConfigured && !resendDomainVerified) {
+    setupInstructions =
+      "Resend API key is set — test emails work using onboarding@resend.dev. " +
+      "To send from your own domain: (1) Go to resend.com → Domains → Add Domain → enter yalla-london.com, " +
+      "(2) Add the DNS records Resend gives you in Cloudflare, " +
+      "(3) Once verified, add EMAIL_FROM=Yalla London <info@yalla-london.com> and RESEND_DOMAIN_VERIFIED=true in Vercel env vars, " +
+      "(4) Redeploy.";
   }
 
   return {
     active,
     activeProvider,
+    domainVerified: resendConfigured ? resendDomainVerified : true,
+    sendingFrom: resendConfigured && !resendDomainVerified
+      ? "onboarding@resend.dev (Resend sandbox — test only)"
+      : process.env.EMAIL_FROM || `info@yalla-london.com`,
     providers: {
       resend: { configured: resendConfigured, envKey: "RESEND_API_KEY" },
       sendgrid: { configured: sendgridConfigured, envKey: "SENDGRID_API_KEY" },

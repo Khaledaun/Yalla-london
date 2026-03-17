@@ -66,6 +66,14 @@ function detectProvider(): ProviderName {
 function getDefaultFrom(): string {
   if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
 
+  // If using Resend and no custom domain is verified yet, use their sandbox address.
+  // This lets test emails work immediately after adding RESEND_API_KEY.
+  // Once you verify yalla-london.com in Resend dashboard → Domains, set EMAIL_FROM
+  // to "Yalla London <info@yalla-london.com>" in Vercel env vars.
+  if (process.env.RESEND_API_KEY && !process.env.RESEND_DOMAIN_VERIFIED) {
+    return "Yalla London <onboarding@resend.dev>";
+  }
+
   try {
     // Use site.domain directly (e.g. "yalla-london.com") — NOT getSiteDomain()
     // which returns a full URL like "https://www.yalla-london.com"

@@ -67,13 +67,16 @@ function getDefaultFrom(): string {
   if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
 
   try {
-    // Dynamic import to avoid circular dependency issues at module scope
-    const { getDefaultSiteId, getSiteDomain } = require("@/config/sites");
-    const domain = getSiteDomain(getDefaultSiteId());
-    return `info@${domain}`;
+    // Use site.domain directly (e.g. "yalla-london.com") — NOT getSiteDomain()
+    // which returns a full URL like "https://www.yalla-london.com"
+    const { getDefaultSiteId, SITES } = require("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const site = SITES[siteId];
+    const domain = site?.domain || "zenitha.luxury";
+    return `Yalla London <info@${domain}>`;
   } catch (err) {
     console.warn("[email:sender] Could not resolve default site domain for FROM address:", err instanceof Error ? err.message : err);
-    return "info@zenitha.luxury";
+    return "Zenitha <info@zenitha.luxury>";
   }
 }
 

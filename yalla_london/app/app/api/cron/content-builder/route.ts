@@ -31,6 +31,51 @@ async function handleContentBuilder(request: NextRequest) {
   const flagResponse = await checkCronEnabled("content-builder");
   if (flagResponse) return flagResponse;
 
+  // ── Pipeline Circuit Breaker (Fix 6) ──
+  // If content-builder success rate drops below 30% over the last 4 hours,
+  // auto-pause to prevent wasting AI budget on a broken pipeline.
+  try {
+    const { prisma: _p } = await import("@/lib/db");
+    const { ESCALATION_POLICY } = await import("@/lib/content-pipeline/constants");
+    const windowStart = new Date(Date.now() - ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS * 3600_000);
+    const recentRuns = await _p.cronJobLog.findMany({
+      where: {
+        job_name: "content-builder",
+        started_at: { gte: windowStart },
+        status: { not: "skipped" },
+        result_summary: { not: { equals: {} } }, // Exclude empty markers
+      },
+      select: { status: true },
+      take: 20,
+    });
+
+    if (recentRuns.length >= 5) {
+      const successCount = recentRuns.filter(r => r.status === "completed").length;
+      const successRate = successCount / recentRuns.length;
+      if (successRate < ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE) {
+        console.warn(
+          `[content-builder] Pipeline auto-paused — success rate ${(successRate * 100).toFixed(0)}% ` +
+          `(${successCount}/${recentRuns.length}) over last ${ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS}h ` +
+          `is below ${(ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE * 100).toFixed(0)}% threshold`
+        );
+        // Send single CEO alert about the pause
+        import("@/lib/ops/ceo-inbox").then(m =>
+          m.handleCronFailureNotice("content-builder", `Pipeline auto-paused: ${(successRate * 100).toFixed(0)}% success rate`)
+        ).catch(err => console.warn("[content-builder] CEO alert failed:", err instanceof Error ? err.message : err));
+
+        return NextResponse.json({
+          status: "auto-paused",
+          reason: `Success rate ${(successRate * 100).toFixed(0)}% < ${(ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE * 100).toFixed(0)}% threshold`,
+          successRate,
+          window: `${ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS}h`,
+          runs: recentRuns.length,
+        });
+      }
+    }
+  } catch (cbErr) {
+    console.warn("[content-builder] Circuit breaker check failed (non-fatal):", cbErr instanceof Error ? cbErr.message : cbErr);
+  }
+
   // Healthcheck mode
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     try {

@@ -1295,6 +1295,36 @@ test("Hardening", "Article trace endpoint exists", () => {
     : { status: FAIL, details: `auth: ${hasAuth}, traceQuery: ${hasTraceQuery}` };
 });
 
+test("Hardening", "Enhancement ownership enforced in crons", () => {
+  const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasOwners = constants.includes("ENHANCEMENT_OWNERS") && constants.includes("internal_links") && constants.includes("seo-agent");
+  const helper = fs.existsSync(path.join(APP_DIR, "lib/db/enhancement-log.ts"));
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const wired = seoAgent.includes("isEnhancementOwner") && injection.includes("isEnhancementOwner");
+  return hasOwners && helper && wired
+    ? { status: PASS, details: "ENHANCEMENT_OWNERS map + isEnhancementOwner checks in seo-agent + affiliate-injection" }
+    : { status: FAIL, details: `owners: ${hasOwners}, helper: ${helper}, wired: ${wired}` };
+});
+
+test("Hardening", "Pipeline circuit breaker in content-builder", () => {
+  const builder = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-builder/route.ts"), "utf-8");
+  const hasBreaker = builder.includes("ESCALATION_POLICY") && builder.includes("auto-paused") && builder.includes("PIPELINE_MIN_SUCCESS_RATE");
+  const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasPolicy = constants.includes("ESCALATION_POLICY") && constants.includes("MAX_DAILY_CEO_ALERTS");
+  return hasBreaker && hasPolicy
+    ? { status: PASS, details: "Pipeline auto-pause at <30% success rate + ESCALATION_POLICY in constants" }
+    : { status: FAIL, details: `breaker: ${hasBreaker}, policy: ${hasPolicy}` };
+});
+
+test("Hardening", "CEO Inbox daily alert limit enforced", () => {
+  const inbox = fs.readFileSync(path.join(APP_DIR, "lib/ops/ceo-inbox.ts"), "utf-8");
+  const hasLimit = inbox.includes("MAX_DAILY_CEO_ALERTS") && inbox.includes("ALERT_COOLDOWN_MINUTES");
+  return hasLimit
+    ? { status: PASS, details: "Daily alert cap + per-job cooldown window in CEO Inbox" }
+    : { status: FAIL, details: `alertLimit: ${hasLimit}` };
+});
+
 test("Hardening", "Optimistic concurrency rejects stale writes", () => {
   const lib = fs.readFileSync(path.join(APP_DIR, "lib/db/optimistic-update.ts"), "utf-8");
   const hasVersionCheck = lib.includes("updated_at: post.updated_at") && lib.includes("updateMany");

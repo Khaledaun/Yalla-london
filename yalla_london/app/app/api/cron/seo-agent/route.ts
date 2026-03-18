@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 53_000; // Standard Vercel Pro 60s budget with 7s buffer (used as fallback guard)
 
@@ -221,7 +222,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
-    if (hasBudget(5_000)) {
+    if (hasBudget(5_000) && isEnhancementOwner("seo-agent", "schema_markup")) {
     try {
       const { enhancedSchemaInjector } = await import(
         "@/lib/seo/enhanced-schema-injector"
@@ -302,6 +303,10 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           return enInternalLinks < 3 || arInternalLinks < 3;
         });
 
+        if (!isEnhancementOwner("seo-agent", "internal_links")) {
+          console.warn("[seo-agent] Skipping internal link injection — not the enhancement owner");
+        } else {
+
         let linksInjected = 0;
         const publishedSlugs = postsWithFewLinks
           .filter((p: { slug: string | null }) => p.slug)
@@ -333,6 +338,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             try {
               await optimisticBlogPostUpdate(post.id, (current) => ({
                 content_en: current.content_en + relatedSection,
+                enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "internal_links", "seo-agent", `Injected related articles section`),
               }), { tag: "[seo-agent]" });
               linksInjected++;
             } catch (e) {
@@ -366,12 +372,15 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           try {
             await optimisticBlogPostUpdate(post.id, (current) => ({
               content_ar: current.content_ar + arRelatedSection,
+              enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "internal_links", "seo-agent", `Injected Arabic related articles section`),
             }), { tag: "[seo-agent]" });
             arLinksInjected++;
           } catch (e) {
             console.warn(`[seo-agent] Arabic internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
           }
         }
+
+        } // end isEnhancementOwner("seo-agent", "internal_links")
 
         if (linksInjected > 0 || arLinksInjected > 0) {
           fixes.push(`Injected internal link sections into ${linksInjected} EN + ${arLinksInjected} AR posts with < 3 links`);
@@ -1049,6 +1058,8 @@ async function autoFixSEOIssues(
   const fixedCount = { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
   const blogSiteFilter = siteId ? { siteId } : {};
 
+  // Meta optimization is NOT owned by seo-agent — it's owned by seo-deep-review.
+  // seo-agent only generates MISSING meta (not rewrites). This is a different enhancement type.
   // ── Fix 1 + 2: Missing meta titles OR descriptions ─────────────────────────
   try {
     const postsWithoutMeta = await prisma.blogPost.findMany({

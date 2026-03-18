@@ -13,6 +13,7 @@
  */
 
 import { interpretError, type InterpretedError } from "@/lib/error-interpreter";
+import { ESCALATION_POLICY } from "@/lib/content-pipeline/constants";
 
 // ─── Fix Strategy Mapping ──────────────────────────────────────────────────
 
@@ -120,6 +121,46 @@ export async function handleCronFailureNotice(
     const { prisma } = await import("@/lib/db");
     const diagnosis = interpretError(errorMsg);
     const fixStrategy = getFixStrategy(jobName);
+
+    // ── Escalation Policy: daily alert limit ──
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayAlertCount = await prisma.cronJobLog.count({
+      where: {
+        job_name: "ceo-inbox",
+        job_type: "alert",
+        started_at: { gte: todayStart },
+      },
+    });
+
+    if (todayAlertCount >= ESCALATION_POLICY.MAX_DAILY_CEO_ALERTS) {
+      console.log(
+        `[ceo-inbox] Daily alert limit reached (${todayAlertCount}/${ESCALATION_POLICY.MAX_DAILY_CEO_ALERTS}). ` +
+        `Batching "${jobName}" failure into digest instead of new alert.`
+      );
+      // Still attempt auto-fix, just don't create another alert
+      if (fixStrategy) {
+        await attemptAutoFix(jobName, fixStrategy, baseUrl).catch(
+          (err) => console.warn("[ceo-inbox] Silent auto-fix failed:", err instanceof Error ? err.message : err)
+        );
+      }
+      return null;
+    }
+
+    // ── Escalation Policy: cooldown check for same job ──
+    const cooldownTime = new Date(Date.now() - ESCALATION_POLICY.ALERT_COOLDOWN_MINUTES * 60_000);
+    const recentSameJob = await prisma.cronJobLog.count({
+      where: {
+        job_name: "ceo-inbox",
+        job_type: "alert",
+        started_at: { gte: cooldownTime },
+        error_message: { startsWith: `[${jobName}]` },
+      },
+    });
+    if (recentSameJob > 0) {
+      console.log(`[ceo-inbox] Cooldown active for "${jobName}" — skipping duplicate alert (${ESCALATION_POLICY.ALERT_COOLDOWN_MINUTES}min window)`);
+      return null;
+    }
 
     // 1. Create inbox alert entry
     const entry = await prisma.cronJobLog.create({

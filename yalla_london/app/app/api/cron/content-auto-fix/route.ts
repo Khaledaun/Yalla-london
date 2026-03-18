@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { CONTENT_QUALITY } from "@/lib/seo/standards";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
 const MIN_WORD_COUNT = 1000;
@@ -213,7 +214,7 @@ async function handleAutoFix(request: NextRequest) {
   // ── 7. BROKEN INTERNAL LINK CLEANUP — fix ALL broken /blog/ links in published content ──
   // Catches both TOPIC_SLUG (uppercase) AND AI-hallucinated slugs (lowercase fake slugs
   // like "top-halal-restaurants-in-central-london" that point to non-existent articles).
-  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+  if (Date.now() - cronStart < BUDGET_MS - 5_000 && isEnhancementOwner("content-auto-fix", "broken_links")) {
     try {
       // Build a Set of all real published slugs for O(1) lookup
       const realPosts = await prisma.blogPost.findMany({
@@ -282,9 +283,10 @@ async function handleAutoFix(request: NextRequest) {
           if (enChanged) updateData.content_en = fixedEn;
           if (arChanged) updateData.content_ar = fixedAr;
           await optimisticBlogPostUpdate(post.id, (current) => {
-            const result: Record<string, string> = {};
+            const result: Record<string, unknown> = {};
             if (enChanged) result.content_en = fixBrokenLinks(current.content_en || "");
             if (arChanged) result.content_ar = fixBrokenLinks(current.content_ar || "");
+            result.enhancement_log = buildEnhancementLogEntry(current.enhancement_log, "broken_links", "content-auto-fix", `Fixed broken internal links`);
             return result;
           }, { tag: "[content-auto-fix]" });
           brokenLinksFixed++;

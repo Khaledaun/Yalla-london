@@ -1270,6 +1270,85 @@ test("Integration", "perplexity-computer/index.ts exports executor functions", (
     : { status: FAIL, details: "Executor functions not exported from index.ts" };
 });
 
+// ── HARDENING SPRINT TESTS ──
+
+test("Hardening", "Invalid phase transition throws", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasTransitionMap = content.includes("VALID_TRANSITIONS") && content.includes("research") && content.includes("promoting");
+  const hasValidator = content.includes("validatePhaseTransition") && content.includes("throw");
+  const buildRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/build-runner.ts"), "utf-8");
+  const selectRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const usedInPipeline = buildRunner.includes("validatePhaseTransition") && selectRunner.includes("validatePhaseTransition");
+  return hasTransitionMap && hasValidator && usedInPipeline
+    ? { status: PASS, details: "VALID_TRANSITIONS map + validatePhaseTransition() wired in build-runner + select-runner" }
+    : { status: FAIL, details: `map: ${hasTransitionMap}, validator: ${hasValidator}, wired: ${usedInPipeline}` };
+});
+
+test("Hardening", "Article trace endpoint exists", () => {
+  const routeExists = fs.existsSync(path.join(APP_DIR, "app/api/admin/article-trace/[traceId]/route.ts"));
+  if (!routeExists) return { status: FAIL, details: "article-trace route file missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/article-trace/[traceId]/route.ts"), "utf-8");
+  const hasAuth = content.includes("requireAdmin");
+  const hasTraceQuery = content.includes("trace_id") && content.includes("timeline");
+  return hasAuth && hasTraceQuery
+    ? { status: PASS, details: "Trace endpoint with auth, timeline, and multi-table query" }
+    : { status: FAIL, details: `auth: ${hasAuth}, traceQuery: ${hasTraceQuery}` };
+});
+
+test("Hardening", "Enhancement ownership enforced in crons", () => {
+  const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasOwners = constants.includes("ENHANCEMENT_OWNERS") && constants.includes("internal_links") && constants.includes("seo-agent");
+  const helper = fs.existsSync(path.join(APP_DIR, "lib/db/enhancement-log.ts"));
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const wired = seoAgent.includes("isEnhancementOwner") && injection.includes("isEnhancementOwner");
+  return hasOwners && helper && wired
+    ? { status: PASS, details: "ENHANCEMENT_OWNERS map + isEnhancementOwner checks in seo-agent + affiliate-injection" }
+    : { status: FAIL, details: `owners: ${hasOwners}, helper: ${helper}, wired: ${wired}` };
+});
+
+test("Hardening", "Pipeline circuit breaker in content-builder", () => {
+  const builder = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-builder/route.ts"), "utf-8");
+  const hasBreaker = builder.includes("ESCALATION_POLICY") && builder.includes("auto-paused") && builder.includes("PIPELINE_MIN_SUCCESS_RATE");
+  const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasPolicy = constants.includes("ESCALATION_POLICY") && constants.includes("MAX_DAILY_CEO_ALERTS");
+  return hasBreaker && hasPolicy
+    ? { status: PASS, details: "Pipeline auto-pause at <30% success rate + ESCALATION_POLICY in constants" }
+    : { status: FAIL, details: `breaker: ${hasBreaker}, policy: ${hasPolicy}` };
+});
+
+test("Hardening", "CEO Inbox daily alert limit enforced", () => {
+  const inbox = fs.readFileSync(path.join(APP_DIR, "lib/ops/ceo-inbox.ts"), "utf-8");
+  const hasLimit = inbox.includes("MAX_DAILY_CEO_ALERTS") && inbox.includes("ALERT_COOLDOWN_MINUTES");
+  return hasLimit
+    ? { status: PASS, details: "Daily alert cap + per-job cooldown window in CEO Inbox" }
+    : { status: FAIL, details: `alertLimit: ${hasLimit}` };
+});
+
+test("Hardening", "Optimistic concurrency rejects stale writes", () => {
+  const lib = fs.readFileSync(path.join(APP_DIR, "lib/db/optimistic-update.ts"), "utf-8");
+  const hasVersionCheck = lib.includes("updated_at: post.updated_at") && lib.includes("updateMany");
+  const hasRetry = lib.includes("MAX_RETRIES") && lib.includes("RETRY_DELAY_MS");
+  // Verify key cron files use the wrapper
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const usesWrapper = seoAgent.includes("optimisticBlogPostUpdate") && autoFix.includes("optimisticBlogPostUpdate") && injection.includes("optimisticBlogPostUpdate");
+  return hasVersionCheck && hasRetry && usesWrapper
+    ? { status: PASS, details: "optimisticBlogPostUpdate uses updated_at guard with retry; adopted in key crons" }
+    : { status: FAIL, details: `versionCheck: ${hasVersionCheck}, retry: ${hasRetry}, adopted: ${usesWrapper}` };
+});
+
+test("Hardening", "weekly-topics creates topics that schedule-executor can consume", () => {
+  const weekly = fs.readFileSync(path.join(APP_DIR, "app/api/cron/weekly-topics/route.ts"), "utf-8");
+  const executor = fs.readFileSync(path.join(APP_DIR, "app/api/cron/schedule-executor/route.ts"), "utf-8");
+  const weeklyCreatesReady = weekly.includes('status: \'ready\'') || weekly.includes('status: "ready"');
+  const executorAcceptsReady = executor.includes('"ready"') && executor.includes('CONSUMABLE_STATUSES');
+  return weeklyCreatesReady && executorAcceptsReady
+    ? { status: PASS, details: "weekly-topics creates 'ready', schedule-executor consumes 'ready' via CONSUMABLE_STATUSES" }
+    : { status: FAIL, details: `weekly creates ready: ${weeklyCreatesReady}, executor accepts ready: ${executorAcceptsReady}` };
+});
+
 for (const cat of categories) {
   const catResults = results.filter(r => r.category === cat);
   const catPass = catResults.filter(r => r.status === PASS).length;

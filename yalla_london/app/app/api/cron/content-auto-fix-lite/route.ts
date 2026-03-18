@@ -21,6 +21,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 53_000;
 const META_MAX_CHARS = 155;
@@ -130,7 +132,7 @@ async function handleAutoFixLite(request: NextRequest) {
   }
 
   // ── 2. HEADING HIERARCHY FIX ───────────────────────────────────────────
-  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+  if (Date.now() - cronStart < BUDGET_MS - 3_000 && isEnhancementOwner("content-auto-fix-lite", "heading_hierarchy")) {
     try {
       const recentPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
         where: {
@@ -165,13 +167,13 @@ async function handleAutoFixLite(request: NextRequest) {
         }
 
         if (modified) {
-          const updateData: Record<string, string> = {};
+          const updateData: Record<string, unknown> = {};
           if (h1InEn) updateData.content_en = htmlEn;
           if (h1InAr) updateData.content_ar = htmlAr;
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: updateData,
-          });
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            ...updateData,
+            enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "heading_hierarchy", "content-auto-fix-lite", `Demoted ${(h1InEn ? 1 : 0) + (h1InAr ? 1 : 0)} H1(s) to H2 in ${[h1InEn && "EN", h1InAr && "AR"].filter(Boolean).join("+")}`),
+          }), { tag: "[content-auto-fix-lite]" });
           results.headingsFixed++;
         }
       }
@@ -237,7 +239,7 @@ async function handleAutoFixLite(request: NextRequest) {
           if (arConverted !== post.content_ar) updateData.content_ar = arConverted;
         }
         if (Object.keys(updateData).length > 0) {
-          await prisma.blogPost.update({ where: { id: post.id }, data: updateData });
+          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix-lite]" });
           results.markdownConverted++;
           console.log(`[auto-fix-lite] Converted markdown → HTML for: ${post.slug}`);
         }
@@ -265,10 +267,7 @@ async function handleAutoFixLite(request: NextRequest) {
         if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
 
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: { meta_description_en: trimmed },
-        });
+        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_en: trimmed }), { tag: "[content-auto-fix-lite]" });
         results.metaTrimmedPosts++;
       }
     } catch (err) {
@@ -294,10 +293,7 @@ async function handleAutoFixLite(request: NextRequest) {
         if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
 
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: { meta_description_ar: trimmed },
-        });
+        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_ar: trimmed }), { tag: "[content-auto-fix-lite]" });
         results.metaTrimmedPosts++;
       }
     } catch (err) {
@@ -399,10 +395,7 @@ async function handleAutoFixLite(request: NextRequest) {
         }
 
         if (Object.keys(updates).length > 0) {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: updates,
-          });
+          await optimisticBlogPostUpdate(post.id, () => (updates), { tag: "[content-auto-fix-lite]" });
           results.titleArtifactsCleaned++;
         }
       }

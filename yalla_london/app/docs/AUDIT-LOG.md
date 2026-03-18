@@ -40,6 +40,52 @@
 | 34 | 2026-03-03 | Deep blind spot audit: pre-pub gate, sitemap limits, standards alignment, Math.random | 12 issues | 12 | 0 |
 | 35 | 2026-03-03 | Phase deadlock, cron cleanup, silent catches, hardcoded refs, dead routes | 25 issues | 25 | 0 |
 | 36 | 2026-03-03 | Final verification: empty catches, error leakage, cron timing | 2 issues | 2 | 0 |
+| 37 | 2026-03-18 | 7-Fix Orchestration Hardening Sprint: concurrency, state machine, trace ID, topic alignment, enhancement manifest, escalation policy, source tracking | 7 architectural gaps | 7 | 0 |
+
+---
+
+## Audit #37 — 7-Fix Orchestration Hardening Sprint
+
+**Date:** 2026-03-18
+**Trigger:** Architectural review identifying 7 systemic gaps in pipeline orchestration
+**Scope:** Concurrency control, state machine enforcement, lifecycle tracing, topic alignment, enhancement ownership, escalation policy, pipeline source tracking
+
+### Findings & Fixes
+
+| # | Severity | Area | Issue | Fix |
+|---|----------|------|-------|-----|
+| 1 | CRITICAL | Concurrency | 24 `blogPost.update` calls across 7 cron files had no version check — concurrent crons silently overwrote each other's changes | Created `optimisticBlogPostUpdate()` with `updated_at` guard + 3x retry. Replaced all 24 calls. |
+| 2 | CRITICAL | Pipeline | `schedule-executor` queried `status: "approved"` but `weekly-topics` creates `status: "ready"` — zero topics ever consumed | Changed to `CONSUMABLE_STATUSES = ["ready","queued","planned","proposed"]` |
+| 3 | HIGH | State Machine | No validation on `current_phase` transitions — any phase could transition to any other | Added `VALID_TRANSITIONS` map + `validatePhaseTransition()`. Wired into 10 call sites across 4 files |
+| 4 | HIGH | Tracing | No way to trace an article's full lifecycle from draft to revenue | Added `trace_id` to ArticleDraft + BlogPost. Created `/api/admin/article-trace/[traceId]` querying 5 tables |
+| 5 | MEDIUM | Enhancement Conflicts | Multiple crons modify same BlogPost fields (content, meta) without coordination | Added `ENHANCEMENT_OWNERS` mapping each type to one owning cron + `enhancement_log` field |
+| 6 | MEDIUM | Alert Fatigue | CEO Inbox could generate 50+ alerts/minute during cascading failures | Added `ESCALATION_POLICY`: daily cap (10), per-job cooldown (30min), pipeline circuit breaker (<30% → auto-pause) |
+| 7 | LOW | Visibility | No way to know which pipeline created a BlogPost | Added `source_pipeline` field: "8-phase" or "legacy-direct" |
+
+### New Known Gaps Registered
+
+| KG ID | Description | Status |
+|-------|-------------|--------|
+| KG-059 | No optimistic concurrency on BlogPost writes | **Resolved** |
+| KG-060 | No state machine for phase transitions | **Resolved** |
+| KG-061 | Topic status mismatch (approved vs ready) | **Resolved** |
+| KG-062 | No enhancement ownership tracking | **Resolved** |
+| KG-063 | CEO Inbox alert fatigue risk | **Resolved** |
+| KG-064 | No pipeline source tracking | **Resolved** |
+| KG-065 | No per-article lifecycle tracing | **Resolved** |
+
+### Previously Open KGs Resolved by This Sprint
+
+| KG ID | Was | Now |
+|-------|-----|-----|
+| KG-005 | Feature flags not wired to runtime | Resolved — isFeatureFlagEnabled() + 32+ cron guards |
+| KG-009 | ContentScheduleRule no site_id | Resolved — auto-seed on first run |
+| KG-024 | No login rate limiting | Resolved — 5/15min + middleware |
+| KG-036 | No push/email cron failure alerts | Resolved — CEO Inbox with escalation policy |
+
+### Smoke Tests Added
+
+7 new tests covering all fixes. Total suite: 159+ tests.
 
 ---
 

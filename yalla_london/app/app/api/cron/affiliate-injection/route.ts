@@ -14,6 +14,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 53_000;
 
@@ -670,6 +672,15 @@ async function handleAffiliateInjection(request: NextRequest) {
     const cjLinkRules = await getAffiliateRulesFromCjLinks(getDefaultSiteId());
     console.log(`[affiliate-injection] Rule sources: CJ=${cjLinkRules.length} rules, postsNeedingInjection=${needsInjection.length}`);
 
+    if (!isEnhancementOwner("affiliate-injection", "affiliate_links")) {
+      console.warn("[affiliate-injection] Skipping — not the enhancement owner for affiliate_links");
+      await logCronExecution("affiliate-injection", "completed", {
+        durationMs: Date.now() - startTime,
+        resultSummary: { skipped: true, reason: "not_enhancement_owner" },
+      }).catch((logErr) => console.warn("[affiliate-injection] Failed to log execution:", logErr instanceof Error ? logErr.message : logErr));
+      return NextResponse.json({ success: true, skipped: true, reason: "not_enhancement_owner" });
+    }
+
     let skippedSuppressed = 0;
     let skippedNoMatch = 0;
     const diagnosticSamples: string[] = [];
@@ -710,13 +721,12 @@ async function handleAffiliateInjection(request: NextRequest) {
       }
 
       if (enResult.count > 0 || arResult.count > 0) {
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: {
-            content_en: enResult.content,
-            content_ar: arResult.content,
-          },
-        });
+        const allPartners = [...new Set([...enResult.partners, ...arResult.partners])];
+        await optimisticBlogPostUpdate(post.id, (current) => ({
+          content_en: enResult.content,
+          content_ar: arResult.content,
+          enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "affiliate_links", "affiliate-injection", `Injected ${allPartners.length} affiliate partner(s): ${allPartners.join(", ")}`),
+        }), { tag: "[affiliate-injection]" });
 
         // Mark URL for resubmission so Google re-crawls the affiliate-enriched version
         try {

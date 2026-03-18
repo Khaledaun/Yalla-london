@@ -523,6 +523,7 @@ async function generateArticle(
       seo_score: computedSeoScore, // Computed from gate checks, NOT AI self-report
       keywords_json: content.keywords || [],
       questions_json: content.questions || [],
+      source_pipeline: "legacy-direct", // Not from 8-phase ArticleDraft pipeline
     },
   });
 

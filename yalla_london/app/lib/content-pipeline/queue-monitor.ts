@@ -29,6 +29,7 @@ import {
   GENERAL_STUCK_REJECT_HOURS,
   STUCK_WITH_ATTEMPTS_REJECT_HOURS,
   ACTIVE_DRAFT_STALENESS_HOURS,
+  VALID_TRANSITIONS,
 } from "@/lib/content-pipeline/constants";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -242,6 +243,43 @@ export async function getQueueSnapshot(siteId?: string): Promise<QueueSnapshot> 
     });
   }
 
+  // ── Rule 7: Invalid phase detection ──
+  // Drafts stuck in phases not in the state machine (e.g., "generating", typos)
+  const validPhases = new Set(Object.keys(VALID_TRANSITIONS).concat(["published", "rejected"]));
+  const invalidPhaseDrafts = drafts.filter((d) => !validPhases.has(d.currentPhase));
+  if (invalidPhaseDrafts.length > 0) {
+    healthRules.push({
+      id: "invalid-phase",
+      name: "Drafts in invalid phase",
+      severity: "critical",
+      description: `${invalidPhaseDrafts.length} draft(s) in phase not recognized by state machine: ${[...new Set(invalidPhaseDrafts.map(d => d.currentPhase))].join(", ")}`,
+      affectedDrafts: invalidPhaseDrafts.slice(0, 10),
+      autoFixAvailable: true,
+      fixDescription: "Reject drafts in invalid phases — they cannot advance through the pipeline",
+    });
+  }
+
+  // ── Rule 8: Topic consumption alignment ──
+  // Check if schedule-executor can find topics (status alignment)
+  try {
+    const consumableTopics = await prisma.topicProposal.count({
+      where: { status: { in: ["ready", "queued", "planned", "proposed"] } },
+    });
+    if (consumableTopics === 0 && drafts.length < 5) {
+      healthRules.push({
+        id: "no-consumable-topics",
+        name: "No topics available for pipeline",
+        severity: "high",
+        description: "Zero topics with consumable status (ready/queued/planned/proposed). Pipeline will starve.",
+        affectedDrafts: [],
+        autoFixAvailable: false,
+        fixDescription: "Run weekly-topics cron or create topics via Cockpit → Content → Research & Create",
+      });
+    }
+  } catch {
+    // Non-fatal — topic check is informational
+  }
+
   // ── Overall Health ──
   const criticalCount = healthRules.filter((r) => r.severity === "critical").length;
   const highCount = healthRules.filter((r) => r.severity === "high").length;
@@ -379,6 +417,34 @@ export async function executeQueueFix(ruleId: string, siteId?: string): Promise<
           action: `Rejected ${result.count} max-recovery-exceeded drafts`,
           affectedCount: result.count,
           draftIds: [],
+          success: true,
+        };
+      }
+
+      case "invalid-phase": {
+        const validPhases = new Set(Object.keys(VALID_TRANSITIONS).concat(["published", "rejected"]));
+        const allDrafts = await prisma.articleDraft.findMany({
+          where: {
+            current_phase: { notIn: [...validPhases] },
+            ...(siteId ? { site_id: siteId } : {}),
+          },
+          select: { id: true, current_phase: true },
+        });
+        if (allDrafts.length === 0) {
+          return { ruleId, action: "No invalid-phase drafts found", affectedCount: 0, draftIds: [], success: true };
+        }
+        const result = await prisma.articleDraft.updateMany({
+          where: { id: { in: allDrafts.map(d => d.id) } },
+          data: {
+            current_phase: "rejected",
+            last_error: `[queue-monitor] Rejected: invalid phase "${allDrafts[0].current_phase}" not in state machine`,
+          },
+        });
+        return {
+          ruleId,
+          action: `Rejected ${result.count} drafts in invalid phases`,
+          affectedCount: result.count,
+          draftIds: allDrafts.map(d => d.id),
           success: true,
         };
       }

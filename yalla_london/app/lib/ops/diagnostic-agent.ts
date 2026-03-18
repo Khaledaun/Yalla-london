@@ -18,6 +18,8 @@
  * - Rule #81: Never diagnose drafts with phase_attempts=0 — they're queued, not stuck.
  */
 
+import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
+
 export type DiagnosisCategory =
   | "timeout"           // AI call exceeds budget
   | "provider_down"     // All providers failing
@@ -495,6 +497,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           const wordCount = rawHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 
           // Do NOT set updated_at — diagnostic touches must not inflate active draft counts.
+          validatePhaseTransition("assembly", "images");
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {

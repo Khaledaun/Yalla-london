@@ -4,6 +4,8 @@ export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 53_000; // Standard Vercel Pro 60s budget with 7s buffer (used as fallback guard)
 
@@ -220,7 +222,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
-    if (hasBudget(5_000)) {
+    if (hasBudget(5_000) && isEnhancementOwner("seo-agent", "schema_markup")) {
     try {
       const { enhancedSchemaInjector } = await import(
         "@/lib/seo/enhanced-schema-injector"
@@ -302,6 +304,12 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
         });
 
         let linksInjected = 0;
+        let arLinksInjected = 0;
+
+        if (!isEnhancementOwner("seo-agent", "internal_links")) {
+          console.warn("[seo-agent] Skipping internal link injection — not the enhancement owner");
+        } else {
+
         const publishedSlugs = postsWithFewLinks
           .filter((p: { slug: string | null }) => p.slug)
           .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
@@ -330,10 +338,10 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           // - "related-link" is used by content-auto-fix orphan resolution
           if (!post.content_en.includes("related-articles") && !post.content_en.includes("related-link")) {
             try {
-              await prisma.blogPost.update({
-                where: { id: post.id },
-                data: { content_en: post.content_en + relatedSection },
-              });
+              await optimisticBlogPostUpdate(post.id, (current) => ({
+                content_en: current.content_en + relatedSection,
+                enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "internal_links", "seo-agent", `Injected related articles section`),
+              }), { tag: "[seo-agent]" });
               linksInjected++;
             } catch (e) {
               console.warn(`[seo-agent] Internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
@@ -342,7 +350,6 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
         }
 
         // Also inject Arabic related-articles for posts with content_ar and few Arabic internal links
-        let arLinksInjected = 0;
         for (const post of needsLinks.slice(0, 10)) {
           const arHtml = (post as Record<string, unknown>).content_ar as string | null;
           if (!arHtml || arHtml.length < 200) continue;
@@ -364,15 +371,17 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           const arRelatedSection = `\n<section class="related-articles" dir="rtl"><h2>مقالات ذات صلة</h2><ul>\n${arRelatedLinks}\n</ul></section>`;
 
           try {
-            await prisma.blogPost.update({
-              where: { id: post.id },
-              data: { content_ar: arHtml + arRelatedSection },
-            });
+            await optimisticBlogPostUpdate(post.id, (current) => ({
+              content_ar: current.content_ar + arRelatedSection,
+              enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "internal_links", "seo-agent", `Injected Arabic related articles section`),
+            }), { tag: "[seo-agent]" });
             arLinksInjected++;
           } catch (e) {
             console.warn(`[seo-agent] Arabic internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
           }
         }
+
+        } // end isEnhancementOwner("seo-agent", "internal_links")
 
         if (linksInjected > 0 || arLinksInjected > 0) {
           fixes.push(`Injected internal link sections into ${linksInjected} EN + ${arLinksInjected} AR posts with < 3 links`);
@@ -439,10 +448,16 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             }
 
             try {
-              await prisma.blogPost.update({
-                where: { id: host.id },
-                data: { content_en: updatedContent },
-              });
+              await optimisticBlogPostUpdate(host.id, (current) => {
+                let freshContent = current.content_en;
+                const freshInsertPoint = freshContent.lastIndexOf("</section>");
+                if (freshInsertPoint > 0) {
+                  freshContent = freshContent.slice(0, freshInsertPoint) + linkHtml + freshContent.slice(freshInsertPoint);
+                } else {
+                  freshContent += linkHtml;
+                }
+                return { content_en: freshContent };
+              }, { tag: "[seo-agent]" });
               orphansRescued++;
             } catch (e) {
               console.warn(`[seo-agent] Orphan rescue failed for ${orphan.slug}:`, e instanceof Error ? e.message : e);
@@ -695,10 +710,9 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
       // Auto-fix: set missing page_type to 'guide'
       if (!post.page_type) {
         try {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { page_type: "guide" },
-          });
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            page_type: "guide",
+          }), { tag: "[seo-agent]" });
           fixes.push(`Set page_type='guide' for post: ${post.slug}`);
         } catch (e) {
           console.warn(`Failed to set page_type for ${post.slug}:`, e);
@@ -724,10 +738,9 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
       // Update SEO score if it changed significantly
       if (!post.seo_score || Math.abs(post.seo_score - score) > 5) {
         try {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { seo_score: score },
-          });
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            seo_score: score,
+          }), { tag: "[seo-agent]" });
           fixes.push(
             `Updated SEO score for ${post.slug}: ${post.seo_score || "null"} -> ${score}`,
           );
@@ -1046,6 +1059,8 @@ async function autoFixSEOIssues(
   const fixedCount = { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
   const blogSiteFilter = siteId ? { siteId } : {};
 
+  // Meta optimization is NOT owned by seo-agent — it's owned by seo-deep-review.
+  // seo-agent only generates MISSING meta (not rewrites). This is a different enhancement type.
   // ── Fix 1 + 2: Missing meta titles OR descriptions ─────────────────────────
   try {
     const postsWithoutMeta = await prisma.blogPost.findMany({
@@ -1089,7 +1104,7 @@ async function autoFixSEOIssues(
 
       if (Object.keys(updates).length > 0) {
         try {
-          await prisma.blogPost.update({ where: { id: post.id }, data: updates });
+          await optimisticBlogPostUpdate(post.id, (current) => updates, { tag: "[seo-agent]" });
           fixedCount.metaTitles++;
         } catch (e) {
           console.warn("[seo-agent] Failed to auto-fix meta fields:", e instanceof Error ? e.message : e);
@@ -1125,7 +1140,7 @@ async function autoFixSEOIssues(
         if (lastSpace > 40) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?-]+$/, "") + "…";
         try {
-          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_title_en: trimmed } });
+          await optimisticBlogPostUpdate(post.id, (current) => ({ meta_title_en: trimmed }), { tag: "[seo-agent]" });
           longTitleFixed++;
         } catch (e) {
           console.warn("[seo-agent] Long title trim failed:", e instanceof Error ? e.message : e);
@@ -1160,7 +1175,7 @@ async function autoFixSEOIssues(
         if (lastSpace > 120) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?]+$/, "") + "…";
         try {
-          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_description_en: trimmed } });
+          await optimisticBlogPostUpdate(post.id, (current) => ({ meta_description_en: trimmed }), { tag: "[seo-agent]" });
           longDescFixed++;
           fixedCount.metaDescriptions++;
         } catch (e) {

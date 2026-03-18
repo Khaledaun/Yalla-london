@@ -85,3 +85,62 @@ export const INDEXNOW_CHRONIC_FAILURE_CAP = 15;
 // Drafts not updated within this window are considered stuck (not active).
 // Prevents diagnostic-agent-touched drafts from blocking new creation.
 export const ACTIVE_DRAFT_STALENESS_HOURS = 1;
+
+// ─── Phase State Machine ────────────────────────────────────────────────────
+// Valid transitions for ArticleDraft.current_phase. Any transition not in this
+// map is a bug. Call validatePhaseTransition() before every phase change.
+export const VALID_TRANSITIONS: Record<string, string[]> = {
+  research:  ["outline", "rejected"],
+  outline:   ["drafting", "rejected"],
+  drafting:  ["assembly", "rejected"],
+  assembly:  ["images", "rejected"],
+  images:    ["seo", "rejected"],
+  seo:       ["scoring", "rejected"],
+  scoring:   ["reservoir", "rejected"],
+  reservoir: ["promoting", "rejected"],
+  promoting: ["published", "reservoir", "rejected"],
+};
+
+/**
+ * Validates that a phase transition is allowed by the state machine.
+ * Throws Error for invalid transitions.
+ *
+ * @param from - Current phase
+ * @param to - Target phase
+ * @throws Error if transition is not in VALID_TRANSITIONS
+ */
+export function validatePhaseTransition(from: string, to: string): void {
+  const allowed = VALID_TRANSITIONS[from];
+  if (!allowed) {
+    throw new Error(`[state-machine] Unknown source phase "${from}" — cannot transition to "${to}"`);
+  }
+  if (!allowed.includes(to)) {
+    throw new Error(
+      `[state-machine] Invalid transition: "${from}" → "${to}". Allowed: ${allowed.join(", ")}`
+    );
+  }
+}
+
+// ─── Enhancement Ownership ──────────────────────────────────────────────────
+// Maps each post-publish modification type to the SINGLE cron that owns it.
+// Before making an enhancement, check this map to confirm ownership.
+export const ENHANCEMENT_OWNERS: Record<string, string> = {
+  internal_links: "seo-agent",
+  schema_markup: "seo-agent",
+  meta_optimization: "seo-deep-review",
+  heading_hierarchy: "content-auto-fix-lite",
+  affiliate_links: "affiliate-injection",
+  content_expansion: "seo-deep-review",
+  broken_links: "content-auto-fix",
+  authenticity_signals: "seo-deep-review",
+};
+
+// ─── Escalation Policy ──────────────────────────────────────────────────────
+// Controls CEO Inbox alert volume and pipeline auto-pause behavior.
+export const ESCALATION_POLICY = {
+  MAX_DAILY_CEO_ALERTS: 10,        // After this, batch remaining into daily digest
+  AUTO_PAUSE_THRESHOLD: 5,          // Critical failures in 1 hour → auto-pause pipeline
+  ALERT_COOLDOWN_MINUTES: 30,       // Minimum gap between alerts for same job
+  PIPELINE_MIN_SUCCESS_RATE: 0.30,  // Below 30% success rate in 4h → auto-pause
+  PIPELINE_HEALTH_WINDOW_HOURS: 4,  // Window for computing success rate
+};

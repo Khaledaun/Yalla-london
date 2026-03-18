@@ -30,6 +30,8 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const TOTAL_BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel 60s limit
 const PER_ARTICLE_BUDGET_MS = 12_000; // 12s max per article (non-AI fixes are fast)
@@ -463,15 +465,32 @@ Current word count: ${wordCount}`;
         }
 
         if (Object.keys(updateData).length > 0) {
-          updateData.updated_at = new Date();
-          await prisma.blogPost.update({
-            where: { id: article.id },
-            data: updateData,
-          });
+          // Determine enhancement types for ownership check + logging
+          const enhancementTypes: string[] = [];
+          if (fix.fixes.some((f: string) => f.includes("meta") || f.includes("title") || f.includes("description"))) enhancementTypes.push("meta_optimization");
+          if (fix.fixes.some((f: string) => f.includes("content") || f.includes("expand"))) enhancementTypes.push("content_expansion");
+          if (fix.fixes.some((f: string) => f.includes("authenticity") || f.includes("experience"))) enhancementTypes.push("authenticity_signals");
 
-          // Track for resubmission
-          resubmitUrls.push({ url: `${domain}/blog/${slug}`, siteId });
-          console.log(`[seo-deep-review] Fixed "${slug}": ${fix.fixes.join(", ")}`);
+          // Skip if another cron owns all the enhancement types in this fix
+          const ownedTypes = enhancementTypes.filter(t => isEnhancementOwner("seo-deep-review", t));
+          if (enhancementTypes.length > 0 && ownedTypes.length === 0) {
+            console.log(`[seo-deep-review] Skipping "${slug}" — enhancement types ${enhancementTypes.join(",")} owned by other crons`);
+          } else {
+            updateData.updated_at = new Date();
+            await optimisticBlogPostUpdate(article.id, (current) => ({
+              ...updateData,
+              enhancement_log: buildEnhancementLogEntry(
+                current.enhancement_log,
+                ownedTypes.join(",") || "seo_review",
+                "seo-deep-review",
+                fix.fixes.join(", ")
+              ),
+            }), { tag: "[seo-deep-review]" });
+
+            // Track for resubmission
+            resubmitUrls.push({ url: `${domain}/blog/${slug}`, siteId });
+            console.log(`[seo-deep-review] Fixed "${slug}": ${fix.fixes.join(", ")}`);
+          }
         } else {
           console.log(`[seo-deep-review] "${slug}" is clean — no fixes needed`);
           fix.notes.push("All checks passed — no fixes needed");

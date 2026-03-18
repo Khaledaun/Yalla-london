@@ -423,31 +423,38 @@ A comprehensive business plan exists at `docs/business-plans/SKIPPERS-YACHT-CHAR
 
 | KG ID | Description | Phase | Severity |
 |-------|-------------|-------|----------|
-| KG-001 | GA4 dashboard returns 0s | Phase 2 | HIGH |
-| KG-002 | Social APIs engagement stats | Phase 6 | LOW |
-| KG-003 | No AI image/logo generation | Phase 6 | LOW |
-| KG-004 | Automation Hub/Autopilot placeholders | Phase 5 | MEDIUM |
-| KG-005 | Feature flags not wired to runtime | Phase 6 | LOW |
-| KG-006 | Article CRUD buttons TODO | Phase 5 | MEDIUM |
-| KG-007 | Rate limiting in-memory | Phase 6 | LOW |
-| KG-008 | TopicPolicy no UI | Phase 6 | LOW |
-| KG-009 | ContentScheduleRule no site_id | Phase 3 | MEDIUM |
-| KG-010 | Prompt templates global | Phase 3 | MEDIUM |
-| KG-011 | WordPress sync no cron | Phase 6 | LOW |
-| KG-012 | Inconsistent auth patterns (3 routes) | Phase 5 | MEDIUM |
-| KG-014 | 260+ console.error invisible to dashboard | Phase 5 | MEDIUM |
-| KG-015 | standards.ts exports unused | Phase 6 | LOW |
-| KG-016 | ~13 admin pages mock data | Phase 5 | MEDIUM |
-| KG-020 | ~16 orphan Prisma models | Phase 6 | LOW |
-| KG-021 | ~30 remaining hardcoded URLs | Phase 5 | MEDIUM |
-| KG-024 | No login rate limiting | Phase 5 | MEDIUM |
-| KG-027 | Only London brand template | Phase 3 | MEDIUM |
-| KG-032 | No Arabic SSR | Phase 6 | LOW |
-| KG-035 | No traffic/revenue dashboard data | Phase 2 | HIGH |
-| KG-036 | No push/email cron failure alerts | Phase 5 | MEDIUM |
-| KG-045 | Admin mock data pages | Phase 5 | MEDIUM |
-| KG-046 | Admin dead buttons | Phase 5 | MEDIUM |
-| KG-047 | Broken sidebar navigation links | Phase 5 | MEDIUM |
+| KG-001 | GA4 dashboard returns 0s | Phase 2 | HIGH | **Partially resolved** — MCP bridge works, cockpit calls fetchGA4Metrics() |
+| KG-002 | Social APIs engagement stats | Phase 6 | LOW | Open |
+| KG-003 | No AI image/logo generation | Phase 6 | LOW | Open |
+| KG-004 | Automation Hub/Autopilot placeholders | Phase 5 | MEDIUM | Open |
+| KG-005 | Feature flags not wired to runtime | Phase 6 | LOW | **Resolved** — isFeatureFlagEnabled() + 32+ cron guards |
+| KG-006 | Article CRUD buttons TODO | Phase 5 | MEDIUM | **Resolved** — wired to /admin/editor |
+| KG-007 | Rate limiting in-memory | Phase 6 | LOW | Open |
+| KG-008 | TopicPolicy no UI | Phase 6 | LOW | Open |
+| KG-009 | ContentScheduleRule no site_id | Phase 3 | MEDIUM | **Resolved** — auto-seed on first run |
+| KG-010 | Prompt templates global | Phase 3 | MEDIUM | Open |
+| KG-011 | WordPress sync no cron | Phase 6 | LOW | Open |
+| KG-012 | Inconsistent auth patterns (3 routes) | Phase 5 | MEDIUM | **Resolved** — all use requireAdmin |
+| KG-014 | 260+ console.error invisible to dashboard | Phase 5 | MEDIUM | **Partially resolved** — CEO Inbox + cycle health |
+| KG-015 | standards.ts exports unused | Phase 6 | LOW | **Resolved** — all integrated into enforcement |
+| KG-016 | ~13 admin pages mock data | Phase 5 | MEDIUM | **Resolved** — Clean Light dashboard redesign |
+| KG-020 | ~31 orphan Prisma models | Phase 6 | LOW | Open |
+| KG-021 | ~30 remaining hardcoded URLs | Phase 5 | MEDIUM | **Mostly resolved** — <5 remaining |
+| KG-024 | No login rate limiting | Phase 5 | MEDIUM | **Resolved** — 5/15min + middleware |
+| KG-027 | Only London brand template | Phase 3 | MEDIUM | **Resolved** — getBrandProfile() for all 6 sites |
+| KG-032 | No Arabic SSR | Phase 6 | MEDIUM | **Partially resolved** — serverLocale prop added to BlogPostClient |
+| KG-035 | No traffic/revenue dashboard data | Phase 2 | HIGH | **Resolved** — GA4 env var alignment + fetchGA4Metrics |
+| KG-036 | No push/email cron failure alerts | Phase 5 | MEDIUM | **Resolved** — CEO Inbox with escalation policy |
+| KG-045 | Admin mock data pages | Phase 5 | MEDIUM | **Resolved** — Clean Light redesign |
+| KG-046 | Admin dead buttons | Phase 5 | MEDIUM | **Resolved** — all wired |
+| KG-047 | Broken sidebar navigation links | Phase 5 | MEDIUM | **Resolved** — comingSoon pattern |
+| KG-059 | No optimistic concurrency on BlogPost writes | — | HIGH | **Resolved** — optimisticBlogPostUpdate() on all 24 update calls |
+| KG-060 | No state machine for phase transitions | — | HIGH | **Resolved** — VALID_TRANSITIONS + validatePhaseTransition() |
+| KG-061 | Topic status mismatch (approved vs ready) | — | CRITICAL | **Resolved** — CONSUMABLE_STATUSES alignment |
+| KG-062 | No enhancement ownership tracking | — | MEDIUM | **Resolved** — ENHANCEMENT_OWNERS + enhancement_log |
+| KG-063 | CEO Inbox alert fatigue risk | — | MEDIUM | **Resolved** — ESCALATION_POLICY daily cap + cooldown |
+| KG-064 | No pipeline source tracking | — | LOW | **Resolved** — source_pipeline field on BlogPost |
+| KG-065 | No per-article lifecycle tracing | — | MEDIUM | **Resolved** — trace_id + /api/admin/article-trace |
 
 ---
 
@@ -469,6 +476,75 @@ These patterns have been identified as recurring problems. Any future code MUST 
 | `@/lib/prisma` import | `@/lib/db` import (canonical) |
 | `dangerouslySetInnerHTML={{ __html: x }}` | `dangerouslySetInnerHTML={{ __html: sanitizeHtml(x) }}` |
 | `activeSites[0]` (first site only) | `for (const site of activeSites)` loop |
+| `prisma.blogPost.update({ where: { id } })` without concurrency check | `optimisticBlogPostUpdate(id, updater, { tag })` from `@/lib/db/optimistic-update` |
+| Changing `current_phase` without validation | `validatePhaseTransition(from, to)` from `@/lib/content-pipeline/constants` |
+| Multiple crons modifying same BlogPost field | Check `isEnhancementOwner(cronName, type)` — each modification type has ONE owner |
+| Hardcoding retry counts or budget values inline | Import from `lib/content-pipeline/constants.ts` — single source of truth |
+| Creating BlogPost without `source_pipeline` | Always set `source_pipeline: "8-phase"` or `"legacy-direct"` |
+| Creating CEO Inbox alerts without rate limit | Check `ESCALATION_POLICY.MAX_DAILY_CEO_ALERTS` and per-job cooldown first |
+| Topic query using `status: "approved"` | Use `CONSUMABLE_STATUSES = ["ready","queued","planned","proposed"]` |
+
+---
+
+## 12. Self-Healing & Self-Learning Architecture
+
+The platform has a 5-layer defense system that prevents, detects, recovers from, learns from, and audits failures.
+
+### Layer 0: Prevention (Stop bugs before they happen)
+
+| Component | File | What It Does |
+|-----------|------|-------------|
+| State Machine | `constants.ts` → `VALID_TRANSITIONS` | Throws on illegal phase transitions before they corrupt pipeline |
+| Enhancement Manifest | `constants.ts` → `ENHANCEMENT_OWNERS` | Prevents concurrent crons from modifying same field on same article |
+| Optimistic Concurrency | `lib/db/optimistic-update.ts` | Detects stale writes from concurrent crons, retries with fresh data |
+| Pipeline Circuit Breaker | `content-builder/route.ts` | Auto-pauses when success rate < 30% over 4h — prevents burning AI budget |
+
+### Layer 1: Detection (Find problems fast)
+
+| Component | File | What It Does |
+|-----------|------|-------------|
+| Queue Monitor | `queue-monitor.ts` (6 rules) | Detects near-max-attempts, stuck-24h, drafting-backlog, assembly-stuck, diagnostic-stuck, pipeline-stalled |
+| Cycle Health Analyzer | `cycle-health/route.ts` (17 checks) | Evidence-based diagnostics across pipeline, crons, indexing, quality, AI, CJ |
+| CEO Inbox Detection | `ceo-inbox.ts` | `onCronFailure()` fires automatically for every failed cron |
+
+### Layer 2: Recovery (Fix problems automatically)
+
+| Component | File | What It Does |
+|-----------|------|-------------|
+| Diagnostic Agent | `diagnostic-agent.ts` (3-phase) | Diagnose (classify root cause) → Fix (reset/reject/repair) → Verify |
+| Queue Monitor Auto-Fix | `queue-monitor.ts` | One-tap fix-all: reject stuck, unlock assembly, clean diagnostic artifacts |
+| CEO Inbox Auto-Fix | `ceo-inbox.ts` | Attempts fix strategy from JOB_FIX_MAP, retests 2min later, alerts result |
+| Escalation Policy | `constants.ts` → `ESCALATION_POLICY` | Daily alert cap (10), per-job cooldown (30min), pipeline auto-pause |
+
+### Layer 3: Learning (Track patterns for improvement)
+
+| Component | File | What It Does |
+|-----------|------|-------------|
+| Enhancement Log | `BlogPost.enhancement_log` | Tracks every post-publish modification (type, cron, timestamp, summary) |
+| Trace ID Lifecycle | `ArticleDraft.trace_id` → `BlogPost.trace_id` | Links draft → post → cron logs → indexing → affiliate clicks |
+| Source Pipeline | `BlogPost.source_pipeline` | Distinguishes 8-phase vs legacy-direct for quality comparison |
+| AI Cost Tracking | `ApiUsageLog` | Per-task cost attribution across all AI providers |
+
+### Layer 4: Audit (Verify everything works)
+
+| Component | File | What It Does |
+|-----------|------|-------------|
+| Smoke Test Suite | `scripts/smoke-test.ts` (159+ tests) | Validates pipeline, security, state machine, concurrency, enhancement ownership |
+| Master Audit Engine | `lib/master-audit/` | READ-ONLY full-site crawl with 8 validators + 3 risk scanners |
+| Weekly Policy Monitor | `scripts/weekly-policy-monitor.ts` | Checks Google policy sources for algorithm changes |
+| Article Trace API | `/api/admin/article-trace/[traceId]` | Full lifecycle query across 5 tables for debugging |
+
+### Validation Protocol (MANDATORY for every code change)
+
+Before ANY commit that touches the content pipeline:
+
+1. **Read `constants.ts`** — verify your change uses imported values, not hardcoded numbers
+2. **Read `AUDIT-LOG.md`** — verify you're not reintroducing a fixed bug (check KG-xxx IDs)
+3. **Check `/api/admin/queue-monitor`** — verify pipeline is healthy before adding load
+4. **Run smoke tests** — `npx tsx scripts/smoke-test.ts` must pass 100%
+5. **Verify state machine** — if changing `current_phase`, confirm transition is in `VALID_TRANSITIONS`
+6. **Verify enhancement ownership** — if modifying published BlogPost, confirm cron is in `ENHANCEMENT_OWNERS`
+7. **Use optimistic concurrency** — any `blogPost.update` must go through `optimisticBlogPostUpdate()`
 
 ---
 
@@ -490,6 +566,7 @@ These patterns have been identified as recurring problems. Any future code MUST 
 |------|---------|---------|
 | 2026-02-18 | v1.0 | Initial roadmap after 11 audits |
 | 2026-02-21 | v2.0 | Major rewrite: incorporated Audits #12-14, production hotfixes (robots.txt, blog timeouts, indexing, slugs), Product Readiness Report, Skippers business plan. Reorganized phases around revenue timeline. Added "What Khaled Must Provide" section. Marked 24 KGs as resolved. |
+| 2026-03-18 | v3.0 | Hardening Sprint: 7 anti-patterns added, Section 12 (Self-Healing Architecture) added with 5-layer defense system, Validation Protocol added. Updated KG list. |
 
 ---
 

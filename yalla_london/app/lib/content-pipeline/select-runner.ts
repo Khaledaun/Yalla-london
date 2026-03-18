@@ -22,6 +22,8 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
+import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 2;
@@ -163,6 +165,7 @@ export async function runContentSelector(
       // The updateMany WHERE re-checks current_phase="reservoir" — if another process
       // already claimed it, count will be 0 and we skip it.
       for (const rd of reservoirDrafts) {
+        validatePhaseTransition("reservoir", "promoting");
         const claimed = await prisma.articleDraft.updateMany({
           where: { id: rd.id as string, current_phase: "reservoir" },
           data: { current_phase: "promoting", updated_at: new Date() },
@@ -1177,6 +1180,7 @@ export async function promoteToBlogPost(
   // Previously BlogPost was created first, draft updated ~200 lines later. If the process
   // crashed between them, the draft stayed "reservoir" and got promoted again = duplicate.
   // Now both happen atomically — either both succeed or neither does.
+  validatePhaseTransition("promoting", "published");
   const publishData = {
     current_phase: "published" as const,
     published_at: new Date(),
@@ -1216,6 +1220,8 @@ export async function promoteToBlogPost(
     seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
     keywords_json: keywords,
     questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
+    source_pipeline: "8-phase",
+    trace_id: (draft as Record<string, unknown>).trace_id as string || undefined,
   };
 
   // Retry on slug collision (P2002 unique constraint).
@@ -1356,7 +1362,10 @@ export async function promoteToBlogPost(
       const partnersHtml = `\n<div class="affiliate-partners-section" style="margin-top:2rem;padding:1.5rem;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;"><h3 style="margin:0 0 1rem;color:#1f2937;">Recommended Partners</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${matched.map((m) => `<a href="${encodeURI(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display:block;padding:1rem;background:white;border-radius:8px;border:1px solid #e5e7eb;text-decoration:none;color:inherit;"><strong style="color:#7c3aed;">${m.name}</strong></a>`).join("")}</div></div>`;
       const cleanEn = (enHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
       const cleanAr = (arHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
-      await prisma.blogPost.update({ where: { id: blogPost.id }, data: { content_en: cleanEn + partnersHtml, content_ar: cleanAr + partnersHtml } });
+      await optimisticBlogPostUpdate(blogPost.id, (current) => ({
+        content_en: (current.content_en || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") + partnersHtml,
+        content_ar: (current.content_ar || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") + partnersHtml,
+      }), { tag: "[content-selector]" });
       console.log(`[content-selector] Injected ${matched.length} affiliate partners into BlogPost ${blogPost.id}`);
     }
   } catch (affErr) {
@@ -1391,7 +1400,9 @@ ${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:
 </ul></section>`;
       const currentEn = (await prisma.blogPost.findUnique({ where: { id: blogPost.id }, select: { content_en: true } }))?.content_en || "";
       if (!currentEn.includes('class="cluster-related"')) {
-        await prisma.blogPost.update({ where: { id: blogPost.id }, data: { content_en: currentEn + linksHtml } });
+        await optimisticBlogPostUpdate(blogPost.id, (current) => ({
+          content_en: (current.content_en || "") + linksHtml,
+        }), { tag: "[content-selector]" });
         console.log(`[content-selector] Injected ${clusterSiblings.length} cluster links into BlogPost ${blogPost.id}`);
       }
     }

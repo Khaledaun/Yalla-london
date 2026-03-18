@@ -161,16 +161,79 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
 /**
  * POST /api/admin/media
- * Create a new media record
+ * Create a new media record — or seed from Canva
  */
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
+
+    // ── Seed from Canva ──────────────────────────────────────
+    if (body.action === 'seed_from_canva' && Array.isArray(body.items)) {
+      const items: Array<{
+        canvaId: string;
+        title: string;
+        thumbnail: string;
+        editUrl: string;
+        viewUrl: string;
+        pageCount: number;
+      }> = body.items;
+
+      // Check which Canva IDs already exist (stored in tags)
+      const existing = await prisma.media.findMany({
+        where: { tags: { hasSome: items.map(i => `canva:${i.canvaId}`) } },
+        select: { tags: true },
+      });
+      const existingCanvaIds = new Set<string>();
+      for (const row of existing) {
+        for (const tag of (row.tags as string[])) {
+          if (tag.startsWith('canva:')) existingCanvaIds.add(tag.replace('canva:', ''));
+        }
+      }
+
+      let created = 0;
+      let skipped = 0;
+      for (const item of items) {
+        if (existingCanvaIds.has(item.canvaId)) {
+          skipped++;
+          continue;
+        }
+
+        await prisma.media.create({
+          data: {
+            filename: item.title,
+            url: item.editUrl,
+            thumbnail_url: item.thumbnail,
+            size: 0,
+            mime_type: 'video/mp4',
+            media_type: 'video',
+            width: 1080,
+            height: 1920,
+            alt_text: item.title,
+            description: `Canva video (${item.pageCount} pages). View: ${item.viewUrl}`,
+            tags: [`canva:${item.canvaId}`, 'canva', 'video', 'travel', 'luxury', body.folder || 'canva-videos'],
+            uploaded_by: 'admin',
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+        created++;
+      }
+
+      return NextResponse.json({
+        success: true,
+        created,
+        skipped,
+        total: items.length,
+        message: `Seeded ${created} Canva videos (${skipped} already existed)`,
+      });
+    }
+
+    // ── Standard create ──────────────────────────────────────
     const validation = MediaCreateSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid media data',
           details: validation.error.issues
         },

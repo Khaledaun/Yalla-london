@@ -90,8 +90,13 @@ export const CORE_WEB_VITALS = {
 
 // ─── Content Quality Thresholds ─────────────────────────────────────────────
 export const CONTENT_QUALITY = {
-  /** Minimum words for a publishable article (blocker threshold) */
-  minWords: 1000,
+  /**
+   * Minimum words for a publishable article (blocker threshold).
+   * Lowered from 1000 to 500 (March 18, 2026) — AI-generated articles often produce
+   * 700-950 words on first pass. The seo-deep-review cron expands them post-publish.
+   * targetWords (1800) remains the WARNING target.
+   */
+  minWords: 500,
   /** Minimum words before content is considered "thin" by Google */
   thinContentThreshold: 300,
   /** Target word count for topical authority */
@@ -155,7 +160,14 @@ export const CONTENT_QUALITY = {
 //   /guides/...      → guide thresholds
 export const CONTENT_TYPE_THRESHOLDS = {
   blog: {
-    minWords: 1000,
+    /**
+     * Minimum words as BLOCKER — lowered from 1000 to 500 (March 18, 2026).
+     * AI-generated articles often produce 700-950 words on first pass.
+     * The seo-deep-review cron expands short articles post-publish.
+     * targetWords (1800) remains the WARNING threshold for ideal length.
+     * 500 words is enough for Google to consider it substantive content.
+     */
+    minWords: 500,
     targetWords: 1800,
     thinContentThreshold: 300,
     metaTitleMin: 30,
@@ -163,7 +175,15 @@ export const CONTENT_TYPE_THRESHOLDS = {
     metaDescriptionMin: 120,
     metaDescriptionOptimal: { min: 120, max: 160 },
     qualityGateScore: 70,
-    seoScoreBlocker: 50,
+    /**
+     * SEO score hard blocker — lowered from 50 to 30 (March 18, 2026).
+     * The scoring formula gives 0 points for post-publish features
+     * (affiliates 5pts, internal links 10pts = 15pts unreachable at publish time).
+     * Articles scoring 30-54 pass with warnings and get enhanced post-publish
+     * by seo-deep-review, seo-agent, and content-auto-fix crons.
+     * Only truly broken articles (missing meta, no headings, < 300 words) score < 30.
+     */
+    seoScoreBlocker: 30,
     minInternalLinks: 3,
     minH2Count: 2,
     requireAffiliateLinks: true,

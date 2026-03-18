@@ -3640,6 +3640,45 @@ Strict pipeline health enforcement with 6 rules:
 113. **Quality gate must NOT score post-publication features** — internal links and affiliate links are injected by separate crons AFTER a BlogPost is published (seo-agent and affiliate-injection). Scoring them in the pre-reservoir quality gate means articles always lose those points and get rejected. Score only what the content pipeline itself can produce: word count, meta tags, headings, schema, keywords, images.
 114. **A 70+ quality gate with a 100-point scale where 15 points come from post-publish features is mathematically broken** — max achievable pre-reservoir score is ~85. Articles must score 70/85 (82%) to pass, which is too aggressive for AI-generated content. The correct threshold is 55 (55/85 = 65% of achievable points).
 
+### Session: March 18, 2026 — Pipeline Blocker Elimination & Email Template Integration
+
+**Pipeline Blocker Audit & Elimination (6 files modified):**
+
+Comprehensive audit of all blocking conditions across the pipeline that prevented auto-publishing. Found and fixed 5 blocking issues:
+
+1. **Word count blocker too aggressive** (`lib/seo/standards.ts`): `CONTENT_QUALITY.minWords` 1000→500, `CONTENT_TYPE_THRESHOLDS.blog.minWords` 1000→500. AI-generated articles typically produce 700-950 words; seo-deep-review expands them post-publish to 1200+ words. Blocking at 1000 prevented ALL pipeline articles from publishing.
+
+2. **SEO score blocker too aggressive** (`lib/seo/standards.ts`): `CONTENT_TYPE_THRESHOLDS.blog.seoScoreBlocker` 50→30. The scoring formula awards 0 points for post-publish features (internal links, affiliate links) that are injected by separate crons AFTER publishing. A good article with no internal links/affiliates scored 35-45, below the 50 threshold → BLOCKED.
+
+3. **content-auto-fix auto-unpublish conflict** (`app/api/cron/content-auto-fix/route.ts`): Hardcoded `wordCount < 1000` at 3 locations was immediately unpublishing articles the pre-pub gate now allows (500-999 words). Changed to import `CONTENT_QUALITY.minWords` from standards.ts. Also aligned `QUALITY_THRESHOLD` from hardcoded 70 to `CONTENT_QUALITY.qualityGateScore` (55).
+
+4. **SEO deep review only catching recent articles** (`app/api/cron/seo-deep-review/route.ts`): Extended from 26h window to 7-day window for under-optimized articles. Pass 2 query now catches older articles with missing meta or short content that need enhancement.
+
+5. **Route HTTP checks in pre-pub gate** (`lib/content-pipeline/select-runner.ts`): Confirmed `skipRouteCheck: true` already set at line 1104 — no change needed.
+
+**Email Template Integration (3 files modified):**
+
+1. **Template selector in campaign creation** (`app/admin/email-campaigns/page.tsx`): Added dropdown to "Create Campaign" modal that lists all available templates. Selecting a template auto-fills the subject line and HTML content. "No template" option available for writing from scratch.
+
+2. **Single template fetch API** (`app/api/admin/email-templates/route.ts`): Added `?id=<templateId>` query parameter support to GET endpoint for fetching a single template with full HTML content.
+
+3. **Template data in campaign page** (`app/admin/email-campaigns/page.tsx`): Updated `EmailTemplate` interface and data mapping to include `htmlContent` field from API response, enabling instant template content population without extra API calls.
+
+4. **Dynamic siteId for template seeding**: Seed templates button now reads siteId from cookie instead of hardcoded "yalla-london".
+
+**Files Modified:**
+- `lib/seo/standards.ts` — minWords 1000→500, seoScoreBlocker 50→30
+- `app/api/cron/content-auto-fix/route.ts` — Import CONTENT_QUALITY, replace 3 hardcoded thresholds
+- `app/api/cron/seo-deep-review/route.ts` — 7-day window for older articles
+- `app/admin/email-campaigns/page.tsx` — Template selector, htmlContent in interface, dynamic siteId
+- `app/api/admin/email-templates/route.ts` — Single template fetch by ID
+
+### Critical Rules Learned (March 18 Session — Pipeline Blockers)
+
+115. **content-auto-fix thin-content threshold must match pre-pub gate** — if pre-pub gate allows articles at 500 words, but content-auto-fix unpublishes at <1000 words, articles between 500-999 words get published then immediately unpublished on the next cron run. Both must use `CONTENT_QUALITY.minWords` from standards.ts.
+116. **All hardcoded quality thresholds must import from centralized standards** — `CONTENT_QUALITY.minWords`, `CONTENT_QUALITY.qualityGateScore`, `CONTENT_TYPE_THRESHOLDS.blog.seoScoreBlocker` are the single source of truth. Hardcoding values in cron routes creates silent conflicts when standards change.
+117. **SEO deep review should catch articles beyond 24h** — newly published articles may have missing meta descriptions, short content, or no internal links. A 7-day window ensures the review catches articles that were published during cron downtime or that missed the first review pass.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

@@ -108,6 +108,19 @@ export default function VideoStudioPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Canva render state
+  const [canvaLoading, setCanvaLoading] = useState(false);
+  const [canvaResult, setCanvaResult] = useState<{
+    status: "idle" | "queued" | "rendered" | "failed";
+    query?: string;
+    designType?: string;
+    exportFormat?: string;
+    instructions?: string;
+    exportUrl?: string;
+    canvaDesignId?: string;
+    error?: string;
+  }>({ status: "idle" });
+
   const generateVideo = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -146,13 +159,107 @@ export default function VideoStudioPage() {
     }
   }, [generatedTemplate]);
 
+  /**
+   * Save the current template as a VideoProject in DB, then prepare it
+   * for Canva rendering. Returns the Canva query and instructions.
+   */
+  const saveAndRenderCanva = useCallback(async () => {
+    setCanvaLoading(true);
+    setCanvaResult({ status: "idle" });
+    setError(null);
+    try {
+      // Step 1: Generate the template if not already generated
+      let template = generatedTemplate;
+      if (!template) {
+        const params = new URLSearchParams({
+          action: "generate",
+          siteId: selectedSite,
+          category: selectedCategory,
+          format: selectedFormat,
+          locale,
+        });
+        if (title) params.set("title", title);
+        if (subtitle) params.set("subtitle", subtitle);
+        if (imageUrls) params.set("images", imageUrls);
+        if (duration) params.set("duration", duration);
+
+        const genRes = await fetch(`/api/admin/video-studio?${params}`);
+        if (!genRes.ok) throw new Error("Failed to generate template");
+        const genData = await genRes.json();
+        template = genData.template;
+        setGeneratedTemplate(template);
+      }
+
+      if (!template) throw new Error("No template available");
+
+      // Step 2: Create a VideoProject record in DB
+      const createRes = await fetch("/api/admin/video-studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          siteId: selectedSite,
+          title: title || template.name,
+          category: selectedCategory,
+          format: selectedFormat,
+          locale,
+          width: template.width,
+          height: template.height,
+          duration: Math.ceil(template.durationFrames / template.fps),
+          fps: template.fps,
+          scenes: template.scenes,
+        }),
+      });
+      if (!createRes.ok) {
+        const errData = await createRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to create video project");
+      }
+      const createData = await createRes.json();
+      const projectId = createData.project?.id;
+      if (!projectId) throw new Error("No project ID returned");
+
+      // Step 3: Prepare for Canva render
+      const renderRes = await fetch("/api/admin/video-studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "render-canva",
+          videoProjectId: projectId,
+        }),
+      });
+      if (!renderRes.ok) {
+        const errData = await renderRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to prepare Canva render");
+      }
+      const renderData = await renderRes.json();
+
+      setCanvaResult({
+        status: "queued",
+        query: renderData.query,
+        designType: renderData.designType,
+        exportFormat: renderData.exportFormat,
+        instructions: renderData.instructions,
+      });
+      setActiveTab("preview");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(msg);
+      setCanvaResult({ status: "failed", error: msg });
+    } finally {
+      setCanvaLoading(false);
+    }
+  }, [generatedTemplate, selectedSite, selectedCategory, selectedFormat, locale, title, subtitle, imageUrls, duration]);
+
   return (
     <div className="admin-page p-4 md:p-6">
       <AdminPageHeader
         title="Video Studio"
-        subtitle="Create brand-aware social media videos powered by Remotion"
+        subtitle="Create brand-aware social media designs — rendered via Canva"
         action={
-          <AdminStatusBadge status="active" label="Remotion" />
+          <div className="flex gap-2">
+            <AdminStatusBadge status="active" label="Canva MCP" />
+            <AdminStatusBadge status="inactive" label="Remotion" />
+          </div>
         }
       />
 
@@ -336,17 +443,32 @@ export default function VideoStudioPage() {
                 )}
               </AdminCard>
 
-              {/* Generate Button */}
-              <AdminButton
-                variant="primary"
-                size="lg"
-                onClick={generateVideo}
-                loading={loading}
-                className="w-full justify-center"
-              >
-                <Wand2 className="w-4 h-4" />
-                Generate Video
-              </AdminButton>
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <AdminButton
+                  variant="primary"
+                  size="lg"
+                  onClick={generateVideo}
+                  loading={loading}
+                  className="w-full justify-center"
+                >
+                  <Wand2 className="w-4 h-4" />
+                  Generate Preview
+                </AdminButton>
+                <AdminButton
+                  variant="secondary"
+                  size="lg"
+                  onClick={saveAndRenderCanva}
+                  loading={canvaLoading}
+                  className="w-full justify-center"
+                >
+                  <Download className="w-4 h-4" />
+                  Render with Canva
+                </AdminButton>
+                <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#A8A29E", textAlign: "center" }}>
+                  &ldquo;Generate Preview&rdquo; shows a local preview. &ldquo;Render with Canva&rdquo; creates + exports the design via Canva.
+                </p>
+              </div>
 
               {error && (
                 <AdminAlertBanner
@@ -451,6 +573,15 @@ export default function VideoStudioPage() {
                   <AdminCard>
                     <AdminSectionLabel>Actions</AdminSectionLabel>
                     <div className="space-y-2 mt-3">
+                      <AdminButton
+                        variant="primary"
+                        onClick={saveAndRenderCanva}
+                        loading={canvaLoading}
+                        className="w-full justify-center"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Render with Canva
+                      </AdminButton>
                       <AdminButton variant="secondary" onClick={copyTemplateJSON} className="w-full justify-center">
                         <Copy className="w-3.5 h-3.5" />
                         Copy Template JSON
@@ -463,12 +594,81 @@ export default function VideoStudioPage() {
                         <RefreshCw className="w-3.5 h-3.5" />
                         Generate New
                       </AdminButton>
-                      <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#A8A29E", textAlign: "center", marginTop: 8 }}>
-                        Server-side MP4 rendering requires Remotion Lambda or Cloud Run setup.
-                        Use the browser player for preview.
-                      </p>
                     </div>
                   </AdminCard>
+
+                  {/* Canva Render Status */}
+                  {canvaResult.status !== "idle" && (
+                    <AdminCard>
+                      <AdminSectionLabel>Canva Render</AdminSectionLabel>
+                      <div className="space-y-3 mt-3">
+                        <div className="flex items-center gap-2">
+                          <AdminStatusBadge
+                            status={
+                              canvaResult.status === "rendered" ? "active" :
+                              canvaResult.status === "failed" ? "error" :
+                              "warning"
+                            }
+                            label={canvaResult.status === "queued" ? "Ready for Canva" : canvaResult.status}
+                          />
+                        </div>
+
+                        {canvaResult.status === "queued" && canvaResult.query && (
+                          <div className="space-y-2">
+                            <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C" }}>
+                              Canva design query prepared. Use the Canva MCP tools to generate and export:
+                            </p>
+                            <div
+                              className="p-3 rounded-lg overflow-auto max-h-48"
+                              style={{ backgroundColor: "#FAF8F4", border: "1px solid rgba(214,208,196,0.5)" }}
+                            >
+                              <p style={{ fontFamily: "var(--font-system)", fontSize: 10, color: "#1C1917", whiteSpace: "pre-wrap" }}>
+                                <strong>Design Type:</strong> {canvaResult.designType}{"\n"}
+                                <strong>Export:</strong> {canvaResult.exportFormat}{"\n"}
+                                <strong>Query:</strong> {canvaResult.query}
+                              </p>
+                            </div>
+                            <AdminButton
+                              variant="secondary"
+                              onClick={() => {
+                                if (canvaResult.query) {
+                                  navigator.clipboard.writeText(canvaResult.query);
+                                }
+                              }}
+                              className="w-full justify-center"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              Copy Canva Query
+                            </AdminButton>
+                          </div>
+                        )}
+
+                        {canvaResult.status === "rendered" && canvaResult.exportUrl && (
+                          <div className="space-y-2">
+                            <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#2D5A3D", fontWeight: 600 }}>
+                              Design exported successfully
+                            </p>
+                            <a
+                              href={canvaResult.exportUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                              style={{ backgroundColor: "rgba(45,90,61,0.08)", color: "#2D5A3D", fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600 }}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Download {canvaResult.exportFormat?.toUpperCase()}
+                            </a>
+                          </div>
+                        )}
+
+                        {canvaResult.status === "failed" && (
+                          <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#C8322B" }}>
+                            {canvaResult.error || "Canva render failed"}
+                          </p>
+                        )}
+                      </div>
+                    </AdminCard>
+                  )}
                 </div>
               </div>
             ) : (
@@ -606,15 +806,19 @@ export default function VideoStudioPage() {
                   </p>
                   <div className="p-4 rounded-lg" style={{ backgroundColor: "#FAF8F4", border: "1px solid rgba(214,208,196,0.6)" }}>
                     <p style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 600, color: "#1C1917" }}>
-                      Server-Side Rendering
+                      Render Engines
                     </p>
                     <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C", marginTop: 4 }}>
-                      For production MP4 export, set up Remotion Lambda (AWS) or Cloud Run (GCP).
-                      The browser player provides real-time preview without server rendering.
+                      <strong>Canva MCP</strong> is the primary render engine — generates branded designs
+                      and exports as PNG/MP4 via Canva&apos;s AI. No server-side Chromium needed.
+                    </p>
+                    <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#A8A29E", marginTop: 4 }}>
+                      Remotion is available for local preview only (cannot render on Vercel serverless).
                     </p>
                     <div className="flex flex-wrap gap-2 mt-3">
+                      <AdminStatusBadge status="active" label="Canva MCP" />
                       <AdminStatusBadge status="active" label="Browser Preview" />
-                      <AdminStatusBadge status="inactive" label="Lambda Rendering" />
+                      <AdminStatusBadge status="inactive" label="Remotion Lambda" />
                     </div>
                   </div>
                 </div>
@@ -631,7 +835,7 @@ export default function VideoStudioPage() {
                   { step: "1", title: "Template Engine", desc: "Brand-aware video templates generated per site with colors, fonts, and destination themes" },
                   { step: "2", title: "Remotion Composition", desc: "React components render each scene with animations, transitions, and effects" },
                   { step: "3", title: "Browser Preview", desc: "@remotion/player provides real-time interactive preview in the admin panel" },
-                  { step: "4", title: "MP4 Export", desc: "Server-side rendering via Remotion Lambda/Cloud Run for production video files" },
+                  { step: "4", title: "Canva Export", desc: "Canva MCP generates branded designs and exports as PNG or MP4 — no Chromium needed" },
                 ].map((s) => (
                   <div key={s.step} className="p-4 rounded-lg" style={{ backgroundColor: "#FAF8F4", border: "1px solid rgba(214,208,196,0.6)" }}>
                     <span

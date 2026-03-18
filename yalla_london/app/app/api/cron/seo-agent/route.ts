@@ -303,11 +303,13 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           return enInternalLinks < 3 || arInternalLinks < 3;
         });
 
+        let linksInjected = 0;
+        let arLinksInjected = 0;
+
         if (!isEnhancementOwner("seo-agent", "internal_links")) {
           console.warn("[seo-agent] Skipping internal link injection — not the enhancement owner");
         } else {
 
-        let linksInjected = 0;
         const publishedSlugs = postsWithFewLinks
           .filter((p: { slug: string | null }) => p.slug)
           .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
@@ -348,7 +350,6 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
         }
 
         // Also inject Arabic related-articles for posts with content_ar and few Arabic internal links
-        let arLinksInjected = 0;
         for (const post of needsLinks.slice(0, 10)) {
           const arHtml = (post as Record<string, unknown>).content_ar as string | null;
           if (!arHtml || arHtml.length < 200) continue;

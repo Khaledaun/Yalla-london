@@ -226,6 +226,8 @@ The platform runs a **fully autonomous content pipeline** that discovers topics,
 
 **Critical fix applied (March 18):** Fixed 3 wrong Prisma field names (`title` → `keyword`, `topic_id` → `topic_proposal_id`, removed non-existent `slug`).
 
+**Status mismatch:** schedule-executor only picks `status='approved'` topics, but `weekly-topics` creates with `status='ready'`. This means schedule-executor is effectively idle without manual topic approval in the admin UI. `content-builder-create` compensates by accepting `['ready','queued','planned','proposed']`.
+
 ### 4.4 content-builder-create
 
 | Property | Value |

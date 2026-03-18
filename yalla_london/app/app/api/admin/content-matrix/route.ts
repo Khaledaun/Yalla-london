@@ -73,6 +73,8 @@ interface ContentItem {
   metaDescriptionEn: string | null;
   tags: string[];
   topicTitle: string | null;
+  sourcePipeline: string | null;
+  traceId: string | null;
 }
 
 interface ContentMatrixSummary {
@@ -396,6 +398,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             metaDescriptionEn,
             tags: [],
             topicTitle: draft.topic_title ?? null,
+            sourcePipeline: null,
+            traceId: (draft as Record<string, unknown>).trace_id as string ?? null,
           });
         }
       } catch (err) {

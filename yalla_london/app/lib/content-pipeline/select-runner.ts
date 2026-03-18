@@ -1217,6 +1217,8 @@ export async function promoteToBlogPost(
     seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
     keywords_json: keywords,
     questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
+    source_pipeline: "8-phase",
+    trace_id: (draft as Record<string, unknown>).trace_id as string || undefined,
   };
 
   // Retry on slug collision (P2002 unique constraint).

@@ -139,6 +139,11 @@ model BlogPost {
   // generationProvider    String?
   // generationSource      String? // 'scheduled', 'manual_now', 'upload', 'import'
   
+  // Hardening sprint fields (March 2026)
+  source_pipeline    String?  // "8-phase" (default), "legacy-direct", "manual", "import"
+  trace_id           String?  // Links to ArticleDraft.trace_id for full lifecycle tracing
+  enhancement_log    Json?    @db.JsonB  // Array of { type, cron, timestamp, summary } entries
+
   // Multi-tenant and soft delete
   siteId       String?
   deletedAt    DateTime? // Soft delete support
@@ -158,6 +163,7 @@ model BlogPost {
   @@index([category_id])
   @@index([author_id])
   @@index([created_at])
+  @@index([trace_id])
 }
 
 // ─────────────────────────────────────────────────────────
@@ -2845,6 +2851,7 @@ model ArticleDraft {
   content_depth_score Float?                         // Topic coverage completeness
 
   // Source tracking
+  trace_id            String?  @default(cuid())      // Lifecycle trace ID — links to BlogPost.trace_id + CronJobLog
   topic_proposal_id   String?                        // FK to TopicProposal if sourced from there
   ai_model_used       String?                        // Which AI model generated each phase
   generation_strategy String?                        // "topic_db", "template_cycle", "trending", "gap_fill"
@@ -2870,6 +2877,7 @@ model ArticleDraft {
   @@index([site_id, current_phase])
   @@index([created_at])
   @@index([paired_draft_id])
+  @@index([trace_id])
   @@map("article_drafts")
 }
 

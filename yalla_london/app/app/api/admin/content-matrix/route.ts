@@ -229,6 +229,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             meta_description_en: true,
             tags: true,
             content_en: true,
+            source_pipeline: true,
+            trace_id: true,
           },
         });
 
@@ -252,6 +254,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             publishedAt: post.published ? post.created_at.toISOString() : null,
             qualityScore: null,
             seoScore: post.seo_score ?? null,
+            sourcePipeline: (post as Record<string, unknown>).source_pipeline as string ?? "8-phase",
+            traceId: (post as Record<string, unknown>).trace_id as string ?? null,
             wordCount: wc,
             internalLinksCount: ilCount,
             indexingStatus: indexData?.status ?? null,

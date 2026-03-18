@@ -4107,7 +4107,7 @@ const UNIQUE_CONSTRAINTS: string[] = [
   'CREATE UNIQUE INDEX IF NOT EXISTS "SiteMember_site_id_user_id_key" ON "SiteMember"("site_id", "user_id")',
   // Commerce
   'CREATE UNIQUE INDEX IF NOT EXISTS "digital_products_site_id_slug_key" ON "digital_products"("site_id", "slug")',
-  'CREATE UNIQUE INDEX IF NOT EXISTS "tenant_integrations_tenant_id_integration_type_key" ON "tenant_integrations"("tenant_id", "integration_type")',
+  'CREATE UNIQUE INDEX IF NOT EXISTS "tenant_integrations_tenantId_integrationType_key" ON "tenant_integrations"("tenantId", "integrationType")',
   // Premium
   'CREATE UNIQUE INDEX IF NOT EXISTS "SiteMemberPremium_siteId_userId_key" ON "SiteMemberPremium"("siteId", "userId")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "AffiliatePartner_siteId_slug_key" ON "AffiliatePartner"("siteId", "slug")',

@@ -514,6 +514,53 @@ export default function EmailCampaignsPage() {
           />
         </div>
 
+        {/* Quick Start — only shown when no templates exist */}
+        {templates.length === 0 && !isLoading && (
+          <AdminCard>
+            <div className="p-4 text-center space-y-3">
+              <div
+                className="w-12 h-12 mx-auto rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "rgba(200,50,43,0.08)" }}
+              >
+                <Zap size={20} color="#C8322B" />
+              </div>
+              <p style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, color: "#1C1917" }}>
+                Get Started with Email
+              </p>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 12, color: "#78716C" }}>
+                Seed 10 professionally designed templates to start sending campaigns immediately.
+              </p>
+              <AdminButton
+                variant="primary"
+                size="lg"
+                loading={isSeedingTemplates}
+                className="mx-auto"
+                onClick={async () => {
+                  setIsSeedingTemplates(true);
+                  try {
+                    const res = await fetch("/api/admin/email-templates", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london" }),
+                    });
+                    if (!res.ok) throw new Error("Seed failed");
+                    const data = await res.json();
+                    toast.success(`Created ${data.created} templates (${data.skipped} already existed)`);
+                    loadData();
+                  } catch {
+                    toast.error("Failed to seed templates");
+                  } finally {
+                    setIsSeedingTemplates(false);
+                  }
+                }}
+              >
+                <Zap size={15} />
+                Seed 10 Templates
+              </AdminButton>
+            </div>
+          </AdminCard>
+        )}
+
         {/* Provider Status + Send Test */}
         <AdminCard>
           <div className="p-4">

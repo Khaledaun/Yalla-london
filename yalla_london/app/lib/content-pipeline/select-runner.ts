@@ -1180,6 +1180,7 @@ export async function promoteToBlogPost(
   // Previously BlogPost was created first, draft updated ~200 lines later. If the process
   // crashed between them, the draft stayed "reservoir" and got promoted again = duplicate.
   // Now both happen atomically — either both succeed or neither does.
+  validatePhaseTransition("promoting", "published");
   const publishData = {
     current_phase: "published" as const,
     published_at: new Date(),

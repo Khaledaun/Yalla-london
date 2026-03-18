@@ -16,13 +16,13 @@
  *   }));
  */
 
-import type { BlogPost, Prisma } from "@prisma/client";
-
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 100;
 
-type BlogPostUpdateData = Prisma.BlogPostUpdateInput;
-type UpdaterFn = (post: BlogPost) => BlogPostUpdateData | null;
+// Use a generic record type for the post — Prisma v6 doesn't directly export model types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type BlogPostRecord = Record<string, any>;
+type UpdaterFn = (post: BlogPostRecord) => Record<string, unknown> | null;
 
 /**
  * Optimistic concurrency update for BlogPost.
@@ -36,7 +36,7 @@ export async function optimisticBlogPostUpdate(
   id: string,
   updater: UpdaterFn,
   options?: { tag?: string }
-): Promise<BlogPost | null> {
+): Promise<BlogPostRecord | null> {
   const { prisma } = await import("@/lib/db");
   const tag = options?.tag || "[optimistic-update]";
 

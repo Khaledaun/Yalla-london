@@ -19,22 +19,22 @@
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 100;
 
-// Use a generic record type for the post — Prisma v6 doesn't directly export model types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type BlogPostRecord = Record<string, any>;
-type UpdaterFn = (post: BlogPostRecord) => Record<string, unknown> | null;
+// Infer the BlogPost type from the Prisma client at the module level
+type PrismaClient = Awaited<typeof import("@/lib/db")>["prisma"];
+type BlogPostFindResult = Awaited<ReturnType<PrismaClient["blogPost"]["findUnique"]>>;
+type BlogPostRecord = NonNullable<BlogPostFindResult>;
 
 /**
  * Optimistic concurrency update for BlogPost.
  *
  * @param id - BlogPost ID
  * @param updater - Function that receives current post and returns update data (or null to skip)
- * @param options - Optional: tag for logging, custom prisma client
+ * @param options - Optional: tag for logging
  * @returns The updated BlogPost, or null if updater returned null / post not found
  */
 export async function optimisticBlogPostUpdate(
   id: string,
-  updater: UpdaterFn,
+  updater: (post: BlogPostRecord) => Record<string, unknown> | null,
   options?: { tag?: string }
 ): Promise<BlogPostRecord | null> {
   const { prisma } = await import("@/lib/db");

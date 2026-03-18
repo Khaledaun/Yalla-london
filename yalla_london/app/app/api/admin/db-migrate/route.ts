@@ -163,6 +163,26 @@ const EXPECTED_TABLES: TableDef[] = [
       'CREATE INDEX IF NOT EXISTS "cj_click_events_siteId_createdAt_idx" ON "cj_click_events"("siteId", "createdAt")',
     ],
   },
+  // ── ArticleDraft — hardening sprint fields ──────────────────────────
+  {
+    table: '"article_drafts"',
+    model: "ArticleDraft",
+    columns: [
+      { name: "trace_id", type: "TEXT", nullable: true },
+    ],
+    indexes: [],
+  },
+  // ── BlogPost — hardening sprint fields ──────────────────────────
+  {
+    table: '"BlogPost"',
+    model: "BlogPost (hardening)",
+    columns: [
+      { name: "trace_id", type: "TEXT", nullable: true },
+      { name: "source_pipeline", type: "TEXT", nullable: true },
+      { name: "enhancement_log", type: "JSONB", nullable: true },
+    ],
+    indexes: [],
+  },
 ];
 
 // ─── Enum Definitions ──────────────────────────────────────────────────────

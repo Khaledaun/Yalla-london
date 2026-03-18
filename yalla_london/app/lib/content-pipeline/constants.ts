@@ -92,7 +92,7 @@ export const ACTIVE_DRAFT_STALENESS_HOURS = 1;
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   research:  ["outline", "rejected"],
   outline:   ["drafting", "rejected"],
-  drafting:  ["assembly", "rejected"],
+  drafting:  ["drafting", "assembly", "rejected"],  // self-transition for partial progress (multi-section)
   assembly:  ["images", "rejected"],
   images:    ["seo", "rejected"],
   seo:       ["scoring", "rejected"],

@@ -1,6 +1,12 @@
 /**
  * Admin Media Management API
  * CRUD operations for media library management
+ *
+ * Prisma model: MediaAsset (NOT "Media")
+ * Fields: filename, original_name, cloud_storage_path, url, file_type,
+ *         mime_type, file_size, width, height, alt_text, title,
+ *         description, tags, site_id, category, folder, isVideo,
+ *         videoPoster, videoVariants, isHeroVideo, duration, deletedAt
  */
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +28,7 @@ const MediaQuerySchema = z.object({
 const MediaCreateSchema = z.object({
   filename: z.string().min(1, 'Filename is required'),
   url: z.string().url('Valid URL is required'),
-  size: z.number().positive('Valid file size is required'),
+  size: z.number().nonnegative('Valid file size is required'),
   mime_type: z.string().min(1, 'MIME type is required'),
   width: z.number().positive().optional(),
   height: z.number().positive().optional(),
@@ -30,8 +36,6 @@ const MediaCreateSchema = z.object({
   description: z.string().optional(),
   tags: z.array(z.string()).default([])
 });
-
-const MediaUpdateSchema = MediaCreateSchema.partial();
 
 /**
  * GET /api/admin/media
@@ -41,95 +45,61 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const validation = MediaQuerySchema.safeParse(Object.fromEntries(searchParams.entries()));
-    
+
     if (!validation.success) {
       return NextResponse.json(
-        { 
-          error: 'Invalid query parameters',
-          details: validation.error.issues
-        },
+        { error: 'Invalid query parameters' },
         { status: 400 }
       );
     }
 
     const { page, limit, type, search } = validation.data;
     const offset = (page - 1) * limit;
-    
+
     // Build where clause
-    const where: any = {};
-    
+    const where: Record<string, unknown> = { deletedAt: null };
+
     if (type) {
-      where.mime_type = {
-        startsWith: `${type}/`
-      };
+      where.file_type = type;
     }
-    
+
     if (search) {
       where.OR = [
-        {
-          filename: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          alt_text: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          tags: {
-            hasSome: [search]
-          }
-        }
+        { filename: { contains: search, mode: 'insensitive' } },
+        { alt_text: { contains: search, mode: 'insensitive' } },
+        { tags: { hasSome: [search] } },
       ];
     }
-    
-    // Fetch media files
+
     const [mediaFiles, totalCount] = await Promise.all([
-      prisma.media.findMany({
+      prisma.mediaAsset.findMany({
         where,
         orderBy: { created_at: 'desc' },
         skip: offset,
         take: limit,
-        include: {
-          uploadedBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
       }),
-      prisma.media.count({ where })
+      prisma.mediaAsset.count({ where })
     ]);
-    
-    // Calculate pagination metadata
+
     const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-    
-    // Transform data for frontend
-    const transformedData = mediaFiles.map((file: any) => ({
+
+    const transformedData = mediaFiles.map((file) => ({
       id: file.id,
       filename: file.filename,
       url: file.url,
-      thumbnailUrl: file.thumbnail_url,
-      size: file.size,
+      thumbnailUrl: file.videoPoster || file.url,
+      size: file.file_size,
       mimeType: file.mime_type,
       width: file.width,
       height: file.height,
       altText: file.alt_text,
       description: file.description,
       tags: file.tags,
+      folder: file.folder || 'uploads',
       createdAt: file.created_at,
       updatedAt: file.updated_at,
-      uploadedBy: file.uploadedBy,
-      usageCount: file.usage_count || 0
     }));
-    
+
     return NextResponse.json({
       success: true,
       data: transformedData,
@@ -138,22 +108,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         limit,
         total: totalCount,
         total_pages: totalPages,
-        has_next_page: hasNextPage,
-        has_prev_page: hasPrevPage
+        has_next_page: page < totalPages,
+        has_prev_page: page > 1
       },
-      meta: {
-        type_filter: type,
-        search_query: search
-      }
     });
-    
+
   } catch (error) {
-    console.error('Failed to fetch media files:', error);
+    console.error('[media-api] Failed to fetch media files:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch media files',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to fetch media files' },
       { status: 500 }
     );
   }
@@ -179,13 +142,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       }> = body.items;
 
       // Check which Canva IDs already exist (stored in tags)
-      const existing = await prisma.media.findMany({
+      const existing = await prisma.mediaAsset.findMany({
         where: { tags: { hasSome: items.map(i => `canva:${i.canvaId}`) } },
         select: { tags: true },
       });
       const existingCanvaIds = new Set<string>();
       for (const row of existing) {
-        for (const tag of (row.tags as string[])) {
+        for (const tag of row.tags) {
           if (tag.startsWith('canva:')) existingCanvaIds.add(tag.replace('canva:', ''));
         }
       }
@@ -198,22 +161,24 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           continue;
         }
 
-        await prisma.media.create({
+        await prisma.mediaAsset.create({
           data: {
             filename: item.title,
+            original_name: item.title,
+            cloud_storage_path: `canva/${item.canvaId}`,
             url: item.editUrl,
-            thumbnail_url: item.thumbnail,
-            size: 0,
+            file_type: 'video',
             mime_type: 'video/mp4',
-            media_type: 'video',
+            file_size: 0,
             width: 1080,
             height: 1920,
             alt_text: item.title,
+            title: item.title,
             description: `Canva video (${item.pageCount} pages). View: ${item.viewUrl}`,
-            tags: [`canva:${item.canvaId}`, 'canva', 'video', 'travel', 'luxury', body.folder || 'canva-videos'],
-            uploaded_by: 'admin',
-            created_at: new Date(),
-            updated_at: new Date(),
+            tags: [`canva:${item.canvaId}`, 'canva', 'video', 'travel', 'luxury'],
+            folder: body.folder || 'canva-videos',
+            isVideo: true,
+            videoPoster: item.thumbnail,
           },
         });
         created++;
@@ -233,52 +198,39 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     if (!validation.success) {
       return NextResponse.json(
-        {
-          error: 'Invalid media data',
-          details: validation.error.issues
-        },
+        { error: 'Invalid media data', details: validation.error.issues },
         { status: 400 }
       );
     }
-    
+
     const data = validation.data;
-    
-    // Determine media type from MIME type
-    let mediaType = 'document';
+
+    // Determine file type from MIME type
+    let fileType = 'document';
     if (data.mime_type.startsWith('image/')) {
-      mediaType = 'image';
+      fileType = 'image';
     } else if (data.mime_type.startsWith('video/')) {
-      mediaType = 'video';
+      fileType = 'video';
     }
-    
-    // Create the media record
-    const mediaFile = await prisma.media.create({
+
+    const mediaFile = await prisma.mediaAsset.create({
       data: {
         filename: data.filename,
+        original_name: data.filename,
+        cloud_storage_path: `uploads/${Date.now()}-${data.filename}`,
         url: data.url,
-        size: data.size,
+        file_type: fileType,
         mime_type: data.mime_type,
-        media_type: mediaType,
+        file_size: data.size,
         width: data.width,
         height: data.height,
         alt_text: data.alt_text,
         description: data.description,
         tags: data.tags,
-        uploaded_by: 'admin', // TODO: Get from auth context
-        created_at: new Date(),
-        updated_at: new Date()
+        isVideo: fileType === 'video',
       },
-      include: {
-        uploadedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
     });
-    
+
     return NextResponse.json({
       success: true,
       message: 'Media file created successfully',
@@ -286,8 +238,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         id: mediaFile.id,
         filename: mediaFile.filename,
         url: mediaFile.url,
-        thumbnailUrl: mediaFile.thumbnail_url,
-        size: mediaFile.size,
+        thumbnailUrl: mediaFile.videoPoster || mediaFile.url,
+        size: mediaFile.file_size,
         mimeType: mediaFile.mime_type,
         width: mediaFile.width,
         height: mediaFile.height,
@@ -296,18 +248,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         tags: mediaFile.tags,
         createdAt: mediaFile.created_at,
         updatedAt: mediaFile.updated_at,
-        uploadedBy: mediaFile.uploadedBy,
-        usageCount: 0
       }
     }, { status: 201 });
-    
+
   } catch (error) {
-    console.error('Failed to create media file:', error);
+    console.error('[media-api] Failed to create media file:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to create media file',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to create media file' },
       { status: 500 }
     );
   }
@@ -338,10 +285,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
 
     const result = await prisma.mediaAsset.updateMany({
       where: { id: { in: ids } },
-      data: {
-        category,
-        updated_at: new Date()
-      }
+      data: { category },
     });
 
     return NextResponse.json({
@@ -350,7 +294,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
       updatedCount: result.count
     });
   } catch (error) {
-    console.error('Failed to update media category:', error);
+    console.error('[media-api] Failed to update media category:', error);
     return NextResponse.json(
       { error: 'Failed to update media category' },
       { status: 500 }
@@ -360,57 +304,35 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
 
 /**
  * DELETE /api/admin/media
- * Bulk delete media files
+ * Soft-delete media files
  */
 export const DELETE = withAdminAuth(async (request: NextRequest) => {
   try {
     const { ids } = await request.json();
-    
+
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
         { error: 'Invalid or empty IDs array' },
         { status: 400 }
       );
     }
-    
-    // Check if any files are in use
-    const filesInUse = await prisma.media.findMany({
-      where: {
-        id: { in: ids },
-        usage_count: { gt: 0 }
-      },
-      select: { id: true, filename: true, usage_count: true }
+
+    // Soft delete (set deletedAt)
+    const result = await prisma.mediaAsset.updateMany({
+      where: { id: { in: ids } },
+      data: { deletedAt: new Date() },
     });
-    
-    if (filesInUse.length > 0) {
-      return NextResponse.json({
-        error: 'Some files are currently in use and cannot be deleted',
-        filesInUse: filesInUse.map((file: any) => ({
-          id: file.id,
-          filename: file.filename,
-          usageCount: file.usage_count
-        }))
-      }, { status: 400 });
-    }
-    
-    // Delete the files
-    const deletedCount = await prisma.media.deleteMany({
-      where: { id: { in: ids } }
-    });
-    
+
     return NextResponse.json({
       success: true,
-      message: `${deletedCount.count} media files deleted successfully`,
-      deletedCount: deletedCount.count
+      message: `${result.count} media files deleted successfully`,
+      deletedCount: result.count
     });
-    
+
   } catch (error) {
-    console.error('Failed to delete media files:', error);
+    console.error('[media-api] Failed to delete media files:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to delete media files',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to delete media files' },
       { status: 500 }
     );
   }

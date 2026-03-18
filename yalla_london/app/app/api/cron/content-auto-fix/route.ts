@@ -21,6 +21,7 @@ export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { CONTENT_QUALITY } from "@/lib/seo/standards";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
 const MIN_WORD_COUNT = 1000;
@@ -280,7 +281,12 @@ async function handleAutoFix(request: NextRequest) {
           const updateData: Record<string, string> = {};
           if (enChanged) updateData.content_en = fixedEn;
           if (arChanged) updateData.content_ar = fixedAr;
-          await prisma.blogPost.update({ where: { id: post.id }, data: updateData });
+          await optimisticBlogPostUpdate(post.id, (current) => {
+            const result: Record<string, string> = {};
+            if (enChanged) result.content_en = fixBrokenLinks(current.content_en || "");
+            if (arChanged) result.content_ar = fixBrokenLinks(current.content_ar || "");
+            return result;
+          }, { tag: "[content-auto-fix]" });
           brokenLinksFixed++;
         }
       };
@@ -471,10 +477,9 @@ async function handleAutoFix(request: NextRequest) {
 
         // Append a "Related reading" link at the end of the host article
         const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
-        await prisma.blogPost.update({
-          where: { id: bestHost.id },
-          data: { content_en: (bestHost.content_en || "") + linkHtml },
-        });
+        await optimisticBlogPostUpdate(bestHost.id, (current) => ({
+          content_en: (current.content_en || "") + linkHtml,
+        }), { tag: "[content-auto-fix]" });
         orphansFixed++;
         console.log(`[content-auto-fix] Fixed orphan: "${orphan.slug}" — linked from "${bestHost.slug}"`);
       }
@@ -534,13 +539,10 @@ async function handleAutoFix(request: NextRequest) {
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
         if (wordCount < CONTENT_QUALITY.minWords) {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: {
-              published: false,
-              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < ${CONTENT_QUALITY.minWords}w minimum] ${(post.title_en || "").slice(0, 100)}`,
-            },
-          });
+          await optimisticBlogPostUpdate(post.id, () => ({
+            published: false,
+            meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < ${CONTENT_QUALITY.minWords}w minimum] ${(post.title_en || "").slice(0, 100)}`,
+          }), { tag: "[content-auto-fix]" });
           thinUnpublished++;
           console.log(`[content-auto-fix] Unpublished thin article: "${post.slug}" (${wordCount}w)`);
           if (thinUnpublished >= 5) break;
@@ -589,13 +591,10 @@ async function handleAutoFix(request: NextRequest) {
               const newer = sitePosts[j];
               // Skip if already flagged
               if ((newer.meta_description_en || "").includes("[DUPLICATE-FLAGGED]")) continue;
-              await prisma.blogPost.update({
-                where: { id: newer.id },
-                data: {
-                  published: false,
-                  meta_description_en: `[DUPLICATE-FLAGGED: overlaps with "${sitePosts[i].slug}"] ${(newer.meta_description_en || "").replace(/\[DUPLICATE-FLAGGED[^\]]*\]\s*/, "").slice(0, 100)}`,
-                },
-              });
+              await optimisticBlogPostUpdate(newer.id, () => ({
+                published: false,
+                meta_description_en: `[DUPLICATE-FLAGGED: overlaps with "${sitePosts[i].slug}"] ${(newer.meta_description_en || "").replace(/\[DUPLICATE-FLAGGED[^\]]*\]\s*/, "").slice(0, 100)}`,
+              }), { tag: "[content-auto-fix]" });
               duplicatesFlagged++;
               console.log(`[content-auto-fix] Flagged duplicate: "${newer.slug}" overlaps with "${sitePosts[i].slug}" (jaccard=${jaccard.toFixed(2)})`);
               if (duplicatesFlagged >= 3) break;
@@ -688,10 +687,7 @@ async function handleAutoFix(request: NextRequest) {
 
         if (Object.keys(updateData).length > 0) {
           updateData.updated_at = new Date();
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: updateData,
-          });
+          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix]" });
         }
 
         // Reset submission attempts so IndexNow resubmits with improved content
@@ -748,13 +744,10 @@ async function handleAutoFix(request: NextRequest) {
         const cleanAr = sanitizeContentBody(post.content_ar || "");
         // Only update if content actually changed
         if (cleanEn !== post.content_en || cleanAr !== post.content_ar) {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: {
-              ...(cleanEn !== post.content_en ? { content_en: cleanEn } : {}),
-              ...(cleanAr !== post.content_ar ? { content_ar: cleanAr } : {}),
-            },
-          });
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            ...(cleanEn !== post.content_en ? { content_en: sanitizeContentBody(current.content_en || "") } : {}),
+            ...(cleanAr !== post.content_ar ? { content_ar: sanitizeContentBody(current.content_ar || "") } : {}),
+          }), { tag: "[content-auto-fix]" });
           wordCountArtifactsCleaned++;
           console.log(`[content-auto-fix] Stripped word count artifacts from: ${post.slug}`);
         }

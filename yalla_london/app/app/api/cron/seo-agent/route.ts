@@ -4,6 +4,7 @@ export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const BUDGET_MS = 53_000; // Standard Vercel Pro 60s budget with 7s buffer (used as fallback guard)
 
@@ -330,10 +331,9 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           // - "related-link" is used by content-auto-fix orphan resolution
           if (!post.content_en.includes("related-articles") && !post.content_en.includes("related-link")) {
             try {
-              await prisma.blogPost.update({
-                where: { id: post.id },
-                data: { content_en: post.content_en + relatedSection },
-              });
+              await optimisticBlogPostUpdate(post.id, (current) => ({
+                content_en: current.content_en + relatedSection,
+              }), { tag: "[seo-agent]" });
               linksInjected++;
             } catch (e) {
               console.warn(`[seo-agent] Internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
@@ -364,10 +364,9 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           const arRelatedSection = `\n<section class="related-articles" dir="rtl"><h2>مقالات ذات صلة</h2><ul>\n${arRelatedLinks}\n</ul></section>`;
 
           try {
-            await prisma.blogPost.update({
-              where: { id: post.id },
-              data: { content_ar: arHtml + arRelatedSection },
-            });
+            await optimisticBlogPostUpdate(post.id, (current) => ({
+              content_ar: current.content_ar + arRelatedSection,
+            }), { tag: "[seo-agent]" });
             arLinksInjected++;
           } catch (e) {
             console.warn(`[seo-agent] Arabic internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
@@ -439,10 +438,16 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             }
 
             try {
-              await prisma.blogPost.update({
-                where: { id: host.id },
-                data: { content_en: updatedContent },
-              });
+              await optimisticBlogPostUpdate(host.id, (current) => {
+                let freshContent = current.content_en;
+                const freshInsertPoint = freshContent.lastIndexOf("</section>");
+                if (freshInsertPoint > 0) {
+                  freshContent = freshContent.slice(0, freshInsertPoint) + linkHtml + freshContent.slice(freshInsertPoint);
+                } else {
+                  freshContent += linkHtml;
+                }
+                return { content_en: freshContent };
+              }, { tag: "[seo-agent]" });
               orphansRescued++;
             } catch (e) {
               console.warn(`[seo-agent] Orphan rescue failed for ${orphan.slug}:`, e instanceof Error ? e.message : e);
@@ -695,10 +700,9 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
       // Auto-fix: set missing page_type to 'guide'
       if (!post.page_type) {
         try {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { page_type: "guide" },
-          });
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            page_type: "guide",
+          }), { tag: "[seo-agent]" });
           fixes.push(`Set page_type='guide' for post: ${post.slug}`);
         } catch (e) {
           console.warn(`Failed to set page_type for ${post.slug}:`, e);
@@ -724,10 +728,9 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
       // Update SEO score if it changed significantly
       if (!post.seo_score || Math.abs(post.seo_score - score) > 5) {
         try {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { seo_score: score },
-          });
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            seo_score: score,
+          }), { tag: "[seo-agent]" });
           fixes.push(
             `Updated SEO score for ${post.slug}: ${post.seo_score || "null"} -> ${score}`,
           );
@@ -1089,7 +1092,7 @@ async function autoFixSEOIssues(
 
       if (Object.keys(updates).length > 0) {
         try {
-          await prisma.blogPost.update({ where: { id: post.id }, data: updates });
+          await optimisticBlogPostUpdate(post.id, (current) => updates, { tag: "[seo-agent]" });
           fixedCount.metaTitles++;
         } catch (e) {
           console.warn("[seo-agent] Failed to auto-fix meta fields:", e instanceof Error ? e.message : e);
@@ -1125,7 +1128,7 @@ async function autoFixSEOIssues(
         if (lastSpace > 40) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?-]+$/, "") + "…";
         try {
-          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_title_en: trimmed } });
+          await optimisticBlogPostUpdate(post.id, (current) => ({ meta_title_en: trimmed }), { tag: "[seo-agent]" });
           longTitleFixed++;
         } catch (e) {
           console.warn("[seo-agent] Long title trim failed:", e instanceof Error ? e.message : e);
@@ -1160,7 +1163,7 @@ async function autoFixSEOIssues(
         if (lastSpace > 120) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?]+$/, "") + "…";
         try {
-          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_description_en: trimmed } });
+          await optimisticBlogPostUpdate(post.id, (current) => ({ meta_description_en: trimmed }), { tag: "[seo-agent]" });
           longDescFixed++;
           fixedCount.metaDescriptions++;
         } catch (e) {

@@ -19,6 +19,7 @@ import type {
   ItemChanges,
   CampaignConfig,
 } from './types';
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 // ─── Snapshot helpers ────────────────────────────────────────────────────────
 
@@ -493,10 +494,7 @@ export async function enhancePublishedArticle(
 
     // ── Save to database ────────────────────────────────────────────
     if (!config.dryRun) {
-      await prisma.blogPost.update({
-        where: { id: postId },
-        data: updateData,
-      });
+      await optimisticBlogPostUpdate(postId, () => (updateData), { tag: "[article-enhancer]" });
     }
 
     // ── Calculate changes ───────────────────────────────────────────
@@ -584,10 +582,9 @@ export async function expandArabicContent(
     const newArWc = wordCount(newArabic);
 
     if (newArWc > arWc) {
-      await prisma.blogPost.update({
-        where: { id: postId },
-        data: { content_ar: newArabic, updated_at: new Date() },
-      });
+      await optimisticBlogPostUpdate(postId, () => ({
+        content_ar: newArabic,
+      }), { tag: "[article-enhancer]" });
       return { success: true, wordsAdded: newArWc - arWc, costUsd: estimateCostFromResult(result) };
     }
 

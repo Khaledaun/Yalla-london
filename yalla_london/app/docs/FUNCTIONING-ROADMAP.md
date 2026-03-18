@@ -469,6 +469,7 @@ These patterns have been identified as recurring problems. Any future code MUST 
 | `@/lib/prisma` import | `@/lib/db` import (canonical) |
 | `dangerouslySetInnerHTML={{ __html: x }}` | `dangerouslySetInnerHTML={{ __html: sanitizeHtml(x) }}` |
 | `activeSites[0]` (first site only) | `for (const site of activeSites)` loop |
+| `prisma.blogPost.update({ where: { id } })` without concurrency check | `optimisticBlogPostUpdate(id, updater, { tag })` from `@/lib/db/optimistic-update` |
 
 ---
 

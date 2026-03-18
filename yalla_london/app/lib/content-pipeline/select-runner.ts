@@ -22,6 +22,7 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 2;
@@ -1356,7 +1357,10 @@ export async function promoteToBlogPost(
       const partnersHtml = `\n<div class="affiliate-partners-section" style="margin-top:2rem;padding:1.5rem;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;"><h3 style="margin:0 0 1rem;color:#1f2937;">Recommended Partners</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${matched.map((m) => `<a href="${encodeURI(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display:block;padding:1rem;background:white;border-radius:8px;border:1px solid #e5e7eb;text-decoration:none;color:inherit;"><strong style="color:#7c3aed;">${m.name}</strong></a>`).join("")}</div></div>`;
       const cleanEn = (enHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
       const cleanAr = (arHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
-      await prisma.blogPost.update({ where: { id: blogPost.id }, data: { content_en: cleanEn + partnersHtml, content_ar: cleanAr + partnersHtml } });
+      await optimisticBlogPostUpdate(blogPost.id, (current) => ({
+        content_en: (current.content_en || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") + partnersHtml,
+        content_ar: (current.content_ar || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") + partnersHtml,
+      }), { tag: "[content-selector]" });
       console.log(`[content-selector] Injected ${matched.length} affiliate partners into BlogPost ${blogPost.id}`);
     }
   } catch (affErr) {
@@ -1391,7 +1395,9 @@ ${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:
 </ul></section>`;
       const currentEn = (await prisma.blogPost.findUnique({ where: { id: blogPost.id }, select: { content_en: true } }))?.content_en || "";
       if (!currentEn.includes('class="cluster-related"')) {
-        await prisma.blogPost.update({ where: { id: blogPost.id }, data: { content_en: currentEn + linksHtml } });
+        await optimisticBlogPostUpdate(blogPost.id, (current) => ({
+          content_en: (current.content_en || "") + linksHtml,
+        }), { tag: "[content-selector]" });
         console.log(`[content-selector] Injected ${clusterSiblings.length} cluster links into BlogPost ${blogPost.id}`);
       }
     }

@@ -14,6 +14,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const BUDGET_MS = 53_000;
 
@@ -710,13 +711,10 @@ async function handleAffiliateInjection(request: NextRequest) {
       }
 
       if (enResult.count > 0 || arResult.count > 0) {
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: {
-            content_en: enResult.content,
-            content_ar: arResult.content,
-          },
-        });
+        await optimisticBlogPostUpdate(post.id, (current) => ({
+          content_en: enResult.content,
+          content_ar: arResult.content,
+        }), { tag: "[affiliate-injection]" });
 
         // Mark URL for resubmission so Google re-crawls the affiliate-enriched version
         try {

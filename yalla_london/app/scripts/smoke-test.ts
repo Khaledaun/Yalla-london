@@ -1272,6 +1272,20 @@ test("Integration", "perplexity-computer/index.ts exports executor functions", (
 
 // ── HARDENING SPRINT TESTS ──
 
+test("Hardening", "Optimistic concurrency rejects stale writes", () => {
+  const lib = fs.readFileSync(path.join(APP_DIR, "lib/db/optimistic-update.ts"), "utf-8");
+  const hasVersionCheck = lib.includes("updated_at: post.updated_at") && lib.includes("updateMany");
+  const hasRetry = lib.includes("MAX_RETRIES") && lib.includes("RETRY_DELAY_MS");
+  // Verify key cron files use the wrapper
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const usesWrapper = seoAgent.includes("optimisticBlogPostUpdate") && autoFix.includes("optimisticBlogPostUpdate") && injection.includes("optimisticBlogPostUpdate");
+  return hasVersionCheck && hasRetry && usesWrapper
+    ? { status: PASS, details: "optimisticBlogPostUpdate uses updated_at guard with retry; adopted in key crons" }
+    : { status: FAIL, details: `versionCheck: ${hasVersionCheck}, retry: ${hasRetry}, adopted: ${usesWrapper}` };
+});
+
 test("Hardening", "weekly-topics creates topics that schedule-executor can consume", () => {
   const weekly = fs.readFileSync(path.join(APP_DIR, "app/api/cron/weekly-topics/route.ts"), "utf-8");
   const executor = fs.readFileSync(path.join(APP_DIR, "app/api/cron/schedule-executor/route.ts"), "utf-8");

@@ -30,6 +30,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { onCronFailure } from "@/lib/ops/failure-hooks";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const TOTAL_BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel 60s limit
 const PER_ARTICLE_BUDGET_MS = 12_000; // 12s max per article (non-AI fixes are fast)
@@ -464,10 +465,7 @@ Current word count: ${wordCount}`;
 
         if (Object.keys(updateData).length > 0) {
           updateData.updated_at = new Date();
-          await prisma.blogPost.update({
-            where: { id: article.id },
-            data: updateData,
-          });
+          await optimisticBlogPostUpdate(article.id, () => (updateData), { tag: "[seo-deep-review]" });
 
           // Track for resubmission
           resubmitUrls.push({ url: `${domain}/blog/${slug}`, siteId });

@@ -21,6 +21,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const BUDGET_MS = 53_000;
 const META_MAX_CHARS = 155;
@@ -168,10 +169,7 @@ async function handleAutoFixLite(request: NextRequest) {
           const updateData: Record<string, string> = {};
           if (h1InEn) updateData.content_en = htmlEn;
           if (h1InAr) updateData.content_ar = htmlAr;
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: updateData,
-          });
+          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix-lite]" });
           results.headingsFixed++;
         }
       }
@@ -237,7 +235,7 @@ async function handleAutoFixLite(request: NextRequest) {
           if (arConverted !== post.content_ar) updateData.content_ar = arConverted;
         }
         if (Object.keys(updateData).length > 0) {
-          await prisma.blogPost.update({ where: { id: post.id }, data: updateData });
+          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix-lite]" });
           results.markdownConverted++;
           console.log(`[auto-fix-lite] Converted markdown → HTML for: ${post.slug}`);
         }
@@ -265,10 +263,7 @@ async function handleAutoFixLite(request: NextRequest) {
         if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
 
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: { meta_description_en: trimmed },
-        });
+        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_en: trimmed }), { tag: "[content-auto-fix-lite]" });
         results.metaTrimmedPosts++;
       }
     } catch (err) {
@@ -294,10 +289,7 @@ async function handleAutoFixLite(request: NextRequest) {
         if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
 
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: { meta_description_ar: trimmed },
-        });
+        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_ar: trimmed }), { tag: "[content-auto-fix-lite]" });
         results.metaTrimmedPosts++;
       }
     } catch (err) {
@@ -399,10 +391,7 @@ async function handleAutoFixLite(request: NextRequest) {
         }
 
         if (Object.keys(updates).length > 0) {
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: updates,
-          });
+          await optimisticBlogPostUpdate(post.id, () => (updates), { tag: "[content-auto-fix-lite]" });
           results.titleArtifactsCleaned++;
         }
       }

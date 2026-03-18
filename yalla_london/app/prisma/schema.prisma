@@ -725,27 +725,8 @@ model ImageAsset {
   @@index([auto_assigned])
 }
 
-model VideoAsset {
-  id               String   @id @default(cuid())
-  url              String
-  cloud_storage_path String // S3 key
-  duration_sec     Int?
-  poster_url       String?
-  attribution      String?
-  tags             String[]
-  place_id         String?
-  title            String?
-  description      String?
-  usage_count      Int      @default(0)
-  auto_assigned    Boolean  @default(false)
-  created_at       DateTime @default(now())
-  
-  place            Place?   @relation(fields: [place_id], references: [id])
-  
-  @@index([place_id])
-  @@index([tags])
-  @@index([auto_assigned])
-}
+// VideoAsset (old Place-linked model) — replaced by new VideoAsset at line 3118+
+// Old model removed: had zero code references, was orphaned. See session March 18, 2026.
 
 // Places Database (30 London Places + expansion capability)
 model Place {
@@ -766,7 +747,6 @@ model Place {
   // Relations
   blog_posts    BlogPost[]
   image_assets  ImageAsset[]
-  video_assets  VideoAsset[]
   
   @@index([category])
   @@index([tags])

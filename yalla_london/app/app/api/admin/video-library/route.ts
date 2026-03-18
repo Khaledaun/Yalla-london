@@ -87,12 +87,13 @@ export async function GET(request: NextRequest) {
       );
 
       // Enrich with thumbnail URLs
-      const videoMap = new Map(videos.map(v => [v.id, v] as [string, typeof v]));
+      const videoLookup: Record<string, typeof videos[number]> = {};
+      for (const v of videos) { videoLookup[v.id] = v; }
       const enriched = matches.map(m => ({
         ...m,
-        thumbnailUrl: videoMap.get(m.videoId)?.thumbnailUrl,
-        collectionName: videoMap.get(m.videoId)?.collectionName,
-        textOverlay: videoMap.get(m.videoId)?.textOverlay,
+        thumbnailUrl: videoLookup[m.videoId]?.thumbnailUrl ?? null,
+        collectionName: videoLookup[m.videoId]?.collectionName ?? null,
+        textOverlay: videoLookup[m.videoId]?.textOverlay ?? null,
       }));
 
       return NextResponse.json({ articleId, articleTitle: article.title_en, matches: enriched });

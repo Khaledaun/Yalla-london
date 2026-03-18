@@ -192,19 +192,13 @@ async function handleScheduleExecutor(request: NextRequest) {
           }
 
           // Create an ArticleDraft in "research" phase
-          const slug = topic.title
-            .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .slice(0, 80);
-
           await prisma.articleDraft.create({
             data: {
-              topic_id: topic.id,
+              topic_proposal_id: topic.id,
               site_id: topic.site_id || defaultSiteId,
               locale: lang,
-              title: topic.title,
-              slug: `${slug}-${lang}`,
+              keyword: topic.title,
+              topic_title: topic.title,
               current_phase: "research",
               phase_attempts: 0,
               quality_score: 0,

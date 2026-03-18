@@ -276,7 +276,7 @@ export async function runContentSelector(
     // Enhancement: Grok researches fresh angles, expands to 2,000+ words, adds
     // experience signals, headings, internal links, affiliate placeholders, and
     // rewrites the meta description. Re-scored after enhancement.
-    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 70
+    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 55 (lowered from 70 — March 18, 2026)
     const MIN_WORD_COUNT = CONTENT_QUALITY.minWords || 1000; // pre-pub gate hard block
     const publishReady: Array<Record<string, unknown>> = [];
     const needsEnhancement: Array<Record<string, unknown>> = [];

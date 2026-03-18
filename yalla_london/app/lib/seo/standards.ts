@@ -122,16 +122,25 @@ export const CONTENT_QUALITY = {
   targetH2Count: 6,
   /** Maximum one H1 per page */
   maxH1Count: 1,
-  /** Minimum SEO score to pass quality gate (out of 100) */
-  qualityGateScore: 70,
+  /**
+   * Minimum SEO score to pass quality gate (out of 100).
+   * LOWERED from 70 to 55 (March 18, 2026) — the scoring formula gives 0 points for
+   * affiliate links (injected post-publish by affiliate-injection cron) and 0 points
+   * for internal links (injected post-publish by seo-agent). Articles that are otherwise
+   * good (1200+ words, proper meta, headings, keywords) were scoring 55-65 and getting
+   * rejected — meaning the reservoir was permanently starved and 0 articles auto-published.
+   * The pre-publication gate (16 checks) catches truly bad content. Campaign enhancer and
+   * post-publish crons add affiliates/links/authenticity signals.
+   */
+  qualityGateScore: 55,
   /**
    * Minimum quality score to fetch articles FROM the reservoir for promotion.
-   * Intentionally lower than qualityGateScore (70) so that articles scoring 60–69
+   * Intentionally lower than qualityGateScore so that articles scoring 45–54
    * are still fetched and evaluated — the gate's hard blocker is seo_score < 50,
-   * not < 70. This prevents articles from being permanently frozen if the
+   * not < 55. This prevents articles from being permanently frozen if the
    * qualityGateScore threshold is raised after they entered the reservoir.
    */
-  reservoirMinScore: 60,
+  reservoirMinScore: 45,
 } as const;
 
 // ─── Per-Content-Type Quality Thresholds ─────────────────────────────────────

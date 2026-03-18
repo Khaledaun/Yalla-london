@@ -3679,6 +3679,164 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 116. **All hardcoded quality thresholds must import from centralized standards** — `CONTENT_QUALITY.minWords`, `CONTENT_QUALITY.qualityGateScore`, `CONTENT_TYPE_THRESHOLDS.blog.seoScoreBlocker` are the single source of truth. Hardcoding values in cron routes creates silent conflicts when standards change.
 117. **SEO deep review should catch articles beyond 24h** — newly published articles may have missing meta descriptions, short content, or no internal links. A 7-day window ensures the review catches articles that were published during cron downtime or that missed the first review pass.
 
+### Session: March 18, 2026 — 7-Fix Orchestration Hardening Sprint
+
+**Complete orchestration hardening sprint — 7 fixes across 20+ files, 4 new schema fields, 7 new smoke tests.**
+
+**Fix 1 (P0): Optimistic Concurrency on BlogPost Writes**
+- Created `lib/db/optimistic-update.ts` — wrapper that reads BlogPost, computes changes, then updates with `updated_at` guard in WHERE clause. Retries up to 3x with 100ms delay on stale writes.
+- Replaced **24 direct `prisma.blogPost.update` calls** across 7 files: seo-agent (9), content-auto-fix (6), content-auto-fix-lite (5), seo-deep-review (1), affiliate-injection (1), article-enhancer (2), select-runner (2)
+- Prevents concurrent crons from silently overwriting each other's changes (content, meta, affiliates)
+
+**Fix 2 (P1): Per-Article Trace ID**
+- Added `trace_id` field to both ArticleDraft (default: cuid()) and BlogPost
+- Created `/api/admin/article-trace/[traceId]` endpoint returning full lifecycle: ArticleDraft + BlogPost + CronJobLog entries + URLIndexingStatus + CjClickEvent + chronological timeline
+- Migration backfills existing records (ArticleDraft.id → trace_id, then BlogPost linked via blog_post_id)
+
+**Fix 3 (P1): Formal State Machine Transitions**
+- Added `VALID_TRANSITIONS` map to `constants.ts`: defines all legal phase changes (research→outline, outline→drafting, ..., promoting→published/reservoir/rejected)
+- `validatePhaseTransition(from, to)` throws Error on illegal transitions
+- Wired into build-runner (5 calls), select-runner (2), diagnostic-agent (2), failure-hooks (1) — validates before every `current_phase` update
+- Rejection transitions are always valid from any phase; backward resets in recovery logic are intentionally excluded
+
+**Fix 4 (P0): Topic Status Alignment**
+- `schedule-executor` queried for `status: "approved"` but `weekly-topics` creates topics with `status: "ready"` — schedule-executor NEVER found topics
+- Changed to `CONSUMABLE_STATUSES = ["ready", "queued", "planned", "proposed"]` matching content-builder-create
+- Atomic claiming also updated to use status array instead of single "approved"
+
+**Fix 5 (P2): Post-Publish Enhancement Manifest**
+- Created `lib/db/enhancement-log.ts` with `isEnhancementOwner()` and `buildEnhancementLogEntry()` helpers
+- Added `ENHANCEMENT_OWNERS` constant to `constants.ts` mapping each modification type to exactly one cron owner:
+  - `internal_links` → seo-agent, `schema_markup` → seo-agent, `meta_optimization` → seo-deep-review
+  - `heading_hierarchy` → content-auto-fix-lite, `affiliate_links` → affiliate-injection
+  - `content_expansion` → seo-deep-review, `broken_links` → content-auto-fix, `authenticity_signals` → seo-deep-review
+- Added `enhancement_log Json?` field to BlogPost — array of `{ type, cron, timestamp, summary }` entries
+- Before each enhancement, cron checks `isEnhancementOwner()` — skips if not owner
+- After each enhancement, appends to `enhancement_log` (capped at 50 entries)
+
+**Fix 6 (P2): Escalation Policy & Pipeline Circuit Breaker**
+- Added `ESCALATION_POLICY` to `constants.ts`: `MAX_DAILY_CEO_ALERTS=10`, `AUTO_PAUSE_THRESHOLD=5`, `ALERT_COOLDOWN_MINUTES=30`, `PIPELINE_MIN_SUCCESS_RATE=0.30`, `PIPELINE_HEALTH_WINDOW_HOURS=4`
+- CEO Inbox: checks daily alert count before creating new alerts — batches into digest after limit. Per-job cooldown prevents duplicate alerts within 30min window
+- content-builder: pipeline circuit breaker queries last 4h of CronJobLog. If success rate < 30% over 5+ runs, auto-pauses and sends single CEO alert
+
+**Fix 7 (P3): Pipeline Source Tracking**
+- Added `source_pipeline String?` to BlogPost — `"8-phase"` (default, content-selector) or `"legacy-direct"` (daily-content-generate)
+- content-matrix API returns `sourcePipeline` and `traceId` in response for cockpit display
+
+**New Schema Fields (migration: `20260318_hardening_sprint_fields`):**
+- `BlogPost.source_pipeline` (String?) — pipeline that created the article
+- `BlogPost.trace_id` (String?) — lifecycle trace linking to ArticleDraft
+- `BlogPost.enhancement_log` (JSONB?) — post-publish modification history
+- `ArticleDraft.trace_id` (String?, default: cuid()) — lifecycle trace ID
+
+**New Files Created:**
+- `lib/db/optimistic-update.ts` — optimistic concurrency wrapper
+- `lib/db/enhancement-log.ts` — enhancement ownership + logging helpers
+- `app/api/admin/article-trace/[traceId]/route.ts` — full lifecycle trace API
+- `prisma/migrations/20260318_hardening_sprint_fields/migration.sql` — schema + backfill
+
+**Smoke Tests Added:** 7 new tests in `scripts/smoke-test.ts`:
+1. "weekly-topics creates topics that schedule-executor can consume"
+2. "Optimistic concurrency rejects stale writes"
+3. "Invalid phase transition throws"
+4. "Article trace endpoint exists"
+5. "Enhancement ownership enforced in crons"
+6. "Pipeline circuit breaker in content-builder"
+7. "CEO Inbox daily alert limit enforced"
+
+**Deployment Requirement:** Run `npx prisma migrate deploy` for new fields.
+
+### Critical Rules Learned (March 18 Session — Hardening Sprint)
+
+118. **Every `blogPost.update` in a cron MUST use `optimisticBlogPostUpdate()`** — direct updates silently overwrite concurrent changes. The wrapper reads fresh data, applies changes, and uses `updated_at` as an optimistic lock. If stale, retries 3x with 100ms delay. Import from `@/lib/db/optimistic-update`.
+119. **Phase transitions MUST be validated before every `current_phase` update** — call `validatePhaseTransition(from, to)` from `@/lib/content-pipeline/constants`. The `VALID_TRANSITIONS` map is the single source of truth for what transitions are legal. Illegal transitions throw immediately — this catches bugs before they create corrupt pipeline state.
+120. **Topic status alignment: `CONSUMABLE_STATUSES = ["ready","queued","planned","proposed"]`** — all topic consumers (schedule-executor, content-builder-create) must query for these statuses. Never use `"approved"` — no cron creates topics with that status.
+121. **Each post-publish modification type has exactly ONE owning cron** — check `ENHANCEMENT_OWNERS` in constants.ts before modifying a published BlogPost. If `isEnhancementOwner(cronName, enhancementType)` returns false, skip the modification. This prevents seo-agent and content-auto-fix from fighting over the same field.
+122. **`enhancement_log` must be capped at 50 entries** — `buildEnhancementLogEntry()` handles this automatically via `.slice(-50)`. Without the cap, articles enhanced daily would accumulate thousands of log entries over months.
+123. **CEO Inbox must have a daily alert cap** — `ESCALATION_POLICY.MAX_DAILY_CEO_ALERTS = 10`. After 10 alerts, new failures are still auto-fixed but don't create dashboard alerts. Without this, a cascading failure generates 50+ alerts in minutes — alert fatigue means Khaled ignores all of them.
+124. **Pipeline circuit breaker requires 5+ runs before evaluating** — checking success rate with <5 data points causes false pauses. The breaker only activates when `recentRuns.length >= 5` AND `successRate < 0.30`.
+125. **`source_pipeline` must be set on EVERY BlogPost creation path** — `"8-phase"` in select-runner.ts, `"legacy-direct"` in daily-content-generate. Missing this field makes it impossible to diagnose which pipeline produced a bad article.
+126. **`trace_id` flows from ArticleDraft → BlogPost** — set automatically via `@default(cuid())` on ArticleDraft creation. Copied to BlogPost in `promoteToBlogPost()`. CronJobLog entries should include `trace_id` in `result_summary` JSON for full lifecycle visibility.
+
+### Current Platform Status (March 18, 2026)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow multi-engine, schema injection, meta optimization, internal link injection ✅
+- 16-check pre-publication gate ✅
+- Per-content-type quality gates (blog 500w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Circuit breaker + last-defense fallback for AI reliability ✅
+- Centralized pipeline constants (single source of truth for all retry/budget values) ✅
+- Queue Monitor with 6 health rules + auto-fix + dashboard API ✅
+- **NEW: Optimistic concurrency on all BlogPost writes (24 update calls protected)** ✅
+- **NEW: Formal state machine with VALID_TRANSITIONS — validates every phase change** ✅
+- **NEW: Per-article trace ID — full lifecycle from draft to revenue via `/api/admin/article-trace/[traceId]`** ✅
+- **NEW: Enhancement ownership manifest — each modification type has exactly one owning cron** ✅
+- **NEW: Escalation policy — daily alert cap (10), per-job cooldown (30min), pipeline circuit breaker (<30% → auto-pause)** ✅
+- **NEW: Pipeline source tracking — `source_pipeline` field on every BlogPost** ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- Per-page audit with sortable indexing + GSC data ✅
+- CEO Inbox automated incident response (detect → diagnose → fix → retest → alert) ✅
+- Cycle Health Analyzer with evidence-based diagnostics ✅
+- Cache-first sitemap (<200ms vs 5-10s) ✅
+- CJ affiliate pipeline: sync, deep links, injection, revenue attribution, SID tracking ✅
+- Affiliate HQ: 6-tab command center ✅
+- GEO/AIO optimization: citability gate, stats+citations in all prompts ✅
+- Topic diversification: 60-70% general luxury + 30-40% Arab niche ✅
+- GSC sync with accurate per-day data ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+- Admin dashboard Clean Light design system ✅
+
+**Self-Healing & Self-Learning Architecture (March 18, 2026):**
+
+| Layer | Component | What It Does |
+|-------|-----------|-------------|
+| **L0: Prevention** | `VALID_TRANSITIONS` state machine | Throws on illegal phase transitions before they corrupt pipeline |
+| **L0: Prevention** | `ENHANCEMENT_OWNERS` manifest | Prevents concurrent crons from modifying same field on same article |
+| **L0: Prevention** | `optimisticBlogPostUpdate()` | Detects stale writes from concurrent crons, retries with fresh data |
+| **L1: Detection** | Queue Monitor (6 rules) | Detects near-max-attempts, stuck-24h, drafting-backlog, assembly-stuck, diagnostic-stuck, pipeline-stalled |
+| **L1: Detection** | Cycle Health Analyzer (17 checks) | Evidence-based diagnostics across pipeline, crons, indexing, quality, AI, CJ affiliate |
+| **L1: Detection** | Pipeline Circuit Breaker | Auto-pauses content-builder when success rate drops below 30% over 4h |
+| **L2: Recovery** | Diagnostic Agent (3-phase) | Diagnose (classify root cause) → Fix (reset/reject/repair) → Verify (confirm fix worked) |
+| **L2: Recovery** | Queue Monitor auto-fix | One-tap fix-all: reject stuck, unlock assembly, clean diagnostic artifacts |
+| **L2: Recovery** | CEO Inbox auto-fix | Attempts fix strategy from JOB_FIX_MAP, retests 2min later, emails result |
+| **L3: Learning** | `enhancement_log` on BlogPost | Tracks every post-publish modification (type, cron, timestamp, summary) |
+| **L3: Learning** | `trace_id` lifecycle | Links ArticleDraft → BlogPost → CronJobLog → URLIndexingStatus → CjClickEvent |
+| **L3: Learning** | `source_pipeline` tracking | Distinguishes 8-phase vs legacy-direct articles for quality comparison |
+| **L3: Learning** | `ESCALATION_POLICY` | Adapts alert frequency based on daily volume and per-job cooldown |
+| **L4: Audit** | Smoke Test Suite (159+ tests) | Validates pipeline, security, state machine, concurrency, enhancement ownership |
+| **L4: Audit** | Master Audit Engine | READ-ONLY full-site crawl with 8 validators + 3 risk scanners |
+| **L4: Audit** | Weekly Policy Monitor | Checks Google policy sources for algorithm changes |
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW | Open |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW | Open |
+| Arabic SSR | `/ar/` routes render English on server, Arabic only client-side | MEDIUM | Open (KG-032) |
+| Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
+| Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
+
+### Key Reference Files (Updated March 18)
+
+| File | Purpose |
+|------|---------|
+| `lib/content-pipeline/constants.ts` | **CRITICAL**: ALL retry caps, budget values, thresholds, VALID_TRANSITIONS, ENHANCEMENT_OWNERS, ESCALATION_POLICY |
+| `lib/db/optimistic-update.ts` | Optimistic concurrency wrapper for BlogPost writes |
+| `lib/db/enhancement-log.ts` | Enhancement ownership check + logging helpers |
+| `lib/seo/standards.ts` | SEO compliance thresholds, Google algorithm context |
+| `lib/content-pipeline/queue-monitor.ts` | 6-rule pipeline health enforcement + auto-fix |
+| `lib/ops/diagnostic-agent.ts` | 3-phase stuck draft diagnosis + auto-fix |
+| `lib/ops/ceo-inbox.ts` | Automated incident response with escalation policy |
+| `docs/AUDIT-LOG.md` | Persistent audit findings — READ BEFORE ANY PIPELINE CHANGE |
+| `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform + anti-patterns registry |
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

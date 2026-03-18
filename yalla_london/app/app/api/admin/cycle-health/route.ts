@@ -1062,6 +1062,68 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
     console.warn("[cycle-health] Builder-create blocked check failed:", err instanceof Error ? err.message : err);
   }
 
+  // ── Check 23: Pipeline circuit breaker state ──
+  try {
+    const { ESCALATION_POLICY } = await import("@/lib/content-pipeline/constants");
+    const windowStart = new Date(Date.now() - ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS * 3600_000);
+    const builderRuns = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: "content-builder",
+        started_at: { gte: windowStart },
+        status: { not: "skipped" },
+      },
+      select: { status: true, result_summary: true },
+      take: 20,
+    });
+    // Filter out dedup markers (empty result_summary)
+    const realRuns = builderRuns.filter(r => {
+      const summary = r.result_summary as Record<string, unknown> | null;
+      return !summary || !summary.dedup_marker;
+    });
+    if (realRuns.length >= 5) {
+      const successCount = realRuns.filter(r => r.status === "completed").length;
+      const successRate = successCount / realRuns.length;
+      if (successRate < ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE) {
+        issues.push({
+          id: "pipeline-circuit-breaker-open",
+          category: "pipeline",
+          severity: "critical" as const,
+          what: `Pipeline circuit breaker OPEN — ${(successRate * 100).toFixed(0)}% success rate (${successCount}/${realRuns.length} runs)`,
+          why: `Content-builder success rate over ${ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS}h is below ${(ESCALATION_POLICY.PIPELINE_MIN_SUCCESS_RATE * 100).toFixed(0)}% threshold. Pipeline auto-paused to prevent AI budget waste.`,
+          fix: "Check AI provider health, resolve root cause failures, then restart content-builder cron manually.",
+          fixAction: { method: "POST", endpoint: "/api/cron/diagnostic-sweep", payload: {}, label: "Run Diagnostics", description: "Run diagnostic agent to clear stuck drafts" },
+          evidence: { successRate, successCount, totalRuns: realRuns.length, windowHours: ESCALATION_POLICY.PIPELINE_HEALTH_WINDOW_HOURS },
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Circuit breaker check failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Check 24: Topic starvation — no consumable topics ──
+  try {
+    const consumableTopics = await prisma.topicProposal.count({
+      where: { status: { in: ["ready", "queued", "planned", "proposed"] } },
+    });
+    const activeDrafts = await prisma.articleDraft.count({
+      where: { current_phase: { notIn: ["rejected", "published"] } },
+    });
+    if (consumableTopics === 0 && activeDrafts < 5) {
+      issues.push({
+        id: "topic-starvation",
+        category: "content",
+        severity: "warning" as const,
+        what: "No consumable topics available — pipeline will starve",
+        why: "Zero topics with status ready/queued/planned/proposed. schedule-executor and content-builder-create have nothing to process.",
+        fix: "Run weekly-topics cron or use Cockpit → Content → Research & Create to add topics.",
+        fixAction: { method: "POST", endpoint: "/api/cron/weekly-topics", payload: {}, label: "Generate Topics", description: "Run weekly topic research" },
+        evidence: { consumableTopics, activeDrafts },
+      });
+    }
+  } catch (err) {
+    console.warn("[cycle-health] Topic starvation check failed:", err instanceof Error ? err.message : err);
+  }
+
   // ── Calculate grade ──
   let score = 100;
   for (const issue of issues) {

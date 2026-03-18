@@ -10,6 +10,14 @@ import {
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { getDefaultSiteId } from "@/config/sites";
+import {
+  prepareCanvaRender,
+  updateProjectWithCanvaResult,
+  markProjectFailed,
+  getCanvaRenderInstructions,
+  isCanvaRendered,
+  extractCanvaDesignId,
+} from "@/lib/video/canva-render-engine";
 
 const VALID_CATEGORIES: VideoCategory[] = [
   "destination-highlight", "blog-promo", "hotel-showcase", "restaurant-feature",
@@ -94,6 +102,31 @@ export async function GET(request: NextRequest) {
           page,
           limit,
           totalPages: Math.ceil(total / limit),
+        });
+      }
+
+      case "canva-status": {
+        // Check if a VideoProject was rendered via Canva and return its design ID
+        const projectId = sp.get("id");
+        if (!projectId) {
+          return NextResponse.json({ error: "id is required" }, { status: 400 });
+        }
+        const proj = await prisma.videoProject.findUnique({
+          where: { id: projectId },
+          select: { id: true, status: true, compositionCode: true, exportedUrl: true, title: true },
+        });
+        if (!proj) {
+          return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+        const canvaRendered = isCanvaRendered(proj.compositionCode);
+        const canvaDesignId = canvaRendered ? extractCanvaDesignId(proj.compositionCode) : null;
+        return NextResponse.json({
+          id: proj.id,
+          title: proj.title,
+          status: proj.status,
+          canvaRendered,
+          canvaDesignId,
+          exportUrl: proj.exportedUrl,
         });
       }
 
@@ -241,6 +274,109 @@ export async function POST(request: NextRequest) {
           message: "Use the browser player for preview. Server-side MP4 export requires Remotion Lambda setup.",
           template,
         });
+      }
+
+      case "render-canva": {
+        // Prepare a VideoProject for rendering via Canva MCP.
+        // Returns the query, design type, and instructions for the AI agent
+        // to execute the Canva MCP tool calls.
+        const { videoProjectId } = body;
+        if (!videoProjectId || typeof videoProjectId !== "string") {
+          return NextResponse.json(
+            { error: "videoProjectId is required" },
+            { status: 400 },
+          );
+        }
+
+        try {
+          const renderData = await prepareCanvaRender(videoProjectId);
+          const instructions = getCanvaRenderInstructions(
+            videoProjectId,
+            renderData.query,
+            renderData.designType,
+            renderData.exportFormat,
+          );
+
+          return NextResponse.json({
+            success: true,
+            videoProjectId,
+            query: renderData.query,
+            designType: renderData.designType,
+            exportFormat: renderData.exportFormat,
+            brand: {
+              name: renderData.brand.name,
+              colors: renderData.brand.colors,
+            },
+            instructions,
+            project: renderData.project,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          return NextResponse.json(
+            { error: message },
+            { status: 404 },
+          );
+        }
+      }
+
+      case "canva-complete": {
+        // Called after Canva MCP tools have generated and exported the design.
+        // Updates the VideoProject with the Canva design ID and export URL.
+        const { videoProjectId: completeProjectId, canvaDesignId, exportUrl, format: exportFormat } = body;
+
+        if (!completeProjectId || typeof completeProjectId !== "string") {
+          return NextResponse.json(
+            { error: "videoProjectId is required" },
+            { status: 400 },
+          );
+        }
+        if (!canvaDesignId || typeof canvaDesignId !== "string") {
+          return NextResponse.json(
+            { error: "canvaDesignId is required" },
+            { status: 400 },
+          );
+        }
+        if (!exportUrl || typeof exportUrl !== "string") {
+          return NextResponse.json(
+            { error: "exportUrl is required" },
+            { status: 400 },
+          );
+        }
+
+        try {
+          await updateProjectWithCanvaResult(completeProjectId, {
+            canvaDesignId,
+            exportUrl,
+            format: exportFormat || "png",
+          });
+
+          return NextResponse.json({
+            success: true,
+            videoProjectId: completeProjectId,
+            canvaDesignId,
+            exportUrl,
+            status: "rendered",
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          return NextResponse.json(
+            { error: message },
+            { status: 500 },
+          );
+        }
+      }
+
+      case "canva-fail": {
+        // Mark a VideoProject as failed after Canva render error
+        const { videoProjectId: failProjectId, error: failError } = body;
+        if (!failProjectId) {
+          return NextResponse.json(
+            { error: "videoProjectId is required" },
+            { status: 400 },
+          );
+        }
+        await markProjectFailed(failProjectId, failError || "Unknown Canva render error");
+        return NextResponse.json({ success: true, status: "failed" });
       }
 
       default:

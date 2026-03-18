@@ -1272,6 +1272,29 @@ test("Integration", "perplexity-computer/index.ts exports executor functions", (
 
 // ── HARDENING SPRINT TESTS ──
 
+test("Hardening", "Invalid phase transition throws", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasTransitionMap = content.includes("VALID_TRANSITIONS") && content.includes("research") && content.includes("promoting");
+  const hasValidator = content.includes("validatePhaseTransition") && content.includes("throw");
+  const buildRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/build-runner.ts"), "utf-8");
+  const selectRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const usedInPipeline = buildRunner.includes("validatePhaseTransition") && selectRunner.includes("validatePhaseTransition");
+  return hasTransitionMap && hasValidator && usedInPipeline
+    ? { status: PASS, details: "VALID_TRANSITIONS map + validatePhaseTransition() wired in build-runner + select-runner" }
+    : { status: FAIL, details: `map: ${hasTransitionMap}, validator: ${hasValidator}, wired: ${usedInPipeline}` };
+});
+
+test("Hardening", "Article trace endpoint exists", () => {
+  const routeExists = fs.existsSync(path.join(APP_DIR, "app/api/admin/article-trace/[traceId]/route.ts"));
+  if (!routeExists) return { status: FAIL, details: "article-trace route file missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/article-trace/[traceId]/route.ts"), "utf-8");
+  const hasAuth = content.includes("requireAdmin");
+  const hasTraceQuery = content.includes("trace_id") && content.includes("timeline");
+  return hasAuth && hasTraceQuery
+    ? { status: PASS, details: "Trace endpoint with auth, timeline, and multi-table query" }
+    : { status: FAIL, details: `auth: ${hasAuth}, traceQuery: ${hasTraceQuery}` };
+});
+
 test("Hardening", "Optimistic concurrency rejects stale writes", () => {
   const lib = fs.readFileSync(path.join(APP_DIR, "lib/db/optimistic-update.ts"), "utf-8");
   const hasVersionCheck = lib.includes("updated_at: post.updated_at") && lib.includes("updateMany");

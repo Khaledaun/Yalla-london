@@ -22,6 +22,7 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
+import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
@@ -164,6 +165,7 @@ export async function runContentSelector(
       // The updateMany WHERE re-checks current_phase="reservoir" — if another process
       // already claimed it, count will be 0 and we skip it.
       for (const rd of reservoirDrafts) {
+        validatePhaseTransition("reservoir", "promoting");
         const claimed = await prisma.articleDraft.updateMany({
           where: { id: rd.id as string, current_phase: "reservoir" },
           data: { current_phase: "promoting", updated_at: new Date() },

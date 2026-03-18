@@ -230,7 +230,7 @@ export async function onPipelineFailure(
 
     // For non-rejected failures (early attempts), log for visibility but don't intervene.
     // Uses centralized constants — single source of truth (lib/content-pipeline/constants.ts).
-    const { getMaxAttempts } = await import("@/lib/content-pipeline/constants");
+    const { getMaxAttempts, validatePhaseTransition } = await import("@/lib/content-pipeline/constants");
     const maxAttempts = getMaxAttempts(ctx.phase);
     if ((ctx.attemptNumber || 0) < maxAttempts) {
       console.log(`[failure-hook] Draft ${ctx.draftId} failed at "${ctx.phase}" (attempt ${ctx.attemptNumber || "?"}/${maxAttempts}) — will auto-retry`);

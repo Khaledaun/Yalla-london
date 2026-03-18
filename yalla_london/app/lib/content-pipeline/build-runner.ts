@@ -14,7 +14,7 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
-import { getMaxAttempts } from "@/lib/content-pipeline/constants";
+import { getMaxAttempts, validatePhaseTransition } from "@/lib/content-pipeline/constants";
 
 const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -244,6 +244,11 @@ export async function runContentBuilder(
     const updateData: Record<string, unknown> = { updated_at: new Date() };
 
     if (result.success) {
+      // Validate the phase transition before writing to DB — catches invalid jumps early.
+      // Rejections are always valid and handled in the else branch below.
+      if (result.nextPhase !== "rejected") {
+        validatePhaseTransition(currentPhase, result.nextPhase);
+      }
       updateData.current_phase = result.nextPhase;
       // When assembly used raw fallback (aiModelUsed="fallback-raw"), keep phase_attempts
       // intact so the draft doesn't loop back through AI assembly on a future re-queue.
@@ -376,6 +381,9 @@ export async function runContentBuilder(
               const pairedUpdate: Record<string, unknown> = { updated_at: new Date() };
 
               if (pairedResult.success) {
+                if (pairedResult.nextPhase !== "rejected") {
+                  validatePhaseTransition(pairedPhase, pairedResult.nextPhase);
+                }
                 pairedUpdate.current_phase = pairedResult.nextPhase;
                 pairedUpdate.phase_attempts = (pairedPhase === "assembly" && pairedResult.aiModelUsed === "fallback-raw")
                   ? (pairedAttempts) : 0;
@@ -455,6 +463,9 @@ export async function runContentBuilder(
             const secondResult = await runPhase(secondDraft as any, SITES[secondDraft.site_id as string], deadline.remainingMs());
             const secondUpdate: Record<string, unknown> = { updated_at: new Date() };
             if (secondResult.success) {
+              if (secondResult.nextPhase !== "rejected") {
+                validatePhaseTransition(secondDraft.current_phase as string, secondResult.nextPhase);
+              }
               secondUpdate.current_phase = secondResult.nextPhase;
               secondUpdate.phase_attempts = 0;
               secondUpdate.last_error = null;
@@ -537,6 +548,9 @@ export async function runContentBuilder(
             const extraUpdate: Record<string, unknown> = { updated_at: new Date() };
 
             if (extraResult.success) {
+              if (extraResult.nextPhase !== "rejected") {
+                validatePhaseTransition(extraPhase, extraResult.nextPhase);
+              }
               extraUpdate.current_phase = extraResult.nextPhase;
               extraUpdate.phase_attempts = 0;
               extraUpdate.last_error = null;

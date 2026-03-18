@@ -725,27 +725,8 @@ model ImageAsset {
   @@index([auto_assigned])
 }
 
-model VideoAsset {
-  id               String   @id @default(cuid())
-  url              String
-  cloud_storage_path String // S3 key
-  duration_sec     Int?
-  poster_url       String?
-  attribution      String?
-  tags             String[]
-  place_id         String?
-  title            String?
-  description      String?
-  usage_count      Int      @default(0)
-  auto_assigned    Boolean  @default(false)
-  created_at       DateTime @default(now())
-  
-  place            Place?   @relation(fields: [place_id], references: [id])
-  
-  @@index([place_id])
-  @@index([tags])
-  @@index([auto_assigned])
-}
+// VideoAsset (old Place-linked model) — replaced by new VideoAsset at line 3118+
+// Old model removed: had zero code references, was orphaned. See session March 18, 2026.
 
 // Places Database (30 London Places + expansion capability)
 model Place {
@@ -766,7 +747,6 @@ model Place {
   // Relations
   blog_posts    BlogPost[]
   image_assets  ImageAsset[]
-  video_assets  VideoAsset[]
   
   @@index([category])
   @@index([tags])
@@ -3112,6 +3092,61 @@ model VideoProject {
   @@index([status])
   @@index([category])
   @@map("video_projects")
+}
+
+/// VideoAsset — Centralized registry for all video clips (Canva, self-captured, AI-generated)
+model VideoAsset {
+  id              String   @id @default(cuid())
+  assetCode       String   @unique // VID-001, VID-002, etc. Human-readable ID
+  siteId          String?  // null = usable by all sites
+
+  // Source tracking
+  source          String   // canva-purchased, self-captured, ai-generated, stock
+  canvaDesignId   String?  // Canva design ID (e.g., DAHD7UYNWZ0)
+  canvaPageIndex  Int?     // Page number within the Canva design
+  collectionName  String?  // "60-luxury-travel", "50-aesthetic-reels", "300-beach-clips", etc.
+  originalUrl     String?  // Canva edit URL or file path
+  thumbnailUrl    String?  // Cached thumbnail URL
+  exportedUrl     String?  // Exported MP4/MOV URL (Vercel Blob, S3, etc.)
+
+  // Dimensions & format
+  width           Int      @default(1080)
+  height          Int      @default(1920)
+  format          String   @default("vertical") // vertical, horizontal, square
+  durationSeconds Int?     // Duration in seconds (null if unknown)
+
+  // Tagging taxonomy
+  locationTags    String[] // london, dubai, paris, maldives, beach-generic, etc.
+  sceneTags       String[] // hotel, restaurant, beach, city, aerial, sunset, yacht, spa
+  moodTags        String[] // luxury, adventure, romantic, peaceful, vibrant, aesthetic
+  contentFormat   String   @default("raw-footage") // reel-template, raw-footage, text-overlay, b-roll
+  seasonTags      String[] // summer, winter, ramadan, christmas, year-round
+  customTags      String[] // free-form additional tags
+  textOverlay     String?  @db.Text // Text visible in the video (from Canva content scan)
+
+  // Article & social matching
+  matchedArticles String[] // BlogPost IDs this video is matched to
+  usageCount      Int      @default(0) // How many times used in social posts
+  lastUsedAt      DateTime?
+
+  // Status
+  status          String   @default("untagged") // untagged, tagged, matched, used, retired
+  authenticity    String   @default("stock") // stock, self-captured, branded (self-captured = highest E-E-A-T)
+  priority        Int      @default(0) // Higher = use first (self-captured gets +10)
+
+  // Metadata
+  notes           String?  @db.Text // Admin notes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([status])
+  @@index([source])
+  @@index([collectionName])
+  @@index([locationTags])
+  @@index([sceneTags])
+  @@index([authenticity])
+  @@map("video_assets")
 }
 
 /// ContentPipeline — AI content engine pipeline runs (Researcher → Ideator → Scripter → Analyst)

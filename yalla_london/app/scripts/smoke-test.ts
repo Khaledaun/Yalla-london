@@ -1270,6 +1270,18 @@ test("Integration", "perplexity-computer/index.ts exports executor functions", (
     : { status: FAIL, details: "Executor functions not exported from index.ts" };
 });
 
+// ── HARDENING SPRINT TESTS ──
+
+test("Hardening", "weekly-topics creates topics that schedule-executor can consume", () => {
+  const weekly = fs.readFileSync(path.join(APP_DIR, "app/api/cron/weekly-topics/route.ts"), "utf-8");
+  const executor = fs.readFileSync(path.join(APP_DIR, "app/api/cron/schedule-executor/route.ts"), "utf-8");
+  const weeklyCreatesReady = weekly.includes('status: \'ready\'') || weekly.includes('status: "ready"');
+  const executorAcceptsReady = executor.includes('"ready"') && executor.includes('CONSUMABLE_STATUSES');
+  return weeklyCreatesReady && executorAcceptsReady
+    ? { status: PASS, details: "weekly-topics creates 'ready', schedule-executor consumes 'ready' via CONSUMABLE_STATUSES" }
+    : { status: FAIL, details: `weekly creates ready: ${weeklyCreatesReady}, executor accepts ready: ${executorAcceptsReady}` };
+});
+
 for (const cat of categories) {
   const catResults = results.filter(r => r.category === cat);
   const catPass = catResults.filter(r => r.status === PASS).length;

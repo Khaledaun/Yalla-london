@@ -168,22 +168,25 @@ async function handleScheduleExecutor(request: NextRequest) {
           if (Date.now() - cronStart > BUDGET_MS) break;
 
           // Find a topic proposal to use
+          // Status alignment: weekly-topics creates "ready", admin creates "queued"/"planned"/"proposed"
+          // Must match content-builder-create's query to consume topics from all sources
+          const CONSUMABLE_STATUSES = ["ready", "queued", "planned", "proposed"];
           const topic = await prisma.topicProposal.findFirst({
             where: {
-              status: "approved",
+              status: { in: CONSUMABLE_STATUSES },
               site_id: { in: activeSiteIds },
             },
             orderBy: { created_at: "asc" },
           });
 
           if (!topic) {
-            results.errors.push(`No approved topics available for ${lang}`);
+            results.errors.push(`No consumable topics available for ${lang} (checked statuses: ${CONSUMABLE_STATUSES.join(", ")})`);
             continue;
           }
 
           // Claim the topic atomically
           const claimed = await prisma.topicProposal.updateMany({
-            where: { id: topic.id, status: "approved" },
+            where: { id: topic.id, status: { in: CONSUMABLE_STATUSES } },
             data: { status: "generating" as string },
           });
 

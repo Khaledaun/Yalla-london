@@ -121,7 +121,7 @@ export default function EmailCampaignsPage() {
   const [newCampaign, setNewCampaign] = useState({ name: "", subject: "", htmlContent: "<p>Your email content here</p>", templateId: "" });
   const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
-  const [newTemplate, setNewTemplate] = useState({ name: "", subject: "", htmlBody: "<p>Your template content here</p>" });
+  const [newTemplate, setNewTemplate] = useState({ name: "", subject: "", templateType: "newsletter" });
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [isSeedingTemplates, setIsSeedingTemplates] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; messageId?: string } | null>(null);
@@ -361,6 +361,40 @@ export default function EmailCampaignsPage() {
     }
   };
 
+  // Pre-built template starters — Khaled picks a type, we generate the HTML
+  const TEMPLATE_STARTERS: { id: string; label: string; icon: string; subject: string; description: string }[] = [
+    { id: "newsletter", label: "Newsletter", icon: "📰", subject: "Your Weekly London Guide", description: "Weekly digest with featured articles, top picks, and latest guides" },
+    { id: "welcome", label: "Welcome Email", icon: "👋", subject: "Welcome to Yalla London!", description: "First email new subscribers receive — sets the tone" },
+    { id: "promotion", label: "Promotion", icon: "🎁", subject: "An Exclusive Offer Just for You", description: "Special deal, discount, or limited-time offer" },
+    { id: "new_article", label: "New Article", icon: "✨", subject: "New Guide Published — Don't Miss This", description: "Alert subscribers when a new article is published" },
+    { id: "seasonal", label: "Seasonal Guide", icon: "🌸", subject: "London This Season — Your Complete Guide", description: "Seasonal recommendations, events, and experiences" },
+    { id: "reengagement", label: "We Miss You", icon: "💌", subject: "We miss you — here's what you've been missing", description: "Win back subscribers who haven't opened in 30+ days" },
+  ];
+
+  function generateTemplateHtml(type: string, name: string): string {
+    const brand = { primary: "#C8322B", gold: "#C49A2A", bg: "#FAF8F4", text: "#1C1917", muted: "#78716C" };
+    const header = `<div style="background:${brand.primary};padding:24px 20px;text-align:center"><h1 style="color:white;font-size:22px;margin:0;font-family:Georgia,serif">Yalla London</h1></div>`;
+    const footer = `<div style="padding:20px;text-align:center;font-size:11px;color:${brand.muted};border-top:1px solid #E7E5E4"><p>Yalla London — Your Luxury London Guide</p><p><a href="{{unsubscribe_url}}" style="color:${brand.muted}">Unsubscribe</a></p></div>`;
+    const btn = (text: string, href: string) => `<div style="text-align:center;margin:24px 0"><a href="${href}" style="background:${brand.primary};color:white;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px">${text}</a></div>`;
+
+    const wrap = (content: string) => `<div style="max-width:600px;margin:0 auto;background:white;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">${header}<div style="padding:24px 20px">${content}</div>${footer}</div>`;
+
+    switch (type) {
+      case "welcome":
+        return wrap(`<h2 style="color:${brand.text};font-size:20px;margin:0 0 12px">Welcome, {{first_name}}! 👋</h2><p style="color:${brand.text};line-height:1.6;font-size:15px">We're thrilled to have you. Yalla London is your personal guide to the best luxury experiences London has to offer.</p><p style="color:${brand.text};line-height:1.6;font-size:15px">Here's what you'll get from us:</p><ul style="color:${brand.text};line-height:1.8;font-size:15px"><li>Weekly curated guides to London's best</li><li>Exclusive deals on hotels and experiences</li><li>Insider tips from our editorial team</li></ul>${btn("Explore Our Guides", "{{site_url}}/blog")}<p style="color:${brand.muted};font-size:13px;text-align:center">Questions? Just reply to this email.</p>`);
+      case "promotion":
+        return wrap(`<h2 style="color:${brand.text};font-size:20px;margin:0 0 12px">{{first_name}}, this is for you 🎁</h2><p style="color:${brand.text};line-height:1.6;font-size:15px">We've partnered with one of London's top experiences to bring you an exclusive deal.</p><div style="background:${brand.bg};border:2px solid ${brand.gold};border-radius:8px;padding:20px;margin:20px 0;text-align:center"><p style="font-size:22px;font-weight:700;color:${brand.primary};margin:0">SPECIAL OFFER</p><p style="font-size:15px;color:${brand.text};margin:8px 0 0">Replace this with your offer details</p></div>${btn("Claim Your Offer", "{{site_url}}")}<p style="color:${brand.muted};font-size:12px;text-align:center">Offer expires [DATE]. Terms apply.</p>`);
+      case "new_article":
+        return wrap(`<p style="color:${brand.muted};font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px">New Guide</p><h2 style="color:${brand.text};font-size:20px;margin:0 0 16px">[Article Title Here]</h2><p style="color:${brand.text};line-height:1.6;font-size:15px">[2-3 sentence preview of the article — what the reader will learn and why they should read it]</p>${btn("Read the Full Guide", "{{site_url}}/blog/article-slug")}<p style="color:${brand.muted};font-size:13px;text-align:center">Found this useful? Share it with a friend.</p>`);
+      case "seasonal":
+        return wrap(`<h2 style="color:${brand.text};font-size:20px;margin:0 0 12px">London This Season 🌸</h2><p style="color:${brand.text};line-height:1.6;font-size:15px">{{first_name}}, here's your seasonal guide to the best London has to offer right now.</p><h3 style="color:${brand.primary};font-size:16px;margin:20px 0 8px">🏨 Where to Stay</h3><p style="color:${brand.text};line-height:1.6;font-size:15px">[Hotel recommendations]</p><h3 style="color:${brand.primary};font-size:16px;margin:20px 0 8px">🍽️ Where to Eat</h3><p style="color:${brand.text};line-height:1.6;font-size:15px">[Restaurant recommendations]</p><h3 style="color:${brand.primary};font-size:16px;margin:20px 0 8px">🎭 What to Do</h3><p style="color:${brand.text};line-height:1.6;font-size:15px">[Activity recommendations]</p>${btn("See All Seasonal Picks", "{{site_url}}/blog")}`);
+      case "reengagement":
+        return wrap(`<h2 style="color:${brand.text};font-size:20px;margin:0 0 12px">We miss you, {{first_name}} 💌</h2><p style="color:${brand.text};line-height:1.6;font-size:15px">It's been a while since we've seen you. London hasn't stopped being amazing — and we've published some incredible guides since your last visit.</p><h3 style="color:${brand.primary};font-size:16px;margin:20px 0 8px">Here's what you've missed:</h3><ul style="color:${brand.text};line-height:1.8;font-size:15px"><li>[Popular Article 1]</li><li>[Popular Article 2]</li><li>[Popular Article 3]</li></ul>${btn("Catch Up Now", "{{site_url}}/blog")}<p style="color:${brand.muted};font-size:12px;text-align:center">Not interested anymore? <a href="{{unsubscribe_url}}" style="color:${brand.muted}">Unsubscribe</a></p>`);
+      default: // newsletter
+        return wrap(`<p style="color:${brand.muted};font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px">Weekly Newsletter</p><h2 style="color:${brand.text};font-size:20px;margin:0 0 16px">This Week in London</h2><p style="color:${brand.text};line-height:1.6;font-size:15px">Hi {{first_name}}, here are this week's top picks from our editorial team.</p><hr style="border:none;border-top:1px solid #E7E5E4;margin:20px 0"><h3 style="color:${brand.primary};font-size:16px;margin:0 0 8px">📌 Featured Article</h3><p style="color:${brand.text};line-height:1.6;font-size:15px">[Article title and 1-2 line summary]</p>${btn("Read More", "{{site_url}}/blog")}<hr style="border:none;border-top:1px solid #E7E5E4;margin:20px 0"><h3 style="color:${brand.primary};font-size:16px;margin:0 0 8px">🔥 More This Week</h3><ul style="color:${brand.text};line-height:1.8;font-size:15px"><li>[Article 2]</li><li>[Article 3]</li><li>[Article 4]</li></ul>`);
+    }
+  }
+
   const handleCreateTemplate = async () => {
     if (!newTemplate.name.trim() || !newTemplate.subject.trim()) {
       toast.error("Name and subject are required");
@@ -368,6 +402,7 @@ export default function EmailCampaignsPage() {
     }
     setIsCreatingTemplate(true);
     try {
+      const htmlBody = generateTemplateHtml(newTemplate.templateType, newTemplate.name.trim());
       const res = await fetch("/api/admin/email-center", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -375,14 +410,14 @@ export default function EmailCampaignsPage() {
           action: "create_template",
           name: newTemplate.name.trim(),
           subject: newTemplate.subject.trim(),
-          htmlBody: newTemplate.htmlBody,
+          htmlBody,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (data.success) {
-        toast.success("Template created");
+        toast.success("Template created! Edit it to customize the content.");
         setShowCreateTemplateModal(false);
-        setNewTemplate({ name: "", subject: "", htmlBody: "<p>Your template content here</p>" });
+        setNewTemplate({ name: "", subject: "", templateType: "newsletter" });
         await loadData();
       } else {
         toast.error(data.error || "Failed to create template");
@@ -594,12 +629,35 @@ export default function EmailCampaignsPage() {
         {/* Templates Tab */}
         {activeTab === "templates" && (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <AdminSectionLabel>Email Templates</AdminSectionLabel>
-              <AdminButton variant="primary" size="sm" onClick={() => setShowCreateTemplateModal(true)}>
-                <Plus size={13} />
-                Create Template
-              </AdminButton>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <AdminButton variant="ghost" size="sm" loading={isSeedingTemplates} onClick={async () => {
+                  setIsSeedingTemplates(true);
+                  try {
+                    const res = await fetch("/api/admin/email-templates", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london" }),
+                    });
+                    if (!res.ok) throw new Error("Seed failed");
+                    const data = await res.json();
+                    toast.success(`Created ${data.created} templates (${data.skipped} already existed)`);
+                    loadData();
+                  } catch {
+                    toast.error("Failed to seed templates");
+                  } finally {
+                    setIsSeedingTemplates(false);
+                  }
+                }}>
+                  <Zap size={13} />
+                  Seed 10 Templates
+                </AdminButton>
+                <AdminButton variant="primary" size="sm" onClick={() => setShowCreateTemplateModal(true)}>
+                  <Plus size={13} />
+                  Create Template
+                </AdminButton>
+              </div>
             </div>
             {templates.length === 0 ? (
               <AdminEmptyState
@@ -712,7 +770,8 @@ export default function EmailCampaignsPage() {
           onClick={() => setShowCreateTemplateModal(false)}
         >
           <div
-            className="admin-card-elevated w-full max-w-md mx-4"
+            className="admin-card-elevated w-full max-w-lg mx-4"
+            style={{ maxHeight: "90vh", overflowY: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
@@ -722,12 +781,73 @@ export default function EmailCampaignsPage() {
                   fontWeight: 800,
                   fontSize: 18,
                   color: "#1C1917",
-                  marginBottom: 20,
+                  marginBottom: 4,
                 }}
               >
                 Create Email Template
               </h2>
+              <p style={{ fontFamily: "var(--font-system)", fontSize: 13, color: "#78716C", marginBottom: 20 }}>
+                Pick a template type — we&apos;ll generate the HTML for you. Edit it after.
+              </p>
               <div className="space-y-4">
+                {/* Template Type Picker */}
+                <div>
+                  <label
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#78716C",
+                    }}
+                  >
+                    Template Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {TEMPLATE_STARTERS.map((starter) => {
+                      const isSelected = newTemplate.templateType === starter.id;
+                      return (
+                        <button
+                          key={starter.id}
+                          type="button"
+                          onClick={() => {
+                            setNewTemplate({
+                              ...newTemplate,
+                              templateType: starter.id,
+                              name: newTemplate.name || starter.label,
+                              subject: starter.subject,
+                            });
+                          }}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            padding: "12px",
+                            borderRadius: 8,
+                            border: isSelected ? "2px solid #C8322B" : "1.5px solid rgba(214,208,196,0.5)",
+                            background: isSelected ? "#FEF2F2" : "white",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            <span style={{ fontSize: 18 }}>{starter.icon}</span>
+                            <span style={{ fontFamily: "var(--font-system)", fontSize: 13, fontWeight: 600, color: "#1C1917" }}>
+                              {starter.label}
+                            </span>
+                          </div>
+                          <span style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#78716C", lineHeight: 1.3 }}>
+                            {starter.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Name */}
                 <div>
                   <label
                     style={{
@@ -745,10 +865,12 @@ export default function EmailCampaignsPage() {
                     type="text"
                     value={newTemplate.name}
                     onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                    placeholder="e.g. Welcome Email, Monthly Newsletter"
+                    placeholder="e.g. March Newsletter, Eid Offer"
                     className="admin-input mt-1.5"
                   />
                 </div>
+
+                {/* Subject */}
                 <div>
                   <label
                     style={{
@@ -760,36 +882,18 @@ export default function EmailCampaignsPage() {
                       color: "#78716C",
                     }}
                   >
-                    Default Subject
+                    Email Subject Line
                   </label>
                   <input
                     type="text"
                     value={newTemplate.subject}
                     onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
-                    placeholder="e.g. Welcome to Yalla London!"
+                    placeholder="e.g. Your Weekly London Guide"
                     className="admin-input mt-1.5"
                   />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontFamily: "var(--font-system)",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                      color: "#78716C",
-                    }}
-                  >
-                    HTML Content
-                  </label>
-                  <textarea
-                    value={newTemplate.htmlBody}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, htmlBody: e.target.value })}
-                    rows={6}
-                    className="admin-input mt-1.5 font-mono"
-                    style={{ resize: "vertical", fontSize: 11 }}
-                  />
+                  <p style={{ fontFamily: "var(--font-system)", fontSize: 11, color: "#A8A29E", marginTop: 4 }}>
+                    Use {"{{first_name}}"} to personalize, e.g. &quot;Hey {"{{first_name}}"}, check this out&quot;
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">

@@ -20,9 +20,10 @@
 10. [Centralized Constants](#10-centralized-constants)
 11. [Complete Cron Schedule](#11-complete-cron-schedule)
 12. [Error Recovery & Self-Healing](#12-error-recovery--self-healing)
-13. [Known Gaps & Edge Cases](#13-known-gaps--edge-cases)
-14. [Fixes Applied (Feb–March 2026)](#14-fixes-applied-febmarch-2026)
-15. [Anti-Patterns Registry](#15-anti-patterns-registry)
+13. [Post-Publish Conflict Analysis](#13-post-publish-conflict-analysis)
+14. [Known Gaps & Edge Cases](#14-known-gaps--edge-cases)
+15. [Fixes Applied (Feb–March 2026)](#15-fixes-applied-febmarch-2026)
+16. [Anti-Patterns Registry](#16-anti-patterns-registry)
 
 ---
 
@@ -765,7 +766,50 @@ Last-defense: probes ALL providers including disabled ones
 
 ---
 
-## 13. Known Gaps & Edge Cases
+## 13. Post-Publish Conflict Analysis
+
+### content_en — 6 Concurrent Writers (No Row-Level Locking)
+
+| Cron | What It Writes | Batch | Time |
+|------|---------------|-------|------|
+| seo-deep-review | Internal links, affiliates, H1→H2, expansion, authenticity, alt text | 25 articles | 00:00 |
+| seo-agent | Related-articles section, orphan rescue links | 20 articles | 07/13/20 |
+| affiliate-injection | Affiliate recommendation blocks | 100 articles | 09:25 |
+| content-auto-fix | Internal links, broken links, affiliates, orphans, word artifacts | ~95 articles | 11/18 |
+| content-auto-fix-lite | H1→H2, markdown→HTML | 70 articles | Every 4h |
+| campaign-executor | PATCH or FULL rewrite | 3 articles | Every 30min |
+
+**Race condition risk:** If two crons read the same `content_en`, both modify independently, both write back — the LAST writer wins and the FIRST writer's changes are lost. There is NO row-level locking or optimistic concurrency on BlogPost updates.
+
+**Mitigations in place:**
+- **Temporal stagger** — crons spread across different hours (midnight, 7am, 9am, 11am, etc.)
+- **CSS class dedup** — related-articles injection checks for BOTH `related-articles` AND `related-link` classes
+- **Affiliate marker dedup** — checks for `rel="sponsored"`, `affiliate-cta-block`, `affiliate-recommendation`, `data-affiliate-id`
+- **H1 demotion is idempotent** — regex-based, running twice has no effect
+- **Campaign unpublish protection** — content-auto-fix checks `CampaignItem` table before unpublishing
+
+**Highest risk actor:** `campaign-executor` (every 30 min) can overlap with any other cron. In FULL mode (articles ≤1500 words), it replaces the entire `content_en`, potentially overwriting seo-agent or content-auto-fix changes made minutes earlier.
+
+**Recommendation (future):** Add optimistic concurrency via `updated_at` check on BlogPost writes, or serialize post-publish modifications through a queue.
+
+### Daily Enhancement Timeline for a Newly Published Article
+
+```
+Hour 0  (publish)  → BlogPost created with published=true
+Hour 0.5           → affiliate-injection: CJ tracking links + partner links
+Hour 2             → content-auto-fix: internal links, broken links, meta fixes
+Hour 4             → seo-agent: schema injection, SEO score, related articles
+Hour 4.5           → content-auto-fix-lite: H1→H2, meta trim, sitemap cache
+Hour 9             → content-auto-fix run 2
+Hour 12            → seo-agent run 3
+Hour 16            → seo-deep-review: AI expansion, meta gen, authenticity
+Hour 20            → gsc-sync: GSC performance data
+Ongoing            → campaign-executor: AI enhancement (if campaign active)
+```
+
+---
+
+## 14. Known Gaps & Edge Cases
 
 ### Active Known Gaps
 
@@ -791,7 +835,7 @@ Last-defense: probes ALL providers including disabled ones
 
 ---
 
-## 14. Fixes Applied (Feb–March 2026)
+## 15. Fixes Applied (Feb–March 2026)
 
 ### Critical Fixes (production-breaking)
 
@@ -828,7 +872,7 @@ Last-defense: probes ALL providers including disabled ones
 
 ---
 
-## 15. Anti-Patterns Registry
+## 16. Anti-Patterns Registry
 
 **Patterns that have caused production failures. Never repeat these.**
 

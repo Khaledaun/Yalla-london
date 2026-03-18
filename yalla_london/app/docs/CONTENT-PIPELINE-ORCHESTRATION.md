@@ -328,6 +328,10 @@ IF phase_attempts >= ASSEMBLY_RAW_FALLBACK_ATTEMPTS (2)
 
 **Critical note:** Internal links (10pts) and affiliate links (5pts) are injected POST-publish by other crons. At scoring time, max achievable is ~85. Threshold is 55.
 
+**Threshold disambiguation:**
+- `CONTENT_QUALITY.qualityGateScore` = **55** — used by scoring phase (phases.ts) and select-runner. Controls pipeline flow.
+- `CONTENT_TYPE_THRESHOLDS.blog.qualityGateScore` = **70** — used ONLY inside pre-publication gate for SEO score warnings. Does NOT control the scoring phase or reservoir admission.
+
 **Decision:** Score ≥ 55 → "reservoir" | Score < 55 → "rejected"
 
 ### 6.2 content-selector

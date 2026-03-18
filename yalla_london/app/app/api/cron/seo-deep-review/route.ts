@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       (id) => id !== "zenitha-yachts-med"
     );
 
-    // Find articles published in the last 26 hours (covers today + buffer for timezone overlap)
+    // ── Pass 1: Recent articles (last 26h) ──────────────────────────────────
     const cutoff = new Date(Date.now() - 26 * 60 * 60 * 1000);
 
     const todayArticles = await prisma.blogPost.findMany({
@@ -82,25 +82,82 @@ export async function GET(request: NextRequest) {
       take: 20, // Safety cap
     });
 
-    if (todayArticles.length === 0) {
-      console.log("[seo-deep-review] No articles published in last 26h — nothing to review");
+    // ── Pass 2: Older under-optimized articles (published > 26h ago) ──────
+    // Catches articles that were published before seo-deep-review ran, or that
+    // the seo-deep-review didn't finish fixing due to budget limits.
+    // Criteria: short content, missing meta, or no internal links.
+    const olderCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    let olderArticles: typeof todayArticles = [];
+    try {
+      // Find articles with short English content or missing meta description
+      const underOptimized = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSites },
+          published: true,
+          created_at: { gte: olderCutoff, lt: cutoff }, // older than 26h but within 7 days
+          OR: [
+            { meta_description_en: { equals: "" } },
+            { meta_description_en: null },
+            { meta_title_en: { equals: "" } },
+            { meta_title_en: null },
+          ],
+        },
+        orderBy: { created_at: "desc" },
+        take: 5, // Cap to preserve budget for recent articles
+      });
+
+      // Also find articles with short content (< 1000 words)
+      if (underOptimized.length < 5) {
+        const shortContent = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSites },
+            published: true,
+            created_at: { gte: olderCutoff, lt: cutoff },
+            id: { notIn: underOptimized.map(a => a.id) },
+          },
+          orderBy: { created_at: "asc" }, // oldest first — most likely to need fixes
+          take: 10,
+        });
+        // Filter to those with < 1000 words
+        const needsExpansion = shortContent.filter(a => {
+          const text = ((a.content_en as string) || "").replace(/<[^>]+>/g, " ");
+          const wc = text.split(/\s+/).filter(Boolean).length;
+          return wc < 1000;
+        });
+        olderArticles = [...underOptimized, ...needsExpansion.slice(0, 5 - underOptimized.length)];
+      } else {
+        olderArticles = underOptimized;
+      }
+
+      if (olderArticles.length > 0) {
+        console.log(`[seo-deep-review] Found ${olderArticles.length} older under-optimized article(s) to review`);
+      }
+    } catch (olderErr) {
+      console.warn("[seo-deep-review] Older articles query failed (non-fatal):", olderErr instanceof Error ? olderErr.message : olderErr);
+    }
+
+    // Combine: recent first, then older articles
+    const allArticles = [...todayArticles, ...olderArticles];
+
+    if (allArticles.length === 0) {
+      console.log("[seo-deep-review] No articles to review (none published recently, none under-optimized)");
       await logCronExecution("seo-deep-review", "completed", {
         durationMs: Date.now() - cronStart,
         resultSummary: { message: "No articles to review", articlesReviewed: 0 },
       });
       return NextResponse.json({
         success: true,
-        message: "No articles published today to review.",
+        message: "No articles to review.",
         fixes: [],
         durationMs: Date.now() - cronStart,
       });
     }
 
-    console.log(`[seo-deep-review] Found ${todayArticles.length} article(s) to review`);
+    console.log(`[seo-deep-review] Found ${allArticles.length} article(s) to review (${todayArticles.length} recent + ${olderArticles.length} older)`);
 
     const resubmitUrls: { url: string; siteId: string }[] = [];
 
-    for (const article of todayArticles) {
+    for (const article of allArticles) {
       if (Date.now() - cronStart > TOTAL_BUDGET_MS) {
         console.log("[seo-deep-review] Total budget exhausted, stopping");
         break;
@@ -480,12 +537,14 @@ Current word count: ${wordCount}`;
 
     await logCronExecution("seo-deep-review", totalErrors > 0 && totalFixes === 0 ? "failed" : "completed", {
       durationMs: Date.now() - cronStart,
-      itemsProcessed: todayArticles.length,
+      itemsProcessed: allArticles.length,
       itemsSucceeded: articlesWithFixes, // Articles that received actual data fixes
       itemsFailed: allFixes.filter((f) => f.errors.length > 0).length,
       sitesProcessed: activeSites,
       resultSummary: {
-        articlesReviewed: todayArticles.length,
+        articlesReviewed: allArticles.length,
+        recentArticles: todayArticles.length,
+        olderUnderOptimized: olderArticles.length,
         articlesFixed: articlesWithFixes,
         totalFixes,
         totalNotes,
@@ -494,13 +553,13 @@ Current word count: ${wordCount}`;
       },
     });
 
-    const message = `Reviewed ${todayArticles.length} article(s): ${totalFixes} fix(es) applied to ${articlesWithFixes} article(s), ${resubmittedCount} resubmitted to IndexNow.`;
+    const message = `Reviewed ${allArticles.length} article(s) (${todayArticles.length} recent + ${olderArticles.length} older): ${totalFixes} fix(es) applied to ${articlesWithFixes} article(s), ${resubmittedCount} resubmitted to IndexNow.`;
     console.log(`[seo-deep-review] ${message}`);
 
     return NextResponse.json({
       success: true,
       message,
-      articlesReviewed: todayArticles.length,
+      articlesReviewed: allArticles.length,
       totalFixes,
       resubmitted: resubmittedCount,
       fixes: allFixes,

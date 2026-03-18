@@ -127,9 +127,9 @@ export async function runContentSelector(
     // Import quality gate threshold from centralized SEO standards — single source of truth.
     // When standards.ts is updated (e.g., after algorithm changes), this threshold updates automatically.
     const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
-    // Use reservoirMinScore (60) to fetch — NOT qualityGateScore (70).
-    // The pre-pub gate hard-blocks at seo_score < 50, so articles scoring 60–69 will
-    // pass the gate (with warnings) and get published. Using 70 as the DB filter would
+    // Use reservoirMinScore (45) to fetch — NOT qualityGateScore (55).
+    // The pre-pub gate hard-blocks at seo_score < 30, so articles scoring 45+ will
+    // pass the gate (with warnings) and get published. Using a higher DB filter would
     // permanently freeze articles that entered the reservoir under the old threshold.
     const MIN_QUALITY_SCORE = CONTENT_QUALITY.reservoirMinScore;
 
@@ -276,7 +276,7 @@ export async function runContentSelector(
     // Enhancement: Grok researches fresh angles, expands to 2,000+ words, adds
     // experience signals, headings, internal links, affiliate placeholders, and
     // rewrites the meta description. Re-scored after enhancement.
-    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 70
+    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 55 (lowered from 70 — March 18, 2026)
     const MIN_WORD_COUNT = CONTENT_QUALITY.minWords || 1000; // pre-pub gate hard block
     const publishReady: Array<Record<string, unknown>> = [];
     const needsEnhancement: Array<Record<string, unknown>> = [];

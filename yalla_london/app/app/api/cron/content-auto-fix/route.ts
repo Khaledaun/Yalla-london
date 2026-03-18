@@ -20,6 +20,7 @@ export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per 
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { CONTENT_QUALITY } from "@/lib/seo/standards";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
 const MIN_WORD_COUNT = 1000;
@@ -122,10 +123,10 @@ async function handleAutoFix(request: NextRequest) {
   }
 
   // ── 4. LOW QUALITY SCORE FIX ──────────────────────────────────────────────
-  // Find reservoir drafts with quality_score < 70 but adequate word count.
+  // Find reservoir drafts with quality_score below the gate threshold but adequate word count.
   // These articles are stuck: content-selector won't promote them and the
   // word count query above won't find them. Without this, they sit forever.
-  const QUALITY_THRESHOLD = 70;
+  const QUALITY_THRESHOLD = CONTENT_QUALITY.qualityGateScore;
   if (Date.now() - cronStart < BUDGET_MS - 25_000) {
     try {
       const lowScoreDrafts = await prisma.articleDraft.findMany({
@@ -485,9 +486,9 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below 1000 words ──
-  // Blog articles that bypassed the quality gate (1000w min as per standards.ts).
-  // Aligned to match CONTENT_QUALITY.minWords (was 800, now 1000).
+  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below minWords threshold ──
+  // Blog articles that bypassed the quality gate.
+  // Uses CONTENT_QUALITY.minWords from standards.ts (single source of truth).
   // News/info pages have their own lower thresholds via CONTENT_TYPE_THRESHOLDS.
   // GUARD: Skip articles with active campaign enhancement tasks — unpublishing mid-campaign
   // wastes AI budget and erases the duplicate/thin flag marker.
@@ -532,12 +533,12 @@ async function handleAutoFix(request: NextRequest) {
         }
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
-        if (wordCount < 1000) {
+        if (wordCount < CONTENT_QUALITY.minWords) {
           await prisma.blogPost.update({
             where: { id: post.id },
             data: {
               published: false,
-              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < 1000w minimum] ${(post.title_en || "").slice(0, 100)}`,
+              meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < ${CONTENT_QUALITY.minWords}w minimum] ${(post.title_en || "").slice(0, 100)}`,
             },
           });
           thinUnpublished++;
@@ -649,8 +650,8 @@ async function handleAutoFix(request: NextRequest) {
         const issues: string[] = [];
         const updateData: Record<string, unknown> = {};
 
-        // Fix 1: Thin content → unpublish (will be caught by Section 12 too, but be explicit)
-        if (wordCount < 1000) {
+        // Fix 1: Thin content → flag (will be caught by Section 12 too, but be explicit)
+        if (wordCount < CONTENT_QUALITY.minWords) {
           issues.push(`thin (${wordCount}w)`);
         }
 

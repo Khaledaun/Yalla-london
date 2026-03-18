@@ -96,9 +96,19 @@ export async function runContentBuilder(
         }
       }
 
+      // PRIORITY FIX (March 18, 2026): Light-phase drafts (images, seo, scoring) take 5-15s
+      // and are closest to reservoir — they MUST be processed first to fill the reservoir.
+      // With 95+ drafts in drafting and 33 in assembly, heavy phases monopolize every run,
+      // and light-phase drafts never advance. This starves the reservoir → 0 articles published.
+      // Solution: Give light phases a +20 priority boost so they always process before heavy phases.
+      const LIGHT_PHASE_SET = new Set(["images", "seo", "scoring"]);
       allDrafts.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         const orderA = phaseOrder[a.current_phase as string] || 0;
         const orderB = phaseOrder[b.current_phase as string] || 0;
+        // CRITICAL: Light-phase drafts get a massive priority boost to prevent starvation.
+        // Without this, 128 heavy-phase drafts block 5 light-phase drafts from ever advancing.
+        const aLightBoost = LIGHT_PHASE_SET.has(a.current_phase as string) ? 20 : 0;
+        const bLightBoost = LIGHT_PHASE_SET.has(b.current_phase as string) ? 20 : 0;
         // Deprioritize drafts that have failed 3+ times with budget errors —
         // they need a full-budget run, not another shared-budget attempt
         const aStuck = ((a.phase_attempts as number) || 0) >= 3 && ((a.last_error as string) || "").includes("Budget too low") ? -10 : 0;
@@ -107,7 +117,7 @@ export async function runContentBuilder(
         // for bilingual publishing. +5 priority boost per phase gap.
         const aPartnerAhead = pairedPhaseMap.has(a.id as string) ? Math.max(0, (pairedPhaseMap.get(a.id as string) || 0) - orderA) : 0;
         const bPartnerAhead = pairedPhaseMap.has(b.id as string) ? Math.max(0, (pairedPhaseMap.get(b.id as string) || 0) - orderB) : 0;
-        return (orderB + bStuck + bPartnerAhead) - (orderA + aStuck + aPartnerAhead);
+        return (orderB + bStuck + bPartnerAhead + bLightBoost) - (orderA + aStuck + aPartnerAhead + aLightBoost);
       });
 
       draft = allDrafts[0] || null;

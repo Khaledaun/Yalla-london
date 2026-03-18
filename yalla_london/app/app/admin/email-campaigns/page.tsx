@@ -46,6 +46,7 @@ interface EmailTemplate {
   siteName: string;
   thumbnail: string | null;
   subject: string;
+  htmlContent: string;
   updatedAt: string;
 }
 
@@ -117,7 +118,7 @@ export default function EmailCampaignsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newCampaign, setNewCampaign] = useState({ name: "", subject: "", htmlContent: "<p>Your email content here</p>" });
+  const [newCampaign, setNewCampaign] = useState({ name: "", subject: "", htmlContent: "<p>Your email content here</p>", templateId: "" });
   const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [newTemplate, setNewTemplate] = useState({ name: "", subject: "", htmlBody: "<p>Your template content here</p>" });
@@ -147,6 +148,7 @@ export default function EmailCampaignsPage() {
             siteName: String(t.siteName || t.site_name || ""),
             thumbnail: (t.thumbnail || t.preview_url || null) as string | null,
             subject: String(t.subject || t.default_subject || ""),
+            htmlContent: String(t.htmlContent || t.html_content || ""),
             updatedAt: String(t.updatedAt || t.updated_at || ""),
           }))
         );
@@ -227,13 +229,14 @@ export default function EmailCampaignsPage() {
           name: newCampaign.name.trim(),
           subject: newCampaign.subject.trim(),
           htmlContent: newCampaign.htmlContent,
+          templateId: newCampaign.templateId || undefined,
           site: siteId,
         }),
       });
       if (res.ok) {
         toast.success("Campaign created successfully");
         setShowCreateModal(false);
-        setNewCampaign({ name: "", subject: "", htmlContent: "<p>Your email content here</p>" });
+        setNewCampaign({ name: "", subject: "", htmlContent: "<p>Your email content here</p>", templateId: "" });
         await loadData();
         setActiveTab("campaigns");
       } else {
@@ -611,7 +614,7 @@ export default function EmailCampaignsPage() {
                         const res = await fetch("/api/admin/email-templates", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "seed_templates", site: "yalla-london" }),
+                          body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london" }),
                         });
                         if (!res.ok) throw new Error("Seed failed");
                         const data = await res.json();
@@ -873,6 +876,52 @@ export default function EmailCampaignsPage() {
                     placeholder="e.g. Discover London this Spring"
                     className="admin-input mt-1.5"
                   />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontFamily: "var(--font-system)",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      color: "#78716C",
+                    }}
+                  >
+                    Use Template (optional)
+                  </label>
+                  <select
+                    value={newCampaign.templateId}
+                    onChange={(e) => {
+                      const tplId = e.target.value;
+                      if (tplId) {
+                        const tpl = templates.find((t) => t.id === tplId);
+                        if (tpl) {
+                          setNewCampaign((prev) => ({
+                            ...prev,
+                            templateId: tplId,
+                            subject: tpl.subject || prev.subject,
+                            htmlContent: tpl.htmlContent || prev.htmlContent,
+                          }));
+                        }
+                      } else {
+                        setNewCampaign((prev) => ({ ...prev, templateId: "", htmlContent: "<p>Your email content here</p>" }));
+                      }
+                    }}
+                    className="admin-input mt-1.5"
+                  >
+                    <option value="">— No template (write from scratch) —</option>
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name} ({tpl.type})
+                      </option>
+                    ))}
+                  </select>
+                  {templates.length === 0 && (
+                    <p style={{ fontSize: 11, color: "#A8A29E", marginTop: 4 }}>
+                      No templates available. Go to Templates tab to seed defaults.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label

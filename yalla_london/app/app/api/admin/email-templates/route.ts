@@ -20,6 +20,25 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
+
+    // Single template fetch by ID
+    const templateId = searchParams.get("id");
+    if (templateId) {
+      const template = await prisma.emailTemplate.findUnique({
+        where: { id: templateId },
+      });
+      if (!template) {
+        return NextResponse.json({ error: "Template not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        template: {
+          ...template,
+          siteId: template.site,
+          siteName: getSiteConfig(template.site)?.name || template.site,
+        },
+      });
+    }
+
     const site =
       request.headers.get("x-site-id") || searchParams.get("site");
     const type = searchParams.get("type");

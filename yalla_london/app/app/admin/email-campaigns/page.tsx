@@ -122,6 +122,7 @@ export default function EmailCampaignsPage() {
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [newTemplate, setNewTemplate] = useState({ name: "", subject: "", htmlBody: "<p>Your template content here</p>" });
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSeedingTemplates, setIsSeedingTemplates] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; messageId?: string } | null>(null);
   const [providerStatus, setProviderStatus] = useState<{ activeProvider: string; configured: boolean; domainVerified?: boolean; sendingFrom?: string } | null>(null);
 
@@ -601,12 +602,35 @@ export default function EmailCampaignsPage() {
               <AdminEmptyState
                 icon={Mail}
                 title="No templates yet"
-                description="Create your first email template to start sending campaigns."
+                description="Seed 10 professionally designed Yalla London templates, or create your own from scratch."
                 action={
-                  <AdminButton variant="primary" size="sm" onClick={() => setShowCreateTemplateModal(true)}>
-                    <Plus size={13} />
-                    Create Template
-                  </AdminButton>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "center" }}>
+                    <AdminButton variant="primary" size="sm" loading={isSeedingTemplates} onClick={async () => {
+                      setIsSeedingTemplates(true);
+                      try {
+                        const res = await fetch("/api/admin/email-templates", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "seed_templates", site: "yalla-london" }),
+                        });
+                        if (!res.ok) throw new Error("Seed failed");
+                        const data = await res.json();
+                        toast.success(`Created ${data.created} templates (${data.skipped} already existed)`);
+                        loadData();
+                      } catch {
+                        toast.error("Failed to seed templates");
+                      } finally {
+                        setIsSeedingTemplates(false);
+                      }
+                    }}>
+                      <Zap size={13} />
+                      Seed 10 Templates
+                    </AdminButton>
+                    <AdminButton variant="ghost" size="sm" onClick={() => setShowCreateTemplateModal(true)}>
+                      <Plus size={13} />
+                      Create from Scratch
+                    </AdminButton>
+                  </div>
                 }
               />
             ) : (

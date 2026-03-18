@@ -1,4 +1,6 @@
 #!/usr/bin/env tsx
+export {};
+
 /**
  * List Reservoir Articles
  *

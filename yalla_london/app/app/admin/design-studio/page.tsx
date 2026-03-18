@@ -33,6 +33,7 @@ import {
   Search,
   Filter,
   PenTool,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DesignTemplate, DesignElement } from "@/lib/pdf/brand-design-system";
@@ -152,6 +153,79 @@ export default function DesignStudioPage() {
     setEditorTemplate(template);
     setActiveTab("editor");
   };
+
+  // Mobile detection — canvas editor needs a desktop screen
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  if (isMobile) {
+    return (
+      <div className="admin-page p-4">
+        <AdminPageHeader
+          title="Design Studio"
+          subtitle="Visual canvas editor"
+        />
+        <AdminCard className="p-6">
+          <div className="text-center space-y-4">
+            <div
+              className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "rgba(59,126,161,0.08)" }}
+            >
+              <PenTool size={28} color="#3B7EA1" />
+            </div>
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontWeight: 800,
+                fontSize: 18,
+                color: "#1C1917",
+              }}
+            >
+              Desktop Required
+            </h2>
+            <p
+              style={{
+                fontFamily: "var(--font-system)",
+                fontSize: 13,
+                color: "#78716C",
+                maxWidth: 320,
+                margin: "0 auto",
+                lineHeight: 1.5,
+              }}
+            >
+              The Design Studio uses a visual canvas that needs a larger screen.
+              Open this page on a laptop or desktop to design graphics.
+            </p>
+            <div className="pt-2 space-y-2">
+              <AdminButton
+                variant="primary"
+                size="sm"
+                className="w-full"
+                onClick={() => window.location.href = "/admin/email-campaigns"}
+              >
+                <Mail size={13} />
+                Email Templates (works on mobile)
+              </AdminButton>
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => window.location.href = "/admin/design"}
+              >
+                <FolderOpen size={13} />
+                Back to Design Hub
+              </AdminButton>
+            </div>
+          </div>
+        </AdminCard>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page p-4 md:p-6">

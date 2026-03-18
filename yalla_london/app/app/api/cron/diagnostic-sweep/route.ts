@@ -24,12 +24,9 @@ async function handleDiagnosticSweep(request: NextRequest) {
   const hasCronAuth = !cronSecret || authHeader === `Bearer ${cronSecret}`;
   if (!hasCronAuth) {
     // Fallback: check if caller is an authenticated admin (cockpit dashboard calls)
-    try {
-      const { requireAdmin } = await import("@/lib/admin-middleware");
-      await requireAdmin(request);
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { requireAdmin } = await import("@/lib/admin-middleware");
+    const authError = await requireAdmin(request);
+    if (authError) return authError;
   }
 
   // Feature flag guard — can be disabled via DB flag or env var CRON_DIAGNOSTIC_SWEEP=false

@@ -32,9 +32,10 @@ export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
 
     const correctBaseUrl = getSiteDomain(siteId); // "https://www.yalla-london.com"
 
-    // Find all URL entries for this site
+    // Find URL entries for this site (capped at 500 to prevent OOM and Disk IO exhaustion)
     const allEntries = await prisma.uRLIndexingStatus.findMany({
       where: { site_id: siteId },
+      take: 500,
       select: {
         id: true,
         url: true,

@@ -16,6 +16,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import type { PDFSection } from "@/lib/pdf/generator";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -411,8 +412,8 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function extractSectionsFromArticle(html: string, title: string) {
-  const sections: Array<{ type: string; title: string; content: string }> = [];
+function extractSectionsFromArticle(html: string, title: string): PDFSection[] {
+  const sections: PDFSection[] = [];
 
   // Extract H2 sections from article HTML
   const h2Regex = /<h2[^>]*>(.*?)<\/h2>([\s\S]*?)(?=<h2|$)/gi;

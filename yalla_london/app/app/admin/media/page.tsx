@@ -69,6 +69,8 @@ export default function MediaLibraryPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isSeedingCanva, setIsSeedingCanva] = useState(false);
+  const [seedResult, setSeedResult] = useState<{ success: boolean; message: string; created?: number; skipped?: number; total?: number } | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   // Compute folders dynamically from loaded media files
   const folders = [
@@ -126,7 +128,8 @@ export default function MediaLibraryPage() {
       } else {
         setMediaFiles([]);
       }
-    } catch {
+    } catch (err) {
+      console.warn("[media-load] Failed to load media:", err);
       setMediaFiles([]);
     }
     setIsLoading(false);
@@ -226,6 +229,7 @@ export default function MediaLibraryPage() {
     setIsUploading(true);
     setUploadProgress(0);
     setShowUploadModal(false);
+    setUploadErrors([]);
 
     let successCount = 0;
     let failCount = 0;
@@ -286,7 +290,9 @@ export default function MediaLibraryPage() {
           setMediaFiles((prev) => [newFile, ...prev]);
           successCount++;
         } catch (fileErr) {
+          const reason = fileErr instanceof Error ? fileErr.message : "Unknown error";
           console.warn(`[media-upload] Failed to upload ${file.name}:`, fileErr);
+          setUploadErrors((prev) => [...prev, `${file.name}: ${reason}`]);
           failCount++;
         }
 
@@ -393,6 +399,7 @@ export default function MediaLibraryPage() {
               disabled={isSeedingCanva}
               onClick={async () => {
                 setIsSeedingCanva(true);
+                setSeedResult(null);
                 try {
                   const CANVA_VIDEOS = [
                     { canvaId: "DAHD7UYNWZ0", title: "60 Luxury Travel Videos (Pack 1)", thumbnail: "https://design.canva.ai/B9GChi5dxotrwCs", editUrl: "https://www.canva.com/d/f8-ScUoQn9W8sLA", viewUrl: "https://www.canva.com/d/84B3Csj-w_7sV3G", pageCount: 61 },
@@ -410,12 +417,26 @@ export default function MediaLibraryPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "seed_from_canva", items: CANVA_VIDEOS, folder: "canva-videos" }),
                   });
-                  if (!res.ok) throw new Error("Seed failed");
+                  if (!res.ok) {
+                    const errText = await res.text().catch(() => "Unknown error");
+                    const errMsg = `Seed failed (HTTP ${res.status}): ${errText.slice(0, 200)}`;
+                    setSeedResult({ success: false, message: errMsg });
+                    throw new Error(errMsg);
+                  }
                   const data = await res.json();
-                  toast.success(data.message || `Seeded ${data.created} videos`);
+                  setSeedResult({ success: true, message: data.message || "Seeded successfully", created: data.created, skipped: data.skipped, total: data.total });
+                  if (data.created > 0) {
+                    toast.success(`${data.created} packs seeded`);
+                  } else {
+                    toast.info("All packs already seeded");
+                  }
                   await loadMediaFiles();
-                } catch {
-                  toast.error("Failed to seed Canva videos");
+                } catch (err) {
+                  console.error("[media-seed]", err);
+                  if (!seedResult) {
+                    setSeedResult({ success: false, message: err instanceof Error ? err.message : "Failed to seed Canva videos — check browser console for details" });
+                  }
+                  toast.error(err instanceof Error ? err.message : "Failed to seed Canva videos");
                 } finally {
                   setIsSeedingCanva(false);
                 }
@@ -434,6 +455,30 @@ export default function MediaLibraryPage() {
               )}
             </AdminButton>
           </div>
+          {/* Seed result feedback */}
+          {seedResult && (
+            <div
+              className="px-5 pb-4 pt-0"
+              style={{
+                fontFamily: 'var(--font-system)',
+                fontSize: 13,
+                color: seedResult.success ? '#16A34A' : '#DC2626',
+              }}
+            >
+              {seedResult.success ? (
+                <div>
+                  <span style={{ fontWeight: 600 }}>Done:</span>{' '}
+                  {seedResult.created} seeded, {seedResult.skipped} already existed
+                  {seedResult.total !== undefined && ` (${seedResult.total} total)`}
+                </div>
+              ) : (
+                <div>
+                  <span style={{ fontWeight: 600 }}>Error:</span>{' '}
+                  {seedResult.message}
+                </div>
+              )}
+            </div>
+          )}
         </AdminCard>
       )}
 
@@ -621,6 +666,41 @@ export default function MediaLibraryPage() {
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+            </AdminCard>
+          )}
+
+          {/* Upload Error Details */}
+          {!isUploading && uploadErrors.length > 0 && (
+            <AdminCard className="mb-4">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: '#DC2626' }}>
+                    {uploadErrors.length} Upload{uploadErrors.length !== 1 ? 's' : ''} Failed
+                  </span>
+                  <button
+                    onClick={() => setUploadErrors([])}
+                    style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {uploadErrors.map((err, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-2 rounded-lg"
+                      style={{
+                        backgroundColor: 'rgba(220,38,38,0.06)',
+                        fontFamily: 'var(--font-system)',
+                        fontSize: 12,
+                        color: '#991B1B',
+                      }}
+                    >
+                      {err}
+                    </div>
+                  ))}
                 </div>
               </div>
             </AdminCard>

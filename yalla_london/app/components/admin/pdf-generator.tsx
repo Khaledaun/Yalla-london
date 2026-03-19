@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 
 interface PdfGuide {
   id: string
@@ -222,7 +223,7 @@ export function PDFGenerator() {
       {/* Table not found banner */}
       {tableNotFound && (
         <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 16, color: '#92400e' }}>
-          <strong>Setup needed:</strong> PDF Guides table not created yet. Go to <a href="/admin/content?tab=generation" style={{ color: '#92400e', textDecoration: 'underline' }}>Content Hub → Generation</a> and click <strong>Fix Database</strong> to create it. You can still generate guides — they will be saved once the table exists.
+          <strong>Setup needed:</strong> PDF Guides table not created yet. Go to <Link href="/admin/content?tab=generation" style={{ color: '#92400e', textDecoration: 'underline' }}>Content Hub → Generation</Link> and click <strong>Fix Database</strong> to create it. You can still generate guides — they will be saved once the table exists.
         </div>
       )}
 

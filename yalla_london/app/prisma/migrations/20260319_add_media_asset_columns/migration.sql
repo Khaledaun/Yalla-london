@@ -9,6 +9,7 @@ ALTER TABLE "MediaAsset" ADD COLUMN IF NOT EXISTS "videoPoster" TEXT;
 ALTER TABLE "MediaAsset" ADD COLUMN IF NOT EXISTS "videoVariants" JSONB;
 ALTER TABLE "MediaAsset" ADD COLUMN IF NOT EXISTS "isHeroVideo" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "MediaAsset" ADD COLUMN IF NOT EXISTS "duration" INTEGER;
+ALTER TABLE "MediaAsset" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 
 -- Add indexes for new columns
 CREATE INDEX IF NOT EXISTS "MediaAsset_site_id_idx" ON "MediaAsset"("site_id");

@@ -196,6 +196,7 @@ const EXPECTED_TABLES: TableDef[] = [
       { name: "videoVariants", type: "JSONB", nullable: true },
       { name: "isHeroVideo", type: "BOOLEAN NOT NULL DEFAULT false", nullable: false },
       { name: "duration", type: "INTEGER", nullable: true },
+      { name: "deletedAt", type: "TIMESTAMP(3)", nullable: true },
     ],
     indexes: [
       'CREATE INDEX IF NOT EXISTS "MediaAsset_site_id_idx" ON "MediaAsset"("site_id")',

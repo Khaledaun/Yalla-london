@@ -76,7 +76,7 @@ export function MediaSelector({
         const formData = new FormData()
         formData.append('file', file)
         
-        const response = await fetch('/api/media/upload', {
+        const response = await fetch('/api/admin/media/upload', {
           method: 'POST',
           body: formData
         })
@@ -85,7 +85,8 @@ export function MediaSelector({
           throw new Error('Upload failed')
         }
 
-        const newAsset = await response.json()
+        const result = await response.json()
+        const newAsset = result.data || result
         setAssets(prev => [newAsset, ...prev])
         
         toast({

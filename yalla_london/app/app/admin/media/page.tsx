@@ -837,7 +837,7 @@ export default function MediaLibraryPage() {
                           </p>
                           {file.width && file.height ? (
                             <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
-                              {file.width} \u00D7 {file.height}px
+                              {file.width} × {file.height}px
                             </p>
                           ) : null}
                           {file.category ? (
@@ -899,7 +899,7 @@ export default function MediaLibraryPage() {
                           <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
                             {formatFileSize(file.size)}
                             {file.format ? ` \u00B7 ${file.format.toUpperCase()}` : ""}
-                            {file.width && file.height ? ` \u00B7 ${file.width}\u00D7${file.height}px` : ""}
+                            {file.width && file.height ? ` · ${file.width}×${file.height}px` : ""}
                             {file.category ? ` \u00B7 ${file.category}` : ""}
                             {" \u00B7 "}
                             {formatDate(file.uploadedAt)}

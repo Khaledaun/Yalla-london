@@ -22,6 +22,9 @@ const ALLOWED_EXTENSIONS = new Set([
   'pdf', 'doc', 'docx'
 ])
 
+// Max file size for storing as base64 data URL in DB (4MB)
+const MAX_DATA_URL_SIZE = 4 * 1024 * 1024;
+
 // Map MIME prefixes to file_type categories
 function detectFileType(mimeType: string): string {
   if (mimeType.startsWith('image/')) return 'image';
@@ -44,6 +47,33 @@ function suggestCategory(fileType: string, uploadType: string): string {
 function extractFormat(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   return ext;
+}
+
+// Determine a writable upload directory
+function getUploadsDir(): { dir: string; isTemp: boolean } {
+  // Try public/uploads first (works in local dev)
+  const publicDir = join(process.cwd(), 'public', 'uploads');
+  try {
+    if (!existsSync(publicDir)) {
+      // Try creating it — will fail on Vercel (read-only /var/task/)
+      const fs = require('fs');
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+    // Quick write test
+    const testPath = join(publicDir, '.write-test');
+    const fs = require('fs');
+    fs.writeFileSync(testPath, '');
+    fs.unlinkSync(testPath);
+    return { dir: publicDir, isTemp: false };
+  } catch {
+    // Vercel serverless — use /tmp/
+    const tmpDir = '/tmp/uploads';
+    if (!existsSync(tmpDir)) {
+      const fs = require('fs');
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    return { dir: tmpDir, isTemp: true };
+  }
 }
 
 export const POST = withAdminAuth(async (request: NextRequest) => {
@@ -101,16 +131,17 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads')
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
+    // Convert file to buffer
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
 
     // SECURITY: Generate safe filename (alphanumeric + hyphens only)
     const timestamp = Date.now()
     const safeType = uploadType.replace(/[^a-zA-Z0-9-]/g, '')
     const filename = `${safeType}-${timestamp}.${fileExtension}`
+
+    // Determine storage strategy
+    const { dir: uploadsDir, isTemp } = getUploadsDir();
     const filepath = resolve(uploadsDir, filename)
 
     // SECURITY: Verify the resolved path stays within the uploads directory
@@ -121,12 +152,23 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    // Write file to disk (either public/ or /tmp/)
     await writeFile(filepath, new Uint8Array(buffer))
 
-    const publicUrl = `/uploads/${filename}`
+    // For Vercel (isTemp), store images as data URLs so they survive lambda recycling.
+    // For local dev, use the public path.
+    let publicUrl: string;
+    if (isTemp && isImage && file.size <= MAX_DATA_URL_SIZE) {
+      // Store as base64 data URL — persists in DB even after lambda dies
+      publicUrl = `data:${file.type};base64,${buffer.toString('base64')}`;
+    } else if (isTemp) {
+      // Large file or video on Vercel — store temp path, warn user
+      // The file won't persist but the DB record will
+      publicUrl = `/api/admin/media/serve/${filename}`;
+    } else {
+      publicUrl = `/uploads/${filename}`;
+    }
+
     const fileType = detectFileType(file.type);
     const category = suggestCategory(fileType, uploadType);
     const format = extractFormat(file.name);
@@ -137,13 +179,11 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     if (isImage) {
       try {
-        // Try to get dimensions from sharp if available
         const sharp = (await import('sharp')).default;
         const metadata = await sharp(buffer).metadata();
         width = metadata.width ?? null;
         height = metadata.height ?? null;
       } catch {
-        // sharp may not be available — skip dimension extraction
         console.warn('[media-upload] Could not extract image dimensions (sharp not available)');
       }
     }
@@ -155,7 +195,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       data: {
         filename: filename,
         original_name: file.name,
-        cloud_storage_path: `public/uploads/${filename}`,
+        cloud_storage_path: isTemp ? `tmp/uploads/${filename}` : `public/uploads/${filename}`,
         url: publicUrl,
         file_type: fileType,
         mime_type: file.type,
@@ -172,7 +212,9 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     return NextResponse.json({
       success: true,
-      message: 'File uploaded successfully',
+      message: isTemp
+        ? 'File uploaded (stored in database). For permanent file hosting, configure cloud storage (S3/Vercel Blob).'
+        : 'File uploaded successfully',
       id: asset.id,
       data: {
         id: asset.id,
@@ -196,7 +238,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
   } catch (error) {
     console.error('[media-upload] File upload error:', error)
-    // Show actionable reason (not raw internals)
     let reason = 'Failed to upload file';
     if (error instanceof Error) {
       if (error.message.includes('ENOSPC')) reason = 'Disk full — no space left on server';

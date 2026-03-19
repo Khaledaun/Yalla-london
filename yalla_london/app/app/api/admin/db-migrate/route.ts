@@ -4317,24 +4317,58 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
 
   const existingTables = await getExistingTables(prisma);
 
-  // 0. Create missing enums (must happen before tables that reference them)
-  const existingEnums = await getExistingEnums(prisma);
-  for (const en of ENUM_STATEMENTS) {
-    if (existingEnums.has(en.name)) continue;
-    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during enum creation"); break; }
-    try {
-      await prisma.$executeRawUnsafe(
-        `DO $$ BEGIN CREATE TYPE "${en.name}" AS ENUM (${en.values.map((v) => `'${v}'`).join(", ")}); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
-      );
-      result.enumsCreated.push(en.name);
-    } catch (e: any) {
-      if (!e.message?.includes("already exists")) {
-        result.errors.push(`Enum ${en.name}: ${e.message?.substring(0, 100)}`);
+  // Helper: execute a batch of SQL statements in a SINGLE connection
+  // This prevents connection pool exhaustion (P2024) by reducing the number
+  // of individual $executeRawUnsafe calls from hundreds to a handful.
+  async function executeBatch(statements: string[], label: string): Promise<{ executed: number; errors: string[] }> {
+    if (statements.length === 0) return { executed: 0, errors: [] };
+    const batchErrors: string[] = [];
+    let executed = 0;
+
+    // Execute in chunks of 20 statements per single SQL call
+    const CHUNK_SIZE = 20;
+    for (let i = 0; i < statements.length; i += CHUNK_SIZE) {
+      if (budgetLeft() < 3_000) { batchErrors.push(`Budget exhausted during ${label}`); break; }
+      const chunk = statements.slice(i, i + CHUNK_SIZE);
+      const combinedSql = chunk.join(";\n") + ";";
+      try {
+        await prisma.$executeRawUnsafe(combinedSql);
+        executed += chunk.length;
+      } catch (e: any) {
+        // If batch fails, fall back to one-by-one for this chunk
+        for (const stmt of chunk) {
+          if (budgetLeft() < 2_000) break;
+          try {
+            await prisma.$executeRawUnsafe(stmt);
+            executed++;
+          } catch (e2: any) {
+            const msg = e2.message?.substring(0, 100) || String(e2);
+            if (!msg.includes("already exists") && !msg.includes("duplicate")) {
+              batchErrors.push(`${label}: ${msg}`);
+            }
+          }
+        }
       }
     }
+    return { executed, errors: batchErrors };
   }
 
-  // 1. Create missing tables
+  // 0. Create missing enums (must happen before tables that reference them)
+  const existingEnums = await getExistingEnums(prisma);
+  const enumStatements: string[] = [];
+  const enumNames: string[] = [];
+  for (const en of ENUM_STATEMENTS) {
+    if (existingEnums.has(en.name)) continue;
+    enumStatements.push(
+      `DO $$ BEGIN CREATE TYPE "${en.name}" AS ENUM (${en.values.map((v) => `'${v}'`).join(", ")}); EXCEPTION WHEN duplicate_object THEN NULL; END $$`
+    );
+    enumNames.push(en.name);
+  }
+  const enumResult = await executeBatch(enumStatements, "enum creation");
+  result.enumsCreated = enumNames.slice(0, enumResult.executed);
+  result.errors.push(...enumResult.errors);
+
+  // 1. Create missing tables (one at a time — CREATE TABLE can be large)
   for (const def of CREATE_TABLE_STATEMENTS) {
     if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during table creation"); break; }
     if (!existingTables.has(def.table)) {
@@ -4342,100 +4376,65 @@ async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999
         await prisma.$executeRawUnsafe(def.sql);
         result.tablesCreated.push(`${def.table} (${def.model})`);
 
-        // Create indexes for new table
+        // Batch indexes for this new table
         const tableIndexes = NEW_TABLE_INDEXES[def.table] || [];
-        for (const idx of tableIndexes) {
-          if (budgetLeft() < 2_000) break;
-          try {
-            await prisma.$executeRawUnsafe(idx);
-            result.indexesCreated.push(idx.match(/\"([^"]+_idx)\"/)?.[1] || idx);
-          } catch (e: any) {
-            result.errors.push(`Index error: ${e.message?.substring(0, 100)}`);
-          }
+        if (tableIndexes.length > 0) {
+          const idxResult = await executeBatch(tableIndexes, `indexes for ${def.table}`);
+          result.indexesCreated.push(...tableIndexes.slice(0, idxResult.executed).map(idx => idx.match(/\"([^"]+_idx)\"/)?.[1] || "index"));
+          result.errors.push(...idxResult.errors);
         }
       } catch (e: any) {
-        result.errors.push(
-          `Failed to create ${def.table}: ${e.message?.substring(0, 150)}`,
-        );
+        result.errors.push(`Failed to create ${def.table}: ${e.message?.substring(0, 150)}`);
       }
     }
   }
 
-  // 2. Add missing columns to existing tables
+  // 2. Add missing columns — collect all ALTER TABLE statements, then batch
+  const alterStatements: string[] = [];
+  const alterLabels: string[] = [];
+  const indexStatements: string[] = [];
+
   for (const def of EXPECTED_TABLES) {
-    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during column addition"); break; }
+    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during column scan"); break; }
     const tableName = def.table.replace(/"/g, "");
-    if (!existingTables.has(tableName)) {
-      // Table doesn't exist and isn't in CREATE_TABLE_STATEMENTS — skip
-      continue;
-    }
+    if (!existingTables.has(tableName)) continue;
 
     const existingCols = await getExistingColumns(prisma, def.table);
 
     for (const col of def.columns) {
       if (existingCols.has(col.name)) continue;
-      if (budgetLeft() < 2_000) break;
-
       const nullable = col.nullable !== false ? "" : " NOT NULL";
       const dflt = col.defaultValue ? ` DEFAULT ${col.defaultValue}` : "";
-      const sql = `ALTER TABLE ${def.table} ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}${nullable}${dflt}`;
-
-      try {
-        await prisma.$executeRawUnsafe(sql);
-        result.columnsAdded.push(`${tableName}.${col.name} (${col.type})`);
-      } catch (e: any) {
-        result.errors.push(
-          `Failed to add ${tableName}.${col.name}: ${e.message?.substring(0, 150)}`,
-        );
-      }
+      alterStatements.push(`ALTER TABLE ${def.table} ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}${nullable}${dflt}`);
+      alterLabels.push(`${tableName}.${col.name} (${col.type})`);
     }
 
-    // Create indexes for existing tables
     if (def.indexes) {
-      for (const idx of def.indexes) {
-        if (budgetLeft() < 2_000) break;
-        try {
-          await prisma.$executeRawUnsafe(idx);
-          result.indexesCreated.push(
-            idx.match(/\"([^"]+_idx)\"/)?.[1] || "index",
-          );
-        } catch (e: any) {
-          // Most index errors are "already exists" — not critical
-          if (!e.message?.includes("already exists")) {
-            result.errors.push(`Index error: ${e.message?.substring(0, 100)}`);
-          }
-        }
-      }
+      indexStatements.push(...def.indexes);
     }
   }
 
-  // 3. Create unique constraints
-  for (const sql of UNIQUE_CONSTRAINTS) {
-    if (budgetLeft() < 2_000) { result.errors.push("Budget exhausted during constraint creation"); break; }
-    try {
-      await prisma.$executeRawUnsafe(sql);
-      result.indexesCreated.push(sql.match(/\"([^"]+_key)\"/)?.[1] || "unique");
-    } catch (e: any) {
-      if (!e.message?.includes("already exists")) {
-        result.errors.push(`Unique constraint: ${e.message?.substring(0, 100)}`);
-      }
-    }
-  }
+  // Execute ALTER TABLE batch
+  const alterResult = await executeBatch(alterStatements, "column addition");
+  result.columnsAdded = alterLabels.slice(0, alterResult.executed);
+  result.errors.push(...alterResult.errors);
 
-  // 4. Create foreign keys (after all tables exist)
-  for (const fk of FOREIGN_KEYS) {
-    if (budgetLeft() < 2_000) { result.errors.push("Budget exhausted during FK creation"); break; }
-    try {
-      await prisma.$executeRawUnsafe(
-        `DO $$ BEGIN ${fk.sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
-      );
-      result.foreignKeysCreated.push(fk.name);
-    } catch (e: any) {
-      if (!e.message?.includes("already exists")) {
-        result.errors.push(`FK ${fk.name}: ${e.message?.substring(0, 100)}`);
-      }
-    }
-  }
+  // Execute index batch
+  const idxResult = await executeBatch(indexStatements, "index creation");
+  result.indexesCreated.push(...indexStatements.slice(0, idxResult.executed).map(idx => idx.match(/\"([^"]+_idx)\"/)?.[1] || "index"));
+  result.errors.push(...idxResult.errors);
+
+  // 3. Create unique constraints — batch
+  const ucResult = await executeBatch(UNIQUE_CONSTRAINTS, "unique constraints");
+  result.indexesCreated.push(...UNIQUE_CONSTRAINTS.slice(0, ucResult.executed).map(sql => sql.match(/\"([^"]+_key)\"/)?.[1] || "unique"));
+  result.errors.push(...ucResult.errors);
+
+  // 4. Create foreign keys — batch
+  const fkStatements = FOREIGN_KEYS.map(fk => `DO $$ BEGIN ${fk.sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
+  const fkNames = FOREIGN_KEYS.map(fk => fk.name);
+  const fkResult = await executeBatch(fkStatements, "foreign keys");
+  result.foreignKeysCreated = fkNames.slice(0, fkResult.executed);
+  result.errors.push(...fkResult.errors);
 
   return result;
 }
@@ -4486,6 +4485,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
+
+    // Ensure connection pool is ready (prevents P2024 on cold start)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await prisma.$executeRawUnsafe("SELECT 1");
+        break;
+      } catch (connErr) {
+        if (attempt === 2) throw connErr;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
 
     // Scan first
     const before = await scanDatabase(prisma);

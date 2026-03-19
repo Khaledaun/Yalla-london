@@ -183,6 +183,25 @@ const EXPECTED_TABLES: TableDef[] = [
     ],
     indexes: [],
   },
+  // ── MediaAsset — missing columns from schema ───────────────────────
+  {
+    table: '"MediaAsset"',
+    model: "MediaAsset",
+    columns: [
+      { name: "site_id", type: "TEXT", nullable: true },
+      { name: "category", type: "TEXT", nullable: true },
+      { name: "folder", type: "TEXT", nullable: true },
+      { name: "isVideo", type: "BOOLEAN NOT NULL DEFAULT false", nullable: false },
+      { name: "videoPoster", type: "TEXT", nullable: true },
+      { name: "videoVariants", type: "JSONB", nullable: true },
+      { name: "isHeroVideo", type: "BOOLEAN NOT NULL DEFAULT false", nullable: false },
+      { name: "duration", type: "INTEGER", nullable: true },
+    ],
+    indexes: [
+      'CREATE INDEX IF NOT EXISTS "MediaAsset_site_id_idx" ON "MediaAsset"("site_id")',
+      'CREATE INDEX IF NOT EXISTS "MediaAsset_category_idx" ON "MediaAsset"("category")',
+    ],
+  },
 ];
 
 // ─── Enum Definitions ──────────────────────────────────────────────────────

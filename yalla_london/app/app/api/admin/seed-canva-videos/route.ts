@@ -4,6 +4,7 @@ import {
   CANVA_VIDEO_COLLECTIONS,
   type CanvaVideoCollection,
 } from "@/lib/design/canva-video-registry";
+import { getDefaultSiteId } from "@/config/sites";
 
 /**
  * Estimates video duration in seconds based on page count and category.
@@ -28,9 +29,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
+    const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
 
     let seeded = 0;
     let skipped = 0;
+    const errors: string[] = [];
 
     for (const collection of CANVA_VIDEO_COLLECTIONS) {
       // Check if a VideoProject with this canvaDesignId already exists in scenes JSON
@@ -59,30 +62,37 @@ export async function POST(request: NextRequest) {
         createdAt: collection.createdAt,
       };
 
-      await prisma.videoProject.create({
-        data: {
-          title: collection.title,
-          site: "yalla-london",
-          category: collection.category,
-          format: "vertical",
-          language: "en",
-          scenes: scenesData,
-          duration: estimateDuration(collection),
-          fps: 30,
-          width: collection.width,
-          height: collection.height,
-          status: "ready",
-        },
-      });
-
-      seeded++;
+      try {
+        await prisma.videoProject.create({
+          data: {
+            title: collection.title,
+            site: siteId,
+            category: collection.category,
+            format: "vertical",
+            language: "en",
+            scenes: scenesData,
+            duration: estimateDuration(collection),
+            fps: 30,
+            width: collection.width,
+            height: collection.height,
+            status: "ready",
+          },
+        });
+        seeded++;
+      } catch (createErr) {
+        const reason = createErr instanceof Error ? createErr.message : String(createErr);
+        console.error(`[seed-canva-videos] Failed to create "${collection.title}":`, reason);
+        errors.push(`${collection.title}: ${reason.slice(0, 150)}`);
+      }
     }
 
     return NextResponse.json({
-      success: true,
+      success: errors.length === 0,
       seeded,
       skipped,
+      failed: errors.length,
       total: CANVA_VIDEO_COLLECTIONS.length,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (err) {
     console.error("[seed-canva-videos] Error:", err instanceof Error ? err.message : String(err));

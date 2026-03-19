@@ -23,8 +23,15 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
-    const { prisma } = await import("@/lib/db");
     const { searchParams } = new URL(request.url);
+
+    // Return template catalog (no DB needed)
+    if (searchParams.get("templates") === "true") {
+      const { GUIDE_TEMPLATES } = await import("@/lib/pdf/guide-templates");
+      return NextResponse.json({ templates: GUIDE_TEMPLATES });
+    }
+
+    const { prisma } = await import("@/lib/db");
     const site = searchParams.get("site");
     const status = searchParams.get("status");
 

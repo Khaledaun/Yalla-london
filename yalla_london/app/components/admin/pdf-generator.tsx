@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 
 interface PdfGuide {
   id: string
@@ -41,6 +42,7 @@ export function PDFGenerator() {
   const [downloading, setDownloading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [tableNotFound, setTableNotFound] = useState(false)
   const [tab, setTab] = useState<'generate' | 'from-article' | 'library'>('generate')
 
   // Generate form state
@@ -56,10 +58,11 @@ export function PDFGenerator() {
   const loadGuides = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/pdf-guides')
-      if (res.ok) {
-        const data = await res.json()
-        setGuides(data.guides || [])
+      const data = await res.json().catch(() => ({}))
+      if (data.tableNotFound) {
+        setTableNotFound(true)
       }
+      setGuides(data.guides || [])
     } catch {
       console.warn('Failed to load guides')
     } finally {
@@ -216,6 +219,13 @@ export function PDFGenerator() {
           </div>
         ))}
       </div>
+
+      {/* Table not found banner */}
+      {tableNotFound && (
+        <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 16, color: '#92400e' }}>
+          <strong>Setup needed:</strong> PDF Guides table not created yet. Go to <Link href="/admin/content?tab=generation" style={{ color: '#92400e', textDecoration: 'underline' }}>Content Hub → Generation</Link> and click <strong>Fix Database</strong> to create it. You can still generate guides — they will be saved once the table exists.
+        </div>
+      )}
 
       {/* Alerts */}
       {error && (

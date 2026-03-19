@@ -28,6 +28,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           slug: true,
           seo_score: true,
         },
+        take: 100,
       }),
       prisma.blogPost.findMany({
         where: {
@@ -41,6 +42,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           seo_score: true,
           content_en: true,
         },
+        take: 100,
       }),
     ]);
 

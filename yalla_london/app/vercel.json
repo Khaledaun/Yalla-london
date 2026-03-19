@@ -234,7 +234,7 @@
     },
     {
       "path": "/api/cron/seo-audit-runner",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/schedule-executor",

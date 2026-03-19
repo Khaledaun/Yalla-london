@@ -7593,7 +7593,7 @@ function CockpitPage() {
 
   useEffect(() => {
     fetchCockpit();
-    autoRefreshRef.current = setInterval(fetchCockpit, 60_000);
+    autoRefreshRef.current = setInterval(fetchCockpit, 180_000); // 3 min — reduced from 60s to ease Supabase Disk IO
     return () => {
       if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
     };

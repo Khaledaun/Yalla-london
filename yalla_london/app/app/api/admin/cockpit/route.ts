@@ -190,7 +190,7 @@ interface CachedResponse {
   siteKey: string;
 }
 
-const CACHE_TTL_MS = 30_000; // 30 seconds
+const CACHE_TTL_MS = 120_000; // 120 seconds — reduced from 30s to ease Supabase Disk IO pressure
 let responseCache: CachedResponse | null = null;
 
 // ─────────────────────────────────────────────
@@ -602,10 +602,12 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
     // ── GSC reconciliation: promote URLs confirmed indexed by Google ──
     // Without this, the cockpit undercounts indexed and overcounts submitted.
     try {
-      const gscIndexedCount = await prisma.gscPagePerformance.groupBy({
-        by: ["url"],
-        where: { site_id: targetSiteId, impressions: { gt: 0 } },
-      }).then((rows: { url: string }[]) => rows.length);
+      // Use raw count(DISTINCT url) instead of groupBy which loads all rows
+      const gscDistinct = await prisma.$queryRawUnsafe<[{count: bigint}]>(
+        `SELECT COUNT(DISTINCT url) as count FROM "GscPagePerformance" WHERE site_id = $1 AND impressions > 0`,
+        targetSiteId,
+      ).catch(() => [{ count: BigInt(0) }]);
+      const gscIndexedCount = Number(gscDistinct[0]?.count ?? 0);
 
       // GSC-confirmed minus already-counted = promotion candidates
       const promotable = Math.max(0, gscIndexedCount - indexing.indexed);

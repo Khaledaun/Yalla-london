@@ -159,8 +159,9 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error("[pdf-guides] POST error:", error);
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("[pdf-guides] POST error:", errMsg);
+    return NextResponse.json({ error: errMsg.length > 200 ? errMsg.slice(0, 200) : errMsg }, { status: 500 });
   }
 }
 
@@ -591,22 +592,34 @@ async function handleTemplateGenerate(
 
   // 4. Save to DB
   const slug = `${destination.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${templateId}-${locale}-${Date.now().toString(36)}`;
-  const guide = await prisma.pdfGuide.create({
-    data: {
-      title: guideTitle,
-      slug,
-      description: template.description,
-      site: effectiveSiteId,
-      style,
-      language: locale,
-      contentSections: { templateId, userInputs, sections },
-      htmlContent: html,
-      pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null,
-      coverDesignId: coverDesignUrl || null,
-      status: pdfBase64 ? "ready" : "generated",
-      price: template.suggestedPrice,
-    },
-  });
+  let guide;
+  try {
+    guide = await prisma.pdfGuide.create({
+      data: {
+        title: guideTitle,
+        slug,
+        description: template.description,
+        site: effectiveSiteId,
+        style,
+        language: locale,
+        contentSections: { templateId, userInputs, sections },
+        htmlContent: html,
+        pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null,
+        coverDesignId: coverDesignUrl || null,
+        status: pdfBase64 ? "ready" : "generated",
+        price: template.suggestedPrice,
+      },
+    });
+  } catch (dbErr) {
+    const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    if (dbMsg.includes("does not exist") || dbMsg.includes("P2021") || dbMsg.includes("PdfGuide")) {
+      return NextResponse.json(
+        { error: "PdfGuide table not created yet. Go to Content Hub → Generation → Fix Database." },
+        { status: 503 },
+      );
+    }
+    throw dbErr;
+  }
 
   return NextResponse.json({
     success: true,

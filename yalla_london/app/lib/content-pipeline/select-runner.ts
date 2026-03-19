@@ -26,7 +26,8 @@ import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MAX_ARTICLES_PER_RUN = 2;
+const MAX_ARTICLES_PER_RUN = 2;        // target: publish up to 2 per run
+const MAX_CANDIDATES_PER_RUN = 6;     // try up to 6 candidates to find 2 publishable
 
 export interface SelectRunnerResult {
   success: boolean;
@@ -157,7 +158,7 @@ export async function runContentSelector(
           { quality_score: "desc" },
           { created_at: "asc" },
         ],
-        take: MAX_ARTICLES_PER_RUN * 3,
+        take: MAX_CANDIDATES_PER_RUN * 2,
       });
 
       // Step 2: Atomically claim candidates by setting current_phase to "promoting"
@@ -327,7 +328,7 @@ export async function runContentSelector(
     const selected: Array<Record<string, unknown>> = [];
 
     for (const candidate of publishReady) {
-      if (selected.length >= MAX_ARTICLES_PER_RUN) break;
+      if (selected.length >= MAX_CANDIDATES_PER_RUN) break;
 
       const candidateId = candidate.id as string;
       const pairedId = candidate.paired_draft_id as string | null;
@@ -371,6 +372,11 @@ export async function runContentSelector(
     const skippedReasons: Array<{ draftId: string; keyword: string; reason: string }> = [];
 
     for (const draft of selected) {
+      // Stop after MAX_ARTICLES_PER_RUN successful publications (target: 2)
+      if (published.length >= MAX_ARTICLES_PER_RUN) {
+        console.log(`[content-selector] Reached ${MAX_ARTICLES_PER_RUN} published articles, stopping`);
+        break;
+      }
       const remainingMs = timeoutMs - (Date.now() - cronStart);
       if (remainingMs < 5000) {
         console.log("[content-selector] Budget running low, stopping promotion loop");
@@ -848,17 +854,26 @@ export async function promoteToBlogPost(
   }
 
   // Check for slug collision GLOBALLY — BlogPost.slug is @unique across all sites.
-  // If a collision is found, append a suffix with crypto randomness to avoid
-  // TOCTOU race conditions where two concurrent promotions pick the same suffix.
+  // If a collision is found, append a human-readable suffix (-v2, -v3, etc.)
+  // instead of hex bytes which trigger the slug artifact detector.
   const existingSlug = await prisma.blogPost.findFirst({
     where: { slug, deletedAt: null },
     select: { id: true },
   });
   if (existingSlug) {
-    // Use crypto random bytes for suffix to avoid race condition where two
-    // concurrent promotions generate the same Date.now()-based suffix
-    const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
-    slug = `${slug}-${randomBytes}`;
+    // Find the next available version suffix
+    for (let v = 2; v <= 10; v++) {
+      const candidate = `${slug}-v${v}`;
+      const collision = await prisma.blogPost.findFirst({
+        where: { slug: candidate, deletedAt: null },
+        select: { id: true },
+      });
+      if (!collision) {
+        slug = candidate;
+        break;
+      }
+      if (v === 10) slug = `${slug}-v${Date.now().toString(36).slice(-4)}`;
+    }
     console.log(`[content-selector] Slug collision detected — using "${slug}" instead`);
   }
 
@@ -957,8 +972,13 @@ export async function promoteToBlogPost(
         select: { id: true },
       });
       if (cleanCollision) {
-        const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
-        slug = `${cleanedSlug}-${randomBytes}`;
+        // Use human-readable suffix (-v2, -v3) — NOT hex bytes which re-trigger the artifact detector
+        for (let v = 2; v <= 10; v++) {
+          const candidate = `${cleanedSlug}-v${v}`;
+          const vc = await prisma.blogPost.findFirst({ where: { slug: candidate, deletedAt: null }, select: { id: true } });
+          if (!vc) { slug = candidate; break; }
+          if (v === 10) slug = `${cleanedSlug}-v${Date.now().toString(36).slice(-4)}`;
+        }
         console.log(`[content-selector] Cleaned slug collided — using "${slug}"`);
       }
     } else {

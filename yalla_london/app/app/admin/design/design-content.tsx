@@ -103,6 +103,7 @@ export default function DesignContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSeedingVideos, setIsSeedingVideos] = useState(false);
   const [seedResult, setSeedResult] = useState<{ success: boolean; seeded: number; skipped: number; total: number } | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -259,6 +260,53 @@ export default function DesignContent() {
             </Link>
           </div>
         </div>
+
+        {/* Quick Start — shown when no designs exist */}
+        {!isLoading && stats.totalDesigns === 0 && (
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="p-6 text-center space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-full flex items-center justify-center bg-indigo-50 dark:bg-indigo-950">
+                <Palette className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Get Started with Design
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                Seed 10 branded starter templates (social posts, blog headers, email banners, logo, OG images) with your site&apos;s brand colors.
+              </p>
+              <button
+                className="admin-btn admin-btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold"
+                disabled={isSeeding}
+                onClick={async () => {
+                  setIsSeeding(true);
+                  try {
+                    const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || getDefaultSiteId();
+                    const res = await fetch("/api/admin/designs", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "seed_designs", site: siteId }),
+                    });
+                    if (!res.ok) throw new Error("Seed failed");
+                    const data = await res.json();
+                    toast.success(`Created ${data.created} designs (${data.skipped} already existed)`);
+                    await loadData();
+                  } catch {
+                    toast.error("Failed to seed starter designs");
+                  } finally {
+                    setIsSeeding(false);
+                  }
+                }}
+              >
+                {isSeeding ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {isSeeding ? "Seeding..." : "Seed 10 Starter Designs"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Asset Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

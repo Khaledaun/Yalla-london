@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
-import { getSiteConfig } from "@/config/sites";
+import { getSiteConfig, getDefaultSiteId } from "@/config/sites";
+import { getBrandProfile } from "@/lib/design/brand-provider";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -78,6 +79,85 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+
+    // ── Seed Starter Designs ──────────────────────────────────
+    if (body.action === "seed_designs") {
+      const siteId = body.site || getDefaultSiteId();
+      const brand = getBrandProfile(siteId);
+      const siteName = brand.name || siteId;
+
+      const SEED_DESIGNS = [
+        { title: `${siteName} — Instagram Post`, type: "social", category: "instagram", width: 1080, height: 1080, description: "Square social media post template" },
+        { title: `${siteName} — Instagram Story`, type: "social", category: "story", width: 1080, height: 1920, description: "Vertical story template" },
+        { title: `${siteName} — Blog Header`, type: "blog-header", category: "header", width: 1200, height: 630, description: "Blog article header image" },
+        { title: `${siteName} — Facebook Post`, type: "social", category: "facebook", width: 1200, height: 630, description: "Facebook post template" },
+        { title: `${siteName} — Twitter/X Post`, type: "social", category: "twitter", width: 1200, height: 675, description: "Twitter post template" },
+        { title: `${siteName} — YouTube Thumbnail`, type: "video", category: "thumbnail", width: 1280, height: 720, description: "YouTube video thumbnail" },
+        { title: `${siteName} — Email Header`, type: "email", category: "header", width: 600, height: 200, description: "Email campaign header banner" },
+        { title: `${siteName} — Logo Lockup`, type: "logo", category: "branding", width: 800, height: 400, description: "Primary logo with brand colors" },
+        { title: `${siteName} — Pinterest Pin`, type: "social", category: "pinterest", width: 1000, height: 1500, description: "Tall Pinterest pin template" },
+        { title: `${siteName} — OG Image`, type: "social", category: "og", width: 1200, height: 630, description: "Open Graph sharing image" },
+      ];
+
+      // Check which already exist (by title + site)
+      const existing = await prisma.design.findMany({
+        where: { site: siteId },
+        select: { title: true },
+      });
+      const existingTitles = new Set(existing.map((d) => d.title));
+
+      let created = 0;
+      let skipped = 0;
+      for (const seed of SEED_DESIGNS) {
+        if (existingTitles.has(seed.title)) {
+          skipped++;
+          continue;
+        }
+        // Build a simple canvas placeholder with brand colors
+        const canvasData = {
+          version: "1.0",
+          background: brand.colors.primary,
+          elements: [
+            {
+              type: "rect",
+              x: 0, y: 0,
+              width: seed.width, height: seed.height,
+              fill: `linear-gradient(135deg, ${brand.colors.primary}, ${brand.colors.secondary})`,
+            },
+            {
+              type: "text",
+              x: seed.width / 2, y: seed.height / 2,
+              text: seed.title.replace(`${siteName} — `, ""),
+              fontSize: Math.round(seed.width / 15),
+              color: "#FFFFFF",
+              fontFamily: brand.fonts.heading.name,
+              textAlign: "center",
+            },
+          ],
+        };
+
+        await prisma.design.create({
+          data: {
+            title: seed.title,
+            description: seed.description,
+            type: seed.type,
+            category: seed.category,
+            site: siteId,
+            canvasData,
+            width: seed.width,
+            height: seed.height,
+            tags: [seed.type, seed.category, "template", "starter"],
+            isTemplate: true,
+            status: "published",
+          },
+        });
+        created++;
+      }
+
+      return NextResponse.json({ success: true, created, skipped, total: SEED_DESIGNS.length });
+    }
+
+    // ── Create Single Design ──────────────────────────────────
     const {
       title,
       description,

@@ -68,6 +68,7 @@ export default function MediaLibraryPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [isSeedingCanva, setIsSeedingCanva] = useState(false);
 
   // Compute folders dynamically from loaded media files
   const folders = [
@@ -359,6 +360,82 @@ export default function MediaLibraryPage() {
         <AdminKPICard value={videoCount} label="Videos" color="#7C3AED" />
         <AdminKPICard value={formatFileSize(totalSize)} label="Total Size" color="#C49A2A" />
       </div>
+
+      {/* Seed Canva Videos — shown when no videos exist */}
+      {!isLoading && videoCount === 0 && (
+        <AdminCard className="mb-6">
+          <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div
+              className="p-3 rounded-xl shrink-0"
+              style={{ backgroundColor: 'rgba(124,58,237,0.08)' }}
+            >
+              <Video className="h-6 w-6" style={{ color: '#7C3AED' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: '#1C1917',
+                  marginBottom: 4,
+                }}
+              >
+                Seed Canva Video Library
+              </h3>
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#78716C' }}>
+                Import your purchased Canva video packs into the media library: 60 luxury travel videos, 50 Instagram reels, 300+ beach clips, and more.
+              </p>
+            </div>
+            <AdminButton
+              variant="primary"
+              size="md"
+              disabled={isSeedingCanva}
+              onClick={async () => {
+                setIsSeedingCanva(true);
+                try {
+                  const CANVA_VIDEOS = [
+                    { canvaId: "DAHD7UYNWZ0", title: "60 Luxury Travel Videos (Pack 1)", thumbnail: "https://design.canva.ai/B9GChi5dxotrwCs", editUrl: "https://www.canva.com/d/f8-ScUoQn9W8sLA", viewUrl: "https://www.canva.com/d/84B3Csj-w_7sV3G", pageCount: 61 },
+                    { canvaId: "DAGwg1bEguM", title: "60 Luxury Travel Videos (Pack 2)", thumbnail: "https://design.canva.ai/FkClqoobngdoa63", editUrl: "https://www.canva.com/d/Aqyh-7U_DKhTFUb", viewUrl: "https://www.canva.com/d/jreOEbmGSSgS35_", pageCount: 61 },
+                    { canvaId: "DAHD7W0opAg", title: "50 Travel Aesthetic Instagram Reels (Pack 1)", thumbnail: "https://design.canva.ai/3jGSXI_TouJZ79N", editUrl: "https://www.canva.com/d/dp2erNTJ3Mz0hCG", viewUrl: "https://www.canva.com/d/W0qGNWHJgiPCqzd", pageCount: 50 },
+                    { canvaId: "DAGwg3CI_zM", title: "50 Travel Aesthetic Instagram Reels (Pack 2)", thumbnail: "https://design.canva.ai/1KSA1wP1F-lo1DF", editUrl: "https://www.canva.com/d/ZATJDf5pKVtlWfY", viewUrl: "https://www.canva.com/d/-SbWgWCcI1_SjyM", pageCount: 50 },
+                    { canvaId: "DAHD7Yn_DTs", title: "300+ Beach Clips (Pack 1)", thumbnail: "https://design.canva.ai/YXrDWG8E5pTD8d2", editUrl: "https://www.canva.com/d/ZolJ4JlOaBIvHsK", viewUrl: "https://www.canva.com/d/szB4QPUUDT37zu3", pageCount: 314 },
+                    { canvaId: "DAGM4P7gK-s", title: "300+ Beach Clips (Pack 2)", thumbnail: "https://design.canva.ai/dsYzuZsif5ZLmy4", editUrl: "https://www.canva.com/d/m5Q_Dq6scW5CZp8", viewUrl: "https://www.canva.com/d/O12MWYHJGkyhW23", pageCount: 314 },
+                    { canvaId: "DAHD7YqkCZ4", title: "Faceless Instagram eBook & Template", thumbnail: "https://design.canva.ai/pIuSPP7tglXZwIS", editUrl: "https://www.canva.com/d/n-0wtraleHtUu8C", viewUrl: "https://www.canva.com/d/d_YcDDSLVAOWGdT", pageCount: 52 },
+                    { canvaId: "DAGITnnkzVQ", title: "10 Years in Business (Mobile Video)", thumbnail: "https://design.canva.ai/tSK3phS_ITNbsDA", editUrl: "https://www.canva.com/d/z84AU6qyma0vv-l", viewUrl: "https://www.canva.com/d/BItvVfF6PXkpEob", pageCount: 8 },
+                  ];
+
+                  const res = await fetch("/api/admin/media", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "seed_from_canva", items: CANVA_VIDEOS, folder: "canva-videos" }),
+                  });
+                  if (!res.ok) throw new Error("Seed failed");
+                  const data = await res.json();
+                  toast.success(data.message || `Seeded ${data.created} videos`);
+                  await loadMediaFiles();
+                } catch {
+                  toast.error("Failed to seed Canva videos");
+                } finally {
+                  setIsSeedingCanva(false);
+                }
+              }}
+            >
+              {isSeedingCanva ? (
+                <>
+                  <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Seeding...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Seed 8 Canva Packs
+                </>
+              )}
+            </AdminButton>
+          </div>
+        </AdminCard>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar - Folders */}

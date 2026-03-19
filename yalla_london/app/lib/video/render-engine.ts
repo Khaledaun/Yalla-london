@@ -9,9 +9,15 @@
  *   - In-memory semaphore (MAX_CONCURRENT_RENDERS = 2)
  *   - 5-minute timeout per render
  *   - Graceful fallback when @remotion/renderer is not installed
+ *   - Canva MCP integration as primary render path (see canva-render-engine.ts)
+ *
+ * RECOMMENDED: Use the Canva render path via the video-studio API
+ * (action: "render-canva") instead of this Remotion path, as Remotion
+ * cannot run on Vercel serverless (no Chromium available).
  */
 
 import { prisma } from "@/lib/db";
+import { isCanvaRendered } from "@/lib/video/canva-render-engine";
 
 // ─── Constants ──────────────────────────────────────────────────
 
@@ -123,10 +129,18 @@ export async function renderVideoToMp4(
     throw new Error(`VideoProject "${videoProjectId}" has no compositionCode — generate a composition first`);
   }
 
+  // 1b. If this was rendered via Canva, it's already done
+  if (isCanvaRendered(project.compositionCode)) {
+    return {
+      url: project.exportedUrl || "",
+      size: 0,
+    };
+  }
+
   // 2. Check Remotion availability
   const remotion = await loadRemotionModules();
   if (!remotion) {
-    // Mark as failed with a helpful message
+    // Mark as failed with a helpful message — recommend Canva path
     await prisma.videoProject.update({
       where: { id: videoProjectId },
       data: {
@@ -135,8 +149,9 @@ export async function renderVideoToMp4(
       },
     });
     throw new Error(
-      "Server-side rendering is not available: @remotion/bundler and @remotion/renderer packages are not installed. " +
-      "To enable rendering, run: npm install @remotion/bundler @remotion/renderer @remotion/cli remotion --legacy-peer-deps"
+      "Server-side Remotion rendering is not available on Vercel serverless (no Chromium). " +
+      "Use the Canva render path instead: POST /api/admin/video-studio with action: 'render-canva'. " +
+      "This uses Canva's MCP to generate and export branded designs."
     );
   }
 

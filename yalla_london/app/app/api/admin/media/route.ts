@@ -1,7 +1,12 @@
 /**
  * Admin Media Management API
  * CRUD operations for media library management
- * Uses MediaAsset Prisma model (NOT "media" — that model doesn't exist)
+ *
+ * Prisma model: MediaAsset (NOT "Media" — that model doesn't exist)
+ * Fields: filename, original_name, cloud_storage_path, url, file_type,
+ *         mime_type, file_size, width, height, alt_text, title,
+ *         description, tags, site_id, category, folder, isVideo,
+ *         videoPoster, videoVariants, isHeroVideo, duration, deletedAt
  */
 
 export const dynamic = 'force-dynamic';
@@ -61,9 +66,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const offset = (page - 1) * limit;
 
     // Build where clause using MediaAsset fields
-    const where: Record<string, unknown> = {
-      deletedAt: null, // Exclude soft-deleted
-    };
+    const where: Record<string, unknown> = { deletedAt: null };
 
     if (type) {
       where.file_type = type;
@@ -89,7 +92,6 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       ];
     }
 
-    // Fetch media files from MediaAsset table
     const [mediaFiles, totalCount] = await Promise.all([
       prisma.mediaAsset.findMany({
         where,
@@ -100,18 +102,14 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       prisma.mediaAsset.count({ where })
     ]);
 
-    // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
 
-    // Transform data for frontend — map MediaAsset fields
     const transformedData = mediaFiles.map((file) => ({
       id: file.id,
       filename: file.filename,
       originalName: file.original_name,
       url: file.url,
-      thumbnailUrl: file.url, // Use URL as thumbnail (no separate thumbnail field on MediaAsset)
+      thumbnailUrl: file.videoPoster || file.url,
       size: file.file_size,
       fileSize: file.file_size,
       mimeType: file.mime_type,
@@ -138,8 +136,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         limit,
         total: totalCount,
         total_pages: totalPages,
-        has_next_page: hasNextPage,
-        has_prev_page: hasPrevPage
+        has_next_page: page < totalPages,
+        has_prev_page: page > 1
       },
       meta: {
         type_filter: type,
@@ -159,12 +157,77 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
 /**
  * POST /api/admin/media
- * Create a new media record (metadata only — file already uploaded)
+ * Create a new media record — or seed from Canva
  */
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
     const body = await request.json();
+
+    // ── Seed from Canva ──────────────────────────────────────
+    if (body.action === 'seed_from_canva' && Array.isArray(body.items)) {
+      const items: Array<{
+        canvaId: string;
+        title: string;
+        thumbnail: string;
+        editUrl: string;
+        viewUrl: string;
+        pageCount: number;
+      }> = body.items;
+
+      // Check which Canva IDs already exist (stored in tags)
+      const existing = await prisma.mediaAsset.findMany({
+        where: { tags: { hasSome: items.map(i => `canva:${i.canvaId}`) } },
+        select: { tags: true },
+      });
+      const existingCanvaIds = new Set<string>();
+      for (const row of existing) {
+        for (const tag of row.tags) {
+          if (tag.startsWith('canva:')) existingCanvaIds.add(tag.replace('canva:', ''));
+        }
+      }
+
+      let created = 0;
+      let skipped = 0;
+      for (const item of items) {
+        if (existingCanvaIds.has(item.canvaId)) {
+          skipped++;
+          continue;
+        }
+
+        await prisma.mediaAsset.create({
+          data: {
+            filename: item.title,
+            original_name: item.title,
+            cloud_storage_path: `canva/${item.canvaId}`,
+            url: item.editUrl,
+            file_type: 'video',
+            mime_type: 'video/mp4',
+            file_size: 0,
+            width: 1080,
+            height: 1920,
+            alt_text: item.title,
+            title: item.title,
+            description: `Canva video (${item.pageCount} pages). View: ${item.viewUrl}`,
+            tags: [`canva:${item.canvaId}`, 'canva', 'video', 'travel', 'luxury'],
+            folder: body.folder || 'canva-videos',
+            isVideo: true,
+            videoPoster: item.thumbnail,
+          },
+        });
+        created++;
+      }
+
+      return NextResponse.json({
+        success: true,
+        created,
+        skipped,
+        total: items.length,
+        message: `Seeded ${created} Canva videos (${skipped} already existed)`,
+      });
+    }
+
+    // ── Standard create ──────────────────────────────────────
     const validation = MediaCreateSchema.safeParse(body);
 
     if (!validation.success) {
@@ -184,7 +247,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       else fileType = 'document';
     }
 
-    // Create the media record in MediaAsset table
     const mediaFile = await prisma.mediaAsset.create({
       data: {
         filename: data.filename,
@@ -214,6 +276,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         filename: mediaFile.filename,
         originalName: mediaFile.original_name,
         url: mediaFile.url,
+        thumbnailUrl: mediaFile.videoPoster || mediaFile.url,
         size: mediaFile.file_size,
         mimeType: mediaFile.mime_type,
         fileType: mediaFile.file_type,
@@ -264,7 +327,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
 
     const result = await prisma.mediaAsset.updateMany({
       where: { id: { in: ids } },
-      data: { category }
+      data: { category },
     });
 
     return NextResponse.json({
@@ -283,7 +346,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest) => {
 
 /**
  * DELETE /api/admin/media
- * Bulk delete media files (soft delete)
+ * Soft-delete media files
  */
 export const DELETE = withAdminAuth(async (request: NextRequest) => {
   try {
@@ -297,16 +360,15 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       );
     }
 
-    // Soft delete: set deletedAt timestamp
-    const deletedCount = await prisma.mediaAsset.updateMany({
+    const result = await prisma.mediaAsset.updateMany({
       where: { id: { in: ids } },
-      data: { deletedAt: new Date() }
+      data: { deletedAt: new Date() },
     });
 
     return NextResponse.json({
       success: true,
-      message: `${deletedCount.count} media files deleted successfully`,
-      deletedCount: deletedCount.count
+      message: `${result.count} media files deleted successfully`,
+      deletedCount: result.count
     });
 
   } catch (error) {

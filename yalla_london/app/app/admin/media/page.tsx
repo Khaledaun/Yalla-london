@@ -47,6 +47,12 @@ interface MediaFile {
   description?: string;
   tags: string[];
   folder: string;
+  width?: number | null;
+  height?: number | null;
+  mimeType?: string;
+  fileType?: string;
+  format?: string;
+  category?: string;
 }
 
 export default function MediaLibraryPage() {
@@ -86,22 +92,35 @@ export default function MediaLibraryPage() {
         const data = await res.json();
         const raw = data.files || data.data || [];
         // Map API response to MediaFile interface
-        const mapped: MediaFile[] = raw.map((f: Record<string, unknown>) => ({
-          id: String(f.id || ""),
-          name: (f.filename || f.name || "") as string,
-          type: ((f.mimeType || f.mime_type || "") as string).startsWith("image/")
+        const mapped: MediaFile[] = raw.map((f: Record<string, unknown>) => {
+          const mime = (f.mimeType || f.mime_type || "") as string;
+          const detectedType = mime.startsWith("image/")
             ? "image"
-            : ((f.mimeType || f.mime_type || "") as string).startsWith("video/")
+            : mime.startsWith("video/")
               ? "video"
-              : "document",
-          url: (f.url || "") as string,
-          thumbnail: (f.thumbnailUrl || f.thumbnail || f.url || "") as string,
-          size: (f.size || 0) as number,
-          uploadedAt: (f.createdAt || f.created_at || f.uploadedAt || "") as string,
-          alt: (f.altText || f.alt_text || f.alt || "") as string,
-          tags: (f.tags || []) as string[],
-          folder: (f.folder || "uploads") as string,
-        }));
+              : "document";
+          const origName = (f.originalName || f.original_name || f.filename || f.name || "") as string;
+          const ext = origName.split(".").pop()?.toLowerCase() || "";
+          return {
+            id: String(f.id || ""),
+            name: origName,
+            type: detectedType as "image" | "video" | "document",
+            url: (f.url || "") as string,
+            thumbnail: (f.thumbnailUrl || f.thumbnail || f.url || "") as string,
+            size: (f.size || f.fileSize || 0) as number,
+            uploadedAt: (f.createdAt || f.created_at || f.uploadedAt || "") as string,
+            alt: (f.altText || f.alt_text || f.alt || "") as string,
+            description: (f.description || "") as string,
+            tags: (f.tags || []) as string[],
+            folder: (f.folder || "uploads") as string,
+            width: (f.width ?? null) as number | null,
+            height: (f.height ?? null) as number | null,
+            mimeType: mime,
+            fileType: (f.fileType || f.file_type || detectedType) as string,
+            format: ext,
+            category: (f.category || "") as string,
+          };
+        });
         setMediaFiles(mapped);
       } else {
         setMediaFiles([]);

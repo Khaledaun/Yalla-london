@@ -101,6 +101,8 @@ export default function DesignContent() {
   const [stats, setStats] = useState<AssetStats>({ totalDesigns: 0, pdfsGenerated: 0, videosRendered: 0, emailsSent: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSeedingVideos, setIsSeedingVideos] = useState(false);
+  const [seedResult, setSeedResult] = useState<{ success: boolean; seeded: number; skipped: number; total: number } | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
@@ -201,6 +203,30 @@ export default function DesignContent() {
     toast.success("Design Hub refreshed");
   };
 
+  const handleSeedCanvaVideos = async () => {
+    setIsSeedingVideos(true);
+    setSeedResult(null);
+    try {
+      const res = await fetch("/api/admin/seed-canva-videos", { method: "POST" });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setSeedResult(data);
+      if (data.seeded > 0) {
+        toast.success(`Seeded ${data.seeded} Canva video collection${data.seeded !== 1 ? "s" : ""}`);
+        loadData(); // Refresh stats
+      } else {
+        toast.info("All Canva video collections already seeded");
+      }
+    } catch (err) {
+      console.warn("[design-hub] Seed Canva videos failed:", err);
+      toast.error("Failed to seed Canva videos");
+    }
+    setIsSeedingVideos(false);
+  };
+
   // ─── Render ──────────────────────────────────────────────────
 
   return (
@@ -297,6 +323,50 @@ export default function DesignContent() {
             </>
           )}
         </div>
+
+        {/* Import / Seed Tools */}
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Import Assets</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 shrink-0">
+                  <Film className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Canva Video Assets</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    433 clips across 4 collections (luxury travel, beach, aesthetic, brand)
+                  </p>
+                  <button
+                    className="admin-btn admin-btn-primary text-sm px-3 py-1.5 mt-3 inline-flex items-center gap-1"
+                    onClick={handleSeedCanvaVideos}
+                    disabled={isSeedingVideos}
+                  >
+                    {isSeedingVideos ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Seeding...
+                      </>
+                    ) : (
+                      <>
+                        <Video className="h-4 w-4" />
+                        Seed Canva Videos
+                      </>
+                    )}
+                  </button>
+                  {seedResult && (
+                    <p className={`text-xs mt-2 ${seedResult.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                      {seedResult.success
+                        ? `Done: ${seedResult.seeded} seeded, ${seedResult.skipped} already existed`
+                        : "Seed failed"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Quick Create */}
         <section>

@@ -113,14 +113,15 @@ export function MediaLibrary({
       formData.append('file', file);
       
       try {
-        const response = await fetch('/api/media/upload', {
+        const response = await fetch('/api/admin/media/upload', {
           method: 'POST',
           body: formData
         });
-        
+
         const result = await response.json();
         if (result.success) {
-          setMediaItems(prev => [result.item, ...prev]);
+          const item = result.data || result.item;
+          setMediaItems(prev => [item, ...prev]);
         }
       } catch (error) {
         console.error('Upload failed:', error);

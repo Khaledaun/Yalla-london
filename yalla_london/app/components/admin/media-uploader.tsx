@@ -62,7 +62,7 @@ export function MediaUploader({ onUploadComplete }: { onUploadComplete?: (files:
           f.id === uploadFile.id ? { ...f, progress: 30 } : f
         ));
 
-        const res = await fetch('/api/media/upload', {
+        const res = await fetch('/api/admin/media/upload', {
           method: 'POST',
           body: formData,
         });
@@ -76,13 +76,15 @@ export function MediaUploader({ onUploadComplete }: { onUploadComplete?: (files:
           throw new Error(errData.error || `Upload failed (${res.status})`);
         }
 
-        const data = await res.json();
+        const result = await res.json();
+        // Admin upload route returns { success, data: { url, ... } }
+        const fileUrl = result.data?.url || result.url || '';
 
         // Mark as success
         setUploadFiles(prev => prev.map(f =>
-          f.id === uploadFile.id ? { ...f, status: 'success', progress: 100, url: data.url } : f
+          f.id === uploadFile.id ? { ...f, status: 'success', progress: 100, url: fileUrl } : f
         ));
-        uploadedFiles.push({ url: data.url, name: uploadFile.file.name });
+        uploadedFiles.push({ url: fileUrl, name: uploadFile.file.name });
 
       } catch (error) {
         setUploadFiles(prev => prev.map(f =>

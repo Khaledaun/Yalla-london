@@ -47,6 +47,12 @@ interface MediaFile {
   description?: string;
   tags: string[];
   folder: string;
+  width?: number | null;
+  height?: number | null;
+  mimeType?: string;
+  fileType?: string;
+  format?: string;
+  category?: string;
 }
 
 export default function MediaLibraryPage() {
@@ -87,22 +93,35 @@ export default function MediaLibraryPage() {
         const data = await res.json();
         const raw = data.files || data.data || [];
         // Map API response to MediaFile interface
-        const mapped: MediaFile[] = raw.map((f: Record<string, unknown>) => ({
-          id: String(f.id || ""),
-          name: (f.filename || f.name || "") as string,
-          type: ((f.mimeType || f.mime_type || "") as string).startsWith("image/")
+        const mapped: MediaFile[] = raw.map((f: Record<string, unknown>) => {
+          const mime = (f.mimeType || f.mime_type || "") as string;
+          const detectedType = mime.startsWith("image/")
             ? "image"
-            : ((f.mimeType || f.mime_type || "") as string).startsWith("video/")
+            : mime.startsWith("video/")
               ? "video"
-              : "document",
-          url: (f.url || "") as string,
-          thumbnail: (f.thumbnailUrl || f.thumbnail || f.url || "") as string,
-          size: (f.size || 0) as number,
-          uploadedAt: (f.createdAt || f.created_at || f.uploadedAt || "") as string,
-          alt: (f.altText || f.alt_text || f.alt || "") as string,
-          tags: (f.tags || []) as string[],
-          folder: (f.folder || "uploads") as string,
-        }));
+              : "document";
+          const origName = (f.originalName || f.original_name || f.filename || f.name || "") as string;
+          const ext = origName.split(".").pop()?.toLowerCase() || "";
+          return {
+            id: String(f.id || ""),
+            name: origName,
+            type: detectedType as "image" | "video" | "document",
+            url: (f.url || "") as string,
+            thumbnail: (f.thumbnailUrl || f.thumbnail || f.url || "") as string,
+            size: (f.size || f.fileSize || 0) as number,
+            uploadedAt: (f.createdAt || f.created_at || f.uploadedAt || "") as string,
+            alt: (f.altText || f.alt_text || f.alt || "") as string,
+            description: (f.description || "") as string,
+            tags: (f.tags || []) as string[],
+            folder: (f.folder || "uploads") as string,
+            width: (f.width ?? null) as number | null,
+            height: (f.height ?? null) as number | null,
+            mimeType: mime,
+            fileType: (f.fileType || f.file_type || detectedType) as string,
+            format: ext,
+            category: (f.category || "") as string,
+          };
+        });
         setMediaFiles(mapped);
       } else {
         setMediaFiles([]);
@@ -217,11 +236,15 @@ export default function MediaLibraryPage() {
         setUploadProgress(((i + 0.5) / files.length) * 100);
 
         try {
-          // Upload file to real S3 API
+          // Upload file to admin upload API (saves to disk + database)
           const formData = new FormData();
           formData.append("file", file);
+          formData.append("type", "media");
+          if (selectedFolder !== "All Files") {
+            formData.append("folder", selectedFolder);
+          }
 
-          const res = await fetch("/api/media/upload", {
+          const res = await fetch("/api/admin/media/upload", {
             method: "POST",
             body: formData,
           });
@@ -231,23 +254,33 @@ export default function MediaLibraryPage() {
             throw new Error(errData.error || `Upload failed (${res.status})`);
           }
 
-          const data = await res.json();
+          const result = await res.json();
+          // Response has fields at result.data.* (camelCase)
+          const d = result.data || result;
+          const detectedType = file.type.startsWith("image/")
+            ? "image"
+            : file.type.startsWith("video/")
+              ? "video"
+              : "document";
+          const ext = file.name.split(".").pop()?.toLowerCase() || "";
 
           // Add uploaded file to the library view
           const newFile: MediaFile = {
-            id: data.id?.toString() || Date.now().toString() + i,
-            name: data.original_name || file.name,
-            type: file.type.startsWith("image/")
-              ? "image"
-              : file.type.startsWith("video/")
-                ? "video"
-                : "document",
-            url: data.url,
-            thumbnail: file.type.startsWith("image/") ? data.url : undefined,
-            size: data.file_size || file.size,
-            uploadedAt: data.created_at || new Date().toISOString(),
-            tags: data.tags || [],
-            folder: selectedFolder === "All Files" ? "uploads" : selectedFolder,
+            id: (d.id || result.id || "").toString() || Date.now().toString() + i,
+            name: d.originalName || d.original_name || file.name,
+            type: detectedType,
+            url: d.url || "",
+            thumbnail: detectedType === "image" ? (d.url || "") : undefined,
+            size: d.size || d.fileSize || d.file_size || file.size,
+            uploadedAt: d.createdAt || d.created_at || new Date().toISOString(),
+            tags: d.tags || [],
+            folder: d.folder || (selectedFolder === "All Files" ? "uploads" : selectedFolder),
+            width: d.width ?? null,
+            height: d.height ?? null,
+            mimeType: d.mimeType || d.mime_type || file.type,
+            fileType: d.fileType || d.file_type || detectedType,
+            format: d.format || ext,
+            category: d.category || "",
           };
 
           setMediaFiles((prev) => [newFile, ...prev]);
@@ -265,7 +298,7 @@ export default function MediaLibraryPage() {
       } else if (successCount > 0 && failCount > 0) {
         toast.warning(`${successCount} uploaded, ${failCount} failed`);
       } else {
-        toast.error("All uploads failed — check that AWS S3 is configured");
+        toast.error("All uploads failed — check server logs for details");
       }
     } catch (error) {
       console.warn("[media-upload] Upload error:", error);
@@ -705,7 +738,18 @@ export default function MediaLibraryPage() {
                           </h4>
                           <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
                             {formatFileSize(file.size)}
+                            {file.format ? ` \u00B7 ${file.format.toUpperCase()}` : ""}
                           </p>
+                          {file.width && file.height ? (
+                            <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
+                              {file.width} \u00D7 {file.height}px
+                            </p>
+                          ) : null}
+                          {file.category ? (
+                            <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textTransform: 'capitalize' }}>
+                              {file.category}
+                            </p>
+                          ) : null}
                           <p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
                             {formatDate(file.uploadedAt)}
                           </p>
@@ -758,7 +802,11 @@ export default function MediaLibraryPage() {
                             {file.name}
                           </h4>
                           <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
-                            {formatFileSize(file.size)} &middot;{" "}
+                            {formatFileSize(file.size)}
+                            {file.format ? ` \u00B7 ${file.format.toUpperCase()}` : ""}
+                            {file.width && file.height ? ` \u00B7 ${file.width}\u00D7${file.height}px` : ""}
+                            {file.category ? ` \u00B7 ${file.category}` : ""}
+                            {" \u00B7 "}
                             {formatDate(file.uploadedAt)}
                           </p>
                           {file.tags.length > 0 && (

@@ -3758,7 +3758,36 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 125. **`source_pipeline` must be set on EVERY BlogPost creation path** — `"8-phase"` in select-runner.ts, `"legacy-direct"` in daily-content-generate. Missing this field makes it impossible to diagnose which pipeline produced a bad article.
 126. **`trace_id` flows from ArticleDraft → BlogPost** — set automatically via `@default(cuid())` on ArticleDraft creation. Copied to BlogPost in `promoteToBlogPost()`. CronJobLog entries should include `trace_id` in `result_summary` JSON for full lifecycle visibility.
 
-### Current Platform Status (March 18, 2026)
+### Session: March 19, 2026 — Canva Video Registry + Media Upload DB Integration
+
+**Canva Video Asset Registry (433 clips across 4 collections):**
+- Created `lib/canva/video-registry.ts` — structured registry of all Canva video assets organized into 4 collections: Luxury Travel (124 clips), Beach & Ocean (107 clips), Aesthetic Lifestyle (102 clips), Brand Elements (100 clips)
+- Each clip has: `canvaId`, `title`, `thumbnail`, `editUrl`, `viewUrl`, `pageCount`
+- Registry exports `getAllCanvaVideos()`, `getCollection()`, `getCollectionNames()`, `getVideoCount()`
+- Added `/api/admin/canva-videos/seed` endpoint — seeds all 433 clips into MediaAsset DB table with dedup (checks `canva:{id}` tags)
+- Added "Seed Canva Videos" button to Design Hub (`/admin/design`) with result feedback
+
+**Media Upload → Database Integration:**
+- Fixed `/api/admin/media/upload` — now saves uploaded files to `MediaAsset` Prisma table with full metadata (filename, MIME type, file size, dimensions via `sharp`, auto-categorized file type)
+- Fixed `/api/admin/media` GET — fetches real data from `MediaAsset` table (was returning empty arrays)
+- All 5 upload components (`media/page.tsx`, `media-library.tsx`, `media-selector.tsx`, `media-uploader.tsx`, `media/media-library.tsx`) now POST to `/api/admin/media/upload` instead of broken `/api/media/upload` (which requires S3)
+- Media Hub shows real file details: size, format, dimensions, category
+
+**Merge Conflict Resolution:**
+- Both this branch and main independently fixed `prisma.media` → `prisma.mediaAsset` and added seed buttons to Design Hub
+- Merged: our branch's richer features (siteId filtering, category filter, dynamic import, more response fields) + main's Canva seed endpoint + videoPoster thumbnail support
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `lib/canva/video-registry.ts` | 433 Canva video clips across 4 collections |
+| `app/api/admin/canva-videos/seed/route.ts` | Seed Canva clips into MediaAsset DB |
+| `app/api/admin/media/upload/route.ts` | File upload → local storage + MediaAsset DB record |
+| `app/api/admin/media/route.ts` | CRUD for MediaAsset (GET/POST/PATCH/DELETE + Canva seed) |
+| `app/admin/design/design-content.tsx` | Design Hub with "Seed Canva Videos" button |
+
+### Current Platform Status (March 19, 2026)
 
 **What Works End-to-End:**
 - Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
@@ -3789,6 +3818,8 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 - Multi-site scoping on all DB queries ✅
 - Zenitha Yachts hermetically separated ✅
 - Admin dashboard Clean Light design system ✅
+- **NEW: Canva Video Registry — 433 clips across 4 collections, one-tap seed to DB** ✅
+- **NEW: Media uploads save to MediaAsset DB with auto-detected metadata (type, dimensions, category)** ✅
 
 **Self-Healing & Self-Learning Architecture (March 18, 2026):**
 
@@ -3823,7 +3854,7 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
 | Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
 
-### Key Reference Files (Updated March 18)
+### Key Reference Files (Updated March 19)
 
 | File | Purpose |
 |------|---------|
@@ -3836,6 +3867,7 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | `lib/ops/ceo-inbox.ts` | Automated incident response with escalation policy |
 | `docs/AUDIT-LOG.md` | Persistent audit findings — READ BEFORE ANY PIPELINE CHANGE |
 | `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform + anti-patterns registry |
+| `lib/canva/video-registry.ts` | 433 Canva video clips — 4 collections (luxury travel, beach, aesthetic, brand) |
 
 ## Weekly Manual Checks
 

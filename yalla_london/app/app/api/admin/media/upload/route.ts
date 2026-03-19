@@ -196,9 +196,17 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
   } catch (error) {
     console.error('[media-upload] File upload error:', error)
-    // SECURITY: Don't expose internal error details to client
+    // Show actionable reason (not raw internals)
+    let reason = 'Failed to upload file';
+    if (error instanceof Error) {
+      if (error.message.includes('ENOSPC')) reason = 'Disk full — no space left on server';
+      else if (error.message.includes('EACCES') || error.message.includes('EPERM')) reason = 'Permission denied — server cannot write to uploads folder';
+      else if (error.message.includes('Unique constraint')) reason = 'A file with this name already exists';
+      else if (error.message.includes('connect') || error.message.includes('ECONNREFUSED')) reason = 'Database connection failed — try again in a moment';
+      else reason = `Upload failed: ${error.message.slice(0, 100)}`;
+    }
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      { error: reason },
       { status: 500 }
     )
   }

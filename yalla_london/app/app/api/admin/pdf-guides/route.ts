@@ -56,6 +56,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ guides });
   } catch (error) {
+    // If PdfGuide table doesn't exist yet, return empty list gracefully
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("does not exist") || msg.includes("P2021") || msg.includes("relation") || msg.includes("PdfGuide")) {
+      console.warn("[pdf-guides] PdfGuide table not found — returning empty. Run 'Fix Database' on /admin/content?tab=generation");
+      return NextResponse.json({ guides: [], tableNotFound: true });
+    }
     console.error("[pdf-guides] GET error:", error);
     return NextResponse.json({ error: "Failed to load guides" }, { status: 500 });
   }
@@ -111,6 +117,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("does not exist") || msg.includes("P2021") || msg.includes("relation") || msg.includes("PdfGuide")) {
+      console.warn("[pdf-guides] PdfGuide table not found. Run 'Fix Database' on /admin/content?tab=generation");
+      return NextResponse.json(
+        { error: "PDF Guides table not created yet. Go to Content Hub → Generation tab → click 'Fix Database' to create it." },
+        { status: 503 }
+      );
+    }
     console.error("[pdf-guides] POST error:", error);
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
   }

@@ -115,6 +115,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, guide: { id: guide.id, title: guide.title, status: guide.status } });
     }
 
+    // Action: template_generate — generate from a guide template with user inputs
+    if (action === "template_generate") {
+      return await handleTemplateGenerate(prisma, body, startTime, BUDGET_MS);
+    }
+
+    // Action: edit_prompt — edit an existing guide's content via AI prompt
+    if (action === "edit_prompt") {
+      return await handleEditPrompt(prisma, body, startTime, BUDGET_MS);
+    }
+
+    // Action: publish — mark guide as published and set price
+    if (action === "publish") {
+      return await handlePublish(prisma, body);
+    }
+
+    // Action: preview_html — return the stored HTML for iframe preview
+    if (action === "preview_html") {
+      const { guideId } = body;
+      if (!guideId) return NextResponse.json({ error: "guideId required" }, { status: 400 });
+      const guide = await prisma.pdfGuide.findUnique({
+        where: { id: guideId },
+        select: { htmlContent: true, title: true },
+      });
+      if (!guide) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
+      return NextResponse.json({ html: guide.htmlContent, title: guide.title });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -452,6 +479,339 @@ function extractSectionsFromArticle(html: string, title: string): PDFSection[] {
       title: title || "Guide",
       content: stripHtml(html).slice(0, 3000),
     });
+  }
+
+  return sections;
+}
+
+// ─── Template-based generation ────────────────────────────────────────────────
+
+async function handleTemplateGenerate(
+  prisma: any,
+  body: any,
+  startTime: number,
+  budgetMs: number,
+) {
+  const { templateId, userInputs = {}, locale = "en", siteId, coverDesignUrl } = body;
+
+  if (!templateId) {
+    return NextResponse.json({ error: "templateId is required" }, { status: 400 });
+  }
+
+  const { buildGenerationPrompt, getTemplate } = await import("@/lib/pdf/guide-templates");
+  const template = getTemplate(templateId);
+  if (!template) {
+    return NextResponse.json({ error: `Unknown template: ${templateId}` }, { status: 400 });
+  }
+
+  // Validate required inputs
+  const missing = template.inputs
+    .filter((i) => i.required && !userInputs[i.key])
+    .map((i) => i.label);
+  if (missing.length > 0) {
+    return NextResponse.json({ error: `Missing required fields: ${missing.join(", ")}` }, { status: 400 });
+  }
+
+  const { getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+  const effectiveSiteId = siteId || getDefaultSiteId();
+  const siteConfig = getSiteConfig(effectiveSiteId);
+  const siteName = siteConfig?.name || "Yalla London";
+
+  // 1. Build prompt and generate content via AI
+  const prompt = buildGenerationPrompt(templateId, userInputs, locale as "en" | "ar", siteName);
+  const { generateText, isAIAvailable } = await import("@/lib/ai");
+
+  let aiContent = "";
+  if (await isAIAvailable()) {
+    aiContent = await generateText(prompt, {
+      maxTokens: 6000,
+      taskType: "content_generation",
+      calledFrom: "pdf-guide-template",
+    });
+  } else {
+    aiContent = `# ${template.name}\n\nAI is currently unavailable. Content placeholder for ${userInputs.destination || userInputs.city || "destination"}.`;
+  }
+
+  if (Date.now() - startTime > budgetMs) {
+    return NextResponse.json({ error: "Budget exceeded during generation" }, { status: 504 });
+  }
+
+  // 2. Build HTML from AI content
+  const destination = userInputs.destination || userInputs.city || userInputs.region || "Travel";
+  const guideTitle = `${destination} — ${template.name}`;
+
+  const { generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
+  const style = templateId.includes("luxury") || templateId.includes("hotel") || templateId.includes("yacht")
+    ? "luxury"
+    : templateId.includes("budget") ? "budget"
+    : templateId.includes("family") ? "family"
+    : templateId.includes("adventure") || templateId.includes("outdoor") ? "adventure"
+    : templateId.includes("honeymoon") || templateId.includes("romantic") ? "honeymoon"
+    : "luxury";
+  const templateConfig = PDF_TEMPLATES[style as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
+
+  // Parse AI content into sections
+  const sections = parseMarkdownToSections(aiContent);
+
+  const html = generatePDFHTML({
+    title: guideTitle,
+    subtitle: `Your Complete Guide by ${siteName}`,
+    destination,
+    locale: locale as "en" | "ar",
+    siteId: effectiveSiteId,
+    template: style as any,
+    sections,
+    branding: {
+      primaryColor: siteConfig?.primaryColor || templateConfig.primaryColor,
+      secondaryColor: siteConfig?.secondaryColor || templateConfig.secondaryColor,
+      siteName,
+      website: siteConfig?.domain ? `https://${siteConfig.domain}` : undefined,
+    },
+    includeAffiliate: true,
+  });
+
+  // 3. Convert to PDF
+  let pdfBase64: string | null = null;
+  let pdfSize = 0;
+  try {
+    const { generatePdfFromHtml } = await import("@/lib/pdf/html-to-pdf");
+    const buffer = await generatePdfFromHtml(html);
+    pdfBase64 = buffer.toString("base64");
+    pdfSize = buffer.length;
+  } catch (pdfErr) {
+    console.warn("[pdf-guides] Puppeteer failed, HTML only:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+  }
+
+  // 4. Save to DB
+  const slug = `${destination.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${templateId}-${locale}-${Date.now().toString(36)}`;
+  const guide = await prisma.pdfGuide.create({
+    data: {
+      title: guideTitle,
+      slug,
+      description: template.description,
+      site: effectiveSiteId,
+      style,
+      language: locale,
+      contentSections: { templateId, userInputs, sections },
+      htmlContent: html,
+      pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null,
+      coverDesignId: coverDesignUrl || null,
+      status: pdfBase64 ? "ready" : "generated",
+      price: template.suggestedPrice,
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    guide: {
+      id: guide.id,
+      title: guide.title,
+      slug: guide.slug,
+      status: guide.status,
+      templateId,
+      sections: sections.length,
+      pdfSize,
+      hasPdf: !!pdfBase64,
+      suggestedPrice: template.suggestedPrice,
+    },
+  });
+}
+
+// ─── Edit guide via AI prompt ─────────────────────────────────────────────────
+
+async function handleEditPrompt(
+  prisma: any,
+  body: any,
+  startTime: number,
+  budgetMs: number,
+) {
+  const { guideId, editPrompt } = body;
+
+  if (!guideId) return NextResponse.json({ error: "guideId required" }, { status: 400 });
+  if (!editPrompt) return NextResponse.json({ error: "editPrompt required" }, { status: 400 });
+
+  const guide = await prisma.pdfGuide.findUnique({
+    where: { id: guideId },
+    select: { id: true, title: true, htmlContent: true, site: true, style: true, language: true, slug: true },
+  });
+  if (!guide) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
+
+  // Extract text content from HTML for AI context
+  const currentText = stripHtml(guide.htmlContent || "").slice(0, 8000);
+
+  const aiPrompt = `You are editing an existing travel guide PDF. Here is the current content:
+
+---
+${currentText}
+---
+
+THE USER WANTS THE FOLLOWING CHANGES:
+${editPrompt}
+
+INSTRUCTIONS:
+- Apply ONLY the requested changes
+- Keep all other content intact
+- Return the FULL updated content in markdown format (## for sections, ### for subsections)
+- Maintain the same structure, tone, and quality
+- If the user asks to add a section, add it in the logical place
+- If the user asks to remove something, remove it cleanly
+- If the user asks to rewrite, rewrite just that part`;
+
+  const { generateText, isAIAvailable } = await import("@/lib/ai");
+  if (!(await isAIAvailable())) {
+    return NextResponse.json({ error: "AI is currently unavailable. Try again in a few minutes." }, { status: 503 });
+  }
+
+  const updatedContent = await generateText(aiPrompt, {
+    maxTokens: 6000,
+    taskType: "content_generation",
+    calledFrom: "pdf-guide-edit",
+  });
+
+  if (Date.now() - startTime > budgetMs) {
+    return NextResponse.json({ error: "Budget exceeded" }, { status: 504 });
+  }
+
+  // Rebuild HTML with updated content
+  const { getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+  const effectiveSiteId = guide.site || getDefaultSiteId();
+  const siteConfig = getSiteConfig(effectiveSiteId);
+  const { generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
+  const templateConfig = PDF_TEMPLATES[guide.style as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
+  const sections = parseMarkdownToSections(updatedContent);
+
+  const html = generatePDFHTML({
+    title: guide.title,
+    subtitle: `Your Complete Guide by ${siteConfig?.name || "Yalla London"}`,
+    destination: guide.title.split("—")[0]?.trim() || "Travel",
+    locale: (guide.language || "en") as "en" | "ar",
+    siteId: effectiveSiteId,
+    template: guide.style as any,
+    sections,
+    branding: {
+      primaryColor: siteConfig?.primaryColor || templateConfig.primaryColor,
+      secondaryColor: siteConfig?.secondaryColor || templateConfig.secondaryColor,
+      siteName: siteConfig?.name || "Yalla London",
+      website: siteConfig?.domain ? `https://${siteConfig.domain}` : undefined,
+    },
+    includeAffiliate: true,
+  });
+
+  // Regenerate PDF
+  let pdfBase64: string | null = null;
+  try {
+    const { generatePdfFromHtml } = await import("@/lib/pdf/html-to-pdf");
+    const buffer = await generatePdfFromHtml(html);
+    pdfBase64 = buffer.toString("base64");
+  } catch (pdfErr) {
+    console.warn("[pdf-guides] PDF regen failed:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+  }
+
+  await prisma.pdfGuide.update({
+    where: { id: guideId },
+    data: {
+      htmlContent: html,
+      contentSections: { sections, lastEdit: editPrompt, editedAt: new Date().toISOString() },
+      pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : guide.htmlContent ? undefined : null,
+      status: pdfBase64 ? "ready" : "generated",
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    guide: { id: guideId, title: guide.title, status: pdfBase64 ? "ready" : "generated", sections: sections.length },
+    editApplied: editPrompt,
+  });
+}
+
+// ─── Publish guide ────────────────────────────────────────────────────────────
+
+async function handlePublish(prisma: any, body: any) {
+  const { guideId, price, isGated = false, publishTo = ["shop"] } = body;
+
+  if (!guideId) return NextResponse.json({ error: "guideId required" }, { status: 400 });
+
+  const guide = await prisma.pdfGuide.findUnique({
+    where: { id: guideId },
+    select: { id: true, title: true, status: true, pdfUrl: true, htmlContent: true },
+  });
+  if (!guide) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
+
+  // If no PDF exists, generate it now
+  if (!guide.pdfUrl && guide.htmlContent) {
+    try {
+      const { generatePdfFromHtml } = await import("@/lib/pdf/html-to-pdf");
+      const buffer = await generatePdfFromHtml(guide.htmlContent);
+      await prisma.pdfGuide.update({
+        where: { id: guideId },
+        data: { pdfUrl: `data:application/pdf;base64,${buffer.toString("base64")}` },
+      });
+    } catch (pdfErr) {
+      console.warn("[pdf-guides] Publish PDF gen failed:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+      return NextResponse.json({ error: "Failed to generate PDF for publishing" }, { status: 500 });
+    }
+  }
+
+  const updated = await prisma.pdfGuide.update({
+    where: { id: guideId },
+    data: {
+      status: "published",
+      price: price ?? undefined,
+      isGated,
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    guide: {
+      id: updated.id,
+      title: updated.title,
+      status: "published",
+      price: updated.price,
+      isGated: updated.isGated,
+    },
+    publishedTo: publishTo,
+  });
+}
+
+// ─── Markdown → PDFSection parser ─────────────────────────────────────────────
+
+function parseMarkdownToSections(markdown: string): PDFSection[] {
+  const sections: PDFSection[] = [];
+  const h2Regex = /^##\s+(.+)$/gm;
+  const matches: { title: string; index: number }[] = [];
+
+  let m;
+  while ((m = h2Regex.exec(markdown)) !== null) {
+    matches.push({ title: m[1].trim(), index: m.index });
+  }
+
+  if (matches.length === 0) {
+    // No ## headings — treat entire content as one intro section
+    sections.push({ type: "intro", title: "Guide", content: markdown.trim() });
+    return sections;
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index + matches[i].title.length + 4; // skip "## title\n"
+    const end = i < matches.length - 1 ? matches[i + 1].index : markdown.length;
+    const content = markdown.slice(start, end).trim();
+    const title = matches[i].title.replace(/[*_#]/g, "").trim();
+
+    // Infer section type from title
+    const titleLower = title.toLowerCase();
+    const type: PDFSection["type"] =
+      titleLower.includes("intro") || titleLower.includes("welcome") || titleLower.includes("overview") ? "intro"
+      : titleLower.includes("hotel") || titleLower.includes("resort") || titleLower.includes("stay") ? "resorts"
+      : titleLower.includes("restaurant") || titleLower.includes("food") || titleLower.includes("dining") || titleLower.includes("eat") ? "dining"
+      : titleLower.includes("activit") || titleLower.includes("thing") || titleLower.includes("attract") || titleLower.includes("experience") ? "activities"
+      : titleLower.includes("pack") || titleLower.includes("checklist") ? "packing"
+      : titleLower.includes("budget") || titleLower.includes("cost") || titleLower.includes("price") || titleLower.includes("money") ? "budget"
+      : titleLower.includes("itinerary") || titleLower.includes("day") || titleLower.includes("schedule") ? "itinerary"
+      : titleLower.includes("affiliate") || titleLower.includes("book") || titleLower.includes("link") ? "affiliate"
+      : "tips";
+
+    sections.push({ type, title, content });
   }
 
   return sections;

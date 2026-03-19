@@ -189,41 +189,52 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
       let created = 0;
       let skipped = 0;
+      const errors: string[] = [];
       for (const item of items) {
         if (existingCanvaIds.has(item.canvaId)) {
           skipped++;
           continue;
         }
 
-        await prisma.mediaAsset.create({
-          data: {
-            filename: item.title,
-            original_name: item.title,
-            cloud_storage_path: `canva/${item.canvaId}`,
-            url: item.editUrl,
-            file_type: 'video',
-            mime_type: 'video/mp4',
-            file_size: 0,
-            width: 1080,
-            height: 1920,
-            alt_text: item.title,
-            title: item.title,
-            description: `Canva video (${item.pageCount} pages). View: ${item.viewUrl}`,
-            tags: [`canva:${item.canvaId}`, 'canva', 'video', 'travel', 'luxury'],
-            folder: body.folder || 'canva-videos',
-            isVideo: true,
-            videoPoster: item.thumbnail,
-          },
-        });
-        created++;
+        try {
+          await prisma.mediaAsset.create({
+            data: {
+              filename: item.title,
+              original_name: item.title,
+              cloud_storage_path: `canva/${item.canvaId}`,
+              url: item.editUrl,
+              file_type: 'video',
+              mime_type: 'video/mp4',
+              file_size: 0,
+              width: 1080,
+              height: 1920,
+              alt_text: item.title,
+              title: item.title,
+              description: `Canva video (${item.pageCount} pages). View: ${item.viewUrl}`,
+              tags: [`canva:${item.canvaId}`, 'canva', 'video', 'travel', 'luxury'],
+              folder: body.folder || 'canva-videos',
+              isVideo: true,
+              videoPoster: item.thumbnail,
+            },
+          });
+          created++;
+        } catch (createErr) {
+          const reason = createErr instanceof Error ? createErr.message : String(createErr);
+          console.error(`[seed-canva] Failed to create "${item.title}" (${item.canvaId}):`, reason);
+          errors.push(`${item.title}: ${reason.slice(0, 150)}`);
+        }
       }
 
       return NextResponse.json({
-        success: true,
+        success: errors.length === 0,
         created,
         skipped,
+        failed: errors.length,
         total: items.length,
-        message: `Seeded ${created} Canva videos (${skipped} already existed)`,
+        errors: errors.length > 0 ? errors : undefined,
+        message: errors.length === 0
+          ? `Seeded ${created} Canva videos (${skipped} already existed)`
+          : `Seeded ${created}, skipped ${skipped}, failed ${errors.length}: ${errors[0]}`,
       });
     }
 

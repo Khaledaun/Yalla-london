@@ -69,7 +69,7 @@ export default function MediaLibraryPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [isSeedingCanva, setIsSeedingCanva] = useState(false);
-  const [seedResult, setSeedResult] = useState<{ success: boolean; message: string; created?: number; skipped?: number; total?: number } | null>(null);
+  const [seedResult, setSeedResult] = useState<{ success: boolean; message: string; created?: number; skipped?: number; failed?: number; total?: number; errors?: string[] } | null>(null);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   // Compute folders dynamically from loaded media files
@@ -424,8 +424,18 @@ export default function MediaLibraryPage() {
                     throw new Error(errMsg);
                   }
                   const data = await res.json();
-                  setSeedResult({ success: true, message: data.message || "Seeded successfully", created: data.created, skipped: data.skipped, total: data.total });
-                  if (data.created > 0) {
+                  setSeedResult({
+                    success: data.success !== false,
+                    message: data.message || "Seeded successfully",
+                    created: data.created,
+                    skipped: data.skipped,
+                    failed: data.failed,
+                    total: data.total,
+                    errors: data.errors,
+                  });
+                  if (data.failed > 0) {
+                    toast.warning(`${data.created} seeded, ${data.failed} failed`);
+                  } else if (data.created > 0) {
                     toast.success(`${data.created} packs seeded`);
                   } else {
                     toast.info("All packs already seeded");
@@ -457,24 +467,29 @@ export default function MediaLibraryPage() {
           </div>
           {/* Seed result feedback */}
           {seedResult && (
-            <div
-              className="px-5 pb-4 pt-0"
-              style={{
-                fontFamily: 'var(--font-system)',
-                fontSize: 13,
-                color: seedResult.success ? '#16A34A' : '#DC2626',
-              }}
-            >
-              {seedResult.success ? (
-                <div>
-                  <span style={{ fontWeight: 600 }}>Done:</span>{' '}
-                  {seedResult.created} seeded, {seedResult.skipped} already existed
-                  {seedResult.total !== undefined && ` (${seedResult.total} total)`}
-                </div>
-              ) : (
-                <div>
-                  <span style={{ fontWeight: 600 }}>Error:</span>{' '}
-                  {seedResult.message}
+            <div className="px-5 pb-4 pt-0" style={{ fontFamily: 'var(--font-system)', fontSize: 13 }}>
+              {/* Summary line */}
+              <div style={{ color: seedResult.success ? '#16A34A' : (seedResult.failed ? '#D97706' : '#DC2626'), fontWeight: 600, marginBottom: 4 }}>
+                {seedResult.success && !seedResult.failed ? (
+                  <>Done: {seedResult.created} seeded, {seedResult.skipped} already existed</>
+                ) : seedResult.failed ? (
+                  <>Partial: {seedResult.created} seeded, {seedResult.skipped} skipped, {seedResult.failed} failed</>
+                ) : (
+                  <>Error: {seedResult.message}</>
+                )}
+              </div>
+              {/* Per-item error details */}
+              {seedResult.errors && seedResult.errors.length > 0 && (
+                <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                  {seedResult.errors.map((err, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-1.5 rounded-md"
+                      style={{ backgroundColor: 'rgba(220,38,38,0.06)', fontSize: 11, color: '#991B1B' }}
+                    >
+                      {err}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

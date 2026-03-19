@@ -217,6 +217,8 @@ export default function DesignContent() {
       if (data.seeded > 0) {
         toast.success(`Seeded ${data.seeded} Canva video collection${data.seeded !== 1 ? "s" : ""}`);
         loadData(); // Refresh stats
+      } else if (data.failed > 0) {
+        toast.error(`Failed to seed ${data.failed} collection${data.failed !== 1 ? "s" : ""}: ${data.errors?.[0] || "unknown error"}`);
       } else {
         toast.info("All Canva video collections already seeded");
       }

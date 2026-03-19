@@ -130,27 +130,55 @@ async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRu
     // for known approved advertisers (Vrbo approved March 12, 2026)
     if (rules.length === 0 && publisherCid) {
       console.warn(`[affiliate-injection] CJ configured but 0 JOINED advertisers — using fallback deep links. Run sync-advertisers to populate.`);
+    }
+
+    // Always add broad catch-all rules when we have a publisherCid.
+    // Even when category-specific CJ rules exist (e.g., 1 hotel rule from Vrbo),
+    // articles about restaurants, shopping, transport, general guides would get
+    // ZERO affiliates without these broad rules. Vrbo is relevant for ANY travel
+    // content — vacation rentals aren't just for "hotel" articles.
+    if (publisherCid) {
       const vrboDeepLink = buildCjDeepLink(publisherCid, "9220803", "https://www.vrbo.com/", `${siteId}_cj`);
       const vrboEntry = { name: "Vrbo", url: vrboDeepLink, param: "", category: "hotel" };
 
-      // Vrbo is relevant for ALL travel content (vacation rentals, stays, accommodation)
-      // Create rules for multiple categories so Vrbo matches broadly — not just hotel articles
-      const fallbackRules: AffiliateRule[] = [
-        {
-          keywords: CATEGORY_KEYWORDS["hotel"] || ["hotel"],
-          affiliates: [vrboEntry],
-        },
-        {
+      // Only add categories that don't already have CJ rules
+      const existingCategories = new Set(rules.map(r => {
+        // Infer category from the first affiliate's category
+        return r.affiliates[0]?.category || "unknown";
+      }));
+
+      if (!existingCategories.has("travel")) {
+        rules.push({
           // Broad travel keywords — matches most London travel articles
-          keywords: ["london", "travel", "visit", "guide", "best", "top", "trip", "holiday", "vacation", "weekend", "luxury", "سفر", "لندن", "زيارة", "دليل"],
+          keywords: ["london", "travel", "visit", "guide", "best", "top", "trip", "holiday", "vacation", "weekend", "luxury", "things to do", "سفر", "لندن", "زيارة", "دليل"],
           affiliates: [{ ...vrboEntry, category: "travel" }],
-        },
-        {
+        });
+      }
+      if (!existingCategories.has("restaurant")) {
+        rules.push({
+          keywords: CATEGORY_KEYWORDS["restaurant"] || ["restaurant"],
+          affiliates: [{ ...vrboEntry, category: "restaurant" }],
+        });
+      }
+      if (!existingCategories.has("activity")) {
+        rules.push({
           keywords: CATEGORY_KEYWORDS["activity"] || ["tour"],
           affiliates: [{ ...vrboEntry, category: "activity" }],
-        },
-      ];
-      return fallbackRules;
+        });
+      }
+      if (!existingCategories.has("shopping")) {
+        rules.push({
+          keywords: CATEGORY_KEYWORDS["shopping"] || ["shopping"],
+          affiliates: [{ ...vrboEntry, category: "shopping" }],
+        });
+      }
+      if (!existingCategories.has("transport")) {
+        rules.push({
+          keywords: CATEGORY_KEYWORDS["transport"] || ["transport"],
+          affiliates: [{ ...vrboEntry, category: "transport" }],
+        });
+      }
+      console.log(`[affiliate-injection] After broad rules: ${rules.length} total CJ rules`);
     }
 
     return rules;
@@ -547,9 +575,6 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
         matches.push({ keyword: bestKeyword, ...aff, score: Math.min(categoryScore * 10, 100) });
       }
     }
-    if (skippedEmpty > 0 && skippedEmpty === rule.affiliates.length) {
-      console.warn(`[affiliate-injection] All ${skippedEmpty} affiliates skipped for keyword "${bestKeyword}" — env vars not configured`);
-    }
   }
 
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
@@ -707,16 +732,33 @@ async function handleAffiliateInjection(request: NextRequest) {
       const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en);
       const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
 
-      // Diagnostic: log why first 3 uninjected posts got 0 matches
-      if (enResult.count === 0 && arResult.count === 0 && diagnosticSamples.length < 3) {
+      // Diagnostic: log why first 5 uninjected posts got 0 matches
+      if (enResult.count === 0 && arResult.count === 0 && diagnosticSamples.length < 5) {
         const titleLower = (post.title_en || "").toLowerCase();
         const isSuppressed = SUPPRESS_AFFILIATES_KEYWORDS.filter(k => titleLower.includes(k)).length >= 2;
         if (isSuppressed) {
           skippedSuppressed++;
           diagnosticSamples.push(`"${post.title_en?.slice(0, 50)}" → suppressed (religious/non-commercial)`);
         } else {
+          // Detailed diagnostic: show which rules matched keywords but had empty params
+          const kwMatched: string[] = [];
+          const emptyParams: string[] = [];
+          for (const rule of mergedRules) {
+            for (const kw of rule.keywords) {
+              if (titleLower.includes(kw.toLowerCase()) || (post.content_en || "").toLowerCase().split(kw.toLowerCase()).length > 2) {
+                kwMatched.push(kw);
+                for (const a of rule.affiliates) {
+                  if (a.param.endsWith("=")) emptyParams.push(a.name);
+                }
+                break;
+              }
+            }
+          }
+          const detail = kwMatched.length > 0
+            ? `keywords matched [${kwMatched.slice(0, 3).join(",")}] but affiliates empty [${[...new Set(emptyParams)].slice(0, 3).join(",")}]`
+            : `no keywords matched in title/body`;
           skippedNoMatch++;
-          diagnosticSamples.push(`"${post.title_en?.slice(0, 50)}" → 0 matches from ${mergedRules.length} rules`);
+          diagnosticSamples.push(`"${post.title_en?.slice(0, 50)}" → 0/${mergedRules.length} rules: ${detail}`);
         }
       }
 

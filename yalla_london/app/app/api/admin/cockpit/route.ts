@@ -603,10 +603,10 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
     // Without this, the cockpit undercounts indexed and overcounts submitted.
     try {
       // Use raw count(DISTINCT url) instead of groupBy which loads all rows
-      const gscDistinct = await prisma.$queryRawUnsafe<[{count: bigint}]>(
+      const gscDistinct = await (prisma.$queryRawUnsafe(
         `SELECT COUNT(DISTINCT url) as count FROM "GscPagePerformance" WHERE site_id = $1 AND impressions > 0`,
         targetSiteId,
-      ).catch(() => [{ count: BigInt(0) }]);
+      ) as Promise<[{count: bigint}]>).catch(() => [{ count: BigInt(0) }]);
       const gscIndexedCount = Number(gscDistinct[0]?.count ?? 0);
 
       // GSC-confirmed minus already-counted = promotion candidates

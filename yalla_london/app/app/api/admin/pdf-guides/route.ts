@@ -337,7 +337,7 @@ async function handleFromArticle(
     );
     if (result.links.length > 0) {
       const firstLink = result.links[0];
-      affiliateUrl = firstLink.trackingUrl || firstLink.url || affiliateUrl;
+      affiliateUrl = firstLink.affiliateUrl || firstLink.destinationUrl || affiliateUrl;
     }
   } catch {
     // Fallback to article URL — non-fatal

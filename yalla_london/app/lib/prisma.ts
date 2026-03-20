@@ -110,14 +110,16 @@ function getPrismaClient(): PrismaClient {
   }
 
   try {
-    // Enforce a connection pool large enough for concurrent crons but small
-    // enough to stay under Supabase PgBouncer limits.
-    // connection_limit=8 allows concurrent queries within the same instance
-    // (content-builder + seo-agent + diagnostic-sweep fire simultaneously).
-    // With ~8 warm instances × 8 = 64, close to Supabase Pro's 60-slot limit
-    // but PgBouncer recycles fast enough in transaction mode.
+    // Enforce a SMALL connection pool per serverless instance.
+    // Supabase PgBouncer in session mode has a hard pool_size limit (typically
+    // 15-20 for Pro). Each Vercel serverless instance holds connections for its
+    // lifetime. With cockpit auto-refresh + crons + button clicks, multiple
+    // instances run simultaneously:
+    //   ~5 warm instances × 3 connections = 15 (fits within pool_size)
+    // Previously connection_limit=8 caused "MaxClientsInSessionMode: max clients
+    // reached" because 3+ instances × 8 = 24 > pool_size.
     //
-    // pool_timeout=15 gives queries enough time to wait when all 8 slots are
+    // pool_timeout=15 gives queries enough time to wait when all 3 slots are
     // busy (was 5s from DATABASE_URL, causing P2024 timeouts on every cron cluster).
     //
     // IMPORTANT: We REPLACE existing values rather than skip — the DATABASE_URL
@@ -126,10 +128,10 @@ function getPrismaClient(): PrismaClient {
     let dbUrl = process.env.DATABASE_URL || "";
     // Replace or append connection_limit
     if (dbUrl.includes("connection_limit=")) {
-      dbUrl = dbUrl.replace(/connection_limit=\d+/, "connection_limit=8");
+      dbUrl = dbUrl.replace(/connection_limit=\d+/, "connection_limit=3");
     } else {
       const sep = dbUrl.includes("?") ? "&" : "?";
-      dbUrl = `${dbUrl}${sep}connection_limit=8`;
+      dbUrl = `${dbUrl}${sep}connection_limit=3`;
     }
     // Replace or append pool_timeout
     if (dbUrl.includes("pool_timeout=")) {

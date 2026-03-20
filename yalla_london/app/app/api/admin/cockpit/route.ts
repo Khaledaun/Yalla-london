@@ -665,10 +665,9 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
   // ── GSC trend (always runs — fast DB queries) ─────────────────────────
   try {
     const { getPerformanceTrend, getLastGscSyncTime } = await import("@/lib/seo/gsc-trend-analysis");
-    const [siteTrend, lastSyncTime] = await Promise.all([
-      getPerformanceTrend(targetSiteId, "7d"),
-      getLastGscSyncTime(),
-    ]);
+    // Serialize to avoid PgBouncer pool exhaustion
+    const siteTrend = await getPerformanceTrend(targetSiteId, "7d");
+    const lastSyncTime = await getLastGscSyncTime();
     indexing.gscTotalClicks7d = siteTrend.totalClicks.current;
     indexing.gscTotalImpressions7d = siteTrend.totalImpressions.current;
     indexing.gscClicksTrend = siteTrend.totalClicks.changePercent;
@@ -682,17 +681,16 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-      const [blockedByGate, pubThisWeek, pubLastWeek] = await Promise.all([
-        prisma.articleDraft.count({
-          where: { site_id: targetSiteId, current_phase: "reservoir", quality_score: { lt: 70 } },
-        }).catch(() => 0),
-        prisma.blogPost.count({
-          where: { siteId: targetSiteId, published: true, deletedAt: null, created_at: { gte: sevenDaysAgo } },
-        }).catch(() => 0),
-        prisma.blogPost.count({
-          where: { siteId: targetSiteId, published: true, deletedAt: null, created_at: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
-        }).catch(() => 0),
-      ]);
+      // Serialize to avoid PgBouncer pool exhaustion
+      const blockedByGate = await prisma.articleDraft.count({
+        where: { site_id: targetSiteId, current_phase: "reservoir", quality_score: { lt: 70 } },
+      }).catch(() => 0);
+      const pubThisWeek = await prisma.blogPost.count({
+        where: { siteId: targetSiteId, published: true, deletedAt: null, created_at: { gte: sevenDaysAgo } },
+      }).catch(() => 0);
+      const pubLastWeek = await prisma.blogPost.count({
+        where: { siteId: targetSiteId, published: true, deletedAt: null, created_at: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+      }).catch(() => 0);
 
       indexing.impressionDiagnostic = {
         gscDelayNote: "GSC data is 2-3 days behind — recent drops may be normal reporting delay.",
@@ -721,27 +719,26 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
   try {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [failedCount, timedOutCount, recentJobs] = await Promise.all([
-      prisma.cronJobLog.count({
-        where: { status: "failed", started_at: { gte: since24h } },
-      }),
-      prisma.cronJobLog.count({
-        where: { timed_out: true, started_at: { gte: since24h } },
-      }),
-      prisma.cronJobLog.findMany({
-        where: { started_at: { gte: since24h } },
-        orderBy: { started_at: "desc" },
-        take: 10,
-        select: {
-          job_name: true,
-          status: true,
-          duration_ms: true,
-          started_at: true,
-          error_message: true,
-          items_processed: true,
-        },
-      }),
-    ]);
+    // Serialize to avoid PgBouncer pool exhaustion (was Promise.all with 3 concurrent)
+    const failedCount = await prisma.cronJobLog.count({
+      where: { status: "failed", started_at: { gte: since24h } },
+    });
+    const timedOutCount = await prisma.cronJobLog.count({
+      where: { timed_out: true, started_at: { gte: since24h } },
+    });
+    const recentJobs = await prisma.cronJobLog.findMany({
+      where: { started_at: { gte: since24h } },
+      orderBy: { started_at: "desc" },
+      take: 10,
+      select: {
+        job_name: true,
+        status: true,
+        duration_ms: true,
+        started_at: true,
+        error_message: true,
+        items_processed: true,
+      },
+    });
 
     cronHealth.failedLast24h = failedCount;
     cronHealth.timedOutLast24h = timedOutCount;
@@ -1041,39 +1038,36 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const siteFilter = { site_id: { in: activeSiteIds } };
 
-    const [clicksToday, clicksWeek, conversions, topPartnerGroup, aiCosts] = await Promise.all([
-      // Affiliate clicks today
-      prisma.affiliateClick.count({
-        where: { ...siteFilter, clicked_at: { gte: todayStart } },
-      }).catch(() => 0),
+    // Serialize revenue queries to avoid exhausting PgBouncer connection pool.
+    // Previously Promise.all with 5 concurrent queries — each holds a connection,
+    // and when cockpit auto-refreshes + crons fire simultaneously, this exceeds
+    // Supabase session-mode pool_size causing "MaxClientsInSessionMode" crashes.
+    const clicksToday = await prisma.affiliateClick.count({
+      where: { ...siteFilter, clicked_at: { gte: todayStart } },
+    }).catch(() => 0);
 
-      // Affiliate clicks this week
-      prisma.affiliateClick.count({
-        where: { ...siteFilter, clicked_at: { gte: weekAgo } },
-      }).catch(() => 0),
+    const clicksWeek = await prisma.affiliateClick.count({
+      where: { ...siteFilter, clicked_at: { gte: weekAgo } },
+    }).catch(() => 0);
 
-      // Conversions this week (value in cents)
-      prisma.conversion.aggregate({
-        _count: { id: true },
-        _sum: { commission: true },
-        where: { ...siteFilter, converted_at: { gte: weekAgo } },
-      }).catch(() => ({ _count: { id: 0 }, _sum: { commission: null } })),
+    const conversions = await prisma.conversion.aggregate({
+      _count: { id: true },
+      _sum: { commission: true },
+      where: { ...siteFilter, converted_at: { gte: weekAgo } },
+    }).catch(() => ({ _count: { id: 0 }, _sum: { commission: null } } as any));
 
-      // Top partner by clicks this week
-      prisma.affiliateClick.groupBy({
-        by: ["partner_id"],
-        _count: { id: true },
-        where: { ...siteFilter, clicked_at: { gte: weekAgo } },
-        orderBy: { _count: { id: "desc" } },
-        take: 1,
-      }).catch(() => []),
+    const topPartnerGroup = await prisma.affiliateClick.groupBy({
+      by: ["partner_id"],
+      _count: { id: true },
+      where: { ...siteFilter, clicked_at: { gte: weekAgo } },
+      orderBy: { _count: { id: "desc" } },
+      take: 1,
+    }).catch(() => [] as any[]);
 
-      // AI cost this week (from ApiUsageLog)
-      prisma.apiUsageLog.aggregate({
-        _sum: { estimatedCostUsd: true },
-        where: { createdAt: { gte: weekAgo } },
-      }).catch(() => ({ _sum: { estimatedCostUsd: null } })),
-    ]);
+    const aiCosts = await prisma.apiUsageLog.aggregate({
+      _sum: { estimatedCostUsd: true },
+      where: { createdAt: { gte: weekAgo } },
+    }).catch(() => ({ _sum: { estimatedCostUsd: null } } as any));
 
     snapshot.affiliateClicksToday = clicksToday;
     snapshot.affiliateClicksWeek = clicksWeek;

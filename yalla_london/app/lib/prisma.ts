@@ -110,38 +110,42 @@ function getPrismaClient(): PrismaClient {
   }
 
   try {
-    // Enforce a small connection pool to avoid exhausting Supabase PgBouncer
-    // limits. Each Prisma connection occupies a PgBouncer slot.
-    // Prisma defaults to num_cpus*2+1 which quickly exceeds pool_size when
-    // multiple Vercel serverless instances are warm.
+    // Enforce a connection pool large enough for concurrent crons but small
+    // enough to stay under Supabase PgBouncer limits.
+    // connection_limit=8 allows concurrent queries within the same instance
+    // (content-builder + seo-agent + diagnostic-sweep fire simultaneously).
+    // With ~8 warm instances × 8 = 64, close to Supabase Pro's 60-slot limit
+    // but PgBouncer recycles fast enough in transaction mode.
     //
-    // connection_limit=5 allows concurrent queries within the same instance
-    // (important when multiple cron jobs fire simultaneously on the same instance).
-    // With ~10 warm instances × 5 = 50, still under Supabase Pro's 60-slot PgBouncer limit.
-    // Previous value of 1 caused "Timed out fetching a new connection" when 5+ crons
-    // (diagnostic-sweep, content-auto-fix-lite, sweeper-agent, content-builder, seo-audit)
-    // all fired at :00 on the same instance.
+    // pool_timeout=15 gives queries enough time to wait when all 8 slots are
+    // busy (was 5s from DATABASE_URL, causing P2024 timeouts on every cron cluster).
+    //
+    // IMPORTANT: We REPLACE existing values rather than skip — the DATABASE_URL
+    // from Supabase often has pool_timeout=5 which is too aggressive for our
+    // concurrent cron pattern.
     let dbUrl = process.env.DATABASE_URL || "";
-    if (dbUrl && !dbUrl.includes("connection_limit=")) {
+    // Replace or append connection_limit
+    if (dbUrl.includes("connection_limit=")) {
+      dbUrl = dbUrl.replace(/connection_limit=\d+/, "connection_limit=8");
+    } else {
       const sep = dbUrl.includes("?") ? "&" : "?";
-      dbUrl = `${dbUrl}${sep}connection_limit=5`;
+      dbUrl = `${dbUrl}${sep}connection_limit=8`;
+    }
+    // Replace or append pool_timeout
+    if (dbUrl.includes("pool_timeout=")) {
+      dbUrl = dbUrl.replace(/pool_timeout=\d+/, "pool_timeout=15");
+    } else {
+      dbUrl = `${dbUrl}&pool_timeout=15`;
     }
     // Required when using PgBouncer (Supabase pooler) — disables prepared
     // statements which aren't compatible with transaction-mode pooling.
     if (dbUrl && !dbUrl.includes("pgbouncer=")) {
       dbUrl = `${dbUrl}&pgbouncer=true`;
     }
-    // Reduce pool timeout to fail fast instead of hanging when pool is full.
-    // 10s balances reliability vs responsiveness: 5s caused cron failures when
-    // multiple Vercel instances competed for PgBouncer slots (seen in production
-    // on content-auto-fix-lite — "Timed out fetching a new connection").
-    // 15s caused page renders to hang (audit showed 11s timeouts).
-    if (dbUrl && !dbUrl.includes("pool_timeout=")) {
-      dbUrl = `${dbUrl}&pool_timeout=10`;
-    }
-    // Fail fast on connection establishment — prevents requests from hanging
-    // when PgBouncer pool is exhausted (MaxClientsInSessionMode).
-    if (dbUrl && !dbUrl.includes("connect_timeout=")) {
+    // Replace or append connect_timeout
+    if (dbUrl.includes("connect_timeout=")) {
+      dbUrl = dbUrl.replace(/connect_timeout=\d+/, "connect_timeout=10");
+    } else {
       dbUrl = `${dbUrl}&connect_timeout=10`;
     }
 

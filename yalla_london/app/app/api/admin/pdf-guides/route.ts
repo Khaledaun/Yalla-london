@@ -309,8 +309,6 @@ async function handleFromArticle(
   const templateConfig = PDF_TEMPLATES[template as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
 
   // Extract content sections from article HTML — single language only.
-  // Previously appended Arabic as a section to English PDFs, creating a
-  // confusing mixed-language document. Now: one PDF = one language.
   const sections = extractSectionsFromArticle(post.content_en || "", post.title_en);
 
   // Extract images from article HTML for use in PDF sections
@@ -323,11 +321,32 @@ async function handleFromArticle(
     }
   }
 
-  const guideTitle = `${post.title_en} — PDF Guide`;
+  // Build real affiliate links for booking CTAs
+  const siteDomain = siteConfig?.domain || "yalla-london.com";
+  const siteBaseUrl = `https://www.${siteDomain}`;
+  let affiliateUrl = `${siteBaseUrl}/blog/${post.slug}`; // fallback: link to the article itself
+  try {
+    const { getLinksForContent } = await import("@/lib/affiliate/link-injector");
+    const links = await getLinksForContent(
+      post.category?.name_en || "travel",
+      ["travel", "london", "luxury"],
+      effectiveSiteId,
+    );
+    if (links.length > 0) {
+      affiliateUrl = links[0].trackingUrl || links[0].url || affiliateUrl;
+    }
+  } catch {
+    // Fallback to article URL — non-fatal
+  }
+
+  // Site logo — use branding kit PNG (works in Puppeteer PDF rendering)
+  const logoUrl = `${siteBaseUrl}/branding/${effectiveSiteId}/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-500px.png`;
+
+  const guideTitle = `${post.title_en}`;
 
   const html = generatePDFHTML({
     title: guideTitle,
-    subtitle: `From ${siteConfig?.name || "Yalla London"}`,
+    subtitle: `Your Complete Guide by ${siteConfig?.name || "Yalla London"}`,
     destination: post.category?.name_en || "London",
     locale: "en",
     siteId: effectiveSiteId,
@@ -335,9 +354,11 @@ async function handleFromArticle(
     sections,
     coverImageUrl: coverDesignUrl || post.featured_image || undefined,
     articleImages,
+    affiliateUrl,
     branding: {
       primaryColor: siteConfig?.primaryColor || templateConfig.primaryColor,
       secondaryColor: siteConfig?.secondaryColor || templateConfig.secondaryColor,
+      logoUrl,
       siteName: siteConfig?.name || "Yalla London",
       website: siteConfig?.domain ? `https://${siteConfig.domain}` : undefined,
     },

@@ -236,7 +236,22 @@ async function handleGenerate(
     // Continue — store HTML-only guide with status "generated" (not "ready")
   }
 
-  // 4. Save to DB
+  // 4. Auto-match cover if none provided
+  let resolvedCover = coverDesignUrl || null;
+  if (!resolvedCover) {
+    try {
+      const { findBestCover } = await import("@/lib/pdf/cover-matcher");
+      const match = await findBestCover(guideTitle, destination, template, effectiveSiteId);
+      if (match) {
+        resolvedCover = match.url;
+        console.log(`[pdf-guides] Auto-matched cover: "${match.filename}" (score: ${match.score})`);
+      }
+    } catch (coverErr) {
+      console.warn("[pdf-guides] Cover auto-match failed:", coverErr instanceof Error ? coverErr.message : coverErr);
+    }
+  }
+
+  // 5. Save to DB
   const slug = `${destination.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${template}-${locale}-${Date.now().toString(36)}`;
   const guide = await prisma.pdfGuide.create({
     data: {
@@ -249,7 +264,7 @@ async function handleGenerate(
       contentSections: sections,
       htmlContent: html,
       pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null,
-      coverDesignId: coverDesignUrl || null,
+      coverDesignId: resolvedCover,
       status: pdfBase64 ? "ready" : "generated",
     },
   });
@@ -764,7 +779,22 @@ async function handleTemplateGenerate(
     console.warn("[pdf-guides] Puppeteer failed, HTML only:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
   }
 
-  // 4. Save to DB
+  // 4. Auto-match cover if none provided
+  let resolvedCoverUrl = coverDesignUrl || null;
+  if (!resolvedCoverUrl) {
+    try {
+      const { findBestCover } = await import("@/lib/pdf/cover-matcher");
+      const match = await findBestCover(guideTitle, destination, templateId, effectiveSiteId);
+      if (match) {
+        resolvedCoverUrl = match.url;
+        console.log(`[pdf-guides] Auto-matched cover: "${match.filename}" (score: ${match.score}, pattern: ${match.matchedPattern})`);
+      }
+    } catch (coverErr) {
+      console.warn("[pdf-guides] Cover auto-match failed:", coverErr instanceof Error ? coverErr.message : coverErr);
+    }
+  }
+
+  // 5. Save to DB
   const slug = `${destination.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${templateId}-${locale}-${Date.now().toString(36)}`;
   let guide;
   try {
@@ -779,7 +809,7 @@ async function handleTemplateGenerate(
         contentSections: { templateId, userInputs, sections },
         htmlContent: html,
         pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null,
-        coverDesignId: coverDesignUrl || null,
+        coverDesignId: resolvedCoverUrl,
         status: pdfBase64 ? "ready" : "generated",
         price: template.suggestedPrice,
       },

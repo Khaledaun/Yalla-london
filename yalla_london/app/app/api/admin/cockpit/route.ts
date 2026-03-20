@@ -328,16 +328,30 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     ? allSiteIds.filter((id) => id === requestedSiteId)
     : allSiteIds;
 
-  // ── 5-9. Run builders in parallel with per-builder timeout guards ──
-  // DB latency on Supabase can be 3-5s. With old 8s timeout, only 3-5s remained
-  // for actual queries. 15s gives proper headroom. All 5 builders run in parallel,
-  // so worst case = 15s total (not 75s). Errors tracked and surfaced as alerts.
-  const BUILDER_TIMEOUT = 15_000;
+  // ── 5-9. Run builders sequentially with GLOBAL budget guard ──
+  // Vercel Pro = 60s max. Auth + overhead ≈ 5s. Global budget = 50s.
+  // Each builder gets min(8s, remaining budget). If one builder is slow,
+  // later builders get less time but the total NEVER exceeds Vercel's limit.
+  // buildTraffic (GA4 API, no DB) runs in parallel with the first DB builder.
+  const GLOBAL_BUDGET_MS = 50_000;
+  const MAX_PER_BUILDER_MS = 8_000;
+  const globalStart = Date.now();
 
   // Track which builders failed so we can tell Khaled what's wrong
   const builderErrors: string[] = [];
 
-  async function withErrorTracking<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
+  function remainingBudget(): number {
+    return Math.max(0, GLOBAL_BUDGET_MS - (Date.now() - globalStart));
+  }
+
+  async function withErrorTracking<T>(promise: Promise<T>, fallback: T, label: string): Promise<T> {
+    const budget = remainingBudget();
+    if (budget < 1_000) {
+      // Less than 1s left — skip this builder entirely
+      builderErrors.push(`${label}: skipped (budget exhausted)`);
+      return fallback;
+    }
+    const ms = Math.min(MAX_PER_BUILDER_MS, budget);
     try {
       return await Promise.race([
         promise,
@@ -353,15 +367,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     }
   }
 
-  // Serialize builders to prevent connection pool exhaustion on Supabase.
-  // Each builder makes multiple DB queries — running all 5 in parallel fires
-  // 15-20+ queries simultaneously, exceeding PgBouncer's session-mode limits.
-  const pipeline = await withErrorTracking(buildPipeline(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyPipeline(), "buildPipeline");
-  const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyIndexing(), "buildIndexing");
-  const cronHealth = await withErrorTracking(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth");
-  const sites = await withErrorTracking(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites");
-  const revenue = await withErrorTracking(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue");
-  const traffic = await withErrorTracking(buildTraffic(), BUILDER_TIMEOUT, emptyTraffic(), "buildTraffic");
+  // Serialize DB builders to prevent connection pool exhaustion on Supabase.
+  // buildTraffic (GA4 API — no DB) runs in parallel with the first DB builder.
+  const trafficPromise = withErrorTracking(buildTraffic(), emptyTraffic(), "buildTraffic");
+  const pipeline = await withErrorTracking(buildPipeline(prisma, activeSiteIds), emptyPipeline(), "buildPipeline");
+  const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), emptyIndexing(), "buildIndexing");
+  const cronHealth = await withErrorTracking(buildCronHealth(prisma), emptyCronHealth(), "buildCronHealth");
+  const sites = await withErrorTracking(buildSites(prisma, allSiteIds), [], "buildSites");
+  const revenue = await withErrorTracking(buildRevenue(prisma, activeSiteIds), emptyRevenue(), "buildRevenue");
+  const traffic = await trafficPromise;
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({

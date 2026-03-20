@@ -29,6 +29,8 @@ const INSTRUCTION_ECHOES = [
   /\bwith keyword and CTA\b/i,
   /\bMeta description\s+\d+[-–]\d+\s*chars?\b/i,
   /\bSEO title\b/i,
+  /^Top Alternatives:\s*/i,
+  /\s*[—–-]\s*Complete Comparison Guide$/i,
 ];
 const INSTRUCTION_ECHOES_G = [
   /\bSEO[- ]optimized\b/gi,
@@ -36,6 +38,8 @@ const INSTRUCTION_ECHOES_G = [
   /\bwith keyword and CTA\b/gi,
   /\bMeta description\s+\d+[-–]\d+\s*chars?\b/gi,
   /\bSEO title\b/gi,
+  /^Top Alternatives:\s*/gi,
+  /\s*[—–-]\s*Complete Comparison Guide$/gi,
 ];
 
 // Trailing year at end of title: " 2024", " 2025", " 2026", etc.

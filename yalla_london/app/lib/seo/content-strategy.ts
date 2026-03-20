@@ -171,8 +171,10 @@ export function generateContentProposals(
     // For low-CTR blog posts, suggest a comparison or deep-dive spin-off
     const keyword = page.slug.replace(/-/g, " ").replace(/\d{4}/g, "").trim();
 
+    // Generate a clean, human-readable title from the keyword
+    const cleanKeyword = capitalize(keyword);
     proposals.push({
-      title: `Top Alternatives: ${capitalize(keyword)} — Complete Comparison Guide`,
+      title: `Best ${cleanKeyword}: Complete Guide & Reviews`,
       primaryKeyword: keyword,
       longtails: [`best ${keyword}`, `${keyword} comparison`, `${keyword} review`],
       questions: [`What is the best ${keyword}?`, `How to choose ${keyword}?`],

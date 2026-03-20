@@ -529,15 +529,31 @@ async function handleTemplateGenerate(
   const prompt = buildGenerationPrompt(templateId, userInputs, locale as "en" | "ar", siteName);
   const { generateText, isAIAvailable } = await import("@/lib/ai");
 
+  const destination = userInputs.destination || userInputs.city || userInputs.region || "Travel";
+  const guideTitle = `${destination} — ${template.name}`;
+
   let aiContent = "";
-  if (await isAIAvailable()) {
-    aiContent = await generateText(prompt, {
-      maxTokens: 6000,
-      taskType: "content_generation",
-      calledFrom: "pdf-guide-template",
-    });
-  } else {
-    aiContent = `# ${template.name}\n\nAI is currently unavailable. Content placeholder for ${userInputs.destination || userInputs.city || "destination"}.`;
+  const aiAvailable = await isAIAvailable();
+  if (aiAvailable) {
+    try {
+      // Cap AI call at 35s — leaves budget for HTML generation + DB save
+      const timeLeftMs = budgetMs - (Date.now() - startTime);
+      const aiTimeoutMs = Math.min(35_000, Math.max(10_000, timeLeftMs - 15_000));
+      aiContent = await generateText(prompt, {
+        maxTokens: 4000,
+        taskType: "content_generation",
+        calledFrom: "pdf-guide-template",
+        timeoutMs: aiTimeoutMs,
+      });
+    } catch (aiErr) {
+      console.warn("[pdf-guides] AI generation failed, using template fallback:", aiErr instanceof Error ? aiErr.message : aiErr);
+      aiContent = "";
+    }
+  }
+
+  // Fallback: build structured placeholder content from template + user inputs
+  if (!aiContent || aiContent.length < 100) {
+    aiContent = buildFallbackContent(template, userInputs, destination, locale as "en" | "ar", siteName);
   }
 
   if (Date.now() - startTime > budgetMs) {
@@ -545,9 +561,6 @@ async function handleTemplateGenerate(
   }
 
   // 2. Build HTML from AI content
-  const destination = userInputs.destination || userInputs.city || userInputs.region || "Travel";
-  const guideTitle = `${destination} — ${template.name}`;
-
   const { generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
   const style = templateId.includes("luxury") || templateId.includes("hotel") || templateId.includes("yacht")
     ? "luxury"
@@ -835,4 +848,47 @@ function parseMarkdownToSections(markdown: string): PDFSection[] {
   }
 
   return sections;
+}
+
+// ─── Fallback content when AI is unavailable ──────────────────────────────────
+
+function buildFallbackContent(
+  template: { name: string; sectionTypes: string[]; description: string },
+  userInputs: Record<string, string>,
+  destination: string,
+  locale: "en" | "ar",
+  siteName: string,
+): string {
+  const sections: string[] = [];
+  const dest = destination || "your destination";
+  const days = userInputs.days || userInputs.duration || "3-5";
+  const budget = userInputs.budget || userInputs.budget_level || "moderate";
+  const interests = userInputs.interests || userInputs.focus || "culture, food, sightseeing";
+
+  sections.push(`## Welcome to ${dest}`);
+  sections.push(`This ${template.name.toLowerCase()} was created by ${siteName}. ` +
+    `It covers ${dest} with a focus on ${interests}. ` +
+    `Duration: ${days} days. Budget level: ${budget}.`);
+  sections.push("");
+
+  for (const sType of template.sectionTypes) {
+    const heading = sType.charAt(0).toUpperCase() + sType.slice(1).replace(/_/g, " ");
+    sections.push(`## ${heading}`);
+    sections.push(`Content for the "${heading}" section of your ${dest} guide will appear here. ` +
+      `Use the AI edit feature to expand this section with detailed recommendations, ` +
+      `insider tips, and practical information.`);
+    sections.push("");
+  }
+
+  sections.push(`## Practical Information`);
+  sections.push(`Useful tips for visiting ${dest}: local customs, transportation, currency, and more. ` +
+    `Edit this guide with AI prompts to add specific details.`);
+
+  if (locale === "ar") {
+    sections.push("");
+    sections.push(`## ملاحظة`);
+    sections.push(`تم إنشاء هذا الدليل كقالب. استخدم ميزة التحرير بالذكاء الاصطناعي لإضافة محتوى مفصل باللغة العربية.`);
+  }
+
+  return sections.join("\n\n");
 }

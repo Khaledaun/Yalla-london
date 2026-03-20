@@ -104,6 +104,9 @@ export function PDFWorkshop() {
   const [editing, setEditing] = useState(false)
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
 
+  // Regenerate flow
+  const [regenerating, setRegenerating] = useState<string | null>(null)
+
   // Publish flow
   const [publishGuideId, setPublishGuideId] = useState<string | null>(null)
   const [publishPrice, setPublishPrice] = useState('')
@@ -264,6 +267,20 @@ export function PDFWorkshop() {
       setGuides(g => g.filter(x => x.id !== guideId))
       if (activeGuideId === guideId) { setActiveGuideId(null); setEditMessages([]) }
     } catch { setError('Delete failed') }
+  }
+
+  const handleRegenerate = async (guideId: string) => {
+    setRegenerating(guideId)
+    setError(null)
+    try {
+      const data = await api({ action: 'regenerate_content', guideId })
+      setSuccess(`Content regenerated — ${data.guide?.sections || 0} sections${data.guide?.hasPdf ? ', PDF ready' : ', HTML only'}`)
+      loadGuides()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Regeneration failed — try again')
+    } finally {
+      setRegenerating(null)
+    }
   }
 
   // ─── Filtered templates ───────────────────────────────────────────────────
@@ -516,6 +533,11 @@ export function PDFWorkshop() {
                         <button onClick={() => handleDownload(guide.id)} disabled={downloading === guide.id} title="Download" style={{ padding: '7px 12px', borderRadius: 8, background: '#C8322B', color: '#fff', border: 'none', cursor: downloading === guide.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
                           {downloading === guide.id ? '...' : '⬇'}
                         </button>
+                        {guide.status === 'generated' && (
+                          <button onClick={() => handleRegenerate(guide.id)} disabled={regenerating === guide.id} title="Regenerate content with AI" style={{ padding: '7px 12px', borderRadius: 8, background: regenerating === guide.id ? '#9ca3af' : '#C49A2A', color: '#fff', border: 'none', cursor: regenerating === guide.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                            {regenerating === guide.id ? 'Regenerating...' : 'Regenerate'}
+                          </button>
+                        )}
                         {guide.status !== 'published' && (
                           <button onClick={() => { setPublishGuideId(guide.id); setPublishPrice(String(guide.price || '')) }} title="Publish" style={{ padding: '7px 12px', borderRadius: 8, background: '#2D5A3D', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Publish</button>
                         )}

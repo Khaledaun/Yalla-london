@@ -127,6 +127,11 @@ export async function POST(request: NextRequest) {
       return await handleTemplateGenerate(prisma, body, startTime, BUDGET_MS);
     }
 
+    // Action: regenerate_content — re-run AI content generation for a guide that has placeholder content
+    if (action === "regenerate_content") {
+      return await handleRegenerateContent(prisma, body, startTime, BUDGET_MS);
+    }
+
     // Action: edit_prompt — edit an existing guide's content via AI prompt
     if (action === "edit_prompt") {
       return await handleEditPrompt(prisma, body, startTime, BUDGET_MS);
@@ -190,10 +195,11 @@ async function handleGenerate(
   const effectiveSiteId = siteId || getDefaultSiteId();
   const siteConfig = getSiteConfig(effectiveSiteId);
 
-  // 1. Generate AI content
+  // 1. Generate AI content (per-section with retry + fallback)
   const { generatePDFContent, generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
   const templateConfig = PDF_TEMPLATES[template as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
-  const sections = await generatePDFContent(destination, template, locale as "en" | "ar");
+  const contentBudgetMs = Math.max(15_000, budgetMs - (Date.now() - startTime) - 12_000);
+  const sections = await generatePDFContent(destination, template, locale as "en" | "ar", contentBudgetMs);
 
   if (Date.now() - startTime > budgetMs) {
     return NextResponse.json({ error: "Budget exceeded during content generation" }, { status: 504 });
@@ -467,6 +473,104 @@ async function handleDownload(prisma: any, body: any) {
   });
 }
 
+// ─── Regenerate content for an existing guide ────────────────────────────────
+
+async function handleRegenerateContent(
+  prisma: any,
+  body: any,
+  startTime: number,
+  budgetMs: number,
+) {
+  const { guideId } = body;
+  if (!guideId) return NextResponse.json({ error: "guideId required" }, { status: 400 });
+
+  const guide = await prisma.pdfGuide.findUnique({
+    where: { id: guideId },
+    select: {
+      id: true,
+      title: true,
+      site: true,
+      style: true,
+      language: true,
+      slug: true,
+      description: true,
+      contentSections: true,
+      coverDesignId: true,
+      price: true,
+    },
+  });
+  if (!guide) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
+
+  const { getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+  const effectiveSiteId = guide.site || getDefaultSiteId();
+  const siteConfig = getSiteConfig(effectiveSiteId);
+  const { generatePDFContent, generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
+
+  // Extract destination from title (format: "Destination — Template Name" or just destination)
+  const destination = guide.title?.split("—")[0]?.trim() || guide.title?.split("-")[0]?.trim() || "Travel";
+  const template = guide.style || "luxury";
+  const locale = (guide.language || "en") as "en" | "ar";
+  const templateConfig = PDF_TEMPLATES[template as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
+
+  // Regenerate content with full budget
+  const contentBudgetMs = Math.max(15_000, budgetMs - (Date.now() - startTime) - 12_000);
+  const sections = await generatePDFContent(destination, template, locale, contentBudgetMs);
+
+  // Rebuild HTML
+  const html = generatePDFHTML({
+    title: guide.title,
+    subtitle: `Your Complete Guide by ${siteConfig?.name || "Yalla London"}`,
+    destination,
+    locale,
+    siteId: effectiveSiteId,
+    template: template as any,
+    sections,
+    branding: {
+      primaryColor: siteConfig?.primaryColor || templateConfig.primaryColor,
+      secondaryColor: siteConfig?.secondaryColor || templateConfig.secondaryColor,
+      siteName: siteConfig?.name || "Yalla London",
+      website: siteConfig?.domain ? `https://${siteConfig.domain}` : undefined,
+    },
+    includeAffiliate: true,
+  });
+
+  // Convert to PDF
+  let pdfBase64: string | null = null;
+  let pdfSize = 0;
+  try {
+    const { generatePdfFromHtml } = await import("@/lib/pdf/html-to-pdf");
+    const buffer = await generatePdfFromHtml(html);
+    pdfBase64 = buffer.toString("base64");
+    pdfSize = buffer.length;
+  } catch (pdfErr) {
+    console.warn("[pdf-guides] Regenerate PDF failed:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+  }
+
+  // Update guide in DB
+  await prisma.pdfGuide.update({
+    where: { id: guideId },
+    data: {
+      htmlContent: html,
+      contentSections: { sections, regeneratedAt: new Date().toISOString() },
+      pdfUrl: pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : null,
+      status: pdfBase64 ? "ready" : "generated",
+    },
+  });
+
+  return NextResponse.json({
+    success: true,
+    guide: {
+      id: guideId,
+      title: guide.title,
+      status: pdfBase64 ? "ready" : "generated",
+      sections: sections.length,
+      pdfSize,
+      hasPdf: !!pdfBase64,
+      regenerated: true,
+    },
+  });
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string): string {
@@ -558,12 +662,28 @@ async function handleTemplateGenerate(
         timeoutMs: aiTimeoutMs,
       });
     } catch (aiErr) {
-      console.warn("[pdf-guides] AI generation failed, using template fallback:", aiErr instanceof Error ? aiErr.message : aiErr);
+      console.warn("[pdf-guides] Template AI failed, falling back to per-section generation:", aiErr instanceof Error ? aiErr.message : aiErr);
       aiContent = "";
     }
   }
 
-  // Fallback: build structured placeholder content from template + user inputs
+  // If the full-prompt AI failed, try per-section generation (smaller prompts = more reliable)
+  if (!aiContent || aiContent.length < 200) {
+    try {
+      const { generatePDFContent } = await import("@/lib/pdf/generator");
+      const perSectionBudget = Math.max(15_000, budgetMs - (Date.now() - startTime) - 12_000);
+      const perSectionResults = await generatePDFContent(destination, "luxury", locale as "en" | "ar", perSectionBudget);
+      // Convert sections back to markdown-ish text for the parser below
+      aiContent = perSectionResults
+        .filter(s => s.content && s.content.length > 50)
+        .map(s => `## ${s.title}\n\n${s.content}`)
+        .join("\n\n");
+    } catch (fallbackErr) {
+      console.warn("[pdf-guides] Per-section fallback also failed:", fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
+    }
+  }
+
+  // Final fallback: build structured placeholder content from template + user inputs
   if (!aiContent || aiContent.length < 100) {
     aiContent = buildFallbackContent(template, userInputs, destination, locale as "en" | "ar", siteName);
   }

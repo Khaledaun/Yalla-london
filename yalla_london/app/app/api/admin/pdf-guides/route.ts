@@ -417,8 +417,20 @@ async function handleDownload(prisma: any, body: any) {
         },
       });
     } catch (pdfErr) {
-      console.error("[pdf-guides] On-demand PDF generation failed:", pdfErr);
-      return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
+      console.warn("[pdf-guides] Puppeteer unavailable, falling back to HTML download:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+      // Fallback: serve the HTML as a downloadable file (can be opened in browser and printed to PDF)
+      await prisma.pdfGuide.update({
+        where: { id: guideId },
+        data: { downloads: { increment: 1 } },
+      });
+      const htmlFilename = `${guide.slug}.html`;
+      return new NextResponse(guide.htmlContent, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${htmlFilename}"`,
+          "Content-Length": String(Buffer.byteLength(guide.htmlContent, "utf-8")),
+        },
+      });
     }
   } else {
     return NextResponse.json({ error: "No content available for this guide" }, { status: 404 });
@@ -695,11 +707,23 @@ INSTRUCTIONS:
     return NextResponse.json({ error: "AI is currently unavailable. Try again in a few minutes." }, { status: 503 });
   }
 
-  const updatedContent = await generateText(aiPrompt, {
-    maxTokens: 6000,
-    taskType: "content_generation",
-    calledFrom: "pdf-guide-edit",
-  });
+  let updatedContent: string;
+  try {
+    const timeLeftMs = budgetMs - (Date.now() - startTime);
+    const aiTimeoutMs = Math.min(35_000, Math.max(10_000, timeLeftMs - 12_000));
+    updatedContent = await generateText(aiPrompt, {
+      maxTokens: 4000,
+      taskType: "content_generation",
+      calledFrom: "pdf-guide-edit",
+      timeoutMs: aiTimeoutMs,
+    });
+  } catch (aiErr) {
+    const msg = aiErr instanceof Error ? aiErr.message : String(aiErr);
+    console.warn("[pdf-guides] Edit AI failed:", msg);
+    return NextResponse.json({
+      error: `AI edit failed: ${msg.length > 150 ? msg.slice(0, 150) + "..." : msg}. Try a simpler edit or try again in a minute.`,
+    }, { status: 503 });
+  }
 
   if (Date.now() - startTime > budgetMs) {
     return NextResponse.json({ error: "Budget exceeded" }, { status: 504 });

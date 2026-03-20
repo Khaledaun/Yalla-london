@@ -328,8 +328,11 @@ async function handleFromArticle(
   try {
     const { getLinksForContent } = await import("@/lib/affiliate/link-injector");
     const links = await getLinksForContent(
+      post.content_en || "",
+      "en",
       post.category?.name_en || "travel",
       ["travel", "london", "luxury"],
+      5,
       effectiveSiteId,
     );
     if (links.length > 0) {

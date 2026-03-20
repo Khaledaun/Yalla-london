@@ -223,11 +223,23 @@ export function PDFWorkshop() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'download', guideId }),
       })
-      if (!res.ok) throw new Error('Download failed')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Download failed' }))
+        throw new Error(errData.error || 'Download failed')
+      }
+      const contentType = res.headers.get('Content-Type') || ''
+      const disposition = res.headers.get('Content-Disposition') || ''
+      // Extract filename from Content-Disposition header
+      const filenameMatch = disposition.match(/filename="?([^";\n]+)"?/)
+      const serverFilename = filenameMatch ? filenameMatch[1] : null
+      const isHtml = contentType.includes('text/html')
+      const filename = serverFilename || (isHtml ? `guide-${guideId}.html` : `guide-${guideId}.pdf`)
+
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a'); a.href = url; a.download = `guide-${guideId}.pdf`
+      const a = document.createElement('a'); a.href = url; a.download = filename
       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+      if (isHtml) setSuccess(`Downloaded as HTML. Open in browser → File → Print → Save as PDF.`)
       loadGuides()
     } catch (err) { setError(err instanceof Error ? err.message : 'Download failed') }
     finally { setDownloading(null) }

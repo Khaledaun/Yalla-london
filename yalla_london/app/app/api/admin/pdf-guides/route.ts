@@ -327,7 +327,7 @@ async function handleFromArticle(
   let affiliateUrl = `${siteBaseUrl}/blog/${post.slug}`; // fallback: link to the article itself
   try {
     const { getLinksForContent } = await import("@/lib/affiliate/link-injector");
-    const links = await getLinksForContent(
+    const result = await getLinksForContent(
       post.content_en || "",
       "en",
       post.category?.name_en || "travel",
@@ -335,8 +335,9 @@ async function handleFromArticle(
       5,
       effectiveSiteId,
     );
-    if (links.length > 0) {
-      affiliateUrl = links[0].trackingUrl || links[0].url || affiliateUrl;
+    if (result.links.length > 0) {
+      const firstLink = result.links[0];
+      affiliateUrl = firstLink.trackingUrl || firstLink.url || affiliateUrl;
     }
   } catch {
     // Fallback to article URL — non-fatal

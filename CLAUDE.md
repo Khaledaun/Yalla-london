@@ -54,7 +54,17 @@ These are not suggestions. These are hard rules for every commit:
    - **If your change touches BlogPost fields**: verify against `prisma/schema.prisma` — BlogPost has NO `title` field (use `title_en`/`title_ar`), NO `quality_score` (use `seo_score`), NO `published_at` (use `created_at`)
    - **Rationale**: 70%+ of production bugs in this project have been regressions — the same mistake made twice because the previous fix wasn't read. This rule exists because we've learned the hard way that tribal knowledge in CLAUDE.md is the only thing preventing infinite bug cycles.
 
-9. **Development Monitor Standard (MANDATORY)**: Every development plan, feature batch, or multi-task project MUST be registered in `lib/dev-tasks/plan-registry.ts` with:
+9. **Systemic Coherence (MANDATORY — ZERO ISOLATED FIXES)**: Every fix, feature, or change MUST be evaluated as part of the whole system, not in isolation. Before writing any code:
+   - **Trace all callers and consumers**: If you change a function signature, find EVERY file that calls it. If you add a field to a DB write, check EVERY query that reads from that table. Use `Grep` to find all references — never assume you know all the call sites.
+   - **Verify argument contracts**: When calling any function, READ its actual signature in the source file. Never guess parameter order, count, or types from memory. This project has 126+ critical rules learned from exactly this kind of mistake.
+   - **Check downstream impact**: If you change a threshold, constant, or quality gate — search for every file that references it. A change to `standards.ts` can break `pre-publication-gate.ts`, `phases.ts`, `select-runner.ts`, `content-auto-fix.ts`, and `content-auto-fix-lite.ts` simultaneously.
+   - **No orphan fixes**: A fix that solves one bug but introduces a new one elsewhere is not a fix. If your change touches shared code (lib/, config/, middleware), verify it works for ALL consumers — not just the one you're focused on.
+   - **Build must pass before push**: Run `npx tsc --noEmit` before EVERY commit. A TypeScript error that reaches Vercel wastes 5+ minutes of build time and blocks deployment for Khaled. Type errors in this codebase have consistently been wrong function signatures, missing fields, and changed interfaces. **NEVER push code that hasn't been type-checked locally.**
+   - **Forward resilience**: Every fix must be durable, not fragile. Ask: "If someone changes the function I'm calling, will my code break silently or loudly?" Prefer explicit types, named imports, and interface contracts over positional arguments and implicit assumptions. If a function takes 6 positional parameters, verify all 6 — don't assume the last 3 are optional. If a schema field might be renamed, use the Prisma-generated types instead of raw strings.
+   - **Fix it once, fix it permanently**: A band-aid fix that works today but breaks when the next site launches, or when a new cron is added, or when a threshold changes — is not a real fix. Every change must work for: (a) all 6 configured sites, (b) all active cron jobs, (c) the current pipeline AND the legacy pipeline, (d) both English and Arabic content. If it only works for one site or one language, it's incomplete.
+   - **Rationale**: This project has 3,800+ lines of CLAUDE.md documenting bugs caused by isolated fixes that didn't account for the broader system. The `getLinksForContent()` bug (3 args instead of 6), the `BlogPost.title` bug (field doesn't exist), the `published_at` bug (field doesn't exist) — ALL were coherence failures where code was written without checking the actual function/schema it was calling. This rule exists to break that pattern permanently.
+
+10. **Development Monitor Standard (MANDATORY)**: Every development plan, feature batch, or multi-task project MUST be registered in `lib/dev-tasks/plan-registry.ts` with:
    - Structured task definitions (id, phase, testType, due dates, dependencies)
    - Live test implementations in `lib/dev-tasks/live-tests.ts` that produce **real, visible output** (actual API data, actual rendered images, actual sent emails, actual scan results) — NOT just code file existence checks
    - Each task MUST have a `testType` that maps to a live test function
@@ -3854,7 +3864,44 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
 | Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
 
-### Key Reference Files (Updated March 19)
+### Session: March 20, 2026 — PDF Cover Generator & Build Fix
+
+**PDF Cover Generator — 6 Branded Templates:**
+- New API: `/api/admin/pdf-covers` (Edge Runtime, `ImageResponse`)
+  - `GET`: lists 6 cover templates with preview URLs
+  - `GET ?generate=true&template=X&title=Y`: renders 1200x1600 PNG cover image
+  - `POST`: generates cover + saves to `MediaAsset` DB for reuse
+- 6 cover templates, all using per-site brand colors from `getSiteConfig()`:
+  1. **Luxury Gold** — dark background, gold accent lines, elegant typography
+  2. **Minimal White** — clean cream, bold type, colored accent bar
+  3. **Gradient Bold** — full gradient, centered large title, decorative circles
+  4. **Magazine Split** — dark/accent split panel layout
+  5. **Stamp Classic** — vintage travel stamp with border and seal
+  6. **Destination Moody** — dark atmosphere, large watermark destination name
+- PDF Workshop UI updated: "Load Covers" button → 3-column grid → one-tap generation + save to DB + auto-set as cover
+
+**Build Fix — `getLinksForContent` Wrong Argument Count (pre-existing bug):**
+- `app/api/admin/pdf-guides/route.ts` called `getLinksForContent(category, tags, siteId)` — only 3 arguments
+- Actual signature: `getLinksForContent(content, language, category, tags, maxLinks?, siteId?)` — requires 4-6 arguments
+- **Root cause:** Coherence failure — code was written without reading the function's actual signature in `lib/affiliate/link-injector.ts`
+- **Fix:** Added missing `content` (post.content_en), `language` ("en"), and `maxLinks` (5) arguments
+- **Impact:** Every PDF guide generation with affiliate links was crashing silently at runtime (caught by try/catch)
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `app/api/admin/pdf-covers/route.tsx` | PDF cover generator API (6 templates, Edge Runtime) |
+| `components/admin/pdf-workshop.tsx` | PDF workshop with cover picker UI |
+| `app/api/admin/pdf-guides/route.ts` | PDF guide generation (affiliate link fix) |
+
+### Critical Rules Learned (March 20 Session)
+
+127. **Every function call MUST be verified against its actual signature** — never assume argument order, count, or types from memory. `getLinksForContent` expected `(content, language, category, tags, maxLinks?, siteId?)` but was called with `(category, tags, siteId)`. The function compiled fine because the types happened to be compatible (all strings/arrays), but the runtime behavior was completely wrong. Always open the source file and read the function signature before calling it.
+128. **Edge Runtime routes (`export const runtime = "edge"`) cannot use Node.js APIs** — no `fs`, no `path`, no `Buffer` in the initial response. For the PDF cover generator, `ImageResponse` works on Edge but Prisma DB writes must go through a separate non-edge endpoint or use `import()`.
+129. **`ImageResponse` requires explicit `display: "flex"` on EVERY div** — unlike browser CSS, the Satori renderer used by `ImageResponse` does not have default display values. Omitting `display: "flex"` causes elements to be invisible. This applies to all decorative elements, separators, and accent bars.
+
+### Key Reference Files (Updated March 20)
 
 | File | Purpose |
 |------|---------|
@@ -3868,6 +3915,7 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | `docs/AUDIT-LOG.md` | Persistent audit findings — READ BEFORE ANY PIPELINE CHANGE |
 | `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform + anti-patterns registry |
 | `lib/canva/video-registry.ts` | 433 Canva video clips — 4 collections (luxury travel, beach, aesthetic, brand) |
+| `app/api/admin/pdf-covers/route.tsx` | PDF cover generator — 6 branded templates |
 
 ## Weekly Manual Checks
 

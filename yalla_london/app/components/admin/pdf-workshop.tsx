@@ -124,10 +124,15 @@ export function PDFWorkshop() {
   const loadGuides = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/pdf-guides')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        setError(errData.error || `Failed to load guides (${res.status})`)
+        return
+      }
       const data = await res.json().catch(() => ({}))
       if (data.tableNotFound) setTableNotFound(true)
       setGuides(data.guides || [])
-    } catch { console.warn('[pdf-workshop] Failed to load guides') }
+    } catch (err) { setError(`Failed to load guides: ${err instanceof Error ? err.message : 'network error'}`) }
     finally { setLoading(false) }
   }, [])
 
@@ -159,8 +164,9 @@ export function PDFWorkshop() {
     const res = await fetch('/api/admin/pdf-guides', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     })
-    const data = await res.json().catch(() => ({ error: 'Request failed' }))
-    if (!res.ok) throw new Error(data.error || 'Request failed')
+    let data: any
+    try { data = await res.json() } catch { data = { error: `Server returned ${res.status} ${res.statusText}` } }
+    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
     return data
   }
 

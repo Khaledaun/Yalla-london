@@ -16,6 +16,10 @@ export interface PDFGuideConfig {
   siteId: string;
   template: "luxury" | "budget" | "family" | "adventure" | "honeymoon";
   sections: PDFSection[];
+  /** Cover image URL — featured image from article or Canva design */
+  coverImageUrl?: string;
+  /** Images extracted from article HTML for section illustrations */
+  articleImages?: string[];
   branding: {
     primaryColor: string;
     secondaryColor: string;
@@ -628,7 +632,10 @@ export async function trackDownload(productId: string, leadEmail?: string) {
 }
 
 /**
- * Generate HTML template for PDF rendering
+ * Generate HTML template for PDF rendering.
+ *
+ * Design: magazine-style layout with cover image, section images,
+ * branded color accents, and professional typography.
  */
 export function generatePDFHTML(config: PDFGuideConfig): string {
   const isRTL = config.locale === "ar";
@@ -636,6 +643,18 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
   const fontFamily = isRTL
     ? "'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif"
     : "'Source Serif 4', Georgia, serif";
+  const headingFont = isRTL
+    ? "'IBM Plex Sans Arabic', sans-serif"
+    : "'Source Serif 4', Georgia, serif";
+  const primary = config.branding.primaryColor;
+  const secondary = config.branding.secondaryColor;
+  const images = config.articleImages || [];
+  const coverImg = config.coverImageUrl;
+
+  // Build cover page — with image overlay or gradient
+  const coverStyle = coverImg
+    ? `background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('${coverImg}') center/cover no-repeat;`
+    : `background: linear-gradient(135deg, ${primary}, ${secondary});`;
 
   return `
 <!DOCTYPE html>
@@ -645,159 +664,305 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${config.title}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Source+Serif+4:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;600;700&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: ${fontFamily};
-      font-size: 12pt;
-      line-height: 1.6;
-      color: #1a1a1a;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: #2a2a2a;
       direction: ${direction};
+      background: #fff;
     }
 
+    /* ── Cover ──────────────────────────────────── */
     .cover {
       height: 100vh;
-      background: linear-gradient(135deg, ${config.branding.primaryColor}, ${config.branding.secondaryColor});
+      ${coverStyle}
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 60px 50px;
+      color: white;
+      page-break-after: always;
+    }
+    .cover-badge {
+      display: inline-block;
+      background: ${primary};
+      color: white;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 2px;
+      margin-bottom: 20px;
+    }
+    .cover h1 {
+      font-family: ${headingFont};
+      font-size: 34pt;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 12px;
+      text-shadow: 1px 1px 8px rgba(0,0,0,0.4);
+    }
+    .cover h2 {
+      font-size: 14pt;
+      font-weight: 300;
+      opacity: 0.9;
+      margin-bottom: 30px;
+    }
+    .cover-brand {
+      font-size: 11pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      opacity: 0.85;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      padding-top: 16px;
+    }
+
+    /* ── Table of Contents ──────────────────────── */
+    .toc {
+      padding: 60px 50px;
+      min-height: 100vh;
+      page-break-after: always;
+    }
+    .toc h2 {
+      font-family: ${headingFont};
+      font-size: 22pt;
+      color: ${primary};
+      margin-bottom: 30px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid ${primary};
+    }
+    .toc-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 12px 0;
+      border-bottom: 1px dotted #ddd;
+      font-size: 12pt;
+    }
+    .toc-item .num {
+      color: ${primary};
+      font-weight: 700;
+      margin-${isRTL ? "left" : "right"}: 12px;
+      min-width: 28px;
+    }
+
+    /* ── Content Pages ─────────────────────────── */
+    .page {
+      padding: 50px;
+      min-height: 100vh;
+      page-break-after: always;
+    }
+
+    .section-header {
+      margin-bottom: 30px;
+    }
+    .section-num {
+      font-size: 48pt;
+      font-weight: 700;
+      color: ${primary}20;
+      line-height: 1;
+    }
+    .section-title {
+      font-family: ${headingFont};
+      font-size: 22pt;
+      color: ${primary};
+      margin-top: -12px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid ${primary};
+    }
+
+    .section-image {
+      width: 100%;
+      max-height: 280px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .content {
+      font-size: 11pt;
+      line-height: 1.8;
+      text-align: justify;
+      columns: ${isRTL ? "1" : "1"};
+      column-gap: 30px;
+    }
+    .content p { margin-bottom: 12px; }
+
+    /* ── Item Cards ────────────────────────────── */
+    .item {
+      background: #faf8f4;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 16px 0;
+      border-${isRTL ? "right" : "left"}: 5px solid ${primary};
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .item-img {
+      width: 80px;
+      height: 80px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .item-body { flex: 1; }
+    .item-name {
+      font-size: 13pt;
+      font-weight: 700;
+      color: ${primary};
+      margin-bottom: 4px;
+    }
+    .item-description {
+      font-size: 10pt;
+      color: #555;
+      line-height: 1.5;
+    }
+    .item-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 9pt;
+      color: #777;
+    }
+    .item-meta .price {
+      background: ${primary}15;
+      color: ${primary};
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .rating { color: #f0a500; }
+
+    /* ── Affiliate CTA ─────────────────────────── */
+    .affiliate-box {
+      background: linear-gradient(135deg, ${primary}10, ${secondary}10);
+      border: 2px solid ${primary}30;
+      border-radius: 12px;
+      padding: 28px;
+      margin: 28px 0;
+      text-align: center;
+    }
+    .affiliate-box h3 {
+      color: ${primary};
+      font-size: 15pt;
+      margin-bottom: 8px;
+    }
+    .affiliate-box p {
+      color: #666;
+      font-size: 10pt;
+      margin-bottom: 16px;
+    }
+    .cta-btn {
+      display: inline-block;
+      background: ${primary};
+      color: white;
+      padding: 12px 32px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 11pt;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Checklist ──────────────────────────────── */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      padding: 10px 0;
+      padding-${isRTL ? "right" : "left"}: 32px;
+      position: relative;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .checklist li::before {
+      content: '☐';
+      position: absolute;
+      ${isRTL ? "right" : "left"}: 0;
+      color: ${primary};
+      font-size: 14pt;
+    }
+
+    /* ── Back Cover ─────────────────────────────── */
+    .back-cover {
+      height: 100vh;
+      background: linear-gradient(135deg, ${primary}, ${secondary});
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
       color: white;
-      page-break-after: always;
+      padding: 60px;
     }
-
-    .cover h1 {
-      font-size: 36pt;
-      font-weight: 700;
-      margin-bottom: 16px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-    }
-
-    .cover h2 {
-      font-size: 18pt;
-      font-weight: 400;
+    .back-cover h2 {
+      font-size: 16pt;
+      font-weight: 300;
+      margin-bottom: 12px;
       opacity: 0.9;
     }
-
-    .cover .logo {
-      margin-top: 40px;
-      font-size: 14pt;
-      opacity: 0.8;
+    .back-cover h1 {
+      font-size: 32pt;
+      font-weight: 700;
+      margin-bottom: 24px;
     }
-
-    .page {
-      padding: 40px;
-      min-height: 100vh;
-      page-break-after: always;
-    }
-
-    .section-title {
-      font-size: 24pt;
-      color: ${config.branding.primaryColor};
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid ${config.branding.primaryColor};
-    }
-
-    .content {
-      font-size: 12pt;
-      line-height: 1.8;
-      text-align: justify;
-    }
-
-    .item {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 16px;
-      margin: 16px 0;
-      border-${isRTL ? "right" : "left"}: 4px solid ${config.branding.primaryColor};
-    }
-
-    .item-name {
-      font-size: 14pt;
-      font-weight: 600;
-      color: ${config.branding.primaryColor};
-      margin-bottom: 8px;
-    }
-
-    .item-description {
+    .back-cover p {
       font-size: 11pt;
-      color: #555;
+      opacity: 0.8;
+      margin: 4px 0;
+    }
+    .back-cover .divider {
+      width: 60px;
+      height: 2px;
+      background: rgba(255,255,255,0.4);
+      margin: 20px auto;
     }
 
-    .rating {
-      color: #ffc107;
-      margin-top: 8px;
-    }
-
-    .footer {
+    /* ── Footer ─────────────────────────────────── */
+    .page-footer {
       position: fixed;
       bottom: 20px;
       ${isRTL ? "left" : "right"}: 40px;
-      font-size: 10pt;
-      color: #888;
-    }
-
-    .affiliate-box {
-      background: linear-gradient(135deg, ${config.branding.primaryColor}15, ${config.branding.secondaryColor}15);
-      border: 1px solid ${config.branding.primaryColor}40;
-      border-radius: 12px;
-      padding: 24px;
-      margin: 24px 0;
-      text-align: center;
-    }
-
-    .affiliate-box .cta {
-      display: inline-block;
-      background: ${config.branding.primaryColor};
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 600;
-      margin-top: 16px;
-    }
-
-    .checklist {
-      list-style: none;
-      padding: 0;
-    }
-
-    .checklist li {
-      padding: 8px 0;
-      padding-${isRTL ? "right" : "left"}: 30px;
-      position: relative;
-    }
-
-    .checklist li::before {
-      content: '☐';
-      position: absolute;
-      ${isRTL ? "right" : "left"}: 0;
-      color: ${config.branding.primaryColor};
+      font-size: 8pt;
+      color: #bbb;
     }
   </style>
 </head>
 <body>
+
   <!-- Cover Page -->
   <div class="cover">
-    <h1>${config.title}</h1>
+    <div class="cover-badge">${config.template.toUpperCase()} TRAVEL GUIDE</div>
+    <h1>${config.title.replace(/ — PDF Guide$/, "")}</h1>
     ${config.subtitle ? `<h2>${config.subtitle}</h2>` : ""}
-    <div class="logo">${config.branding.siteName}</div>
+    <div class="cover-brand">${config.branding.siteName}${config.branding.website ? ` · ${config.branding.website.replace("https://", "")}` : ""}</div>
+  </div>
+
+  <!-- Table of Contents -->
+  <div class="toc">
+    <h2>${isRTL ? "المحتويات" : "Contents"}</h2>
+    ${config.sections.map((s, i) => `
+    <div class="toc-item">
+      <span><span class="num">${String(i + 1).padStart(2, "0")}</span> ${s.title}</span>
+    </div>`).join("")}
   </div>
 
   <!-- Content Sections -->
   ${config.sections
     .map(
-      (section) => `
+      (section, idx) => {
+        const sectionImg = images[idx] || null;
+        return `
     <div class="page">
-      <h2 class="section-title">${section.title}</h2>
+      <div class="section-header">
+        <div class="section-num">${String(idx + 1).padStart(2, "0")}</div>
+        <h2 class="section-title">${section.title}</h2>
+      </div>
+      ${sectionImg ? `<img class="section-image" src="${sectionImg}" alt="${section.title}" />` : ""}
       ${section.content ? `<div class="content">${section.content.replace(/\n/g, "<br>")}</div>` : ""}
       ${
         section.items
@@ -805,12 +970,16 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
               .map(
                 (item) => `
         <div class="item">
-          <div class="item-name">${item.name}</div>
-          <div class="item-description">${item.description}</div>
-          ${item.rating ? `<div class="rating">${"★".repeat(Math.floor(item.rating))}${"☆".repeat(5 - Math.floor(item.rating))} (${item.rating})</div>` : ""}
-          ${item.price ? `<div class="price">${item.price}</div>` : ""}
-        </div>
-      `,
+          ${item.image ? `<img class="item-img" src="${item.image}" alt="${item.name}" />` : ""}
+          <div class="item-body">
+            <div class="item-name">${item.name}</div>
+            <div class="item-description">${item.description}</div>
+            <div class="item-meta">
+              ${item.rating ? `<span class="rating">${"★".repeat(Math.floor(item.rating))}${"☆".repeat(5 - Math.floor(item.rating))}</span>` : ""}
+              ${item.price ? `<span class="price">${item.price}</span>` : ""}
+            </div>
+          </div>
+        </div>`,
               )
               .join("")
           : ""
@@ -819,30 +988,29 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
         section.type === "affiliate" && config.includeAffiliate
           ? `
         <div class="affiliate-box">
-          <h3>${isRTL ? "احجز الآن واحصل على أفضل الأسعار" : "Book Now & Get Best Prices"}</h3>
-          <p>${isRTL ? "شركاؤنا المعتمدون يقدمون عروضاً حصرية" : "Our trusted partners offer exclusive deals"}</p>
-          <a href="#" class="cta">${isRTL ? "احجز الآن" : "Book Now"}</a>
-        </div>
-      `
+          <h3>${isRTL ? "احجز الآن واحصل على أفضل الأسعار" : "Book Now & Get the Best Prices"}</h3>
+          <p>${isRTL ? "شركاؤنا المعتمدون يقدمون عروضاً حصرية" : "Our trusted partners offer exclusive deals for our readers"}</p>
+          <a href="#" class="cta-btn">${isRTL ? "احجز الآن" : "Book Now"}</a>
+        </div>`
           : ""
       }
-    </div>
-  `,
+    </div>`;
+      },
     )
     .join("")}
 
   <!-- Back Cover -->
-  <div class="page" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-    <h2 style="color: ${config.branding.primaryColor}; margin-bottom: 20px;">
-      ${isRTL ? "شكراً لاختيارك" : "Thank You for Choosing"}
-    </h2>
-    <h1 style="font-size: 28pt; margin-bottom: 30px;">${config.branding.siteName}</h1>
-    ${config.branding.website ? `<p>${config.branding.website}</p>` : ""}
+  <div class="back-cover">
+    <h2>${isRTL ? "شكراً لاختيارك" : "Thank You for Choosing"}</h2>
+    <h1>${config.branding.siteName}</h1>
+    <div class="divider"></div>
+    ${config.branding.website ? `<p>${config.branding.website.replace("https://", "")}</p>` : ""}
     ${config.branding.contactEmail ? `<p>${config.branding.contactEmail}</p>` : ""}
   </div>
+
+  <div class="page-footer">${config.branding.siteName}</div>
 </body>
-</html>
-  `.trim();
+</html>`.trim();
 }
 
 /**

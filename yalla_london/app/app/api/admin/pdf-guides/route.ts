@@ -292,6 +292,7 @@ async function handleFromArticle(
       content_ar: true,
       meta_description_en: true,
       slug: true,
+      featured_image: true,
       siteId: true,
       category: { select: { name_en: true } },
     },
@@ -307,16 +308,19 @@ async function handleFromArticle(
   const { PDF_TEMPLATES, generatePDFHTML } = await import("@/lib/pdf/generator");
   const templateConfig = PDF_TEMPLATES[template as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
 
-  // Extract content sections from article HTML
+  // Extract content sections from article HTML — single language only.
+  // Previously appended Arabic as a section to English PDFs, creating a
+  // confusing mixed-language document. Now: one PDF = one language.
   const sections = extractSectionsFromArticle(post.content_en || "", post.title_en);
 
-  // Add Arabic section if available
-  if (post.content_ar) {
-    sections.push({
-      type: "intro" as const,
-      title: "النسخة العربية",
-      content: stripHtml(post.content_ar).slice(0, 2000),
-    });
+  // Extract images from article HTML for use in PDF sections
+  const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+  const articleImages: string[] = [];
+  let imgMatch;
+  while ((imgMatch = imgRegex.exec(post.content_en || "")) !== null) {
+    if (imgMatch[1] && !imgMatch[1].includes("data:")) {
+      articleImages.push(imgMatch[1]);
+    }
   }
 
   const guideTitle = `${post.title_en} — PDF Guide`;
@@ -329,6 +333,8 @@ async function handleFromArticle(
     siteId: effectiveSiteId,
     template: template as any,
     sections,
+    coverImageUrl: coverDesignUrl || post.featured_image || undefined,
+    articleImages,
     branding: {
       primaryColor: siteConfig?.primaryColor || templateConfig.primaryColor,
       secondaryColor: siteConfig?.secondaryColor || templateConfig.secondaryColor,
@@ -799,26 +805,17 @@ async function handleEditPrompt(
   });
   if (!guide) return NextResponse.json({ error: "Guide not found" }, { status: 404 });
 
-  // Extract text content from HTML for AI context
-  const currentText = stripHtml(guide.htmlContent || "").slice(0, 8000);
+  // Extract text content from HTML for AI context — keep short to avoid
+  // provider timeouts. 3000 chars is enough context for targeted edits.
+  const currentText = stripHtml(guide.htmlContent || "").slice(0, 3000);
 
-  const aiPrompt = `You are editing an existing travel guide PDF. Here is the current content:
+  const aiPrompt = `Edit this travel guide content. Current content (truncated):
 
----
 ${currentText}
----
 
-THE USER WANTS THE FOLLOWING CHANGES:
-${editPrompt}
+EDIT REQUEST: ${editPrompt}
 
-INSTRUCTIONS:
-- Apply ONLY the requested changes
-- Keep all other content intact
-- Return the FULL updated content in markdown format (## for sections, ### for subsections)
-- Maintain the same structure, tone, and quality
-- If the user asks to add a section, add it in the logical place
-- If the user asks to remove something, remove it cleanly
-- If the user asks to rewrite, rewrite just that part`;
+Return the FULL updated content in markdown (## for sections). Apply only the requested changes. Keep all other content intact.`;
 
   const { generateText, isAIAvailable } = await import("@/lib/ai");
   if (!(await isAIAvailable())) {
@@ -827,10 +824,12 @@ INSTRUCTIONS:
 
   let updatedContent: string;
   try {
+    // Give AI the maximum possible time — edit prompts are user-initiated,
+    // not part of a cron budget. Use at least 40s, up to 50s.
     const timeLeftMs = budgetMs - (Date.now() - startTime);
-    const aiTimeoutMs = Math.min(35_000, Math.max(10_000, timeLeftMs - 12_000));
+    const aiTimeoutMs = Math.min(50_000, Math.max(40_000, timeLeftMs - 5_000));
     updatedContent = await generateText(aiPrompt, {
-      maxTokens: 4000,
+      maxTokens: 3000,
       taskType: "content_generation",
       calledFrom: "pdf-guide-edit",
       timeoutMs: aiTimeoutMs,

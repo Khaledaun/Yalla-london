@@ -340,13 +340,12 @@ async function generateArticle(
     return { slug: rawSlug, deduplicated: true };
   }
 
-  // Dedup: check if a published article already covers this topic/keyword.
-  // Uses startsWith with the full slug (not a 40-char substring with `contains`)
-  // to avoid both false positives and false negatives that let near-duplicates through.
+  // Dedup: check if ANY article (published or not) already covers this topic/keyword.
+  // Must include unpublished — content-auto-fix may have unpublished a prior version.
+  // Only checking published=true creates the publish/unpublish/recreate cycle.
   const existingByKeyword = await prisma.blogPost.findFirst({
     where: {
       siteId: site.id,
-      published: true,
       deletedAt: null,
       slug: { startsWith: rawSlug },
     },
@@ -444,6 +443,8 @@ async function generateArticle(
   }
 
   // Duplicate title check — prevent keyword cannibalization
+  // Check ALL articles (published OR unpublished) — content-auto-fix may have unpublished
+  // a previous version, and creating another just restarts the publish/unpublish cycle.
   const candidateTitle = primaryLanguage === "en"
     ? content.title
     : content.titleTranslation || content.title;
@@ -451,14 +452,13 @@ async function generateArticle(
     const existingWithTitle = await prisma.blogPost.findFirst({
       where: {
         siteId: site.id,
-        published: true,
         deletedAt: null,
         title_en: { equals: candidateTitle.trim(), mode: "insensitive" },
       },
-      select: { id: true, slug: true },
+      select: { id: true, slug: true, published: true },
     }).catch(() => null);
     if (existingWithTitle) {
-      console.warn(`[${site.name}] SKIPPED: duplicate title "${candidateTitle}" — already published as /blog/${existingWithTitle.slug}`);
+      console.warn(`[${site.name}] SKIPPED: duplicate title "${candidateTitle}" — already exists as /blog/${existingWithTitle.slug} (published=${existingWithTitle.published})`);
       return null;
     }
   }

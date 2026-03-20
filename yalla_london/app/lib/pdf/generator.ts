@@ -20,6 +20,8 @@ export interface PDFGuideConfig {
   coverImageUrl?: string;
   /** Images extracted from article HTML for section illustrations */
   articleImages?: string[];
+  /** Real affiliate/booking URL for CTA buttons */
+  affiliateUrl?: string;
   branding: {
     primaryColor: string;
     secondaryColor: string;
@@ -650,6 +652,8 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
   const secondary = config.branding.secondaryColor;
   const images = config.articleImages || [];
   const coverImg = config.coverImageUrl;
+  const logoUrl = config.branding.logoUrl || "";
+  const affiliateUrl = config.affiliateUrl || "#";
 
   // Build cover page — with image overlay or gradient
   const coverStyle = coverImg
@@ -936,6 +940,7 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
 
   <!-- Cover Page -->
   <div class="cover">
+    ${logoUrl ? `<img src="${logoUrl}" alt="${config.branding.siteName}" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 24px; border-radius: 12px;" />` : ""}
     <div class="cover-badge">${config.template.toUpperCase()} TRAVEL GUIDE</div>
     <h1>${config.title.replace(/ — PDF Guide$/, "")}</h1>
     ${config.subtitle ? `<h2>${config.subtitle}</h2>` : ""}
@@ -990,7 +995,7 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
         <div class="affiliate-box">
           <h3>${isRTL ? "احجز الآن واحصل على أفضل الأسعار" : "Book Now & Get the Best Prices"}</h3>
           <p>${isRTL ? "شركاؤنا المعتمدون يقدمون عروضاً حصرية" : "Our trusted partners offer exclusive deals for our readers"}</p>
-          <a href="#" class="cta-btn">${isRTL ? "احجز الآن" : "Book Now"}</a>
+          <a href="${affiliateUrl}" class="cta-btn">${isRTL ? "احجز الآن" : "Book Now"}</a>
         </div>`
           : ""
       }
@@ -1001,11 +1006,13 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
 
   <!-- Back Cover -->
   <div class="back-cover">
+    ${logoUrl ? `<img src="${logoUrl}" alt="${config.branding.siteName}" style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 24px; border-radius: 16px;" />` : ""}
     <h2>${isRTL ? "شكراً لاختيارك" : "Thank You for Choosing"}</h2>
     <h1>${config.branding.siteName}</h1>
     <div class="divider"></div>
-    ${config.branding.website ? `<p>${config.branding.website.replace("https://", "")}</p>` : ""}
+    ${config.branding.website ? `<p><a href="${config.branding.website}" style="color: white; text-decoration: underline;">${config.branding.website.replace("https://", "")}</a></p>` : ""}
     ${config.branding.contactEmail ? `<p>${config.branding.contactEmail}</p>` : ""}
+    ${affiliateUrl !== "#" ? `<div style="margin-top: 24px;"><a href="${affiliateUrl}" class="cta-btn">${isRTL ? "احجز رحلتك الآن" : "Book Your Trip Now"}</a></div>` : ""}
   </div>
 
   <div class="page-footer">${config.branding.siteName}</div>

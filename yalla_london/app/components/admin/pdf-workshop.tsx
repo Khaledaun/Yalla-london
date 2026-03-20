@@ -95,6 +95,8 @@ export function PDFWorkshop() {
   const [userInputs, setUserInputs] = useState<Record<string, string>>({})
   const [locale, setLocale] = useState<'en' | 'ar'>('en')
   const [coverUrl, setCoverUrl] = useState('')
+  const [coverTemplates, setCoverTemplates] = useState<Array<{ id: string; name: string; description: string; previewUrl: string }>>([])
+  const [generatingCover, setGeneratingCover] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
 
   // Edit flow (active guide being edited)
@@ -458,9 +460,68 @@ export function PDFWorkshop() {
               </select>
             </div>
             <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Canva Cover URL (optional)</label>
-              <input type="url" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} placeholder="https://www.canva.com/design/..." style={inputStyle} />
+              <label style={labelStyle}>Cover Image URL (optional)</label>
+              <input type="url" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} placeholder="Paste image URL or pick a template below" style={inputStyle} />
             </div>
+          </div>
+
+          {/* Cover template picker */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={labelStyle}>Or pick a branded cover design:</label>
+              <button
+                onClick={async () => {
+                  try {
+                    const currentSiteId = document.cookie.match(/(?:^|;\s*)activeSiteId=([^;]*)/)?.[1] || 'yalla-london'
+                    const res = await fetch(`/api/admin/pdf-covers?siteId=${currentSiteId}`)
+                    if (res.ok) {
+                      const data = await res.json()
+                      setCoverTemplates(data.templates || [])
+                    }
+                  } catch { /* non-fatal */ }
+                }}
+                style={{ fontSize: 12, padding: '4px 12px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}
+              >
+                Load Covers
+              </button>
+            </div>
+            {coverTemplates.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {coverTemplates.map((ct) => (
+                  <button
+                    key={ct.id}
+                    onClick={async () => {
+                      setGeneratingCover(true)
+                      try {
+                        const dest = userInputs.destination || 'London'
+                        const title = userInputs.title || selectedTemplate?.name || 'Travel Guide'
+                        const res = await fetch('/api/admin/pdf-covers', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ template: ct.id, title, subtitle: `Your Complete Guide`, siteId: document.cookie.match(/(?:^|;\s*)activeSiteId=([^;]*)/)?.[1] || 'yalla-london', destination: dest }),
+                        })
+                        if (res.ok) {
+                          const data = await res.json()
+                          setCoverUrl(data.cover?.dataUrl || '')
+                          setSuccess(`Cover "${ct.name}" generated!`)
+                        }
+                      } catch { setError('Cover generation failed') }
+                      setGeneratingCover(false)
+                    }}
+                    disabled={generatingCover}
+                    style={{
+                      padding: 8, border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer',
+                      background: coverUrl && coverTemplates.length > 0 ? '#fff' : '#faf8f4',
+                      textAlign: 'center' as const, fontSize: 11,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{ct.name}</div>
+                    <div style={{ color: '#888', fontSize: 10 }}>{ct.description.slice(0, 40)}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {generatingCover && <div style={{ textAlign: 'center', padding: 8, color: '#888', fontSize: 12 }}>Generating cover...</div>}
           </div>
 
           <button onClick={handleTemplateGenerate} disabled={generating} style={{ ...btnPrimary(generating), width: '100%', marginTop: 8 }}>

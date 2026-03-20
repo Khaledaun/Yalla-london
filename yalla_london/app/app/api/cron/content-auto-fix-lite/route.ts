@@ -420,7 +420,7 @@ async function handleAutoFixLite(request: NextRequest) {
         },
         select: { id: true, keyword: true },
         take: 50,
-      })) as Array<{ id: string; keyword: string }>;
+      }), "garbage-title-find") as Array<{ id: string; keyword: string }>;
 
       for (const draft of garbageDrafts) {
         if (Date.now() - cronStart > BUDGET_MS - 5_000) break;

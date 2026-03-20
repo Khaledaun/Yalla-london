@@ -466,104 +466,87 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
   const pipeline = emptyPipeline();
 
   try {
-    // Topics
-    const topicsReady = await prisma.topicProposal.count({
-      where: {
-        status: { in: ["ready", "planned"] },
-        ...(activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {}),
-      },
-    });
-    const topicsTotal = await prisma.topicProposal.count({
-      where: activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {},
-    });
+    const siteFilter = activeSiteIds.length
+      ? `AND site_id IN (${activeSiteIds.map((_, i) => `$${i + 1}`).join(",")})`
+      : "";
+    const siteFilterBP = activeSiteIds.length
+      ? `AND "siteId" IN (${activeSiteIds.map((_, i) => `$${i + 1}`).join(",")})`
+      : "";
+    const params = activeSiteIds.length ? activeSiteIds : [];
 
-    pipeline.topicsReady = topicsReady;
-    pipeline.topicsTotal = topicsTotal;
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
 
-    // Drafts by phase
-    const ACTIVE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"] as const;
-    const TERMINAL_PHASES = ["reservoir", "published", "rejected"];
+    // Single raw SQL query replacing 6 separate Prisma calls:
+    // topics ready, topics total, drafts by phase, published today, published total
+    const paramsWithDates = [...params, todayStart];
+    const dateIdx = params.length + 1;
 
+    const combinedResult = await prisma.$queryRawUnsafe(`
+      SELECT
+        (SELECT COUNT(*) FROM "TopicProposal" WHERE status IN ('ready','planned') ${siteFilter})::int AS topics_ready,
+        (SELECT COUNT(*) FROM "TopicProposal" WHERE 1=1 ${siteFilter})::int AS topics_total,
+        (SELECT COUNT(*) FROM "BlogPost" WHERE published = true AND "deletedAt" IS NULL AND created_at >= $${dateIdx} ${siteFilterBP})::int AS published_today,
+        (SELECT COUNT(*) FROM "BlogPost" WHERE published = true AND "deletedAt" IS NULL ${siteFilterBP})::int AS published_total
+    `, ...paramsWithDates) as Array<{
+      topics_ready: number;
+      topics_total: number;
+      published_today: number;
+      published_total: number;
+    }>;
+
+    const r = combinedResult[0];
+    pipeline.topicsReady = r.topics_ready;
+    pipeline.topicsTotal = r.topics_total;
+    pipeline.publishedToday = r.published_today;
+    pipeline.publishedTotal = r.published_total;
+
+    // Draft phase distribution — single groupBy (fast)
     const draftGroups = await prisma.articleDraft.groupBy({
       by: ["current_phase"],
       _count: { id: true },
       where: activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {},
     });
 
+    const ACTIVE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"] as const;
     let draftsActive = 0;
-    let reservoir = 0;
 
     for (const group of draftGroups) {
       const phase = group.current_phase as string;
       const count = group._count.id;
-
       if (ACTIVE_PHASES.includes(phase as (typeof ACTIVE_PHASES)[number])) {
         draftsActive += count;
-        const key = phase as keyof typeof pipeline.byPhase;
-        if (key in pipeline.byPhase) {
-          pipeline.byPhase[key as keyof typeof pipeline.byPhase] = count;
+        if (phase in pipeline.byPhase) {
+          pipeline.byPhase[phase as keyof typeof pipeline.byPhase] = count;
         }
       } else if (phase === "reservoir") {
-        reservoir += count;
+        pipeline.reservoir = count;
         pipeline.byPhase.reservoir = count;
       }
     }
-
     pipeline.draftsActive = draftsActive;
-    pipeline.reservoir = reservoir;
 
-    // Published today
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-
-    pipeline.publishedToday = await prisma.blogPost.count({
-      where: {
-        published: true,
-        created_at: { gte: todayStart },
-        deletedAt: null,
-        ...(activeSiteIds.length ? { siteId: { in: activeSiteIds } } : {}),
-      },
-    });
-
-    pipeline.publishedTotal = await prisma.blogPost.count({
-      where: {
-        published: true,
-        deletedAt: null,
-        ...(activeSiteIds.length ? { siteId: { in: activeSiteIds } } : {}),
-      },
-    });
-
-    // Stuck drafts: active phase, no update in > 3 hours, limit 5
-    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    // Stuck drafts — single query, limit 5
     const stuckRaw = await prisma.articleDraft.findMany({
       where: {
-        current_phase: { notIn: TERMINAL_PHASES },
+        current_phase: { notIn: ["reservoir", "published", "rejected"] },
         updated_at: { lt: threeHoursAgo },
         ...(activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {}),
       },
       orderBy: { updated_at: "asc" },
       take: 5,
-      select: {
-        id: true,
-        keyword: true,
-        current_phase: true,
-        updated_at: true,
-        last_error: true,
-      },
+      select: { id: true, keyword: true, current_phase: true, updated_at: true, last_error: true },
     });
 
-    pipeline.stuckDrafts = stuckRaw.map((d) => {
-      const hours = Math.round(hoursAgo(d.updated_at) * 10) / 10;
-      const interpreted = interpretError(d.last_error);
-      return {
-        id: d.id,
-        keyword: d.keyword,
-        phase: d.current_phase,
-        hoursStuck: hours,
-        lastError: d.last_error ?? null,
-        plainError: interpreted.plain,
-      };
-    });
+    pipeline.stuckDrafts = stuckRaw.map((d: any) => ({
+      id: d.id,
+      keyword: d.keyword,
+      phase: d.current_phase,
+      hoursStuck: Math.round(hoursAgo(d.updated_at) * 10) / 10,
+      lastError: d.last_error ?? null,
+      plainError: interpretError(d.last_error).plain,
+    }));
   } catch (err) {
     console.warn("[cockpit] pipeline query failed:", err instanceof Error ? err.message : err);
   }
@@ -589,19 +572,40 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
 
   try {
     const { resolveStatus } = await import("@/lib/seo/indexing-summary");
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Single groupBy query — replaces 23+ queries in getIndexingSummary()
-    const statusGroups = await prisma.uRLIndexingStatus.groupBy({
-      by: ["status"],
-      _count: { id: true },
-      where: { site_id: targetSiteId },
-    });
+    // Single raw SQL combining: indexing status groups, GSC distinct count,
+    // published count, velocity, and GSC trend — replaces 11 separate queries
+    const combined = await prisma.$queryRawUnsafe(`
+      SELECT
+        (SELECT json_agg(row_to_json(g)) FROM (
+          SELECT status, COUNT(*)::int AS cnt FROM "URLIndexingStatus" WHERE site_id = $1 GROUP BY status
+        ) g) AS status_groups,
+        (SELECT COUNT(DISTINCT url)::int FROM "GscPagePerformance" WHERE site_id = $1 AND impressions > 0) AS gsc_indexed,
+        (SELECT COUNT(*)::int FROM "BlogPost" WHERE "siteId" = $1 AND published = true AND "deletedAt" IS NULL) AS published_count,
+        (SELECT COUNT(*)::int FROM "URLIndexingStatus" WHERE site_id = $1 AND status IN ('indexed','verified') AND last_inspected_at >= $2) AS velocity_7d,
+        (SELECT COALESCE(SUM(clicks),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date >= $2
+        )) AS gsc_clicks_current,
+        (SELECT COALESCE(SUM(impressions),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date >= $2
+        )) AS gsc_impressions_current,
+        (SELECT COALESCE(SUM(clicks),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date < $2
+        )) AS gsc_clicks_previous,
+        (SELECT COALESCE(SUM(impressions),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date < $2
+        )) AS gsc_impressions_previous,
+        (SELECT MAX(started_at) FROM "CronJobLog" WHERE job_name = 'gsc-sync' AND status = 'completed') AS last_gsc_sync
+    `, targetSiteId, sevenDaysAgo) as any[];
+
+    const r = combined[0] || {};
+    const statusGroups: Array<{ status: string; cnt: number }> = r.status_groups || [];
 
     let total = 0;
     for (const group of statusGroups) {
-      const count = group._count.id;
+      const count = group.cnt;
       total += count;
-      // Use shared resolveStatus() — same logic as indexing-summary and content-indexing
       const resolved = resolveStatus({ status: group.status || "", indexing_state: null });
       if (resolved === "indexed") indexing.indexed += count;
       else if (resolved === "submitted") indexing.submitted += count;
@@ -610,114 +614,51 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       else if (resolved === "deindexed") indexing.deindexedCount += count;
       else if (resolved === "chronic_failure") { indexing.chronicFailures += count; indexing.errors += count; }
       else if (resolved === "never_submitted") indexing.neverSubmitted += count;
-      else indexing.discovered += count; // fallback matches resolveStatus() default
+      else indexing.discovered += count;
     }
 
-    // ── GSC reconciliation: promote URLs confirmed indexed by Google ──
-    // Without this, the cockpit undercounts indexed and overcounts submitted.
-    try {
-      // Use raw count(DISTINCT url) instead of groupBy which loads all rows
-      const gscDistinct = await (prisma.$queryRawUnsafe(
-        `SELECT COUNT(DISTINCT url) as count FROM "GscPagePerformance" WHERE site_id = $1 AND impressions > 0`,
-        targetSiteId,
-      ) as Promise<[{count: bigint}]>).catch(() => [{ count: BigInt(0) }]);
-      const gscIndexedCount = Number(gscDistinct[0]?.count ?? 0);
-
-      // GSC-confirmed minus already-counted = promotion candidates
-      const promotable = Math.max(0, gscIndexedCount - indexing.indexed);
-      if (promotable > 0) {
-        // Move from submitted → indexed (GSC says they're in)
-        const fromSubmitted = Math.min(promotable, indexing.submitted);
-        indexing.submitted -= fromSubmitted;
-        indexing.indexed += fromSubmitted;
-        // Any remaining come from discovered/neverSubmitted
-        const remaining = promotable - fromSubmitted;
-        if (remaining > 0) {
-          const fromDiscovered = Math.min(remaining, indexing.discovered);
-          indexing.discovered -= fromDiscovered;
-          indexing.indexed += fromDiscovered;
-        }
+    // GSC reconciliation
+    const gscIndexedCount = Number(r.gsc_indexed ?? 0);
+    const promotable = Math.max(0, gscIndexedCount - indexing.indexed);
+    if (promotable > 0) {
+      const fromSubmitted = Math.min(promotable, indexing.submitted);
+      indexing.submitted -= fromSubmitted;
+      indexing.indexed += fromSubmitted;
+      const remaining = promotable - fromSubmitted;
+      if (remaining > 0) {
+        const fromDiscovered = Math.min(remaining, indexing.discovered);
+        indexing.discovered -= fromDiscovered;
+        indexing.indexed += fromDiscovered;
       }
-    } catch {
-      // GSC table may not exist yet — continue without reconciliation
     }
 
-    // ── Published baseline: use BlogPost count as the true denominator ──
-    const publishedCount = await prisma.blogPost.count({
-      where: { siteId: targetSiteId, published: true, deletedAt: null },
-    }).catch(() => 0);
-
-    // Use published articles as the denominator — these are the revenue pages.
-    // Tracking records include static pages, /ar/ variants, etc. which inflate the total
-    // and make the rate look worse than it is (e.g., 44/153=29% vs 44/23=100%).
+    // Published baseline
+    const publishedCount = Number(r.published_count ?? 0);
     indexing.total = publishedCount > 0 ? publishedCount : total;
-
-    // Recalculate neverSubmitted = published articles without any tracking record
-    const trackedCount = total;
-    if (publishedCount > trackedCount) {
-      indexing.neverSubmitted = publishedCount - trackedCount;
+    if (publishedCount > total) {
+      indexing.neverSubmitted = publishedCount - total;
     }
-
     indexing.rate = indexing.total > 0 ? Math.min(100, Math.round((indexing.indexed / indexing.total) * 100)) : 0;
+    indexing.velocity7d = Number(r.velocity_7d ?? 0);
 
-    // Quick velocity check — indexed in last 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    indexing.velocity7d = await prisma.uRLIndexingStatus.count({
-      where: {
-        site_id: targetSiteId,
-        status: { in: ["indexed", "verified"] },
-        last_inspected_at: { gte: sevenDaysAgo },
-      },
-    }).catch(() => 0);
+    // GSC trend — computed from the single query results above
+    const curClicks = Number(r.gsc_clicks_current ?? 0);
+    const prevClicks = Number(r.gsc_clicks_previous ?? 0);
+    const curImpressions = Number(r.gsc_impressions_current ?? 0);
+    const prevImpressions = Number(r.gsc_impressions_previous ?? 0);
+    indexing.gscTotalClicks7d = curClicks;
+    indexing.gscTotalImpressions7d = curImpressions;
+    indexing.gscClicksTrend = prevClicks > 0 ? Math.round(((curClicks - prevClicks) / prevClicks) * 100) : null;
+    indexing.gscImpressionsTrend = prevImpressions > 0 ? Math.round(((curImpressions - prevImpressions) / prevImpressions) * 100) : null;
+
+    if (r.last_gsc_sync) {
+      indexing.lastGscSync = `${Math.round((Date.now() - new Date(r.last_gsc_sync).getTime()) / 3600000)}h ago`;
+    }
 
     indexing.dataSource = "lightweight+gsc";
   } catch (summaryErr) {
     console.warn("[cockpit] indexing query failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
     indexing.dataSource = "error";
-  }
-
-  // ── GSC trend (always runs — fast DB queries) ─────────────────────────
-  try {
-    const { getPerformanceTrend, getLastGscSyncTime } = await import("@/lib/seo/gsc-trend-analysis");
-    // Serialize to avoid PgBouncer pool exhaustion
-    const siteTrend = await getPerformanceTrend(targetSiteId, "7d");
-    const lastSyncTime = await getLastGscSyncTime();
-    indexing.gscTotalClicks7d = siteTrend.totalClicks.current;
-    indexing.gscTotalImpressions7d = siteTrend.totalImpressions.current;
-    indexing.gscClicksTrend = siteTrend.totalClicks.changePercent;
-    indexing.gscImpressionsTrend = siteTrend.totalImpressions.changePercent;
-    indexing.lastGscSync = lastSyncTime
-      ? `${Math.round((Date.now() - lastSyncTime.getTime()) / 3600000)}h ago`
-      : null;
-
-    // ── Impression drop diagnostic (only when trend is negative) ─────
-    if (indexing.gscImpressionsTrend !== null && indexing.gscImpressionsTrend < 0) {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-
-      // Serialize to avoid PgBouncer pool exhaustion
-      const blockedByGate = await prisma.articleDraft.count({
-        where: { site_id: targetSiteId, current_phase: "reservoir", quality_score: { lt: 70 } },
-      }).catch(() => 0);
-      const pubThisWeek = await prisma.blogPost.count({
-        where: { siteId: targetSiteId, published: true, deletedAt: null, created_at: { gte: sevenDaysAgo } },
-      }).catch(() => 0);
-      const pubLastWeek = await prisma.blogPost.count({
-        where: { siteId: targetSiteId, published: true, deletedAt: null, created_at: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
-      }).catch(() => 0);
-
-      indexing.impressionDiagnostic = {
-        gscDelayNote: "GSC data is 2-3 days behind — recent drops may be normal reporting delay.",
-        blockedByGate,
-        publishVelocity: { thisWeek: pubThisWeek, lastWeek: pubLastWeek },
-        topDroppers: siteTrend.topDroppers?.slice(0, 5).map((d: { url: string; impressionsDelta: number }) => ({
-          url: d.url,
-          impressionsDelta: d.impressionsDelta,
-        })) || [],
-      };
-    }
-  } catch (gscErr) {
-    console.warn("[cockpit] GSC trend query failed:", gscErr instanceof Error ? gscErr.message : gscErr);
   }
 
   return indexing;
@@ -733,17 +674,11 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
   try {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Serialize to avoid PgBouncer pool exhaustion (was Promise.all with 3 concurrent)
-    const failedCount = await prisma.cronJobLog.count({
-      where: { status: "failed", started_at: { gte: since24h } },
-    });
-    const timedOutCount = await prisma.cronJobLog.count({
-      where: { timed_out: true, started_at: { gte: since24h } },
-    });
+    // Single query: recent jobs (contains enough data to derive counts)
     const recentJobs = await prisma.cronJobLog.findMany({
       where: { started_at: { gte: since24h } },
       orderBy: { started_at: "desc" },
-      take: 10,
+      take: 50, // Get more so we can count failures accurately
       select: {
         job_name: true,
         status: true,
@@ -751,14 +686,16 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
         started_at: true,
         error_message: true,
         items_processed: true,
+        timed_out: true,
       },
     });
 
-    cronHealth.failedLast24h = failedCount;
-    cronHealth.timedOutLast24h = timedOutCount;
+    // Derive counts from the result set instead of 2 extra queries
+    cronHealth.failedLast24h = recentJobs.filter((j: any) => j.status === "failed").length;
+    cronHealth.timedOutLast24h = recentJobs.filter((j: any) => j.timed_out === true).length;
     cronHealth.lastRunAt = recentJobs[0]?.started_at?.toISOString() ?? null;
 
-    cronHealth.recentJobs = recentJobs.map((j) => {
+    cronHealth.recentJobs = recentJobs.slice(0, 10).map((j: any) => {
       const interpreted = j.error_message ? interpretError(j.error_message) : null;
       return {
         name: j.job_name,
@@ -782,57 +719,54 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  // Process sites sequentially with individual query fallbacks.
-  // Each query has its own .catch() so one failure doesn't block the entire site.
-  const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
   const results: SiteSummary[] = [];
 
-  for (const siteId of activeSiteIds) {
-    const siteConfig = SITES[siteId];
-    if (!siteConfig) continue;
+  // Single raw SQL for ALL sites — replaces 5 queries × N sites
+  try {
+    const siteList = activeSiteIds.map((_, i) => `$${i + 1}`).join(",");
+    if (!siteList) return results;
 
-    try {
-      // Run queries sequentially to minimize connection pressure
-      const articleAgg = await prisma.blogPost.aggregate({
-        _count: { id: true },
-        _avg: { seo_score: true },
-        where: { siteId, published: true, deletedAt: null },
-      }).catch(() => ({ _count: { id: 0 }, _avg: { seo_score: null } }));
+    const rows = await prisma.$queryRawUnsafe(`
+      SELECT
+        s.site_id,
+        COALESCE(bp.published_count, 0)::int AS published_count,
+        COALESCE(bp.avg_seo, 0)::int AS avg_seo,
+        bp.last_published_at,
+        COALESCE(tp.topics_queued, 0)::int AS topics_queued,
+        COALESCE(ad.reservoir_count, 0)::int AS reservoir_count,
+        COALESCE(ad.pipeline_count, 0)::int AS pipeline_count,
+        COALESCE(ix.indexed_count, 0)::int AS indexed_count
+      FROM (SELECT unnest(ARRAY[${siteList}]::text[]) AS site_id) s
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int AS published_count,
+               COALESCE(AVG(seo_score), 0)::int AS avg_seo,
+               MAX(created_at) AS last_published_at
+        FROM "BlogPost" WHERE "siteId" = s.site_id AND published = true AND "deletedAt" IS NULL
+      ) bp ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int AS topics_queued
+        FROM "TopicProposal" WHERE site_id = s.site_id AND status IN ('ready','planned','proposed')
+      ) tp ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) FILTER (WHERE current_phase = 'reservoir')::int AS reservoir_count,
+          COUNT(*) FILTER (WHERE current_phase IN ('research','outline','drafting','assembly','images','seo','scoring'))::int AS pipeline_count
+        FROM "ArticleDraft" WHERE site_id = s.site_id
+      ) ad ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int AS indexed_count
+        FROM "URLIndexingStatus" WHERE site_id = s.site_id AND status = 'indexed'
+      ) ix ON true
+    `, ...activeSiteIds) as any[];
 
-      const topicsQueued = await prisma.topicProposal.count({
-        where: { site_id: siteId, status: { in: ["ready", "planned", "proposed"] } },
-      }).catch(() => 0);
+    for (const row of rows) {
+      const siteId = row.site_id;
+      const siteConfig = SITES[siteId];
+      if (!siteConfig) continue;
 
-      const latestPost = await prisma.blogPost.findFirst({
-        where: { siteId, published: true, deletedAt: null },
-        orderBy: { created_at: "desc" },
-        select: { created_at: true },
-      }).catch(() => null);
-
-      const draftGroups = await prisma.articleDraft.groupBy({
-        by: ["current_phase"],
-        _count: { id: true },
-        where: { site_id: siteId },
-      }).catch(() => []);
-
-      const reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
-      const inPipelineCount = draftGroups
-        .filter((g: any) => PIPELINE_PHASES.includes(g.current_phase))
-        .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
-      const published = articleAgg._count.id;
-
-      // Calculate indexing rate: indexed pages / published articles
-      // Use published articles as denominator (revenue pages), not totalTracked
-      // (which includes /ar/ variants and static pages, inflating the total).
-      let indexRate = 0;
-      try {
-        const indexedCount = await prisma.uRLIndexingStatus.count({
-          where: { site_id: siteId, status: "indexed" },
-        });
-        // Use published article count as denominator (already have it from articleAgg)
-        const denominator = published > 0 ? published : 1;
-        indexRate = Math.min(100, Math.round((indexedCount / denominator) * 100));
-      } catch { indexRate = 0; }
+      const published = row.published_count;
+      const denominator = published > 0 ? published : 1;
+      const indexRate = Math.min(100, Math.round((row.indexed_count / denominator) * 100));
 
       results.push({
         id: siteId,
@@ -840,32 +774,31 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         domain: getSiteDomain(siteId),
         articlesTotal: published,
         articlesPublished: published,
-        reservoir: reservoirCount,
-        inPipeline: inPipelineCount,
-        avgSeoScore: Math.round(articleAgg._avg.seo_score ?? 0),
-        topicsQueued,
+        reservoir: row.reservoir_count,
+        inPipeline: row.pipeline_count,
+        avgSeoScore: row.avg_seo,
+        topicsQueued: row.topics_queued,
         indexRate,
-        lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
+        lastPublishedAt: row.last_published_at ? new Date(row.last_published_at).toISOString() : null,
         lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: null,
       } as SiteSummary);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn(`[cockpit] site summary failed for ${siteId}:`, errMsg);
+    }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn("[cockpit] buildSites failed:", errMsg);
+    // Return empty summaries for all sites
+    for (const siteId of activeSiteIds) {
+      const siteConfig = SITES[siteId];
+      if (!siteConfig) continue;
       results.push({
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
-        articlesTotal: 0,
-        articlesPublished: 0,
-        reservoir: 0,
-        inPipeline: 0,
-        avgSeoScore: 0,
-        topicsQueued: 0,
-        indexRate: 0,
-        lastPublishedAt: null,
-        lastCronAt: null,
+        articlesTotal: 0, articlesPublished: 0, reservoir: 0, inPipeline: 0,
+        avgSeoScore: 0, topicsQueued: 0, indexRate: 0,
+        lastPublishedAt: null, lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: `Failed to load site data: ${errMsg.substring(0, 120)}`,
       } as SiteSummary);
@@ -1050,72 +983,38 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const siteFilter = { site_id: { in: activeSiteIds } };
 
-    // Serialize revenue queries to avoid exhausting PgBouncer connection pool.
-    // Previously Promise.all with 5 concurrent queries — each holds a connection,
-    // and when cockpit auto-refreshes + crons fire simultaneously, this exceeds
-    // Supabase session-mode pool_size causing "MaxClientsInSessionMode" crashes.
-    const clicksToday = await prisma.affiliateClick.count({
-      where: { ...siteFilter, clicked_at: { gte: todayStart } },
-    }).catch(() => 0);
+    // Build dynamic site filter for raw SQL
+    const siteParams = activeSiteIds.length ? activeSiteIds : [];
+    const siteIn = siteParams.length
+      ? `site_id IN (${siteParams.map((_, i) => `$${i + 3}`).join(",")})`
+      : "1=1";
+    // CJ tables use "siteId" (camelCase) and include NULL for legacy records
+    const cjSiteIn = siteParams.length
+      ? `("siteId" IN (${siteParams.map((_, i) => `$${i + 3}`).join(",")}) OR "siteId" IS NULL)`
+      : "1=1";
 
-    const clicksWeek = await prisma.affiliateClick.count({
-      where: { ...siteFilter, clicked_at: { gte: weekAgo } },
-    }).catch(() => 0);
+    // Single raw SQL replacing 8 separate queries
+    const rows = await prisma.$queryRawUnsafe(`
+      SELECT
+        (SELECT COUNT(*)::int FROM "AffiliateClick" WHERE ${siteIn} AND clicked_at >= $1) AS clicks_today,
+        (SELECT COUNT(*)::int FROM "AffiliateClick" WHERE ${siteIn} AND clicked_at >= $2) AS clicks_week,
+        (SELECT COUNT(*)::int FROM "Conversion" WHERE ${siteIn} AND converted_at >= $2) AS conversions_week,
+        (SELECT COALESCE(SUM(commission),0) FROM "Conversion" WHERE ${siteIn} AND converted_at >= $2) AS revenue_cents,
+        (SELECT COALESCE(SUM("estimatedCostUsd"),0) FROM "ApiUsageLog" WHERE "createdAt" >= $2) AS ai_cost_week,
+        (SELECT COUNT(*)::int FROM "CjClickEvent" WHERE ${cjSiteIn} AND "createdAt" >= $1) AS cj_clicks_today,
+        (SELECT COUNT(*)::int FROM "CjClickEvent" WHERE ${cjSiteIn} AND "createdAt" >= $2) AS cj_clicks_week,
+        (SELECT COUNT(*)::int FROM "CjCommission" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_conversions,
+        (SELECT COALESCE(SUM("commissionAmount"),0) FROM "CjCommission" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_revenue
+    `, todayStart, weekAgo, ...siteParams) as any[];
 
-    const conversions = await prisma.conversion.aggregate({
-      _count: { id: true },
-      _sum: { commission: true },
-      where: { ...siteFilter, converted_at: { gte: weekAgo } },
-    }).catch(() => ({ _count: { id: 0 }, _sum: { commission: null } } as any));
-
-    const topPartnerGroup = await prisma.affiliateClick.groupBy({
-      by: ["partner_id"],
-      _count: { id: true },
-      where: { ...siteFilter, clicked_at: { gte: weekAgo } },
-      orderBy: { _count: { id: "desc" } },
-      take: 1,
-    }).catch(() => [] as any[]);
-
-    const aiCosts = await prisma.apiUsageLog.aggregate({
-      _sum: { estimatedCostUsd: true },
-      where: { createdAt: { gte: weekAgo } },
-    }).catch(() => ({ _sum: { estimatedCostUsd: null } } as any));
-
-    snapshot.affiliateClicksToday = clicksToday;
-    snapshot.affiliateClicksWeek = clicksWeek;
-    snapshot.conversionsWeek = conversions._count?.id ?? 0;
-    snapshot.revenueWeekUsd = Math.round((conversions._sum?.commission ?? 0)) / 100; // cents → dollars
-    snapshot.topPartner = topPartnerGroup[0]?.partner_id ?? null;
-    snapshot.aiCostWeekUsd = Math.round((aiCosts._sum?.estimatedCostUsd ?? 0) * 100) / 100;
-
-    // Merge CJ-specific data (separate tables from generic tracking)
-    // Use OR: [{ siteId: { in } }, { siteId: null }] to include both scoped and legacy null records.
-    try {
-      const cjSiteFilter = activeSiteIds.length > 0
-        ? { OR: [{ siteId: { in: activeSiteIds } }, { siteId: null }] }
-        : {};
-      const cjClicks = await prisma.cjClickEvent.count({
-        where: { ...cjSiteFilter, createdAt: { gte: weekAgo } },
-      }).catch(() => 0);
-      const cjClicksToday = await prisma.cjClickEvent.count({
-        where: { ...cjSiteFilter, createdAt: { gte: todayStart } },
-      }).catch(() => 0);
-      const cjCommissions = await prisma.cjCommission.aggregate({
-        _count: { id: true },
-        _sum: { commissionAmount: true },
-        where: { ...cjSiteFilter, eventDate: { gte: weekAgo } },
-      }).catch(() => ({ _count: { id: 0 }, _sum: { commissionAmount: null } }));
-
-      // Add CJ data to generic totals
-      snapshot.affiliateClicksToday += cjClicksToday;
-      snapshot.affiliateClicksWeek += cjClicks;
-      snapshot.conversionsWeek += cjCommissions._count?.id ?? 0;
-      snapshot.revenueWeekUsd += Math.round((cjCommissions._sum?.commissionAmount ?? 0) * 100) / 100;
-    } catch {
-      // CJ tables may not exist yet — silently skip
-    }
+    const r = rows[0] || {};
+    snapshot.affiliateClicksToday = Number(r.clicks_today ?? 0) + Number(r.cj_clicks_today ?? 0);
+    snapshot.affiliateClicksWeek = Number(r.clicks_week ?? 0) + Number(r.cj_clicks_week ?? 0);
+    snapshot.conversionsWeek = Number(r.conversions_week ?? 0) + Number(r.cj_conversions ?? 0);
+    snapshot.revenueWeekUsd = Math.round(Number(r.revenue_cents ?? 0)) / 100
+      + Math.round(Number(r.cj_revenue ?? 0) * 100) / 100;
+    snapshot.aiCostWeekUsd = Math.round(Number(r.ai_cost_week ?? 0) * 100) / 100;
   } catch (err) {
     console.warn("[cockpit] revenue snapshot failed:", err instanceof Error ? err.message : err);
   }

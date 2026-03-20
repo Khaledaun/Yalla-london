@@ -472,7 +472,8 @@ export function PDFWorkshop() {
               <button
                 onClick={async () => {
                   try {
-                    const res = await fetch(`/api/admin/pdf-covers?siteId=${siteId}`)
+                    const currentSiteId = document.cookie.match(/(?:^|;\s*)activeSiteId=([^;]*)/)?.[1] || 'yalla-london'
+                    const res = await fetch(`/api/admin/pdf-covers?siteId=${currentSiteId}`)
                     if (res.ok) {
                       const data = await res.json()
                       setCoverTemplates(data.templates || [])
@@ -497,7 +498,7 @@ export function PDFWorkshop() {
                         const res = await fetch('/api/admin/pdf-covers', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ template: ct.id, title, subtitle: `Your Complete Guide`, siteId, destination: dest }),
+                          body: JSON.stringify({ template: ct.id, title, subtitle: `Your Complete Guide`, siteId: document.cookie.match(/(?:^|;\s*)activeSiteId=([^;]*)/)?.[1] || 'yalla-london', destination: dest }),
                         })
                         if (res.ok) {
                           const data = await res.json()

@@ -406,6 +406,44 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── 6b. REJECT GARBAGE-TITLED RESERVOIR DRAFTS ──────────────────────
+  // Drafts with "Top Alternatives:" prefix are SEO-strategy artifacts that produce
+  // garbage articles. Reject them to drain the reservoir and allow fresh content.
+  let garbageTitlesRejected = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      const garbageDrafts = await withPoolRetry(async () => prisma.articleDraft.findMany({
+        where: {
+          current_phase: "reservoir",
+          keyword: { startsWith: "Top Alternatives:" },
+          site_id: { in: activeSiteIds },
+        },
+        select: { id: true, keyword: true },
+        take: 50,
+      }), "garbage-title-find") as Array<{ id: string; keyword: string }>;
+
+      for (const draft of garbageDrafts) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+        await prisma.articleDraft.update({
+          where: { id: draft.id },
+          data: {
+            current_phase: "rejected",
+            last_error: "Rejected: garbage title template 'Top Alternatives:' from content-strategy.ts",
+            updated_at: new Date(),
+          },
+        });
+        garbageTitlesRejected++;
+      }
+      if (garbageTitlesRejected > 0) {
+        console.log(`[auto-fix-lite] Rejected ${garbageTitlesRejected} garbage-titled reservoir drafts`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`garbage-title-reject: ${msg}`);
+      console.warn("[auto-fix-lite] Garbage title rejection failed:", msg);
+    }
+  }
+
   // ── 7. NEVER-SUBMITTED CATCH-UP ──────────────────────────────────────
   // Find published articles AND news items that have no URLIndexingStatus record.
   // Prevents "never submitted" gap where ensureUrlTracked() failed silently on publish.
@@ -498,7 +536,7 @@ async function handleAutoFixLite(request: NextRequest) {
 
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + neverSubmittedFixed;
+  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {

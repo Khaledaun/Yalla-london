@@ -54,14 +54,14 @@ export async function runContentSelector(
     // ── Cleanup stale "started" markers ──
     // If a previous run crashed without completing, its "started" marker stays forever,
     // blocking all future runs via the dedup guard. Mark any "started" entries older than
-    // 65 seconds as "failed" (max budget is 53s + cold-start ≈ 60s).
-    // CRITICAL: Must be <= dedup guard window (60s) to prevent 30s blocking gap.
+    // 45 seconds as "failed" (must be LESS than dedup guard window of 60s to prevent
+    // the 5s blocking gap that caused repeated "Stale marker" crashes in production).
     try {
       await prisma.cronJobLog.updateMany({
         where: {
           job_name: "content-selector",
           status: "started",
-          started_at: { lt: new Date(Date.now() - 65_000) },
+          started_at: { lt: new Date(Date.now() - 45_000) },
         },
         data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
       });
@@ -71,12 +71,13 @@ export async function runContentSelector(
 
     // ── Revert drafts stuck in "promoting" from crashed runs ──
     // When content-selector crashes mid-promotion, drafts stay in "promoting" forever.
-    // Revert any "promoting" drafts older than 2 minutes back to "reservoir".
+    // Revert any "promoting" drafts older than 60 seconds back to "reservoir".
+    // (Reduced from 120s — a normal promotion takes <10s, so 60s is very generous.)
     try {
       const stuckPromoting = await prisma.articleDraft.updateMany({
         where: {
           current_phase: "promoting",
-          updated_at: { lt: new Date(Date.now() - 120_000) },
+          updated_at: { lt: new Date(Date.now() - 60_000) },
         },
         data: {
           current_phase: "reservoir",
@@ -104,7 +105,7 @@ export async function runContentSelector(
       orderBy: { started_at: "desc" },
     });
     if (recentRun) {
-      console.log("[content-selector] Another run started within 60s — skipping to prevent duplicate promotions");
+      console.log(`[content-selector] Another run started within 60s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
       return { success: true, message: "Dedup: skipped (recent run exists)", durationMs: Date.now() - cronStart };
     }
     // Write "started" marker immediately so concurrent invocations see it.

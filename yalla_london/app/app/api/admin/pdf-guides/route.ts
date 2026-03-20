@@ -198,12 +198,11 @@ async function handleGenerate(
   // 1. Generate AI content (per-section with retry + fallback)
   const { generatePDFContent, generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
   const templateConfig = PDF_TEMPLATES[template as keyof typeof PDF_TEMPLATES] || PDF_TEMPLATES.luxury;
-  const contentBudgetMs = Math.max(15_000, budgetMs - (Date.now() - startTime) - 12_000);
+  const contentBudgetMs = Math.max(10_000, budgetMs - (Date.now() - startTime) - 15_000);
   const sections = await generatePDFContent(destination, template, locale as "en" | "ar", contentBudgetMs);
 
-  if (Date.now() - startTime > budgetMs) {
-    return NextResponse.json({ error: "Budget exceeded during content generation" }, { status: 504 });
-  }
+  // Content is generated (AI or fallback) — proceed to HTML even if over budget
+  // HTML generation + DB save are fast (<2s), no reason to bail after spending all the AI budget
 
   // 2. Build HTML
   const guideTitle = title || (locale === "ar" ? `دليل السفر إلى ${destination}` : `${destination} Travel Guide`);
@@ -339,20 +338,18 @@ async function handleFromArticle(
     includeAffiliate: true,
   });
 
-  if (Date.now() - startTime > budgetMs) {
-    return NextResponse.json({ error: "Budget exceeded" }, { status: 504 });
-  }
-
-  // Convert to PDF
+  // Convert to PDF (skip if budget is very tight — HTML is still saved)
   let pdfBase64: string | null = null;
   let pdfSize = 0;
-  try {
-    const { generatePdfFromHtml } = await import("@/lib/pdf/html-to-pdf");
-    const buffer = await generatePdfFromHtml(html);
-    pdfBase64 = buffer.toString("base64");
-    pdfSize = buffer.length;
-  } catch (pdfErr) {
-    console.warn("[pdf-guides] Puppeteer PDF failed:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+  if (Date.now() - startTime < budgetMs - 5_000) {
+    try {
+      const { generatePdfFromHtml } = await import("@/lib/pdf/html-to-pdf");
+      const buffer = await generatePdfFromHtml(html);
+      pdfBase64 = buffer.toString("base64");
+      pdfSize = buffer.length;
+    } catch (pdfErr) {
+      console.warn("[pdf-guides] Puppeteer PDF failed:", pdfErr instanceof Error ? pdfErr.message : pdfErr);
+    }
   }
 
   const slug = `article-${post.slug}-${Date.now().toString(36)}`;
@@ -650,11 +647,13 @@ async function handleTemplateGenerate(
 
   let aiContent = "";
   const aiAvailable = await isAIAvailable();
-  if (aiAvailable) {
+  const elapsedBeforeAI = Date.now() - startTime;
+  const timeLeftMs = budgetMs - elapsedBeforeAI;
+
+  if (aiAvailable && timeLeftMs > 20_000) {
     try {
-      // Cap AI call at 35s — leaves budget for HTML generation + DB save
-      const timeLeftMs = budgetMs - (Date.now() - startTime);
-      const aiTimeoutMs = Math.min(35_000, Math.max(10_000, timeLeftMs - 15_000));
+      // Cap AI call at 25s — leaves budget for per-section fallback OR HTML+DB save
+      const aiTimeoutMs = Math.min(25_000, Math.max(8_000, timeLeftMs - 20_000));
       aiContent = await generateText(prompt, {
         maxTokens: 4000,
         taskType: "content_generation",
@@ -662,16 +661,17 @@ async function handleTemplateGenerate(
         timeoutMs: aiTimeoutMs,
       });
     } catch (aiErr) {
-      console.warn("[pdf-guides] Template AI failed, falling back to per-section generation:", aiErr instanceof Error ? aiErr.message : aiErr);
+      console.warn("[pdf-guides] Template AI failed, falling back:", aiErr instanceof Error ? aiErr.message : aiErr);
       aiContent = "";
     }
   }
 
-  // If the full-prompt AI failed, try per-section generation (smaller prompts = more reliable)
-  if (!aiContent || aiContent.length < 200) {
+  // If the full-prompt AI failed, try per-section generation only if we have 15s+ left
+  const timeAfterFirstAI = budgetMs - (Date.now() - startTime);
+  if ((!aiContent || aiContent.length < 200) && timeAfterFirstAI > 15_000) {
     try {
       const { generatePDFContent } = await import("@/lib/pdf/generator");
-      const perSectionBudget = Math.max(15_000, budgetMs - (Date.now() - startTime) - 12_000);
+      const perSectionBudget = Math.max(10_000, timeAfterFirstAI - 10_000);
       const perSectionResults = await generatePDFContent(destination, "luxury", locale as "en" | "ar", perSectionBudget);
       // Convert sections back to markdown-ish text for the parser below
       aiContent = perSectionResults
@@ -683,14 +683,12 @@ async function handleTemplateGenerate(
     }
   }
 
-  // Final fallback: build structured placeholder content from template + user inputs
+  // Final fallback: build structured placeholder content from template + user inputs (instant, no AI)
   if (!aiContent || aiContent.length < 100) {
     aiContent = buildFallbackContent(template, userInputs, destination, locale as "en" | "ar", siteName);
   }
 
-  if (Date.now() - startTime > budgetMs) {
-    return NextResponse.json({ error: "Budget exceeded during generation" }, { status: 504 });
-  }
+  // Content is guaranteed at this point (either AI or fallback). Proceed to HTML + DB save.
 
   // 2. Build HTML from AI content
   const { generatePDFHTML, PDF_TEMPLATES } = await import("@/lib/pdf/generator");
@@ -845,9 +843,7 @@ INSTRUCTIONS:
     }, { status: 503 });
   }
 
-  if (Date.now() - startTime > budgetMs) {
-    return NextResponse.json({ error: "Budget exceeded" }, { status: 504 });
-  }
+  // AI succeeded — rebuild HTML (fast, no need for budget check)
 
   // Rebuild HTML with updated content
   const { getSiteConfig, getDefaultSiteId } = await import("@/config/sites");

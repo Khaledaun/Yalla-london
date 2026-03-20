@@ -221,6 +221,13 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         published: false,
         content_en: { not: "" },
         created_at: { lte: new Date(Date.now() - 2 * 60 * 60 * 1000) }, // 2h+ old
+        // Exclude articles intentionally unpublished by content-auto-fix or duplicate detection
+        NOT: {
+          OR: [
+            { meta_description_en: { contains: "[AUTO-UNPUBLISHED:" } },
+            { meta_description_en: { contains: "[DUPLICATE-FLAGGED:" } },
+          ],
+        },
         ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}),
       },
       select: { id: true, slug: true, title_en: true, siteId: true },

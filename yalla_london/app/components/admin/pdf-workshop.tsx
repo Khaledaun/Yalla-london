@@ -95,8 +95,8 @@ export function PDFWorkshop() {
   const [userInputs, setUserInputs] = useState<Record<string, string>>({})
   const [locale, setLocale] = useState<'en' | 'ar'>('en')
   const [coverUrl, setCoverUrl] = useState('')
-  const [coverTemplates, setCoverTemplates] = useState<Array<{ id: string; name: string; description: string; previewUrl: string }>>([])
-  const [generatingCover, setGeneratingCover] = useState(false)
+  const [savedCovers, setSavedCovers] = useState<Array<{ id: string; filename: string; url: string; createdAt: string }>>([])
+  const [uploadingCover, setUploadingCover] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
 
   // Edit flow (active guide being edited)
@@ -156,7 +156,19 @@ export function PDFWorkshop() {
     } catch { console.warn('[pdf-workshop] Failed to load templates') }
   }, [])
 
-  useEffect(() => { loadGuides(); loadArticles(); loadTemplates() }, [loadGuides, loadArticles, loadTemplates])
+  const loadSavedCovers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/media?category=pdf-cover&limit=20')
+      if (res.ok) {
+        const data = await res.json()
+        setSavedCovers((data.assets || data.media || []).map((a: any) => ({
+          id: a.id, filename: a.originalFilename || a.filename, url: a.url, createdAt: a.createdAt,
+        })))
+      }
+    } catch { /* non-fatal */ }
+  }, [])
+
+  useEffect(() => { loadGuides(); loadArticles(); loadTemplates(); loadSavedCovers() }, [loadGuides, loadArticles, loadTemplates, loadSavedCovers])
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -456,78 +468,110 @@ export function PDFWorkshop() {
             </div>
           ))}
 
-          {/* Language + Cover */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Language</label>
-              <select value={locale} onChange={e => setLocale(e.target.value as 'en' | 'ar')} style={inputStyle}>
-                <option value="en">English</option>
-                <option value="ar">Arabic (RTL)</option>
-              </select>
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Cover Image URL (optional)</label>
-              <input type="url" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} placeholder="Paste image URL or pick a template below" style={inputStyle} />
-            </div>
+          {/* Language */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Language</label>
+            <select value={locale} onChange={e => setLocale(e.target.value as 'en' | 'ar')} style={inputStyle}>
+              <option value="en">English</option>
+              <option value="ar">Arabic (RTL)</option>
+            </select>
           </div>
 
-          {/* Cover template picker */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <label style={labelStyle}>Or pick a branded cover design:</label>
-              <button
-                onClick={async () => {
-                  try {
-                    const currentSiteId = document.cookie.match(/(?:^|;\s*)activeSiteId=([^;]*)/)?.[1] || 'yalla-london'
-                    const res = await fetch(`/api/admin/pdf-covers?siteId=${currentSiteId}`)
-                    if (res.ok) {
-                      const data = await res.json()
-                      setCoverTemplates(data.templates || [])
-                    }
-                  } catch { /* non-fatal */ }
-                }}
-                style={{ fontSize: 12, padding: '4px 12px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' }}
-              >
-                Load Covers
-              </button>
-            </div>
-            {coverTemplates.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {coverTemplates.map((ct) => (
-                  <button
-                    key={ct.id}
-                    onClick={async () => {
-                      setGeneratingCover(true)
-                      try {
-                        const dest = userInputs.destination || 'London'
-                        const title = userInputs.title || selectedTemplate?.name || 'Travel Guide'
-                        const res = await fetch('/api/admin/pdf-covers', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ template: ct.id, title, subtitle: `Your Complete Guide`, siteId: document.cookie.match(/(?:^|;\s*)activeSiteId=([^;]*)/)?.[1] || 'yalla-london', destination: dest }),
-                        })
-                        if (res.ok) {
-                          const data = await res.json()
-                          setCoverUrl(data.cover?.dataUrl || '')
-                          setSuccess(`Cover "${ct.name}" generated!`)
-                        }
-                      } catch { setError('Cover generation failed') }
-                      setGeneratingCover(false)
-                    }}
-                    disabled={generatingCover}
-                    style={{
-                      padding: 8, border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer',
-                      background: coverUrl && coverTemplates.length > 0 ? '#fff' : '#faf8f4',
-                      textAlign: 'center' as const, fontSize: 11,
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{ct.name}</div>
-                    <div style={{ color: '#888', fontSize: 10 }}>{ct.description.slice(0, 40)}</div>
-                  </button>
-                ))}
+          {/* ─── Cover Design (Canva) ────────────────────────────────────── */}
+          <div style={{ marginBottom: 16, padding: 16, background: '#FAF8F4', borderRadius: 8, border: '1px solid #D6D0C4' }}>
+            <label style={{ ...labelStyle, fontSize: 15, marginBottom: 12 }}>Cover Design</label>
+
+            {/* Current cover preview */}
+            {coverUrl && (
+              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 60, height: 80, borderRadius: 4, border: '1px solid #ddd', overflow: 'hidden', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={coverUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2D5A3D' }}>Cover set</div>
+                  <button onClick={() => setCoverUrl('')} style={{ fontSize: 11, color: '#C8322B', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 2 }}>Remove</button>
+                </div>
               </div>
             )}
-            {generatingCover && <div style={{ textAlign: 'center', padding: 8, color: '#888', fontSize: 12 }}>Generating cover...</div>}
+
+            {/* Upload from iPhone (Canva export) */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <label style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '10px 12px', background: '#C8322B', color: '#fff', borderRadius: 6,
+                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              }}>
+                {uploadingCover ? 'Uploading...' : '📱 Upload from Canva'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    setUploadingCover(true)
+                    try {
+                      const form = new FormData()
+                      form.append('file', file)
+                      form.append('category', 'pdf-cover')
+                      const res = await fetch('/api/admin/media/upload', { method: 'POST', body: form })
+                      if (res.ok) {
+                        const data = await res.json()
+                        const imageUrl = data.asset?.url || data.url || ''
+                        setCoverUrl(imageUrl)
+                        setSuccess('Cover uploaded!')
+                        loadSavedCovers()
+                      } else {
+                        setError('Upload failed')
+                      }
+                    } catch { setError('Upload failed') }
+                    setUploadingCover(false)
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* Paste Canva share link */}
+            <div style={{ marginBottom: 10 }}>
+              <input
+                type="url"
+                value={coverUrl.startsWith('data:') ? '' : coverUrl}
+                onChange={e => setCoverUrl(e.target.value)}
+                placeholder="Or paste image URL / Canva export link"
+                style={{ ...inputStyle, fontSize: 12 }}
+              />
+            </div>
+
+            {/* Previously uploaded covers */}
+            {savedCovers.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, color: '#78716C', marginBottom: 6 }}>Your saved covers:</div>
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                  {savedCovers.map((sc) => (
+                    <button
+                      key={sc.id}
+                      onClick={() => { setCoverUrl(sc.url); setSuccess('Cover selected!') }}
+                      style={{
+                        width: 56, height: 75, borderRadius: 4, overflow: 'hidden', cursor: 'pointer',
+                        border: coverUrl === sc.url ? '2px solid #C8322B' : '1px solid #ddd',
+                        background: '#fff', padding: 0, flexShrink: 0,
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sc.url} alt={sc.filename} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!coverUrl && savedCovers.length === 0 && (
+              <div style={{ fontSize: 11, color: '#78716C', textAlign: 'center' }}>
+                Export your cover from Canva as PNG, then tap &quot;Upload from Canva&quot; above
+              </div>
+            )}
           </div>
 
           <button onClick={handleTemplateGenerate} disabled={generating} style={{ ...btnPrimary(generating), width: '100%', marginTop: 8 }}>

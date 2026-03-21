@@ -579,24 +579,24 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
     const combined = await prisma.$queryRawUnsafe(`
       SELECT
         (SELECT json_agg(row_to_json(g)) FROM (
-          SELECT status, COUNT(*)::int AS cnt FROM "URLIndexingStatus" WHERE site_id = $1 GROUP BY status
+          SELECT status, COUNT(*)::int AS cnt FROM "url_indexing_status" WHERE site_id = $1 GROUP BY status
         ) g) AS status_groups,
-        (SELECT COUNT(DISTINCT url)::int FROM "GscPagePerformance" WHERE site_id = $1 AND impressions > 0) AS gsc_indexed,
+        (SELECT COUNT(DISTINCT url)::int FROM "gsc_page_performance" WHERE site_id = $1 AND impressions > 0) AS gsc_indexed,
         (SELECT COUNT(*)::int FROM "BlogPost" WHERE "siteId" = $1 AND published = true AND "deletedAt" IS NULL) AS published_count,
-        (SELECT COUNT(*)::int FROM "URLIndexingStatus" WHERE site_id = $1 AND status IN ('indexed','verified') AND last_inspected_at >= $2) AS velocity_7d,
-        (SELECT COALESCE(SUM(clicks),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
-          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date >= $2
+        (SELECT COUNT(*)::int FROM "url_indexing_status" WHERE site_id = $1 AND status IN ('indexed','verified') AND last_inspected_at >= $2) AS velocity_7d,
+        (SELECT COALESCE(SUM(clicks),0)::int FROM "gsc_page_performance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "gsc_page_performance" WHERE site_id = $1 AND date >= $2
         )) AS gsc_clicks_current,
-        (SELECT COALESCE(SUM(impressions),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
-          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date >= $2
+        (SELECT COALESCE(SUM(impressions),0)::int FROM "gsc_page_performance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "gsc_page_performance" WHERE site_id = $1 AND date >= $2
         )) AS gsc_impressions_current,
-        (SELECT COALESCE(SUM(clicks),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
-          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date < $2
+        (SELECT COALESCE(SUM(clicks),0)::int FROM "gsc_page_performance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "gsc_page_performance" WHERE site_id = $1 AND date < $2
         )) AS gsc_clicks_previous,
-        (SELECT COALESCE(SUM(impressions),0)::int FROM "GscPagePerformance" WHERE site_id = $1 AND date = (
-          SELECT MAX(date) FROM "GscPagePerformance" WHERE site_id = $1 AND date < $2
+        (SELECT COALESCE(SUM(impressions),0)::int FROM "gsc_page_performance" WHERE site_id = $1 AND date = (
+          SELECT MAX(date) FROM "gsc_page_performance" WHERE site_id = $1 AND date < $2
         )) AS gsc_impressions_previous,
-        (SELECT MAX(started_at) FROM "CronJobLog" WHERE job_name = 'gsc-sync' AND status = 'completed') AS last_gsc_sync
+        (SELECT MAX(started_at) FROM "cron_job_logs" WHERE job_name = 'gsc-sync' AND status = 'completed') AS last_gsc_sync
     `, targetSiteId, sevenDaysAgo) as any[];
 
     const r = combined[0] || {};
@@ -755,7 +755,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
       ) ad ON true
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int AS indexed_count
-        FROM "URLIndexingStatus" WHERE site_id = s.site_id AND status = 'indexed'
+        FROM "url_indexing_status" WHERE site_id = s.site_id AND status = 'indexed'
       ) ix ON true
     `, ...activeSiteIds) as any[];
 
@@ -997,15 +997,15 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
     // Single raw SQL replacing 8 separate queries
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
-        (SELECT COUNT(*)::int FROM "AffiliateClick" WHERE ${siteIn} AND clicked_at >= $1) AS clicks_today,
-        (SELECT COUNT(*)::int FROM "AffiliateClick" WHERE ${siteIn} AND clicked_at >= $2) AS clicks_week,
-        (SELECT COUNT(*)::int FROM "Conversion" WHERE ${siteIn} AND converted_at >= $2) AS conversions_week,
-        (SELECT COALESCE(SUM(commission),0) FROM "Conversion" WHERE ${siteIn} AND converted_at >= $2) AS revenue_cents,
-        (SELECT COALESCE(SUM("estimatedCostUsd"),0) FROM "ApiUsageLog" WHERE "createdAt" >= $2) AS ai_cost_week,
-        (SELECT COUNT(*)::int FROM "CjClickEvent" WHERE ${cjSiteIn} AND "createdAt" >= $1) AS cj_clicks_today,
-        (SELECT COUNT(*)::int FROM "CjClickEvent" WHERE ${cjSiteIn} AND "createdAt" >= $2) AS cj_clicks_week,
-        (SELECT COUNT(*)::int FROM "CjCommission" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_conversions,
-        (SELECT COALESCE(SUM("commissionAmount"),0) FROM "CjCommission" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_revenue
+        (SELECT COUNT(*)::int FROM "affiliate_clicks" WHERE ${siteIn} AND clicked_at >= $1) AS clicks_today,
+        (SELECT COUNT(*)::int FROM "affiliate_clicks" WHERE ${siteIn} AND clicked_at >= $2) AS clicks_week,
+        (SELECT COUNT(*)::int FROM "conversions" WHERE ${siteIn} AND converted_at >= $2) AS conversions_week,
+        (SELECT COALESCE(SUM(commission),0) FROM "conversions" WHERE ${siteIn} AND converted_at >= $2) AS revenue_cents,
+        (SELECT COALESCE(SUM("estimatedCostUsd"),0) FROM "api_usage_logs" WHERE "createdAt" >= $2) AS ai_cost_week,
+        (SELECT COUNT(*)::int FROM "cj_click_events" WHERE ${cjSiteIn} AND "createdAt" >= $1) AS cj_clicks_today,
+        (SELECT COUNT(*)::int FROM "cj_click_events" WHERE ${cjSiteIn} AND "createdAt" >= $2) AS cj_clicks_week,
+        (SELECT COUNT(*)::int FROM "cj_commissions" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_conversions,
+        (SELECT COALESCE(SUM("commissionAmount"),0) FROM "cj_commissions" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_revenue
     `, todayStart, weekAgo, ...siteParams) as any[];
 
     const r = rows[0] || {};

@@ -334,7 +334,18 @@ export async function runContentSelector(
     // only if budget remains. This ensures publishReady articles actually publish.
 
     // Apply keyword diversity filter to publish-ready candidates first
-    const selectedKeywords = new Set<string>();
+    // Compare against PUBLISHED articles (not just other candidates in this batch).
+    // All reservoir articles are London luxury topics — comparing only within the batch
+    // caused "All reservoir articles have keyword overlap" blocking ALL publishing.
+    const publishedTitles = await prisma.blogPost.findMany({
+      where: { published: true, deletedAt: null, siteId: { in: activeSites } },
+      select: { title_en: true },
+      take: 200,
+      orderBy: { created_at: "desc" },
+    });
+    const publishedKeywordSets = publishedTitles
+      .map((p) => new Set<string>((p.title_en || "").toLowerCase().split(/\s+/).filter((w) => w.length > 2)));
+
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
 
@@ -349,21 +360,19 @@ export async function runContentSelector(
       const keyword = ((candidate.keyword as string) || "").toLowerCase().trim();
       if (!keyword) continue;
 
-      // Use word-level overlap instead of substring matching.
-      // Old: "london" blocked "best london hotels" (substring match too aggressive).
-      // New: >60% shared words = duplicate (e.g., "halal restaurants london" ≈ "best halal restaurants london")
-      const keywordWords = new Set(keyword.split(/\s+/).filter(w => w.length > 2));
-      const isDuplicate = keywordWords.size > 0 && Array.from(selectedKeywords).some((k) => {
-        const existingWords = new Set(k.split(/\s+/).filter(w => w.length > 2));
-        if (existingWords.size === 0 || keywordWords.size === 0) return false;
+      // Check against PUBLISHED articles (>80% overlap = true duplicate)
+      // Threshold raised from 60% to 80% — all London articles share common words
+      // like "london", "luxury", "best", "2026". 60% flagged everything as duplicate.
+      const keywordWords = new Set<string>(keyword.split(/\s+/).filter(w => w.length > 2));
+      const isDuplicateOfPublished = keywordWords.size > 0 && publishedKeywordSets.some((existingWords) => {
+        if (existingWords.size === 0) return false;
         const shared = [...keywordWords].filter(w => existingWords.has(w)).length;
         const overlapRatio = shared / Math.min(keywordWords.size, existingWords.size);
-        return overlapRatio > 0.6;
+        return overlapRatio > 0.8;
       });
 
-      if (!isDuplicate) {
+      if (!isDuplicateOfPublished) {
         selected.push(candidate);
-        selectedKeywords.add(keyword);
         selectedDraftIds.add(candidateId);
         if (pairedId) selectedDraftIds.add(pairedId);
       }

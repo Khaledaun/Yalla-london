@@ -242,10 +242,46 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       // These are articles created by the pipeline (via content-selector promoteToBlogPost)
       // but never set published=true — likely due to a crash between creation and update.
       // They already passed the pre-pub gate during promotion, so publish them directly.
+      // Pre-fetch recent published titles for dedup check (Rule #17: cleanTitle on ALL publish paths)
+      const recentPublished = await prisma.blogPost.findMany({
+        where: { published: true, ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}) },
+        select: { title_en: true },
+        orderBy: { created_at: "desc" },
+        take: 200,
+      }).catch(() => [] as Array<{ title_en: string | null }>);
+
+      // Normalize title for dedup: strip years, fillers, punctuation
+      const normalizeTitle = (t: string) =>
+        t.toLowerCase()
+          .replace(/\b20\d{2}\b/g, "")
+          .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
+          .replace(/[^a-z0-9\s]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+      const publishedTitleSet = new Set<string>(
+        recentPublished.map(p => normalizeTitle(p.title_en || "")).filter(Boolean)
+      );
+
       for (const orphan of orphanedDrafts) {
         if (log.isExpired()) break;
 
         try {
+          // Title dedup: skip orphans whose normalized title matches an already-published article.
+          // This prevents the "4 copies of Best Halal Fine Dining" problem (Rule #17).
+          const normTitle = normalizeTitle(orphan.title_en || "");
+          if (normTitle && publishedTitleSet.has(normTitle)) {
+            console.log(`[scheduled-publish] Skipping duplicate orphan: "${orphan.title_en}" (normalized: "${normTitle}")`);
+            // Mark as duplicate so it doesn't get picked up again
+            await prisma.blogPost.update({
+              where: { id: orphan.id },
+              data: { meta_description_en: `[DUPLICATE-FLAGGED:${new Date().toISOString()}] ${orphan.title_en}` },
+            }).catch(() => {});
+            continue;
+          }
+          // Add to set so subsequent orphans in this batch are also deduped
+          if (normTitle) publishedTitleSet.add(normTitle);
+
           // BlogPost has NO published_at field (uses created_at/updated_at).
           // Previous code crashed on every orphan with Prisma "Unknown field" error.
           await prisma.blogPost.update({

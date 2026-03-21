@@ -106,6 +106,11 @@ export async function runContentSelector(
     });
     if (recentRun) {
       console.log(`[content-selector] Another run started within 60s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
+      // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
+      await logCronExecution("content-selector", "completed", {
+        durationMs: Date.now() - cronStart,
+        resultSummary: { message: "Dedup: skipped (recent run exists)", dedupMarkerId: recentRun.id },
+      }).catch(() => {});
       return { success: true, message: "Dedup: skipped (recent run exists)", durationMs: Date.now() - cronStart };
     }
     // Write "started" marker immediately so concurrent invocations see it.
@@ -139,6 +144,11 @@ export async function runContentSelector(
 
     const activeSites = getActiveSiteIds();
     if (activeSites.length === 0) {
+      // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
+      await logCronExecution("content-selector", "completed", {
+        durationMs: Date.now() - cronStart,
+        resultSummary: { message: "No active sites configured" },
+      }).catch(() => {});
       return { success: true, message: "No active sites", durationMs: Date.now() - cronStart };
     }
 
@@ -360,9 +370,30 @@ export async function runContentSelector(
     }
 
     if (selected.length === 0) {
+      // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
+      // Also close the dedup marker so it doesn't appear as "stale/crashed".
+      const msg = "All reservoir articles have keyword overlap with each other. Skipping.";
+      if (dedupMarkerId) {
+        await prisma.cronJobLog.update({
+          where: { id: dedupMarkerId },
+          data: { status: "completed", completed_at: new Date(), duration_ms: Date.now() - cronStart, result_summary: { message: msg, candidateCount: candidates.length } as Record<string, unknown> },
+        }).catch(() => {});
+      } else {
+        await logCronExecution("content-selector", "completed", {
+          durationMs: Date.now() - cronStart,
+          resultSummary: { message: msg, candidateCount: candidates.length },
+        }).catch(() => {});
+      }
+      // Revert all claimed candidates back to reservoir
+      for (const c of candidates) {
+        await prisma.articleDraft.updateMany({
+          where: { id: c.id as string, current_phase: "promoting" },
+          data: { current_phase: "reservoir", updated_at: new Date() },
+        }).catch(() => {});
+      }
       return {
         success: true,
-        message: "All reservoir articles have keyword overlap. Skipping.",
+        message: msg,
         candidateCount: candidates.length,
         durationMs: Date.now() - cronStart,
       };

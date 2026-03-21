@@ -7873,6 +7873,8 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [period, setPeriod] = useState("28d");
+  const [fixing, setFixing] = useState(false);
+  const [fixResult, setFixResult] = useState<Record<string, unknown> | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -7891,6 +7893,27 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
   }, [siteId, period]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const runFix = useCallback(async (action: string) => {
+    setFixing(true);
+    setFixResult(null);
+    try {
+      const res = await fetch("/api/admin/seo-intelligence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, siteId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setFixResult(json);
+      // Refresh data after fix
+      fetchData();
+    } catch (e) {
+      setFixResult({ success: false, error: e instanceof Error ? e.message : "Fix failed" });
+    } finally {
+      setFixing(false);
+    }
+  }, [siteId, fetchData]);
 
   const gradeColor = (grade: string) => {
     if (grade === "A") return "text-[#2D5A3D] bg-[rgba(45,90,61,0.08)]";
@@ -7942,6 +7965,38 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
             </span>
           ))}
         </div>
+      </Card>
+
+      {/* Fix Now Buttons */}
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <SectionTitle>Fix Now</SectionTitle>
+          {fixing && <span className="text-xs text-stone-400 animate-pulse">Running fixes…</span>}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => runFix("fix_all")} disabled={fixing}
+            className="px-3 py-2 rounded-lg text-xs font-bold text-white bg-[#C8322B] disabled:opacity-50">
+            Fix All Issues
+          </button>
+          <button onClick={() => runFix("fix_never_submitted")} disabled={fixing}
+            className="px-3 py-2 rounded-lg text-xs font-medium text-stone-700 bg-stone-100 disabled:opacity-50">
+            Fix Never Submitted
+          </button>
+          <button onClick={() => runFix("fix_duplicates")} disabled={fixing}
+            className="px-3 py-2 rounded-lg text-xs font-medium text-stone-700 bg-stone-100 disabled:opacity-50">
+            Fix Duplicates
+          </button>
+        </div>
+        {fixResult && (
+          <div className="mt-3">
+            <div className={`text-xs font-medium mb-1 ${fixResult.success ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
+              {fixResult.success ? "Fixes applied successfully" : `Error: ${fixResult.error}`}
+            </div>
+            <pre className="text-[10px] leading-tight bg-stone-50 rounded-lg p-3 overflow-x-auto max-h-64 overflow-y-auto text-stone-600 whitespace-pre-wrap">
+              {JSON.stringify(fixResult.results || fixResult, null, 2)}
+            </pre>
+          </div>
+        )}
       </Card>
 
       {/* Indexing + Traffic Grid */}

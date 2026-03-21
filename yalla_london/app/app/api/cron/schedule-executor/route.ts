@@ -125,15 +125,22 @@ async function handleScheduleExecutor(request: NextRequest) {
         const todayStart = new Date();
         todayStart.setUTCHours(0, 0, 0, 0);
 
-        const postsToday = await prisma.articleDraft.count({
+        // Count only drafts created by schedule-executor today, not ALL drafts.
+        // content-builder-create independently creates drafts every 30 min — counting
+        // those too means the daily cap is always hit early, causing schedule-executor
+        // to skip for the rest of the day. (Bug found March 21, 2026)
+        const schedulerRunsToday = await prisma.cronJobLog.count({
           where: {
-            created_at: { gte: todayStart },
-            site_id: { in: activeSiteIds },
-            // Match content type (blog drafts are the main type)
+            job_name: "schedule-executor",
+            started_at: { gte: todayStart },
+            status: "completed",
+            items_succeeded: { gt: 0 },
           },
         });
+        // Each successful run creates ~2 drafts (1 EN + 1 AR), so multiply by 2
+        const estimatedDraftsToday = schedulerRunsToday * 2;
 
-        if (postsToday >= rule.max_posts_per_day) {
+        if (estimatedDraftsToday >= rule.max_posts_per_day) {
           results.skipped++;
           continue;
         }

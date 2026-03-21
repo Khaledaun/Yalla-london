@@ -54,14 +54,14 @@ export async function runContentSelector(
     // ── Cleanup stale "started" markers ──
     // If a previous run crashed without completing, its "started" marker stays forever,
     // blocking all future runs via the dedup guard. Mark any "started" entries older than
-    // 45 seconds as "failed" (must be LESS than dedup guard window of 60s to prevent
-    // the 5s blocking gap that caused repeated "Stale marker" crashes in production).
+    // 90 seconds as "failed" (must be LESS than dedup guard window of 120s).
+    // Previously 45s — too tight, causing cleanup to kill still-running promotions.
     try {
       await prisma.cronJobLog.updateMany({
         where: {
           job_name: "content-selector",
           status: "started",
-          started_at: { lt: new Date(Date.now() - 45_000) },
+          started_at: { lt: new Date(Date.now() - 90_000) },
         },
         data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
       });
@@ -77,7 +77,7 @@ export async function runContentSelector(
       const stuckPromoting = await prisma.articleDraft.updateMany({
         where: {
           current_phase: "promoting",
-          updated_at: { lt: new Date(Date.now() - 60_000) },
+          updated_at: { lt: new Date(Date.now() - 120_000) },
         },
         data: {
           current_phase: "reservoir",
@@ -100,12 +100,12 @@ export async function runContentSelector(
       where: {
         job_name: "content-selector",
         status: "started",
-        started_at: { gte: new Date(Date.now() - 60_000) },
+        started_at: { gte: new Date(Date.now() - 120_000) },
       },
       orderBy: { started_at: "desc" },
     });
     if (recentRun) {
-      console.log(`[content-selector] Another run started within 60s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
+      console.log(`[content-selector] Another run started within 120s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       await logCronExecution("content-selector", "completed", {
         durationMs: Date.now() - cronStart,
@@ -1319,9 +1319,13 @@ export async function promoteToBlogPost(
   if (blogPost) {
     const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
     const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
-    ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch(() => {});
+    ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch((err) => {
+      console.warn(`[select-runner] ensureUrlTracked failed for ${articleUrl}:`, err instanceof Error ? err.message : err);
+    });
     // Also track the Arabic variant
-    ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch(() => {});
+    ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch((err) => {
+      console.warn(`[select-runner] ensureUrlTracked AR failed for ${slug}:`, err instanceof Error ? err.message : err);
+    });
   }
 
   // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)

@@ -85,7 +85,8 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
                 tags: postData.tags || [],
                 seo_score: postData.seo_score || undefined,
               },
-              siteUrl
+              siteUrl,
+              { skipRouteCheck: true } // Route already exists — HTTP checks waste 10s and cause timeouts that block ALL publishing
             );
             const gateTimeout = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("Pre-pub gate timeout (10s)")), 10_000)

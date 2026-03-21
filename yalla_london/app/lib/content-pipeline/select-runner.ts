@@ -1319,9 +1319,13 @@ export async function promoteToBlogPost(
   if (blogPost) {
     const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
     const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
-    ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch(() => {});
+    ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch((err) => {
+      console.warn(`[select-runner] ensureUrlTracked failed for ${articleUrl}:`, err instanceof Error ? err.message : err);
+    });
     // Also track the Arabic variant
-    ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch(() => {});
+    ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch((err) => {
+      console.warn(`[select-runner] ensureUrlTracked AR failed for ${slug}:`, err instanceof Error ? err.message : err);
+    });
   }
 
   // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)

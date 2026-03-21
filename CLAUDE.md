@@ -3979,6 +3979,52 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 133. **DB connection errors MUST be classified before Prisma errors** — `"can't reach database server"` contains Prisma wrapper text that matches `includes("prisma")`. The `database_unavailable` check must come FIRST in the if-else chain, before the `schema_mismatch` check. Order of classification matters.
 134. **IndexNow ALL-engine rejection must be logged with per-engine details** — when all 3 IndexNow engines reject, the code must log each engine's status code and error message. Without this, "75 URLs found, 0 submitted" appears in cron logs with zero explanation. Also increment `totalIndexNowFailed` so the count appears in the result summary.
 
+### Session: March 21, 2026 — Supabase CPU Overload: Indexes, Cron Stagger & Log Cleanup
+
+**Root cause of Supabase 80%+ CPU alert: missing compound indexes + cron collisions + unbounded queries.**
+
+**6 missing compound indexes added (migration: `20260321_add_performance_indexes`):**
+
+| Model | New Index | Query Pattern |
+|-------|-----------|---------------|
+| ArticleDraft | `(site_id, current_phase, updated_at)` | build-runner every 15min |
+| ArticleDraft | `(site_id, current_phase, phase_attempts)` | diagnostic-agent recovery |
+| CronJobLog | `(job_name, status, started_at DESC)` | CEO Inbox, cycle-health |
+| CronJobLog | `(status, started_at DESC)` | aggregated-report: failed runs |
+| URLIndexingStatus | `(site_id, status, last_submitted_at DESC)` | stale submission detection |
+| URLIndexingStatus | `(site_id, submitted_indexnow)` | process-indexing-queue |
+
+**Unbounded queries bounded:**
+- `discovery/scanner.ts`: URLIndexingStatus `findMany` now capped at `take: 1000`
+- `discovery/scanner.ts`: GscPagePerformance `findMany` now capped at `take: 5000`
+
+**Cron collision stagger (vercel.json):**
+- `diagnostic-sweep`: `0 */2` → `55 1,3,5,...,23` (off even hours, avoids :00 collision)
+- `perplexity-scheduler`: `0 */2` → `10 */2` (10min offset from diagnostic-sweep)
+- `content-selector`: `0 7,9,...` → `5 7,9,...` (5min offset from seo-agent at :00)
+- `campaign-executor`: `20,50 * * *` → `12,42 * * *` (avoids :20/:50 collision with other crons)
+- `london-news`: `20 6` → `40 6` (20min gap from seo-orchestrator at 6:10)
+- `content-auto-fix-lite`: `30 0,4,...` → `40 0,4,...` (10min gap from sync-advertisers at :30)
+
+**CronJobLog cleanup added to content-auto-fix-lite (Section 9):**
+- Deletes entries older than 14 days every 4h
+- Prevents unbounded table growth (~200 entries/day = 6000/month without cleanup)
+- `cronLogsDeleted` count visible in cron result summary
+
+**Expected CPU reduction:** 35-40% from indexes alone (eliminates full-table scans on the 3 heaviest tables). Cron stagger reduces peak connection pool pressure from 5-6 concurrent → 2-3 concurrent.
+
+**Deployment:**
+1. Run `npx prisma migrate deploy` on Supabase for new indexes
+2. Deploy to Vercel for cron schedule changes
+3. Monitor Supabase CPU dashboard — should drop from 80%+ to ~40-50% within 1h of index creation
+
+### Critical Rules Learned (March 21 Session — CPU Overload)
+
+135. **Every cron query on ArticleDraft must be covered by `@@index([site_id, current_phase, ...])`** — the build-runner runs every 15 minutes querying `WHERE site_id = ? AND current_phase IN (...)`. Without the compound index, this is a sequential scan on 790+ rows every 15 min × 96 times/day.
+136. **CronJobLog grows unbounded and must be cleaned** — with 40+ crons running 200+ times/day, the table adds ~6000 rows/month. Without cleanup, queries on `status + started_at` degrade linearly. 14-day retention is sufficient for debugging while keeping the table under 3000 rows.
+137. **Cron schedules at `:00` of even hours are the most dangerous collision window** — `diagnostic-sweep`, `perplexity-scheduler`, `content-builder`, and `content-selector` all fire at `:00`. Move recurring crons to odd minutes (`:05`, `:10`, `:55`) to spread load.
+138. **`findMany` without `take` on any table that grows with time is a CPU bomb** — URLIndexingStatus, GscPagePerformance, and CronJobLog all grow daily. Every unbounded `findMany` becomes a full-table scan that gets worse every month. Always add `take: N` with a comment explaining why N was chosen.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

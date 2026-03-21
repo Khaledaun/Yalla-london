@@ -4511,7 +4511,7 @@ async function runPrismaMigrations(_request: NextRequest) {
     if (!fs.existsSync(migrationsDir)) {
       return NextResponse.json({
         success: false,
-        error: "prisma/migrations directory not found",
+        error: "Prisma migrations directory not found on this server. Migration files are not bundled by Vercel. Use 'Scan Schema' + 'Fix All' instead, or run 'npx prisma migrate deploy' from a local terminal connected to the production database.",
       }, { status: 400 });
     }
 

@@ -126,6 +126,18 @@ function getPrismaClient(): PrismaClient {
     // from Supabase often has pool_timeout=5 which is too aggressive for our
     // concurrent cron pattern.
     let dbUrl = process.env.DATABASE_URL || "";
+
+    // ── CRITICAL: Fix Supabase pooler port ──
+    // Supabase pooler hostname (*.pooler.supabase.com) must use port 6543, not 5432.
+    // Port 5432 on the pooler hostname is unreliable — TCP connections fail
+    // intermittently with "Can't reach database server". This has caused 3+ hours
+    // of outages on March 21, 2026.
+    // Direct connections (*.db.supabase.co) correctly use 5432.
+    if (dbUrl.includes("pooler.supabase.com") && dbUrl.includes(":5432")) {
+      dbUrl = dbUrl.replace(":5432", ":6543");
+      console.warn("[prisma] Fixed Supabase pooler port: 5432 → 6543");
+    }
+
     // Replace or append connection_limit
     if (dbUrl.includes("connection_limit=")) {
       dbUrl = dbUrl.replace(/connection_limit=\d+/, "connection_limit=3");
@@ -175,9 +187,23 @@ function getPrismaClient(): PrismaClient {
     // triggers engine init + $queryRaw simultaneously, causing:
     // "Engine is not yet connected. Backtrace [{ fn: start_thread }]"
     // $connect() is idempotent — safe to call multiple times.
-    baseClient.$connect().catch(() => {
-      // Non-fatal — first query will retry connection automatically
-    });
+    // Retry $connect up to 3 times with 500ms backoff.
+    // Single-attempt $connect fails on Vercel cold starts when Supabase pooler
+    // is under load (March 21 2026: 3258ms latency, intermittent TCP drops).
+    (async () => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await baseClient.$connect();
+          return;
+        } catch (err) {
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, attempt * 500));
+          } else {
+            console.warn("[prisma] $connect failed after 3 attempts:", err instanceof Error ? err.message : err);
+          }
+        }
+      }
+    })().catch(() => {});
 
     // Release connections when the serverless process exits so the
     // PgBouncer slot is freed for other instances.

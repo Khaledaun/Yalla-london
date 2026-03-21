@@ -361,6 +361,265 @@ function ActionButton({
   );
 }
 
+// ─── Deep Article Cleanup Card ────────────────────────────────────────────────
+
+interface DeepCleanupAudit {
+  summary: {
+    totalBlogPosts: number;
+    published: number;
+    unpublished: number;
+    totalDrafts: number;
+    phaseDistribution: Record<string, number>;
+    duplicateGroups: number;
+    totalDuplicatesToDelete: number;
+    seoProblems: number;
+    seoToUnpublish: number;
+    seoToFix: number;
+    rejectedDrafts: number;
+    stuckDrafts: number;
+    reservoirDrafts: number;
+    orphansToDelete: number;
+  };
+  duplicateGroups: Array<{
+    normalizedTitle: string;
+    keep: { id: string; title: string; slug: string; wordCount: number; seoScore: number | null };
+    delete: Array<{ id: string; title: string; slug: string; wordCount: number; seoScore: number | null }>;
+  }>;
+  seoProblems: Array<{
+    id: string; title: string; slug: string; wordCount: number; seoScore: number | null;
+    issues: string[]; action: "unpublish" | "fix" | "monitor";
+  }>;
+  orphans: Array<{ id: string; title: string; slug: string; wordCount: number; status: string; action: string }>;
+  stuck: Array<{ id: string; keyword: string; phase: string | null; attempts: number | null; error: string; action: string }>;
+}
+
+function DeepCleanupCard() {
+  const [audit, setAudit] = useState<DeepCleanupAudit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const runAudit = async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/article-cleanup");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success) setAudit(data);
+      else setResult(`Audit failed: ${data.error}`);
+    } catch (e) {
+      setResult(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runAction = async (action: string, label: string) => {
+    setActionLoading(action);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/article-cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        const r = data.results;
+        const parts: string[] = [];
+        if (r.duplicatesDeleted) parts.push(`${r.duplicatesDeleted} duplicates removed`);
+        if (r.seoUnpublished) parts.push(`${r.seoUnpublished} SEO-hurting pages unpublished`);
+        if (r.stuckRejected) parts.push(`${r.stuckRejected} deadwood rejected`);
+        if (r.stuckRetried) parts.push(`${r.stuckRetried} stuck drafts retried`);
+        if (r.orphansDeleted) parts.push(`${r.orphansDeleted} orphans deleted`);
+        setResult(parts.length > 0 ? `Done: ${parts.join(", ")}` : "No changes needed");
+        runAudit(); // refresh
+      } else {
+        setResult(`Failed: ${data.error}`);
+      }
+    } catch (e) {
+      setResult(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const s = audit?.summary;
+  const hasIssues = s && (s.totalDuplicatesToDelete > 0 || s.seoToUnpublish > 0 || s.stuckDrafts > 0 || s.orphansToDelete > 0);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <SectionTitle>Deep Article Cleanup</SectionTitle>
+        <ActionButton onClick={runAudit} loading={loading}>
+          {audit ? "Re-scan" : "Full Audit"}
+        </ActionButton>
+      </div>
+
+      {!audit && !loading && (
+        <p className="text-xs text-stone-500">Full database audit: duplicates, SEO problems, deadwood drafts, stuck pipeline, orphans.</p>
+      )}
+
+      {audit && s && (
+        <div className="space-y-3">
+          {/* Summary grid */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2 rounded bg-[rgba(45,90,61,0.06)]">
+              <div className="text-lg font-bold text-[#2D5A3D]">{s.published}</div>
+              <div className="text-stone-500">Published</div>
+            </div>
+            <div className="p-2 rounded bg-stone-50">
+              <div className="text-lg font-bold text-stone-600">{s.reservoirDrafts}</div>
+              <div className="text-stone-500">In Reservoir</div>
+            </div>
+            {s.totalDuplicatesToDelete > 0 && (
+              <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]">
+                <div className="text-lg font-bold text-[#C8322B]">{s.totalDuplicatesToDelete}</div>
+                <div className="text-stone-500">Duplicate copies</div>
+              </div>
+            )}
+            {s.seoToUnpublish > 0 && (
+              <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]">
+                <div className="text-lg font-bold text-[#C8322B]">{s.seoToUnpublish}</div>
+                <div className="text-stone-500">SEO-hurting</div>
+              </div>
+            )}
+            {s.stuckDrafts > 0 && (
+              <div className="p-2 rounded bg-[rgba(196,154,42,0.08)]">
+                <div className="text-lg font-bold text-[#7a5a10]">{s.stuckDrafts}</div>
+                <div className="text-stone-500">Stuck drafts</div>
+              </div>
+            )}
+            {s.orphansToDelete > 0 && (
+              <div className="p-2 rounded bg-stone-50">
+                <div className="text-lg font-bold text-stone-500">{s.orphansToDelete}</div>
+                <div className="text-stone-500">Orphans to delete</div>
+              </div>
+            )}
+            {s.rejectedDrafts > 0 && (
+              <div className="p-2 rounded bg-stone-50">
+                <div className="text-lg font-bold text-stone-400">{s.rejectedDrafts}</div>
+                <div className="text-stone-500">Rejected (dead)</div>
+              </div>
+            )}
+          </div>
+
+          {/* Phase distribution */}
+          <div className="text-xs">
+            <button onClick={() => setExpanded(expanded === "phases" ? null : "phases")} className="font-medium text-stone-600 underline">
+              Pipeline: {Object.entries(s.phaseDistribution).map(([k, v]) => `${k}:${v}`).join(" | ")}
+            </button>
+          </div>
+
+          {/* Expandable: Duplicates */}
+          {audit.duplicateGroups.length > 0 && (
+            <div>
+              <button onClick={() => setExpanded(expanded === "dupes" ? null : "dupes")} className="text-xs font-medium text-[#C8322B] underline">
+                {audit.duplicateGroups.length} duplicate group{audit.duplicateGroups.length > 1 ? "s" : ""} ({s.totalDuplicatesToDelete} to remove)
+              </button>
+              {expanded === "dupes" && (
+                <div className="mt-1 space-y-2 text-xs max-h-60 overflow-y-auto">
+                  {audit.duplicateGroups.map((g, i) => (
+                    <div key={i} className="p-2 rounded bg-stone-50 border border-stone-200">
+                      <div className="text-green-700 font-medium">KEEP: {g.keep.title?.slice(0, 50)} ({g.keep.wordCount}w, SEO:{g.keep.seoScore})</div>
+                      {g.delete.map((d, j) => (
+                        <div key={j} className="text-[#C8322B]">DELETE: {d.title?.slice(0, 50)} ({d.wordCount}w, SEO:{d.seoScore})</div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expandable: SEO Problems */}
+          {audit.seoProblems.length > 0 && (
+            <div>
+              <button onClick={() => setExpanded(expanded === "seo" ? null : "seo")} className="text-xs font-medium text-[#C8322B] underline">
+                {audit.seoProblems.length} SEO problem{audit.seoProblems.length > 1 ? "s" : ""} ({s.seoToUnpublish} to unpublish, {s.seoToFix} to fix)
+              </button>
+              {expanded === "seo" && (
+                <div className="mt-1 space-y-1 text-xs max-h-60 overflow-y-auto">
+                  {audit.seoProblems.map((p) => (
+                    <div key={p.id} className={`p-2 rounded ${p.action === "unpublish" ? "bg-red-50" : p.action === "fix" ? "bg-amber-50" : "bg-stone-50"}`}>
+                      <div className="font-medium truncate">{p.title}</div>
+                      <div className="text-stone-500">{p.wordCount}w | SEO:{p.seoScore} | {p.issues.join(", ")}</div>
+                      <div className={`font-medium ${p.action === "unpublish" ? "text-[#C8322B]" : p.action === "fix" ? "text-[#7a5a10]" : "text-stone-400"}`}>
+                        Action: {p.action}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expandable: Stuck */}
+          {audit.stuck.length > 0 && (
+            <div>
+              <button onClick={() => setExpanded(expanded === "stuck" ? null : "stuck")} className="text-xs font-medium text-[#7a5a10] underline">
+                {audit.stuck.length} stuck draft{audit.stuck.length > 1 ? "s" : ""} (&gt;24h)
+              </button>
+              {expanded === "stuck" && (
+                <div className="mt-1 space-y-1 text-xs max-h-40 overflow-y-auto">
+                  {audit.stuck.map((s) => (
+                    <div key={s.id} className="p-1 rounded bg-stone-50 text-stone-600">
+                      <span className="font-medium">{s.keyword}</span> | {s.phase} | {s.attempts} attempts | {s.action}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          {hasIssues && (
+            <div className="grid grid-cols-2 gap-2">
+              {s.totalDuplicatesToDelete > 0 && (
+                <ActionButton onClick={() => runAction("delete_dupes", "Delete Dupes")} loading={actionLoading === "delete_dupes"} variant="danger">
+                  Remove {s.totalDuplicatesToDelete} Dupes
+                </ActionButton>
+              )}
+              {s.seoToUnpublish > 0 && (
+                <ActionButton onClick={() => runAction("unpublish_seo_problems", "Unpublish SEO")} loading={actionLoading === "unpublish_seo_problems"} variant="danger">
+                  Unpublish {s.seoToUnpublish} SEO-bad
+                </ActionButton>
+              )}
+              {s.stuckDrafts > 0 && (
+                <ActionButton onClick={() => runAction("reject_deadwood", "Reject Dead")} loading={actionLoading === "reject_deadwood"} variant="amber">
+                  Fix {s.stuckDrafts} Stuck
+                </ActionButton>
+              )}
+              {s.orphansToDelete > 0 && (
+                <ActionButton onClick={() => runAction("delete_orphans", "Delete Orphans")} loading={actionLoading === "delete_orphans"}>
+                  Delete {s.orphansToDelete} Orphans
+                </ActionButton>
+              )}
+              <ActionButton
+                onClick={() => runAction("cleanup", "Full Cleanup")}
+                loading={actionLoading === "cleanup"}
+                variant="danger"
+                className="col-span-2"
+              >
+                Full Cleanup (All Actions)
+              </ActionButton>
+            </div>
+          )}
+
+          {result && (
+            <p className={`text-xs p-2 rounded ${result.startsWith("Done") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
+              {result}
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── Content Cleanup Card ─────────────────────────────────────────────────────
 
 interface CleanupScanResult {
@@ -2957,6 +3216,9 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
 
       {/* Content Cleanup */}
       <ContentCleanupCard siteId={activeSiteId} />
+
+      {/* Deep Article Cleanup */}
+      <DeepCleanupCard />
 
       {/* Active drafts */}
       {drafts.length > 0 && (

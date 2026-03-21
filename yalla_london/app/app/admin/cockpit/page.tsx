@@ -6202,7 +6202,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   // Migration state
   const [migrationStatus, setMigrationStatus] = useState<"idle" | "scanning" | "migrating" | "done">("idle");
   const [migrationResult, setMigrationResult] = useState<{
-    type: "scan" | "migrate";
+    type: "scan" | "migrate" | "prisma-migrate";
     missingTables: number;
     missingColumns: number;
     missingIndexes: number;
@@ -6213,6 +6213,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
     foreignKeysCreated?: string[];
     errors?: string[];
     durationMs?: number;
+    prismaMigrations?: any;
   } | null>(null);
   const [migrationError, setMigrationError] = useState<string | null>(null);
 

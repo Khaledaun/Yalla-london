@@ -6671,6 +6671,35 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           >
             🚀 Full Migration (Scan + Fix)
           </ActionButton>
+          <ActionButton
+            variant="success"
+            onClick={async () => {
+              setMigrationStatus("migrating");
+              setMigrationError(null);
+              setMigrationResult(null);
+              try {
+                const res = await fetch("/api/admin/db-migrate?action=prisma-migrate", { method: "POST" });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                if (!json.success && json.errors?.length) throw new Error(json.errors.join(", "));
+                setMigrationResult({
+                  type: "prisma-migrate",
+                  needsMigration: false,
+                  missingTables: 0,
+                  missingColumns: 0,
+                  missingIndexes: 0,
+                  prismaMigrations: json,
+                });
+                setMigrationStatus("done");
+              } catch (e) {
+                setMigrationError(e instanceof Error ? e.message : "Prisma migration failed");
+                setMigrationStatus("idle");
+              }
+            }}
+            loading={migrationStatus === "migrating"}
+          >
+            📦 Run Prisma Migrations
+          </ActionButton>
         </div>
         {migrationError && (
           <p className="mt-2 text-xs bg-[rgba(200,50,43,0.06)] text-[#C8322B] rounded px-2 py-1">{migrationError}</p>
@@ -6700,6 +6729,33 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                     {migrationResult.missingIndexes} indexes
                   </div>
                 </div>
+              </>
+            ) : migrationResult.type === "prisma-migrate" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className={(migrationResult.prismaMigrations?.errors?.length ?? 0) > 0 ? "text-[#C49A2A]" : "text-[#2D5A3D]"}>
+                    {(migrationResult.prismaMigrations?.errors?.length ?? 0) > 0 ? "⚠️" : "✅"}
+                  </span>
+                  <span className="text-stone-600">
+                    Prisma migrations: {migrationResult.prismaMigrations?.newlyApplied ?? 0} applied, {migrationResult.prismaMigrations?.alreadyApplied ?? 0} already up-to-date
+                    {migrationResult.prismaMigrations?.durationMs ? ` (${(migrationResult.prismaMigrations.durationMs / 1000).toFixed(1)}s)` : ""}
+                  </span>
+                </div>
+                {(migrationResult.prismaMigrations?.applied?.length ?? 0) > 0 && (
+                  <div className="mt-1 space-y-0.5">
+                    {migrationResult.prismaMigrations!.applied.map((m: string, i: number) => (
+                      <p key={i} className="text-[#2D5A3D] text-[11px]">✅ {m}</p>
+                    ))}
+                  </div>
+                )}
+                {(migrationResult.prismaMigrations?.errors?.length ?? 0) > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[#C8322B] font-medium">{migrationResult.prismaMigrations!.errors.length} error(s):</p>
+                    {migrationResult.prismaMigrations!.errors.map((err: string, i: number) => (
+                      <p key={i} className="text-[#C8322B]/80 text-[11px] bg-[rgba(200,50,43,0.04)] rounded px-2 py-1 break-words">{err}</p>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <>

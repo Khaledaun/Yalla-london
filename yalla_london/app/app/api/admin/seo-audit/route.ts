@@ -1474,39 +1474,103 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── ACTION: Auto-fix all — chains relevant crons based on audit findings ──
+    // ── ACTION: Auto-fix all — lightweight detection + fire crons ──
+    // Previously called runAudit() (50+ queries, 30-45s) which caused 504 timeouts.
+    // Now uses 6 fast COUNT queries (~2s total) to detect which crons to fire.
     if (action === "auto_fix_all") {
       const { getDefaultSiteId } = await import("@/config/sites");
+      const { prisma } = await import("@/lib/db");
+      const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
       const fixSiteId = body.siteId || getDefaultSiteId();
 
-      // Run audit first to determine which crons to fire
-      const auditResult = await runAudit(fixSiteId);
-      const findingIds = new Set(auditResult.findings.map((f: AuditFinding) => f.id));
+      // Lightweight issue detection — 6 targeted counts instead of full audit
+      const [
+        missingMeta,
+        thinContent,
+        neverSubmitted,
+        stuckDrafts,
+        reservoirCount,
+        gscDataCount,
+      ] = await Promise.all([
+        // Posts with missing/bad meta tags
+        prisma.blogPost.count({
+          where: {
+            siteId: fixSiteId,
+            published: true,
+            OR: [
+              { meta_title_en: "" },
+              { meta_title_en: null as unknown as string },
+              { meta_description_en: "" },
+              { meta_description_en: null as unknown as string },
+            ],
+          },
+        }),
+        // Posts under minimum word count
+        prisma.blogPost.count({
+          where: {
+            siteId: fixSiteId,
+            published: true,
+            word_count: { lt: CONTENT_QUALITY.minWords },
+          },
+        }),
+        // URLs never submitted to any search engine
+        prisma.uRLIndexingStatus.count({
+          where: {
+            site_id: fixSiteId,
+            submitted_indexnow: false,
+            submitted_sitemap: false,
+            submitted_google_api: false,
+          },
+        }),
+        // Stuck pipeline drafts (not updated in 6+ hours)
+        prisma.articleDraft.count({
+          where: {
+            site_id: fixSiteId,
+            current_phase: { notIn: ["reservoir", "published", "rejected"] },
+            updated_at: { lt: new Date(Date.now() - 6 * 60 * 60 * 1000) },
+          },
+        }),
+        // Reservoir count (is it empty?)
+        prisma.articleDraft.count({
+          where: { site_id: fixSiteId, current_phase: "reservoir" },
+        }),
+        // GSC data freshness
+        prisma.gscPagePerformance.count({
+          where: { site_id: fixSiteId },
+        }).catch(() => 0),
+      ]);
 
-      // Map findings to cron jobs — most impactful first
+      // Map detected issues to crons
       const cronQueue: Array<{ cron: string; reason: string }> = [];
+      let totalFindings = 0;
 
-      if (findingIds.has("content-no-meta-title") || findingIds.has("content-no-meta-desc") || findingIds.has("content-long-meta-title") || findingIds.has("content-long-meta-desc") || findingIds.has("links-orphan-pages") || findingIds.has("links-few-outbound")) {
-        cronQueue.push({ cron: "seo-agent", reason: "Fix missing/long meta tags + inject internal links" });
+      if (missingMeta > 0) {
+        cronQueue.push({ cron: "seo-agent", reason: `Fix ${missingMeta} posts with missing/bad meta tags + inject internal links` });
+        totalFindings += missingMeta;
       }
-      if (findingIds.has("content-thin")) {
-        cronQueue.push({ cron: "content-auto-fix", reason: "Expand thin articles under 1,000 words" });
+      if (thinContent > 0) {
+        cronQueue.push({ cron: "content-auto-fix", reason: `Expand ${thinContent} thin articles under ${CONTENT_QUALITY.minWords} words` });
+        totalFindings += thinContent;
       }
-      if (findingIds.has("idx-never-submitted") || findingIds.has("idx-rate-high") || findingIds.has("idx-rate-critical")) {
-        cronQueue.push({ cron: "google-indexing", reason: "Submit unindexed URLs to IndexNow" });
+      if (neverSubmitted > 0) {
+        cronQueue.push({ cron: "google-indexing", reason: `Submit ${neverSubmitted} unindexed URLs to IndexNow` });
+        totalFindings += neverSubmitted;
       }
-      if (findingIds.has("pipeline-stuck")) {
-        cronQueue.push({ cron: "sweeper", reason: "Recover stuck pipeline drafts" });
+      if (stuckDrafts > 0) {
+        cronQueue.push({ cron: "sweeper", reason: `Recover ${stuckDrafts} stuck pipeline drafts` });
+        totalFindings += stuckDrafts;
       }
-      if (findingIds.has("pipeline-empty-reservoir")) {
-        cronQueue.push({ cron: "content-builder", reason: "Generate new content for empty reservoir" });
+      if (reservoirCount === 0) {
+        cronQueue.push({ cron: "content-builder", reason: "Generate new content — reservoir is empty" });
+        totalFindings += 1;
       }
-      if (findingIds.has("gsc-no-data")) {
+      if (gscDataCount === 0) {
         cronQueue.push({ cron: "gsc-sync", reason: "Pull missing GSC performance data" });
+        totalFindings += 1;
       }
 
       if (cronQueue.length === 0) {
-        return NextResponse.json({ success: true, message: "No auto-fixable issues found", auditScore: auditResult.healthScore, fixesRun: 0 });
+        return NextResponse.json({ success: true, message: "No auto-fixable issues found", fixesRun: 0 });
       }
 
       const baseUrl = request.nextUrl.origin;
@@ -1516,25 +1580,20 @@ export async function POST(request: NextRequest) {
 
       const results: Array<{ cron: string; reason: string; success: boolean; status?: number; error?: string }> = [];
 
-      // Fire all crons concurrently with fire-and-forget pattern.
-      // Crons take 15-45s each — we can't wait sequentially within a 60s Vercel limit.
-      // Each cron logs its own result to CronJobLog, so we just need to confirm they started.
+      // Fire all crons concurrently — 5s timeout just confirms they started.
       const startPromises = cronQueue.map(async (item) => {
         try {
           const resp = await fetch(`${baseUrl}/api/cron/${item.cron}`, {
             method: "POST",
             headers,
-            // 5s is enough to confirm the cron accepted the request (started)
             signal: AbortSignal.timeout(5_000),
           });
           results.push({ ...item, success: resp.ok, status: resp.status });
         } catch (err) {
-          // AbortSignal.timeout() throws DOMException with name "TimeoutError" (not "AbortError").
-          // Either means the cron started but we didn't wait for completion — that's OK.
           const isTimeout = err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
           results.push({
             ...item,
-            success: isTimeout, // timeout = cron is running, which counts as started
+            success: isTimeout,
             error: isTimeout ? "Started (running in background)" : (err instanceof Error ? err.message : "Failed"),
           });
         }
@@ -1542,12 +1601,11 @@ export async function POST(request: NextRequest) {
       await Promise.allSettled(startPromises);
 
       const fixesRun = results.filter((r) => r.success).length;
-      logManualAction(request, { action: "auto-fix-all", resource: "seo-audit", siteId: fixSiteId, success: fixesRun > 0, summary: `Auto-fix: ran ${fixesRun}/${cronQueue.length} crons (audit score: ${auditResult.healthScore}, ${auditResult.totalFindings} findings)`, details: { auditScore: auditResult.healthScore, findings: auditResult.totalFindings, fixesRun, fixesTotal: cronQueue.length, results: results.map(r => ({ cron: r.cron, success: r.success, reason: r.reason })) } }).catch(() => {});
+      logManualAction(request, { action: "auto-fix-all", resource: "seo-audit", siteId: fixSiteId, success: fixesRun > 0, summary: `Auto-fix: ran ${fixesRun}/${cronQueue.length} crons (${totalFindings} issues detected)`, details: { findings: totalFindings, fixesRun, fixesTotal: cronQueue.length, results: results.map(r => ({ cron: r.cron, success: r.success, reason: r.reason })) } }).catch(() => {});
       return NextResponse.json({
         success: true,
         action: "auto_fix_all",
-        auditScore: auditResult.healthScore,
-        findingsCount: auditResult.totalFindings,
+        findingsCount: totalFindings,
         fixesRun,
         fixesTotal: cronQueue.length,
         results,

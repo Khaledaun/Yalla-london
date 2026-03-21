@@ -136,8 +136,13 @@ export const CONTENT_QUALITY = {
    * rejected — meaning the reservoir was permanently starved and 0 articles auto-published.
    * The pre-publication gate (16 checks) catches truly bad content. Campaign enhancer and
    * post-publish crons add affiliates/links/authenticity signals.
+   *
+   * Max achievable score PRE-reservoir (no internal links, affiliates, or images):
+   * Word count 25 + Meta 20 + Schema 10 + Headings 15 + Keywords 5 = 75 pts
+   * Post-publish crons add: internal links 10 + affiliates 5 + images 10 = 25 pts
+   * So pre-reservoir articles typically score 30-50. Threshold must be <= 40.
    */
-  qualityGateScore: 55,
+  qualityGateScore: 40,
   /**
    * Minimum quality score to fetch articles FROM the reservoir for promotion.
    * Intentionally lower than qualityGateScore so that articles scoring 45–54

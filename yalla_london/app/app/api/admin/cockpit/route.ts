@@ -334,7 +334,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   // for Supabase pooler under load (622ms+ latency post-outage).
   // buildTraffic (GA4 API, no DB) runs in parallel with DB builders.
   const GLOBAL_BUDGET_MS = 50_000;
-  const MAX_PER_BUILDER_MS = 15_000;
+  const MAX_PER_BUILDER_MS = 25_000;
   const globalStart = Date.now();
 
   // Track which builders failed so we can tell Khaled what's wrong

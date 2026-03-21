@@ -1151,7 +1151,7 @@ export async function phaseScoring(
 
   // Quality gate — threshold from centralized SEO standards (single source of truth).
   // When standards.ts is updated after algorithm changes, this threshold updates automatically.
-  let qualityGateThreshold = 55; // fallback (matches CONTENT_QUALITY.qualityGateScore)
+  let qualityGateThreshold = 40; // fallback (matches CONTENT_QUALITY.qualityGateScore)
   try {
     const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
     qualityGateThreshold = CONTENT_QUALITY.qualityGateScore;

@@ -275,15 +275,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const INTERNAL_TAGS = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
   const publicTags = tags.filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
 
-  // noindex articles with empty or extremely thin content — prevents indexing placeholder pages.
+  // noindex articles with thin content — prevents indexing stub/placeholder pages that
+  // hurt crawl budget and dilute site quality signals.
   // Check BOTH languages — an Arabic-only article with substantial content_ar should still be indexed
   // even when accessed via the English route (/blog/slug). Google uses the hreflang pair to decide
   // which version to serve; noindexing the English route blocks the whole article from Arabic search.
+  // Threshold: 200 words minimum. Pages under 200 words (like "Five Star Hotels Near Mosques
+  // London" at 70 words) provide no ranking value and waste crawl budget.
   const contentEn = post.content_en || "";
   const contentAr = post.content_ar || "";
-  const hasSubstantiveContent =
-    !!(contentEn.trim() && contentEn.trim().length > 100) ||
-    !!(contentAr.trim() && contentAr.trim().length > 100);
+  const wordCountEn = contentEn.replace(/<[^>]*>/g, "").trim().split(/\s+/).filter(Boolean).length;
+  const wordCountAr = contentAr.replace(/<[^>]*>/g, "").trim().split(/\s+/).filter(Boolean).length;
+  const hasSubstantiveContent = wordCountEn >= 200 || wordCountAr >= 200;
 
   // Fetch real author name for E-E-A-T (cached — shared with page component)
   const author = await getAuthorForSite(siteId);

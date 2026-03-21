@@ -334,7 +334,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   // for Supabase pooler under load (622ms+ latency post-outage).
   // buildTraffic (GA4 API, no DB) runs in parallel with DB builders.
   const GLOBAL_BUDGET_MS = 50_000;
-  const MAX_PER_BUILDER_MS = 25_000;
+  const MAX_PER_BUILDER_MS = 15_000;
   const globalStart = Date.now();
 
   // Track which builders failed so we can tell Khaled what's wrong
@@ -367,17 +367,21 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     }
   }
 
-  // Run builders in 2 waves to balance speed vs pool pressure.
-  // Wave 1: 4 lightweight builders in parallel (each makes 1-2 queries).
-  // Wave 2: buildSites (1 heavy LATERAL JOIN query) runs alone.
-  // buildTraffic (GA4 API — no DB) runs in wave 1.
-  const [traffic, pipeline, cronHealth, revenue] = await Promise.all([
+  // Run builders in 3 waves to limit concurrent DB connections.
+  // With connection_limit=3 per serverless instance, running 4+ DB queries
+  // in parallel exhausts the pool, causing 25s+ timeouts when Supabase
+  // latency is >500ms (e.g., 1244ms seen in production March 21, 2026).
+  // Wave 1: traffic (GA4 API, no DB) + pipeline (3 queries)
+  // Wave 2: cronHealth + revenue (each 1-2 queries)
+  // Wave 3: indexing + sites (heavier queries, run after pool freed)
+  const [traffic, pipeline] = await Promise.all([
     withErrorTracking(buildTraffic(), emptyTraffic(), "buildTraffic"),
     withErrorTracking(buildPipeline(prisma, activeSiteIds), emptyPipeline(), "buildPipeline"),
+  ]);
+  const [cronHealth, revenue] = await Promise.all([
     withErrorTracking(buildCronHealth(prisma), emptyCronHealth(), "buildCronHealth"),
     withErrorTracking(buildRevenue(prisma, activeSiteIds), emptyRevenue(), "buildRevenue"),
   ]);
-  // Wave 2: heavier queries after wave 1 connections are released
   const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), emptyIndexing(), "buildIndexing");
   const sites = await withErrorTracking(buildSites(prisma, allSiteIds), [], "buildSites");
 

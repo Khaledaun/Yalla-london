@@ -70,6 +70,7 @@ export async function scanSiteDiscovery(
       last_error: true,
       inspection_result: true,
     },
+    take: 1000, // Bounded to prevent OOM — sites with 1000+ pages need pagination
   });
   const indexMap = new Map<string | null, typeof indexingRecords[number]>(indexingRecords.map(r => [r.slug, r]));
 
@@ -85,6 +86,7 @@ export async function scanSiteDiscovery(
       date: { gte: d30 },
     },
     select: { url: true, date: true, clicks: true, impressions: true, ctr: true, position: true },
+    take: 5000, // 30 days × ~150 pages ≈ 4500 rows max
   });
 
   // Aggregate GSC by slug

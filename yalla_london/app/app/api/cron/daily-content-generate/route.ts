@@ -92,15 +92,19 @@ export async function GET(request: NextRequest) {
     const totalArticles = siteEntries.reduce((sum, s) => sum + (Array.isArray(s.results) ? s.results.length : 0), 0);
     const successArticles = siteEntries.reduce((sum, s) => sum + (Array.isArray(s.results) ? s.results.filter((r: any) => r.status === "success").length : 0), 0);
 
-    await logCronExecution("daily-content-generate", result.timedOut ? "timed_out" : "completed", {
+    const isSuccess = successArticles > 0 || totalArticles === 0;
+    const cronStatus = result.timedOut ? "timed_out" : (isSuccess ? "completed" : "failed");
+
+    await logCronExecution("daily-content-generate", cronStatus, {
       durationMs: Date.now() - _cronStart,
       itemsProcessed: totalArticles,
       itemsSucceeded: successArticles,
       itemsFailed: totalArticles - successArticles,
       sitesProcessed: Object.keys(result.sites || {}),
       resultSummary: { message: result.message, totalArticles, successArticles, sitesCount: Object.keys(result.sites || {}).length },
+      ...(!isSuccess ? { errorMessage: `${totalArticles - successArticles}/${totalArticles} articles failed to generate` } : {}),
     });
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({ success: isSuccess, ...result });
   } catch (error) {
     const errMsg = error instanceof Error
       ? error.message

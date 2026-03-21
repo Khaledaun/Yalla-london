@@ -4475,9 +4475,160 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ─── Prisma Migration Deploy ──────────────────────────────────────────────
+// Reads migration SQL files from prisma/migrations/ and applies any that
+// haven't been recorded in the _prisma_migrations table.
+// Equivalent to `npx prisma migrate deploy` but works from serverless.
+async function runPrismaMigrations(_request: NextRequest) {
+  const start = Date.now();
+  const results: { applied: string[]; skipped: string[]; errors: string[] } = {
+    applied: [],
+    skipped: [],
+    errors: [],
+  };
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const fs = await import("fs");
+    const path = await import("path");
+
+    // Ensure _prisma_migrations table exists
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+        "id" VARCHAR(36) NOT NULL PRIMARY KEY,
+        "checksum" VARCHAR(64) NOT NULL,
+        "finished_at" TIMESTAMPTZ,
+        "migration_name" VARCHAR(255) NOT NULL,
+        "logs" TEXT,
+        "rolled_back_at" TIMESTAMPTZ,
+        "started_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        "applied_steps_count" INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    // Find migration directories
+    const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
+    if (!fs.existsSync(migrationsDir)) {
+      return NextResponse.json({
+        success: false,
+        error: "prisma/migrations directory not found",
+      }, { status: 400 });
+    }
+
+    const dirs = fs.readdirSync(migrationsDir, { withFileTypes: true })
+      .filter((d: any) => d.isDirectory() && !d.name.startsWith("_"))
+      .map((d: any) => d.name)
+      .sort(); // Alphabetical = chronological for timestamped dirs
+
+    // Get already-applied migrations
+    const applied = await prisma.$queryRawUnsafe(
+      `SELECT "migration_name" FROM "_prisma_migrations" WHERE "rolled_back_at" IS NULL`
+    ) as { migration_name: string }[];
+    const appliedSet = new Set(applied.map((r) => r.migration_name));
+
+    for (const dir of dirs) {
+      if (appliedSet.has(dir)) {
+        results.skipped.push(dir);
+        continue;
+      }
+
+      const sqlPath = path.join(migrationsDir, dir, "migration.sql");
+      if (!fs.existsSync(sqlPath)) {
+        results.skipped.push(`${dir} (no migration.sql)`);
+        continue;
+      }
+
+      // Budget check — don't start a migration if we're running low
+      if (Date.now() - start > 45_000) {
+        results.errors.push(`${dir}: skipped (budget exhausted after 45s)`);
+        break;
+      }
+
+      try {
+        const sql = fs.readFileSync(sqlPath, "utf-8");
+        const migrationId = require("crypto").randomUUID();
+
+        // Record migration as started
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "_prisma_migrations" ("id", "checksum", "migration_name", "started_at", "applied_steps_count")
+           VALUES ($1, $2, $3, now(), 0)`,
+          migrationId,
+          require("crypto").createHash("sha256").update(sql).digest("hex"),
+          dir
+        );
+
+        // Execute the migration SQL
+        // Split on semicolons but handle IF NOT EXISTS and DO $$ blocks
+        const statements = sql
+          .split(/;\s*$/m)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0);
+
+        let stepsApplied = 0;
+        for (const stmt of statements) {
+          try {
+            await prisma.$executeRawUnsafe(stmt);
+            stepsApplied++;
+          } catch (stmtErr: any) {
+            const msg = stmtErr?.message || String(stmtErr);
+            // Skip "already exists" errors (idempotent migrations)
+            if (msg.includes("already exists") || msg.includes("duplicate")) {
+              stepsApplied++;
+              continue;
+            }
+            throw stmtErr;
+          }
+        }
+
+        // Mark as completed
+        await prisma.$executeRawUnsafe(
+          `UPDATE "_prisma_migrations" SET "finished_at" = now(), "applied_steps_count" = $1 WHERE "id" = $2`,
+          stepsApplied,
+          migrationId
+        );
+
+        results.applied.push(dir);
+      } catch (migErr: any) {
+        const msg = migErr?.message || String(migErr);
+        results.errors.push(`${dir}: ${msg.slice(0, 200)}`);
+        console.error(`[db-migrate] Prisma migration ${dir} failed:`, msg);
+      }
+    }
+
+    return NextResponse.json({
+      success: results.errors.length === 0,
+      action: "prisma-migrate",
+      applied: results.applied,
+      skipped: results.skipped,
+      errors: results.errors,
+      totalMigrations: dirs.length,
+      alreadyApplied: results.skipped.length,
+      newlyApplied: results.applied.length,
+      durationMs: Date.now() - start,
+    });
+  } catch (e: any) {
+    console.error("[db-migrate] Prisma migration deploy failed:", e);
+    return NextResponse.json({
+      success: false,
+      error: "Prisma migration deploy failed",
+      details: e?.message?.slice(0, 300),
+    }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const authError = await checkAuth(request);
   if (authError) return authError;
+
+  const url = new URL(request.url);
+  const action = url.searchParams.get("action");
+
+  // ── Prisma Migration Deploy ─────────────────────────────────────────────
+  // Runs pending Prisma migration SQL files from prisma/migrations/
+  // This is equivalent to `npx prisma migrate deploy` but runs from serverless
+  if (action === "prisma-migrate") {
+    return runPrismaMigrations(request);
+  }
 
   const _start = Date.now();
   const BUDGET_MS = 53_000; // 53s budget out of 60s maxDuration

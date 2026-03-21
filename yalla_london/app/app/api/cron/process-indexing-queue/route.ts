@@ -203,6 +203,11 @@ async function handleProcessQueue(request: NextRequest) {
                 );
                 siteIndexNowSubmitted = batch.length;
                 console.log(`[process-indexing-queue] Submitted ${batch.length} discovered standard URLs via IndexNow for ${siteId}`);
+              } else {
+                // Log WHY all engines rejected — prevents silent 0-submission mystery
+                const rejections = inResults.map(r => `${r.engine}: ${r.status ?? "n/a"} ${r.message ?? ""}`).join("; ");
+                console.warn(`[process-indexing-queue] IndexNow rejected by ALL engines for ${siteId} (${batch.length} URLs): ${rejections}`);
+                totalIndexNowFailed += batch.length;
               }
             } else {
               console.log(`[process-indexing-queue] ${standardUrls.length} standard URLs for ${siteId} — INDEXNOW_KEY not set, skipped`);

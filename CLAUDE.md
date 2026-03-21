@@ -59,7 +59,12 @@ These are not suggestions. These are hard rules for every commit:
    - **Verify argument contracts**: When calling any function, READ its actual signature in the source file. Never guess parameter order, count, or types from memory. This project has 126+ critical rules learned from exactly this kind of mistake.
    - **Check downstream impact**: If you change a threshold, constant, or quality gate — search for every file that references it. A change to `standards.ts` can break `pre-publication-gate.ts`, `phases.ts`, `select-runner.ts`, `content-auto-fix.ts`, and `content-auto-fix-lite.ts` simultaneously.
    - **No orphan fixes**: A fix that solves one bug but introduces a new one elsewhere is not a fix. If your change touches shared code (lib/, config/, middleware), verify it works for ALL consumers — not just the one you're focused on.
-   - **Build must pass before push**: Run `npx tsc --noEmit` before EVERY commit. A TypeScript error that reaches Vercel wastes 5+ minutes of build time and blocks deployment for Khaled. Type errors in this codebase have consistently been wrong function signatures, missing fields, and changed interfaces. **NEVER push code that hasn't been type-checked locally.**
+   - **Build must pass before EVERY push (MANDATORY — ZERO EXCEPTIONS)**: Before pushing ANY commit to the remote, you MUST run the Next.js build and verify it completes successfully. A failed build blocks Vercel deployment, wastes 5+ minutes, and leaves Khaled stuck on the old version. This has caused repeated production delays.
+     - **Command**: `cd /home/user/Yalla-london/yalla_london/app && ./node_modules/.bin/next build 2>&1 | tail -20` (check for "Compiled successfully" or "Build error"). If `node_modules` are missing, run `npm install --legacy-peer-deps` first.
+     - **If `next build` is too slow**: At minimum run `npx tsc --noEmit 2>&1 | grep -E "error TS" | grep -v "Cannot find module" | head -20` to catch type errors in YOUR changed files (ignore pre-existing "Cannot find module" errors from missing node_modules)
+     - **If the build fails**: FIX the error before pushing. Do NOT push broken code with a "will fix later" comment.
+     - **Common build-breaking patterns in this codebase**: wrong TypeScript union types (e.g., adding a new string literal to a union without updating the type definition), wrong Prisma field names, missing imports, wrong function argument counts
+     - **Rationale**: The build that just failed (March 21, 2026) was caused by adding `"prisma-migrate"` to a state setter without adding it to the type union — a 2-second fix that cost 5 minutes of build time and a blocked deploy. This rule exists to prevent that pattern permanently.
    - **Forward resilience**: Every fix must be durable, not fragile. Ask: "If someone changes the function I'm calling, will my code break silently or loudly?" Prefer explicit types, named imports, and interface contracts over positional arguments and implicit assumptions. If a function takes 6 positional parameters, verify all 6 — don't assume the last 3 are optional. If a schema field might be renamed, use the Prisma-generated types instead of raw strings.
    - **Fix it once, fix it permanently**: A band-aid fix that works today but breaks when the next site launches, or when a new cron is added, or when a threshold changes — is not a real fix. Every change must work for: (a) all 6 configured sites, (b) all active cron jobs, (c) the current pipeline AND the legacy pipeline, (d) both English and Arabic content. If it only works for one site or one language, it's incomplete.
    - **Rationale**: This project has 3,800+ lines of CLAUDE.md documenting bugs caused by isolated fixes that didn't account for the broader system. The `getLinksForContent()` bug (3 args instead of 6), the `BlogPost.title` bug (field doesn't exist), the `published_at` bug (field doesn't exist) — ALL were coherence failures where code was written without checking the actual function/schema it was calling. This rule exists to break that pattern permanently.
@@ -3916,6 +3921,114 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform + anti-patterns registry |
 | `lib/canva/video-registry.ts` | 433 Canva video clips — 4 collections (luxury travel, beach, aesthetic, brand) |
 | `app/api/admin/pdf-covers/route.tsx` | PDF cover generator — 6 branded templates |
+
+### Session: March 21, 2026 — Silent Error Audit: 6 Fixes from 200-Entry Operations Log Analysis
+
+**200-entry operations log analysis revealing 8 silent/suspicious error patterns across 4 files.**
+
+**Bug #1 (HIGH): SEO agent reports `success` status when `failed=1`**
+- At 07:00 UTC, seo-agent ran 45s, result showed `completed=0, failed=1` but CronJobLog status was `"completed"`
+- **Root cause:** `logCronExecution` status was hardcoded to `"completed"` or `"timed_out"` — never `"failed"` even when sites failed internally
+- **Also:** `overallSuccess` logic used `||` (OR) instead of `&&` (AND): `completed > 0 || failed === 0` meant success when 0 completed AND 0 failed
+- **Fix:** Changed to `completed > 0 && failed === 0`. Status now conditional: `overallSuccess ? "completed" : "failed"`. Added `itemsSucceeded`/`itemsFailed` to CronJobLog. Error messages included when failures occur.
+
+**Bug #2 (CRITICAL): daily-content-generate reports `success` with 0/2 articles succeeding**
+- At 05:00 UTC, all AI providers timed out for both articles, but cron reported `success: true` with HTTP 200
+- **Root cause:** `return NextResponse.json({ success: true, ...result })` was hardcoded — never conditional on actual article outcomes
+- **Fix:** Added `isSuccess = successArticles > 0 || totalArticles === 0` check. CronLog status now `"failed"` when all articles fail. Response returns `success: false`.
+
+**Bug #3 (HIGH): Diagnostic agent classifies DB connection errors as `schema_mismatch`**
+- 28 auto-fix entries showed "schema_mismatch" for "Can't reach database server at aws-1-eu-central-2.pooler.supabase.com:5432"
+- **Root cause:** Error classification in `diagnoseFailedCrons()` had no category for connection errors. The `includes("prisma")` catch-all in the schema_mismatch branch was matching because the Prisma error message wrapper contains "prisma" even for connection failures.
+- **Fix:** Added `"database_unavailable"` category BEFORE the Prisma check. Matches: `"can't reach"`, `"econnrefused"`, `"enotfound"`, `"pooler"`, `"database server"`. Added to `DiagnosisCategory` type.
+
+**Bug #4 (HIGH): process-indexing-queue finds 75 URLs, submits 0, logs no error**
+- At 07:15 UTC, `standardUrls: 75` but `indexNowSubmitted: 0` — complete silence about why
+- **Root cause:** When ALL 3 IndexNow engines reject the batch (non-200/202 status), the code only skipped the DB update — no logging of rejection reasons, no incrementing of `totalIndexNowFailed` counter
+- **Fix:** Added `console.warn` with per-engine rejection details (status codes + messages). Added `totalIndexNowFailed += batch.length` so rejections appear in the CronJobLog result summary.
+
+**Non-code issues observed (self-healing systems already handle):**
+
+**Issue #5: 12 drafts stuck in "promoting" phase**
+- Pipeline health snapshot showed `"promoting": 12` — content-selector crashed mid-promotion during Supabase outage
+- **Self-healing:** Diagnostic-sweep (every 2h) reverts promoting drafts >30min back to reservoir. Content-selector also reverts them on next successful run (>60s). No code fix needed.
+
+**Issue #6: content-selector zombie "running" state**
+- At 07:00, content-selector started but never completed (status: "running")
+- **Self-healing:** Diagnostic-sweep marks stale "running" CronJobLog entries as "failed" after 15min. No code fix needed.
+
+**Issue #7: schedule-executor consistently skipping rules**
+- Multiple runs show `skipped: 1, draftsQueued: 0` — reservoir at 38-50 articles (cap is 50)
+- **Not a bug:** Reservoir is full because content-selector publishes slower than pipeline produces. This is healthy — the system is self-regulating.
+
+**Issue #8: EXPAND: prefix drafts rejected at scoring**
+- Drafts like "EXPAND: halal-restaurants-london-luxury-2024-guide" advance through all 8 phases then get rejected at scoring
+- **Not a bug:** These are content expansion attempts for existing articles. If the expanded content doesn't meet quality gate (score < 55), rejection is correct behavior.
+
+**Root infrastructure issue: Supabase pooler intermittently unreachable**
+- Multiple "Can't reach database server" errors between 21:30-04:00 UTC caused cascade failures across content-builder, content-selector, seo-deep-review, campaign-executor, sweeper, content-builder-create
+- This is a transient Supabase infrastructure issue, not a code bug. The `$connect()` retry in lib/db.ts helps but doesn't prevent all cold-start failures.
+- Recovery was automatic — pipeline returned to HEALTHY state by 07:00 UTC
+
+**Files Modified:**
+- `app/api/cron/seo-agent/route.ts` — conditional status reporting, AND logic for success
+- `app/api/cron/daily-content-generate/route.ts` — conditional success based on article outcomes
+- `lib/ops/diagnostic-agent.ts` — new `database_unavailable` category, added before schema_mismatch check
+- `app/api/cron/process-indexing-queue/route.ts` — log IndexNow rejection details, count failures
+
+### Critical Rules Learned (March 21 Session)
+
+130. **`logCronExecution` status must reflect actual outcomes, not be hardcoded to `"completed"`** — when a cron's internal work fails (e.g., `failed=1` in loopResult), the status passed to `logCronExecution` must be `"failed"`. Dashboard reads the `status` field, not the JSON body. Hardcoded `"completed"` hides all internal failures.
+131. **Success logic for multi-site crons must use AND, not OR** — `completed > 0 || failed === 0` is wrong because it returns true when both are 0 (nothing happened). Correct: `completed > 0 && failed === 0` — at least one site succeeded AND none failed.
+132. **`return NextResponse.json({ success: true })` at end of cron routes is a silent-failure anti-pattern** — always compute success from actual results. Pattern: `const isSuccess = successCount > 0 || totalCount === 0; return NextResponse.json({ success: isSuccess })`.
+133. **DB connection errors MUST be classified before Prisma errors** — `"can't reach database server"` contains Prisma wrapper text that matches `includes("prisma")`. The `database_unavailable` check must come FIRST in the if-else chain, before the `schema_mismatch` check. Order of classification matters.
+134. **IndexNow ALL-engine rejection must be logged with per-engine details** — when all 3 IndexNow engines reject, the code must log each engine's status code and error message. Without this, "75 URLs found, 0 submitted" appears in cron logs with zero explanation. Also increment `totalIndexNowFailed` so the count appears in the result summary.
+
+### Session: March 21, 2026 — Supabase CPU Overload: Indexes, Cron Stagger & Log Cleanup
+
+**Root cause of Supabase 80%+ CPU alert: missing compound indexes + cron collisions + unbounded queries.**
+
+**6 missing compound indexes added (migration: `20260321_add_performance_indexes`):**
+
+| Model | New Index | Query Pattern |
+|-------|-----------|---------------|
+| ArticleDraft | `(site_id, current_phase, updated_at)` | build-runner every 15min |
+| ArticleDraft | `(site_id, current_phase, phase_attempts)` | diagnostic-agent recovery |
+| CronJobLog | `(job_name, status, started_at DESC)` | CEO Inbox, cycle-health |
+| CronJobLog | `(status, started_at DESC)` | aggregated-report: failed runs |
+| URLIndexingStatus | `(site_id, status, last_submitted_at DESC)` | stale submission detection |
+| URLIndexingStatus | `(site_id, submitted_indexnow)` | process-indexing-queue |
+
+**Unbounded queries bounded:**
+- `discovery/scanner.ts`: URLIndexingStatus `findMany` now capped at `take: 1000`
+- `discovery/scanner.ts`: GscPagePerformance `findMany` now capped at `take: 5000`
+
+**Cron collision stagger (vercel.json):**
+- `diagnostic-sweep`: `0 */2` → `55 1,3,5,...,23` (off even hours, avoids :00 collision)
+- `perplexity-scheduler`: `0 */2` → `10 */2` (10min offset from diagnostic-sweep)
+- `content-selector`: `0 7,9,...` → `5 7,9,...` (5min offset from seo-agent at :00)
+- `campaign-executor`: `20,50 * * *` → `12,42 * * *` (avoids :20/:50 collision with other crons)
+- `london-news`: `20 6` → `40 6` (20min gap from seo-orchestrator at 6:10)
+- `content-auto-fix-lite`: `30 0,4,...` → `40 0,4,...` (10min gap from sync-advertisers at :30)
+
+**CronJobLog cleanup added to content-auto-fix-lite (Section 9):**
+- Deletes entries older than 14 days every 4h
+- Prevents unbounded table growth (~200 entries/day = 6000/month without cleanup)
+- `cronLogsDeleted` count visible in cron result summary
+
+**Expected CPU reduction:** 35-40% from indexes alone (eliminates full-table scans on the 3 heaviest tables). Cron stagger reduces peak connection pool pressure from 5-6 concurrent → 2-3 concurrent.
+
+**Deployment:**
+1. Run `npx prisma migrate deploy` on Supabase for new indexes
+2. Deploy to Vercel for cron schedule changes
+3. Monitor Supabase CPU dashboard — should drop from 80%+ to ~40-50% within 1h of index creation
+
+### Critical Rules Learned (March 21 Session — CPU Overload)
+
+135. **Every cron query on ArticleDraft must be covered by `@@index([site_id, current_phase, ...])`** — the build-runner runs every 15 minutes querying `WHERE site_id = ? AND current_phase IN (...)`. Without the compound index, this is a sequential scan on 790+ rows every 15 min × 96 times/day.
+136. **CronJobLog grows unbounded and must be cleaned** — with 40+ crons running 200+ times/day, the table adds ~6000 rows/month. Without cleanup, queries on `status + started_at` degrade linearly. 14-day retention is sufficient for debugging while keeping the table under 3000 rows.
+137. **Cron schedules at `:00` of even hours are the most dangerous collision window** — `diagnostic-sweep`, `perplexity-scheduler`, `content-builder`, and `content-selector` all fire at `:00`. Move recurring crons to odd minutes (`:05`, `:10`, `:55`) to spread load.
+138. **`findMany` without `take` on any table that grows with time is a CPU bomb** — URLIndexingStatus, GscPagePerformance, and CronJobLog all grow daily. Every unbounded `findMany` becomes a full-table scan that gets worse every month. Always add `take: N` with a comment explaining why N was chosen.
 
 ## Weekly Manual Checks
 

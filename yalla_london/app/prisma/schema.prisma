@@ -2509,6 +2509,8 @@ model URLIndexingStatus {
 
   @@unique([site_id, url])
   @@index([site_id, status])
+  @@index([site_id, status, last_submitted_at]) // stale submission detection
+  @@index([site_id, submitted_indexnow])         // process-indexing-queue: find unsubmitted pages
   @@index([site_id, slug])
   @@index([status])
   @@index([last_submitted_at])
@@ -2570,6 +2572,8 @@ model CronJobLog {
   created_at    DateTime @default(now())
 
   @@index([job_name, started_at])
+  @@index([job_name, status, started_at]) // CEO Inbox, cycle-health: last run status per job
+  @@index([status, started_at])           // aggregated-report: failed runs in last 24h
   @@index([site_id, job_name])
   @@index([status])
   @@index([started_at])
@@ -2855,6 +2859,8 @@ model ArticleDraft {
   @@index([current_phase, created_at])
   @@index([quality_score])
   @@index([site_id, current_phase])
+  @@index([site_id, current_phase, updated_at])   // build-runner every 15min: find drafts to process
+  @@index([site_id, current_phase, phase_attempts]) // diagnostic-agent: recovery checks
   @@index([created_at])
   @@index([paired_draft_id])
   @@index([trace_id])

@@ -534,6 +534,25 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── 9. CRON LOG CLEANUP ──────────────────────────────────────────────
+  // CronJobLog grows unbounded (~200 entries/day = 6000/month). Delete entries
+  // older than 14 days to keep table small and prevent full-table-scan slowdown.
+  let cronLogsDeleted = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const deleted = await prisma.cronJobLog.deleteMany({
+        where: { started_at: { lt: fourteenDaysAgo } },
+      });
+      cronLogsDeleted = deleted.count;
+      if (cronLogsDeleted > 0) {
+        console.log(`[auto-fix-lite] Cleaned up ${cronLogsDeleted} CronJobLog entries older than 14d`);
+      }
+    } catch (err) {
+      console.warn("[auto-fix-lite] CronJobLog cleanup failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
   const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed;
@@ -551,7 +570,7 @@ async function handleAutoFixLite(request: NextRequest) {
     resultSummary: results,
   }).catch(err => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
 
-  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, ...results });
+  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, cronLogsDeleted, ...results });
 }
 
 export async function GET(request: NextRequest) {

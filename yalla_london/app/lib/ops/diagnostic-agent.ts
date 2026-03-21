@@ -21,12 +21,13 @@
 import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
 
 export type DiagnosisCategory =
-  | "timeout"           // AI call exceeds budget
-  | "provider_down"     // All providers failing
-  | "bad_data"          // Malformed input (broken JSON in sections_data, etc.)
-  | "budget_exhaustion" // Cron runs out of time before reaching this draft
-  | "stuck_loop"        // Draft retried 5+ times on same phase without progress
-  | "schema_mismatch"   // Prisma field doesn't exist
+  | "timeout"              // AI call exceeds budget
+  | "provider_down"        // All providers failing
+  | "bad_data"             // Malformed input (broken JSON in sections_data, etc.)
+  | "budget_exhaustion"    // Cron runs out of time before reaching this draft
+  | "stuck_loop"           // Draft retried 5+ times on same phase without progress
+  | "schema_mismatch"      // Prisma field doesn't exist
+  | "database_unavailable" // Can't reach DB server (Supabase pooler down, network error)
   | "unknown";
 
 export interface Diagnosis {
@@ -217,7 +218,9 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
       const errorMsg = (cron.error_message || "").toLowerCase();
       let category: DiagnosisCategory = "unknown";
 
-      if (errorMsg.includes("timeout") || errorMsg.includes("aborted")) {
+      if (errorMsg.includes("can't reach") || errorMsg.includes("econnrefused") || errorMsg.includes("enotfound") || errorMsg.includes("pooler") || errorMsg.includes("database server")) {
+        category = "database_unavailable";
+      } else if (errorMsg.includes("timeout") || errorMsg.includes("aborted")) {
         category = "timeout";
       } else if (errorMsg.includes("api") || errorMsg.includes("429") || errorMsg.includes("503")) {
         category = "provider_down";

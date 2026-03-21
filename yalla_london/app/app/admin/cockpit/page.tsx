@@ -7903,8 +7903,9 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, siteId }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      let json;
+      try { json = await res.json(); } catch { json = { success: false, error: `Server returned HTTP ${res.status}` }; }
+      if (!res.ok && !json.error) json = { success: false, error: `HTTP ${res.status}` };
       setFixResult(json);
       // Refresh data after fix
       fetchData();

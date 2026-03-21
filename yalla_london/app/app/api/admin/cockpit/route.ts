@@ -328,13 +328,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     ? allSiteIds.filter((id) => id === requestedSiteId)
     : allSiteIds;
 
-  // ── 5-9. Run builders sequentially with GLOBAL budget guard ──
+  // ── 5-9. Run builders with GLOBAL budget guard ──
   // Vercel Pro = 60s max. Auth + overhead ≈ 5s. Global budget = 50s.
-  // Each builder gets min(8s, remaining budget). If one builder is slow,
-  // later builders get less time but the total NEVER exceeds Vercel's limit.
-  // buildTraffic (GA4 API, no DB) runs in parallel with the first DB builder.
+  // Each builder gets min(15s, remaining budget). Previous 8s limit was too tight
+  // for Supabase pooler under load (622ms+ latency post-outage).
+  // buildTraffic (GA4 API, no DB) runs in parallel with DB builders.
   const GLOBAL_BUDGET_MS = 50_000;
-  const MAX_PER_BUILDER_MS = 8_000;
+  const MAX_PER_BUILDER_MS = 15_000;
   const globalStart = Date.now();
 
   // Track which builders failed so we can tell Khaled what's wrong
@@ -367,15 +367,19 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     }
   }
 
-  // Serialize DB builders to prevent connection pool exhaustion on Supabase.
-  // buildTraffic (GA4 API — no DB) runs in parallel with the first DB builder.
-  const trafficPromise = withErrorTracking(buildTraffic(), emptyTraffic(), "buildTraffic");
-  const pipeline = await withErrorTracking(buildPipeline(prisma, activeSiteIds), emptyPipeline(), "buildPipeline");
+  // Run builders in 2 waves to balance speed vs pool pressure.
+  // Wave 1: 4 lightweight builders in parallel (each makes 1-2 queries).
+  // Wave 2: buildSites (1 heavy LATERAL JOIN query) runs alone.
+  // buildTraffic (GA4 API — no DB) runs in wave 1.
+  const [traffic, pipeline, cronHealth, revenue] = await Promise.all([
+    withErrorTracking(buildTraffic(), emptyTraffic(), "buildTraffic"),
+    withErrorTracking(buildPipeline(prisma, activeSiteIds), emptyPipeline(), "buildPipeline"),
+    withErrorTracking(buildCronHealth(prisma), emptyCronHealth(), "buildCronHealth"),
+    withErrorTracking(buildRevenue(prisma, activeSiteIds), emptyRevenue(), "buildRevenue"),
+  ]);
+  // Wave 2: heavier queries after wave 1 connections are released
   const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), emptyIndexing(), "buildIndexing");
-  const cronHealth = await withErrorTracking(buildCronHealth(prisma), emptyCronHealth(), "buildCronHealth");
   const sites = await withErrorTracking(buildSites(prisma, allSiteIds), [], "buildSites");
-  const revenue = await withErrorTracking(buildRevenue(prisma, activeSiteIds), emptyRevenue(), "buildRevenue");
-  const traffic = await trafficPromise;
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({

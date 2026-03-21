@@ -7874,8 +7874,7 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [period, setPeriod] = useState("28d");
   const [fixing, setFixing] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [fixResult, setFixResult] = useState<Record<string, any> | null>(null);
+  const [fixResult, setFixResult] = useState<Record<string, unknown> | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);

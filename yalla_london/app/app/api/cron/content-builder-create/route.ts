@@ -59,7 +59,7 @@ async function handleCreate(request: NextRequest) {
       const reservoirCount = await prisma.articleDraft.count({
         where: { site_id: siteId, current_phase: "reservoir" },
       });
-      if (reservoirCount >= 20) {
+      if (reservoirCount >= 50) {
         fullReservoirs.push(`${siteId}(${reservoirCount})`);
         continue;
       }

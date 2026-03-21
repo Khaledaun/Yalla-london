@@ -3917,6 +3917,68 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 | `lib/canva/video-registry.ts` | 433 Canva video clips — 4 collections (luxury travel, beach, aesthetic, brand) |
 | `app/api/admin/pdf-covers/route.tsx` | PDF cover generator — 6 branded templates |
 
+### Session: March 21, 2026 — Silent Error Audit: 6 Fixes from 200-Entry Operations Log Analysis
+
+**200-entry operations log analysis revealing 8 silent/suspicious error patterns across 4 files.**
+
+**Bug #1 (HIGH): SEO agent reports `success` status when `failed=1`**
+- At 07:00 UTC, seo-agent ran 45s, result showed `completed=0, failed=1` but CronJobLog status was `"completed"`
+- **Root cause:** `logCronExecution` status was hardcoded to `"completed"` or `"timed_out"` — never `"failed"` even when sites failed internally
+- **Also:** `overallSuccess` logic used `||` (OR) instead of `&&` (AND): `completed > 0 || failed === 0` meant success when 0 completed AND 0 failed
+- **Fix:** Changed to `completed > 0 && failed === 0`. Status now conditional: `overallSuccess ? "completed" : "failed"`. Added `itemsSucceeded`/`itemsFailed` to CronJobLog. Error messages included when failures occur.
+
+**Bug #2 (CRITICAL): daily-content-generate reports `success` with 0/2 articles succeeding**
+- At 05:00 UTC, all AI providers timed out for both articles, but cron reported `success: true` with HTTP 200
+- **Root cause:** `return NextResponse.json({ success: true, ...result })` was hardcoded — never conditional on actual article outcomes
+- **Fix:** Added `isSuccess = successArticles > 0 || totalArticles === 0` check. CronLog status now `"failed"` when all articles fail. Response returns `success: false`.
+
+**Bug #3 (HIGH): Diagnostic agent classifies DB connection errors as `schema_mismatch`**
+- 28 auto-fix entries showed "schema_mismatch" for "Can't reach database server at aws-1-eu-central-2.pooler.supabase.com:5432"
+- **Root cause:** Error classification in `diagnoseFailedCrons()` had no category for connection errors. The `includes("prisma")` catch-all in the schema_mismatch branch was matching because the Prisma error message wrapper contains "prisma" even for connection failures.
+- **Fix:** Added `"database_unavailable"` category BEFORE the Prisma check. Matches: `"can't reach"`, `"econnrefused"`, `"enotfound"`, `"pooler"`, `"database server"`. Added to `DiagnosisCategory` type.
+
+**Bug #4 (HIGH): process-indexing-queue finds 75 URLs, submits 0, logs no error**
+- At 07:15 UTC, `standardUrls: 75` but `indexNowSubmitted: 0` — complete silence about why
+- **Root cause:** When ALL 3 IndexNow engines reject the batch (non-200/202 status), the code only skipped the DB update — no logging of rejection reasons, no incrementing of `totalIndexNowFailed` counter
+- **Fix:** Added `console.warn` with per-engine rejection details (status codes + messages). Added `totalIndexNowFailed += batch.length` so rejections appear in the CronJobLog result summary.
+
+**Non-code issues observed (self-healing systems already handle):**
+
+**Issue #5: 12 drafts stuck in "promoting" phase**
+- Pipeline health snapshot showed `"promoting": 12` — content-selector crashed mid-promotion during Supabase outage
+- **Self-healing:** Diagnostic-sweep (every 2h) reverts promoting drafts >30min back to reservoir. Content-selector also reverts them on next successful run (>60s). No code fix needed.
+
+**Issue #6: content-selector zombie "running" state**
+- At 07:00, content-selector started but never completed (status: "running")
+- **Self-healing:** Diagnostic-sweep marks stale "running" CronJobLog entries as "failed" after 15min. No code fix needed.
+
+**Issue #7: schedule-executor consistently skipping rules**
+- Multiple runs show `skipped: 1, draftsQueued: 0` — reservoir at 38-50 articles (cap is 50)
+- **Not a bug:** Reservoir is full because content-selector publishes slower than pipeline produces. This is healthy — the system is self-regulating.
+
+**Issue #8: EXPAND: prefix drafts rejected at scoring**
+- Drafts like "EXPAND: halal-restaurants-london-luxury-2024-guide" advance through all 8 phases then get rejected at scoring
+- **Not a bug:** These are content expansion attempts for existing articles. If the expanded content doesn't meet quality gate (score < 55), rejection is correct behavior.
+
+**Root infrastructure issue: Supabase pooler intermittently unreachable**
+- Multiple "Can't reach database server" errors between 21:30-04:00 UTC caused cascade failures across content-builder, content-selector, seo-deep-review, campaign-executor, sweeper, content-builder-create
+- This is a transient Supabase infrastructure issue, not a code bug. The `$connect()` retry in lib/db.ts helps but doesn't prevent all cold-start failures.
+- Recovery was automatic — pipeline returned to HEALTHY state by 07:00 UTC
+
+**Files Modified:**
+- `app/api/cron/seo-agent/route.ts` — conditional status reporting, AND logic for success
+- `app/api/cron/daily-content-generate/route.ts` — conditional success based on article outcomes
+- `lib/ops/diagnostic-agent.ts` — new `database_unavailable` category, added before schema_mismatch check
+- `app/api/cron/process-indexing-queue/route.ts` — log IndexNow rejection details, count failures
+
+### Critical Rules Learned (March 21 Session)
+
+130. **`logCronExecution` status must reflect actual outcomes, not be hardcoded to `"completed"`** — when a cron's internal work fails (e.g., `failed=1` in loopResult), the status passed to `logCronExecution` must be `"failed"`. Dashboard reads the `status` field, not the JSON body. Hardcoded `"completed"` hides all internal failures.
+131. **Success logic for multi-site crons must use AND, not OR** — `completed > 0 || failed === 0` is wrong because it returns true when both are 0 (nothing happened). Correct: `completed > 0 && failed === 0` — at least one site succeeded AND none failed.
+132. **`return NextResponse.json({ success: true })` at end of cron routes is a silent-failure anti-pattern** — always compute success from actual results. Pattern: `const isSuccess = successCount > 0 || totalCount === 0; return NextResponse.json({ success: isSuccess })`.
+133. **DB connection errors MUST be classified before Prisma errors** — `"can't reach database server"` contains Prisma wrapper text that matches `includes("prisma")`. The `database_unavailable` check must come FIRST in the if-else chain, before the `schema_mismatch` check. Order of classification matters.
+134. **IndexNow ALL-engine rejection must be logged with per-engine details** — when all 3 IndexNow engines reject, the code must log each engine's status code and error message. Without this, "75 URLs found, 0 submitted" appears in cron logs with zero explanation. Also increment `totalIndexNowFailed` so the count appears in the result summary.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

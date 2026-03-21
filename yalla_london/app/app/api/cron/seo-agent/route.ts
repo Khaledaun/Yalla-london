@@ -98,14 +98,18 @@ export async function GET(request: NextRequest) {
       remainingBudget
     );
 
-    await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {
+    // success = true only when at least one site completed AND none failed
+    const overallSuccess = loopResult.completed > 0 && loopResult.failed === 0;
+    const cronStatus = loopResult.timedOut ? "timed_out" : (overallSuccess ? "completed" : "failed");
+
+    await logCronExecution("seo-agent", cronStatus, {
       durationMs: Date.now() - start,
       sitesProcessed: Object.keys(loopResult.results || {}),
-      resultSummary: { message: `completed=${loopResult.completed}, failed=${loopResult.failed}, skipped=${loopResult.skipped}` },
+      itemsSucceeded: loopResult.completed,
+      itemsFailed: loopResult.failed,
+      resultSummary: { completed: loopResult.completed, failed: loopResult.failed, skipped: loopResult.skipped },
+      ...(loopResult.failed > 0 && Array.isArray(loopResult.errors) && loopResult.errors.length > 0 ? { errorMessage: (loopResult.errors as string[]).slice(0, 3).join("; ") } : {}),
     });
-
-    // success = true only when at least one site completed without failure
-    const overallSuccess = loopResult.completed > 0 || loopResult.failed === 0;
     return NextResponse.json({
       success: overallSuccess,
       agent: "seo-autonomous-multisite",

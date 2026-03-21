@@ -494,30 +494,53 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 12. THIN CONTENT AUTO-UNPUBLISH — published blog articles below minWords threshold ──
-  // Blog articles that bypassed the quality gate.
-  // Uses CONTENT_QUALITY.minWords from standards.ts (single source of truth).
-  // News/info pages have their own lower thresholds via CONTENT_TYPE_THRESHOLDS.
-  // GUARD: Skip articles with active campaign enhancement tasks — unpublishing mid-campaign
-  // wastes AI budget and erases the duplicate/thin flag marker.
+  // ── 11B. RECOVER AUTO-UNPUBLISHED ARTICLES — re-publish articles wrongly unpublished by old thin-content logic ──
+  // The old Section 12 used to unpublish articles with < 500 words. This was destructive:
+  // it removed indexed pages from Google, lost SEO equity, and caused "false positive" removals.
+  // This recovery section finds articles with [AUTO-UNPUBLISHED:] in their meta description
+  // and re-publishes them so they can be expanded by seo-deep-review instead.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      // Get IDs of articles currently being enhanced by campaigns
-      let activeCampaignPostIds: Set<string> = new Set();
-      try {
-        const activeTasks = await prisma.campaignItem.findMany({
-          where: { status: { in: ["pending", "processing"] } },
-          select: { targetId: true },
-        });
-        activeCampaignPostIds = new Set(activeTasks.map((t: { targetId: string }) => t.targetId));
-      } catch {
-        // CampaignItem table may not exist — proceed without filter
-      }
+      const autoUnpublished = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: false,
+          deletedAt: null,
+          meta_description_en: { startsWith: "[AUTO-UNPUBLISHED:" },
+        },
+        select: { id: true, slug: true, meta_description_en: true, title_en: true },
+        take: 20,
+      });
 
-      // Only check articles published more than 2 hours ago — freshly created
-      // articles may still be in the enhancement pipeline (campaigns, SEO agent).
-      // Without this guard, a just-published 300-word article could be immediately
-      // unpublished before the expansion pass runs.
+      let recovered = 0;
+      for (const post of autoUnpublished) {
+        // Restore original meta description (strip the [AUTO-UNPUBLISHED:...] prefix)
+        const originalMeta = (post.meta_description_en || "").replace(/^\[AUTO-UNPUBLISHED:[^\]]*\]\s*/, "").trim();
+        await optimisticBlogPostUpdate(post.id, () => ({
+          published: true,
+          meta_description_en: originalMeta || post.title_en || "",
+        }), { tag: "[content-auto-fix]" });
+        recovered++;
+        console.log(`[content-auto-fix] Re-published auto-unpublished article: "${post.slug}"`);
+      }
+      if (recovered > 0) {
+        console.log(`[content-auto-fix] Recovered ${recovered} wrongly auto-unpublished articles`);
+      }
+      (results as Record<string, unknown>).articlesRecovered = recovered;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`recover-unpublished: ${msg}`);
+      console.warn("[content-auto-fix] Recovery of auto-unpublished articles failed:", msg);
+    }
+  }
+
+  // ── 12. THIN CONTENT FLAGGING (READ-ONLY) — log thin articles for seo-deep-review expansion ──
+  // IMPORTANT: Never auto-unpublish articles. Unpublishing removes indexed pages from Google,
+  // destroys SEO equity, and causes "false positive" removals. The seo-deep-review cron
+  // is responsible for EXPANDING thin content, not removing it.
+  // This section only LOGS thin articles for visibility — no mutations.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       const allPublished = await prisma.blogPost.findMany({
         where: {
@@ -527,35 +550,28 @@ async function handleAutoFix(request: NextRequest) {
           content_en: { not: "" },
           created_at: { lt: twoHoursAgo },
         },
-        select: { id: true, slug: true, title_en: true, content_en: true, category_id: true },
+        select: { id: true, slug: true, content_en: true },
         orderBy: { created_at: "asc" },
         take: 50,
       });
 
-      let thinUnpublished = 0;
+      let thinCount = 0;
       for (const post of allPublished) {
-        // Skip articles being enhanced by active campaign
-        if (activeCampaignPostIds.has(post.id)) {
-          console.log(`[content-auto-fix] Skipping thin check for "${post.slug}" — active campaign task`);
-          continue;
-        }
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
         if (wordCount < CONTENT_QUALITY.minWords) {
-          await optimisticBlogPostUpdate(post.id, () => ({
-            published: false,
-            meta_description_en: `[AUTO-UNPUBLISHED: ${wordCount}w < ${CONTENT_QUALITY.minWords}w minimum] ${(post.title_en || "").slice(0, 100)}`,
-          }), { tag: "[content-auto-fix]" });
-          thinUnpublished++;
-          console.log(`[content-auto-fix] Unpublished thin article: "${post.slug}" (${wordCount}w)`);
-          if (thinUnpublished >= 5) break;
+          thinCount++;
+          console.log(`[content-auto-fix] Thin article flagged for expansion: "${post.slug}" (${wordCount}w) — will be expanded by seo-deep-review`);
         }
       }
-      results.thinUnpublished = thinUnpublished;
+      results.thinUnpublished = 0; // No longer unpublishing — only flagging
+      if (thinCount > 0) {
+        console.log(`[content-auto-fix] ${thinCount} thin articles flagged for seo-deep-review expansion (no unpublishing)`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      results.errors.push(`thin-content: ${msg}`);
-      console.warn("[content-auto-fix] Thin content unpublish failed:", msg);
+      results.errors.push(`thin-content-flag: ${msg}`);
+      console.warn("[content-auto-fix] Thin content flagging failed:", msg);
     }
   }
 

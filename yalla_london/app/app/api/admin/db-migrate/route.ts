@@ -4521,9 +4521,9 @@ async function runPrismaMigrations(_request: NextRequest) {
       .sort(); // Alphabetical = chronological for timestamped dirs
 
     // Get already-applied migrations
-    const applied = await prisma.$queryRawUnsafe<{ migration_name: string }[]>(
+    const applied = await prisma.$queryRawUnsafe(
       `SELECT "migration_name" FROM "_prisma_migrations" WHERE "rolled_back_at" IS NULL`
-    );
+    ) as { migration_name: string }[];
     const appliedSet = new Set(applied.map((r) => r.migration_name));
 
     for (const dir of dirs) {

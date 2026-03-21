@@ -751,7 +751,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         SELECT
           COUNT(*) FILTER (WHERE current_phase = 'reservoir')::int AS reservoir_count,
           COUNT(*) FILTER (WHERE current_phase IN ('research','outline','drafting','assembly','images','seo','scoring'))::int AS pipeline_count
-        FROM "ArticleDraft" WHERE site_id = s.site_id
+        FROM "article_drafts" WHERE site_id = s.site_id
       ) ad ON true
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int AS indexed_count

@@ -6680,7 +6680,10 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
               setMigrationResult(null);
               try {
                 const res = await fetch("/api/admin/db-migrate?action=prisma-migrate", { method: "POST" });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) {
+                  const errJson = await res.json().catch(() => null);
+                  throw new Error(errJson?.error || `HTTP ${res.status}`);
+                }
                 const json = await res.json();
                 if (!json.success && json.errors?.length) throw new Error(json.errors.join(", "));
                 setMigrationResult({

@@ -488,3 +488,239 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// ── POST: Fix Actions ─────────────────────────────────────────────────────────
+
+export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const body = await request.json();
+    const action = body.action as string;
+    const siteId = (body.siteId as string) || getDefaultSiteId();
+    const domain = getSiteDomain(siteId);
+
+    // ── Action: fix_all — run all fixes ──
+    if (action === "fix_all" || action === "fix_never_submitted" || action === "fix_duplicates") {
+      const results: Record<string, unknown> = {};
+
+      // ── Fix 1: Track all never-submitted URLs ──
+      if (action === "fix_all" || action === "fix_never_submitted") {
+        const publishedPosts = await prisma.blogPost.findMany({
+          where: { siteId, published: true },
+          select: { slug: true, title_en: true, created_at: true },
+        });
+
+        // Get all existing tracked URLs for this site
+        const existingUrls = await prisma.uRLIndexingStatus.findMany({
+          where: { site_id: siteId },
+          select: { url: true },
+        });
+        const trackedUrlSet = new Set<string>(existingUrls.map((u) => u.url));
+
+        // Find untracked articles
+        const untrackedPosts: Array<{ slug: string; title: string; url: string }> = [];
+        for (const post of publishedPosts) {
+          const blogUrl = `${domain}/blog/${post.slug}`;
+          if (!trackedUrlSet.has(blogUrl)) {
+            untrackedPosts.push({ slug: post.slug, title: post.title_en || "", url: blogUrl });
+          }
+        }
+
+        // Bulk create URLIndexingStatus records for untracked articles
+        let tracked = 0;
+        for (const post of untrackedPosts) {
+          try {
+            await prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: siteId, url: post.url } },
+              create: {
+                site_id: siteId,
+                url: post.url,
+                slug: `blog/${post.slug}`,
+                status: "discovered",
+                submitted_indexnow: false,
+                submitted_sitemap: false,
+                submitted_google_api: false,
+              },
+              update: {},
+            });
+            // Also track Arabic variant
+            const arUrl = post.url.replace(`${domain}/blog/`, `${domain}/ar/blog/`);
+            await prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: siteId, url: arUrl } },
+              create: {
+                site_id: siteId,
+                url: arUrl,
+                slug: `ar/blog/${post.slug}`,
+                status: "discovered",
+                submitted_indexnow: false,
+                submitted_sitemap: false,
+                submitted_google_api: false,
+              },
+              update: {},
+            }).catch(() => {});
+            tracked++;
+          } catch (err) {
+            console.warn(`[seo-intelligence] Failed to track ${post.url}:`, err instanceof Error ? err.message : err);
+          }
+        }
+
+        // Now submit all "discovered" URLs to IndexNow immediately
+        let submitted = 0;
+        const discoveredUrls = await prisma.uRLIndexingStatus.findMany({
+          where: { site_id: siteId, status: "discovered", submitted_indexnow: false },
+          select: { id: true, url: true },
+          take: 200,
+        });
+
+        if (discoveredUrls.length > 0) {
+          try {
+            const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+            const urlList = discoveredUrls.map((u) => u.url);
+            const indexNowResults = await submitToIndexNow(urlList, domain);
+            const anySuccess = indexNowResults.some((r) => r.success);
+
+            if (anySuccess) {
+              const ids = discoveredUrls.map((u) => u.id);
+              await prisma.uRLIndexingStatus.updateMany({
+                where: { id: { in: ids } },
+                data: {
+                  submitted_indexnow: true,
+                  status: "submitted",
+                  last_submitted_at: new Date(),
+                },
+              });
+              submitted = discoveredUrls.length;
+            }
+          } catch (err) {
+            console.warn("[seo-intelligence] IndexNow submission failed:", err instanceof Error ? err.message : err);
+          }
+        }
+
+        results.neverSubmitted = {
+          totalPublished: publishedPosts.length,
+          alreadyTracked: publishedPosts.length - untrackedPosts.length,
+          newlyTracked: tracked,
+          submittedToIndexNow: submitted,
+          discoveredUrlsQueued: discoveredUrls.length,
+        };
+      }
+
+      // ── Fix 2: Find and handle duplicates ──
+      if (action === "fix_all" || action === "fix_duplicates") {
+        const allPosts = await prisma.blogPost.findMany({
+          where: { siteId, published: true },
+          select: { id: true, title_en: true, slug: true, created_at: true, seo_score: true, content_en: true },
+          orderBy: { created_at: "asc" },
+        });
+
+        // Detect duplicates using word-level Jaccard similarity
+        interface DuplicateGroup {
+          keepSlug: string;
+          keepTitle: string;
+          keepScore: number | null;
+          duplicates: Array<{ slug: string; title: string; score: number | null; similarity: number }>;
+        }
+
+        const getWords = (title: string) =>
+          new Set<string>(
+            (title || "")
+              .toLowerCase()
+              .replace(/[^\w\s]/g, " ")
+              .split(/\s+/)
+              .filter((w) => w.length > 2)
+          );
+
+        const jaccard = (a: Set<string>, b: Set<string>): number => {
+          if (a.size === 0 && b.size === 0) return 0;
+          let intersection = 0;
+          for (const w of a) if (b.has(w)) intersection++;
+          const union = new Set<string>([...a, ...b]).size;
+          return union > 0 ? intersection / union : 0;
+        };
+
+        const processed = new Set<string>();
+        const duplicateGroups: DuplicateGroup[] = [];
+
+        for (let i = 0; i < allPosts.length; i++) {
+          if (processed.has(allPosts[i].id)) continue;
+          const wordsI = getWords(allPosts[i].title_en || "");
+          const group: DuplicateGroup = {
+            keepSlug: allPosts[i].slug,
+            keepTitle: allPosts[i].title_en || "",
+            keepScore: allPosts[i].seo_score,
+            duplicates: [],
+          };
+
+          for (let j = i + 1; j < allPosts.length; j++) {
+            if (processed.has(allPosts[j].id)) continue;
+            const wordsJ = getWords(allPosts[j].title_en || "");
+            const sim = jaccard(wordsI, wordsJ);
+            if (sim >= 0.6) {
+              processed.add(allPosts[j].id);
+              group.duplicates.push({
+                slug: allPosts[j].slug,
+                title: allPosts[j].title_en || "",
+                score: allPosts[j].seo_score,
+                similarity: Math.round(sim * 100),
+              });
+            }
+          }
+
+          if (group.duplicates.length > 0) {
+            processed.add(allPosts[i].id);
+            duplicateGroups.push(group);
+          }
+        }
+
+        // Auto-unpublish duplicates (keep the older/better-scored one)
+        let unpublished = 0;
+        const unpublishedSlugs: string[] = [];
+
+        for (const group of duplicateGroups) {
+          for (const dup of group.duplicates) {
+            try {
+              await prisma.blogPost.updateMany({
+                where: { siteId, slug: dup.slug, published: true },
+                data: { published: false },
+              });
+              unpublished++;
+              unpublishedSlugs.push(dup.slug);
+            } catch (err) {
+              console.warn(`[seo-intelligence] Failed to unpublish duplicate ${dup.slug}:`, err instanceof Error ? err.message : err);
+            }
+          }
+        }
+
+        results.duplicates = {
+          groupsFound: duplicateGroups.length,
+          totalDuplicates: duplicateGroups.reduce((s, g) => s + g.duplicates.length, 0),
+          unpublished,
+          unpublishedSlugs,
+          groups: duplicateGroups.map((g) => ({
+            kept: { slug: g.keepSlug, title: g.keepTitle, score: g.keepScore },
+            removed: g.duplicates,
+          })),
+        };
+      }
+
+      return NextResponse.json({
+        success: true,
+        action,
+        siteId,
+        results,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json(
+      { success: false, error: e instanceof Error ? e.message : String(e) },
+      { status: 500 }
+    );
+  }
+}

@@ -361,6 +361,265 @@ function ActionButton({
   );
 }
 
+// ─── Deep Article Cleanup Card ────────────────────────────────────────────────
+
+interface DeepCleanupAudit {
+  summary: {
+    totalBlogPosts: number;
+    published: number;
+    unpublished: number;
+    totalDrafts: number;
+    phaseDistribution: Record<string, number>;
+    duplicateGroups: number;
+    totalDuplicatesToDelete: number;
+    seoProblems: number;
+    seoToUnpublish: number;
+    seoToFix: number;
+    rejectedDrafts: number;
+    stuckDrafts: number;
+    reservoirDrafts: number;
+    orphansToDelete: number;
+  };
+  duplicateGroups: Array<{
+    normalizedTitle: string;
+    keep: { id: string; title: string; slug: string; wordCount: number; seoScore: number | null };
+    delete: Array<{ id: string; title: string; slug: string; wordCount: number; seoScore: number | null }>;
+  }>;
+  seoProblems: Array<{
+    id: string; title: string; slug: string; wordCount: number; seoScore: number | null;
+    issues: string[]; action: "unpublish" | "fix" | "monitor";
+  }>;
+  orphans: Array<{ id: string; title: string; slug: string; wordCount: number; status: string; action: string }>;
+  stuck: Array<{ id: string; keyword: string; phase: string | null; attempts: number | null; error: string; action: string }>;
+}
+
+function DeepCleanupCard() {
+  const [audit, setAudit] = useState<DeepCleanupAudit | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const runAudit = async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/article-cleanup");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success) setAudit(data);
+      else setResult(`Audit failed: ${data.error}`);
+    } catch (e) {
+      setResult(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runAction = async (action: string, label: string) => {
+    setActionLoading(action);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/article-cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        const r = data.results;
+        const parts: string[] = [];
+        if (r.duplicatesDeleted) parts.push(`${r.duplicatesDeleted} duplicates removed`);
+        if (r.seoUnpublished) parts.push(`${r.seoUnpublished} SEO-hurting pages unpublished`);
+        if (r.stuckRejected) parts.push(`${r.stuckRejected} deadwood rejected`);
+        if (r.stuckRetried) parts.push(`${r.stuckRetried} stuck drafts retried`);
+        if (r.orphansDeleted) parts.push(`${r.orphansDeleted} orphans deleted`);
+        setResult(parts.length > 0 ? `Done: ${parts.join(", ")}` : "No changes needed");
+        runAudit(); // refresh
+      } else {
+        setResult(`Failed: ${data.error}`);
+      }
+    } catch (e) {
+      setResult(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const s = audit?.summary;
+  const hasIssues = s && (s.totalDuplicatesToDelete > 0 || s.seoToUnpublish > 0 || s.stuckDrafts > 0 || s.orphansToDelete > 0);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <SectionTitle>Deep Article Cleanup</SectionTitle>
+        <ActionButton onClick={runAudit} loading={loading}>
+          {audit ? "Re-scan" : "Full Audit"}
+        </ActionButton>
+      </div>
+
+      {!audit && !loading && (
+        <p className="text-xs text-stone-500">Full database audit: duplicates, SEO problems, deadwood drafts, stuck pipeline, orphans.</p>
+      )}
+
+      {audit && s && (
+        <div className="space-y-3">
+          {/* Summary grid */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2 rounded bg-[rgba(45,90,61,0.06)]">
+              <div className="text-lg font-bold text-[#2D5A3D]">{s.published}</div>
+              <div className="text-stone-500">Published</div>
+            </div>
+            <div className="p-2 rounded bg-stone-50">
+              <div className="text-lg font-bold text-stone-600">{s.reservoirDrafts}</div>
+              <div className="text-stone-500">In Reservoir</div>
+            </div>
+            {s.totalDuplicatesToDelete > 0 && (
+              <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]">
+                <div className="text-lg font-bold text-[#C8322B]">{s.totalDuplicatesToDelete}</div>
+                <div className="text-stone-500">Duplicate copies</div>
+              </div>
+            )}
+            {s.seoToUnpublish > 0 && (
+              <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]">
+                <div className="text-lg font-bold text-[#C8322B]">{s.seoToUnpublish}</div>
+                <div className="text-stone-500">SEO-hurting</div>
+              </div>
+            )}
+            {s.stuckDrafts > 0 && (
+              <div className="p-2 rounded bg-[rgba(196,154,42,0.08)]">
+                <div className="text-lg font-bold text-[#7a5a10]">{s.stuckDrafts}</div>
+                <div className="text-stone-500">Stuck drafts</div>
+              </div>
+            )}
+            {s.orphansToDelete > 0 && (
+              <div className="p-2 rounded bg-stone-50">
+                <div className="text-lg font-bold text-stone-500">{s.orphansToDelete}</div>
+                <div className="text-stone-500">Orphans to delete</div>
+              </div>
+            )}
+            {s.rejectedDrafts > 0 && (
+              <div className="p-2 rounded bg-stone-50">
+                <div className="text-lg font-bold text-stone-400">{s.rejectedDrafts}</div>
+                <div className="text-stone-500">Rejected (dead)</div>
+              </div>
+            )}
+          </div>
+
+          {/* Phase distribution */}
+          <div className="text-xs">
+            <button onClick={() => setExpanded(expanded === "phases" ? null : "phases")} className="font-medium text-stone-600 underline">
+              Pipeline: {Object.entries(s.phaseDistribution).map(([k, v]) => `${k}:${v}`).join(" | ")}
+            </button>
+          </div>
+
+          {/* Expandable: Duplicates */}
+          {audit.duplicateGroups.length > 0 && (
+            <div>
+              <button onClick={() => setExpanded(expanded === "dupes" ? null : "dupes")} className="text-xs font-medium text-[#C8322B] underline">
+                {audit.duplicateGroups.length} duplicate group{audit.duplicateGroups.length > 1 ? "s" : ""} ({s.totalDuplicatesToDelete} to remove)
+              </button>
+              {expanded === "dupes" && (
+                <div className="mt-1 space-y-2 text-xs max-h-60 overflow-y-auto">
+                  {audit.duplicateGroups.map((g, i) => (
+                    <div key={i} className="p-2 rounded bg-stone-50 border border-stone-200">
+                      <div className="text-green-700 font-medium">KEEP: {g.keep.title?.slice(0, 50)} ({g.keep.wordCount}w, SEO:{g.keep.seoScore})</div>
+                      {g.delete.map((d, j) => (
+                        <div key={j} className="text-[#C8322B]">DELETE: {d.title?.slice(0, 50)} ({d.wordCount}w, SEO:{d.seoScore})</div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expandable: SEO Problems */}
+          {audit.seoProblems.length > 0 && (
+            <div>
+              <button onClick={() => setExpanded(expanded === "seo" ? null : "seo")} className="text-xs font-medium text-[#C8322B] underline">
+                {audit.seoProblems.length} SEO problem{audit.seoProblems.length > 1 ? "s" : ""} ({s.seoToUnpublish} to unpublish, {s.seoToFix} to fix)
+              </button>
+              {expanded === "seo" && (
+                <div className="mt-1 space-y-1 text-xs max-h-60 overflow-y-auto">
+                  {audit.seoProblems.map((p) => (
+                    <div key={p.id} className={`p-2 rounded ${p.action === "unpublish" ? "bg-red-50" : p.action === "fix" ? "bg-amber-50" : "bg-stone-50"}`}>
+                      <div className="font-medium truncate">{p.title}</div>
+                      <div className="text-stone-500">{p.wordCount}w | SEO:{p.seoScore} | {p.issues.join(", ")}</div>
+                      <div className={`font-medium ${p.action === "unpublish" ? "text-[#C8322B]" : p.action === "fix" ? "text-[#7a5a10]" : "text-stone-400"}`}>
+                        Action: {p.action}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expandable: Stuck */}
+          {audit.stuck.length > 0 && (
+            <div>
+              <button onClick={() => setExpanded(expanded === "stuck" ? null : "stuck")} className="text-xs font-medium text-[#7a5a10] underline">
+                {audit.stuck.length} stuck draft{audit.stuck.length > 1 ? "s" : ""} (&gt;24h)
+              </button>
+              {expanded === "stuck" && (
+                <div className="mt-1 space-y-1 text-xs max-h-40 overflow-y-auto">
+                  {audit.stuck.map((s) => (
+                    <div key={s.id} className="p-1 rounded bg-stone-50 text-stone-600">
+                      <span className="font-medium">{s.keyword}</span> | {s.phase} | {s.attempts} attempts | {s.action}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          {hasIssues && (
+            <div className="grid grid-cols-2 gap-2">
+              {s.totalDuplicatesToDelete > 0 && (
+                <ActionButton onClick={() => runAction("delete_dupes", "Delete Dupes")} loading={actionLoading === "delete_dupes"} variant="danger">
+                  Remove {s.totalDuplicatesToDelete} Dupes
+                </ActionButton>
+              )}
+              {s.seoToUnpublish > 0 && (
+                <ActionButton onClick={() => runAction("unpublish_seo_problems", "Unpublish SEO")} loading={actionLoading === "unpublish_seo_problems"} variant="danger">
+                  Unpublish {s.seoToUnpublish} SEO-bad
+                </ActionButton>
+              )}
+              {s.stuckDrafts > 0 && (
+                <ActionButton onClick={() => runAction("reject_deadwood", "Reject Dead")} loading={actionLoading === "reject_deadwood"} variant="amber">
+                  Fix {s.stuckDrafts} Stuck
+                </ActionButton>
+              )}
+              {s.orphansToDelete > 0 && (
+                <ActionButton onClick={() => runAction("delete_orphans", "Delete Orphans")} loading={actionLoading === "delete_orphans"}>
+                  Delete {s.orphansToDelete} Orphans
+                </ActionButton>
+              )}
+              <ActionButton
+                onClick={() => runAction("cleanup", "Full Cleanup")}
+                loading={actionLoading === "cleanup"}
+                variant="danger"
+                className="col-span-2"
+              >
+                Full Cleanup (All Actions)
+              </ActionButton>
+            </div>
+          )}
+
+          {result && (
+            <p className={`text-xs p-2 rounded ${result.startsWith("Done") ? "bg-[rgba(45,90,61,0.06)] text-[#2D5A3D]" : "bg-[rgba(200,50,43,0.06)] text-[#C8322B]"}`}>
+              {result}
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── Content Cleanup Card ─────────────────────────────────────────────────────
 
 interface CleanupScanResult {
@@ -2957,6 +3216,9 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
 
       {/* Content Cleanup */}
       <ContentCleanupCard siteId={activeSiteId} />
+
+      {/* Deep Article Cleanup */}
+      <DeepCleanupCard />
 
       {/* Active drafts */}
       {drafts.length > 0 && (
@@ -7590,10 +7852,252 @@ function TasksTab({ siteId }: { siteId: string }) {
   );
 }
 
+// ─── Tab: SEO Intelligence ────────────────────────────────────────────────────
+
+interface SeoIntelData {
+  health: { score: number; grade: string; summary: string };
+  indexing: { total: number; indexed: number; submitted: number; neverSubmitted: number; errors: number; deindexed: number; chronicFailures: number; rate: number; velocity7d: number; staleCount: number; topBlocker: string | null; blockers: Array<{ reason: string; count: number; severity: string }> } | null;
+  traffic: { configured: boolean; sessions: number; users: number; pageViews: number; bounceRate: number; topPages: Array<{ path: string; pageViews: number }>; topSources: Array<{ source: string; sessions: number }> };
+  gscFreshness: { lastSync: string | null; ageHours: number | null; isStale: boolean };
+  blockers: Record<string, number>;
+  opportunities: Array<{ slug: string; title: string; opportunity: string | null; impressions: number; clicks: number; position: number; ctr: number }>;
+  topPerformers: Array<{ slug: string; title: string; clicks: number; impressions: number; position: number; ctr: number; seoScore: number | null }>;
+  seoHurting: Array<{ slug: string; title: string; wordCount: number; seoScore: number | null; issues: string[]; recommendation: string }>;
+  criticalPages: Array<{ slug: string; title: string; issues: string[]; wordCount: number; seoScore: number | null; indexingStatus: string }>;
+  dataSources: Record<string, string>;
+}
+
+function SeoIntelTab({ siteId }: { siteId: string }) {
+  const [data, setData] = useState<SeoIntelData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [period, setPeriod] = useState("28d");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/seo-intelligence?siteId=${encodeURIComponent(siteId)}&period=${period}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.success) setData(json);
+      else setError(json.error || "Failed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load SEO data");
+    } finally {
+      setLoading(false);
+    }
+  }, [siteId, period]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const gradeColor = (grade: string) => {
+    if (grade === "A") return "text-[#2D5A3D] bg-[rgba(45,90,61,0.08)]";
+    if (grade === "B") return "text-[#3B7EA1] bg-[rgba(59,126,161,0.08)]";
+    if (grade === "C") return "text-[#7a5a10] bg-[rgba(196,154,42,0.08)]";
+    return "text-[#C8322B] bg-[rgba(200,50,43,0.08)]";
+  };
+
+  const statusDot = (s: string) => s === "connected" ? "bg-[#2D5A3D]" : s === "stale" ? "bg-[#C49A2A]" : "bg-[#C8322B]";
+
+  if (loading && !data) return <div className="p-4"><AdminLoadingState label="Loading SEO intelligence…" /></div>;
+  if (error && !data) return <Card><p className="text-[#C8322B] text-sm">{error}</p><ActionButton onClick={fetchData}>Retry</ActionButton></Card>;
+  if (!data) return null;
+
+  const h = data.health;
+  const idx = data.indexing;
+  const t = data.traffic;
+  const b = data.blockers;
+
+  return (
+    <div className="space-y-4">
+      {/* Health Score + Period Selector */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold ${gradeColor(h.grade)}`}>
+              {h.grade}
+            </div>
+            <div>
+              <div className="text-lg font-bold text-stone-800">SEO Health: {h.score}/100</div>
+              <div className="text-xs text-stone-500">{h.summary}</div>
+            </div>
+          </div>
+          <ActionButton onClick={fetchData} loading={loading}>Refresh</ActionButton>
+        </div>
+        <div className="flex gap-1">
+          {["7d", "28d", "90d"].map((p) => (
+            <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-1 rounded text-xs font-medium ${period === p ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-600"}`}>
+              {p}
+            </button>
+          ))}
+        </div>
+        {/* Data sources */}
+        <div className="flex gap-3 mt-3 text-xs text-stone-500">
+          {Object.entries(data.dataSources).map(([k, v]) => (
+            <span key={k} className="flex items-center gap-1">
+              <span className={`w-2 h-2 rounded-full ${statusDot(v)}`} />
+              {k.toUpperCase()}
+            </span>
+          ))}
+        </div>
+      </Card>
+
+      {/* Indexing + Traffic Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {idx && (
+          <Card>
+            <SectionTitle>Indexing</SectionTitle>
+            <div className="text-2xl font-bold text-stone-800">{idx.indexed}<span className="text-sm text-stone-400">/{idx.total}</span></div>
+            <div className="text-xs text-stone-500">{idx.rate.toFixed(0)}% indexed</div>
+            <div className="mt-2 space-y-1 text-xs">
+              {idx.neverSubmitted > 0 && <div className="text-[#C8322B]">{idx.neverSubmitted} never submitted</div>}
+              {idx.chronicFailures > 0 && <div className="text-[#C8322B]">{idx.chronicFailures} chronic failures</div>}
+              {idx.staleCount > 0 && <div className="text-[#7a5a10]">{idx.staleCount} stale submissions</div>}
+              {idx.velocity7d > 0 && <div className="text-[#2D5A3D]">+{idx.velocity7d} indexed this week</div>}
+            </div>
+          </Card>
+        )}
+        <Card>
+          <SectionTitle>Traffic</SectionTitle>
+          {t.configured ? (
+            <>
+              <div className="text-2xl font-bold text-stone-800">{t.sessions.toLocaleString()}</div>
+              <div className="text-xs text-stone-500">sessions ({period})</div>
+              <div className="mt-2 space-y-1 text-xs text-stone-600">
+                <div>{t.users.toLocaleString()} users</div>
+                <div>{t.pageViews.toLocaleString()} page views</div>
+                <div>{t.bounceRate.toFixed(0)}% bounce rate</div>
+              </div>
+            </>
+          ) : (
+            <div className="text-xs text-[#C49A2A] mt-1">GA4 not configured. Add GA4_PROPERTY_ID + service account to Vercel.</div>
+          )}
+        </Card>
+      </div>
+
+      {/* Blockers */}
+      {Object.values(b).some((v) => v > 0) && (
+        <Card>
+          <SectionTitle>Blockers & Issues</SectionTitle>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {b.neverSubmitted > 0 && <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]"><span className="font-bold text-[#C8322B]">{b.neverSubmitted}</span> never submitted</div>}
+            {b.chronicFailure > 0 && <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]"><span className="font-bold text-[#C8322B]">{b.chronicFailure}</span> chronic failures</div>}
+            {b.thinContent > 0 && <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]"><span className="font-bold text-[#C8322B]">{b.thinContent}</span> thin content</div>}
+            {b.deindexed > 0 && <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]"><span className="font-bold text-[#C8322B]">{b.deindexed}</span> deindexed</div>}
+            {b.badSlugs > 0 && <div className="p-2 rounded bg-[rgba(200,50,43,0.06)]"><span className="font-bold text-[#C8322B]">{b.badSlugs}</span> bad slugs</div>}
+            {b.missingMeta > 0 && <div className="p-2 rounded bg-[rgba(196,154,42,0.08)]"><span className="font-bold text-[#7a5a10]">{b.missingMeta}</span> missing meta</div>}
+            {b.lowSeoScore > 0 && <div className="p-2 rounded bg-[rgba(196,154,42,0.08)]"><span className="font-bold text-[#7a5a10]">{b.lowSeoScore}</span> low SEO score</div>}
+            {b.highImpressionsLowCtr > 0 && <div className="p-2 rounded bg-[rgba(196,154,42,0.08)]"><span className="font-bold text-[#7a5a10]">{b.highImpressionsLowCtr}</span> high impressions, low CTR</div>}
+            {b.zeroImpressions > 0 && <div className="p-2 rounded bg-stone-50"><span className="font-bold text-stone-500">{b.zeroImpressions}</span> indexed but zero impressions</div>}
+          </div>
+        </Card>
+      )}
+
+      {/* Top Performers */}
+      {data.topPerformers.length > 0 && (
+        <Card>
+          <button onClick={() => setExpanded(expanded === "performers" ? null : "performers")} className="w-full text-left">
+            <SectionTitle>Top Performers ({data.topPerformers.length})</SectionTitle>
+          </button>
+          {(expanded === "performers" || data.topPerformers.length <= 5) && (
+            <div className="space-y-2 mt-2">
+              {data.topPerformers.map((p) => (
+                <div key={p.slug} className="flex items-center justify-between text-xs border-b border-stone-100 pb-1">
+                  <div className="min-w-0 mr-2">
+                    <div className="truncate font-medium text-stone-700">{p.title || p.slug}</div>
+                  </div>
+                  <div className="flex gap-2 shrink-0 text-stone-500">
+                    <span className="text-[#2D5A3D] font-medium">{p.clicks}c</span>
+                    <span>{p.impressions}i</span>
+                    <span>#{p.position.toFixed(0)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Opportunities */}
+      {data.opportunities.length > 0 && (
+        <Card>
+          <button onClick={() => setExpanded(expanded === "opps" ? null : "opps")} className="w-full text-left">
+            <SectionTitle>Quick Wins ({data.opportunities.length})</SectionTitle>
+          </button>
+          {(expanded === "opps" || data.opportunities.length <= 3) && (
+            <div className="space-y-2 mt-2">
+              {data.opportunities.map((o) => (
+                <div key={o.slug} className="p-2 rounded bg-[rgba(45,90,61,0.04)] text-xs">
+                  <div className="font-medium text-stone-700 truncate">{o.title || o.slug}</div>
+                  <div className="text-[#2D5A3D] mt-1">{o.opportunity}</div>
+                  <div className="text-stone-400 mt-0.5">{o.impressions} impressions | {o.clicks} clicks | pos #{o.position.toFixed(0)} | CTR {(o.ctr * 100).toFixed(1)}%</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* SEO-Hurting Pages */}
+      {data.seoHurting.length > 0 && (
+        <Card>
+          <button onClick={() => setExpanded(expanded === "hurting" ? null : "hurting")} className="w-full text-left">
+            <SectionTitle>SEO-Hurting Pages ({data.seoHurting.length})</SectionTitle>
+          </button>
+          {(expanded === "hurting" || data.seoHurting.length <= 3) && (
+            <div className="space-y-2 mt-2">
+              {data.seoHurting.map((p) => (
+                <div key={p.slug} className="p-2 rounded bg-[rgba(200,50,43,0.04)] text-xs">
+                  <div className="font-medium text-stone-700 truncate">{p.title || p.slug}</div>
+                  <div className="text-stone-500">{p.wordCount}w | SEO:{p.seoScore}</div>
+                  <div className="text-stone-400">{p.issues.join(" · ")}</div>
+                  <div className={`font-medium mt-1 ${p.recommendation.startsWith("DELETE") ? "text-[#C8322B]" : p.recommendation.startsWith("NOINDEX") ? "text-[#C49A2A]" : "text-[#7a5a10]"}`}>
+                    {p.recommendation}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Critical Pages */}
+      {data.criticalPages.length > 0 && (
+        <Card>
+          <button onClick={() => setExpanded(expanded === "critical" ? null : "critical")} className="w-full text-left">
+            <SectionTitle>Critical Pages ({data.criticalPages.length})</SectionTitle>
+          </button>
+          {(expanded === "critical" || data.criticalPages.length <= 5) && (
+            <div className="space-y-1 mt-2">
+              {data.criticalPages.map((p) => (
+                <div key={p.slug} className="p-2 rounded bg-[rgba(200,50,43,0.04)] text-xs">
+                  <div className="font-medium text-stone-700 truncate">{p.title || p.slug}</div>
+                  <div className="text-[#C8322B]">{p.issues.join(" · ")}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* GSC Freshness */}
+      <Card>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-stone-500">GSC data: {data.gscFreshness.lastSync ? `synced ${data.gscFreshness.ageHours}h ago` : "never synced"}</span>
+          {data.gscFreshness.isStale && <span className="text-[#C49A2A] font-medium">STALE — run GSC Sync</span>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Root Cockpit Page ────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "mission", label: "🚀 Mission" },
+  { id: "seo", label: "📊 SEO Intel" },
   { id: "content", label: "📋 Content" },
   { id: "pipeline", label: "⚙️ Pipeline" },
   { id: "crons", label: "⏱ Crons" },
@@ -7804,6 +8308,9 @@ function CockpitPage() {
       <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20">
         {activeTab === "mission" && (
           <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />
+        )}
+        {activeTab === "seo" && (
+          <SeoIntelTab siteId={activeSiteId} />
         )}
         {activeTab === "content" && (
           <ContentTab activeSiteId={activeSiteId} />

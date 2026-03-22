@@ -21,8 +21,8 @@ export function ServicePills() {
           const data = await res.json();
           setServices(data.services || []);
         }
-      } catch {
-        /* silent */
+      } catch (err) {
+        console.warn("[service-pills] fetch failed:", err instanceof Error ? err.message : err);
       } finally {
         setLoading(false);
       }

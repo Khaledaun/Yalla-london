@@ -246,6 +246,7 @@ All → Dashboard:      Every pipeline reports to admin dashboard
 7. **Deps**: Use `--legacy-peer-deps` when npm complains
 8. **Env vars**: `INDEXNOW_KEY` (not INDEXNOW_API_KEY), check `.env.example` for all
 9. **CJ Affiliate env vars** (configured in Vercel March 10, 2026): `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID` — all 3 set. Vrbo affiliate approved through CJ network.
+10. **GA4 Analytics env vars** (configured in Vercel March 22, 2026): `GA4_MEASUREMENT_ID=G-H7YNG7CH88`, `NEXT_PUBLIC_GA_MEASUREMENT_ID=G-H7YNG7CH88`, `GA4_API_SECRET` (Measurement Protocol secret, named "YallaLondonSecret" in GA4), `GA4_PROPERTY_ID` (set Feb 8). All 4 set across all environments. GA4 Measurement Protocol enabled for server-side affiliate click tracking via `lib/analytics/ga4-measurement-protocol.ts`.
 
 ## Content Pipeline (Critical Path to Revenue)
 
@@ -4030,6 +4031,56 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 137. **Cron schedules at `:00` of even hours are the most dangerous collision window** — `diagnostic-sweep`, `perplexity-scheduler`, `content-builder`, and `content-selector` all fire at `:00`. Move recurring crons to odd minutes (`:05`, `:10`, `:55`) to spread load.
 138. **`findMany` without `take` on any table that grows with time is a CPU bomb** — URLIndexingStatus, GscPagePerformance, and CronJobLog all grow daily. Every unbounded `findMany` becomes a full-table scan that gets worse every month. Always add `take: N` with a comment explaining why N was chosen.
 
+### Session: March 22, 2026 — Affiliate Click Monitoring & GA4 Measurement Protocol
+
+**Problem:** Dashboard showing zero affiliate clicks. Full end-to-end audit of affiliate tracking system.
+
+**Root Cause Analysis (3 issues):**
+
+1. **GA4 not tracking anything** — `NEXT_PUBLIC_GA_MEASUREMENT_ID` was placeholder `G-XXXXX` (fixed Feb 11 → updated to real `G-H7YNG7CH88`). No server-side GA4 event firing existed for affiliate clicks.
+
+2. **Limited affiliate partners** — Only Vrbo (via CJ deep links) generating tracking URLs. All other partner env vars (`BOOKING_AFFILIATE_ID`, `AGODA_AFFILIATE_ID`, etc.) empty in Vercel. Static fallback rules skip links with empty parameters.
+
+3. **Low traffic = low click probability** — With ~34 organic clicks/day across 87 indexed pages, affiliate click volume is naturally low at this stage.
+
+**Fixes Applied (5 files):**
+
+1. **`lib/analytics/ga4-measurement-protocol.ts` (NEW):** Server-side GA4 Measurement Protocol event firing. `fireAffiliateClickEvent()` sends partner, device, country, article attribution to GA4 without requiring client-side JavaScript.
+
+2. **`app/api/affiliate/click/route.ts` (UPDATED):** Now fires GA4 MP event (fire-and-forget, never blocks redirect) with partner detection from URL, accepts `ga_cid` query param for GA4 client ID passthrough.
+
+3. **`components/analytics-tracker.tsx` (UPDATED):** Now detects `/api/affiliate/click` redirect links + `data-advertiser` attributes. Extracts GA4 `_ga` cookie client ID and appends to tracking URL for server-side attribution.
+
+4. **`app/api/admin/affiliate-monitor/route.ts` (NEW):** Comprehensive monitoring endpoint returning: click counts (today/7d/30d), revenue, link coverage %, top articles by clicks, per-partner breakdown, recent click feed, integration status, and 7 diagnostic checks explaining why clicks might be zero.
+
+5. **`app/admin/cockpit/page.tsx` (UPDATED):** Revenue card shows diagnostic banner when zero clicks with actionable fix steps (env vars needed).
+
+**GA4 Env Vars Configured (March 22, 2026 — all in Vercel, all environments):**
+
+| Env Var | Value | Purpose |
+|---------|-------|---------|
+| `GA4_MEASUREMENT_ID` | `G-H7YNG7CH88` | Server-side Measurement Protocol |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | `G-H7YNG7CH88` | Client-side gtag tracking |
+| `GA4_API_SECRET` | (secret, named "YallaLondonSecret") | Measurement Protocol authentication |
+| `GA4_PROPERTY_ID` | (numeric, set Feb 8) | GA4 Data API queries |
+
+**How Affiliate Click Tracking Now Works:**
+```
+User clicks affiliate link on article
+    ↓
+Client-side: analytics-tracker fires gtag('event', 'affiliate_click') + appends GA4 _ga client ID to URL
+    ↓
+GET /api/affiliate/click?id=X&sid=siteId_slug&ga_cid=gaClientId
+    ↓
+Server: trackClick() records CjClickEvent to DB (device, country, article, partner)
+    ↓
+Server: fireAffiliateClickEvent() sends GA4 Measurement Protocol event (fire-and-forget)
+    ↓
+Server: 302 redirect to CJ affiliate URL with SID for commission attribution
+    ↓
+GA4 receives event from BOTH client-side AND server-side (dual tracking)
+```
+
 ### Session: March 22, 2026 — Hidden Pipeline Issues: 6 Stuck/Silent Failures Found & Fixed
 
 **200-entry operations log analysis revealing 6 hidden issues causing pipeline stalls and silent failures.**
@@ -4137,6 +4188,25 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 146. **Never use `.catch()` inside a `$transaction` callback** — `.catch()` swallows the error locally, preventing the transaction from rolling back. If the paired AR draft update fails but is caught, the BlogPost and EN draft are committed while the AR draft stays orphaned in "promoting" phase. Let errors propagate — the transaction wrapper handles rollback.
 147. **Duplicate detection must NEVER unpublish indexed articles** — unpublishing removes pages from Google's index, destroying months of crawl equity and authority signals. Instead: flag with a tag/meta annotation and let seo-deep-review differentiate the titles. The only valid reasons to unpublish are: (a) legal/compliance, (b) explicit owner request, (c) thin content <200 words with no value.
 148. **Always add a dedup guard before draft creation** — check `prisma.articleDraft.findFirst({ where: { topic_proposal_id, locale } })` before creating. If topic status update fails after draft creation (network error, Prisma crash), the topic stays consumable and the same draft gets created again on the next run.
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| ~~GA4 Tracking~~ | ~~GA4 not configured / clicks invisible~~ | ~~CRITICAL~~ | **DONE** — All 4 env vars set, dual client+server tracking |
+| Affiliate Partners | Only Vrbo approved via CJ — apply to Booking.com, GetYourGuide, Viator, HalalBooking | MEDIUM | Manual action needed in CJ dashboard |
+| Static Affiliate Env Vars | `BOOKING_AFFILIATE_ID`, `AGODA_AFFILIATE_ID` etc. empty | MEDIUM | Set when approved by each network |
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |
+| Arabic SSR | `/ar/` routes render English on server | MEDIUM | Open (KG-032) |
+
+### Critical Rules Learned (March 22 Session — GA4 & Affiliate Monitoring)
+
+139. **GA4 Measurement Protocol requires BOTH `GA4_MEASUREMENT_ID` AND `GA4_API_SECRET`** — the measurement ID alone is not enough. The API secret is created in GA4 Admin → Data Streams → your stream → "Measurement Protocol API secrets". Without it, server-side events are silently dropped.
+140. **`NEXT_PUBLIC_GA_MEASUREMENT_ID` must be a real ID, not placeholder** — `G-XXXXX` causes `initGA()` to exit silently. Every client-side analytics feature (page views, affiliate clicks, scroll depth, AI crawler detection) is dead when this is placeholder.
+141. **Affiliate click tracking has TWO independent paths** — client-side (`analytics-tracker.tsx` fires gtag event) and server-side (`/api/affiliate/click` records to DB + fires GA4 MP). Both must work. Client-side can fail (ad blockers, JS disabled). Server-side always works because it's a redirect endpoint.
+142. **GA4 Measurement Protocol events require `engagement_time_msec`** — without this parameter, events are received but don't appear in standard GA4 reports (only in DebugView). Always include `engagement_time_msec: 100` minimum.
+143. **Zero affiliate clicks can mean 4 different things** — (a) no affiliate links injected in articles, (b) no traffic to articles, (c) links use direct partner URLs instead of `/api/affiliate/click` tracking redirect, (d) tracking is broken. The `/api/admin/affiliate-monitor` endpoint diagnoses all 4 with specific fix suggestions.
 
 ## Weekly Manual Checks
 

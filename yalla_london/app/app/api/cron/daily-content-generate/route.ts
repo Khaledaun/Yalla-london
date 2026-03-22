@@ -479,10 +479,10 @@ async function generateArticle(
         primaryLanguage === "en"
           ? content.title
           : content.titleTranslation || content.title),
-      title_ar:
+      title_ar: sanitizeTitle(
         primaryLanguage === "ar"
           ? content.title
-          : content.titleTranslation || "",
+          : content.titleTranslation || content.title),
       slug,
       excerpt_en:
         primaryLanguage === "en"
@@ -498,18 +498,18 @@ async function generateArticle(
         primaryLanguage === "en"
           ? content.metaTitle
           : content.metaTitleTranslation || ""),
-      meta_title_ar:
+      meta_title_ar: sanitizeTitle(
         primaryLanguage === "ar"
           ? content.metaTitle
-          : content.metaTitleTranslation || "",
+          : content.metaTitleTranslation || ""),
       meta_description_en: sanitizeMetaDescription(
         primaryLanguage === "en"
           ? content.metaDescription
           : content.metaDescriptionTranslation || ""),
-      meta_description_ar:
+      meta_description_ar: sanitizeMetaDescription(
         primaryLanguage === "ar"
           ? content.metaDescription
-          : content.metaDescriptionTranslation || "",
+          : content.metaDescriptionTranslation || ""),
       tags: [
         ...content.tags,
         "auto-generated",

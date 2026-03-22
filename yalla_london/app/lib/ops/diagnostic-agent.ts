@@ -883,6 +883,33 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     console.warn("[diagnostic-agent] Phase 0 cleanup failed:", p0err instanceof Error ? p0err.message : p0err);
   }
 
+  // Phase 0d: Clean up ALL zombie "running" CronJobLog entries (any cron, >15min old)
+  // When a cron crashes mid-execution (e.g., pool timeout kills Vercel function),
+  // the "running" status stays forever since the wrapper never closes it.
+  // This previously only cleaned sweeper/sweeper-agent entries — now catches all crons.
+  try {
+    const { prisma: p0d } = await import("@/lib/db");
+    const zombieLogs = await p0d.cronJobLog.updateMany({
+      where: {
+        status: "running",
+        started_at: { lt: new Date(Date.now() - 15 * 60 * 1000) },
+        NOT: {
+          result_summary: { path: ["dedup_marker"], equals: true },
+        },
+      },
+      data: {
+        status: "failed",
+        error_message: `[diagnostic-agent] Marked failed — zombie "running" entry >15min`,
+        completed_at: new Date(),
+      },
+    });
+    if (zombieLogs.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0d: Cleared ${zombieLogs.count} zombie "running" CronJobLog entries`);
+    }
+  } catch (zombieErr) {
+    console.warn("[diagnostic-agent] Phase 0d zombie cleanup failed:", zombieErr instanceof Error ? zombieErr.message : zombieErr);
+  }
+
   // Phase 1: Diagnose
   const [draftDiagnoses, cronDiagnoses] = await Promise.all([
     diagnoseStuckDrafts(),

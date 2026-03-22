@@ -98,7 +98,7 @@
     },
     {
       "path": "/api/cron/weekly-topics",
-      "schedule": "0 4 * * 1"
+      "schedule": "10 4 * * *"
     },
     {
       "path": "/api/cron/daily-content-generate",

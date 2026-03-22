@@ -147,8 +147,12 @@ export async function checkCannibalization(
     }
   }
 
-  // Threshold: 60% keyword overlap = cannibalization risk
-  const CANNIBALIZATION_THRESHOLD = 0.6;
+  // Threshold: 75% keyword overlap = cannibalization risk
+  // Raised from 60% (March 22, 2026) — 60% was too aggressive, blocking articles
+  // with legitimate but different angles on the same topic (e.g., "london eye tickets
+  // fast track v5" blocked by "london eye tickets fast track v3" at 67% overlap).
+  // At 75%, only near-identical keyword sets trigger cannibalization.
+  const CANNIBALIZATION_THRESHOLD = 0.75;
 
   return {
     cannibalizes: highestOverlap >= CANNIBALIZATION_THRESHOLD,

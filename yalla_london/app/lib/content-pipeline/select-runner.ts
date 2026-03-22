@@ -72,12 +72,12 @@ export async function runContentSelector(
     // ── Revert drafts stuck in "promoting" from crashed runs ──
     // When content-selector crashes mid-promotion, drafts stay in "promoting" forever.
     // Revert any "promoting" drafts older than 60 seconds back to "reservoir".
-    // (Reduced from 120s — a normal promotion takes <10s, so 60s is very generous.)
+    // A normal promotion takes <10s, so 60s is very generous.
     try {
       const stuckPromoting = await prisma.articleDraft.updateMany({
         where: {
           current_phase: "promoting",
-          updated_at: { lt: new Date(Date.now() - 120_000) },
+          updated_at: { lt: new Date(Date.now() - 60_000) },
         },
         data: {
           current_phase: "reservoir",

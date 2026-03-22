@@ -384,7 +384,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
   )
 
   return (
-    <div className="min-h-screen admin-page" style={{ backgroundColor: '#FAF8F4' }}>
+    <div className="h-screen flex flex-col admin-page" style={{ backgroundColor: '#FAF8F4' }}>
 
       {/* ── Mobile Sidebar Overlay ────────────────────────────────────────── */}
       {mobileMenuOpen && (
@@ -540,8 +540,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
       </header>
 
       {/* ── Main Content ─────────────────────────────────────────────────── */}
-      <main className={`min-h-screen transition-all duration-300 pt-14 pb-20 lg:pb-0 ${sidebarOpen ? 'lg:ml-[270px]' : 'lg:ml-[68px]'}`}
-            style={{ backgroundColor: '#FAF8F4' }}>
+      <main className={`flex-1 overflow-y-auto transition-all duration-300 pt-14 pb-20 lg:pb-0 ${sidebarOpen ? 'lg:ml-[270px]' : 'lg:ml-[68px]'}`}
+            style={{ backgroundColor: '#FAF8F4', WebkitOverflowScrolling: 'touch' }}>
         <div className="p-4 lg:p-6">
           {children}
         </div>

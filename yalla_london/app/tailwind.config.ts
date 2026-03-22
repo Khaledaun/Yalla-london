@@ -177,6 +177,28 @@ const config: Config = {
           deep: '#9A7A42',
         },
         'zl-champagne': '#EAD9BB',
+        // Zenitha HQ — Dark Admin Theme
+        'zh-navy': {
+          DEFAULT: '#0A1628',
+          mid: '#0F1F35',
+          light: '#162843',
+          hover: '#1C3250',
+          border: '#1E3555',
+        },
+        'zh-gold': {
+          DEFAULT: '#C9A84C',
+          muted: '#7A6535',
+          dim: '#3A2E18',
+        },
+        'zh-cream': {
+          DEFAULT: '#F0EAD6',
+          muted: '#8A8070',
+          dim: '#4A4438',
+        },
+        'zh-success': { DEFAULT: '#2D6A3F', text: '#6EE7A0' },
+        'zh-warn': { DEFAULT: '#7A4A10', text: '#FBBF24' },
+        'zh-error': { DEFAULT: '#6B1C1C', text: '#FCA5A5' },
+        'zh-info': { DEFAULT: '#0F2E3A', text: '#7DD3FC' },
         'zl-brass': '#B8934A',
       },
       borderRadius: {
@@ -255,6 +277,9 @@ const config: Config = {
         // Brand Kit v2 aliases
         'heading': ['Anybody', 'sans-serif'],
         'body': ['Source Serif 4', 'Georgia', 'serif'],
+        // Zenitha HQ admin fonts
+        'zh-mono': ['var(--f-mono)', 'Space Mono', 'monospace'],
+        'zh-ui': ['var(--f-ui)', 'Space Grotesk', 'system-ui', 'sans-serif'],
         // Legacy aliases
         'serif': ['var(--font-editorial)'],
         'cairo': ['var(--font-arabic)'],

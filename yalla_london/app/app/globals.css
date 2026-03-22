@@ -1426,3 +1426,73 @@
   border-radius: 2px;
   transition: width 300ms ease;
 }
+
+/* ═══════════════════════════════════════════════
+   ZENITHA HQ — Dark Admin Theme
+   Applied via .zh-dark class on admin layout wrapper
+   ═══════════════════════════════════════════════ */
+
+.zh-dark {
+  /* Navy palette */
+  --zh-navy: #0A1628;
+  --zh-navy-mid: #0F1F35;
+  --zh-navy-light: #162843;
+  --zh-navy-hover: #1C3250;
+  --zh-navy-border: #1E3555;
+
+  /* Gold */
+  --zh-gold: #C9A84C;
+  --zh-gold-muted: #7A6535;
+  --zh-gold-dim: #3A2E18;
+
+  /* Cream (text) */
+  --zh-cream: #F0EAD6;
+  --zh-cream-muted: #8A8070;
+  --zh-cream-dim: #4A4438;
+
+  /* Status */
+  --zh-success: #2D6A3F;
+  --zh-success-text: #6EE7A0;
+  --zh-success-bg: rgba(45, 106, 63, 0.15);
+  --zh-warn: #7A4A10;
+  --zh-warn-text: #FBBF24;
+  --zh-warn-bg: rgba(122, 74, 16, 0.15);
+  --zh-error: #6B1C1C;
+  --zh-error-text: #FCA5A5;
+  --zh-error-bg: rgba(107, 28, 28, 0.15);
+  --zh-info: #0F2E3A;
+  --zh-info-text: #7DD3FC;
+  --zh-info-bg: rgba(15, 46, 58, 0.15);
+
+  /* Typography */
+  font-family: var(--f-ui, 'Space Grotesk', system-ui, sans-serif);
+
+  /* Apply dark background */
+  background-color: var(--zh-navy);
+  color: var(--zh-cream);
+  min-height: 100vh;
+}
+
+.zh-dark * {
+  border-color: var(--zh-navy-border);
+}
+
+.zh-dark ::selection {
+  background: var(--zh-gold);
+  color: var(--zh-navy);
+}
+
+.zh-dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.zh-dark ::-webkit-scrollbar-track {
+  background: var(--zh-navy);
+}
+.zh-dark ::-webkit-scrollbar-thumb {
+  background: var(--zh-navy-hover);
+  border-radius: 3px;
+}
+.zh-dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--zh-gold-dim);
+}

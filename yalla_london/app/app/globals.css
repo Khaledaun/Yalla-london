@@ -1426,3 +1426,132 @@
   border-radius: 2px;
   transition: width 300ms ease;
 }
+
+/* ═══════════════════════════════════════════════
+   ZENITHA HQ — Dark Admin Theme
+   Applied via .zh-dark class on admin layout wrapper
+   ═══════════════════════════════════════════════ */
+
+.zh-dark {
+  /* Navy palette */
+  --zh-navy: #0A1628;
+  --zh-navy-mid: #0F1F35;
+  --zh-navy-light: #162843;
+  --zh-navy-hover: #1C3250;
+  --zh-navy-border: #1E3555;
+
+  /* Gold */
+  --zh-gold: #C9A84C;
+  --zh-gold-muted: #7A6535;
+  --zh-gold-dim: #3A2E18;
+
+  /* Cream (text) */
+  --zh-cream: #F0EAD6;
+  --zh-cream-muted: #8A8070;
+  --zh-cream-dim: #4A4438;
+
+  /* Status */
+  --zh-success: #2D6A3F;
+  --zh-success-text: #6EE7A0;
+  --zh-success-bg: rgba(45, 106, 63, 0.15);
+  --zh-warn: #7A4A10;
+  --zh-warn-text: #FBBF24;
+  --zh-warn-bg: rgba(122, 74, 16, 0.15);
+  --zh-error: #6B1C1C;
+  --zh-error-text: #FCA5A5;
+  --zh-error-bg: rgba(107, 28, 28, 0.15);
+  --zh-info: #0F2E3A;
+  --zh-info-text: #7DD3FC;
+  --zh-info-bg: rgba(15, 46, 58, 0.15);
+
+  /* Typography */
+  font-family: var(--f-ui, 'Space Grotesk', system-ui, sans-serif);
+
+  /* Apply dark background */
+  background-color: var(--zh-navy);
+  color: var(--zh-cream);
+  min-height: 100vh;
+}
+
+.zh-dark * {
+  border-color: var(--zh-navy-border);
+}
+
+.zh-dark ::selection {
+  background: var(--zh-gold);
+  color: var(--zh-navy);
+}
+
+.zh-dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.zh-dark ::-webkit-scrollbar-track {
+  background: var(--zh-navy);
+}
+.zh-dark ::-webkit-scrollbar-thumb {
+  background: var(--zh-navy-hover);
+  border-radius: 3px;
+}
+.zh-dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--zh-gold-dim);
+}
+
+/* Override admin-ui.tsx inline styles for dark mode */
+.zh-dark .admin-card,
+.zh-dark .admin-card-elevated {
+  background-color: var(--zh-navy-mid) !important;
+  border-color: var(--zh-navy-border) !important;
+  box-shadow: none !important;
+  color: var(--zh-cream) !important;
+}
+
+.zh-dark .admin-card-elevated {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.zh-dark .admin-input,
+.zh-dark .admin-select {
+  background-color: var(--zh-navy-light) !important;
+  border-color: var(--zh-navy-border) !important;
+  color: var(--zh-cream) !important;
+}
+
+.zh-dark .admin-input:focus,
+.zh-dark .admin-select:focus {
+  border-color: var(--zh-gold) !important;
+  box-shadow: 0 0 0 3px var(--zh-gold-dim) !important;
+}
+
+.zh-dark .admin-sticky-bar {
+  background-color: var(--zh-navy-mid) !important;
+  border-color: var(--zh-navy-border) !important;
+}
+
+/* Dark override for hardcoded colors in admin pages */
+.zh-dark [style*="background-color: #FAF8F4"],
+.zh-dark [style*="background-color: rgb(250, 248, 244)"],
+.zh-dark [style*="backgroundColor: '#FAF8F4'"] {
+  background-color: var(--zh-navy) !important;
+}
+
+.zh-dark [style*="background-color: #FFFFFF"],
+.zh-dark [style*="background-color: rgb(255, 255, 255)"],
+.zh-dark [style*="backgroundColor: '#FFFFFF'"] {
+  background-color: var(--zh-navy-mid) !important;
+}
+
+.zh-dark [style*="color: #1C1917"],
+.zh-dark [style*="color: rgb(28, 25, 23)"] {
+  color: var(--zh-cream) !important;
+}
+
+.zh-dark [style*="color: #78716C"],
+.zh-dark [style*="color: rgb(120, 113, 108)"] {
+  color: var(--zh-cream-muted) !important;
+}
+
+.zh-dark [style*="border-color: rgba(214,208,196"],
+.zh-dark [style*="border: 1px solid rgba(214,208,196"] {
+  border-color: var(--zh-navy-border) !important;
+}

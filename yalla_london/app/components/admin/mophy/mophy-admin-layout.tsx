@@ -6,133 +6,87 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAdminSession } from '@/hooks/use-admin-session'
 import { SiteSelector } from '@/components/admin/site-selector'
 import {
-  LayoutDashboard, FileText, Image as ImageIcon, Search, TrendingUp,
-  Brain, Bot, Settings, ChevronDown, Menu, X, Bell, User, LogOut,
-  Palette, Key, Users, Globe, MessageSquare, BarChart3, Wallet,
-  ShoppingCart, Command, Plus, Zap, Link2, Store, Activity,
-  BookOpen, Newspaper, ShieldCheck, Edit3, Home, AlertTriangle,
-  Clock, Play, Database, RefreshCw, Layers, Cpu, Hash, Radio,
-  Send, Eye, Shield, Wrench, Package, Ship, Anchor, MapPin,
+  FileText, Search, Brain, Bot, Settings, ChevronDown, Menu, X,
+  User, LogOut, Palette, Key, Globe, BarChart3, Wallet,
+  Command, Plus, Zap, Store, Activity, Clock, Wrench, Ship,
+  Anchor, AlertTriangle, Eye, Image as ImageIcon, Mail, TrendingUp,
 } from 'lucide-react'
 
-// ── Navigation Structure ──────────────────────────────────────────────────────
-// Simplified from 14 sections to 8 clear groups.
-// Every page reachable. No dead links.
-
-// ── Navigation Structure ──────────────────────────────────────────────────────
-// Refactored: 10 sections / ~100 items → 8 sections / ~35 items
-// Duplicate pages consolidated into tab views on canonical pages.
-// All original URLs still work (redirect wrappers in deprecated pages).
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZENITHA HQ — Navigation Structure
+// 6 sections consolidating all 68 admin pages. Zero deletions.
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const navigation = [
   {
-    id: 'cockpit',
-    label: 'Cockpit',
-    labelAr: 'كوكبيت',
+    id: 'command',
+    label: 'COMMAND',
     icon: Zap,
-    href: '/admin/cockpit',
     items: [
       { label: 'Mission Control',   href: '/admin/cockpit' },
-      { label: 'Health Report',     href: '/admin/cockpit/health' },
-      { label: 'Write Article',     href: '/admin/cockpit/write' },
-      { label: 'Bulk Generator',    href: '/admin/cockpit/bulk-generate' },
-      { label: 'Campaign Agent',    href: '/admin/cockpit/campaigns' },
-      { label: 'Departures Board',  href: '/admin/departures' },
-      { label: 'Discovery Monitor', href: '/admin/discovery' },
+      { label: 'Blockers',          href: '/admin/blockers', badge: true },
+      { label: 'System Health',     href: '/admin/cockpit/health' },
     ],
   },
   {
     id: 'content',
-    label: 'Content',
-    labelAr: 'المحتوى',
+    label: 'CONTENT',
     icon: FileText,
-    href: '/admin/articles',
     items: [
-      { label: 'All Articles',       href: '/admin/articles' },
-      { label: 'London News',        href: '/admin/news' },
-      { label: 'Topics & Pipeline',  href: '/admin/topics' },
-      { label: 'Content Engine',     href: '/admin/content-engine' },
-      { label: 'SEO Audits',          href: '/admin/seo-audits' },
+      { label: 'Article Library',   href: '/admin/articles' },
+      { label: 'Content Pipeline',  href: '/admin/topics-pipeline' },
+      { label: 'Topic Research',    href: '/admin/topics' },
+      { label: 'Write Article',     href: '/admin/cockpit/write' },
     ],
   },
   {
-    id: 'sites',
-    label: 'Sites',
-    labelAr: 'المواقع',
-    icon: Globe,
-    href: '/admin/command-center/sites',
+    id: 'intelligence',
+    label: 'INTELLIGENCE',
+    icon: Search,
     items: [
-      { label: 'All Sites',         href: '/admin/command-center/sites' },
-      { label: 'New Website',       href: '/admin/cockpit/new-site' },
+      { label: 'SEO Command',       href: '/admin/intelligence' },
+      { label: 'Search Console',    href: '/admin/seo-audits' },
+      { label: 'Analytics',         href: '/admin/analytics' },
     ],
   },
   {
-    id: 'automation',
-    label: 'Automation',
-    labelAr: 'الأتمتة',
-    icon: Bot,
-    href: '/admin/departures',
+    id: 'revenue',
+    label: 'REVENUE',
+    icon: Wallet,
     items: [
-      { label: 'Timeline & Crons',  href: '/admin/departures' },
-      { label: 'AI Config & Costs', href: '/admin/ai-costs' },
-    ],
-  },
-  {
-    id: 'commerce',
-    label: 'Commerce',
-    labelAr: 'التجارة',
-    icon: Store,
-    href: '/admin/cockpit/commerce',
-    items: [
-      { label: 'Commerce Hub',      href: '/admin/cockpit/commerce' },
-      { label: 'Affiliate HQ',      href: '/admin/affiliate-hq' },
+      { label: 'Affiliate Hub',     href: '/admin/affiliate-hq' },
+      { label: 'Commerce',          href: '/admin/cockpit/commerce' },
     ],
   },
   {
     id: 'design',
-    label: 'Design & Media',
-    labelAr: 'التصميم',
+    label: 'DESIGN',
     icon: Palette,
-    href: '/admin/design',
     items: [
-      { label: 'Design Hub',        href: '/admin/design' },
+      { label: 'Brand Assets',      href: '/admin/design' },
       { label: 'Media Library',     href: '/admin/media' },
       { label: 'Email & Social',    href: '/admin/email-campaigns' },
     ],
   },
   {
-    id: 'ai',
-    label: 'AI Tools',
-    labelAr: 'أدوات الذكاء',
-    icon: Brain,
-    href: '/admin/ai-studio',
-    items: [
-      { label: 'CEO Dashboard',     href: '/admin/ai-assistant' },
-      { label: 'Task Runner',       href: '/admin/ai-studio' },
-      { label: 'Perplexity Computer', href: '/admin/perplexity-computer' },
-    ],
-  },
-  {
     id: 'system',
-    label: 'System',
-    labelAr: 'النظام',
+    label: 'SYSTEM',
     icon: Wrench,
-    href: '/admin/settings',
     items: [
+      { label: 'Automation',        href: '/admin/automation' },
+      { label: 'AI Tools',          href: '/admin/ai-studio' },
       { label: 'Settings',          href: '/admin/settings' },
-      { label: 'Operations',        href: '/admin/operations' },
-      { label: 'Legal Pages',       href: '/admin/legal' },
       { label: 'Yacht Management',  href: '/admin/yachts' },
     ],
   },
 ]
 
 const mobileBottomNav = [
-  { label: 'HQ',      icon: Zap,        href: '/admin/cockpit' },
-  { label: 'Content', icon: FileText,    href: '/admin/articles' },
-  { label: 'New',     icon: Plus,        href: '/admin/cockpit/write', primary: true },
-  { label: 'Crons',   icon: Clock,       href: '/admin/departures' },
-  { label: 'More',    icon: Menu,        href: '__menu__' },
+  { label: 'HQ',      icon: Zap,      href: '/admin/cockpit' },
+  { label: 'Content', icon: FileText,  href: '/admin/articles' },
+  { label: 'New',     icon: Plus,      href: '/admin/cockpit/write', primary: true },
+  { label: 'Crons',   icon: Clock,     href: '/admin/automation' },
+  { label: 'More',    icon: Menu,      href: '__menu__' },
 ]
 
 interface Props { children: React.ReactNode; pageTitle?: string }
@@ -143,9 +97,9 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['overview'])
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [blockerCount, setBlockerCount] = useState(0)
 
   const isLoginPage = pathname === '/admin/login'
 
@@ -169,6 +123,22 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
     setUserMenuOpen(false)
   }, [pathname])
 
+  // Blocker count poll (every 60s)
+  useEffect(() => {
+    const fetchBlockers = async () => {
+      try {
+        const res = await fetch('/api/admin/system/blocker-count')
+        if (res.ok) {
+          const data = await res.json()
+          setBlockerCount(data.total || 0)
+        }
+      } catch { /* silent — badge just stays at 0 */ }
+    }
+    fetchBlockers()
+    const interval = setInterval(fetchBlockers, 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
   const toggleMenu = (id: string) => {
     setExpandedMenus(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -189,13 +159,12 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAF8F4' }}>
+      <div className="min-h-screen flex items-center justify-center bg-zh-navy">
         <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-               style={{ backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.5)', boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}>
-            <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>HQ</span>
+          <div className="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center bg-zh-navy-mid border border-zh-navy-border">
+            <span className="font-zh-ui font-bold text-xl text-zh-gold">Z</span>
           </div>
-          <p style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>Loading HQ…</p>
+          <p className="font-zh-mono text-[11px] text-zh-cream-muted uppercase tracking-[3px]">Loading HQ…</p>
         </div>
       </div>
     )
@@ -203,44 +172,38 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
   if (status === 'unauthenticated') return null
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════════
   // SIDEBAR CONTENT (shared between mobile + desktop)
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════════
   const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
-    <div className="flex flex-col h-full" style={{ backgroundColor: '#FFFFFF' }}>
-      {/* Tri-color bar */}
-      <div className="flex-shrink-0 h-[3px] flex">
-        <div style={{ flex: 1, background: '#C8322B' }} />
-        <div style={{ flex: 1, background: '#C49A2A' }} />
-        <div style={{ flex: 1, background: '#3B7EA1' }} />
-      </div>
+    <div className="flex flex-col h-full bg-zh-navy">
+      {/* Gold accent line */}
+      <div className="h-[2px] bg-zh-gold flex-shrink-0" />
 
-      {/* Logo + ops chip */}
+      {/* Logo */}
       <div className="px-5 pt-4 pb-3 flex-shrink-0 flex items-center justify-between">
-        <Link href="/admin" onClick={onClose} className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.5)' }}>
-            <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>HQ</span>
+        <Link href="/admin/cockpit" onClick={onClose} className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-zh-navy-mid border border-zh-navy-border">
+            <span className="font-zh-ui font-bold text-base text-zh-gold">Z</span>
           </div>
           {sidebarOpen && (
             <div>
-              <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 14, color: '#1C1917', letterSpacing: -0.3 }}>
+              <div className="font-zh-ui font-bold text-sm text-zh-cream tracking-tight">
                 Zenitha HQ
               </div>
-              <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>
-                HQ OPS
+              <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase tracking-[2px]">
+                zenitha.luxury
               </div>
             </div>
           )}
         </Link>
         {sidebarOpen && !onClose && (
-          <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg transition-all"
-                  style={{ color: '#78716C' }}>
+          <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-zh-cream-muted hover:text-zh-cream transition-colors">
             <X size={15} />
           </button>
         )}
         {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: '#78716C' }}>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-zh-cream-muted hover:text-zh-cream transition-colors">
             <X size={16} />
           </button>
         )}
@@ -264,84 +227,56 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             <div key={section.id} className="mb-0.5">
               <button
                 onClick={() => toggleMenu(section.id)}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all relative"
-                style={{
-                  backgroundColor: active ? 'rgba(200,50,43,0.04)' : '#FAF8F4',
-                  border: active ? '1px solid rgba(200,50,43,0.12)' : undefined,
-                }}
+                className={`
+                  w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors
+                  ${active ? 'bg-zh-navy-light' : 'hover:bg-zh-navy-mid'}
+                `}
               >
                 {/* Active indicator */}
                 {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r"
-                       style={{ backgroundColor: '#C8322B', insetInlineStart: 0 }} />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r bg-zh-gold" />
                 )}
 
-                {/* Icon container */}
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
-                     style={{
-                       backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF',
-                       border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
-                       color: active ? '#C8322B' : '#78716C',
-                     }}>
-                  <Icon size={15} />
+                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${active ? 'bg-zh-gold-dim text-zh-gold' : 'bg-zh-navy-mid text-zh-cream-muted'}`}>
+                  <Icon size={14} />
                 </div>
 
                 {sidebarOpen && (
                   <>
-                    <div className="flex-1 text-left">
-                      <div style={{
-                        fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
-                        fontSize: 10, fontWeight: active ? 600 : 500,
-                        textTransform: 'uppercase', letterSpacing: 1,
-                        color: active ? '#1C1917' : '#78716C',
-                      }}>
-                        {section.label}
-                      </div>
-                      <div style={{
-                        fontFamily: "'IBM Plex Sans Arabic',sans-serif",
-                        fontSize: 9, color: '#78716C', letterSpacing: 0,
-                      }}>
-                        {section.labelAr}
-                      </div>
-                    </div>
-                    <ChevronDown size={13} style={{
-                      color: '#78716C',
-                      transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 200ms',
-                    }} />
+                    <span className={`flex-1 text-left font-zh-mono text-[10px] uppercase tracking-[1.5px] ${active ? 'text-zh-gold font-semibold' : 'text-zh-cream-muted font-medium'}`}>
+                      {section.label}
+                    </span>
+                    <ChevronDown size={12} className={`text-zh-cream-dim transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
                   </>
                 )}
               </button>
 
               {/* Subitems */}
               {expanded && sidebarOpen && (
-                <div className="ml-11 mt-0.5 space-y-px">
+                <div className="ml-10 mt-0.5 space-y-px">
                   {section.items.map((item) => {
                     const itemActive = isActive(item.href)
+                    const isBadge = 'badge' in item && item.badge
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
                         onClick={onClose}
-                        className="block px-3 py-2 rounded-lg transition-all"
-                        style={{
-                          fontFamily: "var(--font-system,'IBM Plex Mono',monospace)",
-                          fontSize: 10, fontWeight: itemActive ? 600 : 400,
-                          textTransform: 'uppercase', letterSpacing: 0.8,
-                          color: itemActive ? '#C8322B' : '#78716C',
-                          backgroundColor: itemActive ? 'rgba(200,50,43,0.04)' : 'transparent',
-                        }}
+                        className={`
+                          flex items-center justify-between px-3 py-1.5 rounded-md transition-colors font-zh-mono text-[10px] uppercase tracking-[0.8px]
+                          ${itemActive ? 'text-zh-cream font-semibold bg-zh-navy-light' : 'text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-mid'}
+                        `}
                       >
-                        {item.label}
+                        <span>{item.label}</span>
+                        {isBadge && blockerCount > 0 && (
+                          <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-zh-error text-zh-error-text text-[9px] font-bold px-1">
+                            {blockerCount}
+                          </span>
+                        )}
                       </Link>
                     )
                   })}
                 </div>
-              )}
-
-              {/* Collapsed icon-only tooltip target */}
-              {!sidebarOpen && (
-                <div />
               )}
             </div>
           )
@@ -349,33 +284,29 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
       </nav>
 
       {/* User footer */}
-      <div className="flex-shrink-0 px-4 pb-4 pt-3" style={{ borderTop: '1px solid rgba(120,113,108,0.12)' }}>
+      <div className="flex-shrink-0 px-4 pb-4 pt-3 border-t border-zh-navy-border">
         {sidebarOpen ? (
           <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                 style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
-              <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 14, color: '#C8322B' }}>
-                {session?.user?.name?.charAt(0)?.toUpperCase() || 'A'}
+            <div className="w-9 h-9 rounded-full flex items-center justify-center bg-zh-gold-dim flex-shrink-0">
+              <span className="font-zh-ui font-bold text-sm text-zh-gold">
+                {session?.user?.name?.charAt(0)?.toUpperCase() || 'K'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 12, color: '#1C1917' }} className="truncate">
+              <div className="font-zh-ui font-semibold text-xs text-zh-cream truncate">
                 {session?.user?.name || 'Admin'}
               </div>
-              <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
-                Administrator
+              <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase tracking-[1px]">
+                CEO
               </div>
             </div>
-            <button onClick={handleSignOut} className="p-2 rounded-lg transition-all"
-                    style={{ color: '#C8322B' }} title="Sign out">
+            <button onClick={handleSignOut} className="p-2 rounded-lg text-zh-cream-muted hover:text-zh-error-text transition-colors" title="Sign out">
               <LogOut size={14} />
             </button>
           </div>
         ) : (
           <button onClick={handleSignOut}
-                  className="w-full flex items-center justify-center p-2 rounded-lg"
-                  style={{ color: '#C8322B' }}>
+                  className="w-full flex items-center justify-center p-2 rounded-lg text-zh-cream-muted hover:text-zh-error-text transition-colors">
             <LogOut size={16} />
           </button>
         )}
@@ -384,50 +315,35 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
   )
 
   return (
-    <div className="h-screen flex flex-col admin-page" style={{ backgroundColor: '#FAF8F4' }}>
+    <div className="h-screen flex flex-col bg-zh-navy">
 
-      {/* ── Mobile Sidebar Overlay ────────────────────────────────────────── */}
+      {/* ── Mobile Sidebar Overlay ────────────────────────────────────── */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeMobile} />
-          <aside className="absolute inset-y-0 left-0 w-72 flex flex-col overflow-hidden"
-                 style={{ backgroundColor: '#FFFFFF', boxShadow: '4px 0 20px rgba(28,25,23,0.08)' }}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeMobile} />
+          <aside className="absolute inset-y-0 left-0 w-72 flex flex-col overflow-hidden shadow-xl">
             <SidebarContent onClose={closeMobile} />
           </aside>
         </div>
       )}
 
-      {/* ── Desktop Sidebar ──────────────────────────────────────────────── */}
-      <aside className={`fixed top-0 left-0 z-40 h-full flex-col hidden lg:flex transition-all duration-300 overflow-hidden ${sidebarOpen ? 'w-[270px]' : 'w-[68px]'}`}
-             style={{ backgroundColor: '#FFFFFF', borderRight: '1px solid rgba(214,208,196,0.4)' }}>
+      {/* ── Desktop Sidebar ────────────────────────────────────────── */}
+      <aside className={`fixed top-0 left-0 z-40 h-full flex-col hidden lg:flex transition-all duration-300 overflow-hidden border-r border-zh-navy-border ${sidebarOpen ? 'w-[260px]' : 'w-[64px]'}`}>
         {!sidebarOpen && (
-          <div className="flex flex-col items-center pt-4 gap-3">
-            {/* Tri-color bar slim */}
-            <div className="w-full h-[3px] flex">
-              <div style={{ flex: 1, background: '#C8322B' }} />
-              <div style={{ flex: 1, background: '#C49A2A' }} />
-              <div style={{ flex: 1, background: '#4A7BA8' }} />
-            </div>
-            {/* Logo icon */}
+          <div className="flex flex-col items-center pt-4 gap-3 bg-zh-navy h-full">
+            <div className="w-full h-[2px] bg-zh-gold" />
             <button onClick={() => setSidebarOpen(true)}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mt-1"
-                    style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
-              <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 16, color: '#C8322B' }}>Y</span>
+                    className="w-10 h-10 rounded-lg flex items-center justify-center mt-1 bg-zh-navy-mid border border-zh-navy-border hover:border-zh-gold-dim transition-colors">
+              <span className="font-zh-ui font-bold text-base text-zh-gold">Z</span>
             </button>
-            {/* Icon-only nav */}
             <div className="flex flex-col gap-1 px-2 mt-2">
               {navigation.map((section) => {
                 const Icon = section.icon
                 const active = isSectionActive(section)
                 return (
                   <Link key={section.id} href={section.items[0]?.href || '/admin'} title={section.label}
-                        className="w-11 h-11 rounded-xl flex items-center justify-center transition-all"
-                        style={{
-                          backgroundColor: active ? 'rgba(200,50,43,0.06)' : '#FFFFFF',
-                          border: `1px solid ${active ? 'rgba(200,50,43,0.15)' : 'rgba(214,208,196,0.4)'}`,
-                          color: active ? '#C8322B' : '#78716C',
-                        }}>
-                    <Icon size={17} />
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${active ? 'bg-zh-gold-dim text-zh-gold' : 'bg-zh-navy-mid text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-light'}`}>
+                    <Icon size={16} />
                   </Link>
                 )
               })}
@@ -437,33 +353,21 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
         {sidebarOpen && <SidebarContent />}
       </aside>
 
-      {/* ── Top Header ───────────────────────────────────────────────────── */}
-      <header className={`fixed top-0 right-0 z-30 h-14 flex items-center transition-all duration-300 ${sidebarOpen ? 'lg:left-[270px]' : 'lg:left-[68px]'} left-0`}
-              style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(214,208,196,0.4)' }}>
-        {/* Tri-color top bar — very top of header */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] flex">
-          <div style={{ flex: 1, background: '#C8322B' }} />
-          <div style={{ flex: 1, background: '#C49A2A' }} />
-          <div style={{ flex: 1, background: '#4A7BA8' }} />
-        </div>
-
-        <div className="flex items-center justify-between w-full px-4 lg:px-6">
+      {/* ── Top Header ──────────────────────────────────────────────── */}
+      <header className={`fixed top-0 right-0 z-30 h-12 flex items-center transition-all duration-300 bg-zh-navy-mid border-b border-zh-navy-border ${sidebarOpen ? 'lg:left-[260px]' : 'lg:left-[64px]'} left-0`}>
+        <div className="flex items-center justify-between w-full px-4 lg:px-5">
           {/* Left */}
           <div className="flex items-center gap-3">
-            {/* Mobile hamburger */}
             <button onClick={() => setMobileMenuOpen(true)}
-                    className="lg:hidden p-2 rounded-lg transition-all"
-                    style={{ boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', backgroundColor: '#FAF8F4', color: '#78716C' }}>
-              <Menu size={18} />
-            </button>
-            {/* Sidebar toggle (desktop) */}
-            <button onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="hidden lg:flex p-2 rounded-lg transition-all"
-                    style={{ boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', backgroundColor: '#FAF8F4', color: '#78716C' }}>
+                    className="lg:hidden p-2 rounded-lg bg-zh-navy-light text-zh-cream-muted hover:text-zh-cream transition-colors border border-zh-navy-border">
               <Menu size={16} />
             </button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="hidden lg:flex p-2 rounded-lg bg-zh-navy-light text-zh-cream-muted hover:text-zh-cream transition-colors border border-zh-navy-border">
+              <Menu size={14} />
+            </button>
             {pageTitle && (
-              <h1 style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 16, color: '#1C1917' }} className="hidden md:block">
+              <h1 className="hidden md:block font-zh-ui font-semibold text-sm text-zh-cream">
                 {pageTitle}
               </h1>
             )}
@@ -471,63 +375,53 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
           {/* Right */}
           <div className="flex items-center gap-2">
-            {/* Quick new article */}
-            <Link href="/admin/articles/new"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, backgroundColor: '#C8322B', color: '#FAF8F4', boxShadow: '0 2px 6px rgba(200,50,43,0.15)' }}>
-              <Plus size={12} />
+            <Link href="/admin/cockpit/write"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md font-zh-mono text-[9px] font-semibold uppercase tracking-[1.5px] bg-zh-gold text-zh-navy hover:bg-zh-gold/90 transition-colors">
+              <Plus size={11} />
               New Article
             </Link>
-
-            {/* M-013: Notification bell removed — no notification panel exists yet */}
 
             {/* User menu */}
             <div className="relative">
               <button onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="flex items-center gap-2 p-1.5 rounded-xl transition-all"
-                      style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
-                <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                     style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
-                  <span style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 11, color: '#C8322B' }}>
-                    {session?.user?.name?.charAt(0)?.toUpperCase() || 'A'}
+                      className="flex items-center gap-2 p-1.5 rounded-lg bg-zh-navy-light border border-zh-navy-border hover:border-zh-gold-dim transition-colors">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-zh-gold-dim">
+                  <span className="font-zh-ui font-bold text-[10px] text-zh-gold">
+                    {session?.user?.name?.charAt(0)?.toUpperCase() || 'K'}
                   </span>
                 </div>
-                <ChevronDown size={12} style={{ color: '#78716C' }} />
+                <ChevronDown size={11} className="text-zh-cream-muted" />
               </button>
 
               {userMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl z-50 overflow-hidden"
-                       style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 3px rgba(28,25,23,0.06)', border: '1px solid rgba(214,208,196,0.4)' }}>
-                    <div className="p-4" style={{ borderBottom: '1px solid rgba(120,113,108,0.12)' }}>
-                      <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                  <div className="absolute right-0 top-full mt-2 w-48 rounded-lg z-50 overflow-hidden bg-zh-navy-mid border border-zh-navy-border shadow-xl">
+                    <div className="p-3 border-b border-zh-navy-border">
+                      <div className="font-zh-ui font-semibold text-xs text-zh-cream">
                         {session?.user?.name || 'Admin'}
                       </div>
-                      <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C', letterSpacing: 0.5 }} className="mt-0.5 truncate">
+                      <div className="font-zh-mono text-[9px] text-zh-cream-muted tracking-wider mt-0.5 truncate">
                         {session?.user?.email || ''}
                       </div>
                     </div>
-                    <div className="p-2 space-y-0.5">
+                    <div className="p-1.5 space-y-0.5">
                       {[
                         { label: 'Profile', href: '/admin/team', icon: User },
                         { label: 'Settings', href: '/admin/settings', icon: Settings },
                         { label: 'AI Models', href: '/admin/settings?tab=ai-models', icon: Brain },
-                        { label: 'API Keys', href: '/admin/settings?tab=api-keys', icon: Key },
                       ].map(({ label, href, icon: Icon }) => (
                         <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all"
-                              style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
-                          <Icon size={13} />
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-md font-zh-mono text-[9px] uppercase tracking-[1px] text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-light transition-colors">
+                          <Icon size={12} />
                           {label}
                         </Link>
                       ))}
                     </div>
-                    <div className="p-2" style={{ borderTop: '1px solid rgba(120,113,108,0.12)' }}>
+                    <div className="p-1.5 border-t border-zh-navy-border">
                       <button onClick={handleSignOut}
-                              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all"
-                              style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, color: '#C8322B' }}>
-                        <LogOut size={13} />
+                              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md font-zh-mono text-[9px] uppercase tracking-[1px] text-zh-error-text hover:bg-zh-error/20 transition-colors">
+                        <LogOut size={12} />
                         Sign Out
                       </button>
                     </div>
@@ -539,17 +433,16 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
         </div>
       </header>
 
-      {/* ── Main Content ─────────────────────────────────────────────────── */}
-      <main className={`flex-1 overflow-y-auto transition-all duration-300 pt-14 pb-20 lg:pb-0 ${sidebarOpen ? 'lg:ml-[270px]' : 'lg:ml-[68px]'}`}
-            style={{ backgroundColor: '#FAF8F4', WebkitOverflowScrolling: 'touch' }}>
+      {/* ── Main Content ────────────────────────────────────────────── */}
+      <main className={`flex-1 overflow-y-auto transition-all duration-300 pt-12 pb-20 lg:pb-0 ${sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[64px]'}`}
+            style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="p-4 lg:p-6">
           {children}
         </div>
       </main>
 
-      {/* ── Mobile Bottom Nav ─────────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
-           style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid rgba(214,208,196,0.4)' }}>
+      {/* ── Mobile Bottom Nav ────────────────────────────────────────── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-zh-navy-mid border-t border-zh-navy-border">
         <div className="flex items-center justify-around h-14 px-2">
           {mobileBottomNav.map((item) => {
             const Icon = item.icon
@@ -559,19 +452,17 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             if (isTrigger) {
               return (
                 <button key="more" onClick={() => setMobileMenuOpen(true)}
-                        className="flex flex-col items-center gap-0.5 min-w-[44px] py-1"
-                        style={{ color: '#78716C' }}>
-                  <Icon size={19} />
-                  <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>More</span>
+                        className="flex flex-col items-center gap-0.5 min-w-[44px] py-1 text-zh-cream-muted">
+                  <Icon size={18} />
+                  <span className="font-zh-mono text-[8px] uppercase tracking-wider">More</span>
                 </button>
               )
             }
 
-            if (item.primary) {
+            if ('primary' in item && item.primary) {
               return (
                 <Link key="new" href={item.href}
-                      className="flex items-center justify-center w-11 h-11 -mt-4 rounded-full transition-all"
-                      style={{ backgroundColor: '#C8322B', boxShadow: '0 4px 12px rgba(200,50,43,0.2)', color: '#FAF8F4' }}>
+                      className="flex items-center justify-center w-11 h-11 -mt-4 rounded-full bg-zh-gold text-zh-navy shadow-lg">
                   <Icon size={20} />
                 </Link>
               )
@@ -579,10 +470,9 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
             return (
               <Link key={item.label} href={item.href}
-                    className="flex flex-col items-center gap-0.5 min-w-[44px] py-1 transition-all"
-                    style={{ color: active ? '#C8322B' : '#78716C' }}>
-                <Icon size={19} />
-                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>{item.label}</span>
+                    className={`flex flex-col items-center gap-0.5 min-w-[44px] py-1 transition-colors ${active ? 'text-zh-gold' : 'text-zh-cream-muted'}`}>
+                <Icon size={18} />
+                <span className="font-zh-mono text-[8px] uppercase tracking-wider">{item.label}</span>
               </Link>
             )
           })}

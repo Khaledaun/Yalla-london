@@ -14,7 +14,9 @@ interface SiteConfig {
   name: string;
   tagline: string;
   domain: string;
-  siteType: "travel_blog" | "yacht_charter" | "other";
+  siteType: "travel_blog" | "yacht_charter" | "wordpress" | "other";
+  wpApiUrl: string;
+  wpConnected: boolean;
   primaryLanguage: "en" | "ar";
   secondaryLanguage: "en" | "ar" | "none";
   primaryColor: string;
@@ -114,6 +116,8 @@ export default function NewSitePage() {
   const [step, setStep] = useState(1);
   const [config, setConfig] = useState<Partial<SiteConfig>>({
     siteType: "travel_blog",
+    wpApiUrl: "",
+    wpConnected: false,
     primaryLanguage: "en",
     secondaryLanguage: "ar",
     primaryColor: "#0EA5E9",
@@ -312,6 +316,7 @@ export default function NewSitePage() {
               {[
                 { type: "travel_blog", icon: "✈️", label: "Travel Blog", desc: "Content + affiliate monetization (like Yalla London)" },
                 { type: "yacht_charter", icon: "⛵", label: "Yacht Charter Platform", desc: "Fleet + bookings (like Zenitha Yachts)" },
+                { type: "wordpress", icon: "📝", label: "WordPress (External)", desc: "Connect an existing WordPress site via REST API" },
                 { type: "other", icon: "🌐", label: "Custom / Other", desc: "General purpose website" },
               ].map(({ type, icon, label, desc }) => (
                 <button
@@ -328,6 +333,43 @@ export default function NewSitePage() {
                   </div>
                 </button>
               ))}
+
+              {/* WordPress API URL input */}
+              {config.siteType === "wordpress" && (
+                <div className="mt-4 p-4 bg-zinc-800 rounded-xl border border-zinc-700 space-y-3">
+                  <p className="text-xs text-zinc-400">WordPress REST API endpoint:</p>
+                  <input
+                    type="url"
+                    value={config.wpApiUrl}
+                    onChange={(e) => update("wpApiUrl", e.target.value)}
+                    placeholder="https://yoursite.com/wp-json/wp/v2"
+                    className="w-full bg-zinc-900 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!config.wpApiUrl) return;
+                      try {
+                        const res = await fetch(config.wpApiUrl.replace(/\/$/, "") + "/posts?per_page=1");
+                        if (res.ok) {
+                          update("wpConnected", true);
+                        } else {
+                          update("wpConnected", false);
+                          alert(`WordPress API returned ${res.status}. Check the URL.`);
+                        }
+                      } catch {
+                        update("wpConnected", false);
+                        alert("Could not reach WordPress API. Check the URL and CORS settings.");
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors"
+                  >
+                    Test Connection
+                  </button>
+                  {config.wpConnected && (
+                    <p className="text-xs text-emerald-400">Connected — WordPress API reachable</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

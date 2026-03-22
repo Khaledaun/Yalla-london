@@ -2,11 +2,12 @@
 /**
  * /admin/cockpit — Mission Control Dashboard
  *
- * 7-tab ops center giving Khaled full visibility and control over the platform
+ * 8-tab ops center giving Khaled full visibility and control over the platform
  * from his iPhone. Zero mock data. Every button calls a real API.
  *
  * Tabs:
- *  1. Mission     — system status, pipeline overview, alerts, quick actions
+ *  0. HQ (NEW)    — dark navy ZH Mission Control (default)
+ *  1. Mission     — legacy system status, pipeline overview, alerts, quick actions
  *  2. Content     — full article table with "Why not published?" gate check panel
  *  3. Pipeline    — per-site workflow control (content, SEO, topics, social)
  *  4. Crons       — cron job health, history, retry controls
@@ -31,6 +32,7 @@ import {
   AdminAlertBanner,
   AdminTabs,
 } from "@/components/admin/admin-ui";
+import { MissionControl } from "./components/mission-control";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 
@@ -8168,15 +8170,16 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
 // ─── Root Cockpit Page ────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "mission", label: "🚀 Mission" },
-  { id: "seo", label: "📊 SEO Intel" },
-  { id: "content", label: "📋 Content" },
-  { id: "pipeline", label: "⚙️ Pipeline" },
-  { id: "crons", label: "⏱ Crons" },
-  { id: "sites", label: "🌍 Sites" },
-  { id: "ai", label: "🤖 AI Config" },
-  { id: "settings", label: "🔧 Settings" },
-  { id: "tasks", label: "📌 Tasks" },
+  { id: "hq", label: "HQ" },
+  { id: "mission", label: "Mission" },
+  { id: "seo", label: "SEO Intel" },
+  { id: "content", label: "Content" },
+  { id: "pipeline", label: "Pipeline" },
+  { id: "crons", label: "Crons" },
+  { id: "sites", label: "Sites" },
+  { id: "ai", label: "AI Config" },
+  { id: "settings", label: "Settings" },
+  { id: "tasks", label: "Tasks" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -8191,8 +8194,8 @@ export default function CockpitPageWrapper() {
 
 function CockpitPage() {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TabId) || "mission";
-  const validTab = TABS.some(t => t.id === initialTab) ? initialTab : "mission";
+  const initialTab = (searchParams.get("tab") as TabId) || "hq";
+  const validTab = TABS.some(t => t.id === initialTab) ? initialTab : "hq";
   const [activeTab, setActiveTab] = useState<TabId>(validTab);
   const [cockpitData, setCockpitData] = useState<CockpitData | null>(null);
   const [cockpitLoading, setCockpitLoading] = useState(true);
@@ -8378,6 +8381,9 @@ function CockpitPage() {
 
       {/* Content */}
       <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20">
+        {activeTab === "hq" && (
+          <MissionControl />
+        )}
         {activeTab === "mission" && (
           <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />
         )}

@@ -145,12 +145,11 @@ export const CONTENT_QUALITY = {
   qualityGateScore: 40,
   /**
    * Minimum quality score to fetch articles FROM the reservoir for promotion.
-   * Intentionally lower than qualityGateScore so that articles scoring 45–54
-   * are still fetched and evaluated — the gate's hard blocker is seo_score < 50,
-   * not < 55. This prevents articles from being permanently frozen if the
-   * qualityGateScore threshold is raised after they entered the reservoir.
+   * MUST match qualityGateScore — otherwise articles scoring between the two
+   * thresholds are permanently frozen: high enough to enter reservoir but too
+   * low to leave it. (Bug found March 22, 2026: 40 vs 45 gap froze articles.)
    */
-  reservoirMinScore: 45,
+  reservoirMinScore: 40,
 } as const;
 
 // ─── Per-Content-Type Quality Thresholds ─────────────────────────────────────

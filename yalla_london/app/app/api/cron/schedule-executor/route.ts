@@ -112,6 +112,30 @@ async function handleScheduleExecutor(request: NextRequest) {
       }
     }
 
+    // Check reservoir cap BEFORE processing rules — if reservoir is full,
+    // creating more drafts wastes AI budget on articles that will sit idle.
+    // (Bug found March 22, 2026: schedule-executor was creating drafts even with 65 in reservoir)
+    const reservoirCount = await prisma.articleDraft.count({
+      where: { current_phase: "reservoir", site_id: { in: activeSiteIds } },
+    });
+    if (reservoirCount >= 50) {
+      const durationMs = Date.now() - cronStart;
+      const { logCronExecution: logReservoir } = await import("@/lib/cron-logger");
+      await logReservoir("schedule-executor", "completed", {
+        durationMs,
+        itemsProcessed: 0,
+        resultSummary: { message: `Reservoir full (${reservoirCount}/50) — skipping draft creation`, reservoirCount },
+      }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
+
+      return NextResponse.json({
+        success: true,
+        message: `Reservoir full (${reservoirCount}/50)`,
+        ...results,
+        reservoirCount,
+        durationMs,
+      });
+    }
+
     for (const rule of rules) {
       if (Date.now() - cronStart > BUDGET_MS) {
         results.errors.push("Budget exhausted before processing all rules");
@@ -254,8 +278,12 @@ async function handleScheduleExecutor(request: NextRequest) {
 
     const durationMs = Date.now() - cronStart;
 
+    // "No consumable topics" is a normal condition (topic pool exhausted), NOT a failure.
+    // Only log as "failed" when there's an actual exception in the catch block.
+    // Logging "failed" here triggers diagnostic-agent, CEO Inbox, and failure hooks
+    // unnecessarily, creating alert fatigue. (Bug found March 22, 2026)
     const { logCronExecution: logCron2 } = await import("@/lib/cron-logger");
-    await logCron2("schedule-executor", results.errors.length > 0 && results.draftsQueued === 0 ? "failed" : "completed", {
+    await logCron2("schedule-executor", "completed", {
       durationMs,
       itemsProcessed: results.draftsQueued,
       resultSummary: results,

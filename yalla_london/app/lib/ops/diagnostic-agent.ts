@@ -28,6 +28,7 @@ export type DiagnosisCategory =
   | "stuck_loop"           // Draft retried 5+ times on same phase without progress
   | "schema_mismatch"      // Prisma field doesn't exist
   | "database_unavailable" // Can't reach DB server (Supabase pooler down, network error)
+  | "topic_starvation"    // No consumable topics available — needs weekly-topics refill
   | "unknown";
 
 export interface Diagnosis {
@@ -216,10 +217,15 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
 
     for (const cron of failedCrons) {
       const errorMsg = (cron.error_message || "").toLowerCase();
+      // Also check result_summary for error details (schedule-executor stores errors in result_summary.errors array)
+      const resultStr = JSON.stringify(cron.result_summary || {}).toLowerCase();
+      const combinedMsg = errorMsg + " " + resultStr;
       let category: DiagnosisCategory = "unknown";
 
-      if (errorMsg.includes("can't reach") || errorMsg.includes("econnrefused") || errorMsg.includes("enotfound") || errorMsg.includes("pooler") || errorMsg.includes("database server")) {
+      if (combinedMsg.includes("can't reach") || combinedMsg.includes("econnrefused") || combinedMsg.includes("enotfound") || combinedMsg.includes("pooler") || combinedMsg.includes("database server")) {
         category = "database_unavailable";
+      } else if (combinedMsg.includes("no consumable topic") || combinedMsg.includes("no topic") || combinedMsg.includes("topic pool") || combinedMsg.includes("nothing to process")) {
+        category = "topic_starvation";
       } else if (errorMsg.includes("timeout") || errorMsg.includes("aborted")) {
         category = "timeout";
       } else if (errorMsg.includes("api") || errorMsg.includes("429") || errorMsg.includes("503")) {
@@ -908,6 +914,33 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     }
   } catch (zombieErr) {
     console.warn("[diagnostic-agent] Phase 0d zombie cleanup failed:", zombieErr instanceof Error ? zombieErr.message : zombieErr);
+  }
+
+  // Phase 0e: Reservoir age-out — reject reservoir articles older than 7 days
+  // These are dead inventory: they've sat in the reservoir for a week without
+  // being promoted, likely because of keyword overlap with published articles.
+  // Keeping them inflates the reservoir count (blocking new draft creation at cap 50)
+  // and wastes diagnostic-sweep cycles evaluating them. (Bug found March 22, 2026)
+  try {
+    const { prisma: p0e } = await import("@/lib/db");
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const agedOut = await p0e.articleDraft.updateMany({
+      where: {
+        current_phase: "reservoir",
+        updated_at: { lt: sevenDaysAgo },
+      },
+      data: {
+        current_phase: "rejected",
+        last_error: "RESERVOIR_AGE_OUT",
+        rejection_reason: "[diagnostic-agent] Aged out of reservoir after 7 days — likely keyword overlap with published articles",
+        completed_at: new Date(),
+      },
+    });
+    if (agedOut.count > 0) {
+      console.log(`[diagnostic-agent] Phase 0e: Rejected ${agedOut.count} reservoir articles older than 7 days`);
+    }
+  } catch (ageErr) {
+    console.warn("[diagnostic-agent] Phase 0e reservoir age-out failed:", ageErr instanceof Error ? ageErr.message : ageErr);
   }
 
   // Phase 1: Diagnose

@@ -42,8 +42,8 @@ export default function BlockersPage() {
         const data = await envRes.json();
         setEnvVars(data.vars || []);
       }
-    } catch {
-      /* silent */
+    } catch (err) {
+      console.warn("[blockers-page] fetch failed:", err instanceof Error ? err.message : err);
     } finally {
       setLoading(false);
     }
@@ -53,11 +53,14 @@ export default function BlockersPage() {
     fetchData();
   }, [fetchData]);
 
-  const runAction = async (actionId: string, endpoint: string, method: string = "POST") => {
+  const runAction = async (actionId: string, endpoint: string, method: string = "POST", body?: Record<string, unknown>) => {
     setActionLoading(actionId);
     setActionResult(null);
     try {
-      const res = await fetch(endpoint, { method });
+      const res = await fetch(endpoint, {
+        method,
+        ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+      });
       if (res.ok) {
         const data = await res.json();
         setActionResult({ type: "success", message: data.message || `${actionId} completed` });
@@ -68,7 +71,7 @@ export default function BlockersPage() {
     } catch (err) {
       setActionResult({ type: "error", message: err instanceof Error ? err.message : "Failed" });
     } finally {
-      setActionLoading(actionId);
+      setActionLoading(null);
     }
   };
 
@@ -99,7 +102,7 @@ export default function BlockersPage() {
       label: "Zombie Crons (running >15min)",
       count: b.zombieCrons,
       severity: b.zombieCrons > 0 ? "error" as const : "success" as const,
-      action: { label: "Clear Zombies", onClick: () => runAction("zombie-crons", "/api/admin/departures", "POST") },
+      action: { label: "Clear Zombies", onClick: () => runAction("zombie-crons", "/api/admin/departures", "POST", { path: "/api/cron/diagnostic-sweep" }) },
     },
     {
       id: "stuck-drafts",
@@ -107,7 +110,7 @@ export default function BlockersPage() {
       label: "Stuck Drafts (>4h without progress)",
       count: b.stuckDrafts,
       severity: b.stuckDrafts > 10 ? "error" as const : b.stuckDrafts > 0 ? "warn" as const : "success" as const,
-      action: { label: "Run Diagnostic", onClick: () => runAction("stuck-drafts", "/api/admin/departures", "POST") },
+      action: { label: "Run Diagnostic", onClick: () => runAction("stuck-drafts", "/api/admin/departures", "POST", { path: "/api/cron/diagnostic-sweep" }) },
     },
     {
       id: "indexing-errors",

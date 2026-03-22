@@ -8262,7 +8262,7 @@ function CockpitPage() {
   }, []);
 
   return (
-    <div className="admin-page min-h-screen">
+    <div className="admin-page">
       {/* Header */}
       <div className="sticky top-0 z-30 backdrop-blur-md bg-white/92" style={{ borderBottom: '1px solid var(--admin-border, rgba(214,208,196,0.6))' }}>
         <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between gap-2">

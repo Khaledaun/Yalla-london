@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -523,7 +524,7 @@ function AffiliateTab({ affiliate }: { affiliate: AffiliateData }) {
       <Card title="">
         <p style={{ fontFamily: "var(--font-system)", fontSize: 12, color: "#78716C", textAlign: "center" }}>
           For detailed affiliate data, visit{" "}
-          <a href="/admin/affiliate-hq" style={{ color: "#3B7EA1", textDecoration: "underline" }}>Affiliate HQ</a>
+          <Link href="/admin/affiliate-hq" style={{ color: "#3B7EA1", textDecoration: "underline" }}>Affiliate HQ</Link>
         </p>
       </Card>
     </div>

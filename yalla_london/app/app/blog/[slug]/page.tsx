@@ -164,6 +164,29 @@ type PostResult =
  * Without this, Prisma fires the identical query twice per page render
  * (Next.js only auto-deduplicates fetch(), not Prisma calls).
  */
+/**
+ * Check SeoRedirect table for 301 redirects (e.g., cannibalized articles).
+ * Returns the target URL if a redirect exists, null otherwise.
+ */
+async function checkRedirect(slug: string): Promise<string | null> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const redirect = await withTimeout(
+      prisma.seoRedirect.findUnique({
+        where: { sourceUrl: `/blog/${slug}` },
+        select: { targetUrl: true, enabled: true, statusCode: true },
+      }),
+      2000,
+    ) as { targetUrl: string; enabled: boolean; statusCode: number } | null;
+    if (redirect?.enabled && redirect.targetUrl) {
+      return redirect.targetUrl;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const findPost = cache(async function findPost(slug: string, siteId: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
   const dbPost = await getDbPost(slug, siteId);
@@ -665,6 +688,12 @@ export default async function BlogPostPage({ params }: Props) {
   const result = await findPost(slug, siteId);
 
   if (!result) {
+    // Check for 301 redirect (cannibalized/merged articles)
+    const redirectTarget = await checkRedirect(slug);
+    if (redirectTarget) {
+      const { redirect } = await import("next/navigation");
+      redirect(redirectTarget);
+    }
     notFound();
   }
 

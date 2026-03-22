@@ -2225,7 +2225,7 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | ~~Feature Flags~~ | ~~DB-backed, cron guards wired, but not wired to all runtime behavior~~ | ~~LOW~~ | **DONE** — fully wired (DB + env var, 32+ crons, `isFeatureFlagEnabled()`) |
 | ~~Brand Templates~~ | ~~Only Yalla London template exists~~ | ~~MEDIUM~~ | **DONE** — `getBrandProfile()` in `lib/design/brand-provider.ts` returns correct brand for all 6 sites (readiness 95%) |
 | ~~CJ siteId Migration~~ | ~~CjCommission, CjClickEvent, CjOffer have NO siteId field~~ | ~~HIGH~~ | **DONE** — siteId added to all 3 models (migration `20260311_add_siteid_to_cj_models`), backfill from SID |
-| **CJ Credentials** | CJ Publisher account activated, Vrbo approved via CJ. Env vars configured in Vercel: `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID` | **INFO** | **ACTIVE** — March 12, 2026 |
+| **CJ Credentials** | CJ Publisher account activated. **3 JOINED advertisers: Expedia (EPC $61.44, 30d cookie), Vrbo (EPC $25.20, 30d cookie), The Excellence Collection (EPC $0.00, 30d cookie)**. 56 total advertisers synced. Env vars: `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID` | **INFO** | **ACTIVE** — March 22, 2026 |
 | ~~OG Images~~ | ~~Per-site OG image files don't exist yet~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG route at `app/api/og/route.tsx` |
 | ~~Login Security~~ | ~~No rate limiting on admin login endpoint~~ | ~~MEDIUM~~ | **DONE** — 5/15min + middleware layer |
 | ~~Cookie Consent~~ | ~~No GDPR cookie consent banner~~ | ~~MEDIUM~~ | **DONE** — bilingual, 4 categories, in root layout |

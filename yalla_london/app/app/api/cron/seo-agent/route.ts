@@ -480,6 +480,53 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
 
     // NOTE: Step 13 (content strategy + diversity) moved to seo-agent-intelligence
 
+    // 12e. WEEKLY KEYWORD CANNIBALIZATION RESOLUTION
+    // Runs only on the first seo-agent invocation each Monday (weekly gate).
+    // Finds groups of published articles targeting the same keywords,
+    // keeps the best one, unpublishes duplicates, creates 301 redirects.
+    if (dbAvailable && hasBudget(10_000) && isEnhancementOwner("seo-agent", "cannibalization_resolution")) {
+      try {
+        const now = new Date();
+        const isMonday = now.getUTCDay() === 1;
+        const isMorningRun = now.getUTCHours() < 10; // Only on 7am run, not 1pm or 8pm
+
+        if (isMonday && isMorningRun) {
+          const {
+            findCannibalizationGroups,
+            resolveCannibalizationGroups,
+          } = await import("@/lib/seo/cannibalization-resolver");
+
+          const groups = await findCannibalizationGroups(siteId);
+
+          if (groups.length > 0) {
+            const result = await resolveCannibalizationGroups(groups, siteId, 3);
+            report.cannibalizationResolution = result;
+
+            if (result.articlesRedirected > 0) {
+              fixes.push(
+                `Resolved ${result.groupsFound} cannibalization group(s): ` +
+                `${result.articlesRedirected} duplicate(s) redirected, ` +
+                `${result.redirectsCreated} 301 redirect(s) created`
+              );
+            }
+
+            if (result.groupsFound > 0) {
+              for (const g of result.groups) {
+                issues.push(
+                  `Cannibalization group: "${g.canonicalTitle}" (kept) — ` +
+                  `${g.duplicates.length} duplicate(s) unpublished & redirected`
+                );
+              }
+            }
+          } else {
+            report.cannibalizationResolution = { groupsFound: 0, articlesRedirected: 0, redirectsCreated: 0, groups: [] };
+          }
+        }
+      } catch (cannErr) {
+        console.warn("[seo-agent] Cannibalization resolution failed (non-fatal):", cannErr instanceof Error ? cannErr.message : cannErr);
+      }
+    }
+
   // 13. STORE AGENT RUN REPORT
   report.summary = {
     totalIssues: issues.length,

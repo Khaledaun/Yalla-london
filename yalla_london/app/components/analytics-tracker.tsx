@@ -41,10 +41,28 @@ export function AnalyticsTracker() {
       const href = link.href;
       const rel = link.getAttribute('rel') || '';
       const isAffiliate = rel.includes('sponsored') ||
+        href.includes('/api/affiliate/click') ||
         affiliateDomains.some(d => href.includes(d));
       if (isAffiliate) {
-        const partner = affiliateDomains.find(d => href.includes(d)) || 'unknown';
+        const partner = link.getAttribute('data-advertiser') ||
+          affiliateDomains.find(d => href.includes(d)) || 'unknown';
         trackAffiliateClick(partner, href);
+
+        // Append GA4 client ID to tracking URL for server-side event attribution
+        if (href.includes('/api/affiliate/click') && !href.includes('ga_cid=')) {
+          try {
+            const gaCookie = document.cookie
+              .split('; ')
+              .find(row => row.startsWith('_ga='));
+            if (gaCookie) {
+              const gaClientId = gaCookie.split('.').slice(-2).join('.');
+              const separator = href.includes('?') ? '&' : '?';
+              link.href = `${href}${separator}ga_cid=${encodeURIComponent(gaClientId)}`;
+            }
+          } catch {
+            // Non-critical — server will generate its own client ID
+          }
+        }
       }
     };
 

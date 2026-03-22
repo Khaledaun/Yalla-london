@@ -2149,6 +2149,22 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
             <span>{data.revenue.affiliateClicksWeek} clicks this week{data.revenue.topPartner ? ` · Top: ${data.revenue.topPartner}` : ""}</span>
             <span style={{ color: '#C8322B', fontWeight: 600 }}>AI: ${data.revenue.aiCostWeekUsd.toFixed(2)}</span>
           </div>
+          {/* Affiliate diagnostic banner — show when zero clicks */}
+          {data.revenue.affiliateClicksWeek === 0 && data.revenue.affiliateClicksToday === 0 && (
+            <div className="mt-2 rounded-lg p-2" style={{ background: '#FEF3C7', border: '1px solid #F59E0B', fontSize: 11, fontFamily: 'var(--font-system)' }}>
+              <div style={{ fontWeight: 600, color: '#92400E', marginBottom: 2 }}>No affiliate clicks detected</div>
+              <div style={{ color: '#78350F', fontSize: 10, lineHeight: '1.4' }}>
+                Check: (1) GA4_API_SECRET + GA4_MEASUREMENT_ID env vars set in Vercel, (2) NEXT_PUBLIC_GA_MEASUREMENT_ID set to real ID, (3) articles have affiliate links injected
+              </div>
+              <button
+                onClick={() => window.open('/admin/affiliate-hq', '_blank')}
+                className="mt-1.5 rounded px-2 py-1"
+                style={{ background: '#C49A2A', color: '#fff', fontSize: 10, fontWeight: 600, border: 'none', cursor: 'pointer' }}
+              >
+                Open Affiliate HQ
+              </button>
+            </div>
+          )}
         </Card>
       )}
 

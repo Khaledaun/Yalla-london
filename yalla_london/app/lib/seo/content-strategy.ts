@@ -171,8 +171,10 @@ export function generateContentProposals(
     // For low-CTR blog posts, suggest a comparison or deep-dive spin-off
     const keyword = page.slug.replace(/-/g, " ").replace(/\d{4}/g, "").trim();
 
+    // Generate a clean, human-readable title from the keyword
+    const cleanKeyword = capitalize(keyword);
     proposals.push({
-      title: `Top Alternatives: ${capitalize(keyword)} — Complete Comparison Guide`,
+      title: `Best ${cleanKeyword}: Complete Guide & Reviews`,
       primaryKeyword: keyword,
       longtails: [`best ${keyword}`, `${keyword} comparison`, `${keyword} review`],
       questions: [`What is the best ${keyword}?`, `How to choose ${keyword}?`],
@@ -203,7 +205,8 @@ export function generateContentProposals(
 export async function saveContentProposals(
   prisma: any,
   proposals: ContentProposal[],
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<{ created: number; skipped: number }> {
   let created = 0;
   let skipped = 0;
@@ -215,6 +218,7 @@ export async function saveContentProposals(
         where: {
           primary_keyword: proposal.primaryKeyword,
           status: { in: ["planned", "queued", "ready", "proposed"] },
+          ...(siteId ? { site_id: siteId } : {}),
         },
       });
 
@@ -231,17 +235,20 @@ export async function saveContentProposals(
           questions: proposal.questions,
           suggested_page_type: proposal.pageType,
           locale: proposal.locale,
-          status: "ready", // Immediately available for content generation
+          status: "ready",
           confidence_score: proposal.confidenceScore,
-          source: "seo-agent-strategy",
           intent: proposal.contentType === "answer" ? "info" : "info",
           evergreen: proposal.contentType !== "seasonal",
-          description: proposal.rationale,
-          // Store content type in authority_links_json for the generator to read
+          site_id: siteId || null,
           authority_links_json: {
             contentType: proposal.contentType,
             expandsSlug: proposal.expandsSlug || null,
             priority: proposal.priority,
+            rationale: proposal.rationale,
+          },
+          source_weights_json: {
+            source: "seo-agent-strategy",
+            weight: proposal.confidenceScore || 0.5,
           },
         },
       });
@@ -311,13 +318,14 @@ export async function analyzeContentDiversity(
 
   // Count published posts by content type (stored in authority_links_json.contentType)
   const allPosts = await prisma.blogPost.findMany({
-    where: { published: true, deletedAt: null },
+    where: { published: true,  },
     select: {
       authority_links_json: true,
       tags: true,
       created_at: true,
       page_type: true,
     },
+    take: 2000,
   });
 
   const totalPublished = allPosts.length;

@@ -1,851 +1,801 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  ChevronDown, ChevronRight, MapPin, Star,
-  Download, Play, Image as ImageIcon
+  ChevronRight, MapPin, Star, Clock,
+  Download, ArrowRight, Sparkles, Calendar,
+  TrendingUp, BookOpen, Ticket, Compass, Map, Train, Utensils, Users, Gem
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { NewsCarousel } from '@/components/news-carousel'
+import { NewsSideBanner } from '@/components/news-side-banner'
+import { FollowUs } from '@/components/follow-us'
+import { TriBar, BrandButton, BrandTag, BrandCard, BrandCardLight, SectionLabel, WatermarkStamp } from '@/components/brand-kit'
+import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 
 interface YallaHomepageProps {
   locale?: 'en' | 'ar'
 }
 
-// Brand Colors
-const colors = {
-  primary: '#1A1F36',
-  accent: '#E8634B',
-  gray: '#A3A3A3'
-}
+// ─── Data ────────────────────────────────────────────────────────────────────
 
-// Trending items
-const trendingItems = [
-  { en: 'Arsenal vs Chelsea tickets selling fast', ar: 'تذاكر آرسنال ضد تشيلسي تنفذ بسرعة' },
-  { en: 'New Year fireworks 2026 guide released', ar: 'دليل ألعاب رأس السنة 2026' },
-  { en: 'Harrods winter sale begins', ar: 'بداية تخفيضات هارودز الشتوية' },
+const TESTIMONIALS = [
+  {
+    name: 'Ahmed Al-Rashid',
+    initials: 'AR',
+    location: 'Dubai, UAE',
+    locationAr: 'دبي، الإمارات',
+    stars: 5,
+    textEn: 'Yalla London helped me find the best halal restaurants and family-friendly attractions. Their insider tips on the Harrods food hall saved us hours of searching.',
+    textAr: 'ساعدني يالا لندن في العثور على أفضل المطاعم الحلال والأماكن المناسبة للعائلات. نصائحهم عن قسم الطعام في هارودز وفرت علينا ساعات من البحث.',
+  },
+  {
+    name: 'Fatima Al-Kuwari',
+    initials: 'FK',
+    location: 'Doha, Qatar',
+    locationAr: 'الدوحة، قطر',
+    stars: 5,
+    textEn: 'I planned my entire 10-day London trip using their guides. The neighborhood breakdowns and hotel reviews were spot-on — exactly what I needed as a first-time visitor.',
+    textAr: 'خططت رحلتي إلى لندن لمدة 10 أيام باستخدام أدلتهم. تحليل الأحياء ومراجعات الفنادق كانت دقيقة — بالضبط ما احتجته كزائرة لأول مرة.',
+  },
+  {
+    name: 'Omar Bassam',
+    initials: 'OB',
+    location: 'Riyadh, KSA',
+    locationAr: 'الرياض، السعودية',
+    stars: 5,
+    textEn: 'The best Arabic resource for London travel. Their guide to Knightsbridge shopping and the seasonal events calendar made our family holiday unforgettable.',
+    textAr: 'أفضل مصدر عربي للسفر إلى لندن. دليلهم للتسوق في نايتسبريدج وتقويم الفعاليات الموسمية جعل إجازة عائلتنا لا تُنسى.',
+  },
 ]
 
-// Articles data
+const HERO_IMAGES = [
+  { src: '/images/hero/tower-bridge.jpg', alt: 'Tower Bridge with London red bus' },
+  { src: '/images/hero/london-city-night.jpg', alt: 'London city view at night' },
+  { src: '/images/hero/london-tube.jpg', alt: 'London Underground station' },
+]
+
+const HERO_INTERVAL_MS = 3000
+
+const heroContent = {
+  en: {
+    titleLine1: 'Experience London',
+    titleLine2: 'Your Way',
+    description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
+    cta: 'Start Exploring',
+    ctaLink: '/blog',
+  },
+  ar: {
+    titleLine1: 'اكتشف لندن',
+    titleLine2: 'على طريقتك',
+    description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
+    cta: 'ابدأ الاستكشاف',
+    ctaLink: '/blog',
+  },
+}
+
+const featuredArticle = {
+  en: {
+    slug: 'best-halal-restaurants-central-london-2025',
+    category: 'Editor\'s Pick',
+    title: 'Best Halal Restaurants in Central London 2025',
+    excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest pricing, certification notes and booking tips.',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+    author: 'Yalla London Team',
+    date: 'Jan 15, 2026',
+    readTime: '5 min read',
+  },
+  ar: {
+    slug: 'best-halal-restaurants-central-london-2025',
+    category: 'اختيار المحرر',
+    title: 'أفضل المطاعم الحلال في وسط لندن 2025',
+    excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع أسعار دقيقة وملاحظات الاعتماد ونصائح الحجز.',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
+    author: 'فريق يلا لندن',
+    date: '15 يناير 2026',
+    readTime: '5 دقائق للقراءة',
+  },
+}
+
 const articles = {
   en: [
     {
-      id: '1',
-      slug: 'best-halal-restaurants-central-london-2025',
-      category: 'Lifestyle',
-      title: 'Best Halal Restaurants in Central London 2025',
-      excerpt: 'Discover the finest halal dining experiences in the heart of London. From Mayfair fine dining to hidden gems in Soho.',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
-      date: 'Jan 15, 2026',
-      readTime: '5 min read'
-    },
-    {
       id: '2',
-      slug: 'complete-london-guide-arab-visitors',
+      slug: 'spring-london-2026-best-things-to-do-arab-visitors',
       category: 'Travel',
-      title: 'Complete London Guide for Arab Visitors',
-      excerpt: 'Everything you need to know for your first visit. Visa, transport, halal food, and prayer facilities.',
+      title: 'Spring in London 2026: Best Things to Do',
+      excerpt: 'Cherry blossoms, outdoor markets, and longer days — your complete guide to London this spring.',
       image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      date: 'Jan 12, 2026',
-      readTime: '8 min read'
+      date: 'Mar 3, 2026',
+      readTime: '8 min read',
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-comparison',
+      slug: 'harrods-vs-selfridges-which-better-2025',
       category: 'Shopping',
       title: 'Harrods vs Selfridges: Which is Better?',
       excerpt: 'A detailed comparison of London\'s two iconic department stores for luxury shoppers.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      date: 'Jan 10, 2026',
-      readTime: '6 min read'
+      date: 'Feb 20, 2026',
+      readTime: '6 min read',
+    },
+    {
+      id: '4',
+      slug: 'best-halal-restaurants-central-london-2025',
+      category: 'Dining',
+      title: 'Best Halal Restaurants in Central London',
+      excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest reviews.',
+      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+      date: 'Feb 15, 2026',
+      readTime: '7 min read',
     },
   ],
   ar: [
     {
-      id: '1',
-      slug: 'best-halal-restaurants-central-london-2025',
-      category: 'نمط الحياة',
-      title: 'أفضل المطاعم الحلال في وسط لندن 2025',
-      excerpt: 'اكتشف أفضل تجارب الطعام الحلال في قلب لندن. من المطاعم الفاخرة في مايفير إلى الجواهر المخفية.',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
-      date: '15 يناير 2026',
-      readTime: '5 دقائق للقراءة'
-    },
-    {
       id: '2',
-      slug: 'complete-london-guide-arab-visitors',
+      slug: 'spring-london-2026-best-things-to-do-arab-visitors',
       category: 'سفر',
-      title: 'دليل لندن الشامل للزوار العرب',
-      excerpt: 'كل ما تحتاج معرفته لزيارتك الأولى. التأشيرة والمواصلات والطعام الحلال ومرافق الصلاة.',
+      title: 'الربيع في لندن 2026: أفضل الأنشطة',
+      excerpt: 'أزهار الكرز والأسواق المفتوحة وأيام أطول — دليلك الشامل للندن في الربيع.',
       image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      date: '12 يناير 2026',
-      readTime: '8 دقائق للقراءة'
+      date: '3 مارس 2026',
+      readTime: '8 دقائق',
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-comparison',
+      slug: 'harrods-vs-selfridges-which-better-2025',
       category: 'تسوق',
       title: 'هارودز أم سيلفريدجز: أيهما أفضل؟',
       excerpt: 'مقارنة تفصيلية بين أشهر متجرين في لندن للمتسوقين الفاخرين.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      date: '10 يناير 2026',
-      readTime: '6 دقائق للقراءة'
+      date: '20 فبراير 2026',
+      readTime: '6 دقائق',
     },
-  ]
+    {
+      id: '4',
+      slug: 'best-halal-restaurants-central-london-2025',
+      category: 'مطاعم',
+      title: 'أفضل المطاعم الحلال في وسط لندن',
+      excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع تقييمات صادقة.',
+      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+      date: '15 فبراير 2026',
+      readTime: '7 دقائق',
+    },
+  ],
 }
 
-// Events data
 const events = {
   en: [
-    {
-      id: '1',
-      title: 'Arsenal vs Manchester United',
-      venue: 'Emirates Stadium',
-      date: { day: '25', month: 'Jan', year: '2026' },
-      image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80',
-      price: 'From £85'
-    },
-    {
-      id: '2',
-      title: 'The Lion King',
-      venue: 'Lyceum Theatre',
-      date: { day: '02', month: 'Feb', year: '2026' },
-      image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=80',
-      price: 'From £45'
-    },
-    {
-      id: '3',
-      title: 'Ed Sheeran Live',
-      venue: 'Wembley Stadium',
-      date: { day: '15', month: 'Mar', year: '2026' },
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80',
-      price: 'From £95'
-    },
+    { id: '1', title: 'Crystal Palace vs Liverpool', venue: 'Selhurst Park', day: '15', month: 'Mar', price: 'From £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
+    { id: '2', title: 'The Lion King — West End', venue: 'Lyceum Theatre', day: '22', month: 'Mar', price: 'From £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '3', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '4', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '5', title: 'Chelsea Flower Show', venue: 'Royal Hospital Chelsea', day: '19', month: 'May', price: 'From £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
+    { id: '6', title: 'Ramadan in London', venue: 'Various Venues', day: '28', month: 'Mar', price: 'Various', image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=400&q=80' },
   ],
   ar: [
-    {
-      id: '1',
-      title: 'آرسنال ضد مانشستر يونايتد',
-      venue: 'ملعب الإمارات',
-      date: { day: '25', month: 'يناير', year: '2026' },
-      image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80',
-      price: 'من £85'
-    },
-    {
-      id: '2',
-      title: 'الأسد الملك',
-      venue: 'مسرح ليسيوم',
-      date: { day: '02', month: 'فبراير', year: '2026' },
-      image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=80',
-      price: 'من £45'
-    },
-    {
-      id: '3',
-      title: 'إد شيران مباشر',
-      venue: 'ملعب ويمبلي',
-      date: { day: '15', month: 'مارس', year: '2026' },
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80',
-      price: 'من £95'
-    },
-  ]
+    { id: '1', title: 'كريستال بالاس ضد ليفربول', venue: 'سيلهرست بارك', day: '15', month: 'مارس', price: 'من £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
+    { id: '2', title: 'الأسد الملك — ويست إند', venue: 'مسرح ليسيوم', day: '22', month: 'مارس', price: 'من £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '3', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '4', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '5', title: 'معرض تشيلسي للزهور', venue: 'مستشفى تشيلسي الملكي', day: '19', month: 'مايو', price: 'من £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
+    { id: '6', title: 'رمضان في لندن', venue: 'أماكن متعددة', day: '28', month: 'مارس', price: 'متنوع', image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=400&q=80' },
+  ],
 }
 
-// Guides data
 const guides = {
   en: [
-    {
-      id: '1',
-      title: 'Complete London Guide 2025',
-      pages: '45 pages',
-      price: '£9.99',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80',
-      badge: 'Bestseller'
-    },
-    {
-      id: '2',
-      title: 'Halal Restaurant Guide',
-      pages: '32 pages',
-      price: '£7.99',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80',
-      badge: 'New'
-    },
-    {
-      id: '3',
-      title: 'London Shopping Secrets',
-      pages: '28 pages',
-      price: '£6.99',
-      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80',
-      badge: null
-    },
+    { id: '1', title: 'Complete London Guide 2026', pages: '45 pages', price: '£9.99', image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80', badge: 'Bestseller' },
+    { id: '2', title: 'Halal Restaurant Guide', pages: '32 pages', price: '£7.99', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80', badge: 'New' },
+    { id: '3', title: 'London Shopping Secrets', pages: '28 pages', price: '£6.99', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80', badge: null },
   ],
   ar: [
-    {
-      id: '1',
-      title: 'دليل لندن الشامل 2025',
-      pages: '45 صفحة',
-      price: '£9.99',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80',
-      badge: 'الأكثر مبيعاً'
-    },
-    {
-      id: '2',
-      title: 'دليل المطاعم الحلال',
-      pages: '32 صفحة',
-      price: '£7.99',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80',
-      badge: 'جديد'
-    },
-    {
-      id: '3',
-      title: 'أسرار التسوق في لندن',
-      pages: '28 صفحة',
-      price: '£6.99',
-      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80',
-      badge: null
-    },
-  ]
-}
-
-// Hotels data
-const hotels = {
-  en: [
-    {
-      id: '1',
-      name: 'The Dorchester',
-      location: 'Mayfair, London',
-      rating: 5,
-      price: 'From £650/night',
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80',
-      badge: 'Luxury'
-    },
-    {
-      id: '2',
-      name: 'The Ritz London',
-      location: 'Piccadilly, London',
-      rating: 5,
-      price: 'From £750/night',
-      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80',
-      badge: '5 Star'
-    },
-    {
-      id: '3',
-      name: 'Claridges',
-      location: 'Mayfair, London',
-      rating: 5,
-      price: 'From £580/night',
-      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80',
-      badge: 'Historic'
-    },
+    { id: '1', title: 'دليل لندن الشامل 2026', pages: '45 صفحة', price: '£9.99', image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80', badge: 'الأكثر مبيعاً' },
+    { id: '2', title: 'دليل المطاعم الحلال', pages: '32 صفحة', price: '£7.99', image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=80', badge: 'جديد' },
+    { id: '3', title: 'أسرار التسوق في لندن', pages: '28 صفحة', price: '£6.99', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=80', badge: null },
   ],
-  ar: [
-    {
-      id: '1',
-      name: 'دورتشستر',
-      location: 'مايفير، لندن',
-      rating: 5,
-      price: 'من £650/ليلة',
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80',
-      badge: 'فاخر'
-    },
-    {
-      id: '2',
-      name: 'ريتز لندن',
-      location: 'بيكاديلي، لندن',
-      rating: 5,
-      price: 'من £750/ليلة',
-      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80',
-      badge: '5 نجوم'
-    },
-    {
-      id: '3',
-      name: 'كلاريدجز',
-      location: 'مايفير، لندن',
-      rating: 5,
-      price: 'من £580/ليلة',
-      image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80',
-      badge: 'تاريخي'
-    },
-  ]
 }
 
-// Experiences data
 const experiences = {
   en: [
-    {
-      id: '1',
-      title: 'Harry Potter Studio Tour',
-      rating: 4.9,
-      reviews: 2453,
-      price: 'From £55',
-      image: 'https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=400&q=80'
-    },
-    {
-      id: '2',
-      title: 'London Eye Experience',
-      rating: 4.7,
-      reviews: 3821,
-      price: 'From £32',
-      image: 'https://images.unsplash.com/photo-1520986606214-8b456906c813?w=400&q=80'
-    },
-    {
-      id: '3',
-      title: 'Thames River Cruise',
-      rating: 4.8,
-      reviews: 1567,
-      price: 'From £25',
-      image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=400&q=80'
-    },
-    {
-      id: '4',
-      title: 'Tower of London Tour',
-      rating: 4.8,
-      reviews: 2891,
-      price: 'From £30',
-      image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=400&q=80'
-    },
+    { id: '1', title: 'Harry Potter Studio Tour', rating: 4.9, reviews: 2453, price: 'From £55', image: 'https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=400&q=80' },
+    { id: '2', title: 'London Eye Experience', rating: 4.7, reviews: 3821, price: 'From £32', image: 'https://images.unsplash.com/photo-1520986606214-8b456906c813?w=400&q=80' },
+    { id: '3', title: 'Thames River Cruise', rating: 4.8, reviews: 1567, price: 'From £25', image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=400&q=80' },
+    { id: '4', title: 'Tower of London Tour', rating: 4.8, reviews: 2891, price: 'From £30', image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=400&q=80' },
   ],
   ar: [
-    {
-      id: '1',
-      title: 'جولة استوديو هاري بوتر',
-      rating: 4.9,
-      reviews: 2453,
-      price: 'من £55',
-      image: 'https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=400&q=80'
-    },
-    {
-      id: '2',
-      title: 'عين لندن',
-      rating: 4.7,
-      reviews: 3821,
-      price: 'من £32',
-      image: 'https://images.unsplash.com/photo-1520986606214-8b456906c813?w=400&q=80'
-    },
-    {
-      id: '3',
-      title: 'رحلة نهر التايمز',
-      rating: 4.8,
-      reviews: 1567,
-      price: 'من £25',
-      image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=400&q=80'
-    },
-    {
-      id: '4',
-      title: 'جولة برج لندن',
-      rating: 4.8,
-      reviews: 2891,
-      price: 'من £30',
-      image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=400&q=80'
-    },
-  ]
+    { id: '1', title: 'جولة استوديو هاري بوتر', rating: 4.9, reviews: 2453, price: 'من £55', image: 'https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=400&q=80' },
+    { id: '2', title: 'عين لندن', rating: 4.7, reviews: 3821, price: 'من £32', image: 'https://images.unsplash.com/photo-1520986606214-8b456906c813?w=400&q=80' },
+    { id: '3', title: 'رحلة نهر التايمز', rating: 4.8, reviews: 1567, price: 'من £25', image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=400&q=80' },
+    { id: '4', title: 'جولة برج لندن', rating: 4.8, reviews: 2891, price: 'من £30', image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=400&q=80' },
+  ],
 }
 
-// Sidebar most read
-const mostRead = {
+const hotels = {
   en: [
-    'Best Shisha Lounges in London 2025',
-    'Where to Find Arabic Speaking Staff',
-    'Prayer Times & Mosques Guide',
-    'London Transport for Tourists',
-    'Best Family-Friendly Hotels',
+    { id: '1', name: 'The Dorchester', location: 'Mayfair', category: 'Ultra-Luxury Stays', rating: 5, price: 'From £650/night', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'Luxury' },
+    { id: '2', name: 'The Ritz London', location: 'Piccadilly', category: 'Designer Hotels', rating: 5, price: 'From £750/night', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 Star' },
+    { id: '3', name: 'Claridges', location: 'Mayfair', category: 'Heritage Collection', rating: 5, price: 'From £580/night', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'Historic' },
   ],
   ar: [
-    'أفضل صالات الشيشة في لندن 2025',
-    'أين تجد موظفين يتحدثون العربية',
-    'دليل أوقات الصلاة والمساجد',
-    'مواصلات لندن للسياح',
-    'أفضل الفنادق المناسبة للعائلات',
-  ]
+    { id: '1', name: 'دورتشستر', location: 'مايفير', category: 'إقامة فاخرة للغاية', rating: 5, price: 'من £650/ليلة', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'فاخر' },
+    { id: '2', name: 'ريتز لندن', location: 'بيكاديلي', category: 'فنادق مصمّمة', rating: 5, price: 'من £750/ليلة', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 نجوم' },
+    { id: '3', name: 'كلاريدجز', location: 'مايفير', category: 'التراث البريطاني', rating: 5, price: 'من £580/ليلة', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'تاريخي' },
+  ],
 }
 
 const text = {
   en: {
-    nav: ['Events', 'Guides', 'Hotels', 'Restaurants', 'Shopping'],
-    subscribe: 'Subscribe',
-    trending: 'Trending Now',
-    latestArticles: 'Latest Articles',
+    trending: 'Trending',
+    trendingItems: ['London Marathon 2026 entries open', 'Ramadan in London guide — iftar spots', 'Spring in London — best parks and walks'],
+    latestStories: 'Latest Stories',
     viewAll: 'View All',
+    readMore: 'Read More',
     upcomingEvents: 'Upcoming Events',
     getTickets: 'Get Tickets',
-    pdfGuides: 'PDF Guides',
-    downloadNow: 'Download',
-    experiences: 'Top Experiences',
+    pdfGuides: 'Travel Guides',
+    guidesSubtitle: 'Expert PDF guides crafted for Arab visitors',
+    downloadNow: 'Coming Soon',
+    topExperiences: 'Top Experiences',
     bookNow: 'Book Now',
     luxuryHotels: 'Luxury Hotels',
-    viewDeals: 'View Deals',
-    mostRead: 'Most Read',
-    newsletter: 'Stay Updated',
-    newsletterDesc: 'Get the latest London tips and exclusive deals delivered to your inbox.',
+    viewDeals: 'View Details',
+    newsletter: 'The Yalla Letter',
+    newsletterDesc: 'Weekly London tips, exclusive deals, and insider guides delivered to your inbox every Friday.',
     emailPlaceholder: 'Enter your email',
-    subscribeBtn: 'Subscribe',
-    footerAbout: 'Your trusted guide to exploring London. We help Arab visitors discover the best of the city.',
-    footerLinks: 'Quick Links',
-    footerContact: 'Contact Us',
-    copyright: '© 2026 Yalla London. All rights reserved.'
+    subscribeBtn: 'Subscribe Free',
+    informationHub: 'Information Hub',
+    informationHubSubtitle: 'Your complete guide to visiting London — from transport tips to hidden gems',
+    exploreHub: 'Explore the Hub',
+    infoSections: [
+      { icon: 'Compass', title: 'Plan Your Trip', desc: 'Visa, flights, budgets & packing lists' },
+      { icon: 'Map', title: 'Neighbourhood Guides', desc: 'Explore London area by area' },
+      { icon: 'Train', title: 'Getting Around', desc: 'Tube, bus, Oyster & travel hacks' },
+      { icon: 'Utensils', title: 'Food & Dining', desc: 'Halal restaurants & markets' },
+      { icon: 'Users', title: 'Family & Kids', desc: 'Kid-friendly activities & tips' },
+      { icon: 'Gem', title: 'Hidden Gems', desc: 'Secret spots locals love' },
+    ],
+    quickLinks: ['Experiences', 'Hotels', 'Events', 'Shop'],
+    quickLinksHref: ['/experiences', '/hotels', '/events', '/shop'],
   },
   ar: {
-    nav: ['فعاليات', 'أدلة', 'فنادق', 'مطاعم', 'تسوق'],
-    subscribe: 'اشترك',
     trending: 'الأكثر رواجاً',
-    latestArticles: 'أحدث المقالات',
+    trendingItems: ['ماراثون لندن 2026 — التسجيل مفتوح', 'رمضان في لندن — أماكن الإفطار', 'الربيع في لندن — أفضل الحدائق والمشي'],
+    latestStories: 'أحدث المقالات',
     viewAll: 'عرض الكل',
+    readMore: 'اقرأ المزيد',
     upcomingEvents: 'الفعاليات القادمة',
     getTickets: 'احصل على التذاكر',
-    pdfGuides: 'أدلة PDF',
-    downloadNow: 'تحميل',
-    experiences: 'أفضل التجارب',
+    pdfGuides: 'أدلة السفر',
+    guidesSubtitle: 'أدلة PDF متخصصة مصممة للزوار العرب',
+    downloadNow: 'قريباً',
+    topExperiences: 'أفضل التجارب',
     bookNow: 'احجز الآن',
     luxuryHotels: 'فنادق فاخرة',
-    viewDeals: 'عرض العروض',
-    mostRead: 'الأكثر قراءة',
-    newsletter: 'ابق على اطلاع',
-    newsletterDesc: 'احصل على أحدث نصائح لندن والعروض الحصرية مباشرة إلى بريدك الإلكتروني.',
+    viewDeals: 'عرض التفاصيل',
+    newsletter: 'نشرة يلا',
+    newsletterDesc: 'نصائح لندن الأسبوعية والعروض الحصرية وأدلة من الداخل تصلك كل جمعة.',
     emailPlaceholder: 'أدخل بريدك الإلكتروني',
-    subscribeBtn: 'اشترك',
-    footerAbout: 'دليلك الموثوق لاستكشاف لندن. نساعد الزوار العرب على اكتشاف أفضل ما في المدينة.',
-    footerLinks: 'روابط سريعة',
-    footerContact: 'اتصل بنا',
-    copyright: '© 2026 يلا لندن. جميع الحقوق محفوظة.'
-  }
+    subscribeBtn: 'اشترك مجاناً',
+    informationHub: 'مركز المعلومات',
+    informationHubSubtitle: 'دليلك الشامل لزيارة لندن — من نصائح النقل إلى الجواهر المخفية',
+    exploreHub: 'استكشف المركز',
+    infoSections: [
+      { icon: 'Compass', title: 'خطط لرحلتك', desc: 'التأشيرات والرحلات والميزانيات وقوائم التعبئة' },
+      { icon: 'Map', title: 'أدلة الأحياء', desc: 'استكشف لندن منطقة بمنطقة' },
+      { icon: 'Train', title: 'التنقل', desc: 'المترو والحافلات وأويستر ونصائح السفر' },
+      { icon: 'Utensils', title: 'الطعام والمطاعم', desc: 'مطاعم حلال وأسواق' },
+      { icon: 'Users', title: 'العائلة والأطفال', desc: 'أنشطة مناسبة للأطفال ونصائح' },
+      { icon: 'Gem', title: 'جواهر مخفية', desc: 'أماكن سرية يحبها السكان المحليون' },
+    ],
+    quickLinks: ['تجارب', 'فنادق', 'فعاليات', 'متجر'],
+    quickLinksHref: ['/experiences', '/hotels', '/events', '/shop'],
+  },
 }
 
-export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
-  const [scrollProgress, setScrollProgress] = useState(0)
-  const [showContent, setShowContent] = useState(false)
-  const [mediaType, setMediaType] = useState<'video' | 'image'>('image')
-  const [email, setEmail] = useState('')
+// ─── Section Header ──────────────────────────────────────────────────────────
 
+function SectionHeader({ title, href, linkText, icon: Icon, isArabic }: { title: string; href: string; linkText: string; icon?: React.ElementType; isArabic?: boolean }) {
+  return (
+    <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center gap-3">
+        {Icon && <Icon className="w-5 h-5 text-yl-gold" />}
+        <h2 className={`text-2xl md:text-3xl font-heading font-bold text-yl-charcoal ${isArabic ? 'font-arabic' : ''}`}>{title}</h2>
+      </div>
+      <Link href={href} className="group flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-wider uppercase text-yl-red hover:text-yl-gold transition-colors duration-300 ease-yl">
+        {linkText}
+        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300 ease-yl" />
+      </Link>
+    </div>
+  )
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
+  const [email, setEmail] = useState('')
+  const [heroIndex, setHeroIndex] = useState(0)
   const isRTL = locale === 'ar'
   const t = text[locale]
+  const hero = heroContent[locale]
+  const featured = featuredArticle[locale]
 
-  // Track touch start position for mobile swipe detection
-  const touchStartY = React.useRef<number>(0)
+  const nextSlide = useCallback(() => {
+    setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
+  }, [])
 
   useEffect(() => {
-    // Desktop wheel handler
-    const handleWheel = (e: WheelEvent) => {
-      if (!showContent) {
-        e.preventDefault()
-        const delta = e.deltaY * 0.001
-        const newProgress = Math.min(Math.max(scrollProgress + delta, 0), 1)
-        setScrollProgress(newProgress)
-        if (newProgress >= 1) {
-          setShowContent(true)
-        }
-      } else if (window.scrollY <= 5 && e.deltaY < 0) {
-        setShowContent(false)
-        setScrollProgress(0.99)
-      }
-    }
-
-    // Mobile touch handlers
-    const handleTouchStart = (e: TouchEvent) => {
-      touchStartY.current = e.touches[0].clientY
-    }
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!showContent) {
-        const touchY = e.touches[0].clientY
-        const delta = (touchStartY.current - touchY) * 0.003
-        const newProgress = Math.min(Math.max(scrollProgress + delta, 0), 1)
-        setScrollProgress(newProgress)
-        touchStartY.current = touchY
-        if (newProgress >= 1) {
-          setShowContent(true)
-        }
-        // Prevent default scroll behavior during hero animation
-        if (newProgress < 1) {
-          e.preventDefault()
-        }
-      }
-    }
-
-    window.addEventListener('wheel', handleWheel, { passive: false })
-    window.addEventListener('touchstart', handleTouchStart, { passive: true })
-    window.addEventListener('touchmove', handleTouchMove, { passive: false })
-
-    return () => {
-      window.removeEventListener('wheel', handleWheel)
-      window.removeEventListener('touchstart', handleTouchStart)
-      window.removeEventListener('touchmove', handleTouchMove)
-    }
-  }, [scrollProgress, showContent])
-
-  const mediaWidth = 300 + scrollProgress * 1100
-  const mediaHeight = 350 + scrollProgress * 350
-  const textOffset = scrollProgress * 120
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return undefined
+    const timer = setInterval(nextSlide, HERO_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [nextSlide])
 
   return (
-    <div className="min-h-screen bg-white" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
-      {/* Language Toggle */}
-      <div className={`fixed top-20 ${isRTL ? 'left-5' : 'right-5'} z-50 flex gap-0.5 bg-white p-1 rounded-lg shadow-md border border-gray-200`}>
-        <button
-          onClick={() => window.location.href = '?locale=en'}
-          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'en' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
-        >
-          EN
-        </button>
-        <button
-          onClick={() => window.location.href = '?locale=ar'}
-          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'ar' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
-        >
-          عربي
-        </button>
-      </div>
+    <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-900">
-        {/* Background */}
-        <div className="absolute inset-0 z-0" style={{ opacity: 1 - scrollProgress }}>
+      {/* ═══ NEWS SIDE BANNER — floats on right edge ═══ */}
+      <NewsSideBanner />
+
+      {/* ═══ HERO — Full-screen immersive ═══ */}
+      <section className="relative h-screen min-h-[600px] flex items-end overflow-hidden">
+        {/* Rotating Background Images — full bleed */}
+        {HERO_IMAGES.map((img, i) => (
           <Image
-            src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80"
-            alt="London"
+            key={img.src}
+            src={img.src}
+            alt={img.alt}
             fill
-            className="object-cover"
-            priority
+            sizes="100vw"
+            className={`object-cover transition-opacity duration-1000 ease-yl ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
+            priority={i === 0}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 via-gray-900/30 to-gray-900/70" />
+        ))}
+        {/* Cinematic gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/50 to-yl-dark-navy/20" />
+
+        {/* Watermark Stamps — multiple for immersive feel */}
+        <WatermarkStamp />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <img
+            src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png"
+            alt=""
+            className="absolute left-[-60px] top-[15%] w-[200px] h-[200px] opacity-[0.04] object-contain rotate-[-15deg]"
+          />
+          <img
+            src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png"
+            alt=""
+            className="absolute right-[10%] top-[8%] w-[160px] h-[160px] opacity-[0.03] object-contain rotate-[12deg]"
+          />
         </div>
 
-        {/* Expanding Media Container */}
-        <div
-          className="absolute z-5 rounded-3xl overflow-hidden shadow-2xl"
-          style={{
-            width: `${mediaWidth}px`,
-            height: `${mediaHeight}px`,
-            maxWidth: '95vw',
-            maxHeight: '85vh',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            boxShadow: '0 25px 80px rgba(232, 99, 75, 0.2), 0 10px 30px rgba(0, 0, 0, 0.3)'
-          }}
-        >
-          {mediaType === 'video' ? (
-            <iframe
-              src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&rel=0"
-              className="w-full h-full"
-              allow="autoplay; encrypted-media"
-              allowFullScreen
-            />
-          ) : (
-            <Image
-              src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=1200&q=80"
-              alt="London Experience"
-              fill
-              className="object-cover"
-            />
-          )}
-          <div className="absolute inset-0 bg-[#1A1F36]/20" style={{ opacity: 0.5 - scrollProgress * 0.3 }} />
-        </div>
+        {/* Content */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-7 pb-20 md:pb-28">
+          <div className="max-w-2xl">
+            {/* Section label */}
+            <span style={{ textShadow: '0 1px 6px rgba(15,22,33,0.5)' }}>
+              <SectionLabel className="mb-4">
+                {isRTL ? 'دليلك الفاخر' : 'Your Luxury Guide'}
+              </SectionLabel>
+            </span>
 
-        {/* Title */}
-        <div className="relative z-10 flex flex-col items-center text-center gap-4">
-          <motion.h1
-            className="text-6xl md:text-8xl font-bold text-white drop-shadow-lg"
-            style={{ transform: `translateX(${isRTL ? textOffset : -textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
-          >
-            {locale === 'ar' ? 'اكتشف' : 'Discover'}
-          </motion.h1>
-          <motion.h1
-            className="text-6xl md:text-8xl font-bold text-white drop-shadow-lg"
-            style={{ transform: `translateX(${isRTL ? -textOffset : textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
-          >
-            {locale === 'ar' ? 'لندن' : 'London'}
-          </motion.h1>
-          <motion.p
-            className="text-lg tracking-widest uppercase text-[#E8634B]/80"
-            style={{ opacity: 1 - scrollProgress * 1.5 }}
-          >
-            {locale === 'ar' ? 'دليلك العربي لاستكشاف لندن' : 'Your guide to the extraordinary'}
-          </motion.p>
-        </div>
-
-        {/* Scroll Hint - Tappable for mobile */}
-        <motion.button
-          onClick={() => {
-            setScrollProgress(1)
-            setShowContent(true)
-          }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10 cursor-pointer focus:outline-none"
-          style={{ opacity: 1 - scrollProgress * 2 }}
-        >
-          <span className="text-sm tracking-wider uppercase text-gray-400 md:hidden">
-            {locale === 'ar' ? 'اضغط للاستكشاف' : 'Tap to explore'}
-          </span>
-          <span className="text-sm tracking-wider uppercase text-gray-400 hidden md:block">
-            {locale === 'ar' ? 'مرر للأسفل للاستكشاف' : 'Scroll to explore'}
-          </span>
-          <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
-            <ChevronDown className="w-6 h-6 text-gray-400" />
-          </motion.div>
-        </motion.button>
-      </section>
-
-      {/* Media Toggle */}
-      <div className={`fixed bottom-6 ${isRTL ? 'left-6' : 'right-6'} z-50 flex gap-1 bg-white/95 backdrop-blur-lg p-1.5 rounded-full shadow-lg`}>
-        <button
-          onClick={() => setMediaType('image')}
-          className={`p-2.5 rounded-full transition-colors ${mediaType === 'image' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
-        >
-          <ImageIcon className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setMediaType('video')}
-          className={`p-2.5 rounded-full transition-colors ${mediaType === 'video' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
-        >
-          <Play className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Main Content - Revealed after scroll */}
-      <motion.div
-        className="bg-gray-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: showContent ? 1 : 0 }}
-        transition={{ duration: 0.7 }}
-      >
-        {/* Trending Bar */}
-        <div className="bg-gray-50 border-b border-gray-200 py-3.5 px-6">
-          <div className="max-w-6xl mx-auto flex items-center gap-6 overflow-x-auto">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#E8634B] uppercase tracking-wide whitespace-nowrap">
-              <span className="w-2 h-2 bg-[#E8634B] rounded-full animate-pulse"></span>
-              {t.trending}
+            <h1
+              className={`text-5xl sm:text-6xl md:text-8xl font-heading font-extrabold leading-[1.05] mb-4 ${isRTL ? 'font-arabic' : ''}`}
+              style={{ textShadow: '0 2px 16px rgba(15,22,33,0.8), 0 1px 4px rgba(15,22,33,0.6)' }}
+            >
+              <span className="text-yl-parchment">{hero.titleLine1}</span>
+              <br />
+              <span className="text-yl-red">{hero.titleLine2}</span>
+            </h1>
+            <p
+              className="font-body text-lg md:text-xl text-yl-gray-400 mb-10 max-w-xl leading-relaxed"
+              style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}
+            >
+              {hero.description}
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <BrandButton variant="primary" size="lg" href={hero.ctaLink}>
+                {hero.cta} <ArrowRight className="w-4 h-4 ml-2" />
+              </BrandButton>
+              <BrandButton variant="outline" size="lg" href="/shop">
+                <Download className="w-4 h-4 mr-2" /> {locale === 'ar' ? 'تحميل الدليل' : 'Get the Guide'}
+              </BrandButton>
             </div>
-            {trendingItems.map((item, i) => (
-              <Link key={i} href="#" className="flex items-center gap-3 text-sm text-gray-700 hover:text-[#1A1F36] whitespace-nowrap transition-colors">
-                {item[locale]}
-                <span className="text-xs text-gray-400">2h</span>
-              </Link>
+          </div>
+
+          {/* Quick Navigation Pills */}
+          <div className="flex flex-wrap gap-3 mt-12">
+            {t.quickLinks.map((label, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <span className="text-white/30 select-none mx-1" aria-hidden="true">|</span>}
+                <Link
+                  href={t.quickLinksHref[i]}
+                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-yl-parchment font-mono text-[10px] tracking-[1.5px] uppercase rounded-full border border-white/20 hover:bg-white/20 hover:border-yl-gold/50 hover:text-yl-gold transition-all duration-300 ease-yl"
+                >
+                  {label}
+                </Link>
+              </React.Fragment>
             ))}
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <main className="max-w-6xl mx-auto px-6 py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            {/* Articles Column */}
-            <div className="lg:col-span-2 space-y-10">
-              {/* Section Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-[#1A1F36]">{t.latestArticles}</h2>
-                <Link href="/blog" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
-                  {t.viewAll} <ChevronRight className="w-4 h-4" />
+        {/* Scroll hint */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center pt-2">
+            <div className="w-1 h-2.5 rounded-full bg-white/50 animate-pulse" />
+          </div>
+        </div>
+      </section>
+
+      {/* Tri-bar Divider */}
+      <TriBar />
+
+      {/* ═══ TRENDING BAR ═══ */}
+      <div className="bg-yl-cream border-b border-yl-gray-200 py-3 px-7">
+        <div className="max-w-7xl mx-auto flex items-center gap-6 overflow-x-auto">
+          <div className="flex items-center gap-2 font-mono text-[10px] font-bold text-yl-red uppercase tracking-widest whitespace-nowrap">
+            <TrendingUp className="w-4 h-4" />
+            {t.trending}
+          </div>
+          <div className="w-px h-4 bg-yl-gray-300" />
+          {t.trendingItems.map((item, i) => (
+            <span key={i} className="font-body text-sm text-yl-gray-500 whitespace-nowrap hover:text-yl-charcoal transition-colors duration-300 ease-yl cursor-pointer">
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ═══ LONDON TODAY NEWS CAROUSEL ═══ */}
+      <section className="max-w-7xl mx-auto px-7 pt-10 pb-4">
+        <NewsCarousel />
+      </section>
+
+      <TriBar />
+
+      {/* ═══ FEATURED + ARTICLES ═══ */}
+      <section className="relative max-w-7xl mx-auto px-7 py-16">
+        {/* Subtle watermark */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute -right-20 top-10 w-[250px] h-[250px] opacity-[0.03] object-contain rotate-[8deg]" />
+        </div>
+        <SectionHeader title={t.latestStories} href="/blog" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {/* Featured Article — Large */}
+          <Link href={`/blog/${featured.slug}`} className="lg:col-span-3 group">
+            <article className="relative h-full min-h-[400px] rounded-[14px] overflow-hidden border border-white/5">
+              <Image src={featured.image} alt={featured.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl" />
+              <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-8">
+                <BrandTag color="red" className="mb-4">
+                  {featured.category}
+                </BrandTag>
+                <h3 className={`text-2xl md:text-3xl font-heading font-bold text-yl-parchment mb-3 group-hover:text-yl-gold transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>
+                  {featured.title}
+                </h3>
+                <p className="font-body text-sm text-yl-gray-400 mb-4 max-w-lg line-clamp-2">{featured.excerpt}</p>
+                <div className="flex items-center gap-4 font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
+                  <span>{featured.author}</span>
+                  <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
+                  <span>{featured.date}</span>
+                  <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {featured.readTime}</span>
+                </div>
+              </div>
+            </article>
+          </Link>
+
+          {/* Article List */}
+          <div className="lg:col-span-2 flex flex-col gap-5">
+            {articles[locale].map((article) => (
+              <Link key={article.id} href={`/blog/${article.slug}`} className="group">
+                <BrandCardLight hoverable className="p-0">
+                  <article className="flex gap-4 p-4">
+                    <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
+                      <Image src={article.image} alt={article.title} fill className="object-cover" />
+                    </div>
+                    <div className="flex flex-col justify-center min-w-0">
+                      <span className="font-mono text-[9px] font-semibold text-yl-red uppercase tracking-wider mb-1">{article.category}</span>
+                      <h4 className={`text-sm font-heading font-bold text-yl-charcoal group-hover:text-yl-red transition-colors duration-300 ease-yl line-clamp-2 mb-1.5 ${isRTL ? 'font-arabic' : ''}`}>
+                        {article.title}
+                      </h4>
+                      <div className="flex items-center gap-2 font-mono text-[10px] text-yl-gray-500 tracking-wider">
+                        <span>{article.date}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {article.readTime}</span>
+                      </div>
+                    </div>
+                  </article>
+                </BrandCardLight>
+              </Link>
+            ))}
+
+            {/* Newsletter Compact */}
+            <BrandCard hoverable={false} className="p-6 flex-1 min-h-[140px]">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-yl-gold" />
+                <h3 className={`font-heading text-sm font-bold text-yl-parchment ${isRTL ? 'font-arabic' : ''}`}>{t.newsletter}</h3>
+              </div>
+              <p className="font-body text-xs text-yl-gray-400 mb-3 line-clamp-2">{t.newsletterDesc}</p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder={t.emailPlaceholder}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-yl-parchment placeholder-yl-gray-500 focus:outline-none focus:ring-2 focus:ring-yl-gold/20 focus:border-yl-gold transition-all duration-300 ease-yl"
+                />
+                <button className="px-4 py-2 bg-yl-red text-white font-mono text-[10px] font-bold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl whitespace-nowrap">
+                  {t.subscribeBtn}
+                </button>
+              </div>
+            </BrandCard>
+          </div>
+        </div>
+      </section>
+
+      <TriBar />
+
+      {/* ═══ EVENTS ═══ */}
+      <section className="relative bg-white py-16 overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.upcomingEvents} href="/events" linkText={t.viewAll} icon={Ticket} isArabic={isRTL} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events[locale].map((event) => (
+              <div key={event.id} className="group bg-yl-cream rounded-[14px] overflow-hidden border border-yl-gray-200 hover:-translate-y-1 hover:border-yl-gold/30 hover:shadow-lg transition-all duration-400 ease-yl">
+                <div className="relative h-44">
+                  <Image src={event.image} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/50 to-transparent" />
+                  <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-md`}>
+                    <div className="text-2xl font-heading font-bold text-yl-charcoal leading-none">{event.day}</div>
+                    <div className="font-mono text-[9px] font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-1.5 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{event.title}</h3>
+                  <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-4">
+                    <MapPin className="w-3.5 h-3.5" /> {event.venue}
+                  </p>
+                  <span className="block font-mono text-sm font-bold text-yl-charcoal tracking-wider mb-3">{event.price}</span>
+                  <BrandButton variant="primary" size="sm" href="/events" className="w-full justify-center">
+                    {t.getTickets}
+                  </BrandButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <TriBar />
+
+      {/* ═══ INFORMATION HUB ═══ */}
+      <section className="bg-yl-cream py-16">
+        <div className="max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.informationHub} href="/information" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
+          <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.informationHubSubtitle}</p>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {t.infoSections.map((section, i) => {
+              const iconMap: Record<string, React.ElementType> = {
+                Compass, Map, Train, Utensils, Users, Gem,
+              }
+              const IconComp = iconMap[section.icon] || BookOpen
+              return (
+                <Link key={i} href="/information" className="group">
+                  <BrandCardLight className="p-5 text-center h-full flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-yl-red/10 flex items-center justify-center group-hover:bg-yl-red transition-colors duration-300 ease-yl">
+                      <IconComp className="w-6 h-6 text-yl-red group-hover:text-white transition-colors duration-300 ease-yl" />
+                    </div>
+                    <h3 className={`text-sm font-heading font-bold text-yl-charcoal group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{section.title}</h3>
+                    <p className="font-body text-xs text-yl-gray-500 leading-relaxed">{section.desc}</p>
+                  </BrandCardLight>
                 </Link>
-              </div>
-
-              {/* Articles */}
-              <div className="space-y-6">
-                {articles[locale].map((article) => (
-                  <Link key={article.id} href={`/blog/${article.slug}`}>
-                    <article className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-5 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer">
-                      <div className="space-y-3">
-                        <span className="text-xs font-semibold text-[#E8634B] uppercase tracking-wide">{article.category}</span>
-                        <h3 className="text-xl font-bold text-[#1A1F36] group-hover:text-[#E8634B] transition-colors">
-                          {article.title}
-                        </h3>
-                        <p className="text-gray-600 text-sm line-clamp-2">{article.excerpt}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-400">
-                          <span>{article.date}</span>
-                          <span>{article.readTime}</span>
-                        </div>
-                      </div>
-                      <div className="relative aspect-[4/3] md:aspect-square rounded-lg overflow-hidden">
-                        <Image src={article.image} alt={article.title} fill className="object-cover" />
-                      </div>
-                    </article>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-8">
-              {/* Most Read */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#1A1F36] mb-4 pb-3 border-b border-gray-100">{t.mostRead}</h3>
-                <ul className="space-y-3">
-                  {mostRead[locale].map((item, i) => (
-                    <li key={i}>
-                      <Link href="#" className="flex items-start gap-3 group">
-                        <span className="text-xl font-bold text-gray-300 group-hover:text-[#E8634B] transition-colors">{i + 1}</span>
-                        <span className="text-sm text-gray-700 group-hover:text-[#1A1F36] transition-colors">{item}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Newsletter */}
-              <div className="bg-gradient-to-br from-[#1A1F36] to-[#2d3452] rounded-xl p-6 text-white">
-                <h3 className="text-lg font-bold mb-2">{t.newsletter}</h3>
-                <p className="text-sm text-gray-300 mb-4">{t.newsletterDesc}</p>
-                <div className="space-y-3">
-                  <input
-                    type="email"
-                    placeholder={t.emailPlaceholder}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E8634B]"
-                  />
-                  <button className="w-full py-3 bg-[#E8634B] hover:bg-[#d4543d] text-white font-semibold rounded-lg transition-colors">
-                    {t.subscribeBtn}
-                  </button>
-                </div>
-              </div>
-            </div>
+              )
+            })}
           </div>
-        </main>
 
-        {/* Events Section */}
-        <section className="bg-white py-16">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.upcomingEvents}</h2>
-              <Link href="/events" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
-                {t.viewAll} <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {events[locale].map((event) => (
-                <div key={event.id} className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
-                  <div className="relative h-40">
-                    <Image src={event.image} alt={event.title} fill className="object-cover" />
-                    <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-2 text-center shadow-md">
-                      <div className="text-2xl font-bold text-[#1A1F36]">{event.date.day}</div>
-                      <div className="text-xs text-gray-500 uppercase">{event.date.month}</div>
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="font-bold text-[#1A1F36] mb-1">{event.title}</h3>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
-                      <MapPin className="w-4 h-4" /> {event.venue}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[#1A1F36]">{event.price}</span>
-                      <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors">
-                        {t.getTickets}
-                      </button>
-                    </div>
+          <div className="text-center mt-8">
+            <BrandButton variant="primary" size="md" href="/information">
+              <BookOpen className="w-4 h-4 mr-2" />
+              {t.exploreHub}
+              <ArrowRight className={`w-4 h-4 ml-2 ${isRTL ? 'rotate-180' : ''}`} />
+            </BrandButton>
+          </div>
+        </div>
+      </section>
+
+      <TriBar />
+
+      {/* ═══ GUIDES ═══ */}
+      <section className="relative bg-white py-16 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute right-[-40px] top-[20%] w-[180px] h-[180px] opacity-[0.03] object-contain rotate-[20deg]" />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.pdfGuides} href="/shop" linkText={t.viewAll} icon={Download} isArabic={isRTL} />
+          <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.guidesSubtitle}</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {guides[locale].map((guide) => (
+              <div key={guide.id} className="group bg-white rounded-[14px] overflow-hidden border border-yl-gray-200 shadow-sm hover:-translate-y-1 hover:border-yl-gold/30 hover:shadow-lg transition-all duration-400 ease-yl">
+                <div className="relative h-52">
+                  <Image src={guide.image} alt={guide.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/60 to-transparent" />
+                  {guide.badge && (
+                    <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
+                      <BrandTag color="gold">{guide.badge}</BrandTag>
+                    </span>
+                  )}
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h3 className={`text-lg font-heading font-bold text-white ${isRTL ? 'font-arabic' : ''}`}>{guide.title}</h3>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-heading text-xl font-bold text-yl-charcoal">{guide.price}</span>
+                    <span className="flex items-center gap-2 px-4 py-2.5 bg-yl-gray-100 text-yl-gray-500 font-mono text-[10px] tracking-wider uppercase rounded-lg cursor-default">
+                      <Clock className="w-4 h-4" /> {t.downloadNow}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Guides Section */}
-        <section className="bg-gray-50 py-16">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.pdfGuides}</h2>
-              <Link href="/shop" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
-                {t.viewAll} <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {guides[locale].map((guide) => (
-                <div key={guide.id} className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
-                  <div className="relative h-48">
-                    <Image src={guide.image} alt={guide.title} fill className="object-cover" />
-                    {guide.badge && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-[#E8634B] text-white text-xs font-semibold rounded-full">
-                        {guide.badge}
+      <TriBar />
+
+      {/* ═══ EXPERIENCES ═══ */}
+      <section className="relative bg-white py-16 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute -left-16 bottom-10 w-[220px] h-[220px] opacity-[0.04] object-contain rotate-[-10deg]" />
+        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.topExperiences} href="/experiences" linkText={t.viewAll} icon={Star} isArabic={isRTL} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+            {experiences[locale].map((exp) => {
+              const expAffLink = getPageAffiliateLink(exp.title, 'experience', 'yalla-london', 'homepage');
+              return (
+              <div key={exp.id}>
+                <Link href="/experiences" className="group">
+                  <div className="relative aspect-[3/4] rounded-[14px] overflow-hidden mb-3 border border-white/5 hover:-translate-y-1 hover:shadow-lg transition-all duration-400 ease-yl">
+                    <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy/70 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className={`font-heading font-bold text-white text-sm group-hover:text-yl-gold transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{exp.title}</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-1">
+                    <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{exp.price}</span>
+                    <span className="font-mono text-[10px] font-semibold text-yl-red tracking-wider uppercase group-hover:underline">{t.bookNow}</span>
+                  </div>
+                </Link>
+                {expAffLink && (
+                  <a
+                    href={expAffLink.url}
+                    target="_blank"
+                    rel="noopener sponsored"
+                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-yl-red text-white font-mono text-[10px] font-semibold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl`}
+                    data-affiliate-partner={expAffLink.partner}
+                  >
+                    {expAffLink.label}
+                  </a>
+                )}
+              </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <TriBar />
+
+      {/* ═══ HOTELS ═══ */}
+      <section className="relative bg-yl-cream py-16 overflow-hidden">
+        <WatermarkStamp />
+        <div className="relative z-10 max-w-7xl mx-auto px-7">
+          <SectionHeader title={t.luxuryHotels} href="/hotels" linkText={t.viewAll} isArabic={isRTL} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {hotels[locale].map((hotel) => {
+              const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'homepage');
+              return (
+              <div key={hotel.id} className="group">
+                <Link href="/hotels">
+                <BrandCardLight className="overflow-hidden">
+                  <div className="relative h-52">
+                    <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                    {hotel.badge && (
+                      <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'}`}>
+                        <BrandTag color="blue">{hotel.badge}</BrandTag>
                       </span>
                     )}
                   </div>
                   <div className="p-5">
-                    <h3 className="font-bold text-[#1A1F36] mb-2">{guide.title}</h3>
-                    <p className="text-sm text-gray-500 mb-4">{guide.pages}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-[#1A1F36]">{guide.price}</span>
-                      <button className="flex items-center gap-2 px-4 py-2 bg-[#1A1F36] text-white text-sm font-medium rounded-lg hover:bg-[#2d3452] transition-colors">
-                        <Download className="w-4 h-4" /> {t.downloadNow}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Experiences Section */}
-        <section className="bg-white py-16">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.experiences}</h2>
-              <Link href="/experiences" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
-                {t.viewAll} <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              {experiences[locale].map((exp) => (
-                <div key={exp.id} className="group">
-                  <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-3">
-                    <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 rounded-full text-xs font-semibold flex items-center gap-1">
-                      <Star className="w-3 h-3 text-amber-500 fill-amber-500" /> {exp.rating}
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <h3 className="font-semibold text-white text-sm mb-1">{exp.title}</h3>
-                      <p className="text-xs text-gray-300">{exp.reviews.toLocaleString()} reviews</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#1A1F36]">{exp.price}</span>
-                    <button className="text-xs text-[#E8634B] font-medium hover:underline">{t.bookNow}</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Hotels Section */}
-        <section className="bg-gray-50 py-16">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.luxuryHotels}</h2>
-              <Link href="/hotels" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
-                {t.viewAll} <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {hotels[locale].map((hotel) => (
-                <div key={hotel.id} className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
-                  <div className="relative h-48">
-                    <Image src={hotel.image} alt={hotel.name} fill className="object-cover" />
-                    <span className="absolute top-3 right-3 px-3 py-1 bg-[#1A1F36] text-white text-xs font-semibold rounded-full">
-                      {hotel.badge}
-                    </span>
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center gap-1 mb-2">
-                      {Array.from({ length: hotel.rating }).map((_, i) => (
-                        <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
-                      ))}
-                    </div>
-                    <h3 className="font-bold text-[#1A1F36] mb-1">{hotel.name}</h3>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
-                      <MapPin className="w-4 h-4" /> {hotel.location}
+                    <h3 className={`text-lg font-heading font-bold text-yl-charcoal mb-1 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{hotel.name}</h3>
+                    <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-1">
+                      <MapPin className="w-3.5 h-3.5" /> {hotel.location}
                     </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[#1A1F36]">{hotel.price}</span>
-                      <button className="px-4 py-2 border-2 border-[#1A1F36] text-[#1A1F36] text-sm font-medium rounded-lg hover:bg-[#1A1F36] hover:text-white transition-colors">
+                    <p className="font-mono text-[9px] font-medium text-yl-gold tracking-wider uppercase mb-4">{hotel.category}</p>
+                    <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
+                      <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{hotel.price}</span>
+                      <span className="px-4 py-2 border border-yl-charcoal text-yl-charcoal font-mono text-[10px] font-semibold tracking-wider uppercase rounded-lg group-hover:bg-yl-charcoal group-hover:text-white transition-all duration-300 ease-yl">
                         {t.viewDeals}
-                      </button>
+                      </span>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                </BrandCardLight>
+                </Link>
+                {affLink && (
+                  <a
+                    href={affLink.url}
+                    target="_blank"
+                    rel="noopener sponsored"
+                    className={`${affLink.trackingClass} mt-2 block text-center py-2.5 bg-yl-red text-white font-mono text-[11px] font-semibold tracking-wider uppercase rounded-xl hover:bg-[#a82924] transition-all duration-300 ease-yl`}
+                    data-affiliate-partner={affLink.partner}
+                  >
+                    {affLink.label} →
+                  </a>
+                )}
+              </div>
+              );
+            })}
           </div>
-        </section>
+        </div>
+      </section>
 
-      </motion.div>
+      {/* ═══ TRAVELER TESTIMONIALS ═══ */}
+      <section className="bg-yl-cream py-16">
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="text-center mb-10">
+            <SectionLabel className="mb-3 text-center justify-center">
+              {locale === 'ar' ? 'شهادات' : 'Testimonials'}
+            </SectionLabel>
+            <h2 className={`text-2xl md:text-3xl font-heading font-bold text-yl-charcoal mb-3 ${isRTL ? 'font-arabic' : ''}`}>
+              {locale === 'ar' ? 'ماذا يقول مسافرونا' : 'What Our Travelers Say'}
+            </h2>
+            <p className="font-body text-yl-gray-500 max-w-xl mx-auto">
+              {locale === 'ar'
+                ? 'آلاف المسافرين العرب يثقون بنا لتخطيط رحلاتهم إلى لندن'
+                : 'Thousands of Arab travelers trust us to plan their London trips'}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((item, i) => (
+              <BrandCardLight key={i} hoverable={false} className="p-6">
+                <div className="flex items-center gap-1 mb-3">
+                  {[...Array(5)].map((_, s) => (
+                    <Star key={s} className={`w-4 h-4 ${s < item.stars ? 'text-yl-gold fill-yl-gold' : 'text-yl-gray-300'}`} />
+                  ))}
+                </div>
+                <p className="font-body text-yl-charcoal text-sm leading-relaxed mb-4 italic">&ldquo;{locale === 'ar' ? item.textAr : item.textEn}&rdquo;</p>
+                <div className="flex items-center gap-3 pt-3 border-t border-yl-gray-200">
+                  <div className="w-9 h-9 rounded-full bg-yl-red text-white flex items-center justify-center font-mono text-[10px] font-bold tracking-wider">
+                    {item.initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-heading font-semibold text-yl-charcoal">{item.name}</p>
+                    <p className="font-mono text-[10px] text-yl-gray-500 tracking-wider">{locale === 'ar' ? item.locationAr : item.location}</p>
+                  </div>
+                </div>
+              </BrandCardLight>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ BOTTOM TRI-BAR ═══ */}
+      <TriBar />
+
+      {/* ═══ FOLLOW US ═══ */}
+      <section className="bg-yl-dark-navy py-12">
+        <div className="max-w-7xl mx-auto px-7 text-center">
+          <FollowUs variant="dark" showLabel={true} />
+        </div>
+      </section>
     </div>
   )
 }

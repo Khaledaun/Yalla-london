@@ -1,0 +1,135 @@
+{
+  "id": "workflow-yalla-frontend-2026",
+  "name": "yalla-frontend-excellence-pipeline",
+  "description": "Yalla London Frontend Excellence Pipeline: On-demand audit → design → build → optimize → test → deploy. Covers performance, accessibility, responsive design, and Core Web Vitals.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-frontend",
+      "type": "start",
+      "name": "start-frontend",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "On-Demand Trigger (Dashboard or CWV Alert)" }
+    },
+    {
+      "id": "agent-perf-audit",
+      "type": "subAgent",
+      "name": "performance-auditor",
+      "position": { "x": 300, "y": 180 },
+      "data": {
+        "description": "Performance Audit Agent",
+        "prompt": "Run comprehensive performance audit:\n1. Lighthouse audit (Performance, Accessibility, Best Practices, SEO scores)\n2. Core Web Vitals: LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1\n3. Bundle size analysis (JS, CSS, images)\n4. Image optimization check (WebP/AVIF, lazy loading, sizing)\n5. Font loading strategy (display:swap, preload)\n6. Third-party script impact\n7. Server response time (TTFB ≤ 600ms)\n8. Cache header audit (static assets, ISR pages)\nTarget: Lighthouse Performance ≥ 80, Accessibility ≥ 90.",
+        "model": "sonnet",
+        "color": "orange",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-a11y-audit",
+      "type": "subAgent",
+      "name": "accessibility-auditor",
+      "position": { "x": 300, "y": 380 },
+      "data": {
+        "description": "Accessibility Audit Agent",
+        "prompt": "Audit accessibility compliance:\n1. WCAG 2.1 AA compliance check\n2. Color contrast ratios (4.5:1 text, 3:1 large text)\n3. Keyboard navigation (all interactive elements focusable)\n4. Screen reader compatibility (ARIA labels, landmarks)\n5. RTL layout support for Arabic content\n6. Image alt text completeness\n7. Form label associations\n8. Focus indicators visible\n9. Skip navigation links\n10. Responsive zoom support (up to 200%)\nAccessibility score target: ≥ 90.",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "switch-priority",
+      "type": "switch",
+      "name": "fix-priority-router",
+      "position": { "x": 600, "y": 280 },
+      "data": {
+        "evaluationTarget": "Issue severity and type",
+        "branches": [
+          { "id": "b-cwv-critical", "label": "CWV Critical", "condition": "Core Web Vitals failing (LCP > 4s OR INP > 500ms OR CLS > 0.25)" },
+          { "id": "b-a11y-blocker", "label": "A11Y Blocker", "condition": "Accessibility score < 70 or critical WCAG violations" },
+          { "id": "b-optimization", "label": "Optimization", "condition": "Performance or a11y improvements available", "isDefault": true }
+        ],
+        "outputPorts": 3
+      }
+    },
+    {
+      "id": "agent-cwv-fixer",
+      "type": "subAgent",
+      "name": "cwv-auto-fixer",
+      "position": { "x": 900, "y": 120 },
+      "data": {
+        "description": "Core Web Vitals Auto-Fix Agent",
+        "prompt": "Auto-fix critical CWV issues:\n- LCP: Optimize largest image (resize, WebP, preload), defer non-critical CSS/JS, optimize server response\n- INP: Identify long tasks, defer heavy JavaScript, use requestIdleCallback for analytics\n- CLS: Add explicit dimensions to images/embeds, preload fonts, stabilize dynamic content\n- TTFB: Review ISR cache settings, optimize database queries, check CDN configuration\nValidate fixes with re-audit. Log all changes.",
+        "model": "sonnet",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-a11y-fixer",
+      "type": "subAgent",
+      "name": "accessibility-fixer",
+      "position": { "x": 900, "y": 280 },
+      "data": {
+        "description": "Accessibility Fix Agent",
+        "prompt": "Fix accessibility issues:\n- Add missing ARIA labels to interactive elements\n- Fix color contrast violations\n- Add skip navigation links\n- Ensure keyboard focus indicators\n- Add missing image alt text (generate from context)\n- Fix form label associations\n- Ensure RTL layout consistency for Arabic pages\n- Add semantic landmarks (header, main, footer, nav)\nValidate fixes against WCAG 2.1 AA.",
+        "model": "sonnet",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-optimizer",
+      "type": "subAgent",
+      "name": "general-optimizer",
+      "position": { "x": 900, "y": 440 },
+      "data": {
+        "description": "General Frontend Optimizer",
+        "prompt": "Apply optimization improvements:\n- Image compression and format conversion (WebP/AVIF)\n- CSS purging (remove unused styles)\n- JavaScript code splitting and lazy loading\n- Font subsetting for Arabic + Latin character sets\n- Preconnect to affiliate partner domains\n- Cache strategy optimization (stale-while-revalidate)\n- Mobile-first responsive refinements\n- Dark mode support preparation\nTarget: 10%+ improvement in Lighthouse score.",
+        "model": "haiku",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-test-validate",
+      "type": "subAgent",
+      "name": "test-validator",
+      "position": { "x": 1200, "y": 280 },
+      "data": {
+        "description": "Test & Validation Agent",
+        "prompt": "Validate all frontend changes:\n1. Re-run Lighthouse audit (verify score improvements)\n2. Visual regression testing (before/after screenshots)\n3. Cross-browser check (Chrome, Safari, Firefox)\n4. Mobile device testing (iPhone, Android)\n5. RTL layout verification for Arabic pages\n6. Verify no SEO regressions (meta tags, structured data intact)\n7. Check build succeeds with zero TypeScript errors\nGenerate before/after comparison report.",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-frontend",
+      "type": "end",
+      "name": "end-frontend",
+      "position": { "x": 1450, "y": 280 },
+      "data": { "label": "Deploy Optimized Frontend" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-perf", "from": "start-frontend", "to": "agent-perf-audit", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-start-a11y", "from": "start-frontend", "to": "agent-a11y-audit", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-perf-priority", "from": "agent-perf-audit", "to": "switch-priority", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-a11y-priority", "from": "agent-a11y-audit", "to": "switch-priority", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-priority-cwv", "from": "switch-priority", "to": "agent-cwv-fixer", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-priority-a11y", "from": "switch-priority", "to": "agent-a11y-fixer", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-priority-opt", "from": "switch-priority", "to": "agent-optimizer", "fromPort": "branch-2", "toPort": "input" },
+    { "id": "conn-cwv-test", "from": "agent-cwv-fixer", "to": "agent-test-validate", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-a11y-test", "from": "agent-a11y-fixer", "to": "agent-test-validate", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-opt-test", "from": "agent-optimizer", "to": "agent-test-validate", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-test-end", "from": "agent-test-validate", "to": "end-frontend", "fromPort": "output", "toPort": "in" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["frontend", "performance", "accessibility", "cwv", "on-demand"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

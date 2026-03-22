@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { useLanguage } from './language-provider'
 import { LanguageSwitcher } from './language-switcher'
 import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
 
 export function Header() {
@@ -16,8 +15,10 @@ export function Header() {
 
   const navigation = [
     { name: t('home'), href: '/' },
+    { name: t('information'), href: '/information' },
     { name: t('blog'), href: '/blog' },
     { name: t('recommendations'), href: '/recommendations' },
+    { name: t('londonByFoot'), href: '/london-by-foot' },
     { name: t('eventsTickets'), href: '/events' },
     { name: t('about'), href: '/about' },
   ]
@@ -31,12 +32,19 @@ export function Header() {
   }
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 ${isRTL ? 'rtl' : 'ltr'}`}>
-      <div className="max-w-6xl mx-auto px-6">
+    <header className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-yl-gray-200 ${isRTL ? 'rtl' : 'ltr'}`}>
+      <div className="max-w-7xl mx-auto px-7">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-purple-800 hover:text-purple-900 transition-colors font-prestige">
+            <Link href="/" className="flex items-center gap-2.5 text-2xl font-bold text-yl-red hover:text-yl-charcoal transition-colors font-heading">
+              <img
+                src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-100px.png"
+                alt="Yalla London"
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
               Yalla London
             </Link>
           </div>
@@ -47,7 +55,7 @@ export function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-gray-700 hover:text-purple-800 font-medium transition-colors"
+                className="text-yl-gray-500 hover:text-yl-red font-medium transition-colors font-body"
               >
                 {item.name}
               </Link>
@@ -59,39 +67,37 @@ export function Header() {
             <div className="hidden md:block">
               <LanguageSwitcher />
             </div>
-            
+
             {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden"
+            <button
+              className="md:hidden p-2 rounded-[14px] text-yl-gray-500 hover:text-yl-charcoal hover:bg-yl-cream transition-colors"
               onClick={handleMobileMenuToggle}
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
+                <X className="h-6 w-6" />
               ) : (
-                <Menu className="h-6 w-6 text-gray-700" />
+                <Menu className="h-6 w-6" />
               )}
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg">
-            <nav className="px-6 py-4 space-y-4">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-yl-gray-200 shadow-lg">
+            <nav className="px-7 py-4 space-y-4">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={handleMobileLinkClick}
-                  className="block text-gray-700 hover:text-purple-800 font-medium transition-colors py-2 border-b border-gray-100 last:border-b-0"
+                  className="block text-yl-gray-500 hover:text-yl-red font-medium transition-colors font-body py-2 border-b border-yl-gray-200 last:border-b-0"
                 >
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-yl-gray-200">
                 <LanguageSwitcher />
               </div>
             </nav>

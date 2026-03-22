@@ -3,6 +3,7 @@
  *
  * Generate site configuration from natural language prompts.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSiteConfig } from '@/lib/ai/site-generator';
@@ -75,7 +76,7 @@ function generateFallbackConfig(prompt: string, preset: string | null) {
 
   if (isMaldives) {
     name = isArabic ? 'دليل المالديف' : 'Maldives Guide';
-    domain = isArabic ? 'arabmaldives.com' : 'maldivesguide.com';
+    domain = 'arabaldives.com';
     niche = 'Maldives Luxury Travel';
     primaryColor = '#0891B2';
   }

@@ -77,10 +77,26 @@ export interface MetaOptimization {
 // ============================================
 
 export async function analyzeSearchPerformance(
-  days: number = 28
+  days: number = 28,
+  siteId?: string
 ): Promise<SearchPerformanceAnalysis | null> {
-  const siteUrl =
-    process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  // Per-site GSC config — checks Variable Vault (DB), then env vars
+  let siteUrl: string | undefined;
+  if (siteId) {
+    try {
+      const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
+      const seoConfig = await getSiteSeoConfigFromVault(siteId);
+      siteUrl = seoConfig.gscSiteUrl;
+      if (siteUrl) {
+        searchConsole.setSiteUrl(siteUrl);
+      }
+    } catch (error) {
+      console.warn(`[SEO Intelligence] Failed to load site SEO config from vault for site "${siteId}":`, error);
+    }
+  }
+  if (!siteUrl) {
+    siteUrl = process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  }
   if (!siteUrl) return null;
 
   const endDate = new Date().toISOString().split("T")[0];
@@ -89,12 +105,16 @@ export async function analyzeSearchPerformance(
     .split("T")[0];
 
   try {
-    const [pageData, keywordData] = await Promise.all([
+    const [rawPageData, rawKeywordData] = await Promise.all([
       searchConsole.getTopPages(startDate, endDate, 50),
       searchConsole.getTopKeywords(startDate, endDate, 100),
     ]);
 
-    if (!pageData?.length && !keywordData?.length) {
+    // Guard: GSC can return error objects or non-array responses instead of arrays
+    const pageData = Array.isArray(rawPageData) ? rawPageData : [];
+    const keywordData = Array.isArray(rawKeywordData) ? rawKeywordData : [];
+
+    if (!pageData.length && !keywordData.length) {
       return null;
     }
 
@@ -106,7 +126,7 @@ export async function analyzeSearchPerformance(
       position: 0,
     };
 
-    const pages = (pageData || []).map((p: any) => ({
+    const pages = pageData.map((p: any) => ({
       url: p.keys?.[0] || p.url || "",
       clicks: p.clicks || 0,
       impressions: p.impressions || 0,
@@ -125,7 +145,7 @@ export async function analyzeSearchPerformance(
         ? pages.reduce((s: number, p: any) => s + p.position, 0) / pages.length
         : 0;
 
-    const keywords = (keywordData || []).map((k: any) => ({
+    const keywords = keywordData.map((k: any) => ({
       query: k.keys?.[0] || k.query || "",
       clicks: k.clicks || 0,
       impressions: k.impressions || 0,
@@ -274,11 +294,23 @@ export async function analyzeSearchPerformance(
 // ============================================
 
 export async function analyzeTrafficPatterns(
-  days: number = 28
+  days: number = 28,
+  siteId?: string
 ): Promise<TrafficAnalysis | null> {
   try {
     const startDate = `${days}daysAgo`;
-    const ga4Data = await fetchGA4Metrics(startDate, "today");
+    // Per-site GA4 config — checks Variable Vault (DB), then env vars
+    let ga4PropertyId: string | undefined;
+    if (siteId) {
+      try {
+        const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
+        const seoConfig = await getSiteSeoConfigFromVault(siteId);
+        ga4PropertyId = seoConfig.ga4PropertyId;
+      } catch (error) {
+        console.warn(`[SEO Intelligence] Failed to load GA4 config from vault for site "${siteId}":`, error);
+      }
+    }
+    const ga4Data = await fetchGA4Metrics(startDate, "today", ga4PropertyId);
 
     if (!ga4Data) return null;
 
@@ -394,7 +426,7 @@ Return JSON: { "title": "...", "description": "..." }`;
 
     const result = await generateJSON<{ title: string; description: string }>(
       prompt,
-      { temperature: 0.4, maxTokens: 200 }
+      { temperature: 0.4, maxTokens: 200, taskType: "seo_optimization", calledFrom: "seo-intelligence:autoOptimizeMeta" }
     );
 
     // Validate lengths
@@ -424,7 +456,8 @@ export async function autoOptimizeLowCTRMeta(
   prisma: any,
   searchData: SearchPerformanceAnalysis,
   issues: string[],
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<MetaOptimization[]> {
   const optimizations: MetaOptimization[] = [];
 
@@ -434,7 +467,7 @@ export async function autoOptimizeLowCTRMeta(
     ...searchData.lowCTRPages,
   ]
     .filter((p) => p.fix === "auto_optimize_meta")
-    .slice(0, 5); // Limit to 5 per run to control AI costs
+    .slice(0, 3); // 3 per run — keeps AI calls within budget guard (agent runs 3x daily = up to 9 meta improvements/day)
 
   if (pagesToOptimize.length === 0) return optimizations;
 
@@ -451,15 +484,22 @@ export async function autoOptimizeLowCTRMeta(
     ...searchData.contentGapKeywords.map((k) => k.query),
   ].slice(0, 20);
 
+  const loopStart = Date.now();
   for (const page of pagesToOptimize) {
     if (!page.slug || page.slug === "") continue;
+
+    // Budget guard: if we've spent more than 12s in this loop, stop gracefully
+    if (Date.now() - loopStart > 12_000) {
+      console.log(`[autoOptimizeLowCTRMeta] Budget exhausted after ${optimizations.length} optimizations, stopping`);
+      break;
+    }
 
     // Find the blog post in the database
     const post = await prisma.blogPost.findFirst({
       where: {
         slug: page.slug,
         published: true,
-        deletedAt: null,
+        ...(siteId ? { siteId } : {}),
       },
       select: {
         id: true,
@@ -554,18 +594,36 @@ export async function autoOptimizeLowCTRMeta(
 
 export async function submitUnindexedPages(
   prisma: any,
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<{ indexNow: number; gscApi: number; urls: string[] }> {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-  const indexNowKey = process.env.INDEXNOW_KEY;
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+  let siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId || getDefaultSiteId());
+  let indexNowKey = process.env.INDEXNOW_KEY;
+  let gscPropertyUrl: string | undefined;
+  // Per-site URL and IndexNow key (multi-tenant)
+  if (siteId) {
+    try {
+      const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
+      siteUrl = getSiteDomain(siteId) || siteUrl;
+      const seoConfig = await getSiteSeoConfigFromVault(siteId);
+      indexNowKey = seoConfig.indexNowKey || indexNowKey;
+      // CRITICAL: Use GSC property URL (e.g. "sc-domain:yalla-london.com"),
+      // not site domain URL, for GSC API calls.
+      gscPropertyUrl = seoConfig.gscSiteUrl;
+    } catch (error) {
+      console.warn(`[SEO Intelligence] Failed to load IndexNow/domain config from vault for site "${siteId}":`, error);
+    }
+  }
   let indexNowCount = 0;
   let gscApiCount = 0;
 
   try {
-    // Get all published posts
+    // Get all published posts (filtered by site for multi-tenant)
+    const blogSiteFilter = siteId ? { siteId } : {};
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true, ...blogSiteFilter },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
     });
@@ -580,51 +638,42 @@ export async function submitUnindexedPages(
     ];
 
     // 1. IndexNow (Bing, Yandex — idempotent, submit all)
+    // Uses shared submitToIndexNow() for consistent tracking and error handling
     if (indexNowKey && allSubmitUrls.length > 0) {
       try {
-        const response = await fetch("https://api.indexnow.org/indexnow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            host: new URL(siteUrl).hostname,
-            key: indexNowKey,
-            urlList: allSubmitUrls.slice(0, 100),
-          }),
-        });
-
-        if (response.ok || response.status === 202) {
+        const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+        const results = await submitToIndexNow(allSubmitUrls.slice(0, 100), siteUrl, indexNowKey);
+        const success = results.some((r) => r.success);
+        if (success) {
           indexNowCount = Math.min(allSubmitUrls.length, 100);
         }
       } catch (e) {
-        console.warn("IndexNow submission failed:", e);
+        console.warn("[SEO Intelligence] IndexNow submission failed:", e);
       }
     }
 
-    // 2. Google Indexing API (for recent posts — last 7 days, max 10 per run)
+    // 2. Submit sitemap to Google via GSC API
+    // NOTE: The Google Indexing API (urlNotifications:publish) only works for
+    // JobPosting/BroadcastEvent pages. For regular blog content, programmatic
+    // sitemap submission is the correct approach for Google discovery.
     try {
       const { GoogleSearchConsoleAPI } = await import("./indexing-service");
-      const gscIndexer = new GoogleSearchConsoleAPI();
+      const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
 
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const recentUrls = posts
-        .filter((p: any) => new Date(p.created_at) >= sevenDaysAgo)
-        .map((p: any) => `${siteUrl}/blog/${p.slug}`)
-        .slice(0, 10); // Google Indexing API has daily quota (~200/day)
-
-      if (recentUrls.length > 0) {
-        const result = await gscIndexer.submitUrlsForIndexing(recentUrls);
-        gscApiCount = result.submitted;
-        if (result.errors.length > 0) {
-          console.warn("GSC Indexing API errors:", result.errors.slice(0, 3));
-        }
+      const sitemapResult = await gsc.submitSitemap(`${siteUrl}/sitemap.xml`);
+      if (sitemapResult.success) {
+        gscApiCount = 1; // Sitemap submitted = all URLs discovered
+        fixes.push(`Submitted sitemap to Google Search Console (${allSubmitUrls.length} URLs in sitemap)`);
+      } else {
+        console.warn("GSC sitemap submission failed:", sitemapResult.error);
       }
     } catch (gscError) {
-      console.warn("GSC Indexing API not available:", gscError);
+      console.warn("GSC API not available:", gscError);
     }
 
     if (indexNowCount > 0 || gscApiCount > 0) {
       fixes.push(
-        `Indexing: ${indexNowCount} URLs via IndexNow + ${gscApiCount} via Google Indexing API`
+        `Indexing: ${indexNowCount} URLs via IndexNow + sitemap submitted to GSC`
       );
     }
 
@@ -642,12 +691,13 @@ export async function submitUnindexedPages(
 export async function flagContentForStrengthening(
   prisma: any,
   searchData: SearchPerformanceAnalysis,
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<{ expanded: number; flagged: number; posts: string[] }> {
   const expandedPosts: string[] = [];
   const flaggedPosts: string[] = [];
 
-  // Only process top 3 per run to manage AI costs
+  // 3 per run (was 1) — agent runs 3x daily = up to 9 expansions/day
   for (const page of searchData.almostPage1.slice(0, 3)) {
     if (!page.slug || page.slug === "") continue;
 
@@ -656,7 +706,7 @@ export async function flagContentForStrengthening(
         where: {
           slug: page.slug,
           published: true,
-          deletedAt: null,
+          ...(siteId ? { siteId } : {}),
         },
         select: {
           id: true,
@@ -700,8 +750,10 @@ Keep the existing content but enhance and expand it. Return ONLY the expanded HT
             {
               systemPrompt:
                 "You are a luxury travel content specialist writing for Arab travelers. Write detailed, helpful, SEO-optimized content. Return HTML only.",
-              maxTokens: 4096,
+              maxTokens: 2048,
               temperature: 0.6,
+              taskType: "content_expansion",
+              calledFrom: "seo-intelligence:flagContentForStrengthening",
             }
           );
 

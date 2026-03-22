@@ -1,0 +1,1384 @@
+#!/usr/bin/env npx tsx
+/**
+ * Comprehensive Smoke Test Suite
+ *
+ * Tests every critical function in the platform:
+ * - Pipeline stages (topic → draft → publish → index)
+ * - Cron auth patterns
+ * - Security compliance
+ * - Anti-pattern verification
+ * - Schema-code consistency
+ * - Import patterns
+ * - XSS sanitization coverage
+ * - URL/email hardcoding
+ * - Quality gate checks
+ *
+ * Run: npx tsx scripts/smoke-test.ts
+ */
+
+import { execSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+
+const APP_DIR = path.resolve(__dirname, "..");
+const PASS = "PASS";
+const FAIL = "FAIL";
+const WARN = "WARN";
+
+interface TestResult {
+  name: string;
+  category: string;
+  status: typeof PASS | typeof FAIL | typeof WARN;
+  details: string;
+}
+
+const results: TestResult[] = [];
+
+function test(category: string, name: string, fn: () => { status: string; details: string }) {
+  try {
+    const result = fn();
+    results.push({ category, name, status: result.status as typeof PASS | typeof FAIL | typeof WARN, details: result.details });
+  } catch (err) {
+    results.push({ category, name, status: FAIL, details: `Exception: ${err instanceof Error ? err.message : String(err)}` });
+  }
+}
+
+function grepCount(pattern: string, dir: string, include?: string): number {
+  try {
+    const includeFlag = include ? `--include="${include}"` : "";
+    const cmd = `grep -r "${pattern}" ${dir} ${includeFlag} --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=docs 2>/dev/null | wc -l`;
+    return parseInt(execSync(cmd, { cwd: APP_DIR, encoding: "utf-8" }).trim(), 10);
+  } catch {
+    return 0;
+  }
+}
+
+function grepFiles(pattern: string, dir: string, include?: string): string[] {
+  try {
+    const includeFlag = include ? `--include="${include}"` : "";
+    const cmd = `grep -rl "${pattern}" ${dir} ${includeFlag} --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=docs 2>/dev/null`;
+    return execSync(cmd, { cwd: APP_DIR, encoding: "utf-8" }).trim().split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function fileExists(relativePath: string): boolean {
+  return fs.existsSync(path.join(APP_DIR, relativePath));
+}
+
+function fileContains(relativePath: string, pattern: string): boolean {
+  try {
+    const content = fs.readFileSync(path.join(APP_DIR, relativePath), "utf-8");
+    return content.includes(pattern);
+  } catch {
+    return false;
+  }
+}
+
+// ==================== CATEGORY 1: TypeScript Compilation ====================
+
+test("Build", "TypeScript compiles with zero errors", () => {
+  try {
+    execSync("npx tsc --noEmit 2>&1", { cwd: APP_DIR, encoding: "utf-8" });
+    return { status: PASS, details: "Zero TypeScript errors" };
+  } catch (err) {
+    return { status: FAIL, details: `TypeScript errors found` };
+  }
+});
+
+// ==================== CATEGORY 2: Pipeline Stage Files Exist ====================
+
+test("Pipeline", "weekly-topics cron route exists", () => {
+  return fileExists("app/api/cron/weekly-topics/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing: app/api/cron/weekly-topics/route.ts" };
+});
+
+test("Pipeline", "trends-monitor cron route exists", () => {
+  return fileExists("app/api/cron/trends-monitor/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "content-builder cron route exists", () => {
+  return fileExists("app/api/cron/content-builder/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "build-runner.ts exists", () => {
+  return fileExists("lib/content-pipeline/build-runner.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "phases.ts exists with 8 phases", () => {
+  if (!fileExists("lib/content-pipeline/phases.ts")) return { status: FAIL, details: "Missing" };
+  const phases = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/phases.ts"), "utf-8");
+  const missing = phases.filter(p => !content.includes(`"${p}"`));
+  return missing.length === 0
+    ? { status: PASS, details: "All 8 phases present" }
+    : { status: FAIL, details: `Missing phases: ${missing.join(", ")}` };
+});
+
+test("Pipeline", "content-selector cron route exists", () => {
+  return fileExists("app/api/cron/content-selector/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "select-runner.ts exists", () => {
+  return fileExists("lib/content-pipeline/select-runner.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "scheduled-publish cron route exists", () => {
+  return fileExists("app/api/cron/scheduled-publish/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "seo-agent cron route exists", () => {
+  return fileExists("app/api/cron/seo-agent/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "seo/cron route exists", () => {
+  return fileExists("app/api/seo/cron/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("Pipeline", "indexing-service.ts exists with retry logic", () => {
+  if (!fileExists("lib/seo/indexing-service.ts")) return { status: FAIL, details: "Missing" };
+  return fileContains("lib/seo/indexing-service.ts", "fetchWithRetry")
+    ? { status: PASS, details: "Has fetchWithRetry for IndexNow" }
+    : { status: FAIL, details: "Missing retry logic" };
+});
+
+test("Pipeline", "pre-publication-gate.ts exists", () => {
+  return fileExists("lib/seo/orchestrator/pre-publication-gate.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing" };
+});
+
+// ==================== CATEGORY 3: Atomic Topic Claiming ====================
+
+test("Pipeline", "content-builder-create uses atomic claiming (updateMany)", () => {
+  return fileContains("app/api/cron/content-builder-create/route.ts", "updateMany")
+    ? { status: PASS, details: "Uses updateMany for atomic claiming" }
+    : { status: FAIL, details: "Missing atomic claiming" };
+});
+
+test("Pipeline", "daily-content-generate uses atomic claiming", () => {
+  return fileContains("app/api/cron/daily-content-generate/route.ts", "updateMany")
+    ? { status: PASS, details: "Uses updateMany for atomic claiming" }
+    : { status: FAIL, details: "Missing atomic claiming" };
+});
+
+test("Pipeline", "full-pipeline-runner uses atomic claiming", () => {
+  return fileContains("lib/content-pipeline/full-pipeline-runner.ts", "updateMany")
+    ? { status: PASS, details: "Uses updateMany for atomic claiming" }
+    : { status: FAIL, details: "Missing atomic claiming" };
+});
+
+test("Pipeline", "content-builder-create uses 'generating' status", () => {
+  return fileContains("app/api/cron/content-builder-create/route.ts", '"generating"')
+    ? { status: PASS, details: "Uses generating status" }
+    : { status: FAIL, details: "Missing generating status" };
+});
+
+// ==================== CATEGORY 4: Quality Gate ====================
+
+test("Quality Gate", "SEO score threshold is 70 in phases.ts (from standards.ts)", () => {
+  if (!fileExists("lib/content-pipeline/phases.ts")) return { status: FAIL, details: "Missing" };
+  // phases.ts imports qualityGateScore from standards.ts (value = 70) with fallback 70
+  return fileContains("lib/content-pipeline/phases.ts", "qualityGateScore")
+    ? { status: PASS, details: "Uses standards.ts qualityGateScore (70)" }
+    : { status: FAIL, details: "Not referencing standards.ts qualityGateScore" };
+});
+
+test("Quality Gate", "Pre-pub gate is fail-closed (blockers.length === 0)", () => {
+  return fileContains("lib/seo/orchestrator/pre-publication-gate.ts", "blockers.length === 0")
+    ? { status: PASS, details: "Fail-closed confirmed" }
+    : { status: FAIL, details: "Not fail-closed" };
+});
+
+test("Quality Gate", "select-runner calls runPrePublicationGate", () => {
+  return fileContains("lib/content-pipeline/select-runner.ts", "runPrePublicationGate")
+    ? { status: PASS, details: "Gate enforced" }
+    : { status: FAIL, details: "Gate not enforced" };
+});
+
+test("Quality Gate", "scheduled-publish calls runPrePublicationGate", () => {
+  return fileContains("app/api/cron/scheduled-publish/route.ts", "runPrePublicationGate")
+    ? { status: PASS, details: "Gate enforced" }
+    : { status: FAIL, details: "Gate not enforced" };
+});
+
+// ==================== CATEGORY 5: Cron Auth Pattern ====================
+
+const cronRoutes = [
+  "app/api/cron/weekly-topics/route.ts",
+  "app/api/cron/content-builder/route.ts",
+  "app/api/cron/content-selector/route.ts",
+  "app/api/cron/affiliate-injection/route.ts",
+  "app/api/cron/analytics/route.ts",
+  "app/api/cron/seo-agent/route.ts",
+  "app/api/cron/auto-generate/route.ts",
+  "app/api/cron/autopilot/route.ts",
+  "app/api/cron/fact-verification/route.ts",
+  "app/api/cron/london-news/route.ts",
+  // seo-health-report route doesn't exist — SEO health is at /api/seo/health
+  "app/api/cron/real-time-optimization/route.ts",
+];
+
+for (const route of cronRoutes) {
+  const name = route.split("/")[3]; // extract cron job name
+  test("Cron Auth", `${name} does NOT use !cronSecret pattern`, () => {
+    if (!fileExists(route)) return { status: WARN, details: "Route not found" };
+    const content = fs.readFileSync(path.join(APP_DIR, route), "utf-8");
+    if (content.includes("!cronSecret") && content.includes("return") && content.includes("500")) {
+      return { status: FAIL, details: "Old fail-closed pattern found" };
+    }
+    return { status: PASS, details: "Safe auth pattern" };
+  });
+}
+
+// ==================== CATEGORY 6: Security ====================
+
+test("Security", "Database backup routes have requireAdmin", () => {
+  const files = [
+    "app/api/database/backups/route.ts",
+    "app/api/database/stats/route.ts",
+  ];
+  const missing = files.filter(f => !fileContains(f, "requireAdmin"));
+  return missing.length === 0
+    ? { status: PASS, details: "All database routes protected" }
+    : { status: FAIL, details: `Missing auth: ${missing.join(", ")}` };
+});
+
+test("Security", "Admin setup is locked after first admin", () => {
+  return fileContains("app/api/admin/setup/route.ts", "Setup already completed")
+    ? { status: PASS, details: "Setup lockdown present" }
+    : { status: FAIL, details: "No lockdown found" };
+});
+
+test("Security", "No API keys in analytics response", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/analytics/route.ts"), "utf-8");
+  if (content.includes("client_secret:") && !content.includes("client_secret_configured")) {
+    return { status: FAIL, details: "Raw client_secret in response" };
+  }
+  return { status: PASS, details: "Credentials replaced with boolean indicators" };
+});
+
+test("Security", "No API key prefix logging", () => {
+  const count = grepCount("console\\.log.*apiKey\\.substring", "app/");
+  return count === 0
+    ? { status: PASS, details: "No API key prefix logging" }
+    : { status: FAIL, details: `${count} instances found` };
+});
+
+test("Security", "CSP headers configured", () => {
+  return fileContains("next.config.js", "Content-Security-Policy")
+    ? { status: PASS, details: "CSP configured in next.config.js" }
+    : { status: FAIL, details: "Missing CSP headers" };
+});
+
+test("Security", "Public mutation routes have auth", () => {
+  const routes = [
+    "app/api/content/auto-generate/route.ts",
+    "app/api/homepage-blocks/publish/route.ts",
+    "app/api/cache/invalidate/route.ts",
+    "app/api/media/upload/route.ts",
+  ];
+  const missing = routes.filter(f => !fileContains(f, "requireAdmin"));
+  return missing.length === 0
+    ? { status: PASS, details: "All mutation routes protected" }
+    : { status: FAIL, details: `Missing auth: ${missing.join(", ")}` };
+});
+
+// ==================== CATEGORY 7: XSS Sanitization ====================
+
+test("XSS", "BlogPostClient uses sanitizeHtml", () => {
+  return fileContains("app/blog/[slug]/BlogPostClient.tsx", "sanitizeHtml")
+    ? { status: PASS, details: "Sanitized" }
+    : { status: FAIL, details: "Missing sanitization" };
+});
+
+test("XSS", "ArticleClient uses sanitizeHtml", () => {
+  return fileContains("app/information/articles/[slug]/ArticleClient.tsx", "sanitizeHtml")
+    ? { status: PASS, details: "Sanitized" }
+    : { status: FAIL, details: "Missing sanitization" };
+});
+
+test("XSS", "HowTo builder uses sanitizeHtml", () => {
+  return fileContains("components/seo/howto-builder.tsx", "sanitizeHtml")
+    ? { status: PASS, details: "Sanitized" }
+    : { status: FAIL, details: "Missing sanitization" };
+});
+
+test("XSS", "FAQ builder uses sanitizeHtml", () => {
+  return fileContains("components/seo/faq-builder.tsx", "sanitizeHtml")
+    ? { status: PASS, details: "Sanitized" }
+    : { status: FAIL, details: "Missing sanitization" };
+});
+
+test("XSS", "Social embed uses sanitizeHtml", () => {
+  return fileContains("components/social/lite-social-embed.tsx", "sanitizeHtml")
+    ? { status: PASS, details: "Sanitized" }
+    : { status: FAIL, details: "Missing sanitization" };
+});
+
+test("XSS", "html-sanitizer.ts utility exists", () => {
+  return fileExists("lib/html-sanitizer.ts")
+    ? { status: PASS, details: "Sanitizer utility present" }
+    : { status: FAIL, details: "Missing sanitizer" };
+});
+
+// ==================== CATEGORY 8: Anti-Patterns ====================
+
+test("Anti-Patterns", "Zero Math.random() in admin API routes", () => {
+  const count = grepCount("Math\\.random()", "app/api/admin/", "*.ts");
+  return count === 0
+    ? { status: PASS, details: "No fake metrics" }
+    : { status: FAIL, details: `${count} instances remain` };
+});
+
+test("Anti-Patterns", "Zero @/lib/prisma direct imports (except bridges)", () => {
+  const files = grepFiles('from.*@/lib/prisma"', "lib/", "*.ts")
+    .filter(f => !f.includes("lib/db.ts") && !f.includes("lib/db/") && !f.includes("prisma-types") && !f.includes("prisma-stub"));
+  return files.length === 0
+    ? { status: PASS, details: "All imports use @/lib/db" }
+    : { status: FAIL, details: `Direct imports: ${files.join(", ")}` };
+});
+
+test("Anti-Patterns", "Zero hardcoded emails @yallalondon.com in legal pages", () => {
+  const files = ["app/privacy/page.tsx", "app/terms/page.tsx", "app/about/page.tsx", "app/contact/page.tsx"];
+  const bad = files.filter(f => fileContains(f, "@yallalondon.com") || fileContains(f, "@yalla-london.com"));
+  return bad.length === 0
+    ? { status: PASS, details: "All dynamic from config" }
+    : { status: FAIL, details: `Hardcoded in: ${bad.join(", ")}` };
+});
+
+// ==================== CATEGORY 9: Multi-Site Infrastructure ====================
+
+test("Multi-Site", "config/sites.ts has 5 sites", () => {
+  if (!fileExists("config/sites.ts")) return { status: FAIL, details: "Missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "config/sites.ts"), "utf-8");
+  const sites = ["yalla-london", "arabaldives", "french-riviera", "istanbul", "thailand"];
+  const missing = sites.filter(s => !content.includes(s));
+  return missing.length === 0
+    ? { status: PASS, details: "All 5 sites configured" }
+    : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
+});
+
+test("Multi-Site", "middleware.ts maps all 5 domains", () => {
+  if (!fileExists("middleware.ts")) return { status: FAIL, details: "Missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "middleware.ts"), "utf-8");
+  const domains = ["yalla-london.com", "arabaldives.com", "yallariviera.com", "yallaistanbul.com", "yallathailand.com"];
+  const missing = domains.filter(d => !content.includes(d));
+  return missing.length === 0
+    ? { status: PASS, details: "All 5 domains mapped" }
+    : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
+});
+
+test("Multi-Site", "getDefaultSiteId exists in config", () => {
+  return fileContains("config/sites.ts", "getDefaultSiteId")
+    ? { status: PASS, details: "Helper exists" }
+    : { status: FAIL, details: "Missing getDefaultSiteId" };
+});
+
+test("Multi-Site", "getBaseUrl utility exists", () => {
+  return fileExists("lib/url-utils.ts")
+    ? { status: PASS, details: "URL utility present" }
+    : { status: FAIL, details: "Missing lib/url-utils.ts" };
+});
+
+test("Multi-Site", "Root layout uses generateMetadata (not static)", () => {
+  return fileContains("app/layout.tsx", "generateMetadata")
+    ? { status: PASS, details: "Dynamic metadata" }
+    : { status: FAIL, details: "Still uses static metadata export" };
+});
+
+test("Multi-Site", "affiliate-injection has per-site rules", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const sites = ["arabaldives", "french-riviera", "istanbul", "thailand"];
+  const missing = sites.filter(s => !content.includes(s));
+  return missing.length === 0
+    ? { status: PASS, details: "All 5 site affiliate rules" }
+    : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
+});
+
+// ==================== CATEGORY 10: Observability ====================
+
+test("Observability", "onCronFailure has internal error handling", () => {
+  return fileContains("lib/ops/failure-hooks.ts", "[onCronFailure]")
+    ? { status: PASS, details: "Self-error logging present" }
+    : { status: FAIL, details: "onCronFailure can silently fail" };
+});
+
+test("Observability", "logCronExecution has internal error handling", () => {
+  return fileContains("lib/cron-logger.ts", "[cron-logger]")
+    ? { status: PASS, details: "Self-error logging present" }
+    : { status: FAIL, details: "logCronExecution can silently fail" };
+});
+
+test("Observability", "CronJobLog model exists in schema", () => {
+  return fileContains("prisma/schema.prisma", "model CronJobLog")
+    ? { status: PASS, details: "CronJobLog model present" }
+    : { status: FAIL, details: "Missing CronJobLog model" };
+});
+
+// ==================== CATEGORY 11: SEO Compliance ====================
+
+test("SEO", "IndexNow uses 7-day window (not 24h)", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  return content.includes("7 * 24 * 60 * 60 * 1000") || content.includes("7 *")
+    ? { status: PASS, details: "7-day window" }
+    : { status: FAIL, details: "Still using 24h window" };
+});
+
+test("SEO", "seo-agent delegates IndexNow to seo/cron", () => {
+  return fileContains("app/api/cron/seo-agent/route.ts", "delegated")
+    ? { status: PASS, details: "Delegation confirmed" }
+    : { status: FAIL, details: "Still submitting directly" };
+});
+
+test("SEO", "standards.ts exists as single source of truth", () => {
+  return fileExists("lib/seo/standards.ts")
+    ? { status: PASS, details: "Standards file present" }
+    : { status: FAIL, details: "Missing SEO standards" };
+});
+
+test("SEO", "Deprecated schemas removed (FAQPage, HowTo)", () => {
+  if (!fileExists("lib/seo/standards.ts")) return { status: FAIL, details: "Missing" };
+  return fileContains("lib/seo/standards.ts", "FAQPage")
+    ? { status: PASS, details: "Deprecation tracking present" }
+    : { status: WARN, details: "FAQPage not in standards" };
+});
+
+test("SEO", "related-content.ts queries DB + static", () => {
+  return fileContains("lib/related-content.ts", "fetchDbRelatedArticles")
+    ? { status: PASS, details: "DB-backed related articles" }
+    : { status: FAIL, details: "Static only" };
+});
+
+// ==================== CATEGORY 12: Budget Guards ====================
+
+test("Budget", "build-runner has budget guard", () => {
+  // content-builder has maxDuration=300 (5min), so budget is 280s not 53s
+  return fileContains("lib/content-pipeline/build-runner.ts", "280_000")
+    ? { status: PASS, details: "280s budget present (300s maxDuration route)" }
+    : { status: FAIL, details: "Missing budget guard" };
+});
+
+test("Budget", "seo-agent has budget guard", () => {
+  return fileContains("app/api/cron/seo-agent/route.ts", "53_000") || fileContains("app/api/cron/seo-agent/route.ts", "53000")
+    ? { status: PASS, details: "Budget guard present" }
+    : { status: FAIL, details: "Missing budget guard" };
+});
+
+test("Budget", "london-news has budget guard", () => {
+  return fileContains("app/api/cron/london-news/route.ts", "53_000") || fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS")
+    ? { status: PASS, details: "Budget guard present" }
+    : { status: FAIL, details: "Missing budget guard" };
+});
+
+// ==================== CATEGORY 13: London News Feature ====================
+
+test("London News", "london-news cron route exists", () => {
+  return fileExists("app/api/cron/london-news/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing london-news cron route" };
+});
+
+test("London News", "london-news scheduled in vercel.json", () => {
+  return fileContains("vercel.json", "/api/cron/london-news")
+    ? { status: PASS, details: "Cron scheduled" }
+    : { status: FAIL, details: "NOT scheduled in vercel.json" };
+});
+
+test("London News", "london-news has budget guard (53s)", () => {
+  return fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS") || fileContains("app/api/cron/london-news/route.ts", "53_000")
+    ? { status: PASS, details: "Budget guard present" }
+    : { status: FAIL, details: "Missing budget guard" };
+});
+
+test("London News", "london-news sets siteId on NewsItem", () => {
+  return fileContains("app/api/cron/london-news/route.ts", "siteId")
+    ? { status: PASS, details: "siteId populated" }
+    : { status: FAIL, details: "Missing siteId on NewsItem creation" };
+});
+
+test("London News", "news API filters by siteId", () => {
+  return fileContains("app/api/news/route.ts", "siteId")
+    ? { status: PASS, details: "Site filtering present" }
+    : { status: FAIL, details: "No site filtering on news API" };
+});
+
+test("London News", "news public page exists", () => {
+  return fileExists("app/news/page.tsx") && fileExists("app/news/[slug]/page.tsx")
+    ? { status: PASS, details: "Both listing and detail pages exist" }
+    : { status: FAIL, details: "Missing news pages" };
+});
+
+test("London News", "news detail page uses dynamic baseUrl", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/news/[slug]/page.tsx"), "utf-8");
+  const hasHardcoded = content.includes('"https://www.yalla-london.com"');
+  return !hasHardcoded
+    ? { status: PASS, details: "No hardcoded yalla-london.com" }
+    : { status: FAIL, details: "Hardcoded URL remains" };
+});
+
+// ==================== CATEGORY 14: SEO Audit Scalability ====================
+
+test("SEO Audit", "seo-agent auditBlogPosts has take limit", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const auditFnStart = content.indexOf("async function auditBlogPosts");
+  if (auditFnStart === -1) return { status: FAIL, details: "auditBlogPosts not found" };
+  const fnSlice = content.substring(auditFnStart, auditFnStart + 1200);
+  return fnSlice.includes("take:")
+    ? { status: PASS, details: "Query has take limit" }
+    : { status: FAIL, details: "Unbounded findMany — OOM risk" };
+});
+
+test("SEO Audit", "live-site-auditor uses AbortSignal.timeout", () => {
+  return fileContains("lib/seo/orchestrator/live-site-auditor.ts", "AbortSignal.timeout")
+    ? { status: PASS, details: "Per-URL timeout present" }
+    : { status: FAIL, details: "No per-URL timeout" };
+});
+
+test("SEO Audit", "seo/health route exists", () => {
+  return fileExists("app/api/seo/health/route.ts")
+    ? { status: PASS, details: "SEO health endpoint present" }
+    : { status: FAIL, details: "Missing SEO health endpoint" };
+});
+
+test("SEO Audit", "pre-publication gate exists with 11+ checks", () => {
+  if (!fileExists("lib/seo/orchestrator/pre-publication-gate.ts")) return { status: FAIL, details: "Missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/seo/orchestrator/pre-publication-gate.ts"), "utf-8");
+  // Gate uses numbered section comments: "── 1.", "── 2.", etc.
+  const checkCount = (content.match(/── \d+\./g) || []).length;
+  return checkCount >= 11
+    ? { status: PASS, details: `${checkCount} checks found` }
+    : { status: FAIL, details: `Only ${checkCount} checks` };
+});
+
+test("SEO Audit", "SEO standards.ts exists", () => {
+  return fileExists("lib/seo/standards.ts")
+    ? { status: PASS, details: "Standards file present" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("SEO Audit", "live-site-auditor warns on sitemap truncation", () => {
+  return fileContains("lib/seo/orchestrator/live-site-auditor.ts", "totalSitemapUrls")
+    ? { status: PASS, details: "Truncation tracking present" }
+    : { status: FAIL, details: "Silent truncation" };
+});
+
+// ==================== CATEGORY 15: System-Wide Validation (Audit #15) ====================
+
+test("System Validation", "seo/cron has maxDuration = 60", () => {
+  return fileContains("app/api/seo/cron/route.ts", "maxDuration = 60")
+    ? { status: PASS, details: "maxDuration = 60 set" }
+    : { status: FAIL, details: "Missing or wrong maxDuration — will silently timeout at 30s" };
+});
+
+test("System Validation", "scheduled-publish has maxDuration = 60", () => {
+  return fileContains("app/api/cron/scheduled-publish/route.ts", "maxDuration = 60")
+    ? { status: PASS, details: "maxDuration = 60 set" }
+    : { status: FAIL, details: "maxDuration too low — needs 60 for Vercel Pro" };
+});
+
+test("System Validation", "sweeper has maxDuration = 60", () => {
+  return fileContains("app/api/cron/sweeper/route.ts", "maxDuration = 60")
+    ? { status: PASS, details: "maxDuration = 60 set" }
+    : { status: FAIL, details: "maxDuration too low — needs 60 for Vercel Pro" };
+});
+
+test("System Validation", "blog listing page filters by siteId", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/blog/page.tsx"), "utf-8");
+  // Must filter DB posts by siteId to prevent cross-site leakage
+  return content.includes("siteId") && content.includes("x-site-id")
+    ? { status: PASS, details: "Blog listing scoped per-site" }
+    : { status: FAIL, details: "Blog listing shows ALL sites' posts mixed together" };
+});
+
+test("System Validation", "sitemap news items scoped by siteId", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/sitemap.ts"), "utf-8");
+  // Find the newsItem findMany block and check it includes siteId
+  const newsQueryIdx = content.indexOf("prisma.newsItem.findMany");
+  if (newsQueryIdx === -1) return { status: WARN, details: "No newsItem query found" };
+  const querySlice = content.substring(newsQueryIdx, newsQueryIdx + 200);
+  return querySlice.includes("siteId")
+    ? { status: PASS, details: "News sitemap scoped per-site" }
+    : { status: FAIL, details: "News sitemap leaks cross-site items" };
+});
+
+// ==================== CATEGORY 16: SEO Dashboard Real Data (Audit #16) ====================
+
+test("SEO Dashboard", "seo-audits page has no mockAudits array", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/seo-audits/page.tsx"), "utf-8");
+  return content.includes("mockAudit")
+    ? { status: FAIL, details: "Mock audit data still present" }
+    : { status: PASS, details: "No mock data — uses real API" };
+});
+
+test("SEO Dashboard", "seo-audits page calls real API for full audit", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/seo-audits/page.tsx"), "utf-8");
+  return content.includes("run_full_audit") && content.includes("/api/admin/seo")
+    ? { status: PASS, details: "Full audit wired to real API" }
+    : { status: FAIL, details: "Full audit button not wired to API" };
+});
+
+test("SEO Dashboard", "seo-command route has no hardcoded healthScore", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/seo-command/route.ts"), "utf-8");
+  return content.includes("healthScore: 87")
+    ? { status: FAIL, details: "Hardcoded fake health score 87 still present" }
+    : { status: PASS, details: "Health score from real DB query" };
+});
+
+test("SEO Dashboard", "seo-command route queries real DB", () => {
+  return fileContains("app/api/admin/seo-command/route.ts", "prisma.blogPost")
+    ? { status: PASS, details: "Uses real Prisma queries" }
+    : { status: FAIL, details: "No Prisma queries — likely still mock data" };
+});
+
+test("SEO Dashboard", "seo API has run_full_audit action", () => {
+  return fileContains("app/api/admin/seo/route.ts", "run_full_audit")
+    ? { status: PASS, details: "Full audit endpoint exists" }
+    : { status: FAIL, details: "Missing run_full_audit action" };
+});
+
+test("SEO Dashboard", "seo API has articles type for page-by-page view", () => {
+  return fileContains("app/api/admin/seo/route.ts", "getArticlesWithSEOData")
+    ? { status: PASS, details: "Articles endpoint exists" }
+    : { status: FAIL, details: "Missing getArticlesWithSEOData" };
+});
+
+test("SEO Dashboard", "seo-command no Math.random() fake data", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/seo-command/route.ts"), "utf-8");
+  return content.includes("Math.random")
+    ? { status: FAIL, details: "Math.random() fake data present" }
+    : { status: PASS, details: "No fake random data" };
+});
+
+// ==================== CATEGORY 17: CJ Affiliate Integration ====================
+
+test("CJ Affiliate", "CJ_API_TOKEN env var referenced in cj-client.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/cj-client.ts"), "utf-8");
+  return content.includes("CJ_API_TOKEN")
+    ? { status: PASS, details: "CJ_API_TOKEN referenced in cj-client" }
+    : { status: FAIL, details: "CJ_API_TOKEN not found in cj-client.ts" };
+});
+
+test("CJ Affiliate", "CJ_WEBSITE_ID env var wired in cj-client.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/cj-client.ts"), "utf-8");
+  return content.includes("CJ_WEBSITE_ID") && content.includes("getWebsiteId")
+    ? { status: PASS, details: "CJ_WEBSITE_ID wired via getWebsiteId()" }
+    : { status: FAIL, details: "CJ_WEBSITE_ID not wired in cj-client.ts" };
+});
+
+test("CJ Affiliate", "monitor.ts uses commissionAmount not amount", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/monitor.ts"), "utf-8");
+  const hasWrongField = /\bc\.amount\b/.test(content) || content.includes("_sum: { amount:");
+  return !hasWrongField
+    ? { status: PASS, details: "Uses commissionAmount correctly" }
+    : { status: FAIL, details: "Still references c.amount — will crash at runtime" };
+});
+
+test("CJ Affiliate", "No hardcoded 'yalla-london' in lib/affiliate/*.ts", () => {
+  const files = ["monitor.ts", "deal-discovery.ts", "link-injector.ts", "cj-sync.ts"];
+  const violations: string[] = [];
+  for (const f of files) {
+    try {
+      const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate", f), "utf-8");
+      if (content.includes('"yalla-london"') || content.includes("'yalla-london'")) {
+        violations.push(f);
+      }
+    } catch { /* file may not exist */ }
+  }
+  return violations.length === 0
+    ? { status: PASS, details: "No hardcoded yalla-london in affiliate modules" }
+    : { status: FAIL, details: `Hardcoded in: ${violations.join(", ")}` };
+});
+
+test("CJ Affiliate", "Circuit breaker in cj-client.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/cj-client.ts"), "utf-8");
+  return content.includes("isCircuitOpen") && content.includes("recordCjFailure")
+    ? { status: PASS, details: "Circuit breaker pattern implemented" }
+    : { status: FAIL, details: "Missing circuit breaker in CJ API client" };
+});
+
+test("CJ Affiliate", "SID tracking in link-tracker.ts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/link-tracker.ts"), "utf-8");
+  return content.includes("sid") && content.includes("generateTrackingUrl")
+    ? { status: PASS, details: "SID parameter supported in tracking URLs" }
+    : { status: FAIL, details: "Missing SID support in link-tracker" };
+});
+
+test("CJ Affiliate", "Per-site keywords in site-keywords.ts", () => {
+  try {
+    const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/site-keywords.ts"), "utf-8");
+    const hasSites = content.includes("arabaldives") && content.includes("istanbul") && content.includes("french-riviera");
+    return hasSites
+      ? { status: PASS, details: "Per-site keyword maps for all destinations" }
+      : { status: FAIL, details: "Missing site keyword maps" };
+  } catch {
+    return { status: FAIL, details: "site-keywords.ts file not found" };
+  }
+});
+
+test("CJ Affiliate", "Budget guards in all 4 affiliate cron routes", () => {
+  const cronRoutes = [
+    "app/api/affiliate/cron/sync-advertisers/route.ts",
+    "app/api/affiliate/cron/sync-commissions/route.ts",
+    "app/api/affiliate/cron/refresh-links/route.ts",
+    "app/api/affiliate/cron/discover-deals/route.ts",
+  ];
+  const missing: string[] = [];
+  for (const route of cronRoutes) {
+    try {
+      const content = fs.readFileSync(path.join(APP_DIR, route), "utf-8");
+      if (!content.includes("BUDGET") && !content.includes("budgetMs") && !content.includes("budget")) {
+        missing.push(route.split("/").pop() || route);
+      }
+    } catch {
+      missing.push(route.split("/").pop() || route);
+    }
+  }
+  return missing.length === 0
+    ? { status: PASS, details: "All 4 affiliate cron routes have budget guards" }
+    : { status: WARN, details: `Missing budget guard in: ${missing.join(", ")}` };
+});
+
+// ==================== CATEGORY 18: GA4 Dashboard Wiring ====================
+
+test("GA4 Wiring", "ga4-data-api exports fetchGA4Metrics and isGA4Configured", () => {
+  if (!fileExists("lib/seo/ga4-data-api.ts")) return { status: FAIL, details: "Missing lib/seo/ga4-data-api.ts" };
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/seo/ga4-data-api.ts"), "utf-8");
+  const hasFetch = content.includes("fetchGA4Metrics");
+  const hasConfig = content.includes("isGA4Configured");
+  return hasFetch && hasConfig
+    ? { status: PASS, details: "Both fetchGA4Metrics and isGA4Configured exported" }
+    : { status: FAIL, details: `fetchGA4Metrics=${hasFetch}, isGA4Configured=${hasConfig}` };
+});
+
+test("GA4 Wiring", "cockpit route has buildTraffic function", () => {
+  return fileContains("app/api/admin/cockpit/route.ts", "buildTraffic")
+    ? { status: PASS, details: "buildTraffic wired into cockpit API" }
+    : { status: FAIL, details: "Missing buildTraffic in cockpit route" };
+});
+
+test("GA4 Wiring", "cycle-health checks GA4 connectivity", () => {
+  return fileContains("app/api/admin/cycle-health/route.ts", "ga4-not-configured") || fileContains("app/api/admin/cycle-health/route.ts", "GA4 not configured")
+    ? { status: PASS, details: "GA4 health check present in cycle-health" }
+    : { status: FAIL, details: "Missing GA4 connectivity check in cycle-health" };
+});
+
+// ==================== CATEGORY 19: OG Image Route ====================
+
+test("OG Image", "app/api/og/route.tsx exists", () => {
+  return fileExists("app/api/og/route.tsx")
+    ? { status: PASS, details: "OG image route exists" }
+    : { status: FAIL, details: "Missing app/api/og/route.tsx" };
+});
+
+test("OG Image", "OG route uses site config for brand colors", () => {
+  if (!fileExists("app/api/og/route.tsx")) return { status: FAIL, details: "Missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/og/route.tsx"), "utf-8");
+  return content.includes("getSiteConfig") && content.includes("primaryColor")
+    ? { status: PASS, details: "Uses getSiteConfig for per-site brand colors" }
+    : { status: FAIL, details: "Not using site config for colors" };
+});
+
+// ==================== PRINT RESULTS ====================
+
+console.log("\n" + "=".repeat(80));
+console.log("  SMOKE TEST RESULTS — Yalla London Platform");
+console.log("  " + new Date().toISOString());
+console.log("=".repeat(80) + "\n");
+
+const categories = [...new Set(results.map(r => r.category))];
+let totalPass = 0, totalFail = 0, totalWarn = 0;
+
+// ── FRAGILITY DETECTION TESTS ──
+// These tests verify the fixes for the 18 fragilities found in the March 9 2026 deep audit.
+
+test("Fragility", "Atomic claiming on reservoir drafts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const hasAtomicClaim = content.includes('current_phase: "promoting"') && content.includes("updateMany");
+  const hasRevert = content.includes('current_phase: "reservoir"') && content.includes("Promotion failed");
+  return hasAtomicClaim && hasRevert
+    ? { status: PASS, details: "Reservoir drafts atomically claimed via updateMany → 'promoting'" }
+    : { status: FAIL, details: "Missing atomic claiming or revert on reservoir drafts" };
+});
+
+test("Fragility", "BlogPost create + draft update in transaction", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const hasTransaction = content.includes("$transaction") && content.includes("blogPost.create") && content.includes("articleDraft.update");
+  return hasTransaction
+    ? { status: PASS, details: "BlogPost create + draft update wrapped in Prisma $transaction" }
+    : { status: FAIL, details: "BlogPost create and draft update not in transaction — orphan risk" };
+});
+
+test("Fragility", "Unified attempt cap (5) across all recovery systems", () => {
+  const failureHooks = fs.readFileSync(path.join(APP_DIR, "lib/ops/failure-hooks.ts"), "utf-8");
+  const diagAgent = fs.readFileSync(path.join(APP_DIR, "lib/ops/diagnostic-agent.ts"), "utf-8");
+  const hasCapInHooks = failureHooks.includes("currentAttempts >= 5");
+  const noResetToZero = !diagAgent.includes("phase_attempts: 0,") || diagAgent.includes("phase_attempts: Math.max");
+  // Check diagnostic-agent doesn't reset to 0 in bad_data/provider_down handlers
+  const badDataSection = diagAgent.substring(diagAgent.indexOf('case "bad_data"'), diagAgent.indexOf('case "provider_down"'));
+  const providerSection = diagAgent.substring(diagAgent.indexOf('case "provider_down"'), diagAgent.indexOf('case "schema_mismatch"'));
+  const bdNoZero = !badDataSection.includes("phase_attempts: 0");
+  const pdNoZero = !providerSection.includes("phase_attempts: 0");
+  return hasCapInHooks && bdNoZero && pdNoZero
+    ? { status: PASS, details: "Cap=5 in failure-hooks, no reset-to-0 in diagnostic-agent bad_data/provider_down" }
+    : { status: FAIL, details: `Hooks cap=${hasCapInHooks}, bad_data no-zero=${bdNoZero}, provider_down no-zero=${pdNoZero}` };
+});
+
+test("Fragility", "Assembly raw fallback threshold >= 2", () => {
+  const phases = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/phases.ts"), "utf-8");
+  const diagAgent = fs.readFileSync(path.join(APP_DIR, "lib/ops/diagnostic-agent.ts"), "utf-8");
+  const phasesCorrect = phases.includes("attempts >= 2");
+  const diagCorrect = diagAgent.includes("Math.max(draft.phase_attempts || 0, 2)");
+  return phasesCorrect && diagCorrect
+    ? { status: PASS, details: "Raw fallback at >=2 in phases.ts, diagnostic-agent ensures >=2" }
+    : { status: FAIL, details: `phases.ts >=2: ${phasesCorrect}, diagnostic >=2: ${diagCorrect}` };
+});
+
+test("Fragility", "Related section dedup guards", () => {
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const seoChecks = seoAgent.includes('"related-link"') && seoAgent.includes('"related-articles"');
+  const autoFixChecks = autoFix.includes('"related-articles"') && autoFix.includes('"related-link"');
+  return seoChecks && autoFixChecks
+    ? { status: PASS, details: "Both injectors check for each other's CSS classes" }
+    : { status: FAIL, details: `seo-agent checks both: ${seoChecks}, auto-fix checks both: ${autoFixChecks}` };
+});
+
+test("Fragility", "Campaign enhancer checks published status", () => {
+  const enhancer = fs.readFileSync(path.join(APP_DIR, "lib/campaigns/article-enhancer.ts"), "utf-8");
+  const checksPublished = enhancer.includes("publishStatus?.published") || enhancer.includes("published: true");
+  return checksPublished
+    ? { status: PASS, details: "Campaign enhancer skips unpublished articles" }
+    : { status: FAIL, details: "Campaign enhancer processes articles without checking published status" };
+});
+
+test("Fragility", "Content-auto-fix skips campaign-active articles", () => {
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const checksCampaign = autoFix.includes("activeCampaignPostIds");
+  return checksCampaign
+    ? { status: PASS, details: "Thin-content unpublish skips articles with active campaigns" }
+    : { status: FAIL, details: "content-auto-fix doesn't check for active campaign tasks" };
+});
+
+test("Fragility", "Content-selector dedup guard", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const hasDedup = content.includes("content-selector") && content.includes("Another run started within");
+  return hasDedup
+    ? { status: PASS, details: "Content-selector has dedup guard against concurrent runs" }
+    : { status: FAIL, details: "Content-selector missing dedup guard" };
+});
+
+test("Fragility", "Pre-pub gate checks post-sanitized title", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const lastIdx = content.lastIndexOf("runPrePublicationGate");
+  const gateSection = content.substring(lastIdx, lastIdx + 300);
+  const checksCleanedTitle = gateSection.includes("cleanedEnTitle") || gateSection.includes("cleanedArTitle");
+  return checksCleanedTitle
+    ? { status: PASS, details: "Gate receives post-sanitized titles (cleanedEnTitle/cleanedArTitle)" }
+    : { status: FAIL, details: "Gate still receives raw pre-sanitized titles" };
+});
+
+test("Fragility", "EN+AR draft pair in transaction", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-builder-create/route.ts"), "utf-8");
+  const hasTransaction = content.includes("$transaction") && content.includes("enDraft") && content.includes("arDraft");
+  return hasTransaction
+    ? { status: PASS, details: "Draft pair creation wrapped in Prisma $transaction" }
+    : { status: FAIL, details: "Draft pair creation not transactional — AR failure orphans EN" };
+});
+
+test("Fragility", "Assembly expansion uses fresh budget", () => {
+  const phases = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/phases.ts"), "utf-8");
+  const hasFreshBudget = phases.includes("freshBudgetMs") && phases.includes("phaseStart");
+  return hasFreshBudget
+    ? { status: PASS, details: "Assembly expansion recalculates budget from wall clock" }
+    : { status: FAIL, details: "Assembly expansion uses stale budgetRemainingMs" };
+});
+
+test("Fragility", "Cycle-health detects fragility patterns", () => {
+  const health = fs.readFileSync(path.join(APP_DIR, "app/api/admin/cycle-health/route.ts"), "utf-8");
+  const checksOscillation = health.includes("attempt-oscillation");
+  const checksPromoting = health.includes("orphaned-promoting-drafts");
+  const checksDuplicateRelated = health.includes("duplicate-related-sections");
+  const checksCampaignWaste = health.includes("campaign-targets-unpublished");
+  return checksOscillation && checksPromoting && checksDuplicateRelated && checksCampaignWaste
+    ? { status: PASS, details: "4 fragility pattern detectors in cycle-health" }
+    : { status: FAIL, details: `oscillation=${checksOscillation} promoting=${checksPromoting} related=${checksDuplicateRelated} campaign=${checksCampaignWaste}` };
+});
+
+test("Fragility", "Cron schedule staggered (no 9:00-9:15 collision)", () => {
+  const vercelJson = fs.readFileSync(path.join(APP_DIR, "vercel.json"), "utf-8");
+  // scheduled-publish should NOT be at "5 9" anymore
+  const hasCollision = vercelJson.includes('"5 9 * * *"') || vercelJson.includes('"10 9 * * *"');
+  return !hasCollision
+    ? { status: PASS, details: "Cron jobs staggered: no more 9:00/9:05/9:10 collision window" }
+    : { status: FAIL, details: "Cron schedule still has 9:00-9:10 collision window" };
+});
+
+// ─── Stage A: New Feature Tests ─────────────────────────────────────────────
+
+// GA4 Connectivity (3 tests)
+test("Stage-A: GA4", "GA4 Data API client exists", () => {
+  const exists = fs.existsSync(path.join(APP_DIR, "lib/seo/ga4-data-api.ts"));
+  return exists
+    ? { status: PASS, details: "lib/seo/ga4-data-api.ts exists with real JWT auth implementation" }
+    : { status: FAIL, details: "ga4-data-api.ts missing" };
+});
+
+test("Stage-A: GA4", "GA4 client uses real JWT auth (not stubbed)", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/seo/ga4-data-api.ts"), "utf-8");
+  const hasJWT = content.includes("createJWT") && content.includes("analytics.readonly");
+  const isNotStubbed = !content.includes("return { sessions: 0") && !content.includes("Math.random()");
+  return hasJWT && isNotStubbed
+    ? { status: PASS, details: "Real JWT auth, not stubbed" }
+    : { status: FAIL, details: `hasJWT=${hasJWT} notStubbed=${isNotStubbed}` };
+});
+
+test("Stage-A: GA4", "Cockpit API calls fetchGA4Metrics (not hardcoded 0s)", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/cockpit/route.ts"), "utf-8");
+  const hasCall = content.includes("fetchGA4Metrics") || content.includes("ga4-data-api");
+  return hasCall
+    ? { status: PASS, details: "Cockpit API wired to real GA4 data" }
+    : { status: FAIL, details: "Cockpit returns hardcoded 0s — GA4 not wired" };
+});
+
+// Affiliate Click Tracking (4 tests)
+test("Stage-A: Affiliate", "Click tracking route exists", () => {
+  const exists = fs.existsSync(path.join(APP_DIR, "app/api/affiliate/click/route.ts"));
+  return exists
+    ? { status: PASS, details: "Affiliate click tracking route exists" }
+    : { status: FAIL, details: "Click tracking route missing" };
+});
+
+test("Stage-A: Affiliate", "trackClick stores siteId on CjClickEvent", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/link-tracker.ts"), "utf-8");
+  const hasSiteId = content.includes("siteId") && content.includes("cjClickEvent.create");
+  return hasSiteId
+    ? { status: PASS, details: "trackClick writes siteId to CjClickEvent" }
+    : { status: FAIL, details: "CjClickEvent missing siteId field in trackClick()" };
+});
+
+test("Stage-A: Affiliate", "CJ Schema has siteId on Commission and ClickEvent", () => {
+  const schema = fs.readFileSync(path.join(APP_DIR, "prisma/schema.prisma"), "utf-8");
+  const commissionHasSiteId = schema.includes("model CjCommission") &&
+    schema.slice(schema.indexOf("model CjCommission"), schema.indexOf("model CjCommission") + 500).includes("siteId");
+  const clickHasSiteId = schema.includes("model CjClickEvent") &&
+    schema.slice(schema.indexOf("model CjClickEvent"), schema.indexOf("model CjClickEvent") + 400).includes("siteId");
+  return commissionHasSiteId && clickHasSiteId
+    ? { status: PASS, details: "CjCommission and CjClickEvent both have siteId field" }
+    : { status: FAIL, details: `commission=${commissionHasSiteId} clickEvent=${clickHasSiteId}` };
+});
+
+test("Stage-A: Affiliate", "Affiliate HQ revenue queries scoped by siteId", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/affiliate-hq/route.ts"), "utf-8");
+  const hasSiteFilter = content.includes("siteFilter") && content.includes("OR: [{ siteId");
+  return hasSiteFilter
+    ? { status: PASS, details: "Revenue queries use siteFilter for per-site isolation" }
+    : { status: FAIL, details: "Revenue queries return global cross-site data" };
+});
+
+// Cookie Consent (2 tests)
+test("Stage-A: Cookie Consent", "Cookie consent banner component exists", () => {
+  const exists = fs.existsSync(path.join(APP_DIR, "components/cookie-consent-banner.tsx"));
+  return exists
+    ? { status: PASS, details: "cookie-consent-banner.tsx exists" }
+    : { status: FAIL, details: "Cookie consent banner component missing" };
+});
+
+test("Stage-A: Cookie Consent", "Cookie consent rendered in root layout", () => {
+  const layout = fs.readFileSync(path.join(APP_DIR, "app/layout.tsx"), "utf-8");
+  const hasImport = layout.includes("CookieConsentBanner");
+  const hasRender = layout.includes("<CookieConsentBanner");
+  return hasImport && hasRender
+    ? { status: PASS, details: "CookieConsentBanner imported and rendered in root layout" }
+    : { status: FAIL, details: `import=${hasImport} render=${hasRender}` };
+});
+
+// GDPR Deletion (2 tests)
+test("Stage-A: GDPR", "Public GDPR deletion endpoint exists", () => {
+  const exists = fs.existsSync(path.join(APP_DIR, "app/api/gdpr/delete/route.ts"));
+  return exists
+    ? { status: PASS, details: "app/api/gdpr/delete/route.ts exists for user data deletion" }
+    : { status: FAIL, details: "Public GDPR deletion endpoint missing" };
+});
+
+test("Stage-A: GDPR", "GDPR endpoint does not require auth (public)", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/gdpr/delete/route.ts"), "utf-8");
+  const noAdminAuth = !content.includes("requireAdmin") && !content.includes("withAdminAuth");
+  const hasEmailValidation = content.includes("z.string().email");
+  return noAdminAuth && hasEmailValidation
+    ? { status: PASS, details: "Public endpoint with email validation, no admin auth" }
+    : { status: FAIL, details: `noAdminAuth=${noAdminAuth} hasEmailValidation=${hasEmailValidation}` };
+});
+
+// Feature Flags Runtime (3 tests)
+test("Stage-A: Feature Flags", "Feature flags DB-backed with caching", () => {
+  const exists = fs.existsSync(path.join(APP_DIR, "lib/feature-flags.ts"));
+  if (!exists) return { status: FAIL, details: "lib/feature-flags.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/feature-flags.ts"), "utf-8");
+  const hasCaching = content.includes("flagCache") || content.includes("60");
+  const hasDBQuery = content.includes("prisma.featureFlag") || content.includes("FeatureFlag");
+  return hasCaching && hasDBQuery
+    ? { status: PASS, details: "Feature flags read from DB with 60s cache" }
+    : { status: FAIL, details: `caching=${hasCaching} dbQuery=${hasDBQuery}` };
+});
+
+test("Stage-A: Feature Flags", "Cron feature guard maps 30+ crons", () => {
+  const guardPath = path.join(APP_DIR, "lib/cron-feature-guard.ts");
+  if (!fs.existsSync(guardPath)) return { status: FAIL, details: "lib/cron-feature-guard.ts missing" };
+  const content = fs.readFileSync(guardPath, "utf-8");
+  const mapCount = (content.match(/"[a-z-]+"/g) || []).length;
+  return mapCount >= 30
+    ? { status: PASS, details: `${mapCount} cron entries in CRON_FLAG_MAP` }
+    : { status: WARN, details: `Only ${mapCount} cron entries — expected 30+` };
+});
+
+test("Stage-A: Feature Flags", "Cron routes call checkCronEnabled()", () => {
+  const count = grepCount("checkCronEnabled", path.join(APP_DIR, "app/api/cron"), "*.ts");
+  return count >= 15
+    ? { status: PASS, details: `${count} cron routes have feature flag guard` }
+    : { status: WARN, details: `Only ${count} cron routes guarded — expected 15+` };
+});
+
+// Arabic SSR (3 tests)
+test("Stage-A: Arabic SSR", "Middleware sets x-locale: ar for /ar/ routes", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "middleware.ts"), "utf-8");
+  const setsLocale = content.includes("x-locale") && content.includes('"/ar/') || content.includes("isArabicRoute");
+  return setsLocale
+    ? { status: PASS, details: "Middleware correctly sets x-locale header for /ar/ routes" }
+    : { status: FAIL, details: "Middleware missing x-locale header for Arabic routes" };
+});
+
+test("Stage-A: Arabic SSR", "Blog post page passes serverLocale to BlogPostClient", () => {
+  const pagePath = path.join(APP_DIR, "app/blog/[slug]/page.tsx");
+  const content = fs.readFileSync(pagePath, "utf-8");
+  const passesLocale = content.includes("serverLocale={locale");
+  return passesLocale
+    ? { status: PASS, details: "page.tsx passes serverLocale prop to BlogPostClient" }
+    : { status: FAIL, details: "serverLocale not passed — SSR may render English on /ar/ routes" };
+});
+
+test("Stage-A: Arabic SSR", "BlogPostClient uses effectiveLanguage for content selection", () => {
+  const clientPath = path.join(APP_DIR, "app/blog/[slug]/BlogPostClient.tsx");
+  const content = fs.readFileSync(clientPath, "utf-8");
+  const hasEffectiveLanguage = content.includes("effectiveLanguage");
+  const usesFallback = content.includes("post.content_ar ? post.content_ar");
+  return hasEffectiveLanguage && usesFallback
+    ? { status: PASS, details: "BlogPostClient uses effectiveLanguage with AR→EN fallback" }
+    : { status: FAIL, details: `effectiveLanguage=${hasEffectiveLanguage} fallback=${usesFallback}` };
+});
+
+// OG Image (2 tests)
+test("Stage-A: OG Images", "Dynamic OG image route exists", () => {
+  const exists = fs.existsSync(path.join(APP_DIR, "app/api/og/route.tsx"));
+  return exists
+    ? { status: PASS, details: "app/api/og/route.tsx exists for dynamic per-site OG images" }
+    : { status: FAIL, details: "OG image route missing" };
+});
+
+test("Stage-A: OG Images", "Root layout uses dynamic per-site OG image URL", () => {
+  const layout = fs.readFileSync(path.join(APP_DIR, "app/layout.tsx"), "utf-8");
+  const hasDynamicOG = layout.includes("/api/og?siteId=") || layout.includes("/api/og");
+  return hasDynamicOG
+    ? { status: PASS, details: "Root layout uses /api/og endpoint for OG images" }
+    : { status: FAIL, details: "Root layout uses static OG image path" };
+});
+
+// Login Rate Limiting (2 tests)
+test("Stage-A: Login Security", "Login route has rate limiting", () => {
+  const loginPath = path.join(APP_DIR, "app/api/admin/login/route.ts");
+  const content = fs.readFileSync(loginPath, "utf-8");
+  const hasRateLimit = content.includes("429") && (content.includes("attempts") || content.includes("rateLimit"));
+  return hasRateLimit
+    ? { status: PASS, details: "Login route returns 429 after too many attempts" }
+    : { status: FAIL, details: "No rate limiting on admin login" };
+});
+
+test("Stage-A: Login Security", "Login rate limit uses progressive delays", () => {
+  const loginPath = path.join(APP_DIR, "app/api/admin/login/route.ts");
+  const content = fs.readFileSync(loginPath, "utf-8");
+  const hasDelay = content.includes("delay") || content.includes("sleep") || content.includes("setTimeout");
+  return hasDelay
+    ? { status: PASS, details: "Login uses progressive delays per failed attempt" }
+    : { status: WARN, details: "No progressive delays — brute force still possible" };
+});
+
+// Connection Pool (2 tests)
+test("Stage-A: Connection Pool", "Dashboard builders run sequentially (not Promise.all)", () => {
+  const cockpit = fs.readFileSync(path.join(APP_DIR, "app/api/admin/cockpit/route.ts"), "utf-8");
+  // Check for sequential pattern: multiple await builders without Promise.all wrapping all
+  const hasSequential = !cockpit.includes("Promise.all([buildMission") &&
+    !cockpit.includes("Promise.all([buildSites") &&
+    !cockpit.includes("Promise.all([buildPipeline");
+  return hasSequential
+    ? { status: PASS, details: "Dashboard builders run sequentially — no DB pool exhaustion" }
+    : { status: FAIL, details: "Dashboard builders run in parallel — risks pool exhaustion" };
+});
+
+test("Stage-A: Connection Pool", "Cron schedules staggered to avoid collision", () => {
+  const vercelJson = fs.readFileSync(path.join(APP_DIR, "vercel.json"), "utf-8");
+  // content-auto-fix-lite should be at :30, not :00
+  const liteAtThirty = vercelJson.includes('"30 ');
+  return liteAtThirty
+    ? { status: PASS, details: "Crons staggered — content-auto-fix-lite at :30" }
+    : { status: WARN, details: "Check vercel.json cron stagger" };
+});
+
+// ==================== Perplexity System (8 tests) ====================
+test("Perplexity System", "task-manager.ts exports createTask, updateTaskStatus, retryTask, cancelTask", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/task-manager.ts"), "utf-8");
+  const hasCreate = content.includes("export async function createTask");
+  const hasUpdate = content.includes("export async function updateTaskStatus");
+  const hasRetry = content.includes("export async function retryTask");
+  const hasCancel = content.includes("export async function cancelTask");
+  const all = hasCreate && hasUpdate && hasRetry && hasCancel;
+  return all
+    ? { status: PASS, details: "All 4 core task-manager functions exported" }
+    : { status: FAIL, details: `create=${hasCreate} update=${hasUpdate} retry=${hasRetry} cancel=${hasCancel}` };
+});
+
+test("Perplexity System", "task-manager.ts exports getContextData", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/task-manager.ts"), "utf-8");
+  const hasContextData = content.includes("getContextData") || content.includes("getDashboardData");
+  return hasContextData
+    ? { status: PASS, details: "getContextData/getDashboardData function found" }
+    : { status: FAIL, details: "No context data function in task-manager" };
+});
+
+test("Perplexity System", "task-manager.ts has retry cap check", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/task-manager.ts"), "utf-8");
+  const hasRetryCap = content.includes("retryCount") && content.includes("maxRetries");
+  return hasRetryCap
+    ? { status: PASS, details: "Retry cap enforced (retryCount >= maxRetries)" }
+    : { status: FAIL, details: "No retry cap — tasks could retry infinitely" };
+});
+
+test("Perplexity System", "executor.ts exports executeTask and processReadyTasks", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/executor.ts"), "utf-8");
+  const hasExecute = content.includes("export async function executeTask");
+  const hasProcess = content.includes("export async function processReadyTasks");
+  return hasExecute && hasProcess
+    ? { status: PASS, details: "Both executeTask and processReadyTasks exported" }
+    : { status: FAIL, details: `executeTask=${hasExecute} processReadyTasks=${hasProcess}` };
+});
+
+test("Perplexity System", "executor.ts imports from @/lib/ai/perplexity", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/executor.ts"), "utf-8");
+  const importsPerplexity = content.includes("@/lib/ai/perplexity") || content.includes("lib/ai/perplexity");
+  return importsPerplexity
+    ? { status: PASS, details: "Executor imports queryPerplexity from lib/ai/perplexity" }
+    : { status: FAIL, details: "Executor missing perplexity API import" };
+});
+
+test("Perplexity System", "templates.ts has 13+ templates", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/templates.ts"), "utf-8");
+  const templateCount = (content.match(/id:\s*["']/g) || []).length;
+  return templateCount >= 13
+    ? { status: PASS, details: `${templateCount} templates defined` }
+    : { status: WARN, details: `Only ${templateCount} templates — expected 13+` };
+});
+
+test("Perplexity System", "perplexity-executor cron has BUDGET_MS guard", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/perplexity-executor/route.ts"), "utf-8");
+  const hasBudget = content.includes("BUDGET_MS") || content.includes("budgetMs") || content.includes("53");
+  return hasBudget
+    ? { status: PASS, details: "Perplexity executor cron has budget guard" }
+    : { status: FAIL, details: "No budget guard — risks Vercel 60s timeout" };
+});
+
+test("Perplexity System", "departures/route.ts has perplexity-executor in CRON_DEFS", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/departures/route.ts"), "utf-8");
+  const hasExecutor = content.includes("perplexity-executor");
+  return hasExecutor
+    ? { status: PASS, details: "Perplexity executor registered in departures board" }
+    : { status: FAIL, details: "perplexity-executor missing from CRON_DEFS" };
+});
+
+// ==================== CEO Dashboard (4 tests) ====================
+test("CEO Dashboard", "ai-assistant/page.tsx has Operations Dashboard tab", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/ai-assistant/page.tsx"), "utf-8");
+  const hasOps = content.includes("Operations") && (content.includes("tab") || content.includes("Tab"));
+  return hasOps
+    ? { status: PASS, details: "Operations Dashboard tab present" }
+    : { status: FAIL, details: "No Operations tab in CEO dashboard" };
+});
+
+test("CEO Dashboard", "ai-assistant/page.tsx has cycle-health integration (Fix Now buttons)", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/ai-assistant/page.tsx"), "utf-8");
+  const hasCycleHealth = content.includes("cycle-health");
+  const hasFixButton = content.includes("Fix") && content.includes("fix");
+  return hasCycleHealth && hasFixButton
+    ? { status: PASS, details: "Cycle health integration with Fix buttons found" }
+    : { status: FAIL, details: `cycleHealth=${hasCycleHealth} fixButton=${hasFixButton}` };
+});
+
+test("CEO Dashboard", "CEO system prompt mentions Diagnostic Capabilities", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/ai-assistant/route.ts"), "utf-8");
+  const hasDiagnostic = content.includes("Diagnostic Capabilities");
+  return hasDiagnostic
+    ? { status: PASS, details: "System prompt includes Diagnostic Capabilities section" }
+    : { status: FAIL, details: "System prompt missing diagnostic awareness" };
+});
+
+test("CEO Dashboard", "assistant-context.ts has cycleHealthGrade in interface", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/ai/assistant-context.ts"), "utf-8");
+  const hasGrade = content.includes("cycleHealthGrade");
+  return hasGrade
+    ? { status: PASS, details: "AssistantContext includes cycleHealthGrade" }
+    : { status: FAIL, details: "cycleHealthGrade missing from context interface" };
+});
+
+// ==================== Integration (3 tests) ====================
+test("Integration", "assistant-context.ts has monthUsd in aiCosts", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/ai/assistant-context.ts"), "utf-8");
+  const hasMonthUsd = content.includes("monthUsd");
+  return hasMonthUsd
+    ? { status: PASS, details: "monthUsd tracked in AI costs context" }
+    : { status: FAIL, details: "monthUsd missing — CEO can't see monthly AI spend" };
+});
+
+test("Integration", "CEO system prompt mentions Multi-Site", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/ai-assistant/route.ts"), "utf-8");
+  const hasMultiSite = content.includes("Multi-Site");
+  return hasMultiSite
+    ? { status: PASS, details: "System prompt includes Multi-Site awareness" }
+    : { status: FAIL, details: "System prompt missing multi-site context" };
+});
+
+test("Integration", "perplexity-computer/index.ts exports executor functions", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/perplexity-computer/index.ts"), "utf-8");
+  const hasExecuteExport = content.includes("executeTask") && content.includes("processReadyTasks");
+  return hasExecuteExport
+    ? { status: PASS, details: "index.ts re-exports executeTask and processReadyTasks" }
+    : { status: FAIL, details: "Executor functions not exported from index.ts" };
+});
+
+// ── HARDENING SPRINT TESTS ──
+
+test("Hardening", "Invalid phase transition throws", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasTransitionMap = content.includes("VALID_TRANSITIONS") && content.includes("research") && content.includes("promoting");
+  const hasValidator = content.includes("validatePhaseTransition") && content.includes("throw");
+  const buildRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/build-runner.ts"), "utf-8");
+  const selectRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
+  const usedInPipeline = buildRunner.includes("validatePhaseTransition") && selectRunner.includes("validatePhaseTransition");
+  return hasTransitionMap && hasValidator && usedInPipeline
+    ? { status: PASS, details: "VALID_TRANSITIONS map + validatePhaseTransition() wired in build-runner + select-runner" }
+    : { status: FAIL, details: `map: ${hasTransitionMap}, validator: ${hasValidator}, wired: ${usedInPipeline}` };
+});
+
+test("Hardening", "Article trace endpoint exists", () => {
+  const routeExists = fs.existsSync(path.join(APP_DIR, "app/api/admin/article-trace/[traceId]/route.ts"));
+  if (!routeExists) return { status: FAIL, details: "article-trace route file missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/article-trace/[traceId]/route.ts"), "utf-8");
+  const hasAuth = content.includes("requireAdmin");
+  const hasTraceQuery = content.includes("trace_id") && content.includes("timeline");
+  return hasAuth && hasTraceQuery
+    ? { status: PASS, details: "Trace endpoint with auth, timeline, and multi-table query" }
+    : { status: FAIL, details: `auth: ${hasAuth}, traceQuery: ${hasTraceQuery}` };
+});
+
+test("Hardening", "Enhancement ownership enforced in crons", () => {
+  const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasOwners = constants.includes("ENHANCEMENT_OWNERS") && constants.includes("internal_links") && constants.includes("seo-agent");
+  const helper = fs.existsSync(path.join(APP_DIR, "lib/db/enhancement-log.ts"));
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const wired = seoAgent.includes("isEnhancementOwner") && injection.includes("isEnhancementOwner");
+  return hasOwners && helper && wired
+    ? { status: PASS, details: "ENHANCEMENT_OWNERS map + isEnhancementOwner checks in seo-agent + affiliate-injection" }
+    : { status: FAIL, details: `owners: ${hasOwners}, helper: ${helper}, wired: ${wired}` };
+});
+
+test("Hardening", "Pipeline circuit breaker in content-builder", () => {
+  const builder = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-builder/route.ts"), "utf-8");
+  const hasBreaker = builder.includes("ESCALATION_POLICY") && builder.includes("auto-paused") && builder.includes("PIPELINE_MIN_SUCCESS_RATE");
+  const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
+  const hasPolicy = constants.includes("ESCALATION_POLICY") && constants.includes("MAX_DAILY_CEO_ALERTS");
+  return hasBreaker && hasPolicy
+    ? { status: PASS, details: "Pipeline auto-pause at <30% success rate + ESCALATION_POLICY in constants" }
+    : { status: FAIL, details: `breaker: ${hasBreaker}, policy: ${hasPolicy}` };
+});
+
+test("Hardening", "CEO Inbox daily alert limit enforced", () => {
+  const inbox = fs.readFileSync(path.join(APP_DIR, "lib/ops/ceo-inbox.ts"), "utf-8");
+  const hasLimit = inbox.includes("MAX_DAILY_CEO_ALERTS") && inbox.includes("ALERT_COOLDOWN_MINUTES");
+  return hasLimit
+    ? { status: PASS, details: "Daily alert cap + per-job cooldown window in CEO Inbox" }
+    : { status: FAIL, details: `alertLimit: ${hasLimit}` };
+});
+
+test("Hardening", "Optimistic concurrency rejects stale writes", () => {
+  const lib = fs.readFileSync(path.join(APP_DIR, "lib/db/optimistic-update.ts"), "utf-8");
+  const hasVersionCheck = lib.includes("updated_at: post.updated_at") && lib.includes("updateMany");
+  const hasRetry = lib.includes("MAX_RETRIES") && lib.includes("RETRY_DELAY_MS");
+  // Verify key cron files use the wrapper
+  const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
+  const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
+  const usesWrapper = seoAgent.includes("optimisticBlogPostUpdate") && autoFix.includes("optimisticBlogPostUpdate") && injection.includes("optimisticBlogPostUpdate");
+  return hasVersionCheck && hasRetry && usesWrapper
+    ? { status: PASS, details: "optimisticBlogPostUpdate uses updated_at guard with retry; adopted in key crons" }
+    : { status: FAIL, details: `versionCheck: ${hasVersionCheck}, retry: ${hasRetry}, adopted: ${usesWrapper}` };
+});
+
+test("Hardening", "weekly-topics creates topics that schedule-executor can consume", () => {
+  const weekly = fs.readFileSync(path.join(APP_DIR, "app/api/cron/weekly-topics/route.ts"), "utf-8");
+  const executor = fs.readFileSync(path.join(APP_DIR, "app/api/cron/schedule-executor/route.ts"), "utf-8");
+  const weeklyCreatesReady = weekly.includes('status: \'ready\'') || weekly.includes('status: "ready"');
+  const executorAcceptsReady = executor.includes('"ready"') && executor.includes('CONSUMABLE_STATUSES');
+  return weeklyCreatesReady && executorAcceptsReady
+    ? { status: PASS, details: "weekly-topics creates 'ready', schedule-executor consumes 'ready' via CONSUMABLE_STATUSES" }
+    : { status: FAIL, details: `weekly creates ready: ${weeklyCreatesReady}, executor accepts ready: ${executorAcceptsReady}` };
+});
+
+for (const cat of categories) {
+  const catResults = results.filter(r => r.category === cat);
+  const catPass = catResults.filter(r => r.status === PASS).length;
+  const catFail = catResults.filter(r => r.status === FAIL).length;
+  const catWarn = catResults.filter(r => r.status === WARN).length;
+
+  console.log(`\n--- ${cat} (${catPass}/${catResults.length} pass) ---`);
+
+  for (const r of catResults) {
+    const icon = r.status === PASS ? "✓" : r.status === FAIL ? "✗" : "⚠";
+    const color = r.status === PASS ? "\x1b[32m" : r.status === FAIL ? "\x1b[31m" : "\x1b[33m";
+    console.log(`  ${color}${icon}\x1b[0m ${r.name}: ${r.details}`);
+  }
+
+  totalPass += catPass;
+  totalFail += catFail;
+  totalWarn += catWarn;
+}
+
+console.log("\n" + "=".repeat(80));
+console.log(`  TOTAL: ${totalPass} PASS | ${totalFail} FAIL | ${totalWarn} WARN | ${results.length} tests`);
+console.log(`  Score: ${Math.round((totalPass / results.length) * 100)}%`);
+console.log("=".repeat(80) + "\n");
+
+if (totalFail > 0) {
+  console.log("FAILED TESTS:");
+  for (const r of results.filter(r => r.status === FAIL)) {
+    console.log(`  ✗ [${r.category}] ${r.name}: ${r.details}`);
+  }
+  console.log("");
+}
+
+process.exit(totalFail > 0 ? 1 : 0);

@@ -157,21 +157,17 @@ const DEFAULT_RATE_LIMIT_RULES: RateLimitRule[] = [
   }
 ];
 
-// Initialize default rules
+// Initialize default rules — stats start at zero (no mock data)
 DEFAULT_RATE_LIMIT_RULES.forEach(rule => {
   rateLimitRules.set(rule.rule_id, rule);
   rateLimitStats.set(rule.rule_id, {
     rule_id: rule.rule_id,
-    total_requests: Math.floor(Math.random() * 10000),
-    blocked_requests: Math.floor(Math.random() * 500),
-    current_usage: Math.floor(Math.random() * 50),
-    peak_usage: Math.floor(Math.random() * 80) + 60,
-    last_request: new Date(Date.now() - Math.random() * 60000).toISOString(),
-    top_consumers: [
-      { identifier: '192.168.1.100', request_count: 245, blocked_count: 12 },
-      { identifier: '10.0.0.50', request_count: 189, blocked_count: 8 },
-      { identifier: 'user_12345', request_count: 156, blocked_count: 3 }
-    ]
+    total_requests: 0,
+    blocked_requests: 0,
+    current_usage: 0,
+    peak_usage: 0,
+    last_request: null,
+    top_consumers: []
   });
 });
 
@@ -405,7 +401,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
     
-    const ruleIdToUse = rule_id || `rule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const ruleIdToUse = rule_id || `rule_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
     
     const newRule: RateLimitRule = {
       rule_id: ruleIdToUse,

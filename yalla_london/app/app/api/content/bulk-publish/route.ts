@@ -11,6 +11,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 import { z } from 'zod';
 
 // Validation schema
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       where: {
         action: 'bulk_publish',
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { timestamp: 'desc' },
       take: limit,
     });
 
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
         action: op.action,
         details: op.details,
         success: op.success,
-        createdAt: op.createdAt,
+        createdAt: op.timestamp,
       })),
     });
   } catch (error) {
@@ -119,6 +120,9 @@ export async function GET(request: NextRequest) {
 
 // Bulk publish content
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin(request);
+  if (auth) return auth;
+
   try {
     const body = await request.json();
 
@@ -219,11 +223,12 @@ async function processContentAction(
   scheduledTime: string | undefined,
   options: any
 ): Promise<any> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
 
   if (contentType === 'blog_post' || contentType === 'mixed') {
     const blogPost = await prisma.blogPost.findUnique({ where: { id: contentId } });
     if (blogPost) {
+      const baseUrl = getSiteDomain(blogPost.siteId || getDefaultSiteId());
       return await processBlogPostAction(blogPost, action, options, baseUrl);
     }
   }
@@ -238,6 +243,7 @@ async function processContentAction(
     throw new Error(`Content not found: ${contentId}`);
   }
 
+  const baseUrl = getSiteDomain(scheduledContent.site_id || getDefaultSiteId());
   return await processScheduledContentAction(
     scheduledContent,
     action,
@@ -322,6 +328,16 @@ async function processScheduledContentAction(
           where: { id: content.topic_proposal_id },
           data: { status: 'published', updated_at: new Date() },
         });
+      }
+
+      // Track URL in indexing system immediately
+      try {
+        const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+        const { getDefaultSiteId } = await import("@/config/sites");
+        const trackSiteId = content.site_id || getDefaultSiteId();
+        ensureUrlTracked(url, trackSiteId, `blog/${blogPost.slug}`).catch(() => {});
+      } catch {
+        // Non-fatal
       }
 
       // Trigger SEO audit if enabled
@@ -415,7 +431,7 @@ async function createBlogPostFromScheduledContent(content: any): Promise<any> {
   const systemUser = await prisma.user.findFirst() ||
     await prisma.user.create({
       data: {
-        email: 'system@yalla-london.com',
+        email: 'system@zenitha.luxury',
         name: 'System',
       },
     });
@@ -449,6 +465,7 @@ async function createBlogPostFromScheduledContent(content: any): Promise<any> {
       meta_description_ar: metadata.metaDescription,
       tags: content.tags || [],
       published: true,
+      siteId: content.siteId || (await import("@/config/sites")).getDefaultSiteId(),
       category_id: category.id,
       author_id: systemUser.id,
       page_type: content.page_type,
@@ -461,19 +478,19 @@ async function createBlogPostFromScheduledContent(content: any): Promise<any> {
 // Helper: Trigger SEO audit
 async function triggerSeoAudit(contentId: string, contentType: string): Promise<void> {
   try {
-    // Create basic SEO audit
-    const auditScore = 70 + Math.floor(Math.random() * 25);
+    // Real audit score computed by pipeline scoring phase
+    const auditScore = null;
 
     await prisma.seoAuditResult.create({
       data: {
         content_id: contentId,
         content_type: contentType,
-        score: auditScore,
+        score: 0, // Placeholder until real pipeline scoring runs
         breakdown_json: {
-          content_quality: 85,
-          keyword_optimization: auditScore - 10,
-          technical_seo: 90,
-          user_experience: auditScore + 5,
+          content_quality: 0,
+          keyword_optimization: 0,
+          technical_seo: 0,
+          user_experience: 0,
         },
         suggestions: [
           'Add more internal links',

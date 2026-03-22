@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth/next';
 import { seoMetaService } from '@/lib/seo/seo-meta-service';
 import { isSEOEnabled } from '@/lib/flags';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getBaseUrl } from '@/lib/url-utils';
 
 export async function POST(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -127,10 +128,11 @@ export async function GET(request: NextRequest) {
 
     // Return mock data if no SEO data found
     if (!seoData) {
+      const siteBaseUrl = await getBaseUrl();
       const mockSeoData = {
         title: 'Sample Page Title - Yalla London',
         description: 'Sample page description that provides valuable information about this page content.',
-        canonical: url || `https://yalla-london.com/page/${pageId}`,
+        canonical: url || `${siteBaseUrl}/page/${pageId}`,
         metaKeywords: 'london, travel, guide',
         ogTitle: 'Sample Page Title',
         ogDescription: 'Sample OG description for social sharing',
@@ -143,8 +145,8 @@ export async function GET(request: NextRequest) {
         robotsMeta: 'index,follow',
         schemaType: 'WebPage',
         hreflangAlternates: {
-          en: `https://yalla-london.com/en/page/${pageId}`,
-          ar: `https://yalla-london.com/ar/page/${pageId}`
+          en: `${siteBaseUrl}/en/page/${pageId}`,
+          ar: `${siteBaseUrl}/ar/page/${pageId}`
         }
       };
       

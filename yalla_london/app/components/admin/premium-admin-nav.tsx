@@ -52,9 +52,13 @@ import {
   Building,
   Map,
   Link as LinkIcon,
-  Share2
+  Share2,
+  Mail,
+  Video,
+  Sparkles
 } from 'lucide-react'
 import { isPremiumFeatureEnabled, validatePremiumFeatureAccess } from '@/lib/feature-flags'
+import { getActiveSiteIds, getSiteConfig, getDefaultSiteId } from '@/config/sites'
 
 export interface NavItem {
   id: string
@@ -85,9 +89,18 @@ export const adminNavigation: NavItem[] = [
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    href: '/admin/dashboard',
+    href: '/admin/cockpit',
     featureFlag: 'ADMIN_DASHBOARD',
     description: 'KPIs, analytics, automation status'
+  },
+  {
+    id: 'activity-feed',
+    label: 'Activity Feed',
+    icon: Activity,
+    href: '/admin/cockpit/activity',
+    badgeText: 'Live',
+    badgeVariant: 'default',
+    description: 'Timeline, self-healing, learning, observations'
   },
   {
     id: 'articles',
@@ -116,6 +129,24 @@ export const adminNavigation: NavItem[] = [
     description: 'Scoring, fixes, preview, history'
   },
   {
+    id: 'master-audit',
+    label: 'Master Audit',
+    icon: Shield,
+    href: '/admin/master-audit',
+    badgeText: 'Full Site',
+    badgeVariant: 'outline',
+    description: '8 validators, 6 hard gates, per-page results'
+  },
+  {
+    id: 'pipeline-phases',
+    label: 'Pipeline Phases',
+    icon: TrendingUp,
+    href: '/admin/pipeline-phases',
+    badgeText: 'Live',
+    badgeVariant: 'default',
+    description: 'Per-phase view of content pipeline — advance, retry, delete'
+  },
+  {
     id: 'topics-pipeline',
     label: 'Topics & Pipeline',
     icon: TrendingUp,
@@ -137,6 +168,38 @@ export const adminNavigation: NavItem[] = [
     icon: Layers,
     href: '/admin/content-types',
     description: 'Taxonomy management'
+  },
+  {
+    id: 'design-hub',
+    label: 'Design Hub',
+    icon: Palette,
+    href: '/admin/design',
+    badgeText: 'Studio',
+    badgeVariant: 'outline',
+    description: 'Create and manage visual assets across all sites'
+  },
+  {
+    id: 'content-engine',
+    label: 'Content Engine',
+    icon: Sparkles,
+    href: '/admin/content-engine',
+    badgeText: 'AI',
+    badgeVariant: 'secondary',
+    description: 'AI-powered 4-agent content generation pipeline'
+  },
+  {
+    id: 'email-center',
+    label: 'Email Center',
+    icon: Mail,
+    href: '/admin/cockpit/email',
+    description: 'Email status, test send, campaigns overview'
+  },
+  {
+    id: 'social-calendar',
+    label: 'Social Calendar',
+    icon: Calendar,
+    href: '/admin/social-calendar',
+    description: 'Schedule and manage social media posts'
   },
   {
     id: 'automation-hub',
@@ -164,22 +227,22 @@ export const adminNavigation: NavItem[] = [
         id: 'api-keys',
         label: 'API Keys',
         icon: Key,
-        href: '/admin/settings/api-keys',
         description: 'External service credentials',
-        requiresElevated: true
+        requiresElevated: true,
+        comingSoon: true
       },
       {
         id: 'roles',
         label: 'Roles',
         icon: Users,
-        href: '/admin/settings/roles',
-        description: 'User roles and permissions'
+        description: 'User roles and permissions',
+        comingSoon: true
       },
       {
         id: 'site',
         label: 'Site Settings',
         icon: Globe,
-        href: '/admin/settings/site',
+        href: '/admin/cockpit/new-site',
         description: 'General site configuration'
       }
     ]
@@ -200,7 +263,25 @@ export function PremiumAdminNav({
   const { data: session } = useSession()
   const pathname = usePathname()
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
-  const [currentSite, setCurrentSite] = useState(siteContext?.siteId || 'default')
+  const activeSiteIds = getActiveSiteIds()
+  const [selectedSiteId, setSelectedSiteId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('selectedSiteId')
+      if (stored && activeSiteIds.includes(stored)) return stored
+    }
+    return activeSiteIds[0] || getDefaultSiteId()
+  })
+  const currentSiteConfig = getSiteConfig(selectedSiteId)
+  const currentSite = selectedSiteId
+
+  const handleSiteSwitch = () => {
+    if (activeSiteIds.length < 2) return
+    const idx = activeSiteIds.indexOf(selectedSiteId)
+    const nextId = activeSiteIds[(idx + 1) % activeSiteIds.length]
+    localStorage.setItem('selectedSiteId', nextId)
+    document.cookie = `x-site-id=${nextId};path=/;max-age=31536000`
+    window.location.reload()
+  }
 
   // Auto-expand current section
   useEffect(() => {
@@ -337,8 +418,7 @@ export function PremiumAdminNav({
 
   return (
     <nav className={`space-y-2 ${className}`}>
-      {/* Site Switcher (if multi-site enabled) */}
-      {siteContext?.canSwitchSites && (
+      {activeSiteIds.length > 1 && (
         <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
@@ -346,12 +426,12 @@ export function PremiumAdminNav({
                 Current Site
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {siteContext.siteName}
+                {currentSiteConfig?.name || selectedSiteId}
               </p>
             </div>
             <button
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-              onClick={() => {/* TODO: Implement site switcher */}}
+              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={handleSiteSwitch}
             >
               Switch
             </button>
@@ -384,15 +464,15 @@ export function PremiumAdminNav({
             <Upload size={16} />
             <span>Upload Media</span>
           </Link>
-          <Link 
-            href="/admin/topics-pipeline/new"
+          <Link
+            href="/admin/topics-pipeline"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
             <TrendingUp size={16} />
             <span>New Topic</span>
           </Link>
-          <Link 
-            href="/admin/prompts/new"
+          <Link
+            href="/admin/prompts"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
             <Brain size={16} />

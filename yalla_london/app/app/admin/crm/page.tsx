@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
+import {
+  AdminPageHeader,
+  AdminCard,
+  AdminKPICard,
+  AdminButton,
+  AdminStatusBadge,
+  AdminEmptyState,
+  AdminSectionLabel,
+  AdminTabs,
+} from '@/components/admin/admin-ui'
+import {
   Users,
   Mail,
   Plus,
@@ -16,22 +19,14 @@ import {
   Trash2,
   Send,
   Eye,
-  Calendar,
   TrendingUp,
   BarChart3,
-  Filter,
   Search,
   Download,
-  Upload,
   Target,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
   Globe,
   User,
-  Phone,
-  MapPin
+  MapPin,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -94,11 +89,7 @@ export default function CRMSystem() {
       tags: ['london', 'food', 'travel'],
       location: 'London, UK',
       interests: ['restaurants', 'events', 'travel'],
-      engagement: {
-        opens: 12,
-        clicks: 8,
-        lastOpen: '2024-01-15'
-      }
+      engagement: { opens: 12, clicks: 8, lastOpen: '2024-01-15' }
     },
     {
       id: '2',
@@ -111,11 +102,7 @@ export default function CRMSystem() {
       tags: ['london', 'culture', 'art'],
       location: 'Manchester, UK',
       interests: ['museums', 'art', 'culture'],
-      engagement: {
-        opens: 8,
-        clicks: 5,
-        lastOpen: '2024-01-14'
-      }
+      engagement: { opens: 8, clicks: 5, lastOpen: '2024-01-14' }
     },
     {
       id: '3',
@@ -128,87 +115,53 @@ export default function CRMSystem() {
       tags: ['london', 'business', 'networking'],
       location: 'Birmingham, UK',
       interests: ['business', 'networking', 'events'],
-      engagement: {
-        opens: 15,
-        clicks: 12,
-        lastOpen: '2024-01-13'
-      }
+      engagement: { opens: 15, clicks: 12, lastOpen: '2024-01-13' }
     }
   ])
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([
     {
-      id: '1',
-      name: 'Weekly London Events',
+      id: '1', name: 'Weekly London Events',
       subject: 'This Week in London: Must-See Events & Hidden Gems',
       content: 'Discover the best events happening in London this week...',
-      status: 'sent',
-      sentAt: '2024-01-15 10:00:00',
-      recipients: 2847,
-      opens: 854,
-      clicks: 234,
-      unsubscribes: 12,
-      createdAt: '2024-01-14',
-      tags: ['weekly', 'events', 'london']
+      status: 'sent', sentAt: '2024-01-15 10:00:00', recipients: 2847, opens: 854, clicks: 234, unsubscribes: 12,
+      createdAt: '2024-01-14', tags: ['weekly', 'events', 'london']
     },
     {
-      id: '2',
-      name: 'Restaurant Recommendations',
+      id: '2', name: 'Restaurant Recommendations',
       subject: 'New Restaurant Alert: London\'s Hottest Dining Spots',
       content: 'Check out these amazing new restaurants in London...',
-      status: 'scheduled',
-      scheduledAt: '2024-01-20 12:00:00',
-      recipients: 2847,
-      opens: 0,
-      clicks: 0,
-      unsubscribes: 0,
-      createdAt: '2024-01-16',
-      tags: ['restaurants', 'food', 'dining']
+      status: 'scheduled', scheduledAt: '2024-01-20 12:00:00', recipients: 2847, opens: 0, clicks: 0, unsubscribes: 0,
+      createdAt: '2024-01-16', tags: ['restaurants', 'food', 'dining']
     },
     {
-      id: '3',
-      name: 'Travel Tips & Guides',
+      id: '3', name: 'Travel Tips & Guides',
       subject: 'Your Ultimate London Travel Guide',
       content: 'Everything you need to know for your London trip...',
-      status: 'draft',
-      recipients: 0,
-      opens: 0,
-      clicks: 0,
-      unsubscribes: 0,
-      createdAt: '2024-01-17',
-      tags: ['travel', 'guide', 'tips']
+      status: 'draft', recipients: 0, opens: 0, clicks: 0, unsubscribes: 0,
+      createdAt: '2024-01-17', tags: ['travel', 'guide', 'tips']
     }
   ])
 
-  const [analytics, setAnalytics] = useState<Analytics>({
-    totalSubscribers: 2847,
-    newThisWeek: 45,
-    unsubscribed: 12,
-    engagementRate: 23.4,
-    openRate: 30.0,
-    clickRate: 8.2,
+  const [analytics] = useState<Analytics>({
+    totalSubscribers: 2847, newThisWeek: 45, unsubscribed: 12,
+    engagementRate: 23.4, openRate: 30.0, clickRate: 8.2,
     topCountries: [
-      { country: 'United Kingdom', count: 1847 },
-      { country: 'United States', count: 456 },
-      { country: 'Canada', count: 234 },
-      { country: 'Australia', count: 189 },
-      { country: 'Germany', count: 121 }
+      { country: 'United Kingdom', count: 1847 }, { country: 'United States', count: 456 },
+      { country: 'Canada', count: 234 }, { country: 'Australia', count: 189 }, { country: 'Germany', count: 121 }
     ],
     topInterests: [
-      { interest: 'Restaurants', count: 1247 },
-      { interest: 'Events', count: 892 },
-      { interest: 'Travel', count: 654 },
-      { interest: 'Culture', count: 456 },
-      { interest: 'Shopping', count: 234 }
+      { interest: 'Restaurants', count: 1247 }, { interest: 'Events', count: 892 },
+      { interest: 'Travel', count: 654 }, { interest: 'Culture', count: 456 }, { interest: 'Shopping', count: 234 }
     ],
     monthlyGrowth: [2100, 2300, 2500, 2700, 2847, 0, 0, 0, 0, 0, 0, 0]
   })
 
   const [selectedSubscriber, setSelectedSubscriber] = useState<Subscriber | null>(null)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
-  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'unsubscribed' | 'bounced'>('all')
+  const [activeTab, setActiveTab] = useState('subscribers')
 
   const filteredSubscribers = subscribers.filter(subscriber => {
     const matchesSearch = subscriber.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -217,567 +170,390 @@ export default function CRMSystem() {
     return matchesSearch && matchesStatus
   })
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">Active</Badge>
-      case 'unsubscribed':
-        return <Badge className="bg-red-500">Unsubscribed</Badge>
-      case 'bounced':
-        return <Badge className="bg-yellow-500">Bounced</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
+  const statusMap: Record<string, string> = {
+    active: 'active', unsubscribed: 'rejected', bounced: 'warning',
+    sent: 'success', scheduled: 'pending', draft: 'draft', paused: 'warning',
   }
 
-  const getCampaignStatusBadge = (status: string) => {
-    switch (status) {
-      case 'sent':
-        return <Badge className="bg-green-500">Sent</Badge>
-      case 'scheduled':
-        return <Badge className="bg-blue-500">Scheduled</Badge>
-      case 'draft':
-        return <Badge className="bg-gray-500">Draft</Badge>
-      case 'paused':
-        return <Badge className="bg-yellow-500">Paused</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-
-  const getSourceIcon = (source: string) => {
-    switch (source) {
-      case 'website':
-        return <Globe className="h-4 w-4 text-blue-500" />
-      case 'social':
-        return <Users className="h-4 w-4 text-purple-500" />
-      case 'referral':
-        return <User className="h-4 w-4 text-green-500" />
-      case 'manual':
-        return <Plus className="h-4 w-4 text-gray-500" />
-      default:
-        return <Mail className="h-4 w-4 text-gray-500" />
-    }
+  const sourceIcons: Record<string, typeof Globe> = {
+    website: Globe, social: Users, referral: User, manual: Plus,
   }
 
   const sendCampaign = async (campaignId: string) => {
     try {
-      // Simulate sending campaign
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setCampaigns(prev => prev.map(campaign => 
-        campaign.id === campaignId 
+      setCampaigns(prev => prev.map(campaign =>
+        campaign.id === campaignId
           ? { ...campaign, status: 'sent' as const, sentAt: new Date().toISOString() }
           : campaign
       ))
-      
       toast.success('Campaign sent successfully!')
-    } catch (error) {
+    } catch {
       toast.error('Failed to send campaign')
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Users className="h-8 w-8 text-purple-500" />
-                CRM & Newsletter
-              </h1>
-              <p className="text-gray-600 mt-1">Manage subscribers and email campaigns</p>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="CRM & Newsletter"
+        subtitle="Manage subscribers and email campaigns"
+        action={
+          <div className="flex gap-2">
+            <AdminButton variant="secondary"><Download size={14} /> Export</AdminButton>
+            <AdminButton variant="primary"><Plus size={14} /> New Campaign</AdminButton>
+          </div>
+        }
+      />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard value={analytics.totalSubscribers.toLocaleString()} label="Total Subscribers" color="#1C1917" />
+        <AdminKPICard value={analytics.newThisWeek} label="New This Week" color="#2D5A3D" trend={{ value: 12, positive: true }} />
+        <AdminKPICard value={`${analytics.openRate}%`} label="Open Rate" color="#3B7EA1" />
+        <AdminKPICard value={`${analytics.clickRate}%`} label="Click Rate" color="#C49A2A" />
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-4">
+        <AdminTabs
+          tabs={[
+            { id: 'subscribers', label: 'Subscribers' },
+            { id: 'campaigns', label: 'Campaigns' },
+            { id: 'analytics', label: 'Analytics' },
+          ]}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      </div>
+
+      {/* Subscribers Tab */}
+      {activeTab === 'subscribers' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <AdminSectionLabel>Newsletter Subscribers</AdminSectionLabel>
+              <AdminButton variant="primary" size="sm"><Plus size={13} /> Add</AdminButton>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
-              <Button className="bg-purple-500 hover:bg-purple-600">
-                <Plus className="h-4 w-4 mr-2" />
-                New Campaign
-              </Button>
-            </div>
+
+            {/* Search and Filter */}
+            <AdminCard>
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#A8A29E' }} />
+                  <input
+                    placeholder="Search subscribers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="admin-input pl-10 w-full"
+                  />
+                </div>
+                <select className="admin-select" value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}>
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="unsubscribed">Unsubscribed</option>
+                  <option value="bounced">Bounced</option>
+                </select>
+              </div>
+            </AdminCard>
+
+            {filteredSubscribers.map((subscriber) => {
+              const SourceIcon = sourceIcons[subscriber.source] || Mail
+              return (
+                <AdminCard
+                  key={subscriber.id}
+                  className={`cursor-pointer transition-all ${selectedSubscriber?.id === subscriber.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
+                  elevated={selectedSubscriber?.id === subscriber.id}
+                >
+                  <div onClick={() => setSelectedSubscriber(subscriber)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                            {subscriber.name || subscriber.email}
+                          </span>
+                          <SourceIcon size={13} style={{ color: '#3B7EA1' }} />
+                          <AdminStatusBadge status={statusMap[subscriber.status] || subscriber.status} label={subscriber.status} />
+                        </div>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{subscriber.email}</p>
+                        <div className="flex gap-3 mt-1" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                          <span>Joined: {subscriber.subscribedAt}</span>
+                          <span>Last: {subscriber.lastActivity}</span>
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          {subscriber.tags.slice(0, 3).map(tag => (
+                            <AdminStatusBadge key={tag} status="inactive" label={tag} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                          {subscriber.engagement.opens}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>opens</div>
+                      </div>
+                    </div>
+                  </div>
+                </AdminCard>
+              )
+            })}
+          </div>
+
+          {/* Subscriber Details */}
+          <div>
+            {selectedSubscriber ? (
+              <AdminCard accent accentColor="red">
+                <AdminSectionLabel>Subscriber Details</AdminSectionLabel>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: '#C8322B', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: '#FAF8F4' }}>
+                    {selectedSubscriber.name ? selectedSubscriber.name[0].toUpperCase() : selectedSubscriber.email[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#1C1917' }}>
+                      {selectedSubscriber.name || 'No Name'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{selectedSubscriber.email}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <FormLabel>Status</FormLabel>
+                    <AdminStatusBadge status={statusMap[selectedSubscriber.status]} label={selectedSubscriber.status} />
+                  </div>
+                  <div>
+                    <FormLabel>Source</FormLabel>
+                    <span className="capitalize" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
+                      {selectedSubscriber.source}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedSubscriber.location && (
+                  <div className="mb-3">
+                    <FormLabel>Location</FormLabel>
+                    <div className="flex items-center gap-1.5" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
+                      <MapPin size={13} style={{ color: '#A8A29E' }} />
+                      {selectedSubscriber.location}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-3">
+                  <FormLabel>Interests</FormLabel>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedSubscriber.interests.map(i => <AdminStatusBadge key={i} status="pending" label={i} />)}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <FormLabel>Tags</FormLabel>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedSubscriber.tags.map(t => <AdminStatusBadge key={t} status="inactive" label={t} />)}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <AdminKPICard value={selectedSubscriber.engagement.opens} label="Email Opens" color="#3B7EA1" />
+                  <AdminKPICard value={selectedSubscriber.engagement.clicks} label="Link Clicks" color="#2D5A3D" />
+                </div>
+
+                <div className="flex gap-2">
+                  <AdminButton variant="secondary" className="flex-1"><Edit size={13} /> Edit</AdminButton>
+                  <AdminButton variant="secondary" className="flex-1"><Mail size={13} /> Email</AdminButton>
+                </div>
+              </AdminCard>
+            ) : (
+              <AdminCard>
+                <AdminEmptyState icon={User} title="Select a Subscriber" description="Choose a subscriber from the list to view details" />
+              </AdminCard>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Analytics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Total Subscribers</p>
-                  <p className="text-3xl font-bold">{analytics.totalSubscribers.toLocaleString()}</p>
-                </div>
-                <Users className="h-8 w-8 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* Campaigns Tab */}
+      {activeTab === 'campaigns' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <AdminSectionLabel>Email Campaigns</AdminSectionLabel>
+              <AdminButton variant="primary" size="sm"><Plus size={13} /> Create</AdminButton>
+            </div>
 
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">New This Week</p>
-                  <p className="text-3xl font-bold">{analytics.newThisWeek}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Open Rate</p>
-                  <p className="text-3xl font-bold">{analytics.openRate}%</p>
-                </div>
-                <Eye className="h-8 w-8 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-100 text-sm">Click Rate</p>
-                  <p className="text-3xl font-bold">{analytics.clickRate}%</p>
-                </div>
-                <Target className="h-8 w-8 text-yellow-200" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="subscribers" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="subscribers">Subscribers</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-
-          {/* Subscribers Tab */}
-          <TabsContent value="subscribers" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Subscribers List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Newsletter Subscribers</h3>
-                  <Button className="bg-purple-500 hover:bg-purple-600">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Subscriber
-                  </Button>
-                </div>
-
-                {/* Search and Filter */}
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search subscribers..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
+            {campaigns.map((campaign) => (
+              <AdminCard
+                key={campaign.id}
+                className={`cursor-pointer transition-all ${selectedCampaign?.id === campaign.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
+                elevated={selectedCampaign?.id === campaign.id}
+              >
+                <div onClick={() => setSelectedCampaign(campaign)}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                          {campaign.name}
+                        </span>
+                        <AdminStatusBadge status={statusMap[campaign.status] || campaign.status} label={campaign.status} />
+                      </div>
+                      <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginBottom: 4 }}>{campaign.subject}</p>
+                      <div className="flex gap-3" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                        <span>Recipients: {campaign.recipients}</span>
+                        <span>Opens: {campaign.opens}</span>
+                        <span>Clicks: {campaign.clicks}</span>
+                      </div>
                     </div>
-                  </div>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value as any)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="unsubscribed">Unsubscribed</option>
-                    <option value="bounced">Bounced</option>
-                  </select>
-                </div>
-
-                {filteredSubscribers.map((subscriber) => (
-                  <Card 
-                    key={subscriber.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedSubscriber?.id === subscriber.id ? 'ring-2 ring-purple-500' : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedSubscriber(subscriber)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-gray-900">
-                              {subscriber.name || subscriber.email}
-                            </h4>
-                            {getSourceIcon(subscriber.source)}
-                            {getStatusBadge(subscriber.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{subscriber.email}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Joined: {subscriber.subscribedAt}</span>
-                            <span>Last activity: {subscriber.lastActivity}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            {subscriber.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">
-                            {subscriber.engagement.opens} opens
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {subscriber.engagement.clicks} clicks
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Subscriber Details */}
-              <div>
-                {selectedSubscriber ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        Subscriber Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center">
-                          {selectedSubscriber.name ? selectedSubscriber.name[0].toUpperCase() : selectedSubscriber.email[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold">
-                            {selectedSubscriber.name || 'No Name'}
-                          </h3>
-                          <p className="text-gray-600">{selectedSubscriber.email}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Status</Label>
-                          <div className="mt-1">{getStatusBadge(selectedSubscriber.status)}</div>
-                        </div>
-                        <div>
-                          <Label>Source</Label>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getSourceIcon(selectedSubscriber.source)}
-                            <span className="text-sm capitalize">{selectedSubscriber.source}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedSubscriber.location && (
-                        <div>
-                          <Label>Location</Label>
-                          <div className="flex items-center gap-2 mt-1">
-                            <MapPin className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{selectedSubscriber.location}</span>
-                          </div>
-                        </div>
+                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textAlign: 'right' }}>
+                      {campaign.status === 'sent' && campaign.sentAt && (
+                        <span>Sent: {new Date(campaign.sentAt).toLocaleDateString()}</span>
                       )}
-
-                      <div>
-                        <Label>Interests</Label>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedSubscriber.interests.map((interest) => (
-                            <Badge key={interest} variant="outline" className="text-xs">
-                              {interest}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Tags</Label>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedSubscriber.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {selectedSubscriber.engagement.opens}
-                          </div>
-                          <div className="text-xs text-gray-600">Email Opens</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">
-                            {selectedSubscriber.engagement.clicks}
-                          </div>
-                          <div className="text-xs text-gray-600">Link Clicks</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="flex-1">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Subscriber
-                        </Button>
-                        <Button variant="outline" className="flex-1">
-                          <Mail className="h-4 w-4 mr-2" />
-                          Send Email
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Subscriber</h3>
-                      <p className="text-gray-600">Choose a subscriber from the list to view details</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Campaigns Tab */}
-          <TabsContent value="campaigns" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Campaigns List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Email Campaigns</h3>
-                  <Button
-                    onClick={() => setIsCreatingCampaign(true)}
-                    className="bg-purple-500 hover:bg-purple-600"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Campaign
-                  </Button>
+                      {campaign.status === 'scheduled' && campaign.scheduledAt && (
+                        <span>Scheduled: {new Date(campaign.scheduledAt).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {campaigns.map((campaign) => (
-                  <Card 
-                    key={campaign.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedCampaign?.id === campaign.id ? 'ring-2 ring-purple-500' : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedCampaign(campaign)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-gray-900">{campaign.name}</h4>
-                            {getCampaignStatusBadge(campaign.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{campaign.subject}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Recipients: {campaign.recipients}</span>
-                            <span>Opens: {campaign.opens}</span>
-                            <span>Clicks: {campaign.clicks}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">
-                            {campaign.status === 'sent' && campaign.sentAt && (
-                              <span>Sent: {new Date(campaign.sentAt).toLocaleDateString()}</span>
-                            )}
-                            {campaign.status === 'scheduled' && campaign.scheduledAt && (
-                              <span>Scheduled: {new Date(campaign.scheduledAt).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                        </div>
+              </AdminCard>
+            ))}
+          </div>
+
+          {/* Campaign Details */}
+          <div>
+            {selectedCampaign ? (
+              <AdminCard accent accentColor="blue">
+                <AdminSectionLabel>Campaign Details</AdminSectionLabel>
+                <div className="mb-3">
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
+                    {selectedCampaign.name}
+                  </div>
+                  <div className="mt-1">
+                    <AdminStatusBadge status={statusMap[selectedCampaign.status]} label={selectedCampaign.status} />
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <FormLabel>Subject Line</FormLabel>
+                  <input className="admin-input w-full" value={selectedCampaign.subject} readOnly />
+                </div>
+
+                <div className="mb-4">
+                  <FormLabel>Content Preview</FormLabel>
+                  <textarea className="admin-input w-full resize-none" value={selectedCampaign.content} readOnly rows={4} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <AdminKPICard value={selectedCampaign.recipients} label="Recipients" color="#3B7EA1" />
+                  <AdminKPICard value={selectedCampaign.opens} label="Opens" color="#2D5A3D" />
+                  <AdminKPICard value={selectedCampaign.clicks} label="Clicks" color="#C49A2A" />
+                  <AdminKPICard value={selectedCampaign.unsubscribes} label="Unsubscribes" color="#C8322B" />
+                </div>
+
+                <div className="flex gap-2">
+                  {(selectedCampaign.status === 'draft' || selectedCampaign.status === 'scheduled') && (
+                    <AdminButton
+                      variant={selectedCampaign.status === 'draft' ? 'primary' : 'success'}
+                      className="flex-1"
+                      onClick={() => sendCampaign(selectedCampaign.id)}
+                    >
+                      <Send size={13} /> Send Now
+                    </AdminButton>
+                  )}
+                  <AdminButton variant="secondary" className="flex-1"><Edit size={13} /> Edit</AdminButton>
+                  <AdminButton variant="secondary" className="flex-1"><Eye size={13} /> Preview</AdminButton>
+                </div>
+              </AdminCard>
+            ) : (
+              <AdminCard>
+                <AdminEmptyState icon={Mail} title="Select a Campaign" description="Choose a campaign from the list to view details" />
+              </AdminCard>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Tab */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AdminCard accent accentColor="blue">
+              <AdminSectionLabel>Top Countries</AdminSectionLabel>
+              <div className="space-y-2">
+                {analytics.topCountries.map((country, index) => (
+                  <div key={index} className="flex items-center justify-between p-2.5 rounded-xl"
+                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: '#3B7EA1', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#FAF8F4' }}>
+                        {index + 1}
                       </div>
-                    </CardContent>
-                  </Card>
+                      <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{country.country}</span>
+                    </div>
+                    <AdminStatusBadge status="active" label={String(country.count)} />
+                  </div>
                 ))}
               </div>
+            </AdminCard>
 
-              {/* Campaign Details */}
-              <div>
-                {selectedCampaign ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Mail className="h-5 w-5" />
-                        Campaign Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h3 className="text-xl font-bold">{selectedCampaign.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          {getCampaignStatusBadge(selectedCampaign.status)}
-                        </div>
+            <AdminCard accent accentColor="gold">
+              <AdminSectionLabel>Top Interests</AdminSectionLabel>
+              <div className="space-y-2">
+                {analytics.topInterests.map((interest, index) => (
+                  <div key={index} className="flex items-center justify-between p-2.5 rounded-xl"
+                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: '#C49A2A', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#FAF8F4' }}>
+                        {index + 1}
                       </div>
-
-                      <div>
-                        <Label>Subject Line</Label>
-                        <Input value={selectedCampaign.subject} readOnly />
-                      </div>
-
-                      <div>
-                        <Label>Content Preview</Label>
-                        <Textarea 
-                          value={selectedCampaign.content} 
-                          readOnly 
-                          rows={4}
-                          className="resize-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {selectedCampaign.recipients}
-                          </div>
-                          <div className="text-xs text-gray-600">Recipients</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">
-                            {selectedCampaign.opens}
-                          </div>
-                          <div className="text-xs text-gray-600">Opens</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">
-                            {selectedCampaign.clicks}
-                          </div>
-                          <div className="text-xs text-gray-600">Clicks</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-red-600">
-                            {selectedCampaign.unsubscribes}
-                          </div>
-                          <div className="text-xs text-gray-600">Unsubscribes</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        {selectedCampaign.status === 'draft' && (
-                          <Button className="flex-1 bg-purple-500 hover:bg-purple-600">
-                            <Send className="h-4 w-4 mr-2" />
-                            Send Now
-                          </Button>
-                        )}
-                        {selectedCampaign.status === 'scheduled' && (
-                          <Button 
-                            onClick={() => sendCampaign(selectedCampaign.id)}
-                            className="flex-1 bg-green-500 hover:bg-green-600"
-                          >
-                            <Send className="h-4 w-4 mr-2" />
-                            Send Now
-                          </Button>
-                        )}
-                        <Button variant="outline" className="flex-1">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Campaign
-                        </Button>
-                        <Button variant="outline" className="flex-1">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Preview
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Campaign</h3>
-                      <p className="text-gray-600">Choose a campaign from the list to view details</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Countries</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {analytics.topCountries.map((country, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium">{country.country}</span>
-                        </div>
-                        <Badge className="bg-purple-500">{country.count}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Interests</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {analytics.topInterests.map((interest, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium">{interest.interest}</span>
-                        </div>
-                        <Badge className="bg-purple-500">{interest.count}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscriber Growth</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-end justify-between gap-2">
-                  {analytics.monthlyGrowth.map((count, index) => (
-                    <div key={index} className="flex flex-col items-center gap-2">
-                      <div
-                        className="bg-purple-500 rounded-t w-8 transition-all duration-500"
-                        style={{ height: `${(count / Math.max(...analytics.monthlyGrowth)) * 200}px` }}
-                      />
-                      <span className="text-xs text-gray-600">
-                        {new Date(2024, index).toLocaleDateString('en', { month: 'short' })}
-                      </span>
-                      <span className="text-xs font-medium">{count}</span>
+                      <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{interest.interest}</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                    <AdminStatusBadge status="warning" label={String(interest.count)} />
+                  </div>
+                ))}
+              </div>
+            </AdminCard>
+          </div>
+
+          <AdminCard accent accentColor="green">
+            <AdminSectionLabel>Subscriber Growth</AdminSectionLabel>
+            <div className="h-52 flex items-end justify-between gap-1.5 pt-4">
+              {analytics.monthlyGrowth.map((count, index) => {
+                const maxVal = Math.max(...analytics.monthlyGrowth)
+                return (
+                  <div key={index} className="flex flex-col items-center gap-1.5 flex-1">
+                    <div
+                      className="w-full rounded-t transition-all"
+                      style={{
+                        height: maxVal > 0 ? `${(count / maxVal) * 160}px` : '0px',
+                        backgroundColor: count > 0 ? '#2D5A3D' : 'rgba(214,208,196,0.3)',
+                        minWidth: 12,
+                      }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E' }}>
+                      {new Date(2024, index).toLocaleDateString('en', { month: 'short' })}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, color: '#44403C' }}>{count || ''}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </AdminCard>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Form Label ─────────────────────────────────────────────────── */
+function FormLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600,
+      textTransform: 'uppercase', letterSpacing: '1px', color: '#78716C', marginBottom: 4,
+    }}>
+      {children}
     </div>
   )
 }

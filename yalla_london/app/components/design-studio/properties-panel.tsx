@@ -162,13 +162,13 @@ export default function PropertiesPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Plus Jakarta Sans, sans-serif">
-                  Plus Jakarta Sans
+                <SelectItem value="Anybody, sans-serif">
+                  Anybody
                 </SelectItem>
-                <SelectItem value="Cairo, sans-serif">Cairo (Arabic)</SelectItem>
+                <SelectItem value="IBM Plex Sans Arabic, sans-serif">IBM Plex Sans Arabic (Arabic)</SelectItem>
                 <SelectItem value="Inter, sans-serif">Inter</SelectItem>
-                <SelectItem value="Playfair Display, serif">
-                  Playfair Display
+                <SelectItem value="Source Serif 4, serif">
+                  Source Serif 4
                 </SelectItem>
                 <SelectItem value="Montserrat, sans-serif">Montserrat</SelectItem>
                 <SelectItem value="Georgia, serif">Georgia</SelectItem>

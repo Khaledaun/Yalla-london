@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { signIn, getSession, signOut } from 'next-auth/react'
 import { useLanguage } from './language-provider'
 import { Button } from '@/components/ui/button'

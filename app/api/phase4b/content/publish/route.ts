@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 interface PublishRequest {
   contentId: string;
@@ -97,9 +98,12 @@ async function performSEOAudit(content: any): Promise<SEOAuditResult> {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED || !flags.AUTO_PUBLISHING) {
       return NextResponse.json(
         { error: 'Auto-publishing feature is disabled' },
@@ -198,21 +202,21 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Publishing error:', error);
+    console.error('[phase4b/content/publish] POST error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to publish content',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to publish content' },
       { status: 500 }
     );
   }
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const flags = getFeatureFlags();
-    
+
     if (!flags.PHASE4B_ENABLED) {
       return NextResponse.json(
         { error: 'Phase 4B features are disabled' },
@@ -278,7 +282,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Published content fetch error:', error);
+    console.error('[phase4b/content/publish] GET error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch published content' },
       { status: 500 }

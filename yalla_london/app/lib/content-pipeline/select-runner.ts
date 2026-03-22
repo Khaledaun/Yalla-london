@@ -100,7 +100,9 @@ export async function runContentSelector(
       where: {
         job_name: "content-selector",
         status: "started",
-        started_at: { gte: new Date(Date.now() - 120_000) },
+        // Aligned with stale marker cleanup (90s) — previously 120s created a 30s
+        // gap where a stale marker was cleaned but a new run was still blocked.
+        started_at: { gte: new Date(Date.now() - 90_000) },
       },
       orderBy: { started_at: "desc" },
     });

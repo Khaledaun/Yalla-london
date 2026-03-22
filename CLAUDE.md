@@ -4208,6 +4208,52 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 142. **GA4 Measurement Protocol events require `engagement_time_msec`** — without this parameter, events are received but don't appear in standard GA4 reports (only in DebugView). Always include `engagement_time_msec: 100` minimum.
 143. **Zero affiliate clicks can mean 4 different things** — (a) no affiliate links injected in articles, (b) no traffic to articles, (c) links use direct partner URLs instead of `/api/affiliate/click` tracking redirect, (d) tracking is broken. The `/api/admin/affiliate-monitor` endpoint diagnoses all 4 with specific fix suggestions.
 
+### Session: March 22, 2026 — Deep Pipeline Audit: 10 Hidden Issues Found & Fixed
+
+**Deep audit of operations logs + cron schedules revealing 10 hidden issues causing reservoir overflow, silent cron kills, and false failure alerts.**
+
+**10 Issues Found & Fixed (2 commits):**
+
+**Commit 1 — Pipeline Logic Fixes (6 issues):**
+
+1. **CRITICAL: Quality score gap** — `qualityGateScore: 40` let articles INTO reservoir, but `reservoirMinScore: 45` blocked them FROM leaving. Articles scoring 40-44 permanently frozen. Fix: aligned both to 40.
+
+2. **HIGH: schedule-executor ignores reservoir cap** — created drafts even with 65 in reservoir (cap is 50), wasting AI budget. Fix: added `reservoirCount >= 50` check before processing rules.
+
+3. **MEDIUM: schedule-executor false failure logging** — "No consumable topics" logged as `status: "failed"`, triggering CEO Inbox + diagnostic-agent unnecessarily. Fix: changed to `"completed"` (normal condition).
+
+4. **MEDIUM: Diagnostic-agent "unknown" classification** — "no consumable topics" errors matched no keyword pattern → classified as `"unknown"`. Fix: added `"topic_starvation"` category matching `"no consumable"`, `"no topic"`, `"topic pool"`. Also checks `result_summary` JSON (not just `error_message`).
+
+5. **MEDIUM: No reservoir age-out** — dead inventory accumulated forever. Fix: Phase 0e rejects reservoir articles >7 days old with `RESERVOIR_AGE_OUT` reason.
+
+6. **LOW: Stale marker / dedup window mismatch** — cleanup at 90s but dedup checked 120s window → 30s gap. Fix: both aligned to 90s.
+
+**Commit 2 — CRITICAL: vercel.json maxDuration Mismatch (4 crons silently killed):**
+
+7. **CRITICAL: content-auto-fix killed at 60s** — code budgets 280s but `vercel.json` catch-all caps at 60s. Every run killed mid-AI-call. Fix: added `"maxDuration": 300` override.
+
+8. **CRITICAL: reserve-publisher killed at 60s** — daily safety net ("guarantee 1 article/day") has been DEAD. Code budgets 280s, Vercel kills at 60s. Fix: added `"maxDuration": 300` override.
+
+9. **HIGH: weekly-topics killed at 60s** — AI topic generation cut short. Fix: added `"maxDuration": 300` override.
+
+10. **HIGH: 3-cron collision at 11:00 UTC** — content-auto-fix, verify-indexing, subscriber-emails all fired simultaneously, competing for PgBouncer pool. Fix: staggered to :00, :05, :10.
+
+**Files Modified:**
+- `lib/seo/standards.ts` — reservoirMinScore 45→40
+- `app/api/cron/schedule-executor/route.ts` — reservoir cap check + "completed" status
+- `lib/ops/diagnostic-agent.ts` — topic_starvation category + Phase 0e age-out
+- `lib/content-pipeline/select-runner.ts` — dedup window 120s→90s
+- `vercel.json` — 4 maxDuration overrides + 11:00 UTC stagger
+
+### Critical Rules Learned (March 22 Session — Deep Pipeline Audit)
+
+149. **`vercel.json` functions config OVERRIDES `export const maxDuration` in route files** — when `"app/api/cron/**/*.ts": { "maxDuration": 60 }` exists, the route's `export const maxDuration = 300` is ignored. Always add an explicit override entry for crons that need >60s. This caused content-auto-fix and reserve-publisher to be silently killed for weeks.
+150. **`reservoirMinScore` must EXACTLY match `qualityGateScore`** — any gap creates permanently frozen articles: high enough to enter reservoir but too low to leave. Both must use the same value from `CONTENT_QUALITY` in standards.ts.
+151. **schedule-executor must check reservoir cap** — without the `reservoirCount >= 50` guard, it creates drafts that advance through all 8 AI-heavy phases only to sit idle in a full reservoir. This wastes ~$0.50 in AI budget per dead draft.
+152. **"No topics available" is NOT a failure** — it's a normal condition when the topic pool is exhausted between weekly-topics runs. Log as `"completed"` with `itemsProcessed: 0`, not `"failed"`. False failures trigger CEO Inbox, diagnostic-agent, and failure hooks — causing alert fatigue.
+153. **Reservoir articles must age-out after 7 days** — articles that sit in reservoir for a week without promotion are dead inventory (usually keyword overlap with published articles). They inflate the reservoir count (blocking new draft creation at cap 50) and waste diagnostic-sweep cycles. Reject with `RESERVOIR_AGE_OUT` reason.
+154. **Never schedule 3+ crons at the same minute** — PgBouncer connection pool exhaustion cascades. Stagger by 5-10 minutes minimum. The 11:00 UTC collision (content-auto-fix + verify-indexing + subscriber-emails) likely caused downstream failures for content-selector at 11:05.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

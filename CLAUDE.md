@@ -4079,6 +4079,65 @@ Comprehensive audit of all blocking conditions across the pipeline that prevente
 142. **seo-deep-review PER_ARTICLE_BUDGET_MS must account for AI calls** — non-AI fixes (meta generation, internal links, heading hierarchy) consume 8-10s. The AI content_expansion call needs 8-10s minimum. Total per-article budget must be ≥18s. With 53s total cron budget, this means max 3 articles per run.
 143. **IndexNow key file verification requires the `/:key.txt` Vercel rewrite to NOT be shadowed by Next.js middleware or catch-all routes** — if `middleware.ts` intercepts the request before the rewrite applies, the key file returns HTML instead of plain text, and all 3 IndexNow engines reject with 403. Verify by curling `https://www.yalla-london.com/{INDEXNOW_KEY}.txt` — should return the key as plain text.
 
+### Session: March 22, 2026 — Deep Pipeline Integrity Audit: 11 Issues Fixed Across 6 Stages
+
+**Professional 4-agent parallel audit of the entire content pipeline from topic generation through indexing. 11 bugs/risks found and fixed across 8 files.**
+
+**Audit Methodology:** 4 parallel audit agents covering: (1) Topic generation → Draft creation, (2) Publishing pipeline & quality gates, (3) Post-publish SEO optimization & indexing, (4) Deduplication & title sanitization across all stages.
+
+**Bug #1 (CRITICAL): schedule-executor topic status `"used"` is invalid Prisma enum**
+- `prisma.topicProposal.update({ data: { status: "used" } })` silently crashed
+- Valid values: `"planned"`, `"proposed"`, `"ready"`, `"queued"`, `"generating"`, `"generated"`, `"drafted"`, `"approved"`, `"published"`
+- **Impact:** Topic never marked consumed → next run claims same topic → DUPLICATE DRAFTS
+- **Fix:** Changed `"used"` → `"generated"` in `schedule-executor/route.ts:225`
+
+**Bug #2 (CRITICAL): schedule-executor no dedup guard before draft creation**
+- If topic status update fails AFTER draft creation, topic stays in `"generating"` status
+- Next run: topic claimed again (still matches CONSUMABLE_STATUSES) → another ArticleDraft created
+- **Fix:** Added `prisma.articleDraft.findFirst({ where: { topic_proposal_id, locale } })` check before creation
+
+**Bug #3 (HIGH): Arabic title/meta never sanitized in any BlogPost creation path**
+- `select-runner.ts`: `arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle` — NO `sanitizeTitle()` call
+- `daily-content-generate/route.ts`: `title_ar`, `meta_title_ar`, `meta_description_ar` — all stored RAW without sanitization
+- AI artifacts like "(under 60 chars)", "(52 characters)", slug patterns — all stored in Arabic fields
+- **Fix:** Added `sanitizeTitle()` to `arMetaTitle` in select-runner; added `sanitizeTitle()` and `sanitizeMetaDescription()` to all 3 Arabic fields in daily-content-generate
+
+**Bug #4 (HIGH): content-auto-fix duplicate detection UNPUBLISHES articles (destroys SEO equity)**
+- Line 613: `published: false` on duplicate-flagged articles
+- Unpublishing removes indexed pages from Google — months of crawl equity destroyed
+- **Fix:** Removed `published: false` — now only adds `[DUPLICATE-FLAGGED]` tag to meta description. seo-deep-review handles title differentiation
+
+**Bug #5 (HIGH): Paired draft `.catch()` inside `$transaction` breaks atomicity**
+- `select-runner.ts:1307`: `.catch((err) => { console.warn(...) })` inside the BlogPost create transaction
+- If paired AR draft update fails, the `.catch()` swallows the error, transaction continues
+- Result: BlogPost + EN draft published, AR draft stuck in "promoting" forever
+- **Fix:** Removed `.catch()` — errors now propagate and roll back the entire transaction
+
+**Bug #6 (MEDIUM): schedule-executor stored `quality_score: 0` and `seo_score: 0` as Int on Float? fields**
+- Prisma may reject Int values for Float? columns depending on connector behavior
+- **Fix:** Removed both fields from create call (they default to null, which is correct for new drafts)
+
+**Other findings documented but not fixed (lower priority):**
+- Affiliate injection happens OUTSIDE the BlogPost create transaction (select-runner)
+- Slug artifact cleanup happens AFTER dedup checks (could create post-cleanup collisions)
+- seo-agent dynamic import of `getSiteDomain` inside loop (20 redundant imports per run)
+- content-auto-fix double `fixBrokenLinks()` call on same content (lines 278 + 288)
+- Cannibalization checker only compares against published BlogPosts, not reservoir drafts
+
+**Files Modified:**
+- `app/api/cron/schedule-executor/route.ts` — "used"→"generated", dedup guard, removed Int fields
+- `app/api/cron/daily-content-generate/route.ts` — Arabic title/meta sanitization
+- `lib/content-pipeline/select-runner.ts` — Arabic meta sanitization, transaction atomicity fix
+- `app/api/cron/content-auto-fix/route.ts` — removed destructive unpublish
+
+### Critical Rules Learned (March 22 Session — Pipeline Integrity Audit)
+
+144. **TopicProposal status `"used"` does NOT exist in the schema** — valid terminal statuses are `"generated"`, `"drafted"`, `"published"`. The schedule-executor was using `"used"` which is not in the Prisma enum, causing a silent crash that left topics in `"generating"` status forever and created duplicate drafts on every subsequent run.
+145. **Arabic title, meta_title, and meta_description fields MUST be sanitized** — `sanitizeTitle()` and `sanitizeMetaDescription()` must be called on ALL Arabic fields, not just English. AI generates the same artifacts in Arabic content: "(under 60 chars)", slug patterns, char count notes. Every BlogPost.create path must sanitize both languages.
+146. **Never use `.catch()` inside a `$transaction` callback** — `.catch()` swallows the error locally, preventing the transaction from rolling back. If the paired AR draft update fails but is caught, the BlogPost and EN draft are committed while the AR draft stays orphaned in "promoting" phase. Let errors propagate — the transaction wrapper handles rollback.
+147. **Duplicate detection must NEVER unpublish indexed articles** — unpublishing removes pages from Google's index, destroying months of crawl equity and authority signals. Instead: flag with a tag/meta annotation and let seo-deep-review differentiate the titles. The only valid reasons to unpublish are: (a) legal/compliance, (b) explicit owner request, (c) thin content <200 words with no value.
+148. **Always add a dedup guard before draft creation** — check `prisma.articleDraft.findFirst({ where: { topic_proposal_id, locale } })` before creating. If topic status update fails after draft creation (network error, Prisma crash), the topic stays consumable and the same draft gets created again on the next run.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

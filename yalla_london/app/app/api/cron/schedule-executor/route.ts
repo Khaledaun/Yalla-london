@@ -201,6 +201,22 @@ async function handleScheduleExecutor(request: NextRequest) {
             continue; // Another process claimed it
           }
 
+          // Dedup guard: check if a draft already exists for this topic+language
+          // Prevents duplicate drafts when topic status update fails after draft creation
+          const existingDraft = await prisma.articleDraft.findFirst({
+            where: { topic_proposal_id: topic.id, locale: lang },
+            select: { id: true },
+          });
+          if (existingDraft) {
+            console.log(`[schedule-executor] Draft already exists for topic "${topic.title}" (${lang}), skipping`);
+            // Still mark topic as consumed so it's not re-claimed endlessly
+            await prisma.topicProposal.update({
+              where: { id: topic.id },
+              data: { status: "generated" },
+            }).catch(() => {});
+            continue;
+          }
+
           // Create an ArticleDraft in "research" phase
           await prisma.articleDraft.create({
             data: {
@@ -211,19 +227,23 @@ async function handleScheduleExecutor(request: NextRequest) {
               topic_title: topic.title,
               current_phase: "research",
               phase_attempts: 0,
-              quality_score: 0,
-              seo_score: 0,
               seo_meta: {},
               research_data: {},
               outline_data: {},
             },
           });
 
-          // Mark topic as used
-          await prisma.topicProposal.update({
-            where: { id: topic.id },
-            data: { status: "used" },
-          });
+          // Mark topic as consumed — "generated" is a valid TopicProposal status
+          // ("used" was invalid and caused silent Prisma crashes — see rule #144)
+          try {
+            await prisma.topicProposal.update({
+              where: { id: topic.id },
+              data: { status: "generated" },
+            });
+          } catch (statusErr) {
+            console.warn(`[schedule-executor] Topic status update failed for "${topic.title}":`, (statusErr as Error).message);
+            // Draft was created — topic stays in "generating" until diagnostic-agent cleans it
+          }
 
           results.draftsQueued++;
         }

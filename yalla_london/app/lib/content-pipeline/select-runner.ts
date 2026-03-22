@@ -1082,10 +1082,11 @@ export async function promoteToBlogPost(
   };
 
   // Extract meta fields — sanitize to strip AI artifacts like "(under 60 chars)"
+  // Arabic titles MUST also be sanitized — AI generates artifacts in Arabic too (rule #145)
   const enMetaTitle = sanitizeTitle(cleanTitle((enSeoMeta.metaTitle as string) || enTitle));
-  const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
+  const arMetaTitle = sanitizeTitle((arSeoMeta.metaTitle as string) || arTitle || enMetaTitle);
   let enMetaDesc = sanitizeMetaDescription((enSeoMeta.metaDescription as string) || "");
-  const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
+  const arMetaDesc = sanitizeMetaDescription((arSeoMeta.metaDescription as string) || "");
 
   // ── Auto-generate meta description from content when missing ───────────
   // A missing meta description means Google picks its own snippet (often bad).
@@ -1300,11 +1301,11 @@ export async function promoteToBlogPost(
           data: { ...publishData, blog_post_id: bp.id },
         });
         if (pairedDraft) {
+          // No .catch() here — let errors propagate to roll back the entire transaction
+          // (Rule #146: paired draft update inside $transaction must NOT swallow errors)
           await tx.articleDraft.update({
             where: { id: pairedDraft.id as string },
             data: { ...publishData, blog_post_id: bp.id },
-          }).catch((err: Error) => {
-            console.warn(`[content-selector] Failed to update paired draft ${pairedDraft!.id}:`, err.message);
           });
         }
         return bp;

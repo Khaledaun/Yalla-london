@@ -606,12 +606,12 @@ async function handleAutoFix(request: NextRequest) {
             const jaccard = union > 0 ? intersection / union : 0;
 
             if (jaccard > 0.8) {
-              // Flag the newer article (j) — unpublish it to stop cannibalization
+              // Flag the newer article (j) — DO NOT unpublish (destroys indexed SEO equity)
+              // Tag it so seo-deep-review can differentiate/rewrite the duplicate title
               const newer = sitePosts[j];
               // Skip if already flagged
               if ((newer.meta_description_en || "").includes("[DUPLICATE-FLAGGED]")) continue;
               await optimisticBlogPostUpdate(newer.id, () => ({
-                published: false,
                 meta_description_en: `[DUPLICATE-FLAGGED: overlaps with "${sitePosts[i].slug}"] ${(newer.meta_description_en || "").replace(/\[DUPLICATE-FLAGGED[^\]]*\]\s*/, "").slice(0, 100)}`,
               }), { tag: "[content-auto-fix]" });
               duplicatesFlagged++;

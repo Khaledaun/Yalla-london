@@ -202,6 +202,15 @@ export const adminNavigation: NavItem[] = [
     description: 'Schedule and manage social media posts'
   },
   {
+    id: 'finance-hub',
+    label: 'Finance Hub',
+    icon: DollarSign,
+    href: '/admin/cockpit/finance',
+    badgeText: 'Live',
+    badgeVariant: 'default',
+    description: 'Stripe + Mercury + Affiliate revenue'
+  },
+  {
     id: 'automation-hub',
     label: 'Automation Hub',
     icon: Bot,

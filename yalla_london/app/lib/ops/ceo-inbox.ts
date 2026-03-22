@@ -210,12 +210,10 @@ export async function handleCronFailureNotice(
       console.warn("[ceo-inbox] Queue health check failed (non-fatal):", queueErr instanceof Error ? queueErr.message : queueErr);
     }
 
-    // 3. Email notifications DISABLED per Khaled's instruction.
-    // Dashboard inbox alerts are the primary notification channel.
-    // To re-enable: uncomment the sendAlertEmail call below.
-    // sendAlertEmail(jobName, diagnosis, fixStrategy).catch(
-    //   (err) => console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
-    // );
+    // 3. Email notifications — rate-limited (1 per condition per hour)
+    sendAlertEmail(jobName, diagnosis, fixStrategy).catch(
+      (err) => console.warn("[ceo-inbox] Email send failed (non-fatal):", err instanceof Error ? err.message : err),
+    );
 
     // 4. Attempt auto-fix
     let fixResult: { attempted: boolean; success: boolean; message: string } | null = null;
@@ -456,15 +454,30 @@ function getBaseUrlFromEnv(): string | null {
   return null;
 }
 
+// Rate limiter: max 1 email per job per hour
+const emailRateMap = new Map<string, number>();
+const EMAIL_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+
 async function sendAlertEmail(
   jobName: string,
   diagnosis: InterpretedError,
   fixStrategy: FixStrategy | null,
 ): Promise<void> {
   try {
+    // Rate limit: 1 email per job per hour
+    const lastSent = emailRateMap.get(jobName) || 0;
+    if (Date.now() - lastSent < EMAIL_COOLDOWN_MS) {
+      console.log(`[ceo-inbox] Skipping email for "${jobName}" — sent ${Math.round((Date.now() - lastSent) / 60000)}m ago (cooldown: 60m)`);
+      return;
+    }
+    emailRateMap.set(jobName, Date.now());
+
     const { sendEmail } = await import("@/lib/email/sender");
     const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim()).filter(Boolean);
-    if (adminEmails.length === 0) return;
+    if (adminEmails.length === 0) {
+      console.warn("[ceo-inbox] No ADMIN_EMAILS configured — skipping email");
+      return;
+    }
 
     const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
     const baseUrl = getBaseUrlFromEnv() || `https://www.${getSiteDomain(getDefaultSiteId())}`;

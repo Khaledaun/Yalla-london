@@ -115,7 +115,28 @@ export async function GET(request: Request) {
       return { ok: true, msg: "Configured" };
     }),
 
-    // 7. Crons (check last 1h for any successful run)
+    // 7. Stripe
+    checkService("Stripe", async () => {
+      const key = process.env.STRIPE_SECRET_KEY;
+      if (!key) return { ok: false, msg: "STRIPE_SECRET_KEY not set" };
+      return { ok: true, msg: "Key configured" };
+    }),
+
+    // 8. Mercury
+    checkService("Mercury", async () => {
+      const key = process.env.MERCURY_API_KEY;
+      if (!key) return { ok: false, msg: "MERCURY_API_KEY not set" };
+      return { ok: true, msg: "Key configured" };
+    }),
+
+    // 9. Canva
+    checkService("Canva", async () => {
+      const key = process.env.CANVA_API_KEY;
+      if (!key) return { ok: false, msg: "CANVA_API_KEY not set — use MCP" };
+      return { ok: true, msg: "Key configured" };
+    }),
+
+    // 10. Crons (check last 1h for any successful run)
     checkService("Crons", async () => {
       const { prisma } = await import("@/lib/db");
       const oneHourAgo = new Date(Date.now() - 3600_000);

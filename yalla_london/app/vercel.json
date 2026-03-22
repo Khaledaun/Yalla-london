@@ -42,6 +42,18 @@
     },
     "app/api/cron/campaign-executor/**/*.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/content-auto-fix/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/reserve-publisher/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/weekly-topics/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/seo-agent/**/*.ts": {
+      "maxDuration": 300
     }
   },
   "env": {
@@ -194,7 +206,7 @@
     },
     {
       "path": "/api/cron/verify-indexing",
-      "schedule": "0 11,17 * * *"
+      "schedule": "5 11,17 * * *"
     },
     {
       "path": "/api/cron/london-news",
@@ -242,7 +254,7 @@
     },
     {
       "path": "/api/cron/subscriber-emails",
-      "schedule": "0 11 * * *"
+      "schedule": "10 11 * * *"
     },
     {
       "path": "/api/cron/process-indexing-queue",

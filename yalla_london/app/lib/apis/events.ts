@@ -90,7 +90,7 @@ export async function getUpcomingEvents(
     const events: TicketmasterEvent[] = rawEvents.map((e: Record<string, unknown>) => {
       const dates = e.dates as Record<string, unknown> | undefined;
       const start = dates?.start as Record<string, string> | undefined;
-      const venues = (e._embedded as Record<string, unknown>)?.venues as Array<Record<string, string>> | undefined;
+      const venues = (e._embedded as Record<string, unknown>)?.venues as Array<Record<string, unknown>> | undefined;
       const venue = venues?.[0];
       const prices = e.priceRanges as Array<{ min?: number; max?: number; currency?: string }> | undefined;
       const price = prices?.[0];
@@ -106,8 +106,8 @@ export async function getUpcomingEvents(
         name: e.name as string,
         date: start?.localDate || "",
         time: start?.localTime,
-        venue: venue?.name || config.city,
-        city: venue?.city?.name || config.city,
+        venue: (venue?.name as string) || config.city,
+        city: ((venue?.city as Record<string, string> | undefined)?.name) || config.city,
         imageUrl: bestImage?.url || "",
         priceMin: price?.min,
         priceMax: price?.max,

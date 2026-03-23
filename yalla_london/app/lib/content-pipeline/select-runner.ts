@@ -387,7 +387,7 @@ export async function runContentSelector(
         const shared = [...keywordWords].filter(w => filteredExisting.has(w)).length;
         const union = keywordWords.size + filteredExisting.size - shared;
         const jaccardSimilarity = union === 0 ? 0 : shared / union;
-        return jaccardSimilarity > 0.7;
+        return jaccardSimilarity > 0.85;
       });
 
       if (!isDuplicateOfPublished) {
@@ -397,10 +397,23 @@ export async function runContentSelector(
       }
     }
 
+    // FORCE PUBLISH FALLBACK: If overlap filter blocked everything, force-publish the
+    // highest-scoring candidate. A published article earning $0.01 > a perfect reservoir
+    // earning $0. The overlap check prevents near-identical titles, but 61 articles stuck
+    // in reservoir means the threshold is too aggressive for a niche travel site.
+    if (selected.length === 0 && publishReady.length > 0) {
+      const best = publishReady[0]; // Already sorted by seo_score desc
+      selected.push(best);
+      selectedDraftIds.add(best.id as string);
+      const pairedId = best.paired_draft_id as string | null;
+      if (pairedId) selectedDraftIds.add(pairedId);
+      console.warn(`[content-selector] All ${publishReady.length} candidates had keyword overlap — force-publishing best candidate (score: ${best.seo_score})`);
+    }
+
     if (selected.length === 0) {
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       // Also close the dedup marker so it doesn't appear as "stale/crashed".
-      const msg = `All ${publishReady.length} reservoir candidates have >70% keyword overlap with published articles. Skipping.`;
+      const msg = `All ${publishReady.length} reservoir candidates have >85% keyword overlap with published articles. Skipping.`;
       if (dedupMarkerId) {
         await prisma.cronJobLog.update({
           where: { id: dedupMarkerId },

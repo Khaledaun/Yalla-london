@@ -277,11 +277,11 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         ],
       },
       {
-        keywords: ["ticket", "event", "match", "concert", "show", "theatre", "football", "تذكرة", "فعالية"],
+        keywords: ["ticket", "tickets", "event", "match", "concert", "show", "theatre", "football", "museum", "attraction", "تذكرة", "فعالية"],
         affiliates: [
+          { name: "Tiqets", url: "https://www.tiqets.com/en/london-c824706/", param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`, category: "tickets" },
           { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`, category: "tickets" },
           { name: "Ticketmaster", url: "https://www.ticketmaster.co.uk", param: `?tm_link=${process.env.TICKETMASTER_AFFILIATE_ID || ""}`, category: "tickets" },
-          { name: "London Theatre Direct", url: "https://www.londontheatredirect.com", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "tickets" },
         ],
       },
       {
@@ -292,8 +292,9 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         ],
       },
       {
-        keywords: ["transfer", "airport", "taxi", "car", "transport", "Heathrow", "car rental", "car hire", "نقل", "مطار"],
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "Heathrow", "car rental", "car hire", "pickup", "نقل", "مطار"],
         affiliates: [
+          { name: "Welcome Pickups", url: "https://www.welcomepickups.com/london/", param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`, category: "transport" },
           { name: "Expedia Car", url: "https://www.expedia.com/carsearch?locn=London", param: `?utm_source=${utmSource}&utm_medium=affiliate`, category: "transport" },
           { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
         ],
@@ -505,6 +506,46 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
   return SITE_RULES[siteId] || [];
 }
 
+// Build affiliate rules from Travelpayouts connected programs
+// Travelpayouts uses marker-based tracking: ?marker={MARKER}&utm_source={siteId}
+function getTravelpayoutsRules(siteId: string): AffiliateRule[] {
+  const marker = process.env.TRAVELPAYOUTS_MARKER;
+  if (!marker) return [];
+
+  const tp = (name: string, url: string, category: string) => ({
+    name, url, param: `${url.includes("?") ? "&" : "?"}marker=${marker}&utm_source=${siteId}`, category,
+  });
+
+  // Connected programs (as of March 2026):
+  // - Welcome Pickups: airport transfers, sightseeing rides (8-9%, 45d cookie)
+  // - Tiqets: attraction tickets worldwide (3.5-8%, 30d cookie)
+  // Add more as Khaled joins programs in Travelpayouts dashboard
+  const rules: AffiliateRule[] = [
+    {
+      keywords: ["transfer", "airport", "taxi", "pickup", "car", "ride", "Heathrow", "Gatwick", "Stansted", "نقل", "مطار", "تاكسي"],
+      affiliates: [
+        tp("Welcome Pickups", "https://www.welcomepickups.com/london/", "transport"),
+      ],
+    },
+    {
+      keywords: ["ticket", "tickets", "attraction", "museum", "gallery", "tower", "eye", "madame tussauds", "shard", "تذكرة", "تذاكر", "متحف"],
+      affiliates: [
+        tp("Tiqets", "https://www.tiqets.com/en/london-c824706/", "tickets"),
+      ],
+    },
+    {
+      keywords: ["tour", "tours", "experience", "activity", "sightseeing", "day trip", "جولة", "تجربة", "نشاط"],
+      affiliates: [
+        tp("Tiqets", "https://www.tiqets.com/en/london-c824706/", "activity"),
+        tp("Welcome Pickups", "https://www.welcomepickups.com/london/", "transport"),
+      ],
+    },
+  ];
+
+  console.log(`[affiliate-injection] Loaded ${rules.length} Travelpayouts rules (marker: ${marker.substring(0, 4)}...)`);
+  return rules;
+}
+
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -695,7 +736,8 @@ async function handleAffiliateInjection(request: NextRequest) {
     const dbRulesCache = new Map<string, AffiliateRule[] | null>();
     // Load CjLink-based rules once (global, not per-site — CjLink has no siteId)
     const cjLinkRules = await getAffiliateRulesFromCjLinks(getDefaultSiteId());
-    console.log(`[affiliate-injection] Rule sources: CJ=${cjLinkRules.length} rules, postsNeedingInjection=${needsInjection.length}`);
+    const tpRulesPreview = getTravelpayoutsRules(getDefaultSiteId());
+    console.log(`[affiliate-injection] Rule sources: CJ=${cjLinkRules.length}, TP=${tpRulesPreview.length}, postsNeedingInjection=${needsInjection.length}`);
 
     if (!isEnhancementOwner("affiliate-injection", "affiliate_links")) {
       console.warn("[affiliate-injection] Skipping — not the enhancement owner for affiliate_links");
@@ -723,9 +765,11 @@ async function handleAffiliateInjection(request: NextRequest) {
       // findMatches() deduplicates by affiliate name — first match wins
       const dbRules = dbRulesCache.get(postSiteId) ?? [];
       const staticRules = getAffiliateRulesForSite(postSiteId);
+      const tpRules = getTravelpayoutsRules(postSiteId);
       const mergedRules = [
         ...dbRules,                        // DB-configured rules (highest priority)
         ...(cjLinkRules || []),             // CJ deep link rules (e.g., Vrbo)
+        ...tpRules,                        // Travelpayouts programs (Welcome Pickups, Tiqets)
         ...staticRules,                     // Comprehensive static rules (all categories)
       ];
 

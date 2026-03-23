@@ -14,6 +14,7 @@ import { StructuredData } from "@/components/structured-data";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { NextAuthSessionProvider } from "@/components/session-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { MonetizationScripts } from "@/components/integrations/monetization-scripts";
 import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
@@ -237,6 +238,7 @@ export default async function RootLayout({
                   {children}
                 </SiteShell>
                 <CookieConsentBanner />
+                {!isAdminRoute && <MonetizationScripts siteId={siteId} />}
               </LanguageProvider>
             </ThemeProvider>
           </BrandThemeProvider>

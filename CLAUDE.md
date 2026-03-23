@@ -4300,6 +4300,88 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 158. **Travelpayouts min payout is $400** — higher than CJ ($50). Revenue accumulates but doesn't pay out until $400 threshold. Plan accordingly for cash flow.
 159. **SimilarWeb API is enterprise-priced** — don't build API integrations. Use the free dashboard for manual competitive intelligence (traffic estimates, AI Brand Visibility, topic share-of-voice). GA4 + GSC provide more accurate data for your own site.
 
+### Session: March 23, 2026 — Monetization API Integration & Foundation APIs (24 files, 1,607 lines)
+
+**Complete monetization and foundation API layer — 6 free APIs, 3 auto-monetization scripts, live Ticketmaster events, Unsplash legal imagery.**
+
+**Foundation API Libraries (`lib/apis/` — 7 new files):**
+
+| API | File | Auth | What It Provides |
+|-----|------|------|-----------------|
+| Frankfurter | `currency.ts` | None | GBP→AED/SAR/KWD conversion, 6h cache |
+| Vercel/IP-API | `geolocation.ts` | None | GCC visitor detection from headers |
+| Open-Meteo | `weather.ts` | None | 7-day forecast + marine conditions |
+| Ticketmaster | `events.ts` | API Key | Real events for London & Istanbul |
+| Nager.Date | `holidays.ts` | None | GCC holidays for content scheduling |
+| REST Countries | `countries.ts` | None | Flag, currency, timezone, languages |
+| Unsplash | `unsplash.ts` | API Key | Legal travel photography + attribution |
+
+**Auto-Monetization Scripts (`components/integrations/monetization-scripts.tsx`):**
+- **Stay22 LetMeAllez** — scans all articles, auto-converts hotel mentions to affiliate links (30%+ rev share). Loaded via `lazyOnload` in layout.tsx.
+- **Travelpayouts Drive** — AI finds missed monetization (flights, tours, insurance). Uses safer `tp.media/content` API, NOT the `tp-em.com` script that hijacked scroll.
+- **Travelpayouts LinkSwitcher** — converts raw Booking.com/Viator URLs to tracked links.
+- All 3 skip admin pages and yacht site.
+
+**Homepage Events — Live Ticketmaster Data:**
+- Replaced 6 hardcoded fake events with live Ticketmaster Discovery API fetch
+- Real event names, dates, venues, prices, images, ticket URLs
+- "Live" green badge shows when displaying real Ticketmaster data
+- External ticket links open in new tab with `rel="noopener sponsored"`
+- Graceful fallback to static data when `TICKETMASTER_API_KEY` not configured
+
+**Display Components (`components/integrations/` — 4 new):**
+- `WeatherWidget` — 3/7-day forecast for article sidebars
+- `DestinationInfoCard` — country data card (flag, currency, timezone)
+- `PriceDisplay` — localized pricing (£650 ≈AED 3,035) with visitor detection
+- `Stay22Map` — interactive hotel map with live OTA pricing per site brand colors
+
+**API Routes (`app/api/integrations/` — 5 new):**
+- `GET /api/integrations/weather?siteId=X` — cached weather forecast
+- `GET /api/integrations/countries?siteId=X` — country info
+- `GET /api/integrations/currency?amount=X&from=GBP` — exchange rates with visitor auto-detection
+- `GET /api/integrations/events?siteId=X&limit=12` — Ticketmaster events
+- `GET/POST /api/integrations/unsplash?query=X` — photo search (admin-only)
+
+**Cron Jobs (2 new in `vercel.json`):**
+- `data-refresh` (daily 6:30 UTC) — refreshes currency, weather, holidays, countries caches
+- `events-sync` (weekly Monday 6:45 UTC) — fetches Ticketmaster events to SiteSettings DB
+
+**Env Vars Configured (March 23, 2026):**
+
+| Env Var | Value | Status |
+|---------|-------|--------|
+| `NEXT_PUBLIC_STAY22_AID` | `stay22_ab837a0c-e57b-465c-9f86-49b449f25506` | **Set in Vercel** |
+| `NEXT_PUBLIC_TRAVELPAYOUTS_MARKER` | `510776` | **Set in Vercel** |
+| `TICKETMASTER_API_KEY` | `CAgQInmdVoaEucZiEmT1vG2rcKvU7Ldu` | **Set in Vercel** |
+| `UNSPLASH_ACCESS_KEY` | — | Pending (sign up at unsplash.com/developers) |
+
+**Ticketmaster image domains added to `next.config.js`:** `s1.ticketm.net`, `*.ticketmaster.com`
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `lib/apis/currency.ts` | Frankfurter exchange rates with GCC currencies |
+| `lib/apis/geolocation.ts` | Visitor country + currency detection |
+| `lib/apis/weather.ts` | Open-Meteo 7-day forecast + marine API |
+| `lib/apis/events.ts` | Ticketmaster Discovery API client |
+| `lib/apis/holidays.ts` | GCC public holidays for content scheduling |
+| `lib/apis/countries.ts` | REST Countries destination data |
+| `lib/apis/unsplash.ts` | Legal photo search + attribution builder |
+| `components/integrations/monetization-scripts.tsx` | Stay22 + Travelpayouts auto-monetization |
+| `components/integrations/stay22-map.tsx` | Interactive hotel map embed |
+| `components/integrations/weather-widget.tsx` | Weather forecast display |
+| `components/integrations/destination-info-card.tsx` | Country info card |
+| `components/integrations/price-display.tsx` | Localized price with conversion |
+
+### Critical Rules Learned (March 23 Session — Monetization APIs)
+
+160. **Stay22 AID format is `stay22_` + UUID** — always pass via `NEXT_PUBLIC_STAY22_AID` env var, never hardcode. The `campaign` parameter should be the siteId for revenue attribution.
+161. **Travelpayouts Drive (`tp.media/content`) is safe; `tp-em.com` is NOT** — the `tp-em.com` script injects a tracking overlay that hijacks mouse wheel events (breaks scroll). Use `tp.media/content?promo_id=7923` for Drive and `promo_id=7922` for LinkSwitcher instead.
+162. **Ticketmaster Discovery API returns nested objects** — venue city is `venue.city.name` (nested object, not string). Always type API response fields as `Record<string, unknown>` and cast nested access explicitly. The build error `Property 'name' does not exist on type 'string'` is caused by typing venue fields as `Record<string, string>` when city is actually an object.
+163. **Ticketmaster images: prefer `ratio: "16_9"` with `width >= 640`** — the API returns multiple image sizes per event. Always filter for landscape 16:9 images first, fall back to any available.
+164. **All foundation APIs use in-memory caches** — currency (6h), weather (3h), holidays (24h), countries (permanent). The `data-refresh` cron pre-warms these caches daily. If Vercel cold-starts a new instance, the first request triggers a live fetch (slightly slower).
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

@@ -70,6 +70,15 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.zenithayachts.com',
       },
+      // Ticketmaster event images
+      {
+        protocol: 'https',
+        hostname: 's1.ticketm.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.ticketmaster.com',
+      },
     ]
   },
   // Turbopack workspace root — resolves the "couldn't find next/package.json" error

@@ -109,6 +109,11 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // ─── Holiday-aware topic generation ──────────────────
+      // Fetch upcoming GCC holidays to inject seasonal context into AI prompts.
+      // This drives "publish Eid hotel guide 2 weeks before Eid" intelligence.
+      const holidayContext = await getHolidayContext();
+
       // ─── Generate topics with per-site destination ──────────────────
       let topicData: { topics: any[] } = { topics: [] };
       let arabicData: { topics: any[] } | null = null;
@@ -116,7 +121,7 @@ export async function POST(request: NextRequest) {
 
       if (grokAvailable) {
         try {
-          topicData = await generateTopicsViaGrok(siteDestination, 'en');
+          topicData = await generateTopicsViaGrok(siteDestination, 'en', holidayContext);
           providerUsed = 'grok';
         } catch (e) {
           console.warn(`[weekly-topics] Grok EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
@@ -125,7 +130,7 @@ export async function POST(request: NextRequest) {
 
       if (topicData.topics.length === 0 && pplxKey) {
         try {
-          topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en', siteDestination);
+          topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en', siteDestination, holidayContext);
           providerUsed = 'perplexity';
         } catch (e) {
           console.warn(`[weekly-topics] Perplexity EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
 
       if (topicData.topics.length === 0) {
         try {
-          topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en', siteDestination);
+          topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en', siteDestination, holidayContext);
           providerUsed = 'ai-provider';
         } catch (e) {
           console.warn(`[weekly-topics] AI provider EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
@@ -367,6 +372,33 @@ function getNextSunday(): string {
 }
 
 /**
+ * Get GCC holiday context for topic generation — drives timely content.
+ * Example: "Eid Al Fitr (March 30) → publish hotel/restaurant guides 2 weeks BEFORE"
+ */
+async function getHolidayContext(): Promise<string> {
+  try {
+    const { getUpcomingGCCHolidays, isBookingPeakHoliday } = await import("@/lib/apis/holidays");
+    const holidays = await getUpcomingGCCHolidays(60); // Next 60 days
+    if (holidays.length === 0) return "";
+    const peaks = holidays.filter(isBookingPeakHoliday);
+    const others = holidays.filter((h) => !isBookingPeakHoliday(h)).slice(0, 3);
+    const lines: string[] = [];
+    if (peaks.length > 0) {
+      lines.push(`UPCOMING GCC BOOKING PEAKS (publish guides 2-3 weeks BEFORE):`);
+      for (const p of peaks.slice(0, 5)) {
+        lines.push(`  - ${p.name} (${p.countryCode}): ${p.date}`);
+      }
+    }
+    if (others.length > 0) {
+      lines.push(`Other upcoming GCC holidays: ${others.map((h) => `${h.name} ${h.date}`).join(", ")}`);
+    }
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Call Perplexity API directly — same logic as /api/phase4b/topics/research
  * but without the HTTP round-trip, rate limiter, and feature-flag re-check.
  */
@@ -375,10 +407,12 @@ async function generateTopicsDirect(
   category: string,
   locale: string,
   destination: string,
+  holidayContext: string = "",
 ): Promise<{ topics: any[] }> {
+  const holidayBlock = holidayContext ? `\n\nSEASONAL INTELLIGENCE:\n${holidayContext}\nIf a major holiday is within 30 days, include 1-2 topics timed to that holiday (e.g., "Best Iftar Restaurants" before Ramadan, "Eid Weekend Getaway" before Eid).\n` : "";
   const prompt = `You are a local editor specializing in ${destination} travel content. Suggest 5 timely article topics about ${destination} for "${category}"
 in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
-TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport tips, family activities). 1 topic can be a niche halal/Arab-traveller topic.
+TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport tips, family activities). 1 topic can be a niche halal/Arab-traveller topic.${holidayBlock}
 Return strict JSON array with objects: {title, slug, rationale, sources: string[]}`;
 
   const res = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -424,13 +458,15 @@ async function generateTopicsViaAIProvider(
   category: string,
   locale: string,
   destination: string,
+  holidayContext: string = "",
 ): Promise<{ topics: any[] }> {
   const { generateJSON } = await import('@/lib/ai/provider');
 
+  const holidayBlock = holidayContext ? `\n\nSEASONAL INTELLIGENCE:\n${holidayContext}\nIf a major holiday is within 30 days, include 1-2 topics timed to that holiday.\n` : "";
   const prompt = locale === 'en'
     ? `You are a local editor specializing in ${destination} travel content.
 Suggest 5 timely, SEO-worthy article topics about ${destination} for the category "${category}".
-TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport, family). 1 topic can be a niche halal/Arab-traveller topic.
+TOPIC MIX: 4 topics must be general travel (attractions, hotels, restaurants, itineraries, day trips, nightlife, shopping, seasonal events, transport, family). 1 topic can be a niche halal/Arab-traveller topic.${holidayBlock}
 Each topic should have a short URL slug and 1-2 authority source domains.
 Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
     : `أنت محرر متخصص في محتوى السفر إلى ${destination}.
@@ -463,11 +499,14 @@ Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
 async function generateTopicsViaGrok(
   destination: string,
   locale: string,
+  holidayContext: string = "",
 ): Promise<{ topics: any[] }> {
   const { searchTrendingTopics } = await import('@/lib/ai/grok-live-search');
 
+  // Pass holiday context as extra instruction to Grok
+  const extraContext = holidayContext ? `\nSEASONAL: ${holidayContext.split("\n").slice(0, 3).join(". ")}` : "";
   const result = await Promise.race([
-    searchTrendingTopics(destination, locale),
+    searchTrendingTopics(destination + extraContext, locale),
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Grok topic research timed out after 20s')), 20_000)
     ),

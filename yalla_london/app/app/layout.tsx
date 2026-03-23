@@ -212,6 +212,15 @@ export default async function RootLayout({
             <meta name="google-site-verification" content={verificationCode} />
           ) : null;
         })()}
+        {/* Travelpayouts verification — required for affiliate partnership */}
+        <script
+          data-noptimize="1"
+          data-cfasync="false"
+          data-wpfc-render="false"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var s=document.createElement("script");s.async=1;s.src="https://emrldtp.cc/NTEwNzE3.js?t=510717";document.head.appendChild(s);})();`,
+          }}
+        />
       </head>
       <body className={`antialiased ${isYachtSite ? 'font-body' : 'font-editorial'}`} suppressHydrationWarning>
         <NextAuthSessionProvider>

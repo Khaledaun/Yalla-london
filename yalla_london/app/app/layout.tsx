@@ -213,10 +213,9 @@ export default async function RootLayout({
             <meta name="google-site-verification" content={verificationCode} />
           ) : null;
         })()}
-        {/* Travelpayouts verification — REMOVED: was blocking scroll on the website.
-            The tp-em.com script injects a tracking overlay that hijacks mouse wheel events.
-            Account 510776 is already verified. Re-add ONLY if Travelpayouts requires it for
-            ongoing tracking, but load it lazily (not in <head>) and only on article pages. */}
+        {/* Travelpayouts Drive script now loaded via MonetizationScripts component
+            (components/integrations/monetization-scripts.tsx) using afterInteractive strategy.
+            Uses the exact tp-em.com/NTEwNzc2.js script required for Drive verification. */}
       </head>
       <body className={`antialiased ${isYachtSite ? 'font-body' : 'font-editorial'}`} suppressHydrationWarning>
         <NextAuthSessionProvider>

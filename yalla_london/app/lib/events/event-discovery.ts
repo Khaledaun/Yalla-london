@@ -121,7 +121,6 @@ Return ONLY the JSON array, no other text.`;
 
     const result = await searchWeb(prompt, {
       allowedDomains: EVENT_SOURCES,
-      maxTokens: 2000,
       timeoutMs: Math.min(25000, budgetMs - (Date.now() - start) - 3000),
     });
 
@@ -168,7 +167,9 @@ Return ONLY the JSON array, no other text.`;
 }
 
 /**
- * Save discovered events to DB. Skips duplicates (by title_en + date).
+ * Save discovered events to DB as NewsItem records (news_category: "events").
+ * Uses the existing NewsItem model — no schema migration needed.
+ * Skips duplicates by checking headline_en + event_start_date.
  */
 export async function saveDiscoveredEvents(
   events: Array<
@@ -183,11 +184,26 @@ export async function saveDiscoveredEvents(
 
   for (const evt of events) {
     try {
-      const existing = await prisma.event.findFirst({
+      // Dedup by headline + event date + site
+      const slug = evt.title_en
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80);
+
+      const eventDate = new Date(evt.date);
+      const dateSlug = `${slug}-${evt.date}`;
+
+      const existing = await prisma.newsItem.findFirst({
         where: {
-          title_en: evt.title_en,
-          date: new Date(evt.date),
-          siteId,
+          OR: [
+            { slug: dateSlug },
+            {
+              headline_en: evt.title_en,
+              event_start_date: eventDate,
+              siteId,
+            },
+          ],
         },
       });
 
@@ -196,23 +212,34 @@ export async function saveDiscoveredEvents(
         continue;
       }
 
-      await prisma.event.create({
+      // Set expiry to day after event
+      const expiresAt = new Date(eventDate);
+      expiresAt.setDate(expiresAt.getDate() + 1);
+
+      await prisma.newsItem.create({
         data: {
-          title_en: evt.title_en,
-          title_ar: evt.title_ar || evt.title_en,
-          description_en: evt.description_en,
-          description_ar: "",
-          date: new Date(evt.date),
-          time: evt.time,
-          venue: evt.venue,
-          category: evt.category,
-          price: evt.price_hint,
-          bookingUrl: evt.bookingUrl,
-          affiliateTag: evt.affiliateTag,
-          ticketProvider: evt.ticketProvider,
-          published: true,
-          featured: false,
+          slug: dateSlug,
+          status: "published",
+          headline_en: evt.title_en,
+          headline_ar: evt.title_ar || evt.title_en,
+          summary_en: `${evt.description_en} Venue: ${evt.venue}. ${evt.price_hint}.`,
+          summary_ar: evt.title_ar || evt.title_en,
+          announcement_en: `${evt.category}: ${evt.title_en}`,
+          announcement_ar: evt.title_ar || evt.title_en,
+          source_name: evt.ticketProvider,
+          source_url: evt.bookingUrl,
+          news_category: "events",
+          relevance_score: 75,
+          is_major: false,
+          urgency: "normal",
+          event_start_date: eventDate,
+          expires_at: expiresAt,
+          tags: [evt.category.toLowerCase(), "event", "auto-discovered", evt.affiliateTag],
+          keywords: [evt.title_en, evt.venue, evt.category],
+          agent_source: "event-discovery",
+          agent_notes: `Auto-discovered via Grok. Venue: ${evt.venue}. Time: ${evt.time}. Ticket partner: ${evt.ticketProvider}.`,
           siteId,
+          published_at: new Date(),
         },
       });
       created++;

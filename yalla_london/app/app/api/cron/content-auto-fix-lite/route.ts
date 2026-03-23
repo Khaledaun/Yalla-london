@@ -57,6 +57,8 @@ async function handleAutoFixLite(request: NextRequest) {
   if (flagResponse) return flagResponse;
 
   const { prisma } = await import("@/lib/db");
+  // Eagerly connect — prevents cold-start "Engine is not yet connected" crashes
+  try { await prisma.$connect(); } catch { /* already connected */ }
   const { getActiveSiteIds } = await import("@/config/sites");
   const activeSiteIds = getActiveSiteIds();
 
@@ -502,7 +504,7 @@ async function handleAutoFixLite(request: NextRequest) {
       // Track missing URLs — process up to 200 per run to clear backlogs faster.
       // Each ensureUrlTracked is ~50ms (DB write), so 200 × 50ms = 10s within budget.
       const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
-      for (const post of untracked.slice(0, 200)) {
+      for (const post of untracked.slice(0, 500)) {
         if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
         await ensureUrlTracked(post.url, post.siteId, post.slug);
         neverSubmittedFixed++;

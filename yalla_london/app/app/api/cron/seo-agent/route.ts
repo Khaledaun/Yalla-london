@@ -75,6 +75,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
+    // Eagerly connect — prevents cold-start "Engine is not yet connected" crashes
+    try { await prisma.$connect(); } catch { /* already connected */ }
     const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
     const { forEachSite } = await import("@/lib/resilience");
 
@@ -294,7 +296,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             ...siteFilter,
           },
           select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true, category_id: true },
-          take: 50,
+          take: 100,
           orderBy: { created_at: "desc" },
         });
 

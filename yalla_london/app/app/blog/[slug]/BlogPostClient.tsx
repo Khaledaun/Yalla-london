@@ -49,6 +49,7 @@ interface BlogPostData {
     slug: string;
   } | null;
   author: AuthorData | null;
+  siteId?: string;
 }
 
 interface BlogPostClientProps {

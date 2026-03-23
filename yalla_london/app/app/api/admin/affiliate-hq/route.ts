@@ -137,6 +137,8 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Tab 2: Partners (Advertisers) ──
+  const tpMarker = process.env.NEXT_PUBLIC_TRAVELPAYOUTS_MARKER || process.env.TRAVELPAYOUTS_MARKER || "";
+  const tpConfigured = !!tpMarker;
   let partners = {
     networks: [
       {
@@ -146,6 +148,19 @@ export async function GET(request: NextRequest) {
         apiHealth: getCircuitBreakerState().isOpen ? "red" : isCjConfigured() ? "green" : "gray",
         advertisers: 0,
         websiteId: getWebsiteId() || null,
+      },
+      {
+        id: "travelpayouts",
+        name: "Travelpayouts",
+        status: tpConfigured ? "active" : "unconfigured",
+        apiHealth: tpConfigured ? "green" : "gray",
+        advertisers: tpConfigured ? 3 : 0,
+        marker: tpMarker || null,
+        programs: tpConfigured ? [
+          { name: "Welcome Pickups", commission: "8-9%", cookie: "45d", category: "Transport" },
+          { name: "Tiqets", commission: "3.5-8%", cookie: "30d", category: "Attractions" },
+          { name: "TicketNetwork", commission: "6-12.5%", cookie: "45d", category: "Events" },
+        ] : [],
       },
     ],
     advertisers: [] as Array<{

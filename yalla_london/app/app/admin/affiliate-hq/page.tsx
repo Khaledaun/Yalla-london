@@ -23,7 +23,9 @@ interface AffiliateHQData {
       status: string;
       apiHealth: string;
       advertisers: number;
-      websiteId: string | null;
+      websiteId?: string | null;
+      marker?: string | null;
+      programs?: Array<{ name: string; commission: string; cookie: string; category: string }>;
     }>;
     advertisers: Array<{
       id: string;
@@ -428,7 +430,7 @@ function PartnersTab({
             <div>
               <div style={{ fontWeight: 700, fontSize: "1rem" }}>{n.name}</div>
               <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
-                {n.advertisers} advertisers | Website ID: {n.websiteId || "Not set"}
+                {n.advertisers} {n.id === "travelpayouts" ? "programs" : "advertisers"} | {n.id === "travelpayouts" ? `Marker: ${(n as Record<string, unknown>).marker || "Not set"}` : `Website ID: ${n.websiteId || "Not set"}`}
               </div>
             </div>
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -444,9 +446,21 @@ function PartnersTab({
               <span style={{ fontSize: "0.75rem", textTransform: "capitalize" }}>{n.status}</span>
             </div>
           </div>
-          <button onClick={() => onAction("test_connection")} disabled={!!actionLoading} style={{ ...btnStyle("#6b7280"), marginTop: "0.5rem", padding: "0.25rem 0.75rem", fontSize: "0.75rem" }}>
-            Test Connection
-          </button>
+          {n.id === "cj" && (
+            <button onClick={() => onAction("test_connection")} disabled={!!actionLoading} style={{ ...btnStyle("#6b7280"), marginTop: "0.5rem", padding: "0.25rem 0.75rem", fontSize: "0.75rem" }}>
+              Test Connection
+            </button>
+          )}
+          {n.programs && n.programs.length > 0 && (
+            <div style={{ marginTop: "0.5rem" }}>
+              {n.programs.map((p) => (
+                <div key={p.name} style={{ display: "flex", justifyContent: "space-between", padding: "0.25rem 0", borderBottom: "1px solid #e5e7eb", fontSize: "0.75rem" }}>
+                  <span style={{ fontWeight: 600 }}>{p.name}</span>
+                  <span style={{ color: "#6b7280" }}>{p.commission} · {p.cookie} · {p.category}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 

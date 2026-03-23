@@ -118,13 +118,13 @@ async function handleScheduleExecutor(request: NextRequest) {
     const reservoirCount = await prisma.articleDraft.count({
       where: { current_phase: "reservoir", site_id: { in: activeSiteIds } },
     });
-    if (reservoirCount >= 50) {
+    if (reservoirCount >= 80) {
       const durationMs = Date.now() - cronStart;
       const { logCronExecution: logReservoir } = await import("@/lib/cron-logger");
       await logReservoir("schedule-executor", "completed", {
         durationMs,
         itemsProcessed: 0,
-        resultSummary: { message: `Reservoir full (${reservoirCount}/50) — skipping draft creation`, reservoirCount },
+        resultSummary: { message: `Reservoir full (${reservoirCount}/80) — skipping draft creation`, reservoirCount },
       }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
 
       return NextResponse.json({

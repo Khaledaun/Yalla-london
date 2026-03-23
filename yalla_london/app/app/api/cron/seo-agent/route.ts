@@ -110,7 +110,9 @@ export async function GET(request: NextRequest) {
       itemsSucceeded: loopResult.completed,
       itemsFailed: loopResult.failed,
       resultSummary: { completed: loopResult.completed, failed: loopResult.failed, skipped: loopResult.skipped },
-      ...(loopResult.failed > 0 && Array.isArray(loopResult.errors) && loopResult.errors.length > 0 ? { errorMessage: (loopResult.errors as string[]).slice(0, 3).join("; ") } : {}),
+      ...(loopResult.failed > 0 && loopResult.errors && Object.keys(loopResult.errors).length > 0
+        ? { errorMessage: Object.entries(loopResult.errors).map(([site, err]) => `${site}: ${err}`).slice(0, 3).join("; ") }
+        : {}),
     });
     return NextResponse.json({
       success: overallSuccess,

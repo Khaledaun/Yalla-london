@@ -130,11 +130,13 @@ async function handleDailySeoAudit(request: NextRequest) {
       .catch((err) => console.warn("[daily-seo-audit] onCronFailure hook failed:", err instanceof Error ? err.message : err));
   }
 
+  const errorMessages = results.filter((r) => r.error).map((r) => `${r.siteId}: ${r.error}`);
   await logCronExecution("daily-seo-audit", hasErrors && totalSucceeded === 0 ? "failed" : "completed", {
     durationMs: Date.now() - cronStart,
     itemsProcessed: totalProcessed,
     itemsSucceeded: totalSucceeded,
     resultSummary: { sites: results },
+    ...(errorMessages.length > 0 ? { errorMessage: errorMessages.slice(0, 3).join("; ") } : {}),
   }).catch((err) => console.warn("[daily-seo-audit] logCronExecution failed:", err instanceof Error ? err.message : err));
 
   return NextResponse.json({ success: true, durationMs: Date.now() - cronStart, sites: results });

@@ -280,8 +280,8 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         keywords: ["ticket", "tickets", "event", "match", "concert", "show", "theatre", "football", "museum", "attraction", "تذكرة", "فعالية"],
         affiliates: [
           { name: "Tiqets", url: "https://www.tiqets.com/en/london-c824706/", param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`, category: "tickets" },
+          { name: "TicketNetwork", url: "https://www.ticketnetwork.com/london-events", param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`, category: "tickets" },
           { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`, category: "tickets" },
-          { name: "Ticketmaster", url: "https://www.ticketmaster.co.uk", param: `?tm_link=${process.env.TICKETMASTER_AFFILIATE_ID || ""}`, category: "tickets" },
         ],
       },
       {
@@ -516,9 +516,10 @@ function getTravelpayoutsRules(siteId: string): AffiliateRule[] {
     name, url, param: `${url.includes("?") ? "&" : "?"}marker=${marker}&utm_source=${siteId}`, category,
   });
 
-  // Connected programs (as of March 2026):
+  // Connected programs (as of March 23, 2026):
   // - Welcome Pickups: airport transfers, sightseeing rides (8-9%, 45d cookie)
   // - Tiqets: attraction tickets worldwide (3.5-8%, 30d cookie)
+  // - TicketNetwork: sports, theater, concert event tickets (6-12.5%, 45d cookie)
   // Add more as Khaled joins programs in Travelpayouts dashboard
   const rules: AffiliateRule[] = [
     {
@@ -530,6 +531,14 @@ function getTravelpayoutsRules(siteId: string): AffiliateRule[] {
     {
       keywords: ["ticket", "tickets", "attraction", "museum", "gallery", "tower", "eye", "madame tussauds", "shard", "تذكرة", "تذاكر", "متحف"],
       affiliates: [
+        tp("Tiqets", "https://www.tiqets.com/en/london-c824706/", "tickets"),
+        tp("TicketNetwork", "https://www.ticketnetwork.com/london-events", "tickets"),
+      ],
+    },
+    {
+      keywords: ["football", "match", "premier league", "chelsea", "arsenal", "tottenham", "concert", "theatre", "theater", "west end", "show", "musical", "كرة القدم", "مباراة", "حفلة", "مسرح"],
+      affiliates: [
+        tp("TicketNetwork", "https://www.ticketnetwork.com/london-events", "tickets"),
         tp("Tiqets", "https://www.tiqets.com/en/london-c824706/", "tickets"),
       ],
     },

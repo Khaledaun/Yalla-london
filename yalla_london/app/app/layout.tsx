@@ -218,7 +218,7 @@ export default async function RootLayout({
           data-cfasync="false"
           data-wpfc-render="false"
           dangerouslySetInnerHTML={{
-            __html: `(function(){var s=document.createElement("script");s.async=1;s.src="https://emrldtp.cc/NTEwNzE3.js?t=510717";document.head.appendChild(s);})();`,
+            __html: `(function(){var s=document.createElement("script");s.async=1;s.src="https://tp-em.com/NTEwNzc2.js?t=510776";document.head.appendChild(s);})();`,
           }}
         />
       </head>

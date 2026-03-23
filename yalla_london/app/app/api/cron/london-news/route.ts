@@ -1112,7 +1112,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 7c. Submit newly created news URLs to IndexNow for fast indexing
+    // 7c. Auto-discover upcoming London events and create Event records with affiliate links
+    let eventsCreated = 0;
+    let eventsDiscoveryStatus = "skipped";
+    if (Date.now() - startTime < BUDGET_MS - 15_000) {
+      try {
+        const { discoverEvents, saveDiscoveredEvents } = await import("@/lib/events/event-discovery");
+        const remainingBudget = BUDGET_MS - (Date.now() - startTime) - 8_000;
+        const discovery = await discoverEvents(remainingBudget, siteId);
+        eventsDiscoveryStatus = discovery.status;
+
+        if (discovery.events.length > 0) {
+          const saveResult = await saveDiscoveredEvents(discovery.events, siteId);
+          eventsCreated = saveResult.created;
+          console.log(`[london-news] Event discovery: ${saveResult.created} created, ${saveResult.skipped} skipped`);
+        }
+      } catch (evtErr) {
+        const errMsg = evtErr instanceof Error ? evtErr.message : String(evtErr);
+        console.warn("[london-news] Event discovery failed (non-fatal):", errMsg);
+        errors.push(`Event discovery: ${errMsg}`);
+        eventsDiscoveryStatus = "failed";
+      }
+    }
+
+    // 7d. Submit newly created news URLs to IndexNow for fast indexing
     if (createdItems.length > 0 && Date.now() - startTime < BUDGET_MS - 5_000) {
       try {
         const { submitUrlImmediately } = await import("@/lib/seo/indexing-service");

@@ -412,7 +412,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <NewsSideBanner />
 
       {/* ═══ HERO — Full-screen immersive ═══ */}
-      <section className="relative h-screen min-h-[600px] flex items-end overflow-hidden">
+      {/* -mt-24 pulls hero UP behind the fixed header so it starts from the very top */}
+      <section className="relative h-screen min-h-[600px] flex items-end overflow-hidden -mt-24">
         {/* Rotating Background Images — full bleed */}
         {HERO_IMAGES.map((img, i) => (
           <Image
@@ -462,7 +463,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               <span className="text-yl-red">{hero.titleLine2}</span>
             </h1>
             <p
-              className="font-body text-lg md:text-xl text-yl-gray-400 mb-10 max-w-xl leading-relaxed"
+              className="font-body text-lg md:text-xl text-white/80 mb-10 max-w-xl leading-relaxed"
               style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}
             >
               {hero.description}

@@ -109,7 +109,7 @@ export function NewsSideBanner() {
       <div
         className={cn(
           'fixed top-0 z-50 h-full w-[320px] sm:w-[360px] transition-transform duration-400 ease-yl',
-          'bg-yl-dark-navy/98 backdrop-blur-xl border-l border-white/10 shadow-2xl',
+          'bg-[#0f1621] border-l border-white/10 shadow-2xl',
           isRTL ? 'left-0 border-l-0 border-r border-white/10' : 'right-0',
           isOpen
             ? 'translate-x-0'
@@ -191,26 +191,26 @@ export function NewsSideBanner() {
                       </span>
                     )}
                   </div>
-                  <span className="font-mono text-[9px] text-white/30 tracking-wider">
+                  <span className="font-mono text-[9px] text-white/50 tracking-wider">
                     {timeAgo}
                   </span>
                 </div>
 
                 {/* Headline */}
                 <p className={cn(
-                  'text-sm text-white/85 leading-relaxed group-hover:text-yl-gold transition-colors duration-200',
+                  'text-sm text-white leading-relaxed group-hover:text-yl-gold transition-colors duration-200',
                   isAr ? 'font-arabic' : 'font-body',
-                  item.is_major && 'font-semibold text-white'
+                  item.is_major && 'font-semibold'
                 )}>
                   {text}
                 </p>
 
                 {/* Source */}
                 <div className="flex items-center justify-between mt-2">
-                  <span className="font-mono text-[9px] text-white/25 tracking-wider">
+                  <span className="font-mono text-[9px] text-white/50 tracking-wider">
                     {item.source_name}
                   </span>
-                  <ExpandIcon className="w-3 h-3 text-white/20 group-hover:text-yl-gold transition-colors" />
+                  <ExpandIcon className="w-3 h-3 text-white/40 group-hover:text-yl-gold transition-colors" />
                 </div>
               </Link>
             )

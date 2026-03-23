@@ -4255,6 +4255,51 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 153. **Reservoir articles must age-out after 7 days** — articles that sit in reservoir for a week without promotion are dead inventory (usually keyword overlap with published articles). They inflate the reservoir count (blocking new draft creation at cap 50) and waste diagnostic-sweep cycles. Reject with `RESERVOIR_AGE_OUT` reason.
 154. **Never schedule 3+ crons at the same minute** — PgBouncer connection pool exhaustion cascades. Stagger by 5-10 minutes minimum. The 11:00 UTC collision (content-auto-fix + verify-indexing + subscriber-emails) likely caused downstream failures for content-selector at 11:05.
 
+### Session: March 23, 2026 — Content-Selector Publishing Fix, Travelpayouts Integration, Homepage Visual Fixes
+
+**CRITICAL: Content-Selector Math.min Publishing Bug Fixed:**
+- **Root cause:** Keyword overlap check in `select-runner.ts` used `Math.min(candidateSize, publishedSize)` as the denominator. When a candidate keyword "luxury hotels london" (3 words) shared all 3 with a published title (8+ words), overlap = `3/min(3,8)` = `3/3` = **100%**. Since EVERY London article shares "london", "luxury", "best" — ALL 61 reservoir candidates were blocked at 80% threshold. Pipeline frozen for days, 0 articles published.
+- **Fix:** Changed to Jaccard similarity (intersection/union) with site-common stop words ("london", "best", "top", "guide", "luxury", etc.) stripped from comparison. Threshold set to 70% Jaccard.
+- **Impact:** 61 articles in reservoir immediately unblocked for publishing.
+
+**Travelpayouts Affiliate Integration:**
+- Updated verification script from old ID (NTEwNzE3/510717) to new ID (NTEwNzc2/510776) in `app/layout.tsx`
+- Account registered with `info@zenitha.luxury`, API token and marker configured in Vercel env vars
+- Created `getTravelpayoutsRules()` in `affiliate-injection/route.ts` — generates affiliate rules from connected Travelpayouts programs using `TRAVELPAYOUTS_MARKER` env var
+- 3 connected programs wired into injection:
+  - **Welcome Pickups** (8-9%, 45d cookie) → transport, airport, transfer articles
+  - **Tiqets** (3.5-8%, 30d cookie) → tickets, attractions, museum articles
+  - **TicketNetwork** (6-12.5%, 45d cookie) → football, concerts, theatre, events articles
+- Rules merge into existing pipeline: DB rules > CJ rules > Travelpayouts > static rules
+- Also added Welcome Pickups, Tiqets, TicketNetwork to static fallback rules for yalla-london
+- Env vars: `TRAVELPAYOUTS_API_TOKEN`, `TRAVELPAYOUTS_MARKER` (both set in Vercel)
+
+**SimilarWeb Web Intelligence Connected:**
+- GA4 connected to SimilarWeb dashboard for yalla-london.com
+- March 9-15 data: 186 visits (+135% WoW), 5:45 avg duration, 51% bounce, 101 unique visitors (+339% WoW), 472 page views (+70% WoW)
+- Traffic share: 0.25% in niche (+0.08pp WoW, +0.25pp YoY)
+- SimilarWeb API is enterprise-priced — free tier used for manual competitive intelligence only
+
+**Homepage Visual Fixes (3 issues):**
+1. Hero section: added `-mt-24` to pull hero UP behind fixed header (was showing cream gap)
+2. News side banner: changed from transparent `bg-yl-dark-navy/98 backdrop-blur-xl` to solid `bg-[#0f1621]` — backdrop blur was washing out all text. Headline text bumped to `text-white` (was `white/85`), source/time to `white/50` (was `white/25-30`)
+3. Hero subtitle: "Your definitive Arabic guide..." changed from `text-yl-gray-400` to `text-white/80`
+
+**Files Modified:**
+- `app/layout.tsx` — Travelpayouts script updated
+- `lib/content-pipeline/select-runner.ts` — Math.min→Jaccard, stop words, threshold fix
+- `app/api/cron/affiliate-injection/route.ts` — getTravelpayoutsRules(), TicketNetwork, static rules
+- `components/home/yalla-homepage.tsx` — hero -mt-24, subtitle contrast
+- `components/news-side-banner.tsx` — solid bg, text contrast
+
+### Critical Rules Learned (March 23 Session)
+
+155. **Keyword overlap MUST use Jaccard similarity (intersection/union), NEVER Math.min** — `Math.min` as denominator means the shorter set always gets 100% overlap if all its words appear in the longer set. Every "luxury hotels london" article matches every published title containing those 3 common words. Jaccard (shared/total_unique) properly scales: 3 shared out of 10 unique = 30%, not 100%.
+156. **Site-common stop words must be stripped before keyword comparison** — "london", "best", "top", "guide", "luxury", "2026" appear in virtually EVERY article on a London travel site. Including them in overlap calculations means every pair of articles has 50%+ overlap before considering topic-specific words. Strip them first, then compare.
+157. **Travelpayouts uses marker-based tracking** — all links append `?marker={TRAVELPAYOUTS_MARKER}&utm_source={siteId}`. No API call needed for link generation — just the marker env var. This is simpler than CJ (which requires deep link generation via publisherCid + advertiserExternalId).
+158. **Travelpayouts min payout is $400** — higher than CJ ($50). Revenue accumulates but doesn't pay out until $400 threshold. Plan accordingly for cash flow.
+159. **SimilarWeb API is enterprise-priced** — don't build API integrations. Use the free dashboard for manual competitive intelligence (traffic estimates, AI Brand Visibility, topic share-of-voice). GA4 + GSC provide more accurate data for your own site.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

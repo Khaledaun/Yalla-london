@@ -357,7 +357,8 @@ export async function runContentSelector(
       orderBy: { created_at: "desc" },
     });
     const publishedKeywordSets = publishedTitles
-      .map((p) => new Set<string>((p.title_en || "").toLowerCase().split(/\s+/).filter((w) => w.length > 2)));
+      .map((p) => new Set<string>((p.title_en || "").toLowerCase().split(/\s+/).filter((w) => w.length > 2)))
+      // Note: site-common stop words stripped during comparison loop below
 
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
@@ -373,15 +374,20 @@ export async function runContentSelector(
       const keyword = ((candidate.keyword as string) || "").toLowerCase().trim();
       if (!keyword) continue;
 
-      // Check against PUBLISHED articles (>80% overlap = true duplicate)
-      // Threshold raised from 60% to 80% — all London articles share common words
-      // like "london", "luxury", "best", "2026". 60% flagged everything as duplicate.
-      const keywordWords = new Set<string>(keyword.split(/\s+/).filter(w => w.length > 2));
+      // Check against PUBLISHED articles for true duplicates.
+      // Use Jaccard similarity (intersection/union) — NOT Math.min which caused
+      // 100% overlap on short keywords sharing common words like "london", "luxury".
+      // Also strip site-common words that EVERY article shares.
+      const SITE_STOP_WORDS = new Set(["london", "best", "top", "guide", "luxury", "arab", "halal", "2025", "2026", "2027", "ultimate", "complete"]);
+      const keywordWords = new Set<string>(keyword.split(/\s+/).filter(w => w.length > 2 && !SITE_STOP_WORDS.has(w)));
       const isDuplicateOfPublished = keywordWords.size > 0 && publishedKeywordSets.some((existingWords) => {
         if (existingWords.size === 0) return false;
-        const shared = [...keywordWords].filter(w => existingWords.has(w)).length;
-        const overlapRatio = shared / Math.min(keywordWords.size, existingWords.size);
-        return overlapRatio > 0.8;
+        const filteredExisting = new Set([...existingWords].filter(w => !SITE_STOP_WORDS.has(w)));
+        if (filteredExisting.size === 0) return false;
+        const shared = [...keywordWords].filter(w => filteredExisting.has(w)).length;
+        const union = keywordWords.size + filteredExisting.size - shared;
+        const jaccardSimilarity = union === 0 ? 0 : shared / union;
+        return jaccardSimilarity > 0.7;
       });
 
       if (!isDuplicateOfPublished) {
@@ -394,7 +400,7 @@ export async function runContentSelector(
     if (selected.length === 0) {
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       // Also close the dedup marker so it doesn't appear as "stale/crashed".
-      const msg = "All reservoir articles have keyword overlap with each other. Skipping.";
+      const msg = `All ${publishReady.length} reservoir candidates have >70% keyword overlap with published articles. Skipping.`;
       if (dedupMarkerId) {
         await prisma.cronJobLog.update({
           where: { id: dedupMarkerId },

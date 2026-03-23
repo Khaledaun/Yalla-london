@@ -166,24 +166,28 @@ const fallbackArticles = {
   ],
 }
 
-const events = {
+// Events are now fetched LIVE from Ticketmaster API via /api/integrations/events
+// Fallback data shown only when API key is not configured or API fails
+const FALLBACK_EVENTS = {
   en: [
-    { id: '1', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
-    { id: '2', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
-    { id: '3', title: 'Chelsea Flower Show', venue: 'Royal Hospital Chelsea', day: '19', month: 'May', price: 'From £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
-    { id: '4', title: 'The Lion King — West End', venue: 'Lyceum Theatre', day: '30', month: 'Apr', price: 'From £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
-    { id: '5', title: 'Wimbledon Championships', venue: 'All England Club', day: '29', month: 'Jun', price: 'From £90', image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80' },
-    { id: '6', title: 'Notting Hill Carnival', venue: 'Notting Hill', day: '30', month: 'Aug', price: 'Free', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&q=80' },
+    { id: '1', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80', url: '' },
+    { id: '2', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80', url: '' },
+    { id: '3', title: 'Chelsea Flower Show', venue: 'Royal Hospital Chelsea', day: '19', month: 'May', price: 'From £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80', url: '' },
+    { id: '4', title: 'Wimbledon Championships', venue: 'All England Club', day: '29', month: 'Jun', price: 'From £90', image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80', url: '' },
+    { id: '5', title: 'Notting Hill Carnival', venue: 'Notting Hill', day: '30', month: 'Aug', price: 'Free', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&q=80', url: '' },
+    { id: '6', title: 'The Lion King — West End', venue: 'Lyceum Theatre', day: '30', month: 'Apr', price: 'From £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80', url: '' },
   ],
   ar: [
-    { id: '1', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
-    { id: '2', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
-    { id: '3', title: 'معرض تشيلسي للزهور', venue: 'مستشفى تشيلسي الملكي', day: '19', month: 'مايو', price: 'من £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
-    { id: '4', title: 'الأسد الملك — ويست إند', venue: 'مسرح ليسيوم', day: '30', month: 'أبريل', price: 'من £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
-    { id: '5', title: 'بطولة ويمبلدون', venue: 'نادي إنجلترا', day: '29', month: 'يونيو', price: 'من £90', image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80' },
-    { id: '6', title: 'كرنفال نوتينغ هيل', venue: 'نوتينغ هيل', day: '30', month: 'أغسطس', price: 'مجاني', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&q=80' },
+    { id: '1', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80', url: '' },
+    { id: '2', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80', url: '' },
+    { id: '3', title: 'معرض تشيلسي للزهور', venue: 'مستشفى تشيلسي الملكي', day: '19', month: 'مايو', price: 'من £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80', url: '' },
+    { id: '4', title: 'بطولة ويمبلدون', venue: 'نادي إنجلترا', day: '29', month: 'يونيو', price: 'من £90', image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80', url: '' },
+    { id: '5', title: 'كرنفال نوتينغ هيل', venue: 'نوتينغ هيل', day: '30', month: 'أغسطس', price: 'مجاني', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&q=80', url: '' },
+    { id: '6', title: 'الأسد الملك — ويست إند', venue: 'مسرح ليسيوم', day: '30', month: 'أبريل', price: 'من £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80', url: '' },
   ],
 }
+
+type EventItem = { id: string; title: string; venue: string; day: string; month: string; price: string; image: string; url: string }
 
 const guides = {
   en: [
@@ -348,10 +352,56 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [email, setEmail] = useState('')
   const [heroIndex, setHeroIndex] = useState(0)
   const [dbArticles, setDbArticles] = useState<DBArticle[]>([])
+  const [liveEvents, setLiveEvents] = useState<EventItem[]>([])
   const isRTL = locale === 'ar'
   const t = text[locale]
   const hero = heroContent[locale]
   const featured = featuredArticle[locale]
+
+  // Fetch REAL events from Ticketmaster API
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/integrations/events?siteId=yalla-london&limit=6')
+        if (res.ok) {
+          const json = await res.json()
+          const tmEvents = json.events || []
+          if (Array.isArray(tmEvents) && tmEvents.length > 0) {
+            const months = locale === 'ar'
+              ? ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+              : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            setLiveEvents(tmEvents.map((e: Record<string, unknown>) => {
+              const d = new Date(String(e.date) + 'T00:00:00')
+              const priceMin = e.priceMin as number | undefined
+              const priceMax = e.priceMax as number | undefined
+              const currency = (e.currency as string) === 'GBP' ? '£' : '$'
+              let price = locale === 'ar' ? 'مشاهدة الأسعار' : 'See prices'
+              if (priceMin) {
+                price = locale === 'ar'
+                  ? `من ${currency}${Math.round(priceMin)}`
+                  : priceMax && priceMax !== priceMin
+                    ? `${currency}${Math.round(priceMin)} – ${currency}${Math.round(priceMax)}`
+                    : `From ${currency}${Math.round(priceMin)}`
+              }
+              return {
+                id: e.id as string,
+                title: e.name as string,
+                venue: e.venue as string,
+                day: String(d.getDate()).padStart(2, '0'),
+                month: months[d.getMonth()],
+                price,
+                image: (e.imageUrl as string) || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80',
+                url: (e.url as string) || '',
+              }
+            }))
+          }
+        }
+      } catch { /* fall back to static events */ }
+    })()
+  }, [locale])
+
+  // Use live Ticketmaster events if available, otherwise fallback
+  const displayEvents = liveEvents.length > 0 ? liveEvents : FALLBACK_EVENTS[locale]
 
   // Fetch real published articles from DB for the "Latest Stories" section
   useEffect(() => {
@@ -610,15 +660,23 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.upcomingEvents} href="/events" linkText={t.viewAll} icon={Ticket} isArabic={isRTL} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events[locale].map((event) => (
+            {displayEvents.map((event) => {
+              // Link to real Ticketmaster page if available, otherwise /events
+              const ticketHref = event.url || getPageAffiliateLink(event.title, 'experience', 'yalla-london', 'homepage-events')
+              return (
               <div key={event.id} className="group bg-yl-cream rounded-[14px] overflow-hidden border border-yl-gray-200 hover:-translate-y-1 hover:border-yl-gold/30 hover:shadow-lg transition-all duration-400 ease-yl">
                 <div className="relative h-44">
-                  <Image src={event.image} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" />
+                  <Image src={event.image} alt={event.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300 ease-yl" unoptimized={event.image.includes('ticketmaster') || event.image.includes('tmol')} />
                   <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/50 to-transparent" />
                   <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-md`}>
                     <div className="text-2xl font-heading font-bold text-yl-charcoal leading-none">{event.day}</div>
                     <div className="font-mono text-[9px] font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
                   </div>
+                  {liveEvents.length > 0 && (
+                    <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
+                      <span className="bg-green-500 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-5">
                   <h3 className={`font-heading font-bold text-yl-charcoal mb-1.5 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{event.title}</h3>
@@ -626,12 +684,19 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     <MapPin className="w-3.5 h-3.5" /> {event.venue}
                   </p>
                   <span className="block font-mono text-sm font-bold text-yl-charcoal tracking-wider mb-3">{event.price}</span>
-                  <BrandButton variant="primary" size="sm" href="/events" className="w-full justify-center">
-                    {t.getTickets}
-                  </BrandButton>
+                  {event.url ? (
+                    <a href={event.url} target="_blank" rel="noopener sponsored" className="inline-flex items-center justify-center font-mono tracking-wider uppercase rounded-lg transition-all duration-300 ease-yl bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg py-2 px-4 text-[9px] w-full justify-center">
+                      {t.getTickets}
+                    </a>
+                  ) : (
+                    <BrandButton variant="primary" size="sm" href="/events" className="w-full justify-center">
+                      {t.getTickets}
+                    </BrandButton>
+                  )}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>

@@ -287,6 +287,14 @@
     {
       "path": "/api/cron/perplexity-executor",
       "schedule": "15,45 * * * *"
+    },
+    {
+      "path": "/api/cron/data-refresh",
+      "schedule": "30 6 * * *"
+    },
+    {
+      "path": "/api/cron/events-sync",
+      "schedule": "45 6 * * 1"
     }
   ]
 }

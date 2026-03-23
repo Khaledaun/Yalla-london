@@ -60,6 +60,8 @@ async function handleProcessQueue(request: NextRequest) {
       process.env.GOOGLE_INDEXING_DRY_RUN === "true";
 
     const { prisma } = await import("@/lib/db");
+    // Eagerly connect — prevents cold-start "Engine is not yet connected" crashes
+    try { await prisma.$connect(); } catch { /* already connected */ }
     const { GoogleIndexingAPI, classifyUrl, getBilingualPair } = await import("@/lib/seo/google-indexing-api");
     const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
 
@@ -184,7 +186,7 @@ async function handleProcessQueue(request: NextRequest) {
             const indexNowKey = process.env.INDEXNOW_KEY;
             if (indexNowKey) {
               // Cap at 50 per site per run to avoid timeout
-              const batch = standardUrls.slice(0, 50);
+              const batch = standardUrls.slice(0, 100);
               const inResults = await submitToIndexNow(batch, siteUrl, indexNowKey);
               const success = inResults.some((r) => r.success);
               if (success) {

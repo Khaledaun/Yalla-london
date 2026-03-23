@@ -2209,9 +2209,13 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <ActionButton onClick={() => triggerAction("/api/admin/content-cleanup", { action: "fix_all" }, "Cleanup")} loading={actionLoading === "Cleanup"} variant="amber">
             Clean + Dedup
           </ActionButton>
-          <Link href="/admin/cockpit/validator" className="col-span-2 rounded-xl text-center block py-2.5 transition-all active:scale-[0.97]"
+          <Link href="/admin/cockpit/validator" className="rounded-xl text-center block py-2.5 transition-all active:scale-[0.97]"
                 style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: '#78716C', backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.8)', borderRadius: 10, boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}>
             System Validator
+          </Link>
+          <Link href="/admin/integrations" className="rounded-xl text-center block py-2.5 transition-all active:scale-[0.97]"
+                style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: '#78716C', backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.8)', borderRadius: 10, boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}>
+            Integration Health
           </Link>
         </div>
         {actionResult && (

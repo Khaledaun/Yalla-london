@@ -211,6 +211,15 @@ export const adminNavigation: NavItem[] = [
     description: 'Stripe + Mercury + Affiliate revenue'
   },
   {
+    id: 'integrations',
+    label: 'Integrations',
+    icon: Activity,
+    href: '/admin/integrations',
+    badgeText: 'Health',
+    badgeVariant: 'default',
+    description: 'API health, affiliate links, monetization status'
+  },
+  {
     id: 'automation-hub',
     label: 'Automation Hub',
     icon: Bot,

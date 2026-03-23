@@ -4377,10 +4377,61 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 ### Critical Rules Learned (March 23 Session — Monetization APIs)
 
 160. **Stay22 AID format is `stay22_` + UUID** — always pass via `NEXT_PUBLIC_STAY22_AID` env var, never hardcode. The `campaign` parameter should be the siteId for revenue attribution.
-161. **Travelpayouts Drive (`tp.media/content`) is safe; `tp-em.com` is NOT** — the `tp-em.com` script injects a tracking overlay that hijacks mouse wheel events (breaks scroll). Use `tp.media/content?promo_id=7923` for Drive and `promo_id=7922` for LinkSwitcher instead.
+161. **Travelpayouts Drive requires the EXACT `tp-em.com` script for verification** — the tp.media/content URLs are a different product. Travelpayouts verification scanner specifically looks for `tp-em.com/NTEwNzc2.js?t=510776`. Must use `afterInteractive` strategy (not `lazyOnload`) so the verifier detects it. The NTEwNzc2 is base64-encoded account ID (510776). The tp-em.com script IS the Drive product — it handles both content monetization AND link switching in a single script. No need for separate Drive + LinkSwitcher scripts.
 162. **Ticketmaster Discovery API returns nested objects** — venue city is `venue.city.name` (nested object, not string). Always type API response fields as `Record<string, unknown>` and cast nested access explicitly. The build error `Property 'name' does not exist on type 'string'` is caused by typing venue fields as `Record<string, string>` when city is actually an object.
 163. **Ticketmaster images: prefer `ratio: "16_9"` with `width >= 640`** — the API returns multiple image sizes per event. Always filter for landscape 16:9 images first, fall back to any available.
 164. **All foundation APIs use in-memory caches** — currency (6h), weather (3h), holidays (24h), countries (permanent). The `data-refresh` cron pre-warms these caches daily. If Vercel cold-starts a new instance, the first request triggers a live fetch (slightly slower).
+165. **Content-selector Jaccard overlap threshold must be >= 0.85 for niche sites** — at 0.7, a London travel site blocks ALL candidates because articles share words like "hotels", "restaurants", "family" even after stripping stop words like "london", "best", "luxury". 0.85 only blocks near-identical titles.
+166. **Content-selector MUST have a force-publish fallback** — if ALL reservoir candidates are blocked by keyword overlap, force-publish the highest-scoring one. Without this, reservoir fills to cap (50+), blocks all new draft creation (content-builder-create, schedule-executor both skip), and the entire pipeline freezes. A published article earning $0.01 > a perfect reservoir earning $0.
+167. **`BlogPostData` interface in `BlogPostClient.tsx` must include `siteId?: string`** — needed by `Stay22Map` component which renders a per-site hotel map. Without it, TypeScript build fails.
+
+### Session: March 23, 2026 — Travelpayouts Drive Fix, Build Fix & Publishing Pipeline Unblock
+
+**Travelpayouts Drive Verification Fix:**
+- **Problem:** Travelpayouts couldn't verify Drive installation — error "We couldn't find the Drive code on yalla-london.com"
+- **Root cause:** Used `tp.media/content?promo_id=7923` (a different product URL) instead of the exact `tp-em.com/NTEwNzc2.js?t=510776` script from the TP dashboard
+- **Fix:** Replaced tp.media Drive + LinkSwitcher scripts with the single exact `tp-em.com` script. Changed strategy from `lazyOnload` to `afterInteractive` so verifier can detect it.
+- The tp-em.com script IS the Drive product — handles both content monetization AND link switching in one script
+
+**Build Fix — `BlogPostData` missing `siteId`:**
+- `BlogPostClient.tsx` line 410 referenced `post.siteId` for the `Stay22Map` component
+- `BlogPostData` interface didn't include `siteId` field → TypeScript build error
+- **Fix:** Added `siteId?: string` to `BlogPostData` interface
+
+**CRITICAL: Publishing Pipeline Completely Frozen — Unblocked:**
+
+**Diagnosis from 12h operations log (169 entries):**
+- 61 articles stuck in reservoir (cap is 50)
+- content-selector ran 4x in 12h, promoted 0 every time: `"All reservoir articles have keyword overlap with each other. Skipping."`
+- Because reservoir was full, ALL creation crons blocked: content-builder-create, schedule-executor → `"Reservoir full (61/50) — skipping draft creation"`
+- content-builder found 0 drafts to advance (no active pipeline drafts)
+- Entire pipeline frozen: no new drafts, no publishing, no advancement
+
+**Root cause:** Content-selector's Jaccard overlap check at 0.7 threshold was blocking ALL 12 reservoir candidates. On a niche London travel site, all articles share topic-specific words ("hotels", "restaurants", "family", "experience") even after stripping common stop words ("london", "best", "luxury", "guide"). Every candidate had >70% Jaccard similarity with at least one published article.
+
+**Two fixes applied:**
+1. **Jaccard threshold raised 0.7 → 0.85** — only blocks near-identical titles, not merely related topics on the same niche
+2. **Force-publish fallback added** — if ALL candidates still blocked after 0.85 threshold, content-selector force-publishes the highest-scoring candidate. Guarantees at least 1 article per run when reservoir has candidates.
+
+**Expected impact after deploy:**
+- Next content-selector run promotes 1+ articles from reservoir
+- Reservoir starts draining below cap (50)
+- content-builder-create and schedule-executor unblock
+- Pipeline resumes: new drafts → 8 phases → reservoir → published
+
+**Other observations from 12h log:**
+- seo-agent failing consistently (45s timeout, `failed: 1`) — needs investigation
+- daily-content-generate failed (all AI providers timed out: grok, openai, claude)
+- london-news working correctly (3-5 published per run)
+- affiliate-injection injecting 4 posts per run (CJ + Travelpayouts rules working)
+- IndexNow submitting 100+ URLs successfully per run
+- weekly-topics generated 10 new topics at 04:10 UTC
+
+**Files Modified:**
+- `components/integrations/monetization-scripts.tsx` — tp-em.com exact script for Drive verification
+- `app/layout.tsx` — updated Travelpayouts comment
+- `app/blog/[slug]/BlogPostClient.tsx` — added `siteId?: string` to `BlogPostData`
+- `lib/content-pipeline/select-runner.ts` — overlap 0.7→0.85, force-publish fallback
 
 ## Weekly Manual Checks
 

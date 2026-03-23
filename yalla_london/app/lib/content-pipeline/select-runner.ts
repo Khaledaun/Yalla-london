@@ -51,6 +51,9 @@ export async function runContentSelector(
   try {
     const { prisma } = await import("@/lib/db");
 
+    // Eagerly connect — prevents "Engine is not yet connected" on cold starts
+    try { await prisma.$connect(); } catch { /* already connected */ }
+
     // ── Cleanup stale "started" markers ──
     // If a previous run crashed without completing, its "started" marker stays forever,
     // blocking all future runs via the dedup guard. Mark any "started" entries older than
@@ -138,8 +141,8 @@ export async function runContentSelector(
     // Import quality gate threshold from centralized SEO standards — single source of truth.
     // When standards.ts is updated (e.g., after algorithm changes), this threshold updates automatically.
     const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
-    // Use reservoirMinScore (45) to fetch — NOT qualityGateScore (55).
-    // The pre-pub gate hard-blocks at seo_score < 30, so articles scoring 45+ will
+    // Use reservoirMinScore (40) to fetch — NOT qualityGateScore (40).
+    // The pre-pub gate hard-blocks at seo_score < 30, so articles scoring 40+ will
     // pass the gate (with warnings) and get published. Using a higher DB filter would
     // permanently freeze articles that entered the reservoir under the old threshold.
     const MIN_QUALITY_SCORE = CONTENT_QUALITY.reservoirMinScore;
@@ -161,11 +164,19 @@ export async function runContentSelector(
     let candidates: Array<Record<string, unknown>> = [];
     try {
       // Step 1: Find candidates
+      // Use OR to catch articles with NULL quality_score (e.g., reverted from
+      // "promoting" by crash recovery, or created by old code paths).
+      // NULL is not >= 40 in SQL — without the OR, these articles are invisible.
       const reservoirDrafts = await prisma.articleDraft.findMany({
         where: {
           site_id: { in: activeSites },
           current_phase: "reservoir",
-          quality_score: { gte: MIN_QUALITY_SCORE },
+          OR: [
+            { quality_score: { gte: MIN_QUALITY_SCORE } },
+            { quality_score: null, seo_score: { gte: MIN_QUALITY_SCORE } },
+            // Articles with BOTH null = old/broken, still include if seo_score exists
+            { quality_score: null, seo_score: null },
+          ],
         },
         orderBy: [
           { quality_score: "desc" },
@@ -209,7 +220,7 @@ export async function runContentSelector(
         [totalReservoir, frozenCount, lowScoreCount] = await Promise.all([
           prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites } } }),
           prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, phase_attempts: { gte: MAX_ENHANCEMENT_ATTEMPTS } } }),
-          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, quality_score: { lt: MIN_QUALITY_SCORE } } }),
+          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, quality_score: { not: null, lt: MIN_QUALITY_SCORE } } }),
         ]);
       } catch (countErr) { console.warn("[select-runner] reservoir count failed:", countErr instanceof Error ? countErr.message : countErr); }
 

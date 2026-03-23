@@ -61,6 +61,15 @@ async function handleContentSelector(request: NextRequest) {
   }
 
   try {
+    // Eagerly connect to DB — prevents "Engine is not yet connected" on Vercel
+    // cold starts when Supabase pooler is under load (same pattern as cockpit route).
+    try {
+      const { prisma } = await import("@/lib/db");
+      await prisma.$connect();
+    } catch {
+      // $connect may fail if already connected (safe to ignore)
+    }
+
     // Run the selector
     const { runContentSelector } = await import("@/lib/content-pipeline/select-runner");
     const result = await runContentSelector({ timeoutMs: 53_000 });

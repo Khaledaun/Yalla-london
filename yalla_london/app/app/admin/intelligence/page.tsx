@@ -97,8 +97,37 @@ export default function IntelligencePage() {
     }
   };
 
-  const copyAsJson = (obj: unknown) => {
-    navigator.clipboard.writeText(JSON.stringify(obj, null, 2));
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const copyAsJson = async (obj: unknown) => {
+    const text = JSON.stringify(obj, null, 2);
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        setCopyFeedback("Copied!");
+        setTimeout(() => setCopyFeedback(null), 2000);
+        return;
+      }
+    } catch { /* falls through to textarea fallback */ }
+    // iOS Safari fallback — textarea + execCommand
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.setAttribute("readonly", "");
+      el.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+      document.body.appendChild(el);
+      el.select();
+      el.setSelectionRange(0, text.length);
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopyFeedback("Copied!");
+      setTimeout(() => setCopyFeedback(null), 2000);
+    } catch {
+      // Last resort — show the JSON in a prompt so user can manually copy
+      setCopyFeedback("Copy failed — tap and hold to select");
+      setTimeout(() => setCopyFeedback(null), 3000);
+      window.prompt("Copy this JSON:", text);
+    }
   };
 
   if (loading) {
@@ -256,7 +285,7 @@ export default function IntelligencePage() {
               </ZHActionBtn>
               {auditResult && (
                 <ZHActionBtn variant="ghost" onClick={() => copyAsJson(auditResult)}>
-                  <Copy size={11} /> Copy JSON
+                  <Copy size={11} /> {copyFeedback || "Copy JSON"}
                 </ZHActionBtn>
               )}
             </div>

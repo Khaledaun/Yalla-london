@@ -432,9 +432,17 @@ export function getAllAffiliateLinks(
 /**
  * Append SID tracking parameter for revenue attribution.
  * CJ SID format: siteId_pageSlug (max 100 chars)
+ * Also appends Travelpayouts marker if configured (for LinkSwitcher recognition).
  */
 function appendSid(url: string, siteId: string, pageSlug: string): string {
   const sid = `${siteId}_${pageSlug}`.substring(0, 100);
   const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}sid=${encodeURIComponent(sid)}`;
+  let tracked = `${url}${separator}sid=${encodeURIComponent(sid)}`;
+  // Append Travelpayouts marker for partners in the TP network
+  // LinkSwitcher will also catch these, but explicit marker ensures attribution
+  const tpMarker = typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_TRAVELPAYOUTS_MARKER : undefined;
+  if (tpMarker) {
+    tracked += `&marker=${tpMarker}&utm_source=${siteId}`;
+  }
+  return tracked;
 }

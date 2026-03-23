@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
+import { Stay22Map } from '@/components/integrations/stay22-map'
+import { WeatherWidget } from '@/components/integrations/weather-widget'
 
 interface AuthorData {
   name_en: string;
@@ -47,6 +49,7 @@ interface BlogPostData {
     slug: string;
   } | null;
   author: AuthorData | null;
+  siteId?: string;
 }
 
 interface BlogPostClientProps {
@@ -394,6 +397,26 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                     }}
                   />
                 )}
+
+                {/* ─── Stay22 Hotel Map — auto-shown for accommodation-related articles ─── */}
+                {(() => {
+                  const contentLower = (post.content_en || '').toLowerCase();
+                  const isHotelArticle = ['hotel', 'hotels', 'accommodation', 'stay', 'resort', 'booking', 'check-in'].some(kw => contentLower.includes(kw));
+                  if (!isHotelArticle) return null;
+                  return (
+                    <div className="mt-10 mb-6">
+                      <h3 className={`text-lg font-heading font-bold text-yl-charcoal mb-3 ${isRTL ? 'font-arabic' : ''}`}>
+                        {language === 'en' ? 'Find Hotels Near This Location' : 'ابحث عن فنادق بالقرب من هذا الموقع'}
+                      </h3>
+                      <Stay22Map siteId={post.siteId || 'yalla-london'} articleSlug={post.slug} height={350} />
+                    </div>
+                  );
+                })()}
+
+                {/* ─── Weather Widget — shown in sidebar context ─── */}
+                <div className="mt-6 mb-6 lg:hidden">
+                  <WeatherWidget siteId={post.siteId || 'yalla-london'} days={3} />
+                </div>
 
                 {/* ─── Tags ─── */}
                 {publicTags.length > 0 && (

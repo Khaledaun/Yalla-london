@@ -846,26 +846,21 @@ export async function phaseImages(
     let unsplashUsed = false;
     if (matched.length < 3 && process.env.UNSPLASH_ACCESS_KEY) {
       try {
-        const unsplashResp = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(draft.keyword + " " + site.destination)}&per_page=5&orientation=landscape`,
-          {
-            headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` },
-            signal: AbortSignal.timeout(8000),
-          },
-        );
-        if (unsplashResp.ok) {
-          const data = await unsplashResp.json();
-          const unsplashPhotos = (data.results || []).map((p: any) => ({
+        const { searchPhotos, trackDownload, buildImageUrl } = await import("@/lib/apis/unsplash");
+        const query = `${draft.keyword} ${site.destination} travel`;
+        const photos = await searchPhotos(query, { perPage: 5, orientation: "landscape" });
+        if (photos.length > 0) {
+          const unsplashPhotos = photos.map((p) => ({
             id: `unsplash-${p.id}`,
-            url: p.urls?.regular || p.urls?.small,
-            thumbnail: p.urls?.small || p.urls?.thumb,
-            alt_en: p.alt_description || p.description || draft.keyword,
-            alt_ar: draft.keyword, // Use keyword as Arabic alt
+            url: buildImageUrl(p.urls.raw, { width: 1200, quality: 80 }),
+            thumbnail: p.urls.small,
+            alt_en: p.altDescription || p.description || draft.keyword,
+            alt_ar: draft.keyword,
             category: "london-landmarks" as const,
-            tags: (p.tags || []).map((t: any) => t.title).slice(0, 5),
+            tags: [] as string[],
             source: "unsplash" as const,
-            photographer: p.user?.name,
-            photographer_url: p.user?.links?.html,
+            photographer: p.photographer.name,
+            photographer_url: p.photographer.profileUrl,
             license: "unsplash" as const,
             width: p.width || 1920,
             height: p.height || 1280,
@@ -873,6 +868,10 @@ export async function phaseImages(
           }));
           matched = [...matched, ...unsplashPhotos];
           unsplashUsed = true;
+          // Track download per Unsplash ToS (fire-and-forget)
+          if (photos[0]?.downloadUrl) {
+            trackDownload(photos[0].downloadUrl).catch(() => {});
+          }
         }
       } catch (imgErr) {
         console.warn("[phases/images] Unsplash fetch failed:", imgErr instanceof Error ? imgErr.message : imgErr);

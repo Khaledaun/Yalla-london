@@ -33,35 +33,20 @@ export function MonetizationScripts({ siteId }: MonetizationScriptsProps) {
         />
       )}
 
-      {/* ═══ Travelpayouts Drive — AI finds missed monetization in content ═══ */}
+      {/* ═══ Travelpayouts Drive — EXACT script from TP dashboard for verification ═══
+           Uses the tp-em.com script that Travelpayouts verification checks for.
+           Loaded via afterInteractive (not lazyOnload) so the verifier can detect it.
+           The NTEwNzc2 is the base64-encoded account ID (510776). */}
       {tpMarker && (
         <Script
           id="tp-drive"
-          strategy="lazyOnload"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
-                var script = document.createElement('script');
-                script.src = 'https://tp.media/content?promo_id=7923&shmarker=${tpMarker}&campaign_id=200&trs=296469';
-                script.async = true;
-                document.head.appendChild(script);
-              })();
-            `,
-          }}
-        />
-      )}
-
-      {/* ═══ Travelpayouts LinkSwitcher — auto-converts brand URLs to tracked links ═══ */}
-      {tpMarker && (
-        <Script
-          id="tp-linkswitcher"
-          strategy="lazyOnload"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var script = document.createElement('script');
-                script.src = 'https://tp.media/content?promo_id=7922&shmarker=${tpMarker}&campaign_id=200&trs=296469';
-                script.async = true;
+              (function () {
+                var script = document.createElement("script");
+                script.async = 1;
+                script.src = 'https://tp-em.com/NTEwNzc2.js?t=${tpMarker}';
                 document.head.appendChild(script);
               })();
             `,

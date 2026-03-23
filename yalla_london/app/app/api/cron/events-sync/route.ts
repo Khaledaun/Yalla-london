@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUpcomingEvents } from "@/lib/apis/events";
-import { getDefaultSiteId } from "@/config/sites";
+import { getUpcomingEvents, formatEventPrice, formatEventDate } from "@/lib/apis/events";
 
 export const maxDuration = 60;
 
 const BUDGET_MS = 53_000;
 
 /**
- * Events Sync Cron — fetches real events from Ticketmaster for London & Istanbul.
- * Stores in DB for homepage display and content enrichment.
- * Schedule: Weekly Monday 6:30 UTC (or daily if Ticketmaster key is configured)
+ * Events Sync Cron — fetches real events from Ticketmaster and writes to Event table.
+ * Schedule: Weekly Monday 6:45 UTC
  */
 export async function GET(request: NextRequest) {
-  // Standard cron auth
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
@@ -20,64 +17,123 @@ export async function GET(request: NextRequest) {
   }
 
   const startTime = Date.now();
-  const results: Record<string, { count: number; error?: string }> = {};
+  const results: Record<string, { synced: number; skipped: number; error?: string }> = {};
 
   // Sites with Ticketmaster coverage
   const eventSites = ["yalla-london", "yalla-istanbul"];
 
   for (const siteId of eventSites) {
     if (Date.now() - startTime > BUDGET_MS) {
-      results[siteId] = { count: 0, error: "Budget exceeded" };
+      results[siteId] = { synced: 0, skipped: 0, error: "Budget exceeded" };
       break;
     }
 
-    try {
-      const events = await getUpcomingEvents(siteId, { limit: 20 });
-      results[siteId] = { count: events.length };
+    let synced = 0;
+    let skipped = 0;
 
-      // Store in DB if available
-      if (events.length > 0) {
-        try {
-          const { prisma } = await import("@/lib/db");
-          // Upsert events into CachedApiData table
-          for (const event of events.slice(0, 15)) {
-            await prisma.siteSettings.upsert({
-              where: {
-                siteId_category: {
-                  siteId,
-                  category: `event-${event.id}`,
+    try {
+      const tmEvents = await getUpcomingEvents(siteId, { limit: 20 });
+
+      if (tmEvents.length > 0) {
+        const { prisma } = await import("@/lib/db");
+
+        for (const tm of tmEvents.slice(0, 15)) {
+          if (Date.now() - startTime > BUDGET_MS) break;
+
+          try {
+            // Check if we already have this Ticketmaster event
+            const existing = await prisma.event.findFirst({
+              where: { affiliateTag: `tm-${tm.id}`, siteId },
+            });
+
+            if (existing) {
+              // Update price/image if changed
+              await prisma.event.update({
+                where: { id: existing.id },
+                data: {
+                  price: formatEventPrice(tm),
+                  image: tm.imageUrl || existing.image,
+                  soldOut: false,
+                  updated_at: new Date(),
                 },
-              },
-              create: {
+              });
+              skipped++;
+              continue;
+            }
+
+            const dateInfo = formatEventDate(tm.date);
+
+            await prisma.event.create({
+              data: {
+                title_en: tm.name,
+                title_ar: tm.name, // TODO: AI translate
+                description_en: `${tm.name} at ${tm.venue}, ${tm.city}. ${tm.category} event.`,
+                description_ar: `${tm.name} في ${tm.venue}. فعالية ${tm.category}.`,
+                date: new Date(tm.date + "T00:00:00Z"),
+                time: tm.time || "19:00",
+                venue: tm.venue,
+                category: mapCategory(tm.segment || tm.category),
+                price: formatEventPrice(tm),
+                image: tm.imageUrl || null,
+                rating: 0,
+                bookingUrl: tm.url,
+                affiliateTag: `tm-${tm.id}`,
+                ticketProvider: "Ticketmaster",
+                vipAvailable: false,
+                soldOut: false,
+                featured: false,
+                published: true,
                 siteId,
-                category: `event-${event.id}`,
-                settings: JSON.parse(JSON.stringify(event)),
-              },
-              update: {
-                settings: JSON.parse(JSON.stringify(event)),
-                updatedAt: new Date(),
               },
             });
+            synced++;
+          } catch (upsertErr) {
+            console.warn(`[events-sync] Event upsert failed:`, upsertErr instanceof Error ? upsertErr.message : String(upsertErr));
           }
-        } catch (dbErr) {
-          console.warn(`[events-sync] DB store failed for ${siteId}:`, dbErr instanceof Error ? dbErr.message : String(dbErr));
+        }
+
+        // Mark past events as unpublished
+        try {
+          await prisma.event.updateMany({
+            where: {
+              siteId,
+              date: { lt: new Date() },
+              published: true,
+            },
+            data: { published: false },
+          });
+        } catch (cleanupErr) {
+          console.warn("[events-sync] Cleanup failed:", cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
         }
       }
+
+      results[siteId] = { synced, skipped };
     } catch (err) {
-      results[siteId] = { count: 0, error: err instanceof Error ? err.message : String(err) };
+      results[siteId] = { synced, skipped, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
-  const totalEvents = Object.values(results).reduce((sum, r) => sum + r.count, 0);
+  const totalSynced = Object.values(results).reduce((sum, r) => sum + r.synced, 0);
 
   return NextResponse.json({
     success: true,
     results,
-    totalEvents,
+    totalSynced,
     durationMs: Date.now() - startTime,
   });
 }
 
 export async function POST(request: NextRequest) {
   return GET(request);
+}
+
+function mapCategory(tmCategory: string): string {
+  const lower = tmCategory.toLowerCase();
+  if (lower.includes("music") || lower.includes("concert")) return "Music";
+  if (lower.includes("sport")) return "Sports";
+  if (lower.includes("art") || lower.includes("theatre") || lower.includes("theater")) return "Theatre";
+  if (lower.includes("family") || lower.includes("child")) return "Family";
+  if (lower.includes("comedy")) return "Comedy";
+  if (lower.includes("festival")) return "Festival";
+  return "Experience";
 }

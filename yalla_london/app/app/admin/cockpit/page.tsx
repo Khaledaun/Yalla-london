@@ -8186,7 +8186,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export default function CockpitPageWrapper() {
   return (
-    <Suspense fallback={<div className="admin-page flex items-center justify-center h-screen"><AdminLoadingState label="Loading HQ…" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen" style={{ backgroundColor: '#0F1419' }}><div className="text-center"><div className="w-8 h-8 border-2 border-[#C49A2A] border-t-transparent rounded-full animate-spin mx-auto mb-3" /><p style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#6B7280', letterSpacing: '2px', textTransform: 'uppercase' }}>Loading HQ…</p></div></div>}>
       <CockpitPage />
     </Suspense>
   );
@@ -8265,24 +8265,26 @@ function CockpitPage() {
   }, []);
 
   return (
-    <div className="admin-page">
-      {/* Header */}
-      <div className="sticky top-0 z-30 backdrop-blur-md bg-white/92" style={{ borderBottom: '1px solid var(--admin-border, rgba(214,208,196,0.6))' }}>
+    <div className="min-h-screen" style={{ backgroundColor: '#0F1419' }}>
+      {/* Header — dark navy */}
+      <div className="sticky top-0 z-30 backdrop-blur-md" style={{ backgroundColor: 'rgba(15,20,25,0.95)', borderBottom: '1px solid rgba(196,154,42,0.15)' }}>
         <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917', letterSpacing: '-0.3px' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#FAF0D1', letterSpacing: '-0.3px' }}>
               HQ
             </h1>
             {cockpitData && activeSiteId && (
               <select
                 value={activeSiteId}
                 onChange={(e) => setActiveSiteId(e.target.value)}
-                className="admin-input rounded-lg px-3 py-1.5 text-xs focus:outline-none appearance-none"
+                className="rounded-lg px-3 py-1.5 text-xs focus:outline-none appearance-none"
                 style={{
                   fontFamily: 'var(--font-system)',
                   fontSize: 10,
                   fontWeight: 500,
-                  color: '#78716C',
+                  color: '#9CA3AF',
+                  backgroundColor: '#1A2332',
+                  border: '1px solid rgba(196,154,42,0.2)',
                 }}
               >
                 <option value="all">All Sites</option>
@@ -8295,14 +8297,15 @@ function CockpitPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/admin/cockpit/activity"
-              className="admin-card px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97]"
+              className="px-3 py-2 rounded-lg text-xs font-semibold transition-all active:scale-[0.97]"
               style={{
                 fontFamily: 'var(--font-system)',
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
-                color: '#3B7EA1',
+                color: '#1A2332',
+                backgroundColor: '#FAF0D1',
               }}
             >
               FEED
@@ -8317,29 +8320,36 @@ function CockpitPage() {
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
                 backgroundColor: '#C8322B',
-                color: '#FAF8F4',
+                color: '#FAF0D1',
               }}
             >
               + WRITE
             </Link>
             {lastRefresh && (
-              <span className="hidden sm:block" style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', letterSpacing: '0.5px' }}>
+              <span className="hidden sm:block" style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#6B7280', letterSpacing: '0.5px' }}>
                 {timeAgo(lastRefresh.toISOString())}
               </span>
             )}
-            <AdminButton
+            <button
               onClick={fetchCockpit}
               disabled={cockpitLoading}
-              variant="secondary"
-              size="sm"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] disabled:opacity-50"
+              style={{
+                fontFamily: 'var(--font-system)',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#FAF0D1',
+                backgroundColor: '#1A2332',
+                border: '1px solid rgba(196,154,42,0.2)',
+              }}
             >
-              {cockpitLoading ? "..." : "Refresh"}
-            </AdminButton>
+              {cockpitLoading ? "..." : "REFRESH"}
+            </button>
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid var(--admin-border, rgba(214,208,196,0.4))' }}>
+        {/* Tab bar — dark */}
+        <div className="flex overflow-x-auto scrollbar-hide" style={{ borderTop: '1px solid rgba(196,154,42,0.1)' }}>
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -8351,8 +8361,8 @@ function CockpitPage() {
                 fontWeight: activeTab === tab.id ? 700 : 500,
                 letterSpacing: '0.5px',
                 textTransform: 'uppercase',
-                color: activeTab === tab.id ? '#C8322B' : '#A8A29E',
-                borderBottomColor: activeTab === tab.id ? '#C8322B' : 'transparent',
+                color: activeTab === tab.id ? '#C49A2A' : '#6B7280',
+                borderBottomColor: activeTab === tab.id ? '#C49A2A' : 'transparent',
               }}
             >
               {tab.label}
@@ -8361,26 +8371,28 @@ function CockpitPage() {
         </div>
       </div>
 
-      {/* Error banner */}
+      {/* Error banner — dark theme */}
       {cockpitError && (
-        <AdminAlertBanner
-          severity="critical"
-          message={`Dashboard data failed to load: ${cockpitError}`}
-          action={<AdminButton onClick={fetchCockpit} variant="danger" size="sm">Retry</AdminButton>}
-        />
+        <div className="max-w-screen-xl mx-auto px-3 sm:px-4 pt-3">
+          <div className="rounded-lg px-4 py-3" style={{ backgroundColor: 'rgba(200,50,43,0.15)', border: '1px solid rgba(200,50,43,0.3)' }}>
+            <p className="text-sm font-medium" style={{ color: '#FF6B6B' }}>Dashboard data failed to load: {cockpitError}</p>
+            <button onClick={fetchCockpit} className="mt-2 px-3 py-1 rounded text-xs font-semibold" style={{ backgroundColor: '#C8322B', color: '#FAF0D1' }}>Retry</button>
+          </div>
+        </div>
       )}
 
-      {/* Builder errors — some dashboard sections returned zeros due to DB/timeout issues */}
+      {/* Builder errors — dark theme */}
       {cockpitData?.builderErrors && cockpitData.builderErrors.length > 0 && (
-        <AdminAlertBanner
-          severity="warning"
-          message="Some dashboard sections may show incomplete data"
-          detail={cockpitData.builderErrors.join(" | ")}
-        />
+        <div className="max-w-screen-xl mx-auto px-3 sm:px-4 pt-3">
+          <div className="rounded-lg px-4 py-3" style={{ backgroundColor: 'rgba(196,154,42,0.1)', border: '1px solid rgba(196,154,42,0.2)' }}>
+            <p className="text-sm font-medium" style={{ color: '#C49A2A' }}>Some dashboard sections may show incomplete data</p>
+            <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>{cockpitData.builderErrors.join(" | ")}</p>
+          </div>
+        </div>
       )}
 
       {/* Content */}
-      <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20">
+      <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20" style={{ backgroundColor: '#0F1419' }}>
         {activeTab === "hq" && (
           <MissionControl />
         )}

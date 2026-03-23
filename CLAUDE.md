@@ -2226,6 +2226,7 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 | ~~Brand Templates~~ | ~~Only Yalla London template exists~~ | ~~MEDIUM~~ | **DONE** — `getBrandProfile()` in `lib/design/brand-provider.ts` returns correct brand for all 6 sites (readiness 95%) |
 | ~~CJ siteId Migration~~ | ~~CjCommission, CjClickEvent, CjOffer have NO siteId field~~ | ~~HIGH~~ | **DONE** — siteId added to all 3 models (migration `20260311_add_siteid_to_cj_models`), backfill from SID |
 | **CJ Credentials** | CJ Publisher account activated. **3 JOINED advertisers: Expedia (EPC $61.44, 30d cookie), Vrbo (EPC $25.20, 30d cookie), The Excellence Collection (EPC $0.00, 30d cookie)**. 56 total advertisers synced. Env vars: `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_PUBLISHER_CID` | **INFO** | **ACTIVE** — March 22, 2026 |
+| **Travelpayouts** | Affiliate aggregator with 100+ travel brands. Verification script added to `<head>`. Pending account activation. API token at Profile → API. Auth: `X-Access-Token` header. Flights Data API: `api.travelpayouts.com/v1/prices/cheap`, GraphQL: `api.travelpayouts.com/graphql/v1`. Hotels API requires support@ approval. Flight Search MCP available at `github.com/maratsarbasov/flights-mcp`. Key partners: Booking.com (4%), Viator (8-10%), GetYourGuide (8%), Skyscanner (20-50% rev share), Marriott (4-6%), Klook, Tiqets, DiscoverCars (365d cookie), Omio, Hostelworld. Env vars needed: `TRAVELPAYOUTS_API_TOKEN`, `TRAVELPAYOUTS_MARKER` (affiliate marker ID). Min payout $50/month. | **INFO** | **PENDING** — March 23, 2026 |
 | ~~OG Images~~ | ~~Per-site OG image files don't exist yet~~ | ~~MEDIUM~~ | **DONE** — Dynamic OG route at `app/api/og/route.tsx` |
 | ~~Login Security~~ | ~~No rate limiting on admin login endpoint~~ | ~~MEDIUM~~ | **DONE** — 5/15min + middleware layer |
 | ~~Cookie Consent~~ | ~~No GDPR cookie consent banner~~ | ~~MEDIUM~~ | **DONE** — bilingual, 4 categories, in root layout |
@@ -4194,7 +4195,7 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 | Area | Issue | Severity | Status |
 |------|-------|----------|--------|
 | ~~GA4 Tracking~~ | ~~GA4 not configured / clicks invisible~~ | ~~CRITICAL~~ | **DONE** — All 4 env vars set, dual client+server tracking |
-| Affiliate Partners | Only Vrbo approved via CJ — apply to Booking.com, GetYourGuide, Viator, HalalBooking | MEDIUM | Manual action needed in CJ dashboard |
+| Affiliate Partners | CJ: Vrbo approved. **Travelpayouts: pending activation** (100+ brands: Booking.com 4%, Viator 8-10%, GetYourGuide 8%, Skyscanner 20-50%, Marriott 4-6%, Klook, Tiqets, DiscoverCars). Apply to more CJ advertisers too. | MEDIUM | In progress |
 | Static Affiliate Env Vars | `BOOKING_AFFILIATE_ID`, `AGODA_AFFILIATE_ID` etc. empty | MEDIUM | Set when approved by each network |
 | Social APIs | Engagement stats require platform API integration | LOW | Open |
 | Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { NewsCarousel } from '@/components/news-carousel'
 import { NewsSideBanner } from '@/components/news-side-banner'
+import { WeatherStrip } from '@/components/weather-strip'
 import { FollowUs } from '@/components/follow-us'
 import { TriBar, BrandButton, BrandTag, BrandCard, BrandCardLight, SectionLabel, WatermarkStamp } from '@/components/brand-kit'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
@@ -77,28 +78,28 @@ const heroContent = {
 
 const featuredArticle = {
   en: {
-    slug: 'best-halal-restaurants-central-london-2025',
+    slug: 'best-halal-restaurants-central-london-2026',
     category: 'Editor\'s Pick',
-    title: 'Best Halal Restaurants in Central London 2025',
+    title: 'Best Halal Restaurants in Central London 2026',
     excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest pricing, certification notes and booking tips.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     author: 'Yalla London Team',
-    date: 'Jan 15, 2026',
+    date: 'Mar 2026',
     readTime: '5 min read',
   },
   ar: {
-    slug: 'best-halal-restaurants-central-london-2025',
+    slug: 'best-halal-restaurants-central-london-2026',
     category: 'اختيار المحرر',
-    title: 'أفضل المطاعم الحلال في وسط لندن 2025',
+    title: 'أفضل المطاعم الحلال في وسط لندن 2026',
     excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع أسعار دقيقة وملاحظات الاعتماد ونصائح الحجز.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     author: 'فريق يلا لندن',
-    date: '15 يناير 2026',
+    date: 'مارس 2026',
     readTime: '5 دقائق للقراءة',
   },
 }
 
-const articles = {
+const fallbackArticles = {
   en: [
     {
       id: '2',
@@ -107,27 +108,27 @@ const articles = {
       title: 'Spring in London 2026: Best Things to Do',
       excerpt: 'Cherry blossoms, outdoor markets, and longer days — your complete guide to London this spring.',
       image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      date: 'Mar 3, 2026',
+      date: 'Mar 2026',
       readTime: '8 min read',
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-which-better-2025',
+      slug: 'harrods-vs-selfridges-which-better-2026',
       category: 'Shopping',
       title: 'Harrods vs Selfridges: Which is Better?',
       excerpt: 'A detailed comparison of London\'s two iconic department stores for luxury shoppers.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      date: 'Feb 20, 2026',
+      date: 'Mar 2026',
       readTime: '6 min read',
     },
     {
       id: '4',
-      slug: 'best-halal-restaurants-central-london-2025',
+      slug: 'best-halal-restaurants-central-london-2026',
       category: 'Dining',
       title: 'Best Halal Restaurants in Central London',
       excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest reviews.',
       image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
-      date: 'Feb 15, 2026',
+      date: 'Mar 2026',
       readTime: '7 min read',
     },
   ],
@@ -139,27 +140,27 @@ const articles = {
       title: 'الربيع في لندن 2026: أفضل الأنشطة',
       excerpt: 'أزهار الكرز والأسواق المفتوحة وأيام أطول — دليلك الشامل للندن في الربيع.',
       image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      date: '3 مارس 2026',
+      date: 'مارس 2026',
       readTime: '8 دقائق',
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-which-better-2025',
+      slug: 'harrods-vs-selfridges-which-better-2026',
       category: 'تسوق',
       title: 'هارودز أم سيلفريدجز: أيهما أفضل؟',
       excerpt: 'مقارنة تفصيلية بين أشهر متجرين في لندن للمتسوقين الفاخرين.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      date: '20 فبراير 2026',
+      date: 'مارس 2026',
       readTime: '6 دقائق',
     },
     {
       id: '4',
-      slug: 'best-halal-restaurants-central-london-2025',
+      slug: 'best-halal-restaurants-central-london-2026',
       category: 'مطاعم',
       title: 'أفضل المطاعم الحلال في وسط لندن',
       excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع تقييمات صادقة.',
       image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
-      date: '15 فبراير 2026',
+      date: 'مارس 2026',
       readTime: '7 دقائق',
     },
   ],
@@ -167,20 +168,20 @@ const articles = {
 
 const events = {
   en: [
-    { id: '1', title: 'Crystal Palace vs Liverpool', venue: 'Selhurst Park', day: '15', month: 'Mar', price: 'From £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
-    { id: '2', title: 'The Lion King — West End', venue: 'Lyceum Theatre', day: '22', month: 'Mar', price: 'From £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
-    { id: '3', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
-    { id: '4', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
-    { id: '5', title: 'Chelsea Flower Show', venue: 'Royal Hospital Chelsea', day: '19', month: 'May', price: 'From £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
-    { id: '6', title: 'Ramadan in London', venue: 'Various Venues', day: '28', month: 'Mar', price: 'Various', image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=400&q=80' },
+    { id: '1', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '2', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '3', title: 'Chelsea Flower Show', venue: 'Royal Hospital Chelsea', day: '19', month: 'May', price: 'From £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
+    { id: '4', title: 'The Lion King — West End', venue: 'Lyceum Theatre', day: '30', month: 'Apr', price: 'From £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '5', title: 'Wimbledon Championships', venue: 'All England Club', day: '29', month: 'Jun', price: 'From £90', image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80' },
+    { id: '6', title: 'Notting Hill Carnival', venue: 'Notting Hill', day: '30', month: 'Aug', price: 'Free', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&q=80' },
   ],
   ar: [
-    { id: '1', title: 'كريستال بالاس ضد ليفربول', venue: 'سيلهرست بارك', day: '15', month: 'مارس', price: 'من £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
-    { id: '2', title: 'الأسد الملك — ويست إند', venue: 'مسرح ليسيوم', day: '22', month: 'مارس', price: 'من £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
-    { id: '3', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
-    { id: '4', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
-    { id: '5', title: 'معرض تشيلسي للزهور', venue: 'مستشفى تشيلسي الملكي', day: '19', month: 'مايو', price: 'من £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
-    { id: '6', title: 'رمضان في لندن', venue: 'أماكن متعددة', day: '28', month: 'مارس', price: 'متنوع', image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=400&q=80' },
+    { id: '1', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '2', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '3', title: 'معرض تشيلسي للزهور', venue: 'مستشفى تشيلسي الملكي', day: '19', month: 'مايو', price: 'من £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
+    { id: '4', title: 'الأسد الملك — ويست إند', venue: 'مسرح ليسيوم', day: '30', month: 'أبريل', price: 'من £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '5', title: 'بطولة ويمبلدون', venue: 'نادي إنجلترا', day: '29', month: 'يونيو', price: 'من £90', image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=400&q=80' },
+    { id: '6', title: 'كرنفال نوتينغ هيل', venue: 'نوتينغ هيل', day: '30', month: 'أغسطس', price: 'مجاني', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&q=80' },
   ],
 }
 
@@ -313,13 +314,85 @@ function SectionHeader({ title, href, linkText, icon: Icon, isArabic }: { title:
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// ─── Dynamic Article Type ────────────────────────────────────────────────────
+
+interface DBArticle {
+  id: string
+  slug: string | null
+  title_en: string | null
+  title_ar: string | null
+  meta_description_en: string | null
+  meta_description_ar: string | null
+  seo_score: number | null
+  created_at: string
+  category?: { name: string } | null
+}
+
+function formatRelativeDate(dateStr: string, lang: 'en' | 'ar'): string {
+  const d = new Date(dateStr)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+  if (lang === 'ar') {
+    if (diffDays === 0) return 'اليوم'
+    if (diffDays === 1) return 'أمس'
+    if (diffDays < 7) return `قبل ${diffDays} أيام`
+    return d.toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' })
+  }
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+}
+
 export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [email, setEmail] = useState('')
   const [heroIndex, setHeroIndex] = useState(0)
+  const [dbArticles, setDbArticles] = useState<DBArticle[]>([])
   const isRTL = locale === 'ar'
   const t = text[locale]
   const hero = heroContent[locale]
   const featured = featuredArticle[locale]
+
+  // Fetch real published articles from DB for the "Latest Stories" section
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/blog?limit=6&sort=newest')
+        if (res.ok) {
+          const json = await res.json()
+          const posts = json.posts || json.articles || json.data || []
+          if (Array.isArray(posts) && posts.length > 0) {
+            setDbArticles(posts)
+          }
+        }
+      } catch { /* fallback to hardcoded */ }
+    })()
+  }, [])
+
+  // Build article list: DB articles first, then fallback
+  const articles = dbArticles.length > 0
+    ? dbArticles.slice(0, 3).map((a, i) => ({
+        id: a.id || String(i),
+        slug: a.slug || '#',
+        category: a.category?.name || (locale === 'ar' ? 'مقال' : 'Article'),
+        title: (locale === 'ar' ? a.title_ar : a.title_en) || a.title_en || '',
+        excerpt: (locale === 'ar' ? a.meta_description_ar : a.meta_description_en) || a.meta_description_en || '',
+        image: `https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80`,
+        date: formatRelativeDate(a.created_at, locale),
+        readTime: locale === 'ar' ? '5 دقائق' : '5 min read',
+      }))
+    : fallbackArticles[locale]
+
+  // Use first DB article as featured if available
+  const effectiveFeatured = dbArticles.length > 0
+    ? {
+        ...featured,
+        slug: dbArticles[0].slug || featured.slug,
+        title: (locale === 'ar' ? dbArticles[0].title_ar : dbArticles[0].title_en) || featured.title,
+        excerpt: (locale === 'ar' ? dbArticles[0].meta_description_ar : dbArticles[0].meta_description_en) || featured.excerpt,
+        date: formatRelativeDate(dbArticles[0].created_at, locale),
+      }
+    : featured
 
   const nextSlide = useCallback(() => {
     setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
@@ -447,14 +520,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </div>
 
-      {/* ═══ LONDON TODAY NEWS CAROUSEL ═══ */}
-      <section className="max-w-7xl mx-auto px-7 pt-10 pb-4">
-        <NewsCarousel />
-      </section>
-
-      <TriBar />
-
-      {/* ═══ FEATURED + ARTICLES ═══ */}
+      {/* ═══ FEATURED + ARTICLES (moved above news per redesign) ═══ */}
       <section className="relative max-w-7xl mx-auto px-7 py-16">
         {/* Subtle watermark */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -464,24 +530,24 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Featured Article — Large */}
-          <Link href={`/blog/${featured.slug}`} className="lg:col-span-3 group">
+          <Link href={`/blog/${effectiveFeatured.slug}`} className="lg:col-span-3 group">
             <article className="relative h-full min-h-[400px] rounded-[14px] overflow-hidden border border-white/5">
-              <Image src={featured.image} alt={featured.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl" />
+              <Image src={effectiveFeatured.image} alt={effectiveFeatured.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500 ease-yl" />
               <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-8">
                 <BrandTag color="red" className="mb-4">
-                  {featured.category}
+                  {effectiveFeatured.category}
                 </BrandTag>
                 <h3 className={`text-2xl md:text-3xl font-heading font-bold text-yl-parchment mb-3 group-hover:text-yl-gold transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>
-                  {featured.title}
+                  {effectiveFeatured.title}
                 </h3>
-                <p className="font-body text-sm text-yl-gray-400 mb-4 max-w-lg line-clamp-2">{featured.excerpt}</p>
+                <p className="font-body text-sm text-yl-gray-400 mb-4 max-w-lg line-clamp-2">{effectiveFeatured.excerpt}</p>
                 <div className="flex items-center gap-4 font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
-                  <span>{featured.author}</span>
+                  <span>{effectiveFeatured.author}</span>
                   <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
-                  <span>{featured.date}</span>
+                  <span>{effectiveFeatured.date}</span>
                   <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {featured.readTime}</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {effectiveFeatured.readTime}</span>
                 </div>
               </div>
             </article>
@@ -489,7 +555,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
           {/* Article List */}
           <div className="lg:col-span-2 flex flex-col gap-5">
-            {articles[locale].map((article) => (
+            {articles.map((article) => (
               <Link key={article.id} href={`/blog/${article.slug}`} className="group">
                 <BrandCardLight hoverable className="p-0">
                   <article className="flex gap-4 p-4">
@@ -746,6 +812,16 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </div>
         </div>
       </section>
+
+      <TriBar />
+
+      {/* ═══ LONDON TODAY NEWS CAROUSEL (moved after monetizable sections) ═══ */}
+      <section className="max-w-7xl mx-auto px-7 pt-10 pb-4">
+        <NewsCarousel />
+      </section>
+
+      {/* ═══ LONDON WEATHER FORECAST STRIP ═══ */}
+      <WeatherStrip locale={locale} />
 
       {/* ═══ TRAVELER TESTIMONIALS ═══ */}
       <section className="bg-yl-cream py-16">

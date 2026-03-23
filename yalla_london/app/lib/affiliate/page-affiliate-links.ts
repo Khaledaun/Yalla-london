@@ -290,6 +290,17 @@ const PARTNER_LABELS: Record<string, string> = {
   blacklane: "Blacklane",
   harrods: "Harrods",
   tripadvisor: "TripAdvisor",
+  // Travelpayouts aggregated partners
+  tp_booking: "Booking.com",
+  tp_viator: "Viator",
+  tp_getyourguide: "GetYourGuide",
+  tp_klook: "Klook",
+  tp_discovercars: "DiscoverCars",
+  tp_skyscanner: "Skyscanner",
+  tp_omio: "Omio",
+  tp_hostelworld: "Hostelworld",
+  tp_tiqets: "Tiqets",
+  tp_marriott: "Marriott",
 };
 
 // ---------------------------------------------------------------------------

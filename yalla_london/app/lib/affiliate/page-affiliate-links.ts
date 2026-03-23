@@ -33,12 +33,12 @@ export interface AffiliateLink {
 
 const SITE_PARTNERS: Record<string, Record<AffiliateCategory, string[]>> = {
   "yalla-london": {
-    hotel: ["agoda", "booking", "ihg", "expedia"],
-    experience: ["getyourguide", "viator", "bigbus", "citypass"],
+    hotel: ["expedia", "agoda", "booking", "ihg"],
+    experience: ["tiqets", "viator", "bigbus", "citypass"],
     restaurant: ["thefork", "opentable"],
-    attraction: ["getyourguide", "viator", "tiqets"],
+    attraction: ["tiqets", "viator"],
     flight: ["qatar", "kayak", "lastminute", "expedia"],
-    transport: ["blacklane"],
+    transport: ["welcomepickups", "blacklane"],
     shopping: ["harrods"],
   },
   "arabaldives": {
@@ -154,12 +154,12 @@ const VENUE_MAPPINGS: VenueMapping[] = [
       booking: "https://www.booking.com/hotel/gb/mandarin-oriental-hyde-park-london.html",
     },
   },
-  // London Experiences
+  // London Experiences — Tiqets (connected via Travelpayouts, 3.5-8% commission)
   {
     patterns: ["harry potter", "warner bros", "studio tour"],
     category: "experience",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/warner-bros-studio-tour-london-the-making-of-harry-potter-t97tried/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=harry+potter+studio+tour",
       viator: "https://www.viator.com/tours/London/Warner-Bros-Studio-Tour-London/d737-5658LONDON",
     },
   },
@@ -167,7 +167,7 @@ const VENUE_MAPPINGS: VenueMapping[] = [
     patterns: ["london eye"],
     category: "experience",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/london-eye-tickets-t395957/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=london+eye",
       viator: "https://www.viator.com/tours/London/London-Eye-Standard-Ticket/d737-6397LONDON",
     },
   },
@@ -175,7 +175,7 @@ const VENUE_MAPPINGS: VenueMapping[] = [
     patterns: ["thames", "river cruise"],
     category: "experience",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/thames-river-cruise-t58954/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=thames+river+cruise",
       viator: "https://www.viator.com/tours/London/Thames-River-Cruise/d737-3870P1",
     },
   },
@@ -183,7 +183,7 @@ const VENUE_MAPPINGS: VenueMapping[] = [
     patterns: ["tower of london", "tower bridge"],
     category: "attraction",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/tower-of-london-tickets-t396021/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=tower+of+london",
       viator: "https://www.viator.com/tours/London/Tower-of-London-Entrance-Ticket/d737-5065LONDON",
     },
   },
@@ -191,7 +191,7 @@ const VENUE_MAPPINGS: VenueMapping[] = [
     patterns: ["big bus", "hop on hop off", "hop-on hop-off"],
     category: "experience",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/london-hop-on-hop-off-sightseeing-bus-ticket-t62308/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=hop+on+hop+off",
       bigbus: "https://www.bigbustours.com/en/london/london-bus-tours",
     },
   },
@@ -199,7 +199,7 @@ const VENUE_MAPPINGS: VenueMapping[] = [
     patterns: ["view from the shard", "the shard"],
     category: "attraction",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/the-shard-tickets-t62308/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=the+shard",
       viator: "https://www.viator.com/tours/London/The-View-from-The-Shard/d737-26499P1",
     },
   },
@@ -207,14 +207,14 @@ const VENUE_MAPPINGS: VenueMapping[] = [
     patterns: ["buckingham palace"],
     category: "attraction",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/buckingham-palace-tickets-t396015/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=buckingham+palace",
     },
   },
   {
     patterns: ["kensington palace"],
     category: "attraction",
     affiliateUrls: {
-      getyourguide: "https://www.getyourguide.com/london-l57/kensington-palace-tickets-t396019/",
+      tiqets: "https://www.tiqets.com/en/london-c824706/?q=kensington+palace",
     },
   },
   // Restaurants
@@ -252,12 +252,15 @@ const GENERIC_SEARCH_URLS: Record<string, Record<string, string>> = {
     expedia: "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
   },
   experience: {
-    getyourguide: "https://www.getyourguide.com/london-l57/",
+    tiqets: "https://www.tiqets.com/en/london-c824706/",
     viator: "https://www.viator.com/London/d737-ttd",
   },
   attraction: {
-    getyourguide: "https://www.getyourguide.com/london-l57/",
+    tiqets: "https://www.tiqets.com/en/london-c824706/",
     viator: "https://www.viator.com/London-attractions/d737-a",
+  },
+  transport: {
+    welcomepickups: "https://www.welcomepickups.com/london/",
   },
   restaurant: {
     thefork: "https://www.thefork.co.uk/city/london",
@@ -282,6 +285,8 @@ const PARTNER_LABELS: Record<string, string> = {
   bigbus: "Big Bus Tours",
   citypass: "CityPASS",
   tiqets: "Tiqets",
+  welcomepickups: "Welcome Pickups",
+  ticketnetwork: "TicketNetwork",
   thefork: "TheFork",
   opentable: "OpenTable",
   qatar: "Qatar Airways",

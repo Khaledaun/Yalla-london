@@ -413,7 +413,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ HERO — Full-screen immersive ═══ */}
       {/* -mt-24 pulls hero UP behind the fixed header so it starts from the very top */}
-      <section className="relative h-screen min-h-[600px] flex items-end overflow-hidden -mt-24">
+      <section className="relative w-full h-screen min-h-[600px] flex items-end overflow-hidden -mt-24 -mx-[calc((100vw-100%)/2)]" style={{ width: '100vw' }}>
         {/* Rotating Background Images — full bleed */}
         {HERO_IMAGES.map((img, i) => (
           <Image

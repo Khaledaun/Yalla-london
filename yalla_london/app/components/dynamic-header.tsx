@@ -43,16 +43,16 @@ export function DynamicHeader() {
         <div className="max-w-7xl mx-auto px-5 sm:px-7">
           <div className="flex justify-between items-center py-3.5">
             {/* Logo — stamp + "YALLA LONDON" wordmark */}
-            <Link href="/" className="flex items-center gap-2.5 group">
+            <Link href="/" className="flex items-center gap-3 group shrink-0 mr-4">
               <Image
                 src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-100px.png"
                 alt="Yalla London"
                 width={36}
                 height={36}
-                className="rounded-full"
+                className="rounded-full brightness-150 contrast-125"
                 priority
               />
-              <span className="font-heading font-bold text-xl tracking-wider">
+              <span className="font-heading font-bold text-xl tracking-wider whitespace-nowrap">
                 <span className="text-yl-parchment">YALLA</span>
                 <span className="text-yl-red ml-1.5">LONDON</span>
               </span>

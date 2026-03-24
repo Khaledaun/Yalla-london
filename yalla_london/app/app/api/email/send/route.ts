@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
           html: params.html,
           text: params.text,
           from: params.from,
-          replyTo: params.replyTo || "khaled@zenitha.luxury",
+          replyTo: params.replyTo,
           idempotencyKey: params.idempotencyKey,
           tags: params.tags,
         });

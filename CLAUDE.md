@@ -4732,18 +4732,78 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 |---------|--------|-------|
 | `RESEND_API_KEY` | **Active** | Set in Vercel, all environments |
 | `UNSPLASH_ACCESS_KEY` | **Active** | Set in Vercel (March 23) |
-| `RESEND_WEBHOOK_SECRET` | **Needed** | Set after configuring webhook in Resend dashboard |
-| `RESEND_DOMAIN_VERIFIED` | **Needed** | Set to `true` after SPF/DKIM verification |
-| `EMAIL_FROM` | Optional | Override default `hello@yalla-london.com` |
+| `RESEND_WEBHOOK_SECRET` | **Active** | Set in Vercel + Resend dashboard webhook configured (March 24) |
+| `RESEND_DOMAIN_VERIFIED` | **Active** | Set in Vercel (March 24) |
+| `EMAIL_FROM` | **Active** | Set in Vercel (March 24) |
 
-### Critical Rules Learned (March 24 Session — Email Integration)
+### Session: March 24, 2026 — Email System Audit & Hardening
 
-183. **Resend SDK `sendOptions` is the SECOND argument to `resend.emails.send()`** — `resend.emails.send(payload, { idempotencyKey })`. The idempotency key is NOT in the payload object itself.
-184. **React Email templates use `renderToStaticMarkup` (not `renderToString`)** — static markup doesn't include React data attributes, producing cleaner HTML for email clients. Import from `react-dom/server`.
-185. **Resend webhook signature uses svix library** — `new Webhook(secret).verify(body, headers)`. The `svix` package is automatically installed with the `resend` npm package.
-186. **Webhook handler should return 200 even on processing errors** — returning 4xx/5xx causes Resend to retry the webhook, creating duplicate processing. Only return 401 for invalid signatures.
-187. **Resend sandbox mode (`onboarding@resend.dev`) only sends to the account owner's email** — until domain is verified with SPF/DKIM, emails can only reach the Resend account holder. Set `RESEND_DOMAIN_VERIFIED=true` and `EMAIL_FROM` after DNS verification.
-188. **BlogPost `published: false` is the correct default for editorial content** — the pipeline creates draft articles that must be explicitly published via cockpit. This prevents unreviewed content from going live.
+**Email system audit and production hardening — 4 fixes across 3 files.**
+
+**Problem:** Resend webhook secret just configured, all env vars now set. Audit revealed hardcoded email addresses, redundant ternary logic in webhook, and missing unsubscribe tracking.
+
+**Fix 1: Hardcoded `replyTo` addresses in resend-service.ts (4 locations)**
+- All 4 high-level send methods (`sendWelcomeEmail`, `sendBookingConfirmation`, `sendNewsletterDigest`, `sendContactConfirmation`) had `replyTo: "info@yalla-london.com"` hardcoded
+- Changed to `replyTo: getDefaultReplyTo()` which dynamically reads `EMAIL_REPLY_TO` env var → site config → fallback
+- Multi-site safe: when site #2 launches, reply-to addresses will use the correct domain automatically
+
+**Fix 2: Webhook redundant ternary + unsubscribe tracking**
+- `newStatus === "BOUNCED" ? "UNSUBSCRIBED" : "UNSUBSCRIBED"` — both branches identical (dead code)
+- Simplified to `status: "UNSUBSCRIBED"`
+- Added `unsubscribed_at: new Date()` — the Subscriber model has this field, was never being set on webhook-triggered unsubscribes
+- Added `metadata_json` with reason (bounce vs complaint), detail message, and Resend event ID for compliance audit trail
+
+**Fix 3: Hardcoded `khaled@zenitha.luxury` in send API**
+- `app/api/email/send/route.ts` line 103 had `replyTo: params.replyTo || "khaled@zenitha.luxury"` — personal email as fallback for raw sends
+- Changed to `replyTo: params.replyTo` — lets the underlying `sendResendEmail()` use `getDefaultReplyTo()` when not specified
+
+**Confirmed working (no changes needed):**
+- `getDefaultFrom()` logic is correct: `EMAIL_FROM` env var (set) → sandbox fallback when unverified → dynamic site config
+- `sender.ts` SendGrid provider structure is correct (audit false positive — `from` and `subject` are properly at top level)
+- `sender.ts` Resend provider uses raw fetch API correctly with proper error messages for sandbox mode
+- CEO Inbox uses `sendEmail()` from `sender.ts` with dynamic addresses — clean
+- Subscriber model has `unsubscribed_at DateTime?` field — properly used now
+- `subscriber-emails` cron has `maxDuration = 60` — sufficient for email sending (no AI calls)
+- Webhook signature verification uses HMAC-SHA256 with timing-safe comparison — correct
+
+**Email System Architecture (Production-Ready):**
+
+```
+Webhook Flow:
+  Resend → POST /api/email/webhook → verify HMAC signature → log to CronJobLog → update Subscriber on bounce/complaint
+
+Send Flow (Template-Based — resend-service.ts):
+  sendWelcomeEmail() / sendBookingConfirmation() / sendNewsletterDigest() / sendContactConfirmation()
+    → React Email template → renderToStaticMarkup → Resend SDK → idempotency key dedup
+
+Send Flow (Raw — sender.ts):
+  sendEmail({ to, subject, html }) → detectProvider() → Resend REST API / SendGrid / SMTP / Console fallback
+
+CEO Alerts:
+  Cron failure → onCronFailure() → handleCronFailureNotice() → sendEmail() to ADMIN_EMAILS
+
+Subscriber Lifecycle:
+  Subscribe (PENDING) → Confirm (CONFIRMED) → Bounce/Complaint webhook (UNSUBSCRIBED + unsubscribed_at + reason)
+```
+
+**Webhook Events Handled:**
+
+| Event | Action |
+|-------|--------|
+| `email.sent` | Log to CronJobLog |
+| `email.delivered` | Log to CronJobLog |
+| `email.delivery_delayed` | Log to CronJobLog |
+| `email.opened` | Log to CronJobLog |
+| `email.clicked` | Log to CronJobLog (includes click URL) |
+| `email.bounced` | Log + UNSUBSCRIBE subscriber + record reason |
+| `email.complained` | Log + UNSUBSCRIBE subscriber + record reason |
+
+### Critical Rules Learned (March 24 Session — Email Audit)
+
+189. **All `replyTo` addresses must use `getDefaultReplyTo()`, never hardcoded** — hardcoded `info@yalla-london.com` breaks multi-site when site #2 goes live. The function reads `EMAIL_REPLY_TO` env var → site domain config → fallback.
+190. **Webhook bounce/complaint handler must set `unsubscribed_at` AND `metadata_json`** — `status: "UNSUBSCRIBED"` alone doesn't record WHEN or WHY the subscriber was removed. The `unsubscribed_at` timestamp enables "unsubscribe rate over time" metrics, and `metadata_json` with reason/detail enables GDPR Article 30 compliance auditing.
+191. **`RESEND_WEBHOOK_SECRET` enables signature verification on ALL webhook events** — without it, the handler parses the body without verification (development mode). With it set, every webhook POST is HMAC-SHA256 verified. Invalid signatures return 401, preventing spoofed events from unsubscribing real users.
+192. **Resend webhook endpoint MUST return 200 on processing errors** — returning 500 causes Resend to retry with exponential backoff, creating duplicate CronJobLog entries and duplicate unsubscribe operations. The catch block returns `{ received: true, error: "Processing error" }` with status 200.
 
 ## Weekly Manual Checks
 

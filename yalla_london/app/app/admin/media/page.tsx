@@ -102,6 +102,7 @@ export default function MediaLibraryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "import_from_unsplash", mode: "search", query: unsplashQuery, perPage: 30 }),
       });
+      if (!res.ok) { toast.error(`Search failed (${res.status})`); return; }
       const data = await res.json();
       if (data.success) setUnsplashPhotos(data.photos || []);
     } catch { /* handled */ }
@@ -134,6 +135,7 @@ export default function MediaLibraryPage() {
           })),
         }),
       });
+      if (!res.ok) { toast.error(`Import failed (${res.status})`); return; }
       const data = await res.json();
       setUnsplashResult({ created: data.created || 0, skipped: data.skipped || 0, message: data.message || "" });
       if (data.created > 0) loadMediaFiles(); // Refresh library
@@ -723,18 +725,20 @@ export default function MediaLibraryPage() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ action: "bulk_stock_library", perQuery: 5 }),
                     });
-                    const data = await res.json();
                     if (!res.ok) {
-                      setBulkStockResult({ created: 0, skipped: 0, errors: 1, message: data.error || "Failed" });
-                      toast.error(data.error || "Failed to stock library");
+                      const errText = await res.text().catch(() => "Unknown error");
+                      setBulkStockResult({ created: 0, skipped: 0, errors: 1, message: errText.slice(0, 200) });
+                      toast.error("Failed to stock library");
+                      setBulkStocking(false);
+                      return;
+                    }
+                    const data = await res.json();
+                    setBulkStockResult(data);
+                    if (data.created > 0) {
+                      toast.success(`${data.created} photos added to library`);
+                      loadMediaFiles();
                     } else {
-                      setBulkStockResult(data);
-                      if (data.created > 0) {
-                        toast.success(`${data.created} photos added to library`);
-                        loadMediaFiles();
-                      } else {
-                        toast.info(data.message || "Library already stocked");
-                      }
+                      toast.info(data.message || "Library already stocked");
                     }
                   } catch (err) {
                     toast.error("Failed to stock library");

@@ -449,8 +449,19 @@ async function updateInboxEntry(
 
 function getBaseUrlFromEnv(): string | null {
   if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  // Prefer production domain over VERCEL_URL — deployment-specific URLs
+  // (e.g., yalla-london-abc123.vercel.app) are blocked by Vercel deployment
+  // protection, returning 401 before the request reaches Next.js.
+  try {
+    const { getSiteDomain } = require("@/config/sites");
+    const { getDefaultSiteId } = require("@/config/sites");
+    const domain = getSiteDomain(getDefaultSiteId());
+    if (domain) return `https://www.${domain}`;
+  } catch {
+    // Config not available — fall through
+  }
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return null;
 }
 

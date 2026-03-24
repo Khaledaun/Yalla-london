@@ -156,7 +156,7 @@ export async function sendWelcomeEmail(
       siteUrl,
       unsubscribeUrl: `${siteUrl}/api/email/unsubscribe?email=${encodeURIComponent(to)}`,
     }),
-    replyTo: "info@yalla-london.com",
+    replyTo: getDefaultReplyTo(),
     idempotencyKey: `welcome-${to}-${new Date().toISOString().slice(0, 10)}`,
     tags: [
       { name: "type", value: "welcome" },
@@ -201,7 +201,7 @@ export async function sendBookingConfirmation(
       stripeReceiptUrl: booking.stripeReceiptUrl,
       siteUrl: getSiteUrl(siteId),
     }),
-    replyTo: "info@yalla-london.com",
+    replyTo: getDefaultReplyTo(),
     idempotencyKey: `booking-${to}-${booking.bookingName}-${booking.bookingDate || "nodate"}`,
     tags: [
       { name: "type", value: "booking" },
@@ -241,7 +241,7 @@ export async function sendNewsletterDigest(
       weekLabel,
       unsubscribeUrl: `${siteUrl}/api/email/unsubscribe?email={{email}}`,
     }),
-    replyTo: "info@yalla-london.com",
+    replyTo: getDefaultReplyTo(),
     idempotencyKey: `digest-${new Date().toISOString().slice(0, 10)}-${locale}`,
     tags: [
       { name: "type", value: "digest" },
@@ -276,7 +276,7 @@ export async function sendContactConfirmation(
       inquirySubject: inquiry.subject,
       siteUrl: getSiteUrl(siteId),
     }),
-    replyTo: "info@yalla-london.com",
+    replyTo: getDefaultReplyTo(),
     idempotencyKey: `contact-${to}-${new Date().toISOString().slice(0, 13)}`,
     tags: [
       { name: "type", value: "contact" },

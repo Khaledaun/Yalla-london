@@ -90,9 +90,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Handle bounces and complaints — update subscriber status
+    // Handle bounces and complaints — unsubscribe to stop future sends
     if (type === "email.bounced" || type === "email.complained") {
-      const newStatus = type === "email.bounced" ? "BOUNCED" : "COMPLAINED";
+      const reason = type === "email.bounced" ? "bounce" : "complaint";
       const emails = data.to || [];
 
       for (const email of emails) {
@@ -100,12 +100,18 @@ export async function POST(request: NextRequest) {
           await prisma.subscriber.updateMany({
             where: { email: email.toLowerCase() },
             data: {
-              status: newStatus === "BOUNCED" ? "UNSUBSCRIBED" : "UNSUBSCRIBED",
-              // Note: Subscriber model uses PENDING/CONFIRMED/UNSUBSCRIBED
-              // Bounce/complaint → UNSUBSCRIBED to stop future sends
+              status: "UNSUBSCRIBED",
+              unsubscribed_at: new Date(),
+              metadata_json: {
+                unsubscribe_reason: reason,
+                unsubscribe_detail: type === "email.bounced"
+                  ? data.bounce?.message || "Hard bounce"
+                  : data.complaint?.message || "Spam complaint",
+                unsubscribe_event_id: data.email_id,
+              },
             },
           });
-          console.log(`[email/webhook] Updated subscriber ${email} to UNSUBSCRIBED (${type})`);
+          console.log(`[email/webhook] Unsubscribed ${email} — reason: ${reason}`);
         } catch (subErr) {
           // Subscriber may not exist in DB (e.g., one-off transactional email)
           console.warn(`[email/webhook] Could not update subscriber ${email}:`, subErr instanceof Error ? subErr.message : subErr);

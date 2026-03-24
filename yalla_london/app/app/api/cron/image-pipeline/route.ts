@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           articlesUpdated++;
 
           // Save to MediaAsset for reuse
-          await saveToLibrary(prisma, photo, imageUrl, attribution, query, siteId);
+          await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, query, siteId);
           imagesAdded++;
 
           if (photo.downloadUrl) {
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
             const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 85, format: "webp" });
             const attribution = buildAttribution(photo);
 
-            const saved = await saveToLibrary(prisma, photo, imageUrl, attribution, randomQuery, siteId);
+            const saved = await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, randomQuery, siteId);
             if (saved) {
               libraryStocked++;
               if (photo.downloadUrl) {
@@ -169,7 +169,7 @@ interface UnsplashPhotoLike {
 }
 
 async function saveToLibrary(
-  prisma: { mediaAsset: { findFirst: Function; create: Function } } & Record<string, unknown>,
+  prisma: Record<string, unknown>,
   photo: UnsplashPhotoLike,
   imageUrl: string,
   attribution: string,
@@ -177,12 +177,13 @@ async function saveToLibrary(
   siteId: string,
 ): Promise<boolean> {
   try {
-    const existing = await prisma.mediaAsset.findFirst({
+    const mediaAsset = prisma["mediaAsset"] as { findFirst: Function; create: Function };
+    const existing = await mediaAsset.findFirst({
       where: { tags: { has: `unsplash:${photo.id}` } },
     });
     if (existing) return false;
 
-    await prisma.mediaAsset.create({
+    await mediaAsset.create({
       data: {
         filename: `unsplash-${photo.id}.webp`,
         original_name: photo.description || photo.altDescription || searchQuery,

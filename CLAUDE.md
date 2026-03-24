@@ -4552,6 +4552,132 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 174. **IndexNow key file must bypass middleware** — Next.js middleware wraps ALL requests with HTML headers. IndexNow engines need the key as `text/plain`. The `/:key.txt` Vercel rewrite works but middleware intercepts first. Add early return in middleware for `.txt` files matching `INDEXNOW_KEY`.
 175. **Two-phase queries prevent statement timeout** — heavy `findMany` with `OR` clauses cause sequential scans. Split into (1) lightweight ID-only query using compound index + `select: { id: true }`, (2) full record fetch by PK. The PK lookup is immune to statement timeouts.
 
+### Session: March 24, 2026 — Unsplash SDK, Affiliate Link Health, IndexNow Fix, Content-Selector Throughput
+
+**Unsplash SDK Integration (`lib/apis/unsplash.ts` — NEW):**
+- Complete Unsplash photo search and delivery system with full Terms of Service compliance
+- `searchPhotos(query, options)` — API search with orientation/color params, 24h Supabase cache
+- `getRandomPhoto(query, orientation)` — single photo for content pipeline
+- `trackDownload(downloadUrl)` — REQUIRED by Unsplash ToS when image is displayed
+- `buildImageUrl(rawUrl, options)` — generates optimized CDN URLs (never re-hosts images)
+- `buildAttribution(photo)` — bilingual EN/AR attribution HTML with photographer profile link
+- `SITE_IMAGE_QUERIES` — per-site search templates (hotels, landmarks, food for each destination)
+- Rate limit: 50 req/hr on free tier — 24h caching essential
+- Added `plus.unsplash.com` to `next.config.js` `remotePatterns` for CDN hotlinking
+- All photos stored to `MediaAsset` DB with full metadata (dimensions, alt text, photographer, license)
+
+**Unsplash Media Library Integration:**
+- `bulk_stock_library` API action: one-tap fills library with 15-45 curated travel photos per site
+- Uses `SITE_IMAGE_QUERIES` (3 random queries per site, 5 photos each)
+- Auto-dedup by `unsplash:{photoId}` tag
+- Enhanced `image-pipeline` cron: stocks library in Section 1, fills article featured images in Section 2
+- "Stock Library" button in Media Library page with result feedback toast
+
+**Link Health & Suitability Audit (Affiliate HQ — NEW):**
+- New "Link Health Audit" button in Affiliate HQ Actions tab
+- Scans all published articles, extracts every affiliate link from HTML
+- 6 checks per link: (1) Liveness — HTTP HEAD to verify 200/301, (2) Tracking — routed through `/api/affiliate/click`?, (3) Relevance — partner matches article section topic?, (4) Freshness — expired events or past-year references?, (5) SID Attribution — proper `sid=siteId_slug` parameter?, (6) Partner Detection — recognized affiliate network?
+- Returns per-link issue list with severity (critical/warning/info)
+- Copy Full JSON + Show Full Report buttons for diagnostics
+- Library: `lib/affiliate/link-health-audit.ts`
+
+**Affiliate Link Auto-Fix (content-auto-fix Sections 17-19):**
+- **Section 17: Dead Link Removal** — HTTP HEAD check on affiliate links in published articles (20 articles/run, 3 checks per article). Strips links returning 404/403/410. Budget: 15s
+- **Section 18: Stale Link Removal** — Detects affiliate links near past-year dates or expired signals ("expired", "closed", "sold out"). Removes entire affiliate block. Budget: 5s, max 10 removals
+- **Section 19: Untracked Link Wrapping** — Finds direct partner URLs bypassing `/api/affiliate/click`, wraps them through tracking endpoint with SID for revenue attribution. Max 30 wrappings/run. Budget: 5s
+
+**Content-Selector Throughput Fix (3 changes):**
+1. Enhancement queue: 1 → 2 articles per run (was taking 1.5 days for 12-article backlog)
+2. `maxDuration`: 60s → 300s for content-selector in vercel.json (was being killed by Vercel before enhancement completed)
+3. `MAX_ENHANCEMENT_ATTEMPTS`: 3 → 2 (force-publishes faster when enhancement keeps timing out)
+
+**IndexNow Key Verification Fix (3-layer fix):**
+1. Deleted conflicting catch-all route that was shadowing the key endpoint
+2. New `/api/indexnow-key` route serves key as `text/plain` with `nosniff` header and 24h cache
+3. Middleware early-returns for `.txt` requests matching `INDEXNOW_KEY` (prevents HTML wrapping)
+- Vercel rewrite: `/:key.txt → /api/indexnow-key?key=:key`
+- All 3 IndexNow engines (Bing, Yandex, api.indexnow.org) now verify successfully
+
+**CEO Inbox Auto-Fix/Retest 401 Fix:**
+- Root cause: `VERCEL_URL` env var returns deployment URL (e.g., `yalla-london-abc123.vercel.app`) which has different auth than production domain
+- Fix: CEO Inbox retest now uses production domain (`www.yalla-london.com`) via `getSiteDomain()` instead of `VERCEL_URL`
+
+**`optimisticBlogPostUpdate` API Clarification:**
+- The wrapper expects a **function** `(post) => Record<string, unknown>`, NOT a plain object `{ content_en: "..." }`
+- Fixed in content-auto-fix Sections 17-19 where plain objects were passed
+
+**Files Created:**
+- `lib/apis/unsplash.ts` — Unsplash SDK with compliance, caching, bilingual attribution
+- `lib/affiliate/link-health-audit.ts` — 6-check link health audit
+- `app/api/indexnow-key/route.ts` — IndexNow key verification endpoint
+
+**Env Vars (all set in Vercel March 23-24):**
+- `UNSPLASH_ACCESS_KEY` — free tier 50 req/hr
+
+### Critical Rules Learned (March 24 Session — Unsplash, Affiliate Links, IndexNow)
+
+176. **Unsplash ToS requires `trackDownload()` on every displayed image** — calling the download tracking URL is mandatory even though we hotlink (not re-host). Failing to comply risks API key revocation. Always call `trackDownload(photo.links.download_location)` when an image is rendered.
+177. **Never re-host Unsplash images** — use `buildImageUrl(rawUrl, { width, quality, format })` to serve optimized versions directly from Unsplash CDN (`images.unsplash.com`). Re-hosting violates ToS.
+178. **`optimisticBlogPostUpdate` takes a function, not an object** — the wrapper reads fresh DB state, then applies your changes via `(currentPost) => ({ field: newValue })`. Passing `{ field: newValue }` directly causes a TypeScript/runtime error. Always use the function form.
+179. **Content-selector needs `maxDuration: 300` in vercel.json** — without this override, Vercel kills the function at 60s. Enhancement takes 30-45s per article; with 2 articles per run, 60s is insufficient.
+180. **IndexNow key verification requires 3 layers** — (1) dedicated API route returning `text/plain`, (2) Vercel rewrite mapping `/:key.txt` to the route, (3) middleware early-return for `.txt` requests. Missing ANY layer causes engine rejection.
+181. **`VERCEL_URL` is NOT the production domain** — it returns the deployment-specific URL (e.g., `yalla-london-abc123.vercel.app`). For internal API calls that need auth, always use `getSiteDomain()` to get the canonical production domain.
+182. **Affiliate link health checks must skip `/api/affiliate/click` URLs** — these are intentional 302 redirects, not dead links. HTTP HEAD on a redirect returns 302 status, which is correct behavior. Only check the final destination URL if liveness verification is needed.
+
+### Current Platform Status (March 24, 2026 — Updated)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow multi-engine (Bing + Yandex + api.indexnow.org), schema injection, meta optimization, internal link injection ✅
+- 16-check pre-publication gate ✅
+- Per-content-type quality gates (blog 500w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Circuit breaker + last-defense fallback for AI reliability ✅
+- Centralized pipeline constants (single source of truth for all retry/budget values) ✅
+- Queue Monitor with 6 health rules + auto-fix + dashboard API ✅
+- Optimistic concurrency on all BlogPost writes (24 update calls protected) ✅
+- Formal state machine with VALID_TRANSITIONS — validates every phase change ✅
+- Per-article trace ID — full lifecycle from draft to revenue ✅
+- Enhancement ownership manifest — each modification type has exactly one owning cron ✅
+- Escalation policy — daily alert cap (10), per-job cooldown (30min), pipeline circuit breaker (<30% → auto-pause) ✅
+- Pipeline source tracking — `source_pipeline` field on every BlogPost ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- Per-page audit with sortable indexing + GSC data ✅
+- CEO Inbox automated incident response (detect → diagnose → fix → retest → alert) ✅
+- Cycle Health Analyzer with evidence-based diagnostics ✅
+- Cache-first sitemap (<200ms vs 5-10s) ✅
+- CJ affiliate pipeline: sync, deep links, injection, revenue attribution, SID tracking ✅
+- Affiliate HQ: 6-tab command center + link health audit ✅
+- **NEW: Affiliate link auto-fix — dead link removal, stale link removal, untracked link wrapping** ✅
+- GEO/AIO optimization: citability gate, stats+citations in all prompts ✅
+- Topic diversification: 60-70% general luxury + 30-40% Arab niche ✅
+- GSC sync with accurate per-day data ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+- Admin dashboard Clean Light design system ✅
+- **NEW: Unsplash SDK — full compliance, caching, bilingual attribution, auto-stock library** ✅
+- **NEW: IndexNow key verification — 3-layer fix, all 3 engines accepting** ✅
+- Foundation APIs: Frankfurter (currency), Open-Meteo (weather), Ticketmaster (events), Nager.Date (holidays), REST Countries, Unsplash ✅
+- Auto-monetization: Stay22 LetMeAllez, Travelpayouts Drive ✅
+- Integration Health dashboard — tests all 12 APIs in one tap ✅
+- Canva Video Registry — 433 clips across 4 collections ✅
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW | Open |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW | Open |
+| Arabic SSR | `/ar/` routes render English on server, Arabic only client-side | MEDIUM | Open (KG-032) |
+| Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
+| Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
+| Unsplash Rate Limit | 50 req/hr free tier — upgrade to production ($25/mo) if hitting limits | LOW | Monitor |
+| Email System | Code ready, `RESEND_API_KEY` not yet set in Vercel | MEDIUM | Set env var |
+| Twitter Auto-Post | Code ready, 4 Twitter env vars not yet set in Vercel | LOW | Set env vars |
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

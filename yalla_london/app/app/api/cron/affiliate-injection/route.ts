@@ -630,12 +630,19 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[] | null, title?: string): { content: string; count: number; partners: string[] } {
+function buildTrackedUrl(partnerUrl: string, slug: string, siteId: string): string {
+  // Wrap partner URL through our click tracker for revenue attribution + GA4 events
+  const sid = `${siteId}_${slug}`.substring(0, 100); // CJ SID max 100 chars
+  return `/api/affiliate/click?url=${encodeURIComponent(partnerUrl)}&sid=${encodeURIComponent(sid)}`;
+}
+
+function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[] | null, title?: string, slug?: string): { content: string; count: number; partners: string[] } {
   const matches = findMatches(html, siteId, 4, dbRules, title);
   if (matches.length === 0) return { content: html, count: 0, partners: [] };
 
   let result = html;
   const partners: string[] = [];
+  const articleSlug = slug || "unknown";
 
   // Replace placeholder divs with actual CTAs
   for (const match of matches.slice(0, 2)) {
@@ -646,12 +653,13 @@ function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[
       continue;
     }
     const safeName = escapeHtml(match.name);
-    const safeUrl = encodeURI(fullUrl);
+    // Route through click tracker for revenue attribution + GA4 events
+    const trackedUrl = buildTrackedUrl(fullUrl, articleSlug, siteId);
     const cta = `
 <div class="affiliate-recommendation" data-affiliate="${safeName}" data-category="${escapeHtml(match.category)}" style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
   <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">Recommended: ${safeName}</p>
   <p style="margin: 0 0 0.75rem 0; color: #6b7280; font-size: 0.9rem;">Book through our trusted partner for exclusive rates</p>
-  <a href="${safeUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-block; padding: 0.5rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">View on ${safeName} &rarr;</a>
+  <a href="${trackedUrl}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${safeName}" style="display: inline-block; padding: 0.5rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">View on ${safeName} &rarr;</a>
 </div>`;
 
     // Replace first placeholder with this CTA
@@ -675,7 +683,7 @@ function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[
       .filter((m) => isValidAffiliateUrl(m.url + m.param))
       .map(
         (m) =>
-          `<a href="${encodeURI(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit;">
+          `<a href="${buildTrackedUrl(m.url + m.param, articleSlug, siteId)}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${escapeHtml(m.name)}" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit;">
       <strong style="color: #7c3aed;">${escapeHtml(m.name)}</strong>
       <span style="display: block; font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem;">${escapeHtml(m.category)}</span>
     </a>`,
@@ -782,8 +790,8 @@ async function handleAffiliateInjection(request: NextRequest) {
         ...staticRules,                     // Comprehensive static rules (all categories)
       ];
 
-      const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en);
-      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en) : { content: post.content_ar || "", count: 0, partners: [] };
+      const enResult = injectAffiliates(post.content_en || "", postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en, post.slug);
+      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId, mergedRules.length > 0 ? mergedRules : null, post.title_en, post.slug) : { content: post.content_ar || "", count: 0, partners: [] };
 
       // Diagnostic: log why first 5 uninjected posts got 0 matches
       if (enResult.count === 0 && arResult.count === 0 && diagnosticSamples.length < 5) {

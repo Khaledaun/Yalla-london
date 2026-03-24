@@ -4433,6 +4433,125 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 - `app/blog/[slug]/BlogPostClient.tsx` — added `siteId?: string` to `BlogPostData`
 - `lib/content-pipeline/select-runner.ts` — overlap 0.7→0.85, force-publish fallback
 
+### Session: March 24, 2026 — Pipeline Emergency Fix + Multi-Website Infrastructure Hardening
+
+**Root Cause Analysis (200-entry ops log) — 5 Critical Pipeline Blockers Fixed:**
+
+1. **OpenAI instant circuit-break** (`lib/ai/provider.ts`): OpenAI API key had exhausted quota but was still in the fallback chain, consuming 10-15s of budget per AI call before failing. Added `quotaExhausted` flag that instantly trips circuit breaker with 5-minute cooldown (vs 30s normal) for `insufficient_quota`, `billing_not_active`, `rate_limit_exceeded` errors.
+
+2. **Transaction timeout 5s→30s** (`app/api/cron/content-builder-create/route.ts`): Bilingual EN+AR draft pair creation takes 22s during Supabase pool contention. Default Prisma `$transaction` timeout is 5s. Every draft creation was crashing with "Transaction already closed." Fixed with `{ timeout: 30000 }`.
+
+3. **Content-selector last-resort force-publish** (`lib/content-pipeline/select-runner.ts`): 65 articles stuck in reservoir because ALL candidates failed quality/word-count filter (`publishReady=0`). The force-publish fallback only checked `publishReady` (empty), not the full candidate list. Added last-resort that force-publishes best candidate from ALL reservoir candidates regardless of quality score.
+
+4. **Sweeper topic status "approved"→"ready"** (`lib/content-pipeline/sweeper.ts`): Sweeper reset stuck "generating" topics to "approved" — but CONSUMABLE_STATUSES only includes `["ready","queued","planned","proposed"]`. Topics cycled generating→approved→generating forever. Changed to "ready".
+
+5. **DB query timeout two-phase optimization** (`lib/content-pipeline/build-runner.ts`): `articleDraft.findMany` with complex `OR` on `phase_started_at` caused PostgreSQL statement timeout (57014). Split into lightweight ID-only query (uses compound index) + PK lookup for full records.
+
+**Multi-Website Infrastructure Hardening (Supabase Pro + Vercel Pro):**
+
+**Cron Scaling (vercel.json):**
+- Added `maxDuration: 300` to 10 site-looping crons that were capped at 60s default: `gsc-sync`, `verify-indexing`, `seo-orchestrator`, `seo-deep-review`, `seo-audit-runner`, `daily-seo-audit`, `diagnostic-sweep`, `google-indexing`, `trends-monitor`, `schedule-executor`
+- Fixed 20:00 UTC collision (seo-agent + social) — staggered by 5min
+- Fixed :15 3-way collision (schedule-executor + process-indexing-queue + perplexity-executor) — moved perplexity-executor to :20/:50
+
+**Table Cleanup (content-auto-fix-lite):**
+- Section 10: ApiUsageLog — 7-day retention (~200 entries/day, growing with sites)
+- Section 11: AutoFixLog — 14-day retention
+- Section 12: Rejected ArticleDraft — 14-day retention (645+ rejected drafts were accumulating, slowing all findMany queries)
+
+**Query Safety:**
+- `seo-intelligence.ts`: added `take:500` to unbounded `blogPost.findMany`
+- `diagnostic-agent.ts`: added `take:500` to unbounded `blogPost.findMany`
+
+**IndexNow Fix:**
+- `middleware.ts`: IndexNow key file requests (`.txt` matching `INDEXNOW_KEY`) now bypass middleware to prevent HTML wrapping — fixes all 3 engines (Bing, Yandex, api.indexnow.org) rejecting key verification
+
+**Diagnostics Fix:**
+- `system-diagnostics/sections/pipeline.ts`: counts "generating" (stuck) topics instead of "approved" (no longer exists after sweeper fix)
+
+---
+
+## Multi-Website Infrastructure Readiness (March 24, 2026)
+
+### Infrastructure Tier: Supabase Pro + Vercel Pro
+
+| Resource | Limit | Current Usage | At 3 Sites | At 5 Sites |
+|----------|-------|--------------|------------|------------|
+| Supabase connections (PgBouncer) | ~100 | ~12-15 peak | ~25-30 | ~40-50 |
+| Vercel Pro function timeout | 300s | 18 crons at 300s | OK | OK |
+| Cron count | ~100/project | 48 scheduled | OK | OK |
+| DB rows (ArticleDraft) | Unlimited | ~800 | ~2,400 | ~4,000 |
+| DB rows (CronJobLog) | Unlimited | ~2,800/14d | ~8,400/14d | ~14,000/14d |
+| AI cost (Grok) | Pay-per-use | ~$0.04/12h | ~$0.12/12h | ~$0.20/12h |
+
+### What's Ready for Multi-Site
+
+| System | Multi-Site | Status |
+|--------|-----------|--------|
+| Content pipeline (8 phases) | Yes | All loops use `getActiveSiteIds()` |
+| SEO agent + IndexNow | Yes | Per-site scoping on all queries |
+| Pre-publication gate (16 checks) | Yes | Dynamic thresholds per content type |
+| Affiliate injection (CJ + Travelpayouts + Stay22) | Yes | Per-site keyword rules for all 6 sites |
+| Quality gates (per-content-type) | Yes | Blog/news/information/guide thresholds |
+| Cockpit + admin dashboard | Yes | Site selector, per-site metrics |
+| Brand kit + design system | Yes | `getBrandProfile(siteId)` for all 6 sites |
+| Cron feature flags | Yes | `checkCronEnabled()` per-cron DB toggle |
+| CEO Inbox alerts | Yes | Per-site error routing |
+| Table cleanup (CronJobLog, ApiUsageLog, AutoFixLog, rejected drafts) | Yes | Automatic retention policies |
+| Topic generation (weekly-topics) | Yes | Per-site keywords + context |
+| GA4 analytics | **Partial** | Single property — needs per-site GA4 |
+| GSC sync | **Partial** | Needs per-site GSC properties |
+| Unsplash images | Yes (code ready) | Needs `UNSPLASH_ACCESS_KEY` env var |
+| Email sending | Yes (code ready) | Needs `RESEND_API_KEY` env var |
+| Social auto-posting | Twitter only | Needs 4 Twitter env vars |
+| Video studio (Remotion) | **Dead** | Cannot run on Vercel serverless |
+
+### Feature Readiness Summary
+
+| # | Feature | Status | What's Missing |
+|---|---------|--------|----------------|
+| 1 | **Photos/Images** | PARTIAL | Set `UNSPLASH_ACCESS_KEY` in Vercel — image-pipeline cron already built |
+| 2 | **Affiliate Links** | WORKING | Only Vrbo approved. Apply to more CJ advertisers + set partner env vars |
+| 3 | **Social Media** | PARTIAL | Set 4 Twitter env vars. Instagram/TikTok/LinkedIn are manual-only by design |
+| 4 | **PDF Generator** | PARTIAL | Covers work (Edge Runtime). Guide PDF via Puppeteer fragile on serverless |
+| 5 | **Email System** | NOT SENDING | Set `RESEND_API_KEY` in Vercel (free tier: 100 emails/day) |
+| 6 | **Video Studio** | DEAD | Remotion needs Chromium — not available on Vercel. Use Canva instead |
+| 7 | **Brand Kit** | WORKING | Logo SVGs not yet created; social links empty |
+| 8 | **IndexNow/SEO** | FIXED | Middleware bypass added — key file now serves plain text |
+| 9 | **GA4 Analytics** | WORKING | Single property. Per-site properties needed before site #2 |
+| 10 | **Content Auto-Fix** | WORKING | No blockers. AI throughput limited by design (1-3 articles/run) |
+
+### Env Vars Needed Before Site #2
+
+| Env Var | Purpose | Cost | Priority |
+|---------|---------|------|----------|
+| `UNSPLASH_ACCESS_KEY` | Real photos on articles | Free (50 req/hr) | **HIGH** |
+| `RESEND_API_KEY` | Email sending (CEO alerts, campaigns) | Free (100/day) | **HIGH** |
+| `TWITTER_API_KEY` + 3 more | Social auto-posting | Free tier | MEDIUM |
+| Per-site `GA4_PROPERTY_ID_*` | Analytics per site | Free | Before site #2 |
+| Per-site `GSC_SITE_URL_*` | Search Console per site | Free | Before site #2 |
+
+### Scaling Actions by Site Count
+
+**At 1 site (current):** Everything works. Merge this PR and deploy.
+
+**Before site #2:** Set Unsplash + Resend env vars. Create GA4 property + GSC property for new site. Run `npx prisma migrate deploy` for any pending migrations.
+
+**Before site #3:** Monitor Supabase CPU dashboard. If sustained >70%, add Supabase compute add-on ($10-25/month). Consider Redis for cron dedup (Upstash free tier).
+
+**Before site #5:** Evaluate queue system (Inngest free tier: 25K events/month). May need to split heavy crons into dedicated Vercel background functions.
+
+### Critical Rules Learned (March 24 Session)
+
+168. **`quotaExhausted` flag on circuit breaker uses 5-minute cooldown** — quota/billing errors don't self-heal in 30s. Without extended cooldown, the dead provider re-probes every 30s, wasting 5-10s of fallback budget each time.
+169. **Prisma `$transaction` default timeout is 5000ms** — bilingual draft pair creation + topic dedup can take 22s during pool contention. Always pass `{ timeout: 30000 }` for transactions that do multiple writes.
+170. **Content-selector must force-publish from ALL candidates, not just publishReady** — when the quality filter rejects everything, `publishReady` is empty and the force-publish fallback at `publishReady.length > 0` never fires. The last-resort must check `candidates.length > 0`.
+171. **Sweeper MUST use "ready" (not "approved") when resetting stuck topics** — CONSUMABLE_STATUSES = `["ready","queued","planned","proposed"]`. "approved" is NOT in this list. Topics reset to "approved" are permanently stuck.
+172. **Every cron that loops `getActiveSiteIds()` needs `maxDuration: 300` in vercel.json** — at 3+ sites, any cron taking >20s per site exceeds the 60s default. The `export const maxDuration` in the route file is OVERRIDDEN by the vercel.json catch-all.
+173. **Table cleanup must cover 5 growing tables** — CronJobLog (14d), ApiUsageLog (7d), AutoFixLog (14d), rejected ArticleDrafts (14d), URLIndexingStatus stale entries. Without cleanup, query performance degrades linearly with time and site count.
+174. **IndexNow key file must bypass middleware** — Next.js middleware wraps ALL requests with HTML headers. IndexNow engines need the key as `text/plain`. The `/:key.txt` Vercel rewrite works but middleware intercepts first. Add early return in middleware for `.txt` files matching `INDEXNOW_KEY`.
+175. **Two-phase queries prevent statement timeout** — heavy `findMany` with `OR` clauses cause sequential scans. Split into (1) lightweight ID-only query using compound index + `select: { id: true }`, (2) full record fetch by PK. The PK lookup is immune to statement timeouts.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

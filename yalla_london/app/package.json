@@ -234,7 +234,8 @@
     "@typescript-eslint/parser": "^8.0.0",
     "chart.js": "^4.4.9",
     "tailwindcss": "3.3.3",
-    "tailwindcss-animate": "1.0.7"
+    "tailwindcss-animate": "1.0.7",
+    "eslint-visitor-keys": "^4.2.1"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

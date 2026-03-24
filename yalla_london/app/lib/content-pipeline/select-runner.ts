@@ -430,7 +430,9 @@ export async function runContentSelector(
     if (selected.length === 0) {
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       // Also close the dedup marker so it doesn't appear as "stale/crashed".
-      const msg = `All ${publishReady.length} reservoir candidates have >85% keyword overlap with published articles. Skipping.`;
+      const msg = candidates.length > 0
+        ? `${candidates.length} reservoir candidates exist but none could be promoted: ${publishReady.length} passed quality gate (all had keyword overlap), ${needsEnhancement.length} need enhancement. Force-publish fallbacks also failed.`
+        : `No reservoir candidates available for promotion.`;
       if (dedupMarkerId) {
         await prisma.cronJobLog.update({
           where: { id: dedupMarkerId },

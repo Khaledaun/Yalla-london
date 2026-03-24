@@ -126,7 +126,7 @@
   "rewrites": [
     {
       "source": "/:key.txt",
-      "destination": "/api/indexnow-key"
+      "destination": "/api/indexnow-key?key=:key"
     }
   ],
   "crons": [

@@ -162,8 +162,11 @@ const EXCLUDED_PATHS = [
 // IndexNow key verification: engines fetch /{key}.txt and expect ONLY
 // plain text back — no Set-Cookie, no site-context headers. The middleware
 // must not touch these requests, otherwise engines reject the key file.
+// Also matches any *.txt at root level — no legitimate page route uses .txt.
 function isIndexNowKeyRequest(pathname: string): boolean {
-  return /^\/[a-zA-Z0-9]{20,}(\.txt)?$/.test(pathname);
+  // Match /{key}.txt (any root-level .txt file) or bare /{key} with 8+ alphanumeric chars
+  return /^\/[a-zA-Z0-9_-]+\.txt$/.test(pathname) ||
+    /^\/[a-zA-Z0-9]{8,}$/.test(pathname);
 }
 
 // SECURITY: Allowed origins for CSRF protection
@@ -482,6 +485,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|favicon\\.svg|og-image\\.jpg|icons/|images/|branding/|screenshots/|public/).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|favicon\\.svg|og-image\\.jpg|icons/|images/|branding/|screenshots/|public/|[a-zA-Z0-9_-]+\\.txt$).*)",
   ],
 };

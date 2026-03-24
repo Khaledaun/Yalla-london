@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
+import { getActiveSiteIds } from "@/config/sites";
 
 export const maxDuration = 60;
 
 const BUDGET_MS = 53_000;
 
 /**
- * Image Pipeline Cron — fetches Unsplash images for published articles missing featured images.
- * Also saves photos to MediaAsset table for reuse across the platform.
- * Schedule: Every 4 hours (respects Unsplash 50 req/hour limit)
+ * Image Pipeline Cron — two jobs:
+ * 1. Fetch Unsplash images for published articles missing featured images
+ * 2. Pre-stock the media library with per-site travel imagery for agents to use
+ *    (articles, email designs, PDF covers, social media)
+ *
+ * Schedule: 3x/day at 2:20, 10:20, 18:20 UTC
+ * Unsplash free tier: 50 req/hour — we use max ~15 per run (safe margin)
  */
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -24,18 +28,19 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   let imagesAdded = 0;
   let articlesUpdated = 0;
+  let libraryStocked = 0;
   let errors = 0;
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { searchPhotos, trackDownload, buildImageUrl, buildAttribution } = await import("@/lib/apis/unsplash");
+    const { searchPhotos, trackDownload, buildImageUrl, buildAttribution, SITE_IMAGE_QUERIES } = await import("@/lib/apis/unsplash");
 
     const activeSites = getActiveSiteIds();
 
+    // ── Step 1: Fill missing article featured images ─────────────────
     for (const siteId of activeSites) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
-      // Find published articles without featured images (max 5 per run to respect rate limits)
       const articles = await prisma.blogPost.findMany({
         where: {
           siteId,
@@ -45,12 +50,7 @@ export async function GET(request: NextRequest) {
             { featured_image: "" },
           ],
         },
-        select: {
-          id: true,
-          title_en: true,
-          slug: true,
-          category_id: true,
-        },
+        select: { id: true, title_en: true, slug: true },
         take: 5,
         orderBy: { created_at: "desc" },
       });
@@ -59,58 +59,24 @@ export async function GET(request: NextRequest) {
         if (Date.now() - startTime > BUDGET_MS) break;
 
         try {
-          // Search Unsplash for a relevant image
           const query = article.title_en.replace(/[^\w\s]/g, "").substring(0, 50);
           const photos = await searchPhotos(query, { perPage: 3, orientation: "landscape" });
-
           if (photos.length === 0) continue;
 
           const photo = photos[0];
           const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 80, format: "webp" });
           const attribution = buildAttribution(photo);
 
-          // Update article with featured image
           await prisma.blogPost.update({
             where: { id: article.id },
-            data: {
-              featured_image: imageUrl,
-              // Store attribution in meta for display
-              meta_description_en: undefined, // Don't overwrite — just update image
-            },
+            data: { featured_image: imageUrl },
           });
           articlesUpdated++;
 
-          // Save to MediaAsset for platform-wide reuse
-          try {
-            const existingAsset = await prisma.mediaAsset.findFirst({
-              where: { tags: { has: `unsplash:${photo.id}` } },
-            });
-            if (!existingAsset) {
-              await prisma.mediaAsset.create({
-                data: {
-                  filename: `unsplash-${photo.id}.webp`,
-                  original_name: photo.description || photo.altDescription || query,
-                  cloud_storage_path: `unsplash/${photo.id}`,
-                  url: imageUrl,
-                  file_type: "image",
-                  mime_type: "image/webp",
-                  file_size: 0, // Unknown for external URLs
-                  width: photo.width,
-                  height: photo.height,
-                  alt_text: photo.altDescription || photo.description || query,
-                  title: photo.description || query,
-                  description: attribution,
-                  tags: [`unsplash:${photo.id}`, `photographer:${photo.photographer.name}`, siteId],
-                  license_info: `Unsplash License — ${attribution}`,
-                },
-              });
-              imagesAdded++;
-            }
-          } catch (assetErr) {
-            console.warn("[image-pipeline] MediaAsset save failed:", assetErr instanceof Error ? assetErr.message : String(assetErr));
-          }
+          // Save to MediaAsset for reuse
+          await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, query, siteId);
+          imagesAdded++;
 
-          // Track download per Unsplash ToS
           if (photo.downloadUrl) {
             trackDownload(photo.downloadUrl).catch(() => {});
           }
@@ -118,6 +84,55 @@ export async function GET(request: NextRequest) {
           errors++;
           console.warn(`[image-pipeline] Failed for article ${article.slug}:`, articleErr instanceof Error ? articleErr.message : String(articleErr));
         }
+      }
+    }
+
+    // ── Step 2: Pre-stock library with per-site travel imagery ────────
+    // Pick 1 random query per site per run (stays within rate limits)
+    for (const siteId of activeSites) {
+      if (Date.now() - startTime > BUDGET_MS) break;
+
+      const queries = SITE_IMAGE_QUERIES[siteId];
+      if (!queries || queries.length === 0) continue;
+
+      // Pick a random query we haven't stocked recently
+      const randomQuery = queries[Math.floor(Math.random() * queries.length)];
+
+      try {
+        // Check how many we already have for this query
+        const existingCount = await prisma.mediaAsset.count({
+          where: {
+            tags: { hasEvery: ["unsplash", siteId] },
+            original_name: { contains: randomQuery.split(" ")[0], mode: "insensitive" },
+          },
+        });
+
+        // If we already have 20+ photos matching this query theme, skip
+        if (existingCount >= 20) continue;
+
+        const photos = await searchPhotos(randomQuery, { perPage: 5, orientation: "landscape" });
+
+        for (const photo of photos) {
+          if (Date.now() - startTime > BUDGET_MS) break;
+
+          try {
+            const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 85, format: "webp" });
+            const attribution = buildAttribution(photo);
+
+            const saved = await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, randomQuery, siteId);
+            if (saved) {
+              libraryStocked++;
+              if (photo.downloadUrl) {
+                trackDownload(photo.downloadUrl).catch(() => {});
+              }
+            }
+          } catch (stockErr) {
+            console.warn("[image-pipeline] Library stock failed:", stockErr instanceof Error ? stockErr.message : String(stockErr));
+          }
+        }
+      } catch (queryErr) {
+        errors++;
+        console.warn(`[image-pipeline] Query "${randomQuery}" failed for ${siteId}:`, queryErr instanceof Error ? queryErr.message : String(queryErr));
       }
     }
   } catch (err) {
@@ -132,6 +147,7 @@ export async function GET(request: NextRequest) {
     success: true,
     articlesUpdated,
     imagesAdded,
+    libraryStocked,
     errors,
     durationMs: Date.now() - startTime,
   });
@@ -139,4 +155,65 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   return GET(request);
+}
+
+// ── Helper: save Unsplash photo to MediaAsset (dedup by unsplash:{id} tag) ──
+
+interface UnsplashPhotoLike {
+  id: string;
+  description: string | null;
+  altDescription: string | null;
+  width: number;
+  height: number;
+  photographer: { name: string; username: string };
+}
+
+async function saveToLibrary(
+  prisma: Record<string, unknown>,
+  photo: UnsplashPhotoLike,
+  imageUrl: string,
+  attribution: string,
+  searchQuery: string,
+  siteId: string,
+): Promise<boolean> {
+  try {
+    const mediaAsset = prisma["mediaAsset"] as { findFirst: Function; create: Function };
+    const existing = await mediaAsset.findFirst({
+      where: { tags: { has: `unsplash:${photo.id}` } },
+    });
+    if (existing) return false;
+
+    await mediaAsset.create({
+      data: {
+        filename: `unsplash-${photo.id}.webp`,
+        original_name: photo.description || photo.altDescription || searchQuery,
+        cloud_storage_path: `unsplash/${photo.id}`,
+        url: imageUrl,
+        file_type: "image",
+        mime_type: "image/webp",
+        file_size: 0,
+        width: photo.width,
+        height: photo.height,
+        alt_text: photo.altDescription || photo.description || searchQuery,
+        title: photo.description || searchQuery,
+        description: attribution,
+        tags: [
+          `unsplash:${photo.id}`,
+          "unsplash",
+          "stock-photo",
+          "travel",
+          `photographer:${photo.photographer.username}`,
+          siteId,
+        ],
+        folder: "unsplash",
+        category: "stock-photo",
+        site_id: siteId,
+        license_info: `Unsplash License — ${attribution}`,
+      },
+    });
+    return true;
+  } catch (err) {
+    console.warn("[image-pipeline] saveToLibrary failed:", err instanceof Error ? err.message : String(err));
+    return false;
+  }
 }

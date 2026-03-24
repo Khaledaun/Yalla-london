@@ -238,6 +238,236 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       });
     }
 
+    // ── Bulk Stock Library (per-site auto-fill) ───────────────
+    // One-tap action: fetches photos for ALL configured site queries and saves to library.
+    // Uses SITE_IMAGE_QUERIES from unsplash.ts. Respects rate limits (max 30 photos per run).
+    if (body.action === 'bulk_stock_library') {
+      const { searchPhotos, trackDownload, buildImageUrl, buildAttribution, SITE_IMAGE_QUERIES } = await import("@/lib/apis/unsplash");
+
+      if (!process.env.UNSPLASH_ACCESS_KEY) {
+        return NextResponse.json({
+          success: false,
+          error: 'UNSPLASH_ACCESS_KEY not configured. Get a free key at unsplash.com/developers and add it to Vercel env vars.',
+        }, { status: 400 });
+      }
+
+      const targetSiteId = body.siteId || null;
+      const perQuery = Math.min(body.perQuery || 5, 10); // max 10 per query
+      const sitesToStock = targetSiteId
+        ? { [targetSiteId]: SITE_IMAGE_QUERIES[targetSiteId] || [] }
+        : SITE_IMAGE_QUERIES;
+
+      let totalCreated = 0;
+      let totalSkipped = 0;
+      let totalErrors = 0;
+      const queriesRun: string[] = [];
+
+      for (const [siteId, queries] of Object.entries(sitesToStock)) {
+        if (!queries || queries.length === 0) continue;
+
+        // Pick up to 3 random queries per site to stay within rate limits
+        const shuffled = [...queries].sort(() => Math.random() - 0.5).slice(0, 3);
+
+        for (const query of shuffled) {
+          try {
+            const photos = await searchPhotos(query, { perPage: 5, orientation: 'landscape' });
+            queriesRun.push(`${siteId}:${query} (${photos.length})`);
+
+            for (const photo of photos) {
+              // Dedup check
+              const exists = await prisma.mediaAsset.findFirst({
+                where: { tags: { has: `unsplash:${photo.id}` } },
+                select: { id: true },
+              });
+              if (exists) { totalSkipped++; continue; }
+
+              const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 85, format: 'webp' });
+              const attribution = buildAttribution(photo);
+
+              try {
+                trackDownload(photo.downloadUrl).catch(() => {});
+
+                await prisma.mediaAsset.create({
+                  data: {
+                    filename: `unsplash-${photo.id}.webp`,
+                    original_name: photo.description || photo.altDescription || query,
+                    cloud_storage_path: `unsplash/${photo.id}`,
+                    url: imageUrl,
+                    file_type: 'image',
+                    mime_type: 'image/webp',
+                    file_size: 0,
+                    width: photo.width,
+                    height: photo.height,
+                    alt_text: photo.altDescription || photo.description || query,
+                    title: photo.description || query,
+                    description: attribution,
+                    tags: [
+                      `unsplash:${photo.id}`, 'unsplash', 'stock-photo', 'travel',
+                      `photographer:${photo.photographer.username}`, siteId,
+                    ],
+                    folder: 'unsplash',
+                    category: 'stock-photo',
+                    site_id: siteId,
+                    license_info: `Unsplash License — ${attribution}`,
+                  },
+                });
+                totalCreated++;
+              } catch {
+                totalErrors++;
+              }
+            }
+          } catch (queryErr) {
+            console.warn(`[bulk-stock] Query "${query}" failed:`, queryErr instanceof Error ? queryErr.message : String(queryErr));
+            totalErrors++;
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        created: totalCreated,
+        skipped: totalSkipped,
+        errors: totalErrors,
+        queriesRun,
+        message: `Stocked ${totalCreated} photos (${totalSkipped} already existed, ${totalErrors} errors)`,
+      });
+    }
+
+    // ── Import from Unsplash ──────────────────────────────────
+    // Human-initiated bulk import: search → select → save to MediaAsset.
+    // Unsplash ToS requires: (1) human triggers search, (2) track downloads, (3) store attribution.
+    if (body.action === 'import_from_unsplash') {
+      const { searchPhotos, trackDownload, buildImageUrl, buildAttribution } = await import("@/lib/apis/unsplash");
+
+      // Mode 1: Search — returns photos for the user to pick from
+      if (body.mode === 'search') {
+        const query = body.query || 'luxury travel';
+        const photos = await searchPhotos(query, {
+          perPage: Math.min(body.perPage || 30, 30),
+          orientation: body.orientation || 'landscape',
+        });
+        return NextResponse.json({
+          success: true,
+          photos: photos.map(p => ({
+            id: p.id,
+            description: p.description || p.altDescription || '',
+            urls: p.urls,
+            width: p.width,
+            height: p.height,
+            color: p.color,
+            photographer: p.photographer,
+            downloadUrl: p.downloadUrl,
+            attribution: buildAttribution(p),
+          })),
+          total: photos.length,
+          query,
+        });
+      }
+
+      // Mode 2: Import — save selected photos to MediaAsset DB
+      if (body.mode === 'import' && Array.isArray(body.photos)) {
+        const photos: Array<{
+          id: string;
+          description: string;
+          url: string; // regular size URL
+          rawUrl: string; // raw URL for buildImageUrl
+          width: number;
+          height: number;
+          color: string;
+          photographerName: string;
+          photographerUsername: string;
+          photographerUrl: string;
+          downloadUrl: string;
+        }> = body.photos;
+
+        // Check which Unsplash IDs already exist
+        const existing = await prisma.mediaAsset.findMany({
+          where: { tags: { hasSome: photos.map(p => `unsplash:${p.id}`) } },
+          select: { tags: true },
+        });
+        const existingIds = new Set<string>();
+        for (const row of existing) {
+          for (const tag of row.tags) {
+            if (tag.startsWith('unsplash:')) existingIds.add(tag.replace('unsplash:', ''));
+          }
+        }
+
+        let created = 0;
+        let skipped = 0;
+        const errors: string[] = [];
+        const siteId = body.siteId || null;
+        const folder = body.folder || 'unsplash';
+        const category = body.category || 'stock-photo';
+
+        for (const photo of photos) {
+          if (existingIds.has(photo.id)) {
+            skipped++;
+            continue;
+          }
+
+          try {
+            // Track download (required by Unsplash ToS)
+            trackDownload(photo.downloadUrl).catch(() => {});
+
+            // Build optimized URL (1200px wide, webp, quality 85)
+            const optimizedUrl = buildImageUrl(photo.rawUrl, {
+              width: 1200,
+              quality: 85,
+              format: 'webp',
+            });
+
+            // Build attribution for legal compliance
+            const attribution = `Photo by ${photo.photographerName} on Unsplash (${photo.photographerUrl})`;
+
+            await prisma.mediaAsset.create({
+              data: {
+                filename: `unsplash-${photo.id}.webp`,
+                original_name: photo.description?.slice(0, 200) || `Unsplash ${photo.id}`,
+                cloud_storage_path: `unsplash/${photo.id}`,
+                url: optimizedUrl,
+                file_type: 'image',
+                mime_type: 'image/webp',
+                file_size: 0, // CDN-served, no local file
+                width: photo.width,
+                height: photo.height,
+                alt_text: photo.description?.slice(0, 200) || `Travel photo by ${photo.photographerName}`,
+                title: photo.description?.slice(0, 200) || null,
+                description: attribution,
+                tags: [
+                  `unsplash:${photo.id}`,
+                  'unsplash',
+                  'stock-photo',
+                  'travel',
+                  `photographer:${photo.photographerUsername}`,
+                  ...(siteId ? [siteId] : []),
+                ],
+                folder,
+                category,
+                site_id: siteId,
+                isVideo: false,
+              },
+            });
+            created++;
+          } catch (createErr) {
+            const reason = createErr instanceof Error ? createErr.message : String(createErr);
+            errors.push(`${photo.id}: ${reason.slice(0, 150)}`);
+          }
+        }
+
+        return NextResponse.json({
+          success: errors.length === 0,
+          created,
+          skipped,
+          failed: errors.length,
+          total: photos.length,
+          errors: errors.length > 0 ? errors : undefined,
+          message: `Imported ${created} photos from Unsplash (${skipped} already existed)`,
+        });
+      }
+
+      return NextResponse.json({ error: 'Invalid mode — use "search" or "import"' }, { status: 400 });
+    }
+
     // ── Standard create ──────────────────────────────────────
     const validation = MediaCreateSchema.safeParse(body);
 

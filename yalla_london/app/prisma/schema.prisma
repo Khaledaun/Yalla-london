@@ -4818,3 +4818,18 @@ enum CjSyncStatus {
   PARTIAL
   FAILED
 }
+
+// ── Unsplash API Cache ─────────────────────────────────────────
+// 24h TTL caching for Unsplash API responses.
+// Critical for staying within 50 req/hr demo tier.
+model UnsplashCache {
+  id            String   @id @default(cuid())
+  cache_key     String   @unique
+  response_data Json
+  created_at    DateTime @default(now())
+  expires_at    DateTime
+
+  @@index([cache_key])
+  @@index([expires_at])
+  @@map("unsplash_cache")
+}

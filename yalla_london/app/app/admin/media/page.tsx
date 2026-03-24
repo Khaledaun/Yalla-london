@@ -15,7 +15,7 @@ import {
 } from "@/components/admin/admin-ui";
 import {
   Upload,
-  Image,
+  Image as ImageIcon,
   Video,
   File,
   Search,
@@ -71,6 +71,91 @@ export default function MediaLibraryPage() {
   const [isSeedingCanva, setIsSeedingCanva] = useState(false);
   const [seedResult, setSeedResult] = useState<{ success: boolean; message: string; created?: number; skipped?: number; failed?: number; total?: number; errors?: string[] } | null>(null);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+
+  // Unsplash import state
+  const [showUnsplash, setShowUnsplash] = useState(false);
+  const [unsplashQuery, setUnsplashQuery] = useState("");
+  const [unsplashPhotos, setUnsplashPhotos] = useState<Array<{
+    id: string; description: string; urls: { regular: string; small: string; thumb: string; raw: string };
+    width: number; height: number; color: string;
+    photographer: { name: string; username: string; profileUrl: string };
+    downloadUrl: string; attribution: string;
+  }>>([]);
+  const [unsplashSelected, setUnsplashSelected] = useState<Set<string>>(new Set());
+  const [unsplashSearching, setUnsplashSearching] = useState(false);
+  const [unsplashImporting, setUnsplashImporting] = useState(false);
+  const [unsplashResult, setUnsplashResult] = useState<{ created: number; skipped: number; message: string } | null>(null);
+
+  // Bulk stock state
+  const [bulkStocking, setBulkStocking] = useState(false);
+  const [bulkStockResult, setBulkStockResult] = useState<{ created: number; skipped: number; errors: number; message: string; queriesRun?: string[] } | null>(null);
+
+  const searchUnsplash = async () => {
+    if (!unsplashQuery.trim()) return;
+    setUnsplashSearching(true);
+    setUnsplashPhotos([]);
+    setUnsplashSelected(new Set());
+    setUnsplashResult(null);
+    try {
+      const res = await fetch("/api/admin/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "import_from_unsplash", mode: "search", query: unsplashQuery, perPage: 30 }),
+      });
+      const data = await res.json();
+      if (data.success) setUnsplashPhotos(data.photos || []);
+    } catch { /* handled */ }
+    setUnsplashSearching(false);
+  };
+
+  const importSelectedUnsplash = async () => {
+    if (unsplashSelected.size === 0) return;
+    setUnsplashImporting(true);
+    const selected = unsplashPhotos.filter(p => unsplashSelected.has(p.id));
+    try {
+      const res = await fetch("/api/admin/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "import_from_unsplash",
+          mode: "import",
+          photos: selected.map(p => ({
+            id: p.id,
+            description: p.description,
+            url: p.urls.regular,
+            rawUrl: p.urls.raw,
+            width: p.width,
+            height: p.height,
+            color: p.color,
+            photographerName: p.photographer.name,
+            photographerUsername: p.photographer.username,
+            photographerUrl: p.photographer.profileUrl,
+            downloadUrl: p.downloadUrl,
+          })),
+        }),
+      });
+      const data = await res.json();
+      setUnsplashResult({ created: data.created || 0, skipped: data.skipped || 0, message: data.message || "" });
+      if (data.created > 0) loadMediaFiles(); // Refresh library
+    } catch { /* handled */ }
+    setUnsplashImporting(false);
+  };
+
+  const toggleUnsplashPhoto = (id: string) => {
+    setUnsplashSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllUnsplash = () => {
+    if (unsplashSelected.size === unsplashPhotos.length) {
+      setUnsplashSelected(new Set());
+    } else {
+      setUnsplashSelected(new Set(unsplashPhotos.map(p => p.id)));
+    }
+  };
 
   // Compute folders dynamically from loaded media files
   const folders = [
@@ -496,6 +581,203 @@ export default function MediaLibraryPage() {
           )}
         </AdminCard>
       )}
+
+      {/* Import from Unsplash */}
+      <AdminCard className="mb-6">
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl" style={{ backgroundColor: 'rgba(59,126,161,0.08)' }}>
+                <ImageIcon className="h-5 w-5" style={{ color: '#3B7EA1' }} />
+              </div>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#1C1917' }}>
+                  Import from Unsplash
+                </h3>
+                <p style={{ fontSize: 12, color: '#78716C' }}>
+                  Free commercial-use photos. Search → Select → Import to library for all agents.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowUnsplash(!showUnsplash)}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{ backgroundColor: showUnsplash ? 'rgba(59,126,161,0.1)' : '#3B7EA1', color: showUnsplash ? '#3B7EA1' : '#fff', border: '1px solid #3B7EA1' }}
+            >
+              {showUnsplash ? 'Close' : 'Open Unsplash'}
+            </button>
+          </div>
+
+          {showUnsplash && (
+            <div>
+              {/* Search bar */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={unsplashQuery}
+                  onChange={(e) => setUnsplashQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchUnsplash()}
+                  placeholder="Search photos... (e.g. luxury hotel london, arabic food, yacht)"
+                  className="flex-1 px-3 py-2.5 rounded-lg text-sm"
+                  style={{ border: '1px solid rgba(214,208,196,0.5)', backgroundColor: '#fff', outline: 'none' }}
+                />
+                <button
+                  onClick={searchUnsplash}
+                  disabled={unsplashSearching || !unsplashQuery.trim()}
+                  className="px-5 py-2.5 rounded-lg text-sm font-medium"
+                  style={{ backgroundColor: unsplashSearching ? '#9ca3af' : '#3B7EA1', color: '#fff', border: 'none', cursor: unsplashSearching ? 'not-allowed' : 'pointer' }}
+                >
+                  {unsplashSearching ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+
+              {/* Results grid */}
+              {unsplashPhotos.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <button onClick={selectAllUnsplash} className="text-xs font-medium" style={{ color: '#3B7EA1', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                        {unsplashSelected.size === unsplashPhotos.length ? 'Deselect All' : `Select All (${unsplashPhotos.length})`}
+                      </button>
+                      <span style={{ fontSize: 12, color: '#78716C' }}>{unsplashSelected.size} selected</span>
+                    </div>
+                    <button
+                      onClick={importSelectedUnsplash}
+                      disabled={unsplashImporting || unsplashSelected.size === 0}
+                      className="px-4 py-2 rounded-lg text-sm font-bold"
+                      style={{ backgroundColor: unsplashSelected.size === 0 ? '#d1d5db' : '#16a34a', color: '#fff', border: 'none', cursor: unsplashSelected.size === 0 ? 'not-allowed' : 'pointer' }}
+                    >
+                      {unsplashImporting ? 'Importing...' : `Import ${unsplashSelected.size} Photo${unsplashSelected.size !== 1 ? 's' : ''}`}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" style={{ maxHeight: 500, overflowY: 'auto' }}>
+                    {unsplashPhotos.map((photo) => (
+                      <div
+                        key={photo.id}
+                        onClick={() => toggleUnsplashPhoto(photo.id)}
+                        className="relative rounded-lg overflow-hidden cursor-pointer transition-all"
+                        style={{
+                          aspectRatio: '4/3',
+                          border: unsplashSelected.has(photo.id) ? '3px solid #3B7EA1' : '2px solid transparent',
+                          boxShadow: unsplashSelected.has(photo.id) ? '0 0 0 2px rgba(59,126,161,0.3)' : 'none',
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.urls.small}
+                          alt={photo.description || 'Unsplash photo'}
+                          loading="lazy"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        {unsplashSelected.has(photo.id) && (
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#3B7EA1' }}>
+                            <Check className="h-4 w-4 text-white" />
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 p-1.5" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.7))' }}>
+                          <span style={{ fontSize: 10, color: '#fff' }}>{photo.photographer.name}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Import result */}
+              {unsplashResult && (
+                <div className="mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: unsplashResult.created > 0 ? '#f0fdf4' : '#fef3c7', border: `1px solid ${unsplashResult.created > 0 ? '#bbf7d0' : '#fde68a'}` }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: unsplashResult.created > 0 ? '#16a34a' : '#d97706' }}>
+                    {unsplashResult.message}
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-3" style={{ fontSize: 11, color: '#a8a29e' }}>
+                Photos from Unsplash — free for commercial use. Attribution stored automatically. Rate limit: 50 requests/hour.
+              </div>
+            </div>
+          )}
+
+          {/* Auto-Stock Library */}
+          <div className="px-5 pb-5 pt-0 border-t" style={{ borderColor: 'rgba(214,208,196,0.3)' }}>
+            <div className="flex items-center justify-between pt-4">
+              <div>
+                <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 13, color: '#1C1917', marginBottom: 2 }}>
+                  Auto-Stock Library
+                </h4>
+                <p style={{ fontSize: 11, color: '#78716C' }}>
+                  One-tap: pulls 15-45 curated travel photos per site (hotels, landmarks, food, lifestyle). Ready for articles, emails, PDFs, social.
+                </p>
+              </div>
+              <AdminButton
+                variant="primary"
+                size="sm"
+                disabled={bulkStocking}
+                onClick={async () => {
+                  setBulkStocking(true);
+                  setBulkStockResult(null);
+                  try {
+                    const res = await fetch("/api/admin/media", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "bulk_stock_library", perQuery: 5 }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setBulkStockResult({ created: 0, skipped: 0, errors: 1, message: data.error || "Failed" });
+                      toast.error(data.error || "Failed to stock library");
+                    } else {
+                      setBulkStockResult(data);
+                      if (data.created > 0) {
+                        toast.success(`${data.created} photos added to library`);
+                        loadMediaFiles();
+                      } else {
+                        toast.info(data.message || "Library already stocked");
+                      }
+                    }
+                  } catch (err) {
+                    toast.error("Failed to stock library");
+                    setBulkStockResult({ created: 0, skipped: 0, errors: 1, message: err instanceof Error ? err.message : "Network error" });
+                  }
+                  setBulkStocking(false);
+                }}
+              >
+                {bulkStocking ? (
+                  <>
+                    <span className="inline-block h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Stocking...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5" />
+                    Stock Library
+                  </>
+                )}
+              </AdminButton>
+            </div>
+            {bulkStockResult && (
+              <div className="mt-3 px-4 py-3 rounded-lg" style={{
+                backgroundColor: bulkStockResult.created > 0 ? '#f0fdf4' : (bulkStockResult.errors > 0 ? '#fef2f2' : '#fef3c7'),
+                border: `1px solid ${bulkStockResult.created > 0 ? '#bbf7d0' : (bulkStockResult.errors > 0 ? '#fecaca' : '#fde68a')}`,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: bulkStockResult.created > 0 ? '#16a34a' : (bulkStockResult.errors > 0 ? '#dc2626' : '#d97706') }}>
+                  {bulkStockResult.message}
+                </span>
+                {bulkStockResult.queriesRun && bulkStockResult.queriesRun.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {bulkStockResult.queriesRun.map((q, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md" style={{ fontSize: 10, backgroundColor: 'rgba(59,126,161,0.08)', color: '#3B7EA1' }}>
+                        {q}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </AdminCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar - Folders */}

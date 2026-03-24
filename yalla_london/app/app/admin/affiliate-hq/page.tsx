@@ -998,7 +998,19 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
     healthScore: number;
     summary: { live: number; dead: number; tracked: number; untracked: number; relevant: number; irrelevant: number; fresh: number; stale: number; wellPlaced: number; poorlyPlaced: number };
     issues: Array<{ severity: string; issue: string; fix: string; articleSlug: string; linkUrl: string }>;
+    checks: Array<{
+      link: { url: string; trackingUrl: string | null; partner: string; anchorText: string; positionInArticle: string; nearestHeading: string; articleSlug: string; articleTitle: string };
+      liveness: { ok: boolean; statusCode: number | null; finalUrl: string | null; error: string | null };
+      tracked: { ok: boolean; reason: string };
+      relevance: { ok: boolean; score: number; reason: string };
+      freshness: { ok: boolean; reason: string };
+      placement: { ok: boolean; score: number; reason: string };
+      visual: { ok: boolean; reason: string };
+      overallScore: number;
+    }>;
   } | null>(null);
+  const [showAuditJson, setShowAuditJson] = useState(false);
+  const [auditCopied, setAuditCopied] = useState(false);
 
   const runDiagnose = async () => {
     onAction("diagnose");
@@ -1200,6 +1212,50 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
               </div>
             ))}
           </div>
+
+          {/* Export Buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+            <button
+              onClick={() => {
+                const json = JSON.stringify(auditResult, null, 2);
+                navigator.clipboard.writeText(json).then(() => {
+                  setAuditCopied(true);
+                  setTimeout(() => setAuditCopied(false), 2000);
+                });
+              }}
+              style={{
+                padding: "0.4rem 0.75rem", fontSize: "0.75rem", fontWeight: 600,
+                background: auditCopied ? "#16a34a" : "#f97316", color: "#fff",
+                border: "none", borderRadius: 6, cursor: "pointer",
+              }}
+            >
+              {auditCopied ? "Copied!" : "Copy Full JSON"}
+            </button>
+            <button
+              onClick={() => setShowAuditJson(!showAuditJson)}
+              style={{
+                padding: "0.4rem 0.75rem", fontSize: "0.75rem", fontWeight: 600,
+                background: "#fff", color: "#f97316",
+                border: "2px solid #f97316", borderRadius: 6, cursor: "pointer",
+              }}
+            >
+              {showAuditJson ? "Hide Details" : "Show Full Report"}
+            </button>
+          </div>
+
+          {/* Expanded JSON View */}
+          {showAuditJson && (
+            <div style={{ marginBottom: "0.75rem" }}>
+              <pre style={{
+                background: "#1e293b", color: "#e2e8f0", padding: "0.75rem",
+                borderRadius: 8, fontSize: "0.65rem", lineHeight: 1.4,
+                maxHeight: 400, overflowY: "auto", overflowX: "auto",
+                WebkitOverflowScrolling: "touch", whiteSpace: "pre-wrap", wordBreak: "break-word",
+              }}>
+                {JSON.stringify(auditResult, null, 2)}
+              </pre>
+            </div>
+          )}
 
           {/* Issues */}
           {auditResult.issues.length === 0 ? (

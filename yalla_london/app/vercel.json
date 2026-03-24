@@ -54,6 +54,36 @@
     },
     "app/api/cron/seo-agent/**/*.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/seo-deep-review/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/seo-orchestrator/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/seo-audit-runner/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/daily-seo-audit/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/gsc-sync/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/verify-indexing/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/diagnostic-sweep/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/google-indexing/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/trends-monitor/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/schedule-executor/**/*.ts": {
+      "maxDuration": 300
     }
   },
   "env": {
@@ -230,7 +260,11 @@
     },
     {
       "path": "/api/cron/social",
-      "schedule": "0 10,15,20 * * *"
+      "schedule": "0 10,15 * * *"
+    },
+    {
+      "path": "/api/cron/social",
+      "schedule": "5 20 * * *"
     },
     {
       "path": "/api/cron/reserve-publisher",
@@ -286,7 +320,7 @@
     },
     {
       "path": "/api/cron/perplexity-executor",
-      "schedule": "15,45 * * * *"
+      "schedule": "20,50 * * * *"
     },
     {
       "path": "/api/cron/data-refresh",

@@ -159,6 +159,13 @@ const EXCLUDED_PATHS = [
   "/screenshots/",
 ];
 
+// IndexNow key verification: engines fetch /{key}.txt and expect ONLY
+// plain text back — no Set-Cookie, no site-context headers. The middleware
+// must not touch these requests, otherwise engines reject the key file.
+function isIndexNowKeyRequest(pathname: string): boolean {
+  return /^\/[a-zA-Z0-9]{20,}(\.txt)?$/.test(pathname);
+}
+
 // SECURITY: Allowed origins for CSRF protection
 const ALLOWED_ORIGINS = new Set([
   "https://yallalondon.com",
@@ -197,6 +204,13 @@ export function middleware(request: NextRequest) {
   const effectivePathname = isArabicRoute
     ? pathname.replace(/^\/ar\/?/, "/") || "/"
     : pathname;
+
+  // IndexNow key files: pass through with ZERO middleware interference.
+  // Engines (Bing, Yandex, api.indexnow.org) fetch /{key}.txt and reject
+  // if they see Set-Cookie headers or non-text/plain Content-Type.
+  if (isIndexNowKeyRequest(effectivePathname)) {
+    return NextResponse.next();
+  }
 
   // Skip excluded paths — use effectivePathname so /ar/_next, /ar/api etc.
   // are correctly excluded (the /ar/ prefix is stripped before matching).

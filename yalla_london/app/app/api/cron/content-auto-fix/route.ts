@@ -929,7 +929,7 @@ async function handleAutoFix(request: NextRequest) {
           // Also remove empty affiliate-recommendation divs left behind
           content = content.replace(/<div class="affiliate-recommendation"[^>]*>\s*<!-- affiliate link removed: dead -->\s*<\/div>/gi, "");
           const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
-          await optimisticBlogPostUpdate(post.id, { content_en: content }).catch(err =>
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
             console.warn("[content-auto-fix] Dead link update failed:", err instanceof Error ? err.message : String(err))
           );
         }
@@ -1002,7 +1002,7 @@ async function handleAutoFix(request: NextRequest) {
 
         if (modified) {
           const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
-          await optimisticBlogPostUpdate(post.id, { content_en: content }).catch(err =>
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
             console.warn("[content-auto-fix] Stale link update failed:", err instanceof Error ? err.message : String(err))
           );
         }
@@ -1066,7 +1066,7 @@ async function handleAutoFix(request: NextRequest) {
 
         if (modified) {
           const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
-          await optimisticBlogPostUpdate(post.id, { content_en: content }).catch(err =>
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
             console.warn("[content-auto-fix] Tracking wrap failed:", err instanceof Error ? err.message : String(err))
           );
           console.log(`[content-auto-fix] Wrapped untracked affiliate links in /${post.slug}`);

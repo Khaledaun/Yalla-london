@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing entryId, jobName, or cronPath" }, { status: 400 });
     }
 
-    // Resolve base URL
+    // Resolve base URL — prefer request origin (production domain) over VERCEL_URL
+    // VERCEL_URL returns deployment-specific URLs that are blocked by deployment protection (401)
     const baseUrl =
       process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
       process.env.NEXT_PUBLIC_SITE_URL ||
       request.nextUrl.origin;
 

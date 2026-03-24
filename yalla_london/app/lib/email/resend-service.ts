@@ -78,8 +78,9 @@ export async function sendResendEmail(options: ResendEmailOptions): Promise<Rese
   try {
     const resend = getResend();
 
-    // Determine from address
+    // Determine from and reply-to addresses
     const from = options.from || getDefaultFrom();
+    const replyTo = options.replyTo || getDefaultReplyTo();
 
     // Render React component to HTML if provided
     let html = options.html;
@@ -105,7 +106,7 @@ export async function sendResendEmail(options: ResendEmailOptions): Promise<Rese
     };
 
     if (options.text) payload.text = options.text;
-    if (options.replyTo) payload.replyTo = options.replyTo;
+    if (replyTo) payload.replyTo = replyTo;
     if (options.tags) payload.tags = options.tags;
 
     // Send with optional idempotency key
@@ -155,7 +156,7 @@ export async function sendWelcomeEmail(
       siteUrl,
       unsubscribeUrl: `${siteUrl}/api/email/unsubscribe?email=${encodeURIComponent(to)}`,
     }),
-    replyTo: "khaled@zenitha.luxury",
+    replyTo: "info@yalla-london.com",
     idempotencyKey: `welcome-${to}-${new Date().toISOString().slice(0, 10)}`,
     tags: [
       { name: "type", value: "welcome" },
@@ -200,7 +201,7 @@ export async function sendBookingConfirmation(
       stripeReceiptUrl: booking.stripeReceiptUrl,
       siteUrl: getSiteUrl(siteId),
     }),
-    replyTo: "khaled@zenitha.luxury",
+    replyTo: "info@yalla-london.com",
     idempotencyKey: `booking-${to}-${booking.bookingName}-${booking.bookingDate || "nodate"}`,
     tags: [
       { name: "type", value: "booking" },
@@ -240,7 +241,7 @@ export async function sendNewsletterDigest(
       weekLabel,
       unsubscribeUrl: `${siteUrl}/api/email/unsubscribe?email={{email}}`,
     }),
-    replyTo: "khaled@zenitha.luxury",
+    replyTo: "info@yalla-london.com",
     idempotencyKey: `digest-${new Date().toISOString().slice(0, 10)}-${locale}`,
     tags: [
       { name: "type", value: "digest" },
@@ -275,7 +276,7 @@ export async function sendContactConfirmation(
       inquirySubject: inquiry.subject,
       siteUrl: getSiteUrl(siteId),
     }),
-    replyTo: "khaled@zenitha.luxury",
+    replyTo: "info@yalla-london.com",
     idempotencyKey: `contact-${to}-${new Date().toISOString().slice(0, 13)}`,
     tags: [
       { name: "type", value: "contact" },
@@ -376,7 +377,20 @@ function getDefaultFrom(): string {
     const site = SITES[getDefaultSiteId()];
     return `${site?.name || "Zenitha"} <hello@${site?.domain || "zenitha.luxury"}>`;
   } catch {
-    return "Zenitha <hello@zenitha.luxury>";
+    return "Yalla London <hello@yalla-london.com>";
+  }
+}
+
+function getDefaultReplyTo(): string {
+  const replyTo = (process.env.EMAIL_REPLY_TO || "").trim();
+  if (replyTo) return replyTo;
+
+  try {
+    const { getDefaultSiteId, SITES } = require("@/config/sites");
+    const site = SITES[getDefaultSiteId()];
+    return `info@${site?.domain || "yalla-london.com"}`;
+  } catch {
+    return "info@yalla-london.com";
   }
 }
 

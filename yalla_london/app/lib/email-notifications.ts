@@ -26,6 +26,7 @@ export interface SendEmailParams {
   subject: string;
   html: string;
   from?: string;
+  replyTo?: string;
 }
 
 export interface NotificationEmailData {
@@ -139,7 +140,7 @@ export async function processSubscriberNotifications(): Promise<ProcessingSummar
         }
       }
       const fromAddress =
-        process.env.EMAIL_FROM || "info@zenitha.luxury";
+        process.env.EMAIL_FROM || "Yalla London <hello@yalla-london.com>";
 
       let jobSent = 0;
       let jobFailed = 0;
@@ -239,9 +240,10 @@ export async function processSubscriberNotifications(): Promise<ProcessingSummar
  * If none is configured the email is logged to the console (development mode).
  */
 export async function sendEmail(params: SendEmailParams): Promise<void> {
-  const { to, subject, html, from } = params;
+  const { to, subject, html, from, replyTo } = params;
   const provider = (process.env.EMAIL_PROVIDER || "").toLowerCase().trim();
-  const defaultFrom = from || process.env.EMAIL_FROM || "info@zenitha.luxury";
+  const defaultFrom = from || process.env.EMAIL_FROM || "Yalla London <hello@yalla-london.com>";
+  const defaultReplyTo = replyTo || process.env.EMAIL_REPLY_TO || "info@yalla-london.com";
 
   // --- Resend ---
   if (provider === "resend") {
@@ -261,6 +263,7 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
         to: [to],
         subject,
         html,
+        reply_to: defaultReplyTo,
       }),
     });
 

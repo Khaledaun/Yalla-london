@@ -1011,6 +1011,8 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
   } | null>(null);
   const [showAuditJson, setShowAuditJson] = useState(false);
   const [auditCopied, setAuditCopied] = useState(false);
+  const [fixResult, setFixResult] = useState<{ deadRemoved: number; staleRemoved: number; linksWrapped: number } | null>(null);
+  const [fixLoading, setFixLoading] = useState(false);
 
   const runDiagnose = async () => {
     onAction("diagnose");
@@ -1242,6 +1244,42 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
               {showAuditJson ? "Hide Details" : "Show Full Report"}
             </button>
           </div>
+
+          {/* Fix All Issues Button */}
+          {(auditResult.summary.dead > 0 || auditResult.summary.untracked > 0 || auditResult.summary.stale > 0) && (
+            <div style={{ marginBottom: "0.75rem" }}>
+              <button
+                onClick={async () => {
+                  setFixLoading(true);
+                  setFixResult(null);
+                  try {
+                    const res = await fetch("/api/admin/affiliate-hq", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "fix_affiliate_issues" }),
+                    });
+                    const json = await res.json().catch(() => ({ success: false }));
+                    if (json.success && json.result) setFixResult(json.result);
+                  } catch { /* handled */ }
+                  setFixLoading(false);
+                }}
+                disabled={fixLoading}
+                style={{
+                  width: "100%", padding: "0.6rem 1rem", fontSize: "0.85rem", fontWeight: 700,
+                  background: fixLoading ? "#9ca3af" : "#dc2626", color: "#fff",
+                  border: "none", borderRadius: 8, cursor: fixLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                {fixLoading ? "Fixing..." : `Fix All Issues (${auditResult.summary.dead} dead, ${auditResult.summary.untracked} untracked, ${auditResult.summary.stale} stale)`}
+              </button>
+              {fixResult && (
+                <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.75rem", background: "#f0fdf4", borderRadius: 6, border: "1px solid #bbf7d0", fontSize: "0.8rem" }}>
+                  <strong style={{ color: "#16a34a" }}>Fixed:</strong>{" "}
+                  {fixResult.deadRemoved} dead removed, {fixResult.linksWrapped} links wrapped for tracking, {fixResult.staleRemoved} stale removed
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Expanded JSON View */}
           {showAuditJson && (

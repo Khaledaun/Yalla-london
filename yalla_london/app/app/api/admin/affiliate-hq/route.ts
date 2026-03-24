@@ -780,6 +780,37 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      case "fix_affiliate_issues": {
+        // Triggers content-auto-fix sections 17-19: dead links, stale links, untracked link wrapping
+        try {
+          const baseUrl = request.nextUrl.origin;
+          const cronSecret = process.env.CRON_SECRET;
+          const res = await fetch(`${baseUrl}/api/cron/content-auto-fix`, {
+            method: "POST",
+            headers: {
+              ...(cronSecret ? { authorization: `Bearer ${cronSecret}` } : {}),
+              "Content-Type": "application/json",
+            },
+          });
+          const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+          return NextResponse.json({
+            success: true, action,
+            result: {
+              deadRemoved: json.results?.deadAffiliateLinksRemoved || 0,
+              staleRemoved: json.results?.staleAffiliateLinksRemoved || 0,
+              linksWrapped: json.results?.untrackedLinksWrapped || 0,
+              fullResult: json,
+            },
+          });
+        } catch (err) {
+          console.error("[affiliate-hq] fix_affiliate_issues failed:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json({
+            success: false, action,
+            result: { error: `Fix failed: ${err instanceof Error ? err.message : "Unknown error"}` },
+          });
+        }
+      }
+
       default:
         return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
     }

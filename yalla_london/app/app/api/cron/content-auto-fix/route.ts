@@ -60,6 +60,9 @@ async function handleAutoFix(request: NextRequest) {
     thinUnpublished: 0,
     duplicatesFlagged: 0,
     arabicContentBackfilled: 0,
+    deadAffiliateLinksRemoved: 0,
+    staleAffiliateLinksRemoved: 0,
+    untrackedLinksWrapped: 0,
     errors: [] as string[],
   };
 
@@ -859,9 +862,226 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 17. DEAD AFFILIATE LINK REMOVAL ─────────────────────────────────────────
+  // HTTP HEAD check on affiliate links in published articles. Strip links returning 404/403/410.
+  if (Date.now() - cronStart < BUDGET_MS - 15_000) {
+    try {
+      const postsWithAffiliates = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: 'rel="sponsored"' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
+          ],
+        },
+        select: { id: true, content_en: true, slug: true, updated_at: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      for (const post of postsWithAffiliates) {
+        if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+        if (results.deadAffiliateLinksRemoved >= 10) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+
+        // Extract all affiliate link hrefs
+        const affiliateLinkRegex = /<a\s[^>]*(?:rel="[^"]*sponsored[^"]*"|class="[^"]*affiliate[^"]*")[^>]*href="([^"]+)"[^>]*>[\s\S]*?<\/a>/gi;
+        const linksToCheck: Array<{ fullMatch: string; url: string }> = [];
+        let linkMatch: RegExpExecArray | null;
+        while ((linkMatch = affiliateLinkRegex.exec(content)) !== null) {
+          const href = linkMatch[1];
+          // Only check external URLs (skip our own /api/affiliate/click — those are tracked redirects)
+          if (href && !href.startsWith("/api/affiliate/click") && (href.startsWith("http://") || href.startsWith("https://"))) {
+            linksToCheck.push({ fullMatch: linkMatch[0], url: href });
+          }
+        }
+
+        for (const link of linksToCheck.slice(0, 3)) { // Max 3 checks per article
+          if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch(link.url, {
+              method: "HEAD",
+              redirect: "follow",
+              signal: controller.signal,
+              headers: { "User-Agent": "YallaLondon-LinkChecker/1.0" },
+            });
+            clearTimeout(timeout);
+
+            if (res.status === 404 || res.status === 410 || res.status === 403) {
+              // Dead link — remove the entire affiliate block containing it
+              content = content.replace(link.fullMatch, "<!-- affiliate link removed: dead -->");
+              modified = true;
+              results.deadAffiliateLinksRemoved++;
+              console.log(`[content-auto-fix] Removed dead affiliate link (${res.status}) in /${post.slug}: ${link.url.substring(0, 80)}`);
+            }
+          } catch {
+            // Timeout or network error — don't remove, might be transient
+          }
+        }
+
+        if (modified) {
+          // Also remove empty affiliate-recommendation divs left behind
+          content = content.replace(/<div class="affiliate-recommendation"[^>]*>\s*<!-- affiliate link removed: dead -->\s*<\/div>/gi, "");
+          const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+          await optimisticBlogPostUpdate(post.id, { content_en: content }).catch(err =>
+            console.warn("[content-auto-fix] Dead link update failed:", err instanceof Error ? err.message : String(err))
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`dead-affiliate-links: ${msg}`);
+      console.warn("[content-auto-fix] Dead affiliate link removal failed:", msg);
+    }
+  }
+
+  // ── 18. STALE AFFILIATE LINK REMOVAL ──────────────────────────────────────────
+  // Detect affiliate links near past-year dates or expired event references. Strip them.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const currentYear = new Date().getFullYear();
+      const stalePatterns = [
+        new RegExp(`\\b20(?:${Array.from({ length: currentYear - 2020 }, (_, i) => String(20 + i).padStart(2, "0")).join("|")})\\b`), // 2020-2025 (past years)
+        /\bexpired?\b/i,
+        /\bclosed\b/i,
+        /\bsold\s+out\b/i,
+        /\bno\s+longer\s+available\b/i,
+      ];
+
+      const postsForStale = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: 'rel="sponsored"' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+          ],
+        },
+        select: { id: true, content_en: true, slug: true },
+        take: 20,
+        orderBy: { created_at: "asc" }, // Oldest first — most likely to have stale content
+      });
+
+      for (const post of postsForStale) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (results.staleAffiliateLinksRemoved >= 10) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+
+        // Find affiliate blocks and check their surrounding text for stale signals
+        const blockRegex = /<div class="affiliate-recommendation"[^>]*>[\s\S]*?<\/div>/gi;
+        let blockMatch: RegExpExecArray | null;
+        const blocksToRemove: string[] = [];
+
+        while ((blockMatch = blockRegex.exec(content)) !== null) {
+          const blockStart = Math.max(0, blockMatch.index - 500);
+          const blockEnd = Math.min(content.length, blockMatch.index + blockMatch[0].length + 200);
+          const surroundingText = content.substring(blockStart, blockEnd).replace(/<[^>]+>/g, " ");
+
+          for (const pattern of stalePatterns) {
+            if (pattern.test(surroundingText)) {
+              blocksToRemove.push(blockMatch[0]);
+              break;
+            }
+          }
+        }
+
+        for (const block of blocksToRemove) {
+          content = content.replace(block, "<!-- affiliate block removed: stale content -->");
+          modified = true;
+          results.staleAffiliateLinksRemoved++;
+          console.log(`[content-auto-fix] Removed stale affiliate block in /${post.slug}`);
+        }
+
+        if (modified) {
+          const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+          await optimisticBlogPostUpdate(post.id, { content_en: content }).catch(err =>
+            console.warn("[content-auto-fix] Stale link update failed:", err instanceof Error ? err.message : String(err))
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`stale-affiliate-links: ${msg}`);
+      console.warn("[content-auto-fix] Stale affiliate link removal failed:", msg);
+    }
+  }
+
+  // ── 19. UNTRACKED AFFILIATE LINK WRAPPING ────────────────────────────────────
+  // Find affiliate links that go directly to partner URLs (bypass /api/affiliate/click).
+  // Wrap them through our click tracker for revenue attribution + GA4 events.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const postsForTracking = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: 'rel="sponsored"' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
+          ],
+          // Exclude posts already fully tracked
+          NOT: { content_en: { contains: "/api/affiliate/click" } },
+        },
+        select: { id: true, content_en: true, slug: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const { getDefaultSiteId } = await import("@/config/sites");
+
+      for (const post of postsForTracking) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (results.untrackedLinksWrapped >= 30) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+        const postSiteId = post.siteId || getDefaultSiteId();
+        const sid = `${postSiteId}_${post.slug}`.substring(0, 100);
+
+        // Find all affiliate <a> tags with direct partner URLs
+        const directLinkRegex = /<a\s([^>]*(?:rel="[^"]*sponsored[^"]*"|data-affiliate[^"]*)[^>]*)href="(https?:\/\/[^"]+)"([^>]*)>/gi;
+        let directMatch: RegExpExecArray | null;
+
+        while ((directMatch = directLinkRegex.exec(content)) !== null) {
+          const originalHref = directMatch[2];
+          // Skip if already tracked
+          if (originalHref.includes("/api/affiliate/click")) continue;
+
+          const trackedHref = `/api/affiliate/click?url=${encodeURIComponent(originalHref)}&sid=${encodeURIComponent(sid)}`;
+          const originalTag = directMatch[0];
+          const newTag = originalTag.replace(`href="${originalHref}"`, `href="${trackedHref}"`);
+          content = content.replace(originalTag, newTag);
+          modified = true;
+          results.untrackedLinksWrapped++;
+        }
+
+        if (modified) {
+          const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+          await optimisticBlogPostUpdate(post.id, { content_en: content }).catch(err =>
+            console.warn("[content-auto-fix] Tracking wrap failed:", err instanceof Error ? err.message : String(err))
+          );
+          console.log(`[content-auto-fix] Wrapped untracked affiliate links in /${post.slug}`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`untracked-link-wrapping: ${msg}`);
+      console.warn("[content-auto-fix] Untracked link wrapping failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility

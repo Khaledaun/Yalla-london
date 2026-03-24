@@ -319,7 +319,7 @@ export default function AdminLogin() {
             </div>
           )}
 
-          <form className="space-y-5" onSubmit={needsSetup ? handleSetup : handleLogin}>
+          <form className="space-y-5" action="/api/admin/login" method="post" onSubmit={needsSetup ? handleSetup : handleLogin}>
             {/* Error */}
             {error && (
               <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(200,50,43,0.08)', borderLeft: '3px solid #C8322B' }}>
@@ -369,10 +369,17 @@ export default function AdminLogin() {
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="email"
+                  inputMode="email"
+                  autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={(e) => {
+                    // iOS Safari: briefly remove value to allow Face ID autofill to populate
+                    if (e.target.value === '' && /iPhone|iPad/.test(navigator.userAgent)) {
+                      e.target.setAttribute('value', '');
+                    }
+                  }}
                   className="block w-full pl-12 pr-4 py-3"
                   style={inputStyle}
                   placeholder="you@example.com"

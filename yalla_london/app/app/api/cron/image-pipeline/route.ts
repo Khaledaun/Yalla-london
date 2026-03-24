@@ -159,13 +159,6 @@ export async function POST(request: NextRequest) {
 
 // ── Helper: save Unsplash photo to MediaAsset (dedup by unsplash:{id} tag) ──
 
-interface PrismaClient {
-  mediaAsset: {
-    findFirst: (args: Record<string, unknown>) => Promise<unknown>;
-    create: (args: Record<string, unknown>) => Promise<unknown>;
-  };
-}
-
 interface UnsplashPhotoLike {
   id: string;
   description: string | null;
@@ -176,7 +169,8 @@ interface UnsplashPhotoLike {
 }
 
 async function saveToLibrary(
-  prisma: PrismaClient,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any,
   photo: UnsplashPhotoLike,
   imageUrl: string,
   attribution: string,

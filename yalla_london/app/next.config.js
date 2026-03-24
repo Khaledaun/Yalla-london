@@ -39,6 +39,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'plus.unsplash.com',
+      },
+      {
+        protocol: 'https',
         hostname: 'images.pexels.com',
       },
       // All configured site domains (multi-site support)

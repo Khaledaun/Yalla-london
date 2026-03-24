@@ -992,6 +992,13 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{ name: string; price: number; salePrice: number; advertiser: string }> | null>(null);
   const [fullSyncResult, setFullSyncResult] = useState<Record<string, unknown> | null>(null);
+  const [auditResult, setAuditResult] = useState<{
+    scannedArticles: number;
+    totalLinks: number;
+    healthScore: number;
+    summary: { live: number; dead: number; tracked: number; untracked: number; relevant: number; irrelevant: number; fresh: number; stale: number; wellPlaced: number; poorlyPlaced: number };
+    issues: Array<{ severity: string; issue: string; fix: string; articleSlug: string; linkUrl: string }>;
+  } | null>(null);
 
   const runDiagnose = async () => {
     onAction("diagnose");
@@ -1017,6 +1024,20 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setSearchResults(json.result.products || []);
     } catch { setSearchResults([]); }
+  };
+
+  const runLinkAudit = async () => {
+    setAuditResult(null);
+    onAction("link_health_audit");
+    try {
+      const res = await fetch("/api/admin/affiliate-hq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "link_health_audit" }),
+      });
+      const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
+      if (json.success && json.result) setAuditResult(json.result);
+    } catch { /* handled by parent */ }
   };
 
   const runFullSync = async () => {
@@ -1105,6 +1126,13 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
             loading={actionLoading === "reset_circuit_breaker"}
             onClick={() => onAction("reset_circuit_breaker")}
           />
+          <ActionCard
+            label="Link Health Audit"
+            desc="Check all links: liveness, tracking, relevance, freshness, placement"
+            color="#f97316"
+            loading={actionLoading === "link_health_audit"}
+            onClick={runLinkAudit}
+          />
         </div>
       </div>
 
@@ -1135,6 +1163,74 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
                 </div>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {/* Link Health Audit Results */}
+      {auditResult && (
+        <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "#fff7ed", borderRadius: 12, border: "1px solid #fed7aa" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, margin: 0 }}>
+              Link Health:{" "}
+              <span style={{ color: auditResult.healthScore >= 70 ? "#16a34a" : auditResult.healthScore >= 40 ? "#f59e0b" : "#dc2626" }}>
+                {auditResult.healthScore}/100
+              </span>
+            </h3>
+            <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+              {auditResult.scannedArticles} articles | {auditResult.totalLinks} links
+            </span>
+          </div>
+
+          {/* Summary Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.35rem", marginBottom: "0.75rem" }}>
+            {[
+              { label: "Live", good: auditResult.summary.live, bad: auditResult.summary.dead, badLabel: "Dead" },
+              { label: "Tracked", good: auditResult.summary.tracked, bad: auditResult.summary.untracked, badLabel: "Untracked" },
+              { label: "Relevant", good: auditResult.summary.relevant, bad: auditResult.summary.irrelevant, badLabel: "Misplaced" },
+              { label: "Fresh", good: auditResult.summary.fresh, bad: auditResult.summary.stale, badLabel: "Stale" },
+              { label: "Well placed", good: auditResult.summary.wellPlaced, bad: auditResult.summary.poorlyPlaced, badLabel: "Poor" },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: "0.35rem 0.5rem", background: "#fff", borderRadius: 6, border: "1px solid #f3f4f6", fontSize: "0.7rem" }}>
+                <span style={{ color: "#16a34a", fontWeight: 700 }}>{s.good}</span>
+                <span style={{ color: "#6b7280" }}> {s.label}</span>
+                {s.bad > 0 && (
+                  <span style={{ color: "#dc2626", fontWeight: 600 }}> · {s.bad} {s.badLabel}</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Issues */}
+          {auditResult.issues.length === 0 ? (
+            <p style={{ color: "#16a34a", fontSize: "0.85rem", margin: 0 }}>All affiliate links are healthy</p>
+          ) : (
+            <div>
+              <h4 style={{ fontSize: "0.8rem", fontWeight: 600, margin: "0 0 0.5rem 0", color: "#92400e" }}>
+                {auditResult.issues.length} issue{auditResult.issues.length !== 1 ? "s" : ""} found
+              </h4>
+              <div style={{ maxHeight: 300, overflowY: "auto" }}>
+                {auditResult.issues.map((issue, i) => (
+                  <div key={i} style={{ padding: "0.4rem 0", borderBottom: i < auditResult.issues.length - 1 ? "1px solid #fed7aa" : "none" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+                      <span style={{
+                        width: 8, height: 8, borderRadius: "50%", flexShrink: 0, marginTop: 4,
+                        background: sevColor(issue.severity),
+                      }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "0.8rem", fontWeight: 500 }}>{issue.issue}</div>
+                        <div style={{ fontSize: "0.7rem", color: "#16a34a", marginTop: "0.15rem" }}>
+                          Fix: {issue.fix}
+                        </div>
+                        <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginTop: "0.1rem" }}>
+                          /{issue.articleSlug}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}

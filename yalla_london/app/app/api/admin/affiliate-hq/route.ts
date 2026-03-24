@@ -762,6 +762,24 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      case "link_health_audit": {
+        try {
+          const { runLinkHealthAudit } = await import("@/lib/affiliate/link-auditor");
+          const auditResult = await runLinkHealthAudit({
+            siteId: body.siteId || undefined,
+            maxArticles: body.maxArticles || 50,
+            skipLiveness: body.skipLiveness || false,
+          });
+          return NextResponse.json({ success: true, action, result: auditResult });
+        } catch (err) {
+          console.error("[affiliate-hq] link_health_audit failed:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json({
+            success: false, action,
+            result: { error: `Audit failed: ${err instanceof Error ? err.message : "Unknown error"}` },
+          });
+        }
+      }
+
       default:
         return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
     }

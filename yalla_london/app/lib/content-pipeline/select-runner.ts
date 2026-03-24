@@ -407,13 +407,32 @@ export async function runContentSelector(
       selectedDraftIds.add(best.id as string);
       const pairedId = best.paired_draft_id as string | null;
       if (pairedId) selectedDraftIds.add(pairedId);
-      console.warn(`[content-selector] All ${publishReady.length} candidates had keyword overlap — force-publishing best candidate (score: ${best.seo_score})`);
+      console.warn(`[content-selector] All ${publishReady.length} publishReady candidates had keyword overlap — force-publishing best candidate (score: ${best.seo_score})`);
+    }
+
+    // LAST RESORT: If publishReady was empty (all candidates below quality/word-count threshold),
+    // force-publish the best candidate from ALL reservoir candidates anyway.
+    // 65 articles stuck in reservoir earning $0 is worse than 1 imperfect article published.
+    // The pre-pub gate will still catch truly broken articles.
+    if (selected.length === 0 && candidates.length > 0) {
+      // Sort all candidates by quality_score desc
+      const sorted = [...candidates].sort((a, b) =>
+        ((b.quality_score as number) || 0) - ((a.quality_score as number) || 0)
+      );
+      const best = sorted[0];
+      selected.push(best);
+      selectedDraftIds.add(best.id as string);
+      const pairedId = best.paired_draft_id as string | null;
+      if (pairedId) selectedDraftIds.add(pairedId);
+      console.warn(`[content-selector] No publishReady candidates (all below quality/word threshold) — force-publishing best of ${candidates.length} reservoir candidates (score: ${best.quality_score}, keyword: "${best.keyword}")`);
     }
 
     if (selected.length === 0) {
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       // Also close the dedup marker so it doesn't appear as "stale/crashed".
-      const msg = `All ${publishReady.length} reservoir candidates have >85% keyword overlap with published articles. Skipping.`;
+      const msg = candidates.length > 0
+        ? `${candidates.length} reservoir candidates exist but none could be promoted: ${publishReady.length} passed quality gate (all had keyword overlap), ${needsEnhancement.length} need enhancement. Force-publish fallbacks also failed.`
+        : `No reservoir candidates available for promotion.`;
       if (dedupMarkerId) {
         await prisma.cronJobLog.update({
           where: { id: dedupMarkerId },
@@ -1326,6 +1345,9 @@ export async function promoteToBlogPost(
     try {
       // Transaction: BlogPost create + draft status update happen atomically.
       // If either fails, both are rolled back — no orphaned BlogPosts.
+      // Timeout raised from default 5s to 30s — BlogPost creation + 2 draft updates
+      // can take 20s+ during Supabase pool contention (cold starts, concurrent crons).
+      // Error: "Transaction already closed: timeout was 5000 ms, however 21980 ms passed"
       const txResult = await prisma.$transaction(async (tx: typeof prisma) => {
         const bp = await tx.blogPost.create({ data: { ...blogPostData, slug } });
         await tx.articleDraft.update({
@@ -1341,7 +1363,7 @@ export async function promoteToBlogPost(
           });
         }
         return bp;
-      });
+      }, { timeout: 30000 });
       blogPost = txResult;
       break; // success — exit retry loop
     } catch (createErr) {

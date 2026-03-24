@@ -996,6 +996,7 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
       const published = await prisma.blogPost.findMany({
         where: { siteId: sid, published: true, deletedAt: null },
         select: { id: true, slug: true, title_en: true, seo_score: true, content_en: true, created_at: true },
+        take: 500,
       });
 
       // Group by normalized title

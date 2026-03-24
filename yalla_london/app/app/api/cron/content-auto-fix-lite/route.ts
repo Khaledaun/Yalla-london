@@ -555,6 +555,42 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── Section 10: ApiUsageLog cleanup (7-day retention) ──
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const apiLogsDeleted = await prisma.apiUsageLog.deleteMany({
+      where: { createdAt: { lt: sevenDaysAgo } },
+    });
+    if (apiLogsDeleted.count > 0) {
+      console.log(`[content-auto-fix-lite] Cleaned ${apiLogsDeleted.count} ApiUsageLog entries older than 7 days`);
+    }
+  } catch (e) { console.warn("[content-auto-fix-lite] ApiUsageLog cleanup failed:", e instanceof Error ? e.message : e); }
+
+  // ── Section 11: AutoFixLog cleanup (14-day retention) ──
+  try {
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const autoFixDeleted = await prisma.autoFixLog.deleteMany({
+      where: { createdAt: { lt: fourteenDaysAgo } },
+    });
+    if (autoFixDeleted.count > 0) {
+      console.log(`[content-auto-fix-lite] Cleaned ${autoFixDeleted.count} AutoFixLog entries older than 14 days`);
+    }
+  } catch (e) { console.warn("[content-auto-fix-lite] AutoFixLog cleanup failed:", e instanceof Error ? e.message : e); }
+
+  // ── Section 12: Rejected ArticleDraft cleanup (14-day retention) ──
+  try {
+    const fourteenDaysAgo2 = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const rejectedDeleted = await prisma.articleDraft.deleteMany({
+      where: {
+        current_phase: "rejected",
+        updated_at: { lt: fourteenDaysAgo2 },
+      },
+    });
+    if (rejectedDeleted.count > 0) {
+      console.log(`[content-auto-fix-lite] Cleaned ${rejectedDeleted.count} rejected ArticleDrafts older than 14 days`);
+    }
+  } catch (e) { console.warn("[content-auto-fix-lite] Rejected draft cleanup failed:", e instanceof Error ? e.message : e); }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
   const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed;

@@ -34,7 +34,7 @@ const pipelineSection = async (
       const [totalTopics, pendingTopics, approvedTopics, recentTopics] = await Promise.all([
         prisma.topicProposal.count({ where: { site_id: siteId } }),
         prisma.topicProposal.count({ where: { site_id: siteId, status: { in: ["ready", "queued", "planned", "proposed"] } } }),
-        prisma.topicProposal.count({ where: { site_id: siteId, status: "approved" } }),
+        prisma.topicProposal.count({ where: { site_id: siteId, status: "generating" } }),
         prisma.topicProposal.count({
           where: {
             site_id: siteId,

@@ -57,27 +57,35 @@ export async function runContentBuilder(
     // Step 1: Find the oldest in-progress draft
     let draft: Record<string, unknown> | null = null;
     try {
-      const allDrafts = await prisma.articleDraft.findMany({
+      // Optimization for statement_timeout (PostgresError 57014):
+      // 1. Two-phase query: first get IDs with lightweight WHERE + ORDER BY (uses compound
+      //    index on site_id, current_phase, updated_at), then fetch full records by ID.
+      // 2. This avoids the complex OR on phase_started_at forcing a seq scan on the full table.
+      // 3. The compound index handles the first query efficiently; the second is a simple PK lookup.
+      const candidateIds = await prisma.articleDraft.findMany({
         where: {
           site_id: { in: activeSites },
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          // Use highest maxAttempts (drafting=8) so no phase's drafts fall into limbo.
-          // Individual phase rejection is handled in the processing loop via getMaxAttempts().
           phase_attempts: { lt: getMaxAttempts("drafting") },
-          // Soft-lock: skip drafts actively being processed by another runner (within last 5 min)
-          // 300s allows a full phase cycle to complete before another runner picks it up.
-          // Previous 180s was too short — slow AI calls (30-50s) + overlapping crons
-          // could cause drafts to get re-picked mid-processing, leading to stuck drafts.
           OR: [
             { phase_started_at: null },
             { phase_started_at: { lt: new Date(Date.now() - 300 * 1000) } },
           ],
         },
         orderBy: { updated_at: "asc" },
-        take: 8, // Reduced from 20 — only need top few; saves ~1s on large tables
+        take: 8,
+        select: { id: true },
       });
+
+      // Fetch full records for the small set of candidates (max 8 rows by PK)
+      const allDrafts = candidateIds.length > 0
+        ? await prisma.articleDraft.findMany({
+            where: { id: { in: candidateIds.map(c => c.id) } },
+            orderBy: { updated_at: "asc" },
+          })
+        : [];
 
       const phaseOrder: Record<string, number> = {
         scoring: 7, seo: 6, images: 5, assembly: 4, drafting: 3, outline: 2, research: 1,

@@ -193,6 +193,9 @@ async function handleCreate(request: NextRequest) {
 
       // Create bilingual draft pair in a transaction to prevent orphans.
       // If AR creation fails, EN draft is rolled back too — no orphaned single-language drafts.
+      // Timeout raised from default 5s to 30s — bilingual pair creation + topic dedup
+      // check can take 20s+ during Supabase pool contention (cold starts, concurrent crons).
+      // Error: "Transaction already closed: timeout was 5000 ms, however 21980 ms passed"
       const { enDraft, arDraft } = await prisma.$transaction(async (tx: typeof prisma) => {
         const en = await tx.articleDraft.create({
           data: {
@@ -229,7 +232,7 @@ async function handleCreate(request: NextRequest) {
         });
 
         return { enDraft: en, arDraft: ar };
-      });
+      }, { timeout: 30000 });
 
       if (topicProposalId) {
         await prisma.topicProposal.update({

@@ -513,7 +513,9 @@ export async function runSweeper(): Promise<SweeperResult> {
     // ── 5. Recover TopicProposals stuck in "generating" ──────────────
     // If content-builder or full-pipeline-runner crashes after claiming a
     // TopicProposal (status="generating") but before creating the ArticleDraft,
-    // the topic is permanently stuck. Reset to "approved" after 2 hours.
+    // the topic is permanently stuck. Reset to "ready" after 2 hours.
+    // IMPORTANT: Must use "ready" — CONSUMABLE_STATUSES = ["ready","queued","planned","proposed"].
+    // "approved" is NOT consumable and topics reset to it are stuck forever (rule 120).
     try {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
       const stuckTopics = await prisma.topicProposal.updateMany({
@@ -522,7 +524,7 @@ export async function runSweeper(): Promise<SweeperResult> {
           updated_at: { lt: twoHoursAgo },
         },
         data: {
-          status: "approved",
+          status: "ready",
           updated_at: new Date(),
         },
       });
@@ -534,9 +536,9 @@ export async function runSweeper(): Promise<SweeperResult> {
           locale: "all",
           problem: `${stuckTopics.count} TopicProposal(s) stuck in "generating" for 2+ hours`,
           diagnosis: "Content builder crashed after claiming topic but before creating draft.",
-          fix: `Reset ${stuckTopics.count} topic(s) to "approved" — they will be claimed again on next run`,
+          fix: `Reset ${stuckTopics.count} topic(s) to "ready" — they will be claimed again on next run`,
           previousPhase: "generating",
-          newPhase: "approved",
+          newPhase: "ready",
         });
       }
     } catch (topicErr) {

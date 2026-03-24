@@ -626,6 +626,7 @@ export async function submitUnindexedPages(
       where: { published: true, ...blogSiteFilter },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
+      take: 500,
     });
 
     const allUrls = posts.map((p: any) => `${siteUrl}/blog/${p.slug}`);

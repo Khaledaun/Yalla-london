@@ -270,7 +270,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
         for (const query of shuffled) {
           try {
-            const photos = await searchPhotos(query, { perPage, orientation: 'landscape' });
+            const photos = await searchPhotos(query, { perPage: 5, orientation: 'landscape' });
             queriesRun.push(`${siteId}:${query} (${photos.length})`);
 
             for (const photo of photos) {

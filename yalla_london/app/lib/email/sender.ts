@@ -84,12 +84,29 @@ function getDefaultFrom(siteId?: string): string {
     const { getDefaultSiteId, SITES } = require("@/config/sites");
     const resolvedSiteId = siteId || getDefaultSiteId();
     const site = SITES[resolvedSiteId];
-    const domain = site?.domain || "zenitha.luxury";
-    const brandName = site?.name || "Zenitha";
-    return `${brandName} <info@${domain}>`;
+    const domain = site?.domain || "yalla-london.com";
+    const brandName = site?.name || "Yalla London";
+    return `${brandName} <hello@${domain}>`;
   } catch (err) {
     console.warn("[email:sender] Could not resolve default site domain for FROM address:", err instanceof Error ? err.message : err);
-    return "Zenitha <info@zenitha.luxury>";
+    return "Yalla London <hello@yalla-london.com>";
+  }
+}
+
+/**
+ * Build the default "reply-to" address for all outgoing emails.
+ */
+function getDefaultReplyTo(): string {
+  const replyTo = (process.env.EMAIL_REPLY_TO || "").trim();
+  if (replyTo) return replyTo;
+
+  try {
+    const { getDefaultSiteId, SITES } = require("@/config/sites");
+    const resolvedSiteId = getDefaultSiteId();
+    const site = SITES[resolvedSiteId];
+    return `info@${site?.domain || "yalla-london.com"}`;
+  } catch {
+    return "info@yalla-london.com";
   }
 }
 
@@ -106,8 +123,9 @@ function getDefaultFrom(siteId?: string): string {
 export async function sendEmail(
   options: SendEmailOptions
 ): Promise<SendEmailResult> {
-  let { to, subject, html, plainText, replyTo } = options;
+  let { to, subject, html, plainText } = options;
   const from = options.from || getDefaultFrom();
+  const replyTo = options.replyTo || getDefaultReplyTo();
   const recipients = Array.isArray(to) ? to : [to];
 
   // Apply merge-tag personalization if context provided

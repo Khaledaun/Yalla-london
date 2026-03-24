@@ -169,8 +169,7 @@ interface UnsplashPhotoLike {
 }
 
 async function saveToLibrary(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  prisma: any,
+  prisma: { mediaAsset: { findFirst: Function; create: Function } } & Record<string, unknown>,
   photo: UnsplashPhotoLike,
   imageUrl: string,
   attribution: string,

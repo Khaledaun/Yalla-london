@@ -309,7 +309,6 @@ export function buildImageUrl(
 
 // ── Internal Mapper ────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapPhoto(raw: any): UnsplashPhoto {
   return {
     id: raw.id || "",

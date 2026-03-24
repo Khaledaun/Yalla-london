@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 min — needs budget for publish + 2 enhancements
 
 /**
  * Content Selector — Reservoir-to-BlogPost Publisher
@@ -72,7 +72,7 @@ async function handleContentSelector(request: NextRequest) {
 
     // Run the selector
     const { runContentSelector } = await import("@/lib/content-pipeline/select-runner");
-    const result = await runContentSelector({ timeoutMs: 53_000 });
+    const result = await runContentSelector({ timeoutMs: 280_000 }); // 280s (300s max - 20s buffer)
 
     // Fire failure hook if the selector returned a failure.
     // Note: runContentSelector already logs to CronJobLog internally with accurate

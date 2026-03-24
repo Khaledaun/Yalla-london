@@ -160,7 +160,7 @@ export async function runContentSelector(
     // Find reservoir articles with sufficient quality.
     // Articles with 3+ failed enhancement attempts are still included — they may
     // pass the pre-pub gate as-is and should be published rather than zombified.
-    const MAX_ENHANCEMENT_ATTEMPTS = 3;
+    const MAX_ENHANCEMENT_ATTEMPTS = 2; // Force-publish after 2 failed enhancements (was 3 — too slow)
     let candidates: Array<Record<string, unknown>> = [];
     try {
       // Step 1: Find candidates
@@ -520,9 +520,10 @@ export async function runContentSelector(
     }
 
     // ── Enhancement phase: only if budget remains after promoting publish-ready articles ──
-    // Each enhancement costs 30-45s (Grok search + content expansion). Cap at 1 per run.
+    // Each enhancement costs 30-45s (Grok search + content expansion). Cap at 2 per run.
+    // With maxDuration: 300 in vercel.json, we have ~240s budget for enhancements.
     let enhancedCount = 0;
-    const enhancementQueue = needsEnhancement.slice(0, 1); // Max 1 per run
+    const enhancementQueue = needsEnhancement.slice(0, 2); // Max 2 per run (was 1 — bottleneck)
 
     for (const candidate of enhancementQueue) {
       const remainingMs = timeoutMs - (Date.now() - cronStart);

@@ -84,6 +84,9 @@
     },
     "app/api/cron/schedule-executor/**/*.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/content-selector/**/*.ts": {
+      "maxDuration": 300
     }
   },
   "env": {

@@ -153,6 +153,9 @@ interface CircuitState {
   failures: number;
   lastFailure: number;
   state: 'closed' | 'open' | 'half-open';
+  /** When true, the provider has a billing/quota issue that won't self-resolve.
+   *  Extends the cooldown from 30s to 5 minutes — no point probing a dead quota. */
+  quotaExhausted?: boolean;
 }
 
 const circuitBreakers = new Map<AIProvider, CircuitState>();
@@ -174,13 +177,30 @@ export function getAllCircuitStates(): Record<string, { state: string; failures:
 }
 
 function recordProviderSuccess(provider: AIProvider): void {
-  circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed' });
+  circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed', quotaExhausted: false });
 }
 
-function recordProviderFailure(provider: AIProvider): void {
+function recordProviderFailure(provider: AIProvider, errorMessage?: string): void {
   const state = getCircuitState(provider);
   state.failures++;
   state.lastFailure = Date.now();
+
+  // Instant circuit-break for quota exhaustion — no point retrying for 30s,
+  // the quota won't replenish mid-request. This prevents OpenAI from consuming
+  // 10-15s of budget before falling through to Claude.
+  if (errorMessage && (
+    errorMessage.includes('insufficient_quota') ||
+    errorMessage.includes('quota exceeded') ||
+    errorMessage.includes('rate_limit_exceeded') ||
+    errorMessage.includes('billing_not_active')
+  )) {
+    state.failures = 3; // Instantly trip the circuit breaker
+    state.state = 'open';
+    state.quotaExhausted = true; // Extended cooldown — quota won't self-heal in 30s
+    console.warn(`[ai/provider] Circuit OPEN for ${provider} — quota/billing error (5-min cooldown): "${errorMessage.slice(0, 80)}"`);
+    return;
+  }
+
   if (state.failures >= 3) {
     state.state = 'open';
     console.warn(`[ai/provider] Circuit OPEN for ${provider} — ${state.failures} consecutive failures`);
@@ -199,10 +219,15 @@ function isProviderAvailable(provider: AIProvider, isLastProvider = false): bool
       state.state = 'half-open';
       return true;
     }
-    // After 30s in open state, allow one probe request (reduced from 60s
-    // to prevent long lockouts during generation bursts)
-    if (Date.now() - state.lastFailure > 30_000) {
+    // Quota-exhausted providers get 5-minute cooldown (300s) instead of 30s.
+    // insufficient_quota / billing_not_active won't self-heal in 30s — probing
+    // just wastes 5-10s of precious fallback budget every cycle.
+    const cooldownMs = state.quotaExhausted ? 300_000 : 30_000;
+    if (Date.now() - state.lastFailure > cooldownMs) {
       state.state = 'half-open';
+      if (state.quotaExhausted) {
+        console.log(`[ai/provider] Quota-exhausted ${provider} cooldown expired (${cooldownMs / 1000}s) — allowing probe`);
+      }
       return true;
     }
     return false;
@@ -603,7 +628,7 @@ export async function generateCompletion(
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.warn(`[ai/provider] Requested provider ${options.provider} failed, falling through to chain: ${msg}`);
-        recordProviderFailure(options.provider);
+        recordProviderFailure(options.provider, msg);
         // Fall through to standard fallback chain below
       }
     } else {
@@ -734,9 +759,10 @@ export async function generateCompletion(
       return result;
     } catch (error) {
       const attemptDurationMs = Date.now() - attemptStart;
-      const msg = `${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      const msg = `${provider}: ${errorMsg}`;
       errors.push(msg);
-      recordProviderFailure(provider);
+      recordProviderFailure(provider, errorMsg);
       // Detect fast failures (<5s) for adaptive fallback on heavy phases
       lastFailWasFast = attemptDurationMs < 5_000;
       continue;

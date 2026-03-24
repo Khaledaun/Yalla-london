@@ -4353,7 +4353,7 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 | `NEXT_PUBLIC_STAY22_AID` | `stay22_ab837a0c-e57b-465c-9f86-49b449f25506` | **Set in Vercel** |
 | `NEXT_PUBLIC_TRAVELPAYOUTS_MARKER` | `510776` | **Set in Vercel** |
 | `TICKETMASTER_API_KEY` | `CAgQInmdVoaEucZiEmT1vG2rcKvU7Ldu` | **Set in Vercel** |
-| `UNSPLASH_ACCESS_KEY` | — | Pending (sign up at unsplash.com/developers) |
+| `UNSPLASH_ACCESS_KEY` | (set in Vercel, March 23) | **Active** — free tier 50 req/hr |
 
 **Ticketmaster image domains added to `next.config.js`:** `s1.ticketm.net`, `*.ticketmaster.com`
 
@@ -4510,11 +4510,11 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 
 | # | Feature | Status | What's Missing |
 |---|---------|--------|----------------|
-| 1 | **Photos/Images** | PARTIAL | Set `UNSPLASH_ACCESS_KEY` in Vercel — image-pipeline cron already built |
+| 1 | **Photos/Images** | **WORKING** | `UNSPLASH_ACCESS_KEY` set in Vercel — image-pipeline cron active |
 | 2 | **Affiliate Links** | WORKING | Only Vrbo approved. Apply to more CJ advertisers + set partner env vars |
 | 3 | **Social Media** | PARTIAL | Set 4 Twitter env vars. Instagram/TikTok/LinkedIn are manual-only by design |
 | 4 | **PDF Generator** | PARTIAL | Covers work (Edge Runtime). Guide PDF via Puppeteer fragile on serverless |
-| 5 | **Email System** | NOT SENDING | Set `RESEND_API_KEY` in Vercel (free tier: 100 emails/day) |
+| 5 | **Email System** | **WORKING** | `RESEND_API_KEY` set in Vercel — React Email templates + SDK + webhook live |
 | 6 | **Video Studio** | DEAD | Remotion needs Chromium — not available on Vercel. Use Canva instead |
 | 7 | **Brand Kit** | WORKING | Logo SVGs not yet created; social links empty |
 | 8 | **IndexNow/SEO** | FIXED | Middleware bypass added — key file now serves plain text |
@@ -4535,7 +4535,7 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 
 **At 1 site (current):** Everything works. Merge this PR and deploy.
 
-**Before site #2:** Set Unsplash + Resend env vars. Create GA4 property + GSC property for new site. Run `npx prisma migrate deploy` for any pending migrations.
+**Before site #2:** Unsplash + Resend env vars already set. Create GA4 property + GSC property for new site. Run `npx prisma migrate deploy` for any pending migrations. Verify Resend domain (SPF/DKIM) for new site's sending domain.
 
 **Before site #3:** Monitor Supabase CPU dashboard. If sustained >70%, add Supabase compute add-on ($10-25/month). Consider Redis for cron dedup (Upstash free tier).
 
@@ -4674,9 +4674,76 @@ GA4 receives event from BOTH client-side AND server-side (dual tracking)
 | Arabic SSR | `/ar/` routes render English on server, Arabic only client-side | MEDIUM | Open (KG-032) |
 | Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
 | Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
-| Unsplash Rate Limit | 50 req/hr free tier — upgrade to production ($25/mo) if hitting limits | LOW | Monitor |
-| Email System | Code ready, `RESEND_API_KEY` not yet set in Vercel | MEDIUM | Set env var |
+| ~~Unsplash Rate Limit~~ | ~~50 req/hr free tier~~ | ~~LOW~~ | **DONE** — `UNSPLASH_ACCESS_KEY` set in Vercel (March 23) |
+| ~~Email System~~ | ~~Code ready, RESEND_API_KEY not yet set~~ | ~~MEDIUM~~ | **DONE** — `RESEND_API_KEY` set in Vercel (March 24), React Email templates + webhook + send API created |
 | Twitter Auto-Post | Code ready, 4 Twitter env vars not yet set in Vercel | LOW | Set env vars |
+
+### Session: March 24, 2026 — Resend Email Integration, React Email Templates, Greenwich Article
+
+**Resend Email Integration (6 new files):**
+
+| File | Purpose |
+|------|---------|
+| `emails/welcome.tsx` | Bilingual EN/AR welcome email with tri-color branding |
+| `emails/newsletter-digest.tsx` | Weekly digest with article cards (up to 5) |
+| `emails/booking-confirmation.tsx` | Stripe booking confirmation with details table |
+| `emails/contact-confirmation.tsx` | Contact form auto-reply |
+| `lib/email/resend-service.ts` | Typed Resend SDK wrapper with React Email rendering |
+| `app/api/email/send/route.ts` | Email send API with idempotency keys (5 types) |
+| `app/api/email/webhook/route.ts` | Resend webhook handler (bounce/complaint → unsubscribe) |
+| `scripts/verify-email-auth.sh` | DNS verification script for SPF/DKIM/DMARC |
+
+**Resend Service (`lib/email/resend-service.ts`) — 4 high-level methods:**
+- `sendWelcomeEmail(to, name, locale, siteId?)` — with automatic idempotency key
+- `sendBookingConfirmation(to, booking, siteId?)` — Stripe receipt link support
+- `sendNewsletterDigest(to[], articles[], locale, siteId?)` — weekly digest
+- `sendContactConfirmation(to, inquiry, siteId?)` — auto-reply
+- All use React Email server-side rendering (`renderToStaticMarkup`)
+- All include Resend idempotency keys and tags for dashboard filtering
+- Webhook verification via svix library (installed with Resend SDK)
+
+**Email Send API (`/api/email/send`) — 5 send types:**
+- `welcome` — subscriber welcome
+- `booking` — Stripe booking confirmation
+- `contact` — contact form auto-reply
+- `digest` — weekly newsletter
+- `raw` — arbitrary HTML with idempotency key
+
+**Webhook Handler (`/api/email/webhook`):**
+- Receives: email.sent, delivered, opened, clicked, bounced, complained
+- Logs to CronJobLog for dashboard visibility
+- Auto-unsubscribes bounced/complained recipients
+
+**Greenwich Easter 2026 Article:**
+- Created as seed endpoint: `POST /api/admin/seed-article` with `{ article: "greenwich-easter-2026" }`
+- 1,500+ word bilingual EN/AR article covering: DLR reopening, Cutty Sark, Maritime Museum, Royal Observatory, luxury dining, halal options, prayer facilities, hotels
+- SEO-optimized: insider tips, Key Takeaways section, affiliate links (GetYourGuide), internal linking ready
+- Created as draft (published=false) — publish via cockpit when ready
+
+**DNS Setup Required (Khaled action in Cloudflare):**
+- SPF: Add `include:send.resend.com` to TXT records for both domains
+- DKIM: Add CNAME records from Resend dashboard after domain verification
+- DMARC: Add `_dmarc` TXT record starting with `p=none` (monitoring)
+- Verification script: `bash scripts/verify-email-auth.sh`
+
+**Env Vars Confirmed Active (March 24, 2026):**
+
+| Env Var | Status | Notes |
+|---------|--------|-------|
+| `RESEND_API_KEY` | **Active** | Set in Vercel, all environments |
+| `UNSPLASH_ACCESS_KEY` | **Active** | Set in Vercel (March 23) |
+| `RESEND_WEBHOOK_SECRET` | **Needed** | Set after configuring webhook in Resend dashboard |
+| `RESEND_DOMAIN_VERIFIED` | **Needed** | Set to `true` after SPF/DKIM verification |
+| `EMAIL_FROM` | Optional | Override default `hello@yalla-london.com` |
+
+### Critical Rules Learned (March 24 Session — Email Integration)
+
+183. **Resend SDK `sendOptions` is the SECOND argument to `resend.emails.send()`** — `resend.emails.send(payload, { idempotencyKey })`. The idempotency key is NOT in the payload object itself.
+184. **React Email templates use `renderToStaticMarkup` (not `renderToString`)** — static markup doesn't include React data attributes, producing cleaner HTML for email clients. Import from `react-dom/server`.
+185. **Resend webhook signature uses svix library** — `new Webhook(secret).verify(body, headers)`. The `svix` package is automatically installed with the `resend` npm package.
+186. **Webhook handler should return 200 even on processing errors** — returning 4xx/5xx causes Resend to retry the webhook, creating duplicate processing. Only return 401 for invalid signatures.
+187. **Resend sandbox mode (`onboarding@resend.dev`) only sends to the account owner's email** — until domain is verified with SPF/DKIM, emails can only reach the Resend account holder. Set `RESEND_DOMAIN_VERIFIED=true` and `EMAIL_FROM` after DNS verification.
+188. **BlogPost `published: false` is the correct default for editorial content** — the pipeline creates draft articles that must be explicitly published via cockpit. This prevents unreviewed content from going live.
 
 ## Weekly Manual Checks
 

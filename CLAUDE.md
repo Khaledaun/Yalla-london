@@ -4805,6 +4805,37 @@ Subscriber Lifecycle:
 191. **`RESEND_WEBHOOK_SECRET` enables signature verification on ALL webhook events** — without it, the handler parses the body without verification (development mode). With it set, every webhook POST is HMAC-SHA256 verified. Invalid signatures return 401, preventing spoofed events from unsubscribing real users.
 192. **Resend webhook endpoint MUST return 200 on processing errors** — returning 500 causes Resend to retry with exponential backoff, creating duplicate CronJobLog entries and duplicate unsubscribe operations. The catch block returns `{ received: true, error: "Processing error" }` with status 200.
 
+### Session: March 25, 2026 — Supabase Compute Upgrade, RLS Security, Email Hardening, Safari Fix
+
+**Supabase Infrastructure Upgrade:**
+- **Compute tier:** Upgraded from Nano to larger compute tier (Khaled action in Supabase dashboard)
+- **Connection pool:** Increased from 15 (default) to 60 connections
+- **Max client connections:** 200 (fixed by compute tier)
+- **RLS Security:** 130+ tables locked down with Row Level Security across all projects
+- **Result:** Pool timeout errors (`FATAL: Unable to check out connection from the pool`) eliminated. Zero pool timeouts in first post-upgrade hour.
+
+**Email System Hardening (3 files, 4 fixes):**
+- Replaced 4 hardcoded `replyTo: "info@yalla-london.com"` with `getDefaultReplyTo()` in `resend-service.ts`
+- Webhook: fixed redundant ternary, added `unsubscribed_at` + `metadata_json` with bounce/complaint reason for GDPR compliance
+- Removed hardcoded `khaled@zenitha.luxury` fallback in `send/route.ts` raw mode
+- All Resend env vars confirmed active: `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_DOMAIN_VERIFIED`, `EMAIL_FROM`
+
+**Safari Crash Fix (media page):**
+- Fixed 3 fetch calls in `/admin/media/page.tsx` that called `res.json()` without checking `res.ok` first
+- Safari throws "The string did not match the expected pattern" on non-JSON error responses
+- Unsplash search, Unsplash import, and Stock Library button all fixed
+
+**Known Issues Post-Upgrade:**
+- **Reservoir overflow: 82 articles** (cap is 50) — content-builder-create correctly blocked, content-selector publishing ~1-2/day
+- **OpenAI API key exhausted** — circuit breaker permanently open, wastes timeout budget. **ACTION: Remove `OPENAI_API_KEY` from Vercel env vars**
+- **Claude provider circuit-open** — cascading from OpenAI timeout waste consuming budget. Will self-heal once OpenAI key removed
+
+### Critical Rules Learned (March 25 Session)
+
+193. **Supabase Nano compute has 15 default pool connections** — insufficient for 5+ concurrent crons. Upgrade compute tier and set pool size to 60 for multi-cron workloads.
+194. **Dead API keys in the provider chain cause cascading circuit breaker trips** — OpenAI's `insufficient_quota` error triggers after 5-10s of timeout, consuming budget that should go to working providers (Grok, Claude). The circuit breaker then trips on Claude too because it gets insufficient remaining budget. Remove dead keys entirely.
+195. **Reservoir overflow (82/50) blocks all new draft creation** — `content-builder-create` correctly skips when reservoir is full, but the 7-day age-out isn't draining fast enough. Content-selector publishes 1-2/day but pipeline produces faster. Need either: (a) increase content-selector publish rate, or (b) lower reservoir cap awareness.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

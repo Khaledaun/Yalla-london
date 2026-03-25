@@ -27,7 +27,6 @@ let _cachedDefaultSiteId: string | null = null;
 function _getDefaultSiteId(): string {
   if (_cachedDefaultSiteId) return _cachedDefaultSiteId;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     _cachedDefaultSiteId = require("@/config/sites").getDefaultSiteId();
   } catch {
     // Config unavailable — use first SITES key as ultimate fallback

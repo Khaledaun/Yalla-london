@@ -147,12 +147,12 @@ export async function checkCannibalization(
     }
   }
 
-  // Threshold: 75% keyword overlap = cannibalization risk
-  // Raised from 60% (March 22, 2026) — 60% was too aggressive, blocking articles
-  // with legitimate but different angles on the same topic (e.g., "london eye tickets
-  // fast track v5" blocked by "london eye tickets fast track v3" at 67% overlap).
-  // At 75%, only near-identical keyword sets trigger cannibalization.
-  const CANNIBALIZATION_THRESHOLD = 0.75;
+  // Threshold: 85% keyword overlap = true cannibalization risk
+  // Raised from 75% (March 25, 2026) — 75% still too aggressive on a niche travel site
+  // where articles share 3-4 category keywords (hotels, dining, attractions, family).
+  // At 85%, only near-duplicate keyword targeting is blocked, allowing legitimate
+  // different angles on the same topic to coexist.
+  const CANNIBALIZATION_THRESHOLD = 0.85;
 
   return {
     cannibalizes: highestOverlap >= CANNIBALIZATION_THRESHOLD,

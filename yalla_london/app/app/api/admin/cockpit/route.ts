@@ -110,6 +110,7 @@ interface IndexingStatus {
     coverageReasons: Array<{ reason: string; count: number }>;
     totalWithCoverageState: number;
     untrackedButIndexed: number;
+    totalInspected: number;
   };
 }
 
@@ -1029,7 +1030,7 @@ function emptyIndexing(): IndexingStatus {
     lastGscSync: null,
     dataSource: "lightweight",
     impressionDiagnostic: null,
-    gscTruth: { confirmedIndexed: 0, coverageReasons: [], totalWithCoverageState: 0, untrackedButIndexed: 0 },
+    gscTruth: { confirmedIndexed: 0, coverageReasons: [], totalWithCoverageState: 0, untrackedButIndexed: 0, totalInspected: 0 },
   };
 }
 

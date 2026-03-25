@@ -117,6 +117,7 @@ interface CockpitData {
       coverageReasons: Array<{ reason: string; count: number }>;
       totalWithCoverageState: number;
       untrackedButIndexed: number;
+      totalInspected: number;
     };
   };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
@@ -2134,8 +2135,17 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
             </div>
           )}
 
+          {/* Inspection coverage note */}
+          {indexing.gscTruth.totalInspected > 0 && indexing.total > 0 && (
+            <div className="mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: indexing.gscTruth.totalInspected < indexing.total ? 'rgba(196,154,42,0.06)' : 'rgba(22,163,74,0.04)', fontFamily: "var(--font-system)", fontSize: 10, color: indexing.gscTruth.totalInspected < indexing.total ? '#92400E' : '#16A34A', lineHeight: '1.5' }}>
+              {indexing.gscTruth.totalInspected} of {indexing.total} URLs inspected via URL Inspection API.
+              {indexing.gscTruth.totalInspected < indexing.total && ` ${indexing.total - indexing.gscTruth.totalInspected} not yet checked — actual indexed count may be higher.`}
+              {indexing.gscTruth.totalInspected >= indexing.total && ' All URLs inspected — count is accurate.'}
+            </div>
+          )}
+
           <div className="mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(59,126,161,0.04)', fontFamily: "var(--font-system)", fontSize: 10, color: '#3B7EA1', lineHeight: '1.5' }}>
-            Source: Google Search Console. This is the truth — GSC counts all pages Google knows about, including /ar/ variants and static pages.
+            Source: GSC Search Analytics + URL Inspection API. Counts pages with search impressions OR confirmed &quot;indexed&quot; coverage state. Includes /ar/ variants and static pages.
           </div>
         </Card>
       )}

@@ -671,6 +671,9 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
     }
 
     // ── GSC Truth: coverage_state breakdown + confirmed indexed count ──
+    // Confirmed indexed = UNION of:
+    //   1. URLs with impressions > 0 in GscPagePerformance (gscIndexedCount)
+    //   2. URLs where coverage_state contains "indexed" (URL Inspection API)
     try {
       const coverageRaw = await prisma.$queryRawUnsafe(`
         SELECT coverage_state, COUNT(*)::int AS cnt
@@ -687,14 +690,38 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
         totalWithCoverage += row.cnt;
       }
 
-      // Untracked but indexed = GSC-confirmed URLs that have no URLIndexingStatus record
-      const untrackedIndexed = Math.max(0, gscIndexedCount - indexing.indexed);
+      // Count URLs confirmed indexed via URL Inspection API (coverage_state contains "indexed")
+      const coverageIndexedCount = await prisma.$queryRawUnsafe(`
+        SELECT COUNT(DISTINCT url)::int AS cnt
+        FROM "url_indexing_status"
+        WHERE site_id = $1
+          AND coverage_state IS NOT NULL
+          AND LOWER(coverage_state) LIKE '%indexed%'
+      `, targetSiteId) as Array<{ cnt: number }>;
+      const inspectionIndexed = coverageIndexedCount[0]?.cnt ?? 0;
+
+      // Union: max of impressions-based and inspection-based (they overlap, so use max not sum)
+      // More precisely: count distinct URLs from BOTH sources
+      const unionCountRaw = await prisma.$queryRawUnsafe(`
+        SELECT COUNT(*)::int AS cnt FROM (
+          SELECT DISTINCT url FROM "gsc_page_performance"
+          WHERE site_id = $1 AND impressions > 0
+          UNION
+          SELECT DISTINCT url FROM "url_indexing_status"
+          WHERE site_id = $1 AND coverage_state IS NOT NULL AND LOWER(coverage_state) LIKE '%indexed%'
+        ) AS combined
+      `, targetSiteId) as Array<{ cnt: number }>;
+      const confirmedIndexedUnion = unionCountRaw[0]?.cnt ?? gscIndexedCount;
+
+      // Untracked but indexed = confirmed URLs that have no URLIndexingStatus record
+      const untrackedIndexed = Math.max(0, confirmedIndexedUnion - indexing.indexed);
 
       indexing.gscTruth = {
-        confirmedIndexed: gscIndexedCount,
+        confirmedIndexed: confirmedIndexedUnion,
         coverageReasons,
         totalWithCoverageState: totalWithCoverage,
         untrackedButIndexed: untrackedIndexed,
+        totalInspected: totalWithCoverage,
       };
     } catch (gscTruthErr) {
       console.warn("[cockpit] gscTruth query failed:", gscTruthErr instanceof Error ? gscTruthErr.message : gscTruthErr);

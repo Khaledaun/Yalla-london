@@ -26,8 +26,8 @@ import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MAX_ARTICLES_PER_RUN = 2;        // target: publish up to 2 per run
-const MAX_CANDIDATES_PER_RUN = 6;     // try up to 6 candidates to find 2 publishable
+const MAX_ARTICLES_PER_RUN = 4;        // target: publish up to 4 per run (drain 82-article reservoir backlog)
+const MAX_CANDIDATES_PER_RUN = 10;    // try up to 10 candidates to find 4 publishable
 
 export interface SelectRunnerResult {
   success: boolean;
@@ -378,7 +378,14 @@ export async function runContentSelector(
       // Use Jaccard similarity (intersection/union) — NOT Math.min which caused
       // 100% overlap on short keywords sharing common words like "london", "luxury".
       // Also strip site-common words that EVERY article shares.
-      const SITE_STOP_WORDS = new Set(["london", "best", "top", "guide", "luxury", "arab", "halal", "2025", "2026", "2027", "ultimate", "complete"]);
+      // Expanded stop words: common travel/niche words that EVERY London travel article shares.
+      // Without stripping these, Jaccard similarity is inflated and blocks legitimate different topics.
+      const SITE_STOP_WORDS = new Set([
+        "london", "best", "top", "guide", "luxury", "arab", "halal",
+        "2024", "2025", "2026", "2027", "ultimate", "complete",
+        "hotel", "hotels", "restaurant", "restaurants", "experience", "experiences",
+        "travel", "family", "visit", "visiting", "things",
+      ]);
       const keywordWords = new Set<string>(keyword.split(/\s+/).filter(w => w.length > 2 && !SITE_STOP_WORDS.has(w)));
       const isDuplicateOfPublished = keywordWords.size > 0 && publishedKeywordSets.some((existingWords) => {
         if (existingWords.size === 0) return false;
@@ -387,7 +394,9 @@ export async function runContentSelector(
         const shared = [...keywordWords].filter(w => filteredExisting.has(w)).length;
         const union = keywordWords.size + filteredExisting.size - shared;
         const jaccardSimilarity = union === 0 ? 0 : shared / union;
-        return jaccardSimilarity > 0.85;
+        // 0.92 = only blocks near-identical titles (2-3 unique words all matching).
+        // Was 0.85 which blocked 95%+ of candidates on a niche London travel site.
+        return jaccardSimilarity > 0.92;
       });
 
       if (!isDuplicateOfPublished) {

@@ -87,6 +87,45 @@
     },
     "app/api/cron/content-selector/**/*.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/london-news/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/process-indexing-queue/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/scheduled-publish/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/affiliate-injection/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/sweeper/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/image-pipeline/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/content-auto-fix-lite/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/pipeline-health/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/discovery-monitor/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/perplexity-executor/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/content-freshness/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/seo-agent-intelligence/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/affiliate/cron/**/*.ts": {
+      "maxDuration": 300
     }
   },
   "env": {

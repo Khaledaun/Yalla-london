@@ -63,6 +63,7 @@ async function handleAutoFix(request: NextRequest) {
     deadAffiliateLinksRemoved: 0,
     staleAffiliateLinksRemoved: 0,
     untrackedLinksWrapped: 0,
+    placeholderIdsFixed: 0,
     errors: [] as string[],
   };
 
@@ -1036,8 +1037,33 @@ async function handleAutoFix(request: NextRequest) {
   // ── 19. UNTRACKED AFFILIATE LINK WRAPPING ────────────────────────────────────
   // Find affiliate links that go directly to partner URLs (bypass /api/affiliate/click).
   // Wrap them through our click tracker for revenue attribution + GA4 events.
+  // Covers ALL known partner domains including CJ deep links and Travelpayouts.
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
+      // Known affiliate partner domains — includes CJ deep link domains and Travelpayouts
+      const AFFILIATE_PARTNER_DOMAINS = [
+        "booking.com", "agoda.com", "expedia.com", "hotels.com",
+        "getyourguide.com", "viator.com", "klook.com",
+        "halalbooking.com", "tripadvisor.com", "tripadvisor.co.uk",
+        "thefork.co.uk", "thefork.com", "thefork.fr", "opentable.co.uk", "opentable.com",
+        "welcomepickups.com", "tiqets.com", "ticketnetwork.com",
+        "blacklane.com", "stubhub.co.uk", "stubhub.com",
+        "boatbookings.com", "clickandboat.com",
+        "harrods.com", "selfridges.com",
+        "allianztravelinsurance.com",
+        // CJ deep link domains
+        "anrdoezrs.net", "dpbolvw.net", "jdoqocy.com", "kqzyfj.com", "tkqlhce.com",
+        // Travelpayouts
+        "tp.media", "tp-em.com",
+        // Vrbo / VRBO
+        "vrbo.com",
+      ];
+
+      // Build OR conditions: articles with rel="sponsored" OR any known partner domain
+      const partnerDomainConditions = AFFILIATE_PARTNER_DOMAINS.map(domain => ({
+        content_en: { contains: domain },
+      }));
+
       const postsForTracking = await prisma.blogPost.findMany({
         where: {
           published: true,
@@ -1046,49 +1072,77 @@ async function handleAutoFix(request: NextRequest) {
             { content_en: { contains: 'rel="sponsored"' } },
             { content_en: { contains: "affiliate-recommendation" } },
             { content_en: { contains: 'rel="noopener sponsored"' } },
+            ...partnerDomainConditions,
           ],
-          // Exclude posts already fully tracked
-          NOT: { content_en: { contains: "/api/affiliate/click" } },
         },
         select: { id: true, content_en: true, slug: true, siteId: true },
-        take: 20,
+        take: 30,
         orderBy: { created_at: "desc" },
       });
 
       const { getDefaultSiteId } = await import("@/config/sites");
 
+      // Build regex pattern for all partner domains
+      const domainPattern = AFFILIATE_PARTNER_DOMAINS
+        .map(d => d.replace(/\./g, "\\."))
+        .join("|");
+
       for (const post of postsForTracking) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
-        if (results.untrackedLinksWrapped >= 30) break;
+        if (results.untrackedLinksWrapped >= 50) break;
 
         let content = post.content_en || "";
+        // Skip if ALL affiliate links are already tracked
+        if (!content.includes("booking.com") && !content.includes("getyourguide.com") &&
+            !content.includes("viator.com") && !content.includes("agoda.com") &&
+            !content.includes("anrdoezrs.net") && !content.includes("welcomepickups.com") &&
+            !content.includes("tiqets.com") && !content.includes("ticketnetwork.com") &&
+            !content.includes('rel="sponsored"') && !content.includes("affiliate-recommendation") &&
+            !content.includes("halalbooking.com") && !content.includes("vrbo.com") &&
+            !content.includes("expedia.com") && !content.includes("tripadvisor")) continue;
+
         let modified = false;
         const postSiteId = post.siteId || getDefaultSiteId();
         const sid = `${postSiteId}_${post.slug}`.substring(0, 100);
 
-        // Find all affiliate <a> tags with direct partner URLs
-        const directLinkRegex = /<a\s([^>]*(?:rel="[^"]*sponsored[^"]*"|data-affiliate[^"]*)[^>]*)href="(https?:\/\/[^"]+)"([^>]*)>/gi;
+        // Match ANY <a> tag pointing to a known affiliate partner domain
+        // This catches: rel="sponsored" links, AI-generated inline links, CJ deep links, Travelpayouts links
+        const partnerLinkRegex = new RegExp(
+          `<a\\s([^>]*)href="(https?:\\/\\/[^"]*(?:${domainPattern})[^"]*)"([^>]*)>`,
+          "gi"
+        );
         let directMatch: RegExpExecArray | null;
 
-        while ((directMatch = directLinkRegex.exec(content)) !== null) {
+        while ((directMatch = partnerLinkRegex.exec(content)) !== null) {
           const originalHref = directMatch[2];
-          // Skip if already tracked
+          // Skip if already tracked through our click tracker
           if (originalHref.includes("/api/affiliate/click")) continue;
 
           const trackedHref = `/api/affiliate/click?url=${encodeURIComponent(originalHref)}&sid=${encodeURIComponent(sid)}`;
           const originalTag = directMatch[0];
-          const newTag = originalTag.replace(`href="${originalHref}"`, `href="${trackedHref}"`);
+
+          // Also ensure rel="noopener sponsored" is present
+          let newTag = originalTag.replace(`href="${originalHref}"`, `href="${trackedHref}"`);
+          if (!newTag.includes('rel="') || !newTag.includes("sponsored")) {
+            if (newTag.includes('rel="')) {
+              // Add "sponsored" to existing rel attribute
+              newTag = newTag.replace(/rel="([^"]*)"/, 'rel="$1 sponsored"');
+            } else {
+              // Add rel attribute before closing >
+              newTag = newTag.replace(/>$/, ' rel="noopener sponsored">');
+            }
+          }
+
           content = content.replace(originalTag, newTag);
           modified = true;
           results.untrackedLinksWrapped++;
         }
 
         if (modified) {
-          const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
           await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
             console.warn("[content-auto-fix] Tracking wrap failed:", err instanceof Error ? err.message : String(err))
           );
-          console.log(`[content-auto-fix] Wrapped untracked affiliate links in /${post.slug}`);
+          console.log(`[content-auto-fix] Wrapped ${results.untrackedLinksWrapped} untracked affiliate links in /${post.slug}`);
         }
       }
     } catch (err) {
@@ -1098,9 +1152,135 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 20. PLACEHOLDER AFFILIATE ID CLEANUP ─────────────────────────────────────
+  // AI content generation often writes links with placeholder IDs like aid=12345,
+  // AFFILIATE_ID, youraffiliateid. Find and fix them — either replace with real
+  // tracked URLs or strip the broken parameters.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      // Patterns that indicate a placeholder/fake affiliate ID
+      const PLACEHOLDER_PATTERNS = [
+        /\baid=12345\b/gi,
+        /\baid=1234567\b/gi,
+        /\baid=123456\b/gi,
+        /\bpartner_id=12345\b/gi,
+        /\bpid=12345\b/gi,
+        /\bcid=12345\b/gi,
+        /\bref=12345\b/gi,
+        /AFFILIATE_ID/g,
+        /YOUR_AFFILIATE_ID/gi,
+        /youraffiliateid/gi,
+        /your-affiliate-id/gi,
+        /\[affiliate[_-]?id\]/gi,
+        /\{affiliate[_-]?id\}/gi,
+        /INSERT_AFFILIATE_ID/gi,
+        /PARTNER_ID_HERE/gi,
+        /YOUR_PARTNER_ID/gi,
+        /\baid=\b(?=[&"' ])/gi, // aid= with nothing after (empty)
+        /\bcid=\b(?=[&"' ])/gi, // cid= with nothing after
+      ];
+
+      // Find articles with potential placeholder IDs
+      const postsWithPlaceholders = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: "aid=12345" } },
+            { content_en: { contains: "AFFILIATE_ID" } },
+            { content_en: { contains: "youraffiliateid" } },
+            { content_en: { contains: "your-affiliate-id" } },
+            { content_en: { contains: "partner_id=12345" } },
+            { content_en: { contains: "pid=12345" } },
+            { content_en: { contains: "INSERT_AFFILIATE" } },
+            { content_en: { contains: "PARTNER_ID_HERE" } },
+            { content_en: { contains: "YOUR_PARTNER" } },
+          ],
+        },
+        select: { id: true, content_en: true, slug: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const { getDefaultSiteId } = await import("@/config/sites");
+
+      for (const post of postsWithPlaceholders) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (results.placeholderIdsFixed >= 30) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+        const postSiteId = post.siteId || getDefaultSiteId();
+        const sid = `${postSiteId}_${post.slug}`.substring(0, 100);
+
+        // Find <a> tags with known partner domains that have placeholder params
+        const linkRegex = /<a\s([^>]*)href="(https?:\/\/[^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi;
+        let match: RegExpExecArray | null;
+        const replacements: Array<{ original: string; replacement: string }> = [];
+
+        while ((match = linkRegex.exec(content)) !== null) {
+          const fullTag = match[0];
+          const href = match[2];
+
+          // Check if this href contains a placeholder pattern
+          const hasPlaceholder = PLACEHOLDER_PATTERNS.some(p => p.test(href));
+          // Reset regex lastIndex after test()
+          PLACEHOLDER_PATTERNS.forEach(p => { p.lastIndex = 0; });
+
+          if (!hasPlaceholder) continue;
+          if (href.includes("/api/affiliate/click")) continue;
+
+          // Strip placeholder params from URL and wrap through click tracker
+          let cleanUrl = href;
+          for (const pattern of PLACEHOLDER_PATTERNS) {
+            cleanUrl = cleanUrl.replace(pattern, "");
+            pattern.lastIndex = 0;
+          }
+          // Clean up resulting URL (remove dangling ?&, &&, trailing &)
+          cleanUrl = cleanUrl
+            .replace(/[?&]$/, "")
+            .replace(/&&+/g, "&")
+            .replace(/\?&/, "?")
+            .replace(/\?$/, "");
+
+          const trackedUrl = `/api/affiliate/click?url=${encodeURIComponent(cleanUrl)}&sid=${encodeURIComponent(sid)}`;
+          let newTag = fullTag.replace(`href="${href}"`, `href="${trackedUrl}"`);
+
+          // Add rel="noopener sponsored" if missing
+          if (!newTag.includes("sponsored")) {
+            if (newTag.includes('rel="')) {
+              newTag = newTag.replace(/rel="([^"]*)"/, 'rel="$1 sponsored"');
+            } else {
+              newTag = newTag.replace(/<a\s/, '<a rel="noopener sponsored" ');
+            }
+          }
+
+          replacements.push({ original: fullTag, replacement: newTag });
+        }
+
+        for (const { original, replacement } of replacements) {
+          content = content.replace(original, replacement);
+          modified = true;
+          results.placeholderIdsFixed++;
+        }
+
+        if (modified) {
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
+            console.warn("[content-auto-fix] Placeholder cleanup failed:", err instanceof Error ? err.message : String(err))
+          );
+          console.log(`[content-auto-fix] Fixed ${replacements.length} placeholder affiliate IDs in /${post.slug}`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`placeholder-affiliate-cleanup: ${msg}`);
+      console.warn("[content-auto-fix] Placeholder affiliate cleanup failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -1138,7 +1318,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}`,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}`,
   });
 }
 

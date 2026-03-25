@@ -1109,6 +1109,22 @@ async function handleAutoFix(request: NextRequest) {
     await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch(err => console.warn("[content-auto-fix] onCronFailure hook failed:", err instanceof Error ? err.message : err));
   }
 
+  // Invalidate sitemap cache if any articles were published/unpublished
+  const publishStateChanged =
+    (results.thinUnpublished || 0) > 0 ||
+    ((results as Record<string, unknown>).articlesRecovered as number || 0) > 0 ||
+    (results.duplicatesFlagged || 0) > 0;
+  if (publishStateChanged) {
+    try {
+      const { invalidateSitemapCache } = await import("@/lib/sitemap-cache");
+      for (const sid of activeSiteIds) {
+        invalidateSitemapCache(sid);
+      }
+    } catch (e) {
+      console.warn("[content-auto-fix] Sitemap invalidation failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
   await logCronExecution("content-auto-fix", hasErrors && totalFixed === 0 ? "failed" : "completed", {
     durationMs,
     itemsProcessed: totalFixed + results.enhanceFailed,

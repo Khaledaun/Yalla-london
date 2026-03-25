@@ -454,6 +454,19 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
   return { urlCount: entries.length, durationMs };
 }
 
+// ── Invalidate cache (fire-and-forget regeneration) ─────────────────────────
+
+/**
+ * Call after publishing, unpublishing, or deleting content.
+ * Triggers async regeneration so stale URLs are purged from sitemap.
+ * Never blocks the caller — errors are swallowed with a log.
+ */
+export function invalidateSitemapCache(siteId: string): void {
+  regenerateSitemapCache(siteId).catch((err) =>
+    console.warn("[sitemap-cache] Invalidation regeneration failed:", err instanceof Error ? err.message : String(err)),
+  );
+}
+
 // ── Regenerate for all active sites ──────────────────────────────────────────
 
 export async function regenerateAllSitemapCaches(): Promise<{ sites: Array<{ siteId: string; urlCount: number; durationMs: number }> }> {

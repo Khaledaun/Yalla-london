@@ -373,11 +373,18 @@ function getDefaultFrom(): string {
   }
 
   try {
-    const { getDefaultSiteId, SITES } = require("@/config/sites");
-    const site = SITES[getDefaultSiteId()];
-    return `${site?.name || "Zenitha"} <hello@${site?.domain || "zenitha.luxury"}>`;
+    const { getDefaultSiteId, getSiteDomain, SITES } = require("@/config/sites");
+    const defaultId = getDefaultSiteId();
+    const site = SITES[defaultId];
+    const domain = site?.domain || getSiteDomain(defaultId);
+    return `${site?.name || "Zenitha"} <hello@${domain}>`;
   } catch {
-    return "Yalla London <hello@yalla-london.com>";
+    try {
+      const { getDefaultSiteId, getSiteDomain } = require("@/config/sites");
+      return `Zenitha <hello@${getSiteDomain(getDefaultSiteId())}>`;
+    } catch {
+      return "Zenitha <hello@zenitha.luxury>";
+    }
   }
 }
 
@@ -386,19 +393,34 @@ function getDefaultReplyTo(): string {
   if (replyTo) return replyTo;
 
   try {
-    const { getDefaultSiteId, SITES } = require("@/config/sites");
-    const site = SITES[getDefaultSiteId()];
-    return `info@${site?.domain || "yalla-london.com"}`;
+    const { getDefaultSiteId, getSiteDomain, SITES } = require("@/config/sites");
+    const defaultId = getDefaultSiteId();
+    const site = SITES[defaultId];
+    const domain = site?.domain || getSiteDomain(defaultId);
+    return `info@${domain}`;
   } catch {
-    return "info@yalla-london.com";
+    try {
+      const { getDefaultSiteId, getSiteDomain } = require("@/config/sites");
+      return `info@${getSiteDomain(getDefaultSiteId())}`;
+    } catch {
+      return "info@zenitha.luxury";
+    }
   }
 }
 
 function getSiteUrl(siteId?: string): string {
   try {
     const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
-    return getSiteDomain(siteId || getDefaultSiteId());
+    const domain = getSiteDomain(siteId || getDefaultSiteId());
+    // getSiteDomain may return with or without protocol
+    return domain.startsWith("http") ? domain : `https://www.${domain}`;
   } catch {
-    return "https://www.yalla-london.com";
+    try {
+      const { getDefaultSiteId, getSiteDomain } = require("@/config/sites");
+      const domain = getSiteDomain(getDefaultSiteId());
+      return domain.startsWith("http") ? domain : `https://www.${domain}`;
+    } catch {
+      return "https://www.zenitha.luxury";
+    }
   }
 }

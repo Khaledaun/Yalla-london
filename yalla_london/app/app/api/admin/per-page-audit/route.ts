@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 /**
  * Per-Page Audit API
@@ -60,10 +61,7 @@ export async function GET(request: NextRequest) {
   if (authErr) return authErr;
 
   const { searchParams } = request.nextUrl;
-  const siteId = searchParams.get("siteId");
-  if (!siteId) {
-    return NextResponse.json({ error: "siteId required" }, { status: 400 });
-  }
+  const siteId = searchParams.get("siteId") || getDefaultSiteId();
 
   const sort = searchParams.get("sort") || "publishedAt";
   const order = searchParams.get("order") === "asc" ? "asc" : "desc";

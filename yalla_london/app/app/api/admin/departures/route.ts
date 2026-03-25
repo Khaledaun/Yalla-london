@@ -14,7 +14,7 @@ export const maxDuration = 60; // POST triggers cron routes that can take up to 
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-middleware';
-import { getActiveSiteIds } from '@/config/sites';
+import { getActiveSiteIds, getDefaultSiteId } from '@/config/sites';
 import { logManualAction } from '@/lib/action-logger';
 
 // ---------------------------------------------------------------------------
@@ -220,6 +220,8 @@ export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req);
   if (auth) return auth;
 
+  const siteId = req.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
+
   const { prisma } = await import('@/lib/db');
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -418,6 +420,7 @@ export async function GET(req: NextRequest) {
     totalPublications: departures.filter((d) => d.type === 'publication').length,
     totalReady: departures.filter((d) => d.status === 'ready').length,
     categories,
+    siteId,
   });
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const maxDuration = 30;
 
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { getQueueSnapshot } = await import("@/lib/content-pipeline/queue-monitor");
-    const siteId = request.nextUrl.searchParams.get("siteId") || undefined;
+    const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
     const snapshot = await getQueueSnapshot(siteId);
 
     return NextResponse.json(snapshot);

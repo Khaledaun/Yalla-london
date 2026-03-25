@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // if result_summary contains a siteId that doesn't match the requested site
     const filtered = alerts.filter((a) => {
       // Keep alerts that have no siteId (global) or match the requested site
-      const alertSiteId = (a as Record<string, unknown>).siteId as string | undefined;
+      const alertSiteId = (a as unknown as Record<string, unknown>).siteId as string | undefined;
       return !alertSiteId || alertSiteId === siteId;
     });
 

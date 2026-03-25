@@ -3,6 +3,7 @@ export const maxDuration = 300; // 5 min — delayed-retest waits 2 minutes
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 /**
  * CEO Inbox API — Automated Incident Response
@@ -21,15 +22,25 @@ export async function GET(request: NextRequest) {
   try {
     const { getInboxAlerts } = await import("@/lib/ops/ceo-inbox");
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20", 10);
+    const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
     const alerts = await getInboxAlerts(limit);
 
-    const unread = alerts.filter((a) => !a.read && a.status !== "resolved").length;
+    // CEO inbox alerts are global (cron failures affect all sites), but filter
+    // if result_summary contains a siteId that doesn't match the requested site
+    const filtered = alerts.filter((a) => {
+      // Keep alerts that have no siteId (global) or match the requested site
+      const alertSiteId = (a as unknown as Record<string, unknown>).siteId as string | undefined;
+      return !alertSiteId || alertSiteId === siteId;
+    });
+
+    const unread = filtered.filter((a) => !a.read && a.status !== "resolved").length;
 
     return NextResponse.json({
       success: true,
-      alerts,
+      alerts: filtered,
       unread,
-      total: alerts.length,
+      total: filtered.length,
+      siteId,
     });
   } catch (err) {
     console.error("[ceo-inbox-api] GET error:", err instanceof Error ? err.message : err);

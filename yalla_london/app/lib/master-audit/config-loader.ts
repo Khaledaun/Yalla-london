@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { AuditConfig } from './types';
+import { getSiteDomain } from '@/config/sites';
 
 // ---------------------------------------------------------------------------
 // Default configuration (used when no JSON files exist)
@@ -294,16 +295,8 @@ export function loadAuditConfig(
   // has an empty baseUrl and JSON configs don't always set it.
   if (!config.baseUrl && siteId) {
     try {
-      // Dynamic import to avoid circular deps (config-loader is used from CLI scripts)
-      const siteDomainMap: Record<string, string> = {
-        'yalla-london': 'https://yalla-london.com',
-        'arabaldives': 'https://arabaldives.com',
-        'french-riviera': 'https://yallariviera.com',
-        'istanbul': 'https://yallaistanbul.com',
-        'thailand': 'https://yallathailand.com',
-        'zenitha-yachts-med': 'https://zenithayachts.com',
-      };
-      config.baseUrl = siteDomainMap[siteId] || `https://${siteId}.com`;
+      // Use getSiteDomain() from site config instead of hardcoded domain map
+      config.baseUrl = getSiteDomain(siteId);
       console.log(`[master-audit/config-loader] Auto-resolved baseUrl to ${config.baseUrl} from siteId "${siteId}"`);
     } catch {
       // Fall through to validation which will report the error

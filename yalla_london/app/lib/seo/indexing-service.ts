@@ -22,6 +22,19 @@ let _infoSections: any[] | null = null;
 let _infoArticles: any[] | null = null;
 let _extInfoArticles: any[] | null = null;
 
+// Lazy-load default site ID from config — cached after first call
+let _cachedDefaultSiteId: string | null = null;
+function _getDefaultSiteId(): string {
+  if (_cachedDefaultSiteId) return _cachedDefaultSiteId;
+  try {
+    _cachedDefaultSiteId = require("@/config/sites").getDefaultSiteId();
+  } catch {
+    // Config unavailable — use first SITES key as ultimate fallback
+    _cachedDefaultSiteId = "yalla-london";
+  }
+  return _cachedDefaultSiteId;
+}
+
 async function getStaticContent() {
   if (!_staticPosts) {
     const { blogPosts } = await import("@/data/blog-content");
@@ -821,7 +834,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string, inc
   staticPages.forEach((page) => enUrls.push(`${baseUrl}${page}`));
 
   // Information hub: sections + articles (static data files — Yalla London only)
-  const _defaultSite = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
+  const _defaultSite = _getDefaultSiteId();
   if (!isYachtSite && (!siteId || siteId === _defaultSite)) {
     const { informationSections, informationArticles, extendedInformationArticles } = await getInfoContent();
     informationSections
@@ -1126,7 +1139,7 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
   const isYachtSite = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
 
   // Static file posts (only for default site)
-  const _ds1 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
+  const _ds1 = _getDefaultSiteId();
   if (!isYachtSite && (!siteId || siteId === _ds1)) {
     const allPosts = await getStaticContent();
     allPosts
@@ -1226,7 +1239,7 @@ export async function getUpdatedUrls(
   const isYachtSite = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
 
   // Static file posts (only for default site)
-  const _ds2 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
+  const _ds2 = _getDefaultSiteId();
   if (!isYachtSite && (!siteId || siteId === _ds2)) {
     const allPosts = await getStaticContent();
     allPosts

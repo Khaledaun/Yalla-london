@@ -46,7 +46,8 @@ export interface IndexingSummary {
 
   // GSC Truth — the REAL indexing picture from Google's perspective
   gscTruth: {
-    // Count of distinct URLs confirmed indexed by Google (impressions > 0 in GscPagePerformance)
+    // Count of distinct URLs confirmed indexed by Google
+    // UNION of: impressions > 0 (GscPagePerformance) + coverage_state contains "indexed" (URL Inspection API)
     confirmedIndexed: number;
     // Coverage state breakdown — WHY pages aren't indexed (from URLIndexingStatus.coverage_state)
     coverageReasons: Array<{ reason: string; count: number }>;
@@ -54,6 +55,8 @@ export interface IndexingSummary {
     totalWithCoverageState: number;
     // Untracked pages with GSC impressions (indexed but we have no URLIndexingStatus record)
     untrackedButIndexed: number;
+    // How many URLs have been inspected via URL Inspection API (out of total)
+    totalInspected: number;
   };
 }
 
@@ -510,9 +513,14 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
   blockers.sort((a, b) => (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2));
 
   // ── 12. GSC Truth — real indexing picture from Google's perspective ───
-  let gscConfirmedIndexed = gscConfirmedUrls.size;
+  // Confirmed indexed = UNION of:
+  //   1. URLs with impressions > 0 in GscPagePerformance (appeared in search)
+  //   2. URLs where coverage_state contains "indexed" (confirmed via URL Inspection API)
+  // This prevents undercounting — a page can be indexed without search impressions.
+  const allConfirmedIndexedUrls = new Set<string>(gscConfirmedUrls);
   const coverageReasons: Array<{ reason: string; count: number }> = [];
   let totalWithCoverageState = 0;
+  let totalInspected = 0;
 
   try {
     const coverageGroups = await prisma.uRLIndexingStatus.groupBy({
@@ -528,9 +536,36 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     }
     // Sort by count descending
     coverageReasons.sort((a, b) => b.count - a.count);
+
+    // Count total inspected URLs (have any coverage_state)
+    totalInspected = totalWithCoverageState;
+
+    // Add coverage_state-confirmed indexed URLs to the union set
+    const indexedCoverageStates = coverageReasons
+      .filter((r) => r.reason.toLowerCase().includes("indexed"))
+      .map((r) => r.reason);
+    if (indexedCoverageStates.length > 0) {
+      try {
+        const coverageIndexedUrls = await prisma.uRLIndexingStatus.findMany({
+          where: {
+            site_id: siteId,
+            coverage_state: { in: indexedCoverageStates },
+          },
+          select: { url: true },
+          take: 2000,
+        });
+        for (const r of coverageIndexedUrls) {
+          allConfirmedIndexedUrls.add(r.url);
+        }
+      } catch (e) {
+        console.warn("[indexing-summary] coverage indexed URL fetch failed:", e instanceof Error ? e.message : e);
+      }
+    }
   } catch (e) {
     console.warn("[indexing-summary] coverage_state groupBy failed:", e instanceof Error ? e.message : e);
   }
+
+  const gscConfirmedIndexed = allConfirmedIndexedUrls.size;
 
   // ── 13. Assemble result ───────────────────────────────────────────────
 
@@ -561,6 +596,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       coverageReasons,
       totalWithCoverageState,
       untrackedButIndexed,
+      totalInspected,
     },
   };
 }

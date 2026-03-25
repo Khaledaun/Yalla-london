@@ -4835,6 +4835,7 @@ Subscriber Lifecycle:
 193. **Supabase Nano compute has 15 default pool connections** — insufficient for 5+ concurrent crons. Upgrade compute tier and set pool size to 60 for multi-cron workloads.
 194. **Dead API keys in the provider chain cause cascading circuit breaker trips** — OpenAI's `insufficient_quota` error triggers after 5-10s of timeout, consuming budget that should go to working providers (Grok, Claude). The circuit breaker then trips on Claude too because it gets insufficient remaining budget. Remove dead keys entirely.
 195. **Reservoir overflow (82/50) blocks all new draft creation** — `content-builder-create` correctly skips when reservoir is full, but the 7-day age-out isn't draining fast enough. Content-selector publishes 1-2/day but pipeline produces faster. Need either: (a) increase content-selector publish rate, or (b) lower reservoir cap awareness.
+196. **Ultra-thin articles (<300w) must be unpublished, not just flagged** — a 125-word published article has zero SEO equity to protect and actively harms site quality via Google's Helpful Content system. `content-auto-fix` Section 12 now unpublishes articles below `thinContentThreshold` (300w for blog) while flagging moderate-thin (300-500w) for seo-deep-review expansion. This is different from rule #147 (don't unpublish indexed articles) because ultra-thin articles have no equity worth preserving.
 
 ## Weekly Manual Checks
 

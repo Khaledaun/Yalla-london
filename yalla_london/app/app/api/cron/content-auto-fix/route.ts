@@ -537,11 +537,11 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 12. THIN CONTENT FLAGGING (READ-ONLY) — log thin articles for seo-deep-review expansion ──
-  // IMPORTANT: Never auto-unpublish articles. Unpublishing removes indexed pages from Google,
-  // destroys SEO equity, and causes "false positive" removals. The seo-deep-review cron
-  // is responsible for EXPANDING thin content, not removing it.
-  // This section only LOGS thin articles for visibility — no mutations.
+  // ── 12. THIN CONTENT HANDLING — noindex ultra-thin, flag moderate-thin for expansion ──
+  // Strategy: Articles below thinContentThreshold (300w for blog) are ACTIVELY HARMFUL to SEO.
+  // Google's Helpful Content system demotes entire sites for thin pages.
+  // - Ultra-thin (< thinContentThreshold): unpublish — zero SEO equity to protect
+  // - Moderate-thin (< minWords but >= thinContentThreshold): flag for seo-deep-review expansion
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
@@ -559,22 +559,41 @@ async function handleAutoFix(request: NextRequest) {
       });
 
       let thinCount = 0;
+      let ultraThinUnpublished = 0;
+      const thinThreshold = CONTENT_QUALITY.thinContentThreshold || 300;
+
       for (const post of allPublished) {
         const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         const wordCount = text.split(" ").filter(Boolean).length;
-        if (wordCount < CONTENT_QUALITY.minWords) {
+
+        if (wordCount < thinThreshold) {
+          // Ultra-thin: unpublish — actively harmful, zero SEO equity
+          try {
+            await optimisticBlogPostUpdate(post.id, () => ({
+              published: false,
+              meta_description_en: `[UNPUBLISHED-THIN: ${wordCount}w < ${thinThreshold}w threshold] ${(post.slug || "").slice(0, 80)}`,
+            }), { tag: "[content-auto-fix]" });
+            ultraThinUnpublished++;
+            console.log(`[content-auto-fix] Unpublished ultra-thin article: "${post.slug}" (${wordCount}w < ${thinThreshold}w threshold)`);
+          } catch (upErr) {
+            console.warn(`[content-auto-fix] Failed to unpublish thin "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+          }
+        } else if (wordCount < CONTENT_QUALITY.minWords) {
           thinCount++;
-          console.log(`[content-auto-fix] Thin article flagged for expansion: "${post.slug}" (${wordCount}w) — will be expanded by seo-deep-review`);
+          console.log(`[content-auto-fix] Moderate-thin article flagged for expansion: "${post.slug}" (${wordCount}w) — will be expanded by seo-deep-review`);
         }
       }
-      results.thinUnpublished = 0; // No longer unpublishing — only flagging
+      results.thinUnpublished = ultraThinUnpublished;
       if (thinCount > 0) {
-        console.log(`[content-auto-fix] ${thinCount} thin articles flagged for seo-deep-review expansion (no unpublishing)`);
+        console.log(`[content-auto-fix] ${thinCount} moderate-thin articles flagged for seo-deep-review expansion`);
+      }
+      if (ultraThinUnpublished > 0) {
+        console.log(`[content-auto-fix] ${ultraThinUnpublished} ultra-thin articles unpublished (<${thinThreshold}w)`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       results.errors.push(`thin-content-flag: ${msg}`);
-      console.warn("[content-auto-fix] Thin content flagging failed:", msg);
+      console.warn("[content-auto-fix] Thin content handling failed:", msg);
     }
   }
 

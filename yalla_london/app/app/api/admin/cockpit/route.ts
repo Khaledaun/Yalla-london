@@ -104,6 +104,13 @@ interface IndexingStatus {
     publishVelocity: { thisWeek: number; lastWeek: number };
     topDroppers: Array<{ url: string; impressionsDelta: number }>;
   } | null;
+  // GSC Truth — real indexing picture from Google's perspective
+  gscTruth: {
+    confirmedIndexed: number;
+    coverageReasons: Array<{ reason: string; count: number }>;
+    totalWithCoverageState: number;
+    untrackedButIndexed: number;
+  };
 }
 
 interface CronHealth {
@@ -663,6 +670,36 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       indexing.lastGscSync = `${Math.round((Date.now() - new Date(r.last_gsc_sync).getTime()) / 3600000)}h ago`;
     }
 
+    // ── GSC Truth: coverage_state breakdown + confirmed indexed count ──
+    try {
+      const coverageRaw = await prisma.$queryRawUnsafe(`
+        SELECT coverage_state, COUNT(*)::int AS cnt
+        FROM "url_indexing_status"
+        WHERE site_id = $1 AND coverage_state IS NOT NULL
+        GROUP BY coverage_state
+        ORDER BY cnt DESC
+      `, targetSiteId) as Array<{ coverage_state: string; cnt: number }>;
+
+      const coverageReasons: Array<{ reason: string; count: number }> = [];
+      let totalWithCoverage = 0;
+      for (const row of coverageRaw) {
+        coverageReasons.push({ reason: row.coverage_state, count: row.cnt });
+        totalWithCoverage += row.cnt;
+      }
+
+      // Untracked but indexed = GSC-confirmed URLs that have no URLIndexingStatus record
+      const untrackedIndexed = Math.max(0, gscIndexedCount - indexing.indexed);
+
+      indexing.gscTruth = {
+        confirmedIndexed: gscIndexedCount,
+        coverageReasons,
+        totalWithCoverageState: totalWithCoverage,
+        untrackedButIndexed: untrackedIndexed,
+      };
+    } catch (gscTruthErr) {
+      console.warn("[cockpit] gscTruth query failed:", gscTruthErr instanceof Error ? gscTruthErr.message : gscTruthErr);
+    }
+
     indexing.dataSource = "lightweight+gsc";
   } catch (summaryErr) {
     console.warn("[cockpit] indexing query failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
@@ -965,6 +1002,7 @@ function emptyIndexing(): IndexingStatus {
     lastGscSync: null,
     dataSource: "lightweight",
     impressionDiagnostic: null,
+    gscTruth: { confirmedIndexed: 0, coverageReasons: [], totalWithCoverageState: 0, untrackedButIndexed: 0 },
   };
 }
 

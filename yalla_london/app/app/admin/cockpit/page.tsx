@@ -112,6 +112,12 @@ interface CockpitData {
       publishVelocity: { thisWeek: number; lastWeek: number };
       topDroppers: Array<{ url: string; impressionsDelta: number }>;
     } | null;
+    gscTruth?: {
+      confirmedIndexed: number;
+      coverageReasons: Array<{ reason: string; count: number }>;
+      totalWithCoverageState: number;
+      untrackedButIndexed: number;
+    };
   };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
   revenue: RevenueSnapshot;
@@ -2086,6 +2092,53 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           Tap for full indexing details →
         </button>
       </Card>
+
+      {/* GSC Truth — Real Google Indexing Status */}
+      {indexing.gscTruth && indexing.gscTruth.confirmedIndexed > 0 && (
+        <Card>
+          <SectionTitle>Google Confirmed (GSC Truth)</SectionTitle>
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <div className="rounded-xl p-2.5" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 22, color: '#16A34A' }}>{indexing.gscTruth.confirmedIndexed}</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Indexed by Google</div>
+            </div>
+            <div className="rounded-xl p-2.5" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 22, color: '#3B7EA1' }}>{indexing.gscTruth.totalWithCoverageState}</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>With GSC Status</div>
+            </div>
+            <div className="rounded-xl p-2.5" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 22, color: indexing.gscTruth.untrackedButIndexed > 0 ? '#C49A2A' : '#A8A29E' }}>{indexing.gscTruth.untrackedButIndexed}</div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 9, fontWeight: 600, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>Untracked Indexed</div>
+            </div>
+          </div>
+
+          {/* Coverage reasons — WHY pages aren't indexed */}
+          {indexing.gscTruth.coverageReasons.length > 0 && (
+            <div>
+              <div style={{ fontFamily: "var(--font-system)", fontSize: 10, fontWeight: 600, color: '#78716C', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Why Pages Aren&apos;t Indexed</div>
+              <div className="space-y-1">
+                {indexing.gscTruth.coverageReasons.map((cr, i) => {
+                  const isGood = cr.reason.toLowerCase().includes("submitted and indexed") || cr.reason.toLowerCase().includes("indexed");
+                  const isBad = cr.reason.toLowerCase().includes("not indexed") || cr.reason.toLowerCase().includes("duplicate") || cr.reason.toLowerCase().includes("blocked") || cr.reason.toLowerCase().includes("noindex") || cr.reason.toLowerCase().includes("excluded");
+                  return (
+                    <div key={i} className="flex justify-between items-center rounded-lg px-2.5 py-1.5" style={{
+                      backgroundColor: isGood ? 'rgba(22,163,74,0.04)' : isBad ? 'rgba(200,50,43,0.04)' : 'rgba(120,113,108,0.04)',
+                      border: `1px solid ${isGood ? 'rgba(22,163,74,0.15)' : isBad ? 'rgba(200,50,43,0.12)' : 'rgba(120,113,108,0.1)'}`,
+                    }}>
+                      <span style={{ fontFamily: "var(--font-system)", fontSize: 11, color: isGood ? '#16A34A' : isBad ? '#C8322B' : '#78716C' }}>{cr.reason}</span>
+                      <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13, color: isGood ? '#16A34A' : isBad ? '#C8322B' : '#78716C', marginLeft: 8, flexShrink: 0 }}>{cr.count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(59,126,161,0.04)', fontFamily: "var(--font-system)", fontSize: 10, color: '#3B7EA1', lineHeight: '1.5' }}>
+            Source: Google Search Console. This is the truth — GSC counts all pages Google knows about, including /ar/ variants and static pages.
+          </div>
+        </Card>
+      )}
 
       {/* Website Traffic (GA4) */}
       {data?.traffic && (

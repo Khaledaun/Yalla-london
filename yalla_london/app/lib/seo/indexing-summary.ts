@@ -43,6 +43,18 @@ export interface IndexingSummary {
 
   // For the IndexingPanel to reuse
   dailyQuotaRemaining: number | null;
+
+  // GSC Truth — the REAL indexing picture from Google's perspective
+  gscTruth: {
+    // Count of distinct URLs confirmed indexed by Google (impressions > 0 in GscPagePerformance)
+    confirmedIndexed: number;
+    // Coverage state breakdown — WHY pages aren't indexed (from URLIndexingStatus.coverage_state)
+    coverageReasons: Array<{ reason: string; count: number }>;
+    // Total URLs tracked with a coverage_state value
+    totalWithCoverageState: number;
+    // Untracked pages with GSC impressions (indexed but we have no URLIndexingStatus record)
+    untrackedButIndexed: number;
+  };
 }
 
 type StatusValue = "indexed" | "submitted" | "discovered" | "error" | "deindexed" | "chronic_failure" | "never_submitted";
@@ -497,7 +509,30 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
   const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
   blockers.sort((a, b) => (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2));
 
-  // ── 12. Assemble result ───────────────────────────────────────────────
+  // ── 12. GSC Truth — real indexing picture from Google's perspective ───
+  let gscConfirmedIndexed = gscConfirmedUrls.size;
+  const coverageReasons: Array<{ reason: string; count: number }> = [];
+  let totalWithCoverageState = 0;
+
+  try {
+    const coverageGroups = await prisma.uRLIndexingStatus.groupBy({
+      by: ["coverage_state"],
+      where: { site_id: siteId, coverage_state: { not: null } },
+      _count: { _all: true },
+    });
+    for (const g of coverageGroups) {
+      const reason = (g.coverage_state as string) || "Unknown";
+      const count = g._count._all;
+      coverageReasons.push({ reason, count });
+      totalWithCoverageState += count;
+    }
+    // Sort by count descending
+    coverageReasons.sort((a, b) => b.count - a.count);
+  } catch (e) {
+    console.warn("[indexing-summary] coverage_state groupBy failed:", e instanceof Error ? e.message : e);
+  }
+
+  // ── 13. Assemble result ───────────────────────────────────────────────
 
   return {
     total,
@@ -521,6 +556,12 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     blockers,
     topBlocker: blockers.length > 0 ? blockers[0].reason : null,
     dailyQuotaRemaining,
+    gscTruth: {
+      confirmedIndexed: gscConfirmedIndexed,
+      coverageReasons,
+      totalWithCoverageState,
+      untrackedButIndexed,
+    },
   };
 }
 

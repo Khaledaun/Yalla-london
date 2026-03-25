@@ -303,6 +303,19 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
     console.warn("[scheduled-publish] Orphan check failed:", err instanceof Error ? err.message : err);
   }
 
+  // Invalidate sitemap cache if any articles were published
+  if (results.length > 0 || (orphanedDraftCount || 0) > 0) {
+    try {
+      const { invalidateSitemapCache } = await import("@/lib/sitemap-cache");
+      const activeSitesForCache = getActiveSiteIds();
+      for (const sid of activeSitesForCache) {
+        invalidateSitemapCache(sid);
+      }
+    } catch (e) {
+      console.warn("[scheduled-publish] Sitemap invalidation failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
   return {
     published_count: results.length,
     published: results,
@@ -438,6 +451,19 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
     }
   } catch (err) {
     console.warn("[scheduled-publish-manual] Query error (non-fatal):", err instanceof Error ? err.message : err);
+  }
+
+  // Invalidate sitemap cache if any articles were published
+  if (published > 0) {
+    try {
+      const { invalidateSitemapCache } = await import("@/lib/sitemap-cache");
+      const activeSitesForCache = getActiveSiteIds();
+      for (const sid of activeSitesForCache) {
+        invalidateSitemapCache(sid);
+      }
+    } catch (e) {
+      console.warn("[scheduled-publish-manual] Sitemap invalidation failed:", e instanceof Error ? e.message : e);
+    }
   }
 
   return { published_count: published, skipped_count: skipped.length, skipped };

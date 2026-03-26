@@ -16,6 +16,7 @@ export const maxDuration = 300;
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeKeyword } from "@/lib/content-pipeline/constants";
 const BUDGET_MS = 53_000;
 
 async function handleScheduleExecutor(request: NextRequest) {
@@ -247,7 +248,7 @@ async function handleScheduleExecutor(request: NextRequest) {
               topic_proposal_id: topic.id,
               site_id: topic.site_id || defaultSiteId,
               locale: lang,
-              keyword: topic.title,
+              keyword: sanitizeKeyword(topic.title) || topic.title,
               topic_title: topic.title,
               current_phase: "research",
               phase_attempts: 0,

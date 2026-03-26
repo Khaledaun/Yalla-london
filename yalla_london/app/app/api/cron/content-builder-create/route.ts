@@ -149,7 +149,9 @@ async function handleCreate(request: NextRequest) {
           });
 
           if (claimed.count > 0) {
-            keyword = candidate.primary_keyword;
+            // Sanitize keyword: remove hash suffixes, deduplicate words, strip template patterns
+            const { sanitizeKeyword } = await import('@/lib/content-pipeline/constants');
+            keyword = sanitizeKeyword(candidate.primary_keyword) || candidate.primary_keyword;
             topicProposalId = candidate.id;
             strategy = "topic_db";
 

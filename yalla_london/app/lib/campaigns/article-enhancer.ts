@@ -103,6 +103,10 @@ export function diagnoseArticle(snapshot: ArticleSnapshot, config: CampaignConfi
       case 'expand_arabic':
         if (snapshot.wordCountAr < snapshot.wordCountEn * 0.5) needed.push(op);
         break;
+      case 'inject_images':
+        // Always include — the enhancer will check actual image count at runtime
+        if (!snapshot.featuredImage) needed.push(op);
+        break;
       default:
         // Always include operations we can't auto-diagnose
         needed.push(op);
@@ -493,6 +497,24 @@ export async function enhancePublishedArticle(
         .replace(/<\/h1>/gi, '</h2>');
     }
 
+    // ── Inject Unsplash images if requested ──────────────────────────
+    if (neededOps.includes('inject_images') && (Date.now() - startTime) < budgetMs - 12_000) {
+      try {
+        const injected = await injectUnsplashImages(
+          updateData.content_en as string,
+          keyword, destination, post.siteId
+        );
+        if (injected.html !== updateData.content_en) {
+          updateData.content_en = injected.html;
+          if (injected.featuredImage && !post.featured_image) {
+            updateData.featured_image = injected.featuredImage;
+          }
+        }
+      } catch (imgErr) {
+        console.warn("[article-enhancer] Image injection failed:", imgErr instanceof Error ? imgErr.message : String(imgErr));
+      }
+    }
+
     // ── Save to database ────────────────────────────────────────────
     if (!config.dryRun) {
       await optimisticBlogPostUpdate(postId, () => (updateData), { tag: "[article-enhancer]" });
@@ -593,6 +615,74 @@ export async function expandArabicContent(
   } catch (err) {
     return { success: false, wordsAdded: 0, costUsd: 0, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+// ─── Image injection via Unsplash ────────────────────────────────────────────
+
+/**
+ * Injects Unsplash images into article HTML.
+ * Inserts after every 2nd H2 heading (up to 3 images per article).
+ * Sets featured_image from first result if missing.
+ * Compliant with Unsplash ToS: CDN hotlink + attribution + download tracking.
+ */
+async function injectUnsplashImages(
+  html: string,
+  keyword: string,
+  destination: string,
+  siteId: string,
+): Promise<{ html: string; featuredImage: string | null }> {
+  const { searchPhotos, buildImageUrl, buildAttribution, trackDownload } = await import('@/lib/apis/unsplash');
+
+  // Build a search query from keyword + destination
+  const searchQuery = `${keyword} ${destination} travel`.substring(0, 80);
+  const photos = await searchPhotos(searchQuery, { perPage: 3, orientation: 'landscape' });
+
+  if (photos.length === 0) return { html, featuredImage: null };
+
+  // Find H2 positions to insert images after
+  const h2Positions: number[] = [];
+  const h2Regex = /<\/h2>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = h2Regex.exec(html)) !== null) {
+    h2Positions.push(match.index + match[0].length);
+  }
+
+  // Insert after every 2nd H2 (positions 1, 3, 5...) — up to 3 images
+  let insertedCount = 0;
+  let offset = 0;
+  for (let i = 1; i < h2Positions.length && insertedCount < photos.length; i += 2) {
+    const photo = photos[insertedCount];
+    const imgUrl = buildImageUrl(photo.urls.raw, { width: 800, quality: 80, format: 'webp' });
+    const altText = photo.altDescription || photo.description || `${keyword} - ${destination}`;
+    const attribution = buildAttribution(photo);
+
+    const imgHtml = `\n<figure class="article-image" style="margin:1.5em 0">
+  <img src="${imgUrl}" alt="${altText.replace(/"/g, '&quot;')}" width="800" height="${Math.round(800 * (photo.height / photo.width))}" loading="lazy" />
+  <figcaption style="font-size:0.8em;color:#666;margin-top:0.3em">${attribution}</figcaption>
+</figure>\n`;
+
+    const insertPos = h2Positions[i] + offset;
+    // Find end of next paragraph after this H2
+    const afterH2 = html.substring(insertPos + offset >= 0 ? insertPos : 0);
+    const nextPEnd = afterH2.match(/<\/(p|ul|ol|blockquote)>/i);
+    const actualInsert = nextPEnd && nextPEnd.index !== undefined
+      ? insertPos + nextPEnd.index + nextPEnd[0].length
+      : insertPos;
+
+    html = html.substring(0, actualInsert) + imgHtml + html.substring(actualInsert);
+    offset += imgHtml.length;
+    insertedCount++;
+
+    // Track download per Unsplash ToS (fire-and-forget)
+    trackDownload(photo.downloadUrl).catch(() => {});
+  }
+
+  // Use first photo as featured image if none exists
+  const featuredImage = photos.length > 0
+    ? buildImageUrl(photos[0].urls.raw, { width: 1200, quality: 85, format: 'webp' })
+    : null;
+
+  return { html, featuredImage };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

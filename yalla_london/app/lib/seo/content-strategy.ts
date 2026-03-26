@@ -172,9 +172,11 @@ export function generateContentProposals(
     const keyword = page.slug.replace(/-/g, " ").replace(/\d{4}/g, "").trim();
 
     // Generate a clean, human-readable title from the keyword
-    const cleanKeyword = capitalize(keyword);
+    // Strip leading "best" before capitalizing to avoid "Best Best..." doubling
+    const stripped = keyword.replace(/^best\s+/i, "").trim();
+    const cleanKeyword = capitalize(stripped);
     proposals.push({
-      title: `Best ${cleanKeyword}: Complete Guide & Reviews`,
+      title: `Best ${cleanKeyword} Comparison`,
       primaryKeyword: keyword,
       longtails: [`best ${keyword}`, `${keyword} comparison`, `${keyword} review`],
       questions: [`What is the best ${keyword}?`, `How to choose ${keyword}?`],

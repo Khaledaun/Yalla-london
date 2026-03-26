@@ -1165,8 +1165,18 @@ export async function promoteToBlogPost(
       excerpt = excerpt.substring(0, lastSpace > 80 ? lastSpace : 155);
     }
     if (excerpt.length >= 50) {
+      // Add CTA suffix if space allows (improves CTR vs plain extract)
+      if (excerpt.length < 130 && !excerpt.endsWith(".")) excerpt += ".";
+      if (excerpt.length < 130) excerpt += " Read our complete guide.";
       enMetaDesc = sanitizeMetaDescription(excerpt);
       console.log(`[content-selector] Auto-generated meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
+    } else {
+      // Last resort: template-based CTA description using the keyword
+      const kw = keyword.replace(/-/g, " ");
+      enMetaDesc = sanitizeMetaDescription(
+        `Discover ${kw}. Your expert guide with insider tips, local recommendations, and everything you need to plan your visit.`
+      );
+      console.log(`[content-selector] Template meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
     }
   }
   const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];

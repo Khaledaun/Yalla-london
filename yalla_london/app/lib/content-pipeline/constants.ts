@@ -41,8 +41,11 @@ export const ASSEMBLY_BUDGET_THRESHOLD_MS = 20_000; // 20 seconds
 
 // ─── Drafting Budget ────────────────────────────────────────────────────────
 // Time per section (used to calculate maxSectionsThisRun).
-// Conservative: Arabic sections can take 45-60s. 60s prevents overcommitting.
-export const SECTION_BUDGET_MS = 60_000;
+// Arabic sections with GEO/authenticity directives need 60-80s. 90s prevents
+// cascading timeouts where both grok and claude fail on a single section.
+// With 280s cron budget, this allows 3 sections per run (vs 4 at 60s) but
+// each section actually completes instead of timing out.
+export const SECTION_BUDGET_MS = 90_000;
 // Minimum budget to attempt a section (AI call ~10s + DB save ~2s).
 export const MIN_SECTION_BUDGET_MS = 12_000;
 
@@ -119,6 +122,18 @@ export function validatePhaseTransition(from: string, to: string): void {
       `[state-machine] Invalid transition: "${from}" → "${to}". Allowed: ${allowed.join(", ")}`
     );
   }
+}
+
+// ─── Keyword Sanitization ───────────────────────────────────────────────────
+// Cleans AI-generated topic keywords before storage in ArticleDraft.keyword.
+// Fixes: doubled words ("Best Best"), hash suffixes ("893f"), template tails.
+export function sanitizeKeyword(raw: string): string {
+  return raw
+    .replace(/\s+[a-f0-9]{4,8}(?:\s|:|$)/gi, ' ')        // hash suffixes like "893f"
+    .replace(/:\s*Complete Guide\s*&?\s*Reviews?$/i, '')   // generic template suffix
+    .replace(/\b(\w+)\s+\1\b/gi, '$1')                    // doubled words: "Best Best" → "Best"
+    .replace(/\s{2,}/g, ' ')                               // collapse whitespace
+    .trim();
 }
 
 // ─── Enhancement Ownership ──────────────────────────────────────────────────

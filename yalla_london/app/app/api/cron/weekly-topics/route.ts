@@ -179,8 +179,11 @@ export async function POST(request: NextRequest) {
           break;
         }
         try {
-          const keyword = t.slug || t.title || '';
-          if (!keyword) continue;
+          // Always prefer title (human-readable) over slug (URL artifact with hyphens/hashes).
+          // Slugs like "best-halal-fine-dining-893f" produce garbage keywords.
+          const { sanitizeKeyword } = await import('@/lib/content-pipeline/constants');
+          let keyword = sanitizeKeyword(t.title || t.slug || '');
+          if (keyword.length < 10) continue;  // too short after cleanup
           // Skip duplicates per site (check both topic proposals and published articles)
           const exists = await prisma.topicProposal.findFirst({
             where: { primary_keyword: keyword, locale: t.locale, site_id: targetSiteId },

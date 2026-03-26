@@ -1026,10 +1026,13 @@ export async function promoteToBlogPost(
     }
   }
 
-  // ── Keyword cannibalization check ─────────────────────────────────────────
-  // Beyond title dedup, check keyword-level overlap with published articles.
-  // If the candidate targets >60% of the same keywords as an existing article,
-  // they'll compete for the same SERP position — skip this draft.
+  // ── Keyword cannibalization check (WARNING ONLY — never blocks publishing) ──
+  // The selection-time Jaccard check (threshold 0.92) already filters near-identical
+  // keywords. This secondary check compares full keyword arrays and logs a warning
+  // for SEO awareness, but does NOT block publishing. Blocking here caused the
+  // entire pipeline to freeze: articles passed selection (0.92) then got reverted
+  // here (0.85), filling the reservoir with permanently stuck drafts.
+  // The pre-pub gate (check #15) already surfaces cannibalization as a warning.
   try {
     const { checkCannibalization } = await import("@/lib/seo/cannibalization-checker");
     const enKeywords = (enSeoMeta.keywords as string[]) || [];
@@ -1037,17 +1040,9 @@ export async function promoteToBlogPost(
       const cannibResult = await checkCannibalization(enKeywords, siteId, draft.id as string);
       if (cannibResult.cannibalizes && cannibResult.overlappingArticle) {
         const overlap = cannibResult.overlappingArticle;
-        console.warn(`[content-selector] SKIPPED draft ${draft.id}: keyword cannibalization (${overlap.overlapScore}% overlap) with existing "/blog/${overlap.slug}" — shared: ${overlap.sharedKeywords.join(", ")}`);
-        // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
-        await prisma.articleDraft.update({
-          where: { id: draft.id as string },
-          data: {
-            current_phase: "reservoir",
-            last_error: `Keyword cannibalization: ${overlap.overlapScore}% overlap with "/blog/${overlap.slug}" (${overlap.sharedKeywords.slice(0, 5).join(", ")})`,
-            updated_at: new Date(),
-          },
-        }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
-        return null;
+        console.warn(`[content-selector] WARNING: keyword overlap (${overlap.overlapScore}%) with "/blog/${overlap.slug}" — shared: ${overlap.sharedKeywords.join(", ")}. Publishing anyway (selection-time Jaccard already filtered near-duplicates).`);
+        // Continue to publish — don't revert. SEO impact is minor compared to
+        // a frozen pipeline producing zero articles.
       }
     }
   } catch (cannibErr) {

@@ -129,6 +129,7 @@ export function validatePhaseTransition(from: string, to: string): void {
 // Fixes: doubled words ("Best Best"), hash suffixes ("893f"), template tails.
 export function sanitizeKeyword(raw: string): string {
   return raw
+    .replace(/^EXPAND:\s*/i, '')                           // strip "EXPAND:" prefix from content-strategy proposals
     .replace(/\s+[a-f0-9]{4,8}(?:\s|:|$)/gi, ' ')        // hash suffixes like "893f"
     .replace(/:\s*Complete Guide\s*&?\s*Reviews?$/i, '')   // generic template suffix
     .replace(/\b(\w+)\s+\1\b/gi, '$1')                    // doubled words: "Best Best" → "Best"

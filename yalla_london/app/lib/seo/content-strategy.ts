@@ -124,7 +124,7 @@ export function generateContentProposals(
     if (!page.slug || page.slug === "") continue;
 
     proposals.push({
-      title: `EXPAND: ${page.slug}`,
+      title: page.slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
       primaryKeyword: page.slug.replace(/-/g, " "),
       longtails: [],
       questions: [],

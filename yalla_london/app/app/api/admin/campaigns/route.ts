@@ -260,6 +260,22 @@ async function handleKickstart(body: Record<string, unknown>, request: NextReque
       type: 'enhance_content',
       operations: ['add_authenticity', 'expand_content'],
     },
+    fix_not_indexed: {
+      name: 'Fix Not-Indexed Pages (7+ days)',
+      type: 'fix_indexing',
+      operations: [
+        'expand_content', 'add_internal_links', 'add_affiliate_links',
+        'add_authenticity', 'fix_meta_description', 'inject_images',
+      ],
+    },
+    seo_boost: {
+      name: 'SEO Boost (Score < 80%)',
+      type: 'seo_boost',
+      operations: [
+        'add_internal_links', 'add_affiliate_links', 'inject_images',
+        'fix_meta_description', 'fix_meta_title', 'add_authenticity',
+      ],
+    },
   };
 
   const selectedPreset = PRESETS[preset];

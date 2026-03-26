@@ -64,6 +64,8 @@ async function handleAutoFix(request: NextRequest) {
     staleAffiliateLinksRemoved: 0,
     untrackedLinksWrapped: 0,
     placeholderIdsFixed: 0,
+    notIndexedEnhanced: 0,
+    seoBoostEnhanced: 0,
     errors: [] as string[],
   };
 
@@ -1278,9 +1280,135 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── Section 21: Fix Not-Indexed Pages (7+ days) ────────────────────────────
+  // Finds published articles stuck "not indexed" for 7+ days, enhances content
+  // (expand, add links, affiliates, images) and resubmits to IndexNow.
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Find URLs that were submitted 7+ days ago but are NOT indexed
+      const stuckUrls = await prisma.uRLIndexingStatus.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          status: { in: ["submitted", "discovered", "error"] },
+          last_submitted_at: { lt: sevenDaysAgo },
+          indexing_state: { not: "indexed" },
+        },
+        select: { url: true, site_id: true },
+        take: 5,
+      });
+
+      if (stuckUrls.length > 0) {
+        // Extract slugs from URLs to find matching BlogPosts
+        const slugsFromUrls = stuckUrls.map(u => {
+          const parts = u.url.split("/blog/");
+          return parts[1]?.replace(/\/$/, "") || null;
+        }).filter(Boolean) as string[];
+
+        const postsToFix = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+            deletedAt: null,
+            slug: { in: slugsFromUrls },
+          },
+          select: { id: true, slug: true, siteId: true },
+          take: 3,
+        });
+
+        const { enhancePublishedArticle } = await import("@/lib/campaigns/article-enhancer");
+
+        for (const post of postsToFix) {
+          if (Date.now() - cronStart > BUDGET_MS - 15_000) break;
+
+          try {
+            const enhanceResult = await enhancePublishedArticle(
+              post.id,
+              ["expand_content", "add_internal_links", "add_affiliate_links", "add_authenticity", "fix_meta_description", "inject_images"],
+              { operations: ["expand_content", "add_internal_links", "add_affiliate_links", "add_authenticity", "fix_meta_description", "inject_images"] },
+              Math.min(40_000, BUDGET_MS - (Date.now() - cronStart) - 5_000),
+            );
+
+            if (enhanceResult.success) {
+              results.notIndexedEnhanced++;
+              console.log(`[content-auto-fix] Enhanced not-indexed article /${post.slug}: +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links`);
+
+              // Resubmit to IndexNow
+              try {
+                const { getSiteDomain } = await import("@/config/sites");
+                const domain = getSiteDomain(post.siteId);
+                const articleUrl = `https://${domain}/blog/${post.slug}`;
+                const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+                await submitToIndexNow([articleUrl]);
+                console.log(`[content-auto-fix] Resubmitted /${post.slug} to IndexNow`);
+              } catch (indexErr) {
+                console.warn("[content-auto-fix] IndexNow resubmit failed:", indexErr instanceof Error ? indexErr.message : String(indexErr));
+              }
+            }
+          } catch (err) {
+            console.warn(`[content-auto-fix] Not-indexed fix failed for /${post.slug}:`, err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`not-indexed-fix: ${msg}`);
+      console.warn("[content-auto-fix] Not-indexed fix section failed:", msg);
+    }
+  }
+
+  // ── Section 22: SEO Boost for Low-Score Articles (< 80%) ──────────────────
+  // Enhances articles with seo_score < 80 by adding photos, internal links,
+  // affiliate links, and fixing meta tags.
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
+    try {
+      const lowScorePosts = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          seo_score: { lt: 80 },
+          content_en: { not: "" },
+        },
+        select: { id: true, slug: true, seo_score: true, siteId: true },
+        orderBy: { seo_score: "asc" },
+        take: 3,
+      });
+
+      if (lowScorePosts.length > 0) {
+        const { enhancePublishedArticle } = await import("@/lib/campaigns/article-enhancer");
+
+        for (const post of lowScorePosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 15_000) break;
+
+          try {
+            const enhanceResult = await enhancePublishedArticle(
+              post.id,
+              ["add_internal_links", "add_affiliate_links", "inject_images", "fix_meta_description", "fix_meta_title", "add_authenticity"],
+              { operations: ["add_internal_links", "add_affiliate_links", "inject_images", "fix_meta_description", "fix_meta_title", "add_authenticity"] },
+              Math.min(40_000, BUDGET_MS - (Date.now() - cronStart) - 5_000),
+            );
+
+            if (enhanceResult.success && (enhanceResult.operationsApplied?.length || 0) > 0) {
+              results.seoBoostEnhanced++;
+              console.log(`[content-auto-fix] SEO boosted /${post.slug} (score: ${post.seo_score}): +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links, +${enhanceResult.changes?.affiliateLinksAdded || 0} affiliates`);
+            }
+          } catch (err) {
+            console.warn(`[content-auto-fix] SEO boost failed for /${post.slug}:`, err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`seo-boost: ${msg}`);
+      console.warn("[content-auto-fix] SEO boost section failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed + results.notIndexedEnhanced + results.seoBoostEnhanced;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -1318,7 +1446,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}`,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}`,
   });
 }
 

@@ -8194,7 +8194,7 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
                   <div className="font-medium text-stone-700 truncate">{p.title || p.slug}</div>
                   <div className="text-stone-500">{p.wordCount}w | SEO:{p.seoScore}</div>
                   <div className="text-stone-400">{p.issues.join(" · ")}</div>
-                  <div className={`font-medium mt-1 ${p.recommendation.startsWith("DELETE") ? "text-[#C8322B]" : p.recommendation.startsWith("NOINDEX") ? "text-[#C49A2A]" : "text-[#7a5a10]"}`}>
+                  <div className={`font-medium mt-1 ${p.recommendation.startsWith("DELETE") ? "text-[#C8322B]" : p.recommendation.startsWith("NOINDEX") ? "text-[#C49A2A]" : p.recommendation.startsWith("SUBMIT") ? "text-[#2D5A3D]" : "text-[#7a5a10]"}`}>
                     {p.recommendation}
                   </div>
                 </div>

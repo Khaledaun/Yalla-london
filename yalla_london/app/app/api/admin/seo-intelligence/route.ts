@@ -174,7 +174,10 @@ export async function GET(request: NextRequest) {
       const idxStatus = urlStatus?.status || "never_submitted";
       if (idxStatus === "never_submitted") {
         issues.push("Never submitted to Google");
-        severityNum = 0;
+        // "Never submitted" is an operational gap, NOT a content quality crisis.
+        // Good articles (1000+ words, SEO 50+) just need IndexNow submission.
+        // Only mark critical if the content itself is also poor.
+        severityNum = Math.min(severityNum, (wordCount >= 500 && (post.seo_score === null || post.seo_score >= 30)) ? 2 : 0);
       } else if (idxStatus === "error") {
         issues.push(`Indexing error: ${urlStatus?.last_error?.slice(0, 60) || "unknown"}`);
         severityNum = 0;
@@ -316,21 +319,30 @@ export async function GET(request: NextRequest) {
           (p.wordCount < 300 && p.impressions === 0) ||
           (p.seoScore !== null && p.seoScore < 20 && p.clicks === 0)
       )
-      .map((p) => ({
-        slug: p.slug,
-        title: p.title,
-        wordCount: p.wordCount,
-        seoScore: p.seoScore,
-        issues: p.issues,
-        recommendation:
-          p.wordCount < 100
-            ? "DELETE — empty/stub page hurting crawl budget"
-            : p.wordCount < 300
-              ? "NOINDEX — thin content diluting site quality"
-              : p.slug === "-" || !p.slug
-                ? "DELETE — bad slug, unfixable URL"
-                : "UNPUBLISH — fix issues then republish",
-      }));
+      .map((p) => {
+        // Determine the right recommendation based on actual issue
+        let recommendation: string;
+        if (p.wordCount < 100) {
+          recommendation = "DELETE — empty/stub page hurting crawl budget";
+        } else if (p.wordCount < 300) {
+          recommendation = "NOINDEX — thin content diluting site quality";
+        } else if (p.slug === "-" || !p.slug) {
+          recommendation = "DELETE — bad slug, unfixable URL";
+        } else if (p.issues.includes("Never submitted to Google") && p.wordCount >= 500) {
+          // Good article that just needs IndexNow — don't tell user to unpublish!
+          recommendation = "SUBMIT — submit to IndexNow for indexing";
+        } else {
+          recommendation = "UNPUBLISH — fix issues then republish";
+        }
+        return {
+          slug: p.slug,
+          title: p.title,
+          wordCount: p.wordCount,
+          seoScore: p.seoScore,
+          issues: p.issues,
+          recommendation,
+        };
+      });
 
     // ── GSC data freshness ──
     const lastGscSync = cronLogs.length > 0 ? cronLogs[0] : null;

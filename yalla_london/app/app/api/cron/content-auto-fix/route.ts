@@ -455,7 +455,7 @@ async function handleAutoFix(request: NextRequest) {
 
       for (const orphan of orphans) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
-        if (orphansFixed >= 5) break;
+        if (orphansFixed >= 10) break; // Raised from 5 to clear 13-orphan backlog
 
         // Find best host article: same site, has content, doesn't already link to orphan
         const orphanWords = (orphan.title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 3);

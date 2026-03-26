@@ -138,8 +138,35 @@ export async function GET(request: NextRequest) {
       console.warn("[seo-deep-review] Older articles query failed (non-fatal):", olderErr instanceof Error ? olderErr.message : olderErr);
     }
 
-    // Combine: recent first, then older articles
-    const allArticles = [...todayArticles, ...olderArticles];
+    // ── Pass 3: Duplicate-flagged articles ──────────────────────────────
+    // content-auto-fix Section 13 flags duplicates with [DUPLICATE-FLAGGED: ...]
+    // in meta_description_en. This pass finds them and rewrites their titles.
+    let duplicateFlagged: typeof todayArticles = [];
+    try {
+      duplicateFlagged = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSites },
+          published: true,
+          meta_description_en: { contains: "[DUPLICATE-FLAGGED" },
+        },
+        take: 5,
+      });
+      if (duplicateFlagged.length > 0) {
+        console.log(`[seo-deep-review] Found ${duplicateFlagged.length} duplicate-flagged article(s) to differentiate`);
+      }
+    } catch (dupErr) {
+      console.warn("[seo-deep-review] Duplicate-flagged query failed (non-fatal):", dupErr instanceof Error ? dupErr.message : dupErr);
+    }
+
+    // Combine: recent first, then older, then duplicate-flagged (deduped)
+    const seenIds = new Set<string>();
+    const allArticles: typeof todayArticles = [];
+    for (const article of [...todayArticles, ...olderArticles, ...duplicateFlagged]) {
+      if (!seenIds.has(article.id)) {
+        seenIds.add(article.id);
+        allArticles.push(article);
+      }
+    }
 
     if (allArticles.length === 0) {
       console.log("[seo-deep-review] No articles to review (none published recently, none under-optimized)");
@@ -199,6 +226,76 @@ export async function GET(request: NextRequest) {
         const updateData: Record<string, unknown> = {};
         let contentChanged = false;
         let updatedContentEN = contentEN;
+
+        // ── Fix 0: Duplicate Title Differentiation ──────────────────────
+        // If this article was flagged by content-auto-fix Section 13 as a duplicate,
+        // rewrite its title to differentiate it from the overlapping article.
+        const isDuplicateFlagged = metaDescEN.includes("[DUPLICATE-FLAGGED");
+        if (isDuplicateFlagged && !checkArticleBudget()) {
+          try {
+            // Extract the overlapping slug from the flag
+            const overlapMatch = metaDescEN.match(/\[DUPLICATE-FLAGGED:\s*overlaps with\s*"([^"]+)"\]/);
+            const overlapSlug = overlapMatch ? overlapMatch[1] : null;
+
+            // Get the overlapping article's title for context
+            let overlapTitle = "";
+            if (overlapSlug) {
+              const overlapArticle = await prisma.blogPost.findFirst({
+                where: { slug: overlapSlug, siteId },
+                select: { title_en: true },
+              });
+              overlapTitle = (overlapArticle?.title_en as string) || "";
+            }
+
+            const { generateCompletion } = await import("@/lib/ai/provider");
+            const diffPrompt = `You are an SEO editor. Two articles have near-identical titles and need differentiation.
+
+EXISTING title (keep this one as-is): "${overlapTitle || overlapSlug}"
+DUPLICATE title (rewrite this one): "${titleEN}"
+
+Rewrite the DUPLICATE title to:
+1. Target a DIFFERENT search intent or angle (e.g., "budget" vs "luxury", "families" vs "couples", "2026 guide" vs "insider tips")
+2. Keep it 40-60 characters
+3. Keep the core topic but add a unique modifier
+4. Do NOT use generic filler like "Ultimate Guide" or "Complete Guide"
+
+Return ONLY the new title. No quotes, no explanation.`;
+
+            const result = await generateCompletion(
+              [{ role: "user", content: diffPrompt }],
+              {
+                maxTokens: 100,
+                temperature: 0.8,
+                taskType: "meta_optimization",
+                siteId,
+                calledFrom: "seo-deep-review-dedup",
+                timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart), 10_000),
+              },
+            );
+
+            const newTitle = (result?.content || "").trim().replace(/^["']|["']$/g, "");
+            if (newTitle.length >= 20 && newTitle.length <= 80 && newTitle !== titleEN) {
+              updateData.title_en = newTitle;
+              // Also update meta title if it was based on the old title
+              if (!metaTitleEN || metaTitleEN === titleEN || metaTitleEN.startsWith(titleEN.substring(0, 20))) {
+                metaTitleEN = newTitle.length > 60 ? newTitle.substring(0, 57) + "..." : newTitle;
+                updateData.meta_title_en = metaTitleEN;
+              }
+              // Remove the DUPLICATE-FLAGGED marker from meta description
+              const cleanedDesc = metaDescEN.replace(/\[DUPLICATE-FLAGGED:[^\]]*\]\s*/g, "").trim();
+              if (cleanedDesc) {
+                updateData.meta_description_en = cleanedDesc;
+                metaDescEN = cleanedDesc;
+              }
+              fix.fixes.push(`Duplicate title rewritten: "${titleEN}" → "${newTitle}"`);
+              console.log(`[seo-deep-review] Differentiated duplicate: "${titleEN}" → "${newTitle}"`);
+            } else {
+              fix.notes.push(`Duplicate title rewrite attempt returned invalid result (${newTitle.length} chars)`);
+            }
+          } catch (dedupErr) {
+            fix.errors.push(`Duplicate title fix: ${dedupErr instanceof Error ? dedupErr.message : String(dedupErr)}`);
+          }
+        }
 
         // ── Fix 1: Meta Title ──────────────────────────────────────────
         if (!metaTitleEN || metaTitleEN.length < 30) {
@@ -572,7 +669,7 @@ Current word count: ${wordCount}`;
       },
     });
 
-    const message = `Reviewed ${allArticles.length} article(s) (${todayArticles.length} recent + ${olderArticles.length} older): ${totalFixes} fix(es) applied to ${articlesWithFixes} article(s), ${resubmittedCount} resubmitted to IndexNow.`;
+    const message = `Reviewed ${allArticles.length} article(s) (${todayArticles.length} recent + ${olderArticles.length} older + ${duplicateFlagged.length} dup-flagged): ${totalFixes} fix(es) applied to ${articlesWithFixes} article(s), ${resubmittedCount} resubmitted to IndexNow.`;
     console.log(`[seo-deep-review] ${message}`);
 
     return NextResponse.json({

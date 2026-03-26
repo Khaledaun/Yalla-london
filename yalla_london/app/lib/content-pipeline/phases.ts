@@ -358,13 +358,14 @@ export async function phaseDrafting(
   }
 
   // Budget-aware section cap: maxDuration is 300s (5 min on Vercel Pro).
-  // Each AI call takes ~30-60s depending on provider and locale (Arabic ~2.5x slower).
-  // Conservative estimate: 60s per section. With 280s usable budget = 4 sections max.
+  // Each AI call takes ~45-80s depending on provider and locale (Arabic ~2.5x slower).
+  // Uses SECTION_BUDGET_MS (90s) from constants.ts. With 280s budget = 3 sections max.
   // The loop below also checks remaining budget before each section,
   // so we'll stop early if time runs out.
+  const { SECTION_BUDGET_MS } = await import("@/lib/content-pipeline/constants");
   const remainingSections = sections.length - currentIndex;
   const maxSectionsThisRun = budgetRemainingMs !== undefined
-    ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / 60_000)))
+    ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / SECTION_BUDGET_MS)))
     : Math.min(remainingSections, 3);
   let sectionsWritten = 0;
 
@@ -483,7 +484,9 @@ CRITICAL JSON RULES:
         // maxTokens reduced from 2500→2000 for Arabic (still enough for 300-word
         // sections) to prevent triple-timeout when all 3 providers each need 25s+.
         const rawTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 3_000, 10_000) : 45_000;
-        const timeoutCap = isArabic(draft.locale) ? 55_000 : 48_000;
+        // Cap must align with SECTION_BUDGET_MS (90s). Arabic needs more time for
+        // 3500-token generation across 2 provider attempts (~45s each).
+        const timeoutCap = isArabic(draft.locale) ? 80_000 : 65_000;
         const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,

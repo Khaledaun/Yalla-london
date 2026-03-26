@@ -85,8 +85,8 @@ export async function runSweeper(): Promise<SweeperResult> {
           site_id: { in: activeSiteIds },
           current_phase: "rejected",
           rejection_reason: { not: null },
-          // Skip permanently failed drafts (marked by MAX_RECOVERIES_EXCEEDED)
-          last_error: { not: "MAX_RECOVERIES_EXCEEDED" },
+          // Skip permanently failed drafts
+          last_error: { notIn: ["MAX_RECOVERIES_EXCEEDED", "RESERVOIR_AGE_OUT"] },
           // Only sweep recent rejections (last 24h)
           completed_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
@@ -819,6 +819,16 @@ function diagnoseProblem(errorText: string): Diagnosis {
       resetToPhase: "research",
       explanation: "Article didn't meet quality standards. Starting over is better than retrying.",
       fixDescription: "Not auto-retryable — quality rejection is intentional",
+    };
+  }
+
+  // Reservoir age-out — NOT retryable (topic overlaps with published content, will just age out again)
+  if (lower.includes("aged out") || lower.includes("reservoir_age_out") || lower.includes("age_out")) {
+    return {
+      retryable: false,
+      resetToPhase: "research",
+      explanation: "Article aged out of reservoir — keyword overlaps with published content. Retrying wastes AI budget.",
+      fixDescription: "Not auto-retryable — reservoir age-out is intentional",
     };
   }
 

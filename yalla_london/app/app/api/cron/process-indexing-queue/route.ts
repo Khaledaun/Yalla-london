@@ -105,7 +105,7 @@ async function handleProcessQueue(request: NextRequest) {
             submitted_sitemap: false,
           },
           select: { url: true, id: true },
-          take: 100, // Cap per site per run
+          take: 250, // Raised from 100 to clear 198-page backlog faster
         });
 
         if (pendingUrls.length === 0) {

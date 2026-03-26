@@ -219,14 +219,15 @@ function isProviderAvailable(provider: AIProvider, isLastProvider = false): bool
       state.state = 'half-open';
       return true;
     }
-    // Quota-exhausted providers get 5-minute cooldown (300s) instead of 30s.
+    // Quota-exhausted providers get 30-minute cooldown (1800s) instead of 30s.
     // insufficient_quota / billing_not_active won't self-heal in 30s — probing
     // just wastes 5-10s of precious fallback budget every cycle.
-    const cooldownMs = state.quotaExhausted ? 300_000 : 30_000;
+    // Raised from 5min to 30min because OpenAI quota issues persist for days/weeks.
+    const cooldownMs = state.quotaExhausted ? 1_800_000 : 30_000;
     if (Date.now() - state.lastFailure > cooldownMs) {
       state.state = 'half-open';
       if (state.quotaExhausted) {
-        console.log(`[ai/provider] Quota-exhausted ${provider} cooldown expired (${cooldownMs / 1000}s) — allowing probe`);
+        console.log(`[ai/provider] Quota-exhausted ${provider} cooldown expired (${Math.round(cooldownMs / 60000)}min) — allowing probe`);
       }
       return true;
     }

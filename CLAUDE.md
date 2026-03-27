@@ -4837,6 +4837,52 @@ Subscriber Lifecycle:
 195. **Reservoir overflow (82/50) blocks all new draft creation** — `content-builder-create` correctly skips when reservoir is full, but the 7-day age-out isn't draining fast enough. Content-selector publishes 1-2/day but pipeline produces faster. Need either: (a) increase content-selector publish rate, or (b) lower reservoir cap awareness.
 196. **Ultra-thin articles (<300w) must be unpublished, not just flagged** — a 125-word published article has zero SEO equity to protect and actively harms site quality via Google's Helpful Content system. `content-auto-fix` Section 12 now unpublishes articles below `thinContentThreshold` (300w for blog) while flagging moderate-thin (300-500w) for seo-deep-review expansion. This is different from rule #147 (don't unpublish indexed articles) because ultra-thin articles have no equity worth preserving.
 
+### Session: March 27, 2026 — CEO Intelligence Engine: Self-Audit & Bug Fixes (9 files)
+
+**Deep self-audit of CEO Intelligence Engine implementation (PR #648). Found and fixed 14 issues across 9 files.**
+
+**CEO Intelligence Engine — New Files (from plan):**
+- `lib/ceo-engine/intelligence.ts` — Core brain: gathers metrics (GA4, GSC, pipeline, indexing, affiliate, AI costs), compares to KPIs, generates AI plans (technical/marketing/sales), executes auto-fixes, builds and sends HTML email report
+- `lib/ceo-engine/kpi-manager.ts` — KPI storage in SiteSettings, auto-seeding defaults from CLAUDE.md business targets, quarterly AI-assisted recalibration
+- `lib/ceo-engine/standards-updater.ts` — Weekly AI review of SEO standards against latest algorithm context (proposals stored for human review, never auto-applied)
+- `app/api/cron/ceo-intelligence/route.ts` — Weekly cron (Sundays 5:50 UTC), 280s budget, 7 phases
+- `app/api/admin/content-cleanup/route.ts` — Enhanced with `full_cleanup` action chaining SEO intelligence + content cleanup
+
+**Bug Fixes Applied (14 issues):**
+
+1. **Hardcoded domain in AI prompt** (`intelligence.ts`): `"yalla-london.com"` → dynamic `getSiteDomain(siteId)` — multi-site safe
+2. **Double protocol in URL construction** (`content-auto-fix/route.ts`): `https://${getSiteDomain(...)}` produced `https://https://www.yalla-london.com`. Fixed: `${domain}/blog/${post.slug}` (getSiteDomain already includes protocol)
+3. **siteId-as-domain bug** (`content-cleanup/route.ts`): `https://${siteId}${url}` used raw siteId ("yalla-london") as domain. Fixed: `getSiteDomain(effectiveSiteId)` with import moved outside loop
+4. **7 empty catch blocks** across 4 files (intelligence.ts ×3, kpi-manager.ts ×1, standards-updater.ts ×2, seo-intelligence/route.ts ×2) — all now log with descriptive `[module-name]` tags
+5. **7 missing cron feature flag mappings** (`cron-feature-guard.ts`): campaign-executor, daily-seo-audit, data-refresh, discovery-monitor, events-sync, image-pipeline, process-indexing-queue
+6. **6 missing cron definitions in departures board** (`departures/route.ts`): data-refresh, events-sync, image-pipeline, process-indexing-queue, discovery-monitor, daily-seo-audit
+7. **4 cron schedule collisions** (`vercel.json`): affiliate/refresh-links (0→:15), data-refresh (:30→:45), process-indexing-queue (:15→:25), reserve-publisher (:00→:10)
+
+**TypeScript Build:** `npx tsc --noEmit` — **ZERO errors** across entire codebase.
+
+**False positive rejected:** Audit flagged `prisma.uRLIndexingStatus` as wrong — verified via grep that `uRLIndexingStatus` IS the correct Prisma-generated camelCase accessor (used in 10+ files).
+
+**Key Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `lib/ceo-engine/intelligence.ts` | Hardcoded domain → dynamic, 3 empty catches fixed |
+| `lib/ceo-engine/kpi-manager.ts` | 1 empty catch fixed |
+| `lib/ceo-engine/standards-updater.ts` | 2 empty catches fixed |
+| `app/api/cron/content-auto-fix/route.ts` | Double protocol fix |
+| `app/api/admin/content-cleanup/route.ts` | siteId-as-domain fix, import outside loop, catch logging |
+| `app/api/admin/seo-intelligence/route.ts` | 2 empty catches fixed |
+| `lib/cron-feature-guard.ts` | 7 missing cron flag mappings |
+| `app/api/admin/departures/route.ts` | 6 missing cron defs, schedule alignment |
+| `vercel.json` | 4 cron collision staggers, ceo-intelligence registration |
+
+### Critical Rules Learned (March 27 Session)
+
+197. **`getSiteDomain()` returns full URL with protocol** — `https://www.yalla-london.com`. NEVER prepend `https://` again. Pattern: `${getSiteDomain(siteId)}/blog/${slug}`, NOT `https://${getSiteDomain(siteId)}/blog/${slug}`.
+198. **siteId is NOT a domain** — `"yalla-london"` is a site identifier, not a hostname. Never use it in URL construction like `https://${siteId}/path`. Always convert via `getSiteDomain(siteId)`.
+199. **Every cron in vercel.json must have a matching entry in 3 places** — (1) `vercel.json` crons array, (2) `cron-feature-guard.ts` CRON_FLAG_MAP, (3) `departures/route.ts` CRON_DEFS. Missing any one causes: invisible feature flag (can't disable), missing from departures board (can't trigger manually), or not scheduled (never runs).
+200. **Prisma camelCase for URL models is `uRLIndexingStatus`** — not `urlIndexingStatus`. Prisma generates camelCase from the PascalCase model name `URLIndexingStatus` by lowercasing the first letter of consecutive capitals: `u` + `RL` → `uRL`. This is correct and used across 10+ files.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

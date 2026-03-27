@@ -314,6 +314,57 @@ async function handlePost(request: NextRequest) {
     }
   }
 
+  // ── Full cleanup (chains content cleanup + SEO intelligence fixes) ──
+  if (action === "full_cleanup") {
+    let seoResults: Record<string, unknown> | null = null;
+    try {
+      // Import and run SEO intelligence fix_all logic inline (avoids HTTP self-fetch)
+      const { getDefaultSiteId: getDefault } = await import("@/config/sites");
+      const effectiveSiteId = siteId || getDefault();
+
+      // Never-submitted URLs
+      const untracked = await prisma.blogPost.findMany({
+        where: { siteId: effectiveSiteId, published: true, deletedAt: null },
+        select: { id: true, slug: true },
+        take: 200,
+      });
+      const trackedSlugs = await prisma.uRLIndexingStatus.findMany({
+        where: { site_id: effectiveSiteId },
+        select: { url: true },
+      });
+      const trackedSet = new Set<string>(trackedSlugs.map((t) => t.url));
+      const { getSiteDomain } = await import("@/config/sites");
+      const siteFullDomain = getSiteDomain(effectiveSiteId);
+      let newlyTracked = 0;
+      for (const post of untracked) {
+        const url = `/blog/${post.slug}`;
+        const fullUrl = `${siteFullDomain}${url}`;
+        if (!trackedSet.has(url) && !trackedSet.has(fullUrl)) {
+          try {
+            await prisma.uRLIndexingStatus.create({
+              data: { url, site_id: effectiveSiteId, status: "discovered", submitted_indexnow: false },
+            });
+            newlyTracked++;
+          } catch (err) {
+            console.warn("[content-cleanup] URL tracking dedup:", err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+
+      seoResults = { newlyTracked };
+    } catch (err) {
+      results.errors.push(`seo-fixes: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    return NextResponse.json({
+      success: results.errors.length === 0,
+      action: "full_cleanup",
+      siteId,
+      ...results,
+      seoResults,
+    });
+  }
+
   return NextResponse.json({
     success: results.errors.length === 0,
     action,

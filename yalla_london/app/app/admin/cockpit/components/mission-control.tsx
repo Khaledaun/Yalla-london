@@ -218,6 +218,9 @@ export function MissionControl() {
         <ZHActionBtn variant="secondary" onClick={() => triggerCron("/api/cron/seo-agent")}>
           SEO Agent
         </ZHActionBtn>
+        <ZHActionBtn variant="secondary" onClick={() => runContentCleanup()}>
+          Content Cleanup
+        </ZHActionBtn>
         <Link href="/admin/cockpit/write">
           <ZHActionBtn variant="ghost">+ Write Article</ZHActionBtn>
         </Link>
@@ -233,6 +236,29 @@ export function MissionControl() {
       <PortfolioStrip sites={data.sites} />
     </div>
   );
+}
+
+async function runContentCleanup() {
+  try {
+    const res = await fetch("/api/admin/content-cleanup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "full_cleanup" }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const msg = [
+        data.artifactsFixed && `${data.artifactsFixed} artifacts fixed`,
+        data.duplicatesUnpublished && `${data.duplicatesUnpublished} duplicates removed`,
+        data.seoResults?.newlyTracked && `${data.seoResults.newlyTracked} URLs tracked`,
+      ].filter(Boolean).join(", ");
+      alert(msg || "Cleanup complete — nothing needed");
+    } else {
+      console.warn("Content cleanup failed:", res.status);
+    }
+  } catch (err) {
+    console.warn("Content cleanup error:", err instanceof Error ? err.message : err);
+  }
 }
 
 async function triggerCron(path: string) {

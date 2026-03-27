@@ -19,6 +19,9 @@
     "app/api/admin/ceo-inbox/**/*.ts": {
       "maxDuration": 300
     },
+    "app/api/cron/ceo-intelligence/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/cache/**/*.ts": {
       "maxDuration": 15
     },
@@ -193,6 +196,10 @@
       "schedule": "0 5 * * 0"
     },
     {
+      "path": "/api/cron/ceo-intelligence",
+      "schedule": "50 5 * * 0"
+    },
+    {
       "path": "/api/cron/trends-monitor",
       "schedule": "0 6 * * *"
     },
@@ -310,7 +317,7 @@
     },
     {
       "path": "/api/cron/reserve-publisher",
-      "schedule": "0 21 * * *"
+      "schedule": "10 21 * * *"
     },
     {
       "path": "/api/cron/seo-deep-review",
@@ -334,7 +341,7 @@
     },
     {
       "path": "/api/cron/process-indexing-queue",
-      "schedule": "15 7,13,20 * * *"
+      "schedule": "25 7,13,20 * * *"
     },
     {
       "path": "/api/cron/campaign-executor",
@@ -354,7 +361,7 @@
     },
     {
       "path": "/api/affiliate/cron/refresh-links",
-      "schedule": "0 3 * * 0"
+      "schedule": "15 3 * * 0"
     },
     {
       "path": "/api/cron/perplexity-scheduler",
@@ -366,7 +373,7 @@
     },
     {
       "path": "/api/cron/data-refresh",
-      "schedule": "30 6 * * *"
+      "schedule": "45 6 * * *"
     },
     {
       "path": "/api/cron/events-sync",

@@ -4833,3 +4833,204 @@ model UnsplashCache {
   @@index([expires_at])
   @@map("unsplash_cache")
 }
+
+// ══════════════════════════════════════════════════════════════════
+// CEO + CTO Agent Platform Models
+// ══════════════════════════════════════════════════════════════════
+
+/// Conversation — multi-message thread across any channel
+model Conversation {
+  id              String   @id @default(cuid())
+  siteId          String
+  channel         String   // whatsapp, email, web, internal
+  externalId      String?  // WhatsApp phone, email address, session ID
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  leadId          String?
+  subscriberId    String?
+  inquiryId       String?
+  opportunityId   String?
+  status          String   @default("open") // open, waiting, resolved, archived
+  summary         String?
+  sentiment       String?  // positive, neutral, negative
+  tags            String[] @default([])
+  metadata        Json?
+  lastMessageAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages        Message[]
+  interactions    InteractionLog[]
+
+  @@index([siteId, status])
+  @@index([externalId, channel])
+  @@index([leadId])
+  @@index([opportunityId])
+  @@map("conversations")
+}
+
+/// Message — individual message within a conversation
+model Message {
+  id              String   @id @default(cuid())
+  conversationId  String
+  direction       String   // inbound, outbound
+  channel         String   // whatsapp, email, web, internal
+  content         String   @db.Text
+  contentType     String   @default("text") // text, image, document, template
+  mediaUrls       String[] @default([])
+  senderName      String?
+  agentId         String?  // ceo, cto, human
+  toolsUsed       String[] @default([])
+  confidence      Float?
+  approved        Boolean  @default(true) // false = needs human review
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+/// AgentTask — tasks assigned to CEO or CTO agent
+model AgentTask {
+  id              String   @id @default(cuid())
+  agentType       String   // ceo, cto
+  taskType        String   // maintenance, security_review, customer_inquiry, follow_up, etc.
+  priority        String   @default("medium") // low, medium, high, critical
+  status          String   @default("pending") // pending, running, completed, failed, needs_approval
+  description     String   @db.Text
+  input           Json?
+  output          Json?
+  changes         String[] @default([])
+  testsRun        String[] @default([])
+  findings        String[] @default([])
+  followUps       String[] @default([])
+  errorMessage    String?
+  durationMs      Int?
+  siteId          String?
+  assignedTo      String?  // "ceo", "cto", or agent ID
+  dueAt           DateTime?
+  conversationId  String?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  @@index([agentType, status])
+  @@index([siteId])
+  @@index([dueAt, status])
+  @@map("agent_tasks")
+}
+
+/// CrmOpportunity — sales pipeline stage tracking
+model CrmOpportunity {
+  id              String   @id @default(cuid())
+  siteId          String
+  leadId          String?
+  inquiryId       String?
+  subscriberId    String?
+  contactName     String
+  contactEmail    String?
+  contactPhone    String?
+  stage           String   @default("new") // new, qualifying, proposal, negotiation, won, lost
+  value           Float?   // estimated deal value
+  currency        String   @default("USD")
+  source          String?  // whatsapp, email, web, referral, organic
+  lostReason      String?
+  nextAction      String?
+  nextActionAt    DateTime?
+  assignedTo      String?  // "ceo-agent" or "khaled"
+  tags            String[] @default([])
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  closedAt        DateTime?
+
+  interactions    InteractionLog[]
+
+  @@index([siteId, stage])
+  @@index([nextActionAt])
+  @@index([leadId])
+  @@map("crm_opportunities")
+}
+
+/// InteractionLog — unified timeline of every touchpoint
+model InteractionLog {
+  id              String   @id @default(cuid())
+  siteId          String
+  opportunityId   String?
+  conversationId  String?
+  leadId          String?
+  channel         String   // whatsapp, email, web, phone, internal
+  direction       String   // inbound, outbound
+  interactionType String   // message, inquiry, booking_attempt, complaint, feedback, follow_up
+  summary         String   @db.Text
+  sentiment       String?  // positive, neutral, negative
+  agentId         String?  // ceo, cto, human
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  opportunity     CrmOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  conversation    Conversation?   @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([siteId, createdAt])
+  @@index([opportunityId])
+  @@index([leadId])
+  @@map("interaction_logs")
+}
+
+/// RetentionSequence — automated email sequence definitions
+model RetentionSequence {
+  id              String   @id @default(cuid())
+  siteId          String
+  name            String   // "welcome_series", "re_engagement", "post_booking"
+  triggerEvent    String   // "subscriber_created", "opportunity_won", "30d_inactive"
+  steps           Json     // Array of { delayHours, templateId, subject, condition? }
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId, active])
+  @@unique([siteId, name])
+  @@map("retention_sequences")
+}
+
+/// RetentionProgress — subscriber position within a sequence
+model RetentionProgress {
+  id              String   @id @default(cuid())
+  sequenceId      String
+  subscriberId    String
+  currentStep     Int      @default(0)
+  status          String   @default("active") // active, completed, paused, unsubscribed
+  lastSentAt      DateTime?
+  nextSendAt      DateTime?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([nextSendAt, status])
+  @@unique([sequenceId, subscriberId])
+  @@map("retention_progress")
+}
+
+/// FinanceEvent — Stripe/Mercury webhook event log for CEO Agent processing
+model FinanceEvent {
+  id              String   @id @default(cuid())
+  siteId          String
+  source          String   // stripe, mercury, manual
+  eventType       String   // payment_succeeded, payment_failed, dispute_created, etc.
+  externalId      String?  // Stripe event ID or Mercury transaction ID
+  amount          Float?
+  currency        String   @default("USD")
+  contactEmail    String?
+  opportunityId   String?
+  status          String   @default("pending") // pending, processed, escalated
+  agentAction     String?  // what CEO Agent did (e.g., "sent_receipt", "escalated_to_khaled")
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  processedAt     DateTime?
+
+  @@index([siteId, eventType])
+  @@index([externalId])
+  @@map("finance_events")
+}

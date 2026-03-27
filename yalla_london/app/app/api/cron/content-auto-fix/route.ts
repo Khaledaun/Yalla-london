@@ -59,7 +59,7 @@ async function handleAutoFix(request: NextRequest) {
     orphansFixed: 0,
     thinUnpublished: 0,
     badSlugUnpublished: 0,
-    duplicatesFlagged: 0,
+    duplicatesUnpublished: 0,
     arabicContentBackfilled: 0,
     deadAffiliateLinksRemoved: 0,
     staleAffiliateLinksRemoved: 0,
@@ -633,12 +633,15 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 12. DUPLICATE CONTENT DETECTION — flag near-duplicate published articles ──
+  // ── 12. DUPLICATE CONTENT DETECTION — unpublish the worse duplicate ──
   // Compares title similarity between all published articles per site.
-  // If two articles have > 80% word overlap in title, the newer one is flagged.
+  // If two articles have > 80% word overlap in title, the one with fewer words
+  // (or lower SEO score as tiebreaker) is unpublished. Keeping both causes
+  // keyword cannibalization — Google splits authority between them, neither ranks.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      let duplicatesFlagged = 0;
+      let duplicatesUnpublished = 0;
+      const alreadyUnpublished = new Set<string>();
       for (const siteId of activeSiteIds) {
         if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
         const sitePosts = await prisma.blogPost.findMany({
@@ -647,14 +650,16 @@ async function handleAutoFix(request: NextRequest) {
             published: true,
             deletedAt: null,
           },
-          select: { id: true, slug: true, title_en: true, created_at: true, meta_description_en: true },
+          select: { id: true, slug: true, title_en: true, created_at: true, meta_description_en: true, content_en: true, seo_score: true },
           orderBy: { created_at: "asc" },
           take: 100,
         });
 
         // Compare each pair for title similarity using word overlap (Jaccard)
         for (let i = 0; i < sitePosts.length; i++) {
+          if (alreadyUnpublished.has(sitePosts[i].id)) continue;
           for (let j = i + 1; j < sitePosts.length; j++) {
+            if (alreadyUnpublished.has(sitePosts[j].id)) continue;
             const wordsA = new Set((sitePosts[i].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
             const wordsB = new Set((sitePosts[j].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
             if (wordsA.size < 3 || wordsB.size < 3) continue;
@@ -664,23 +669,31 @@ async function handleAutoFix(request: NextRequest) {
             const jaccard = union > 0 ? intersection / union : 0;
 
             if (jaccard > 0.8) {
-              // Flag the newer article (j) — DO NOT unpublish (destroys indexed SEO equity)
-              // Tag it so seo-deep-review can differentiate/rewrite the duplicate title
-              const newer = sitePosts[j];
-              // Skip if already flagged
-              if ((newer.meta_description_en || "").includes("[DUPLICATE-FLAGGED]")) continue;
-              await optimisticBlogPostUpdate(newer.id, () => ({
-                meta_description_en: `[DUPLICATE-FLAGGED: overlaps with "${sitePosts[i].slug}"] ${(newer.meta_description_en || "").replace(/\[DUPLICATE-FLAGGED[^\]]*\]\s*/, "").slice(0, 100)}`,
+              // Pick the worse version: fewer words, or lower SEO score as tiebreaker
+              const wcA = (sitePosts[i].content_en || "").split(/\s+/).length;
+              const wcB = (sitePosts[j].content_en || "").split(/\s+/).length;
+              const scoreA = sitePosts[i].seo_score ?? 0;
+              const scoreB = sitePosts[j].seo_score ?? 0;
+              // Worse = fewer words; if equal, lower SEO score; if still equal, newer article
+              const worseIdx = wcA < wcB ? i : wcB < wcA ? j : scoreA < scoreB ? i : j;
+              const betterIdx = worseIdx === i ? j : i;
+              const worse = sitePosts[worseIdx];
+              const better = sitePosts[betterIdx];
+
+              await optimisticBlogPostUpdate(worse.id, () => ({
+                published: false,
+                meta_description_en: `[DUPLICATE-UNPUBLISHED: kept "${better.slug}"] ${(worse.meta_description_en || "").replace(/\[DUPLICATE[^\]]*\]\s*/, "").slice(0, 100)}`,
               }), { tag: "[content-auto-fix]" });
-              duplicatesFlagged++;
-              console.log(`[content-auto-fix] Flagged duplicate: "${newer.slug}" overlaps with "${sitePosts[i].slug}" (jaccard=${jaccard.toFixed(2)})`);
-              if (duplicatesFlagged >= 3) break;
+              alreadyUnpublished.add(worse.id);
+              duplicatesUnpublished++;
+              console.log(`[content-auto-fix] Unpublished duplicate: "${worse.slug}" (${wcA}w/${scoreA}s) — kept "${better.slug}" (${wcB}w/${scoreB}s) (jaccard=${jaccard.toFixed(2)})`);
+              if (duplicatesUnpublished >= 5) break;
             }
           }
-          if (duplicatesFlagged >= 3) break;
+          if (duplicatesUnpublished >= 5) break;
         }
       }
-      results.duplicatesFlagged = duplicatesFlagged;
+      results.duplicatesUnpublished = duplicatesUnpublished;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       results.errors.push(`duplicate-content: ${msg}`);
@@ -1441,7 +1454,7 @@ async function handleAutoFix(request: NextRequest) {
 
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesFlagged + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed + results.notIndexedEnhanced + results.seoBoostEnhanced;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesUnpublished + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed + results.notIndexedEnhanced + results.seoBoostEnhanced;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -1454,7 +1467,7 @@ async function handleAutoFix(request: NextRequest) {
   const publishStateChanged =
     (results.thinUnpublished || 0) > 0 ||
     ((results as Record<string, unknown>).articlesRecovered as number || 0) > 0 ||
-    (results.duplicatesFlagged || 0) > 0;
+    (results.duplicatesUnpublished || 0) > 0;
   if (publishStateChanged) {
     try {
       const { invalidateSitemapCache } = await import("@/lib/sitemap-cache");
@@ -1479,7 +1492,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesFlagged}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}`,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesUnpublished}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}`,
   });
 }
 

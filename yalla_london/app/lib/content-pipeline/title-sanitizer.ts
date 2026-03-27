@@ -58,6 +58,9 @@ export function sanitizeTitle(title: string): string {
 
   let cleaned = title;
 
+  // Strip "EXPAND:" prefix from content-strategy expansion proposals
+  cleaned = cleaned.replace(/^EXPAND:\s*/i, "");
+
   // Strip character count patterns: "(under 60 chars)", "(53 chars)", etc.
   cleaned = cleaned.replace(CHAR_COUNT_PATTERN_G, "");
 

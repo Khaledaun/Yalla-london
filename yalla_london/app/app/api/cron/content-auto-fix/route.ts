@@ -58,6 +58,7 @@ async function handleAutoFix(request: NextRequest) {
     brokenLinksFixed: 0,
     orphansFixed: 0,
     thinUnpublished: 0,
+    badSlugUnpublished: 0,
     duplicatesFlagged: 0,
     arabicContentBackfilled: 0,
     deadAffiliateLinksRemoved: 0,
@@ -545,29 +546,56 @@ async function handleAutoFix(request: NextRequest) {
   // Google's Helpful Content system demotes entire sites for thin pages.
   // - Ultra-thin (< thinContentThreshold): unpublish — zero SEO equity to protect
   // - Moderate-thin (< minWords but >= thinContentThreshold): flag for seo-deep-review expansion
+  // Also catches: bad slugs (empty/"-"), "EXPAND:" prefix titles that leaked through pipeline
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      // Fetch ALL published articles (take:200) — previous take:50 missed thin articles
+      // beyond position 50, leaving SEO-hurting pages live indefinitely
       const allPublished = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
           published: true,
           deletedAt: null,
-          content_en: { not: "" },
           created_at: { lt: twoHoursAgo },
         },
-        select: { id: true, slug: true, content_en: true },
+        select: { id: true, slug: true, content_en: true, content_ar: true, title_en: true, title_ar: true },
         orderBy: { created_at: "asc" },
-        take: 50,
+        take: 200,
       });
 
       let thinCount = 0;
       let ultraThinUnpublished = 0;
+      let badSlugUnpublished = 0;
       const thinThreshold = CONTENT_QUALITY.thinContentThreshold || 300;
 
       for (const post of allPublished) {
-        const text = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-        const wordCount = text.split(" ").filter(Boolean).length;
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+
+        // ── Bad slug / "EXPAND:" prefix check ──
+        const hasBadSlug = !post.slug || post.slug === "-" || post.slug === "";
+        const hasExpandPrefix = /^EXPAND:\s/i.test(post.title_en || "") || /^EXPAND:\s/i.test(post.title_ar || "");
+        if (hasBadSlug || hasExpandPrefix) {
+          try {
+            const reason = hasBadSlug ? `BAD_SLUG: "${post.slug}"` : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
+            await optimisticBlogPostUpdate(post.id, () => ({
+              published: false,
+              meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
+            }), { tag: "[content-auto-fix]" });
+            badSlugUnpublished++;
+            console.log(`[content-auto-fix] Unpublished bad article: ${reason}`);
+          } catch (upErr) {
+            console.warn(`[content-auto-fix] Failed to unpublish bad article "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+          }
+          continue;
+        }
+
+        // ── Word count check — use whichever language has content ──
+        const enText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const arText = (post.content_ar || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const enWords = enText.split(" ").filter(Boolean).length;
+        const arWords = arText.split(" ").filter(Boolean).length;
+        const wordCount = Math.max(enWords, arWords); // Use the longer version
 
         if (wordCount < thinThreshold) {
           // Ultra-thin: unpublish — actively harmful, zero SEO equity
@@ -587,11 +615,15 @@ async function handleAutoFix(request: NextRequest) {
         }
       }
       results.thinUnpublished = ultraThinUnpublished;
+      results.badSlugUnpublished = badSlugUnpublished;
       if (thinCount > 0) {
         console.log(`[content-auto-fix] ${thinCount} moderate-thin articles flagged for seo-deep-review expansion`);
       }
       if (ultraThinUnpublished > 0) {
         console.log(`[content-auto-fix] ${ultraThinUnpublished} ultra-thin articles unpublished (<${thinThreshold}w)`);
+      }
+      if (badSlugUnpublished > 0) {
+        console.log(`[content-auto-fix] ${badSlugUnpublished} bad-slug/EXPAND-prefix articles unpublished`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

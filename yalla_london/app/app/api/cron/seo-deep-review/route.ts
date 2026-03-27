@@ -34,7 +34,7 @@ import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const TOTAL_BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel 60s limit
-const PER_ARTICLE_BUDGET_MS = 18_000; // 18s per article — 12s was too tight, content_expansion AI calls got only 2s after non-AI fixes consumed 10s
+const PER_ARTICLE_BUDGET_MS = 25_000; // 25s per article — 18s still too tight: non-AI fixes take 10-12s, AI content_expansion needs 10-12s. 2 articles per run at 25s = 50s within 53s budget.
 
 interface ArticleFix {
   blogPostId: string;

@@ -26,8 +26,8 @@ import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MAX_ARTICLES_PER_RUN = 4;        // target: publish up to 4 per run (drain 82-article reservoir backlog)
-const MAX_CANDIDATES_PER_RUN = 10;    // try up to 10 candidates to find 4 publishable
+const MAX_ARTICLES_PER_RUN = 6;        // publish up to 6 per run — drain overflowing reservoir (84-104 articles, cap 80)
+const MAX_CANDIDATES_PER_RUN = 15;    // try up to 15 candidates to find 6 publishable
 
 export interface SelectRunnerResult {
   success: boolean;
@@ -1165,8 +1165,18 @@ export async function promoteToBlogPost(
       excerpt = excerpt.substring(0, lastSpace > 80 ? lastSpace : 155);
     }
     if (excerpt.length >= 50) {
+      // Add CTA suffix if space allows (improves CTR vs plain extract)
+      if (excerpt.length < 130 && !excerpt.endsWith(".")) excerpt += ".";
+      if (excerpt.length < 130) excerpt += " Read our complete guide.";
       enMetaDesc = sanitizeMetaDescription(excerpt);
       console.log(`[content-selector] Auto-generated meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
+    } else {
+      // Last resort: template-based CTA description using the keyword
+      const kw = keyword.replace(/-/g, " ");
+      enMetaDesc = sanitizeMetaDescription(
+        `Discover ${kw}. Your expert guide with insider tips, local recommendations, and everything you need to plan your visit.`
+      );
+      console.log(`[content-selector] Template meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
     }
   }
   const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];

@@ -129,8 +129,14 @@ export function validatePhaseTransition(from: string, to: string): void {
 // Fixes: doubled words ("Best Best"), hash suffixes ("893f"), template tails.
 export function sanitizeKeyword(raw: string): string {
   return raw
+    .replace(/^EXPAND:\s*/i, '')                           // strip "EXPAND:" prefix from content-strategy proposals
     .replace(/\s+[a-f0-9]{4,8}(?:\s|:|$)/gi, ' ')        // hash suffixes like "893f"
+    .replace(/\s+\d{2}\s+\d{2}\s*$/g, '')                 // trailing date fragments like " 02 20", " 02 28"
+    .replace(/\s+\d{2}\s*$/g, '')                          // single trailing 2-digit number like " 18"
+    .replace(/[/\\]/g, ' ')                                // forward/back slashes → space ("News/tube" → "News tube")
     .replace(/:\s*Complete Guide\s*&?\s*Reviews?$/i, '')   // generic template suffix
+    .replace(/\s+Comparison\s+Complete\s+Guide\s*&?\s*Reviews?$/i, '') // "Comparison Complete Guide & Reviews"
+    .replace(/\s+Complete\s+Guide$/i, '')                  // trailing "Complete Guide"
     .replace(/\b(\w+)\s+\1\b/gi, '$1')                    // doubled words: "Best Best" → "Best"
     .replace(/\s{2,}/g, ' ')                               // collapse whitespace
     .trim();

@@ -298,7 +298,6 @@ async function fetchGSC(siteId: string) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchPipelineStats(prisma: any, siteId: string, d7: Date) {
   const [publishedTotal, publishedLast7d, reservoir, active, rejected] = await Promise.all([
     prisma.blogPost.count({ where: { siteId, published: true } }),
@@ -323,7 +322,6 @@ async function fetchPipelineStats(prisma: any, siteId: string, d7: Date) {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchIndexingStats(prisma: any, siteId: string) {
   const [indexed, submitted, neverSubmitted] = await Promise.all([
     prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
@@ -335,7 +333,6 @@ async function fetchIndexingStats(prisma: any, siteId: string) {
   return { indexed, submitted, neverSubmitted };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAffiliateStats(prisma: any, siteId: string, d30: Date) {
   try {
     const [clicks, commissions] = await Promise.all([
@@ -357,7 +354,6 @@ async function fetchAffiliateStats(prisma: any, siteId: string, d30: Date) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAICosts(prisma: any, siteId: string, d7: Date, d30: Date) {
   try {
     const [cost7d, cost30d] = await Promise.all([

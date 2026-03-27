@@ -719,6 +719,67 @@ export async function POST(request: NextRequest) {
         };
       }
 
+      // ── Fix 3: Unpublish SEO-hurting pages (thin content, bad slugs, EXPAND prefix) ──
+      if (action === "fix_all") {
+        const { sanitizeTitle } = await import("@/lib/content-pipeline/title-sanitizer");
+        const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+
+        const allPublishedForThin = await prisma.blogPost.findMany({
+          where: { siteId, published: true, deletedAt: null },
+          select: { id: true, slug: true, title_en: true, title_ar: true, content_en: true, content_ar: true },
+        });
+
+        let thinUnpublished = 0;
+        let badUnpublished = 0;
+        const unpublishedArticles: string[] = [];
+
+        for (const post of allPublishedForThin) {
+          // Bad slug check
+          const hasBadSlug = !post.slug || post.slug === "-" || post.slug === "";
+          // EXPAND prefix check
+          const hasExpandPrefix = /^EXPAND:\s/i.test(post.title_en || "") || /^EXPAND:\s/i.test(post.title_ar || "");
+
+          if (hasBadSlug || hasExpandPrefix) {
+            const reason = hasBadSlug ? `BAD_SLUG: "${post.slug}"` : `EXPAND_PREFIX`;
+            try {
+              await optimisticBlogPostUpdate(post.id, () => ({
+                published: false,
+                meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
+              }), { tag: "[seo-intelligence-fix]" });
+              badUnpublished++;
+              unpublishedArticles.push(`${post.slug || "(no slug)"} — ${reason}`);
+            } catch { /* skip */ }
+            continue;
+          }
+
+          // Thin content check (< 300 words)
+          const enText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          const arText = (post.content_ar || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          const wordCount = Math.max(
+            enText.split(" ").filter(Boolean).length,
+            arText.split(" ").filter(Boolean).length
+          );
+
+          if (wordCount < 300) {
+            try {
+              await optimisticBlogPostUpdate(post.id, () => ({
+                published: false,
+                meta_description_en: `[UNPUBLISHED-THIN: ${wordCount}w < 300w threshold] ${(post.slug || "").slice(0, 80)}`,
+              }), { tag: "[seo-intelligence-fix]" });
+              thinUnpublished++;
+              unpublishedArticles.push(`${post.slug} — ${wordCount}w (thin content)`);
+            } catch { /* skip */ }
+          }
+        }
+
+        results.seoHurtingFixes = {
+          thinUnpublished,
+          badUnpublished,
+          totalScanned: allPublishedForThin.length,
+          unpublishedArticles,
+        };
+      }
+
       return NextResponse.json({
         success: true,
         action,

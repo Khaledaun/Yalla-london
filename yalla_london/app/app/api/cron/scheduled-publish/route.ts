@@ -223,10 +223,15 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         content_en: { not: "" },
         created_at: { lte: new Date(Date.now() - 2 * 60 * 60 * 1000) }, // 2h+ old
         // Exclude articles intentionally unpublished by content-auto-fix or duplicate detection
+        // CRITICAL: ALL content-auto-fix markers must be listed here. If content-auto-fix
+        // unpublishes an article but this list doesn't exclude its marker, scheduled-publish
+        // RE-PUBLISHES it on the next run — creating an infinite publish/unpublish loop.
         NOT: {
           OR: [
             { meta_description_en: { contains: "[AUTO-UNPUBLISHED:" } },
             { meta_description_en: { contains: "[DUPLICATE-FLAGGED:" } },
+            { meta_description_en: { contains: "[UNPUBLISHED-THIN:" } },
+            { meta_description_en: { contains: "[UNPUBLISHED:" } },
           ],
         },
         ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}),

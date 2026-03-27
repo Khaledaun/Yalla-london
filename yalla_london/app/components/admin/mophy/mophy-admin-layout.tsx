@@ -69,6 +69,15 @@ const navigation = [
     ],
   },
   {
+    id: 'agents',
+    label: 'AGENTS',
+    icon: Bot,
+    items: [
+      { label: 'Agent HQ',          href: '/admin/agent' },
+      { label: 'Conversations',     href: '/admin/agent/conversations' },
+    ],
+  },
+  {
     id: 'system',
     label: 'SYSTEM',
     icon: Wrench,

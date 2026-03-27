@@ -82,6 +82,7 @@ export function createInternalAdapter(siteId: string): ChannelAdapter {
             description: content.slice(0, 500),
             output: { response: content },
             completedAt: new Date(),
+            siteId,
           },
         });
 

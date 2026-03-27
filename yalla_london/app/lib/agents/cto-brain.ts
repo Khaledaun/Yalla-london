@@ -489,13 +489,13 @@ export async function runCTOMaintenance(
   }
 
   // --- Phase 2: BROWSE ---
+  let researchNotes: string[] = [];
   const browseBudget = Math.min(PHASE_BUDGETS.browse, budgetMs - elapsed1 - 60_000);
   if (browseBudget > 10_000) {
     try {
       const browseResult = await phaseBrowse(ctx, allFindings, browseBudget);
       allErrors.push(...browseResult.errors);
-      // Research notes feed into PROPOSE phase via closure
-      var researchNotes = browseResult.researchNotes;
+      researchNotes = browseResult.researchNotes;
     } catch (err) {
       allErrors.push(`BROWSE phase crashed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -510,7 +510,7 @@ export async function runCTOMaintenance(
 
   // --- Phase 3: PROPOSE ---
   try {
-    const proposedActions = phasePropose(allFindings, researchNotes! || []);
+    const proposedActions = phasePropose(allFindings, researchNotes);
     allActions.push(...proposedActions);
   } catch (err) {
     allErrors.push(`PROPOSE phase crashed: ${err instanceof Error ? err.message : String(err)}`);

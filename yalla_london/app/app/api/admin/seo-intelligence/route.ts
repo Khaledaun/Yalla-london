@@ -748,7 +748,9 @@ export async function POST(request: NextRequest) {
               }), { tag: "[seo-intelligence-fix]" });
               badUnpublished++;
               unpublishedArticles.push(`${post.slug || "(no slug)"} — ${reason}`);
-            } catch { /* skip */ }
+            } catch (err) {
+              console.warn("[seo-intelligence] unpublish bad-slug failed:", err instanceof Error ? err.message : String(err));
+            }
             continue;
           }
 
@@ -768,7 +770,9 @@ export async function POST(request: NextRequest) {
               }), { tag: "[seo-intelligence-fix]" });
               thinUnpublished++;
               unpublishedArticles.push(`${post.slug} — ${wordCount}w (thin content)`);
-            } catch { /* skip */ }
+            } catch (err) {
+              console.warn("[seo-intelligence] unpublish thin failed:", err instanceof Error ? err.message : String(err));
+            }
           }
         }
 

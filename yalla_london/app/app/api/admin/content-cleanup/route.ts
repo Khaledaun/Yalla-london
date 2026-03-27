@@ -333,16 +333,21 @@ async function handlePost(request: NextRequest) {
         select: { url: true },
       });
       const trackedSet = new Set<string>(trackedSlugs.map((t) => t.url));
+      const { getSiteDomain } = await import("@/config/sites");
+      const siteFullDomain = getSiteDomain(effectiveSiteId);
       let newlyTracked = 0;
       for (const post of untracked) {
         const url = `/blog/${post.slug}`;
-        if (!trackedSet.has(url) && !trackedSet.has(`https://${siteId}${url}`)) {
+        const fullUrl = `${siteFullDomain}${url}`;
+        if (!trackedSet.has(url) && !trackedSet.has(fullUrl)) {
           try {
             await prisma.uRLIndexingStatus.create({
               data: { url, site_id: effectiveSiteId, status: "discovered", submitted_indexnow: false },
             });
             newlyTracked++;
-          } catch { /* dedup */ }
+          } catch (err) {
+            console.warn("[content-cleanup] URL tracking dedup:", err instanceof Error ? err.message : String(err));
+          }
         }
       }
 

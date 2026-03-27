@@ -255,8 +255,8 @@ Respond ONLY with JSON, no markdown.`,
         };
       }
     }
-  } catch {
-    console.warn("[kpi-manager] Failed to parse AI KPI suggestions");
+  } catch (err) {
+    console.warn("[kpi-manager] Failed to parse AI KPI suggestions:", err instanceof Error ? err.message : String(err));
   }
 
   return { suggestions, adjustedKpis };

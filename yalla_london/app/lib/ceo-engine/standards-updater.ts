@@ -45,8 +45,8 @@ export async function checkForStandardsUpdates(
       contentQuality: standards.CONTENT_QUALITY,
       coreWebVitals: standards.CORE_WEB_VITALS,
     }, null, 2);
-  } catch {
-    console.warn("[standards-updater] Could not import standards.ts");
+  } catch (err) {
+    console.warn("[standards-updater] Could not import standards.ts:", err instanceof Error ? err.message : String(err));
     return {
       checkedAt: new Date().toISOString(),
       proposals: [],
@@ -124,8 +124,8 @@ Respond ONLY with JSON, no markdown.`,
       impact: p.impact || "medium",
       status: "pending" as const,
     }));
-  } catch {
-    console.warn("[standards-updater] Failed to parse AI standards review");
+  } catch (err) {
+    console.warn("[standards-updater] Failed to parse AI standards review:", err instanceof Error ? err.message : String(err));
     summary = "AI response could not be parsed";
   }
 

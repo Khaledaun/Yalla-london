@@ -1371,7 +1371,7 @@ async function handleAutoFix(request: NextRequest) {
               try {
                 const { getSiteDomain } = await import("@/config/sites");
                 const domain = getSiteDomain(post.siteId);
-                const articleUrl = `https://${domain}/blog/${post.slug}`;
+                const articleUrl = `${domain}/blog/${post.slug}`;
                 const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
                 await submitToIndexNow([articleUrl]);
                 console.log(`[content-auto-fix] Resubmitted /${post.slug} to IndexNow`);

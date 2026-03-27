@@ -215,8 +215,8 @@ async function gatherMetrics(siteId: string): Promise<CEOMetrics> {
       _avg: { seo_score: true },
     });
     avgSeoScore = scored._avg.seo_score ?? 0;
-  } catch {
-    console.warn("[ceo-intelligence] Failed to aggregate seo_score");
+  } catch (err) {
+    console.warn("[ceo-intelligence] Failed to aggregate seo_score:", err instanceof Error ? err.message : String(err));
   }
 
   return {
@@ -351,7 +351,8 @@ async function fetchAffiliateStats(prisma: any, siteId: string, d30: Date) {
       clicks,
       revenue: commissions._sum.commissionAmount ?? 0,
     };
-  } catch {
+  } catch (err) {
+    console.warn("[ceo-intelligence] fetchAffiliateStats failed:", err instanceof Error ? err.message : String(err));
     return { clicks: 0, revenue: 0 };
   }
 }
@@ -373,7 +374,8 @@ async function fetchAICosts(prisma: any, siteId: string, d7: Date, d30: Date) {
       cost7d: cost7d._sum.estimatedCostUsd ?? 0,
       cost30d: cost30d._sum.estimatedCostUsd ?? 0,
     };
-  } catch {
+  } catch (err) {
+    console.warn("[ceo-intelligence] fetchAICosts failed:", err instanceof Error ? err.message : String(err));
     return { cost7d: 0, cost30d: 0 };
   }
 }
@@ -440,7 +442,10 @@ async function generatePlans(
   const redKPIs = kpiDeltas.filter((k) => k.status === "red");
   const amberKPIs = kpiDeltas.filter((k) => k.status === "amber");
 
-  const prompt = `You are the CTO/CMO of a luxury travel content platform (yalla-london.com). Based on the following real performance data, create actionable plans.
+  const { getSiteDomain } = await import("@/config/sites");
+  const siteDomain = getSiteDomain(siteId);
+
+  const prompt = `You are the CTO/CMO of a luxury travel content platform (${siteDomain}). Based on the following real performance data, create actionable plans.
 
 REAL METRICS (last 7-30 days):
 - Sessions: ${metrics.sessions30d} (30d) | Page views: ${metrics.pageViews30d}

@@ -35,8 +35,8 @@ export async function getDesignAssets(
       // Dynamic path prevents TS static analysis from erroring on missing module
       const mod = await import(registryPath);
       if (mod?.getVideoCount) videoCount = mod.getVideoCount();
-    } catch {
-      // Canva registry may not exist — safe to skip
+    } catch (err) {
+      console.warn("[agent-design] Canva registry load failed:", err instanceof Error ? err.message : String(err));
     }
 
     return {

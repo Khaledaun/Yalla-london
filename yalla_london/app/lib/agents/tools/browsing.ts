@@ -45,7 +45,8 @@ function validateUrl(rawUrl: string): {
   let parsed: URL;
   try {
     parsed = new URL(rawUrl);
-  } catch {
+  } catch (err) {
+    console.warn("[browsing] URL parse failed:", err instanceof Error ? err.message : String(err));
     return { valid: false, reason: `Invalid URL: ${rawUrl}` };
   }
 
@@ -127,7 +128,8 @@ function isRedirectAllowed(location: string, baseUrl: string): boolean {
   try {
     const resolved = new URL(location, baseUrl);
     return validateUrl(resolved.href).valid;
-  } catch {
+  } catch (err) {
+    console.warn("[browsing] Redirect URL validation failed:", err instanceof Error ? err.message : String(err));
     return false;
   }
 }
@@ -267,7 +269,8 @@ async function buildResult(
     rawBody = fullBody.length > maxBytes
       ? fullBody.slice(0, maxBytes) + "\n...[truncated]"
       : fullBody;
-  } catch {
+  } catch (err) {
+    console.warn("[browsing] Failed to read response body:", err instanceof Error ? err.message : String(err));
     rawBody = "[Could not read response body]";
   }
 

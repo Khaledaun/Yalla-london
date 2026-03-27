@@ -134,7 +134,7 @@ function normalizeWeb(
     direction: "inbound",
     content,
     contentType: "text",
-    externalId: senderEmail,
+    externalId: senderEmail || `web-${Date.now()}`,
     senderName,
     siteId,
     timestamp: new Date().toISOString(),

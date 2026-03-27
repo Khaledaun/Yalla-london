@@ -19,7 +19,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck, ChevronDown, AlertTriangle, FileText, Settings, Zap } from "lucide-react";
+import { ShieldCheck, ChevronDown, ChevronRight, AlertTriangle, FileText, Settings, Zap, Bot } from "lucide-react";
 import {
   AdminCard,
   AdminPageHeader,
@@ -2292,6 +2292,24 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           </p>
         )}
       </Card>
+
+      {/* Agent HQ Quick Link */}
+      <Link href="/admin/agent" className="block">
+        <Card className="transition-all active:scale-[0.98]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F0F4FF', border: '1px solid rgba(59,126,161,0.3)' }}>
+                <Bot className="w-4 h-4" style={{ color: '#3B7EA1' }} />
+              </div>
+              <div>
+                <p style={{ fontFamily: "var(--font-system)", fontSize: 12, fontWeight: 700, color: '#1C1917', letterSpacing: '0.3px' }}>Agent HQ</p>
+                <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: '#78716C' }}>CEO + CTO agents, conversations, CRM pipeline</p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4" style={{ color: '#A8A29E' }} />
+          </div>
+        </Card>
+      </Link>
 
       {/* Site Health Quick Link */}
       <Link href="/admin/site-health" className="block">

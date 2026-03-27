@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
   let rawBody: string;
   try {
     rawBody = await request.text();
-  } catch {
-    console.warn("[stripe-agent] Invalid request body");
+  } catch (err) {
+    console.warn("[stripe-agent] Invalid request body:", err instanceof Error ? err.message : String(err));
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
   let event: Record<string, unknown>;
   try {
     event = JSON.parse(rawBody) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    console.warn("[stripe-agent] JSON parse failed:", err instanceof Error ? err.message : String(err));
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -250,6 +251,7 @@ async function processFinanceEvent(
             amount: fe.amount,
             currency: fe.currency,
             contactEmail: fe.contactEmail,
+            siteId,
           },
           siteId,
         },

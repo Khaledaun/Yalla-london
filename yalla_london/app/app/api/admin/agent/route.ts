@@ -1,20 +1,22 @@
 /**
  * CEO Agent Admin API — trigger, status, and config
  *
- * GET  — Agent status (registered tools, health)
+ * GET  — Agent status (CEO + CTO health, recent conversations, pipeline summary)
  * POST — Trigger agent processing (mock event for testing)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { getAgentStatus, processCEOEvent } from "@/lib/agents/ceo-brain";
-import { normalizeEvent, classifyIntent } from "@/lib/agents/event-router";
+import { classifyIntent } from "@/lib/agents/event-router";
+import { prisma } from "@/lib/db";
+import { getDefaultSiteId } from "@/config/sites";
 import type { CEOEvent, Channel } from "@/lib/agents/types";
 
 export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
-// GET — Agent status
+// GET — Agent status (shape expected by /admin/agent page)
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
@@ -22,13 +24,153 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
-    const status = getAgentStatus();
+    const siteId =
+      request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
+    // ----- CEO Agent Status -----
+    const [conversationsToday, messagesHandledToday, recentToolsUsed] =
+      await Promise.all([
+        prisma.conversation.count({
+          where: { siteId, createdAt: { gte: todayStart } },
+        }),
+        prisma.message.count({
+          where: {
+            conversation: { siteId },
+            direction: "outbound",
+            agentId: "ceo",
+            createdAt: { gte: todayStart },
+          },
+        }),
+        prisma.message.findMany({
+          where: {
+            conversation: { siteId },
+            agentId: "ceo",
+            createdAt: { gte: todayStart },
+            toolsUsed: { isEmpty: false },
+          },
+          select: { toolsUsed: true },
+          take: 50,
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+    // Flatten + deduplicate tools used today
+    const toolsUsed = [
+      ...new Set<string>(recentToolsUsed.flatMap((m) => m.toolsUsed)),
+    ];
+
+    // Last CEO activity: latest outbound message by CEO agent
+    const lastCeoMsg = await prisma.message.findFirst({
+      where: { agentId: "ceo", direction: "outbound" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+
+    const ceoStatus =
+      conversationsToday > 0 || messagesHandledToday > 0
+        ? "active"
+        : lastCeoMsg
+          ? "idle"
+          : "pending";
+
+    // ----- CTO Agent Status -----
+    const lastCtoTask = await prisma.agentTask.findFirst({
+      where: { agentType: "cto" },
+      orderBy: { createdAt: "desc" },
+      select: {
+        status: true,
+        taskType: true,
+        findings: true,
+        completedAt: true,
+        createdAt: true,
+      },
+    });
+
+    const ctoFindings = lastCtoTask?.findings?.length ?? 0;
+
+    // ----- Recent Conversations (last 5) -----
+    const recentConversations = await prisma.conversation.findMany({
+      where: { siteId },
+      orderBy: { lastMessageAt: "desc" },
+      take: 5,
+      include: {
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            content: true,
+            direction: true,
+            createdAt: true,
+          },
+        },
+        _count: { select: { messages: true } },
+      },
+    });
+
+    const conversations = recentConversations.map((c) => ({
+      id: c.id,
+      channel: c.channel,
+      contactName: c.contactName,
+      status: c.status,
+      lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+      messageCount: c._count.messages,
+      lastMessage: c.messages[0]
+        ? {
+            content: c.messages[0].content,
+            direction: c.messages[0].direction,
+            createdAt: c.messages[0].createdAt.toISOString(),
+          }
+        : null,
+    }));
+
+    // ----- Pipeline Summary -----
+    const stageCounts = await prisma.crmOpportunity.groupBy({
+      by: ["stage"],
+      where: { siteId },
+      _count: { id: true },
+      _sum: { value: true },
+    });
+
+    const totalOpportunities = stageCounts.reduce(
+      (s, sc) => s + sc._count.id,
+      0,
+    );
+    const activeOpportunities = stageCounts
+      .filter((sc) => !["won", "lost"].includes(sc.stage))
+      .reduce((s, sc) => s + sc._count.id, 0);
+    const totalPipelineValue = stageCounts.reduce(
+      (s, sc) => s + (sc._sum.value || 0),
+      0,
+    );
+    const stageBreakdown: Record<string, number> = {};
+    for (const sc of stageCounts) {
+      stageBreakdown[sc.stage] = sc._count.id;
+    }
+
+    // ----- Response (matches AgentStatus + RecentConversation[] + PipelineSummary) -----
     return NextResponse.json({
-      success: true,
-      agent: "ceo",
-      status,
-      timestamp: new Date().toISOString(),
+      ceo: {
+        status: ceoStatus,
+        lastActivity: lastCeoMsg?.createdAt?.toISOString() ?? null,
+        conversationsToday,
+        messagesHandled: messagesHandledToday,
+        toolsUsed,
+      },
+      cto: {
+        status: lastCtoTask?.status ?? "pending",
+        lastRun: (lastCtoTask?.completedAt ?? lastCtoTask?.createdAt)?.toISOString() ?? null,
+        findings: ctoFindings,
+        lastTaskType: lastCtoTask?.taskType ?? null,
+      },
+      recentConversations: conversations,
+      pipeline: {
+        totalOpportunities,
+        activeOpportunities,
+        totalPipelineValue,
+        stageBreakdown,
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

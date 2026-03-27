@@ -30,9 +30,12 @@ import {
   CEO_TOOL_DEFS,
 } from "./tool-registry";
 import { resolveContact } from "./crm/contact-resolver";
-import { checkToolSafety, filterPII, checkConfidence } from "./safety";
+import { checkToolSafety, filterPII, checkConfidence, checkRateLimit } from "./safety";
 import { generateCompletion, type AIMessage } from "@/lib/ai/provider";
 import { getSiteConfig } from "@/config/sites";
+
+// In-memory rate limit counters (reset on cold start — acceptable for serverless)
+const rateLimitCounters = new Map<string, number>();
 
 // Tool handler imports — wired into registry at initialization
 import { crmLookup, crmCreateLead, crmCreateOpportunity, crmUpdateStage, crmLogInteraction, crmScheduleFollowup } from "./tools/crm";
@@ -128,8 +131,39 @@ async function buildContext(
   // Load site config for brand context
   const siteConfig = getSiteConfig(event.siteId);
 
-  // Build conversation history (placeholder — will be populated from DB in Phase 3)
-  const conversationHistory: CEOContext["conversationHistory"] = [];
+  // Load conversation history from DB
+  let conversationHistory: CEOContext["conversationHistory"] = [];
+  try {
+    const { prisma } = await import("@/lib/db");
+    const existingConvo = await prisma.conversation.findFirst({
+      where: { channel: event.channel, externalId: event.externalId },
+      include: {
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: MAX_HISTORY_MESSAGES,
+        },
+      },
+    });
+    if (existingConvo) {
+      conversationHistory = existingConvo.messages
+        .reverse()
+        .map((m) => ({
+          id: m.id,
+          direction: m.direction as "inbound" | "outbound",
+          content: m.content,
+          senderName: undefined,
+          agentId: (m.agentId as "ceo" | "cto" | "human" | undefined) || undefined,
+          toolsUsed: Array.isArray(m.toolsUsed) ? (m.toolsUsed as string[]) : undefined,
+          confidence: m.confidence ?? undefined,
+          timestamp: m.createdAt.toISOString(),
+        }));
+    }
+  } catch (err) {
+    console.warn(
+      "[ceo-brain] Failed to load conversation history:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
 
   // Permissions based on contact status
   const permissions: CEOContext["permissions"] = {
@@ -225,8 +259,8 @@ function parseToolCalls(
           params: parsed.params || {},
         });
       }
-    } catch {
-      // Malformed JSON — skip this call
+    } catch (err) {
+      console.warn("[ceo-brain] Malformed tool-call JSON — skipping:", err instanceof Error ? err.message : String(err));
     }
   }
   return calls;
@@ -278,9 +312,27 @@ export async function processCEOEvent(
     messages.splice(1, 0, ...historyMessages);
   }
 
-  // 4. Tool-calling loop
+  // 4. Rate limit check before AI + tool execution
+  const rateCheck = checkRateLimit(event.channel, "outbound", rateLimitCounters, DEFAULT_SAFETY_CONFIG);
+  if (!rateCheck.allowed) {
+    console.warn(`[ceo-brain] Rate limited: ${rateCheck.reason}`);
+    return {
+      success: false,
+      responseText: "I've reached my response limit for now. Please try again later.",
+      responseType: "text",
+      toolsUsed: [],
+      confidence: 1,
+      needsApproval: false,
+      crmActions: [],
+      followUps: [],
+      error: rateCheck.reason,
+    };
+  }
+
+  // 5. Tool-calling loop
   let finalResponse = "";
   let confidence = 0.8;
+  const crmActions: CRMAction[] = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const result = await generateCompletion(messages, {
@@ -327,6 +379,23 @@ export async function processCEOEvent(
       toolsUsed.push(call.tool);
       toolResults[call.tool] = toolResult;
 
+      // Collect CRM actions from tool results
+      if (toolResult.success && call.tool.startsWith("crm_")) {
+        const resultData = toolResult.data as Record<string, unknown> | undefined;
+        const entityId = (resultData?.id as string) || (resultData?.entityId as string) || "";
+        if (call.tool === "crm_create_lead") {
+          crmActions.push({ type: "lead_created", entityId, details: call.params });
+        } else if (call.tool === "crm_create_opportunity") {
+          crmActions.push({ type: "opportunity_created", entityId, details: call.params });
+        } else if (call.tool === "crm_update_stage") {
+          crmActions.push({ type: "opportunity_stage_changed", entityId, details: call.params });
+        } else if (call.tool === "crm_log_interaction") {
+          crmActions.push({ type: "interaction_logged", entityId, details: call.params });
+        } else if (call.tool === "crm_schedule_followup") {
+          crmActions.push({ type: "followup_scheduled", entityId, details: call.params });
+        }
+      }
+
       toolResultsForRound.push(
         `Tool ${call.tool}: ${toolResult.success ? "SUCCESS" : "FAILED"}\n${
           toolResult.summary || toolResult.error || JSON.stringify(toolResult.data || {}).slice(0, 500)
@@ -355,11 +424,11 @@ export async function processCEOEvent(
       "I've gathered the information. Let me know if you need anything else.";
   }
 
-  // 5. Confidence check — escalate if too low
+  // 6. Confidence check — escalate if too low
   const confidenceCheck = checkConfidence(confidence, DEFAULT_SAFETY_CONFIG);
   const needsEscalation = confidenceCheck.shouldEscalate;
 
-  // 6. Build result
+  // 7. Build result
   const durationMs = Date.now() - startMs;
 
   const actionResult: CEOActionResult = {
@@ -369,10 +438,85 @@ export async function processCEOEvent(
     toolsUsed,
     confidence,
     needsApproval: needsEscalation,
-    crmActions: [],
+    crmActions,
     followUps: [],
     error: needsEscalation ? confidenceCheck.reason : undefined,
   };
+
+  // 8. Persist Conversation + Messages to DB
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    // Find or create conversation
+    let conversation = await prisma.conversation.findFirst({
+      where: { channel: event.channel, externalId: event.externalId },
+    });
+
+    const conversationData: Record<string, unknown> = {
+      status: "active",
+      lastMessageAt: new Date(),
+    };
+
+    // Link to lead/opportunity if contact resolver found them
+    if (ctx.contact?.leadId) {
+      conversationData.leadId = ctx.contact.leadId;
+    }
+    if (ctx.contact?.opportunityId) {
+      conversationData.opportunityId = ctx.contact.opportunityId;
+    }
+
+    if (conversation) {
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: conversationData,
+      });
+    } else {
+      conversation = await prisma.conversation.create({
+        data: {
+          channel: event.channel,
+          externalId: event.externalId,
+          siteId: event.siteId,
+          contactName: event.senderName || ctx.contact?.name || null,
+          ...(ctx.contact?.leadId ? { leadId: ctx.contact.leadId } : {}),
+          ...(ctx.contact?.opportunityId ? { opportunityId: ctx.contact.opportunityId } : {}),
+          status: "active",
+          lastMessageAt: new Date(),
+        },
+      });
+    }
+
+    // Create inbound message (user's message)
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: "inbound",
+        channel: event.channel,
+        content: event.content,
+        contentType: event.contentType,
+        mediaUrls: event.mediaUrls || [],
+      },
+    });
+
+    // Create outbound message (agent's response)
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: "outbound",
+        channel: event.channel,
+        content: finalResponse,
+        contentType: "text",
+        agentId: "ceo",
+        toolsUsed: toolsUsed,
+        confidence,
+        approved: !needsEscalation,
+      },
+    });
+  } catch (err) {
+    console.warn(
+      "[ceo-brain] Failed to persist conversation/messages:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
 
   console.log(
     `[ceo-brain] Processed event in ${durationMs}ms — tools: [${toolsUsed.join(", ")}], confidence: ${confidence}`,

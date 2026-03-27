@@ -91,6 +91,12 @@ export async function GET(request: NextRequest) {
       .filter((sc) => !["won", "lost"].includes(sc.stage))
       .reduce((sum, sc) => sum + sc._count.id, 0);
 
+    // Stage breakdown for the page's PipelineSummary interface
+    const stageBreakdown: Record<string, number> = {};
+    for (const sc of stageCounts) {
+      stageBreakdown[sc.stage] = sc._count.id;
+    }
+
     return NextResponse.json({
       success: true,
       columns,
@@ -98,6 +104,7 @@ export async function GET(request: NextRequest) {
         totalOpportunities: opportunities.length,
         activeOpportunities: activeCount,
         totalPipelineValue: totalValue,
+        stageBreakdown,
         currency: "USD",
       },
     });

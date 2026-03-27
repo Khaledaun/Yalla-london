@@ -167,7 +167,8 @@ function normalizePayload(partner: string, payload: any): any {
           conversion_id: payload.conversion_id,
         };
     }
-  } catch {
+  } catch (err) {
+    console.warn("[conversions-webhook] Payload normalization failed:", err instanceof Error ? err.message : String(err));
     return null;
   }
 }

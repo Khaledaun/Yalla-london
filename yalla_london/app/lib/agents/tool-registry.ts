@@ -356,6 +356,35 @@ export const CEO_TOOL_DEFS: ToolDef[] = [
     },
     execute: stub("get_design_assets"),
   },
+  {
+    name: "get_content_pipeline_status",
+    description: "Get content pipeline status — active drafts, reservoir size, publishing rate",
+    agents: ["ceo"],
+    safety: "auto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteId: { type: "string" },
+      },
+      required: ["siteId"],
+    },
+    execute: stub("get_content_pipeline_status"),
+  },
+  {
+    name: "get_recent_topics",
+    description: "Get recently generated topic proposals and their statuses",
+    agents: ["ceo"],
+    safety: "auto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteId: { type: "string" },
+        limit: { type: "number", description: "Max topics to return (default 10)" },
+      },
+      required: ["siteId"],
+    },
+    execute: stub("get_recent_topics"),
+  },
 ];
 
 // ---------------------------------------------------------------------------

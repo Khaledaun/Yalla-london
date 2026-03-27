@@ -57,25 +57,13 @@ export default function AgentHQPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [statusRes, convRes, pipeRes] = await Promise.all([
-        fetch("/api/admin/agent?action=status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "status" }) }),
-        fetch("/api/admin/agent/conversations?limit=5"),
-        fetch("/api/admin/agent/crm-pipeline"),
-      ]);
+      const res = await fetch("/api/admin/agent");
 
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setAgentStatus(statusData);
-      }
-
-      if (convRes.ok) {
-        const convData = await convRes.json();
-        setConversations(convData.conversations || []);
-      }
-
-      if (pipeRes.ok) {
-        const pipeData = await pipeRes.json();
-        setPipeline(pipeData.summary || null);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ceo) setAgentStatus({ ceo: data.ceo, cto: data.cto });
+        if (data.recentConversations) setConversations(data.recentConversations);
+        if (data.pipeline) setPipeline(data.pipeline);
       }
 
       setError(null);

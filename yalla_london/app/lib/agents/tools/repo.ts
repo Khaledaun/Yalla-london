@@ -301,8 +301,8 @@ export async function repoListFiles(
       let dirEntries: fs.Dirent[];
       try {
         dirEntries = fs.readdirSync(dir, { withFileTypes: true });
-      } catch {
-        // Permission denied or similar — skip silently
+      } catch (err) {
+        console.warn("[repo] Directory read failed:", err instanceof Error ? err.message : String(err));
         return;
       }
 
@@ -334,8 +334,8 @@ export async function repoListFiles(
         if (!entry.isDirectory()) {
           try {
             size = fs.statSync(fullPath).size;
-          } catch {
-            // Can't stat — use 0
+          } catch (err) {
+            console.warn("[repo] File stat failed:", err instanceof Error ? err.message : String(err));
           }
         }
 
@@ -395,8 +395,8 @@ function matchesSimpleGlob(filename: string, pattern: string): boolean {
   try {
     const regex = new RegExp(`^${regexStr}$`, "i");
     return regex.test(filename);
-  } catch {
-    // Invalid pattern — fall back to substring match
+  } catch (err) {
+    console.warn("[repo] Invalid glob pattern, falling back to substring match:", err instanceof Error ? err.message : String(err));
     return filename.includes(pattern);
   }
 }

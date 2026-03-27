@@ -64,16 +64,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "not_configured" }, { status: 200 });
   }
 
+  const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
+  const adapter = createWhatsAppAdapter(siteId);
+
+  // Verify webhook signature before processing
+  const signatureValid = await adapter.verifySignature(request);
+  if (!signatureValid) {
+    console.warn("[whatsapp-webhook] Signature verification failed — rejecting");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
   let rawPayload: unknown;
   try {
     rawPayload = await request.json();
-  } catch {
-    console.warn("[whatsapp-webhook] Invalid JSON body");
+  } catch (err) {
+    console.warn("[whatsapp-webhook] Invalid JSON body:", err instanceof Error ? err.message : String(err));
     return NextResponse.json({ status: "invalid_body" }, { status: 200 });
   }
-
-  const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
-  const adapter = createWhatsAppAdapter(siteId);
 
   // Parse inbound event
   const event = await adapter.parseInbound(rawPayload);
@@ -108,8 +115,8 @@ async function processInboundMessage(
   // 1. Mark inbound message as read (blue ticks)
   const whatsappMsgId = (event.metadata?.whatsappMessageId as string) || "";
   if (whatsappMsgId) {
-    markAsRead(whatsappMsgId).catch(() => {
-      // Non-critical — don't block processing
+    markAsRead(whatsappMsgId).catch((err) => {
+      console.warn("[whatsapp-webhook] markAsRead failed:", err instanceof Error ? err.message : String(err));
     });
   }
 

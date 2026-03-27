@@ -797,6 +797,122 @@ test("OG Image", "OG route uses site config for brand colors", () => {
     : { status: FAIL, details: "Not using site config for colors" };
 });
 
+// ==================== CATEGORY: Agent Platform ====================
+
+test("Agent Platform", "CEO Brain core exists with processCEOEvent export", () => {
+  return fileExists("lib/agents/ceo-brain.ts") && fileContains("lib/agents/ceo-brain.ts", "processCEOEvent")
+    ? { status: PASS, details: "ceo-brain.ts exists with processCEOEvent" }
+    : { status: FAIL, details: "Missing ceo-brain.ts or processCEOEvent export" };
+});
+
+test("Agent Platform", "CTO Brain core exists with 5-phase maintenance loop", () => {
+  return fileExists("lib/agents/cto-brain.ts") && fileContains("lib/agents/cto-brain.ts", "SCAN")
+    ? { status: PASS, details: "cto-brain.ts exists with SCAN phase" }
+    : { status: FAIL, details: "Missing cto-brain.ts or SCAN phase" };
+});
+
+test("Agent Platform", "Tool registry has CEO_TOOL_DEFS", () => {
+  return fileExists("lib/agents/tool-registry.ts") && fileContains("lib/agents/tool-registry.ts", "CEO_TOOL_DEFS")
+    ? { status: PASS, details: "tool-registry.ts exports CEO_TOOL_DEFS" }
+    : { status: FAIL, details: "Missing tool-registry.ts or CEO_TOOL_DEFS" };
+});
+
+test("Agent Platform", "Safety module exists with approval gates", () => {
+  return fileExists("lib/agents/safety.ts") && fileContains("lib/agents/safety.ts", "approval")
+    ? { status: PASS, details: "safety.ts exists with approval gates" }
+    : { status: FAIL, details: "Missing safety.ts or approval logic" };
+});
+
+test("Agent Platform", "Event router normalizes to CEOEvent", () => {
+  return fileExists("lib/agents/event-router.ts") && fileContains("lib/agents/event-router.ts", "CEOEvent")
+    ? { status: PASS, details: "event-router.ts normalizes to CEOEvent" }
+    : { status: FAIL, details: "Missing event-router.ts or CEOEvent" };
+});
+
+test("Agent Platform", "All 4 channel adapters exist", () => {
+  const channels = ["whatsapp", "email", "web", "internal"];
+  const missing = channels.filter(c => !fileExists(`lib/agents/channels/${c}.ts`));
+  return missing.length === 0
+    ? { status: PASS, details: "All 4 channel adapters present: whatsapp, email, web, internal" }
+    : { status: FAIL, details: `Missing channel adapters: ${missing.join(", ")}` };
+});
+
+test("Agent Platform", "All 10 tool modules exist", () => {
+  const tools = ["crm", "analytics", "content", "seo", "affiliate", "finance", "email-send", "design", "browsing", "repo", "qa"];
+  const missing = tools.filter(t => !fileExists(`lib/agents/tools/${t}.ts`));
+  return missing.length === 0
+    ? { status: PASS, details: `All ${tools.length} tool modules present` }
+    : { status: FAIL, details: `Missing tool modules: ${missing.join(", ")}` };
+});
+
+test("Agent Platform", "CRM subsystem: contact-resolver, retention, lead-scoring", () => {
+  const files = ["contact-resolver", "retention", "lead-scoring"];
+  const missing = files.filter(f => !fileExists(`lib/agents/crm/${f}.ts`));
+  return missing.length === 0
+    ? { status: PASS, details: "All 3 CRM modules present" }
+    : { status: FAIL, details: `Missing CRM modules: ${missing.join(", ")}` };
+});
+
+test("Agent Platform", "Agent types defined (CEOEvent, CEOContext, CEOActionResult)", () => {
+  const types = fileExists("lib/agents/types.ts");
+  const hasCEOEvent = types && fileContains("lib/agents/types.ts", "CEOEvent");
+  const hasCEOContext = types && fileContains("lib/agents/types.ts", "CEOContext");
+  return hasCEOEvent && hasCEOContext
+    ? { status: PASS, details: "types.ts has CEOEvent and CEOContext" }
+    : { status: FAIL, details: "Missing types.ts or core interfaces" };
+});
+
+test("Agent Platform", "WhatsApp webhook route exists", () => {
+  return fileExists("app/api/webhooks/whatsapp/route.ts")
+    ? { status: PASS, details: "WhatsApp webhook route exists" }
+    : { status: FAIL, details: "Missing app/api/webhooks/whatsapp/route.ts" };
+});
+
+test("Agent Platform", "Stripe agent webhook route exists", () => {
+  return fileExists("app/api/webhooks/stripe-agent/route.ts")
+    ? { status: PASS, details: "Stripe agent webhook route exists" }
+    : { status: FAIL, details: "Missing app/api/webhooks/stripe-agent/route.ts" };
+});
+
+test("Agent Platform", "Retention executor cron exists", () => {
+  return fileExists("app/api/cron/retention-executor/route.ts") &&
+    fileContains("app/api/cron/retention-executor/route.ts", "checkCronEnabled")
+    ? { status: PASS, details: "retention-executor cron exists with feature guard" }
+    : { status: FAIL, details: "Missing retention-executor cron or feature guard" };
+});
+
+test("Agent Platform", "Follow-up executor cron exists with CEO Brain integration", () => {
+  return fileExists("app/api/cron/followup-executor/route.ts") &&
+    fileContains("app/api/cron/followup-executor/route.ts", "processCEOEvent")
+    ? { status: PASS, details: "followup-executor cron exists and calls processCEOEvent" }
+    : { status: FAIL, details: "Missing followup-executor or processCEOEvent call" };
+});
+
+test("Agent Platform", "Agent maintenance cron exists (CTO weekly)", () => {
+  return fileExists("app/api/cron/agent-maintenance/route.ts")
+    ? { status: PASS, details: "agent-maintenance cron exists" }
+    : { status: FAIL, details: "Missing agent-maintenance cron" };
+});
+
+test("Agent Platform", "CEO + CTO agents registered in system-registry", () => {
+  const reg = fileExists("lib/ops/system-registry.ts");
+  const hasCEO = reg && fileContains("lib/ops/system-registry.ts", "ceo-agent");
+  const hasCTO = reg && fileContains("lib/ops/system-registry.ts", "cto-agent");
+  return hasCEO && hasCTO
+    ? { status: PASS, details: "Both CEO and CTO agents in system-registry.ts" }
+    : { status: FAIL, details: `CEO: ${hasCEO}, CTO: ${hasCTO}` };
+});
+
+test("Agent Platform", "Agent crons in feature guard and departures board", () => {
+  const guard = fileContains("lib/cron-feature-guard.ts", "retention-executor") &&
+    fileContains("lib/cron-feature-guard.ts", "followup-executor");
+  const departures = fileContains("app/api/admin/departures/route.ts", "retention-executor") &&
+    fileContains("app/api/admin/departures/route.ts", "followup-executor");
+  return guard && departures
+    ? { status: PASS, details: "Agent crons in both feature guard and departures board" }
+    : { status: FAIL, details: `Feature guard: ${guard}, Departures: ${departures}` };
+});
+
 // ==================== PRINT RESULTS ====================
 
 console.log("\n" + "=".repeat(80));

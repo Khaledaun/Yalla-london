@@ -55,7 +55,7 @@ interface CronDef {
   icon: string;
   type: 'cron';
   description: string;
-  category: 'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing' | 'ai';
+  category: 'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing' | 'ai' | 'email' | 'agent';
   feedsInto?: string;
 }
 
@@ -105,6 +105,9 @@ const CRON_DEFS: CronDef[] = [
   { path: '/api/cron/process-indexing-queue',  schedule: '25 7,13,20 * * *', label: 'IndexNow Queue', icon: '📡', type: 'cron', category: 'seo',     description: 'Processes pending URLs and submits to IndexNow (Bing, Yandex, api.indexnow.org).',  feedsInto: 'IndexNow Engines' },
   { path: '/api/cron/discovery-monitor',      schedule: '0 3,9,15,21 * * *',  label: 'Discovery Monitor',         icon: '🔎', type: 'cron', category: 'seo',          description: 'Monitors URL discovery and indexing health 4x daily.',  feedsInto: 'Indexing Dashboard' },
   { path: '/api/cron/daily-seo-audit',        schedule: '20 5 * * *',         label: 'Daily SEO Audit',           icon: '📊', type: 'cron', category: 'seo',          description: 'Runs daily SEO audit checks across all published pages.',  feedsInto: 'SEO Reports' },
+  { path: '/api/cron/agent-maintenance',      schedule: '30 6 * * 0',         label: 'CTO Agent Maintenance',     icon: '🔧', type: 'cron', category: 'maintenance',  description: 'Weekly CTO Agent maintenance loop: scans codebase, checks cron/pipeline health, researches fixes, proposes improvements.',  feedsInto: 'AgentTask' },
+  { path: '/api/cron/retention-executor',     schedule: '30 0,4,8,12,16,20 * * *', label: 'Retention Executor',   icon: '📧', type: 'cron', category: 'email',        description: 'Sends due retention emails (welcome series, post-booking follow-ups), triggers re-engagement for 30d+ inactive subscribers, seeds default sequences.', feedsInto: 'RetentionProgress' },
+  { path: '/api/cron/followup-executor',      schedule: '0 1,5,9,13,17,21 * * *',  label: 'Follow-up Executor',   icon: '🔄', type: 'cron', category: 'agent',        description: 'Processes due CEO Agent follow-up tasks by re-invoking CEO Brain. Picks up AgentTask records with dueAt <= now.', feedsInto: 'AgentTask' },
 ];
 
 // ---------------------------------------------------------------------------

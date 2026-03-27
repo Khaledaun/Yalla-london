@@ -26,8 +26,8 @@ import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MAX_ARTICLES_PER_RUN = 4;        // target: publish up to 4 per run (drain 82-article reservoir backlog)
-const MAX_CANDIDATES_PER_RUN = 10;    // try up to 10 candidates to find 4 publishable
+const MAX_ARTICLES_PER_RUN = 6;        // publish up to 6 per run — drain overflowing reservoir (84-104 articles, cap 80)
+const MAX_CANDIDATES_PER_RUN = 15;    // try up to 15 candidates to find 6 publishable
 
 export interface SelectRunnerResult {
   success: boolean;

@@ -916,28 +916,30 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     console.warn("[diagnostic-agent] Phase 0d zombie cleanup failed:", zombieErr instanceof Error ? zombieErr.message : zombieErr);
   }
 
-  // Phase 0e: Reservoir age-out — reject reservoir articles older than 7 days
-  // These are dead inventory: they've sat in the reservoir for a week without
-  // being promoted, likely because of keyword overlap with published articles.
-  // Keeping them inflates the reservoir count (blocking new draft creation at cap 50)
-  // and wastes diagnostic-sweep cycles evaluating them. (Bug found March 22, 2026)
+  // Phase 0e: Reservoir age-out — reject reservoir articles older than 3 days
+  // These are dead inventory: they've sat in the reservoir without being promoted,
+  // likely because of keyword overlap with published articles.
+  // Keeping them inflates the reservoir count (blocking new draft creation at cap 80)
+  // and wastes diagnostic-sweep cycles evaluating them.
+  // Reduced from 7d to 3d (March 27, 2026) — reservoir was overflowing at 84-104 articles,
+  // completely blocking content-builder-create and schedule-executor for 12+ hours.
   try {
     const { prisma: p0e } = await import("@/lib/db");
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const agedOut = await p0e.articleDraft.updateMany({
       where: {
         current_phase: "reservoir",
-        updated_at: { lt: sevenDaysAgo },
+        updated_at: { lt: threeDaysAgo },
       },
       data: {
         current_phase: "rejected",
         last_error: "RESERVOIR_AGE_OUT",
-        rejection_reason: "[diagnostic-agent] Aged out of reservoir after 7 days — likely keyword overlap with published articles",
+        rejection_reason: "[diagnostic-agent] Aged out of reservoir after 3 days — likely keyword overlap with published articles",
         completed_at: new Date(),
       },
     });
     if (agedOut.count > 0) {
-      console.log(`[diagnostic-agent] Phase 0e: Rejected ${agedOut.count} reservoir articles older than 7 days`);
+      console.log(`[diagnostic-agent] Phase 0e: Rejected ${agedOut.count} reservoir articles older than 3 days`);
     }
   } catch (ageErr) {
     console.warn("[diagnostic-agent] Phase 0e reservoir age-out failed:", ageErr instanceof Error ? ageErr.message : ageErr);

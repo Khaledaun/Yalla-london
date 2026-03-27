@@ -123,8 +123,8 @@ async function handleBookingPayment(paymentIntent: Record<string, unknown>) {
         eventName || "Unknown Event",
         totalAmount,
       );
-    } catch {
-      // Notifications are best-effort
+    } catch (err) {
+      console.warn("[stripe-webhook] Notification failed:", err instanceof Error ? err.message : String(err));
     }
 
     // Send confirmation email (best-effort)
@@ -145,8 +145,8 @@ async function handleBookingPayment(paymentIntent: Record<string, unknown>) {
             <p><strong>Reference:</strong> ${paymentIntent.id}</p>
           </div>`,
         );
-      } catch {
-        // Email is best-effort
+      } catch (err) {
+        console.warn("[stripe-webhook] Confirmation email failed:", err instanceof Error ? err.message : String(err));
       }
     }
   } catch (err) {

@@ -134,7 +134,8 @@ export async function batchScoreLeads(
     try {
       await scoreAndUpdateLead(lead.id);
       scored++;
-    } catch {
+    } catch (err) {
+      console.warn("[lead-scoring] Failed to score lead:", lead.id, err instanceof Error ? err.message : String(err));
       errors++;
     }
   }

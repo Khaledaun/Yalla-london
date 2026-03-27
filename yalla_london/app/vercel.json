@@ -19,6 +19,9 @@
     "app/api/admin/ceo-inbox/**/*.ts": {
       "maxDuration": 300
     },
+    "app/api/cron/ceo-intelligence/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/cache/**/*.ts": {
       "maxDuration": 15
     },
@@ -191,6 +194,10 @@
     {
       "path": "/api/cron/seo-orchestrator?mode=weekly",
       "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/ceo-intelligence",
+      "schedule": "50 5 * * 0"
     },
     {
       "path": "/api/cron/trends-monitor",

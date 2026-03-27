@@ -55,6 +55,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "affiliate-refresh-links": "CRON_AFFILIATE_REFRESH_LINKS",
   "perplexity-scheduler": "CRON_PERPLEXITY_SCHEDULER",
   "perplexity-executor": "CRON_PERPLEXITY_EXECUTOR",
+  "ceo-intelligence": "CRON_CEO_INTELLIGENCE",
 };
 
 /**

@@ -98,6 +98,7 @@ const CRON_DEFS: CronDef[] = [
   { path: '/api/cron/perplexity-scheduler',  schedule: '0 */2 * * *',        label: 'Perplexity Scheduler',      icon: '🔮', type: 'cron', category: 'ai',            description: 'Processes due Perplexity Computer schedules. Creates tasks from templates for recurring research, audits, and monitoring.',  feedsInto: 'Perplexity Executor' },
   { path: '/api/cron/perplexity-executor',   schedule: '15,45 * * * *',      label: 'Perplexity Executor',       icon: '⚡', type: 'cron', category: 'ai',            description: 'Executes ready Perplexity Computer tasks by calling the Perplexity API. Processes up to 5 tasks per run with rate limiting.',  feedsInto: 'Task Results' },
   { path: '/api/cron/diagnostic-sweep',      schedule: '0 */2 * * *',        label: 'Diagnostic Sweep',          icon: '🔍', type: 'cron', category: 'maintenance',  description: 'Runs diagnostic agent to auto-fix stuck drafts, timeout loops, and pipeline blockages every 2 hours.',  feedsInto: 'AutoFixLog' },
+  { path: '/api/cron/ceo-intelligence',      schedule: '50 5 * * 0',         label: 'CEO Intelligence',          icon: '🧠', type: 'cron', category: 'maintenance',  description: 'Weekly autonomous intelligence: gathers GA4/GSC metrics, runs cleanup, compares KPIs, generates plans, reviews standards, emails CEO report.',  feedsInto: 'CEO Email Report' },
 ];
 
 // ---------------------------------------------------------------------------

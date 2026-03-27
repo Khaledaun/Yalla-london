@@ -317,6 +317,19 @@ export const CRON_JOBS: CronJobDef[] = [
     critical: true,
     order: 9,
   },
+  {
+    id: "ceo-intelligence",
+    name: "CEO Intelligence Engine",
+    route: "/api/cron/ceo-intelligence",
+    schedule: "50 5 * * 0",
+    scheduleHuman: "Sunday 5:50 AM UTC",
+    description: "Weekly autonomous intelligence: gathers GA4/GSC metrics, runs content cleanup, compares KPIs, generates technical/marketing/sales plans, reviews SEO standards, and emails a CEO report.",
+    produces: "SiteSettings (ceo-report-history, ceo-kpis, ceo-standards-proposals)",
+    consumes: "GA4 API, GSC API, BlogPost, ArticleDraft, URLIndexingStatus, CjClickEvent, ApiUsageLog",
+    group: "monitoring",
+    critical: false,
+    order: 10,
+  },
 ];
 
 // ─── Pipelines ──────────────────────────────────────────────────────────

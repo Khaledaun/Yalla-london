@@ -449,20 +449,32 @@ async function generateArticle(
   // Duplicate title check — prevent keyword cannibalization
   // Check ALL articles (published OR unpublished) — content-auto-fix may have unpublished
   // a previous version, and creating another just restarts the publish/unpublish cycle.
+  // Uses normalized matching (strips years, filler words, punctuation) — Rule #145/#155
   const candidateTitle = primaryLanguage === "en"
     ? content.title
     : content.titleTranslation || content.title;
   if (candidateTitle && candidateTitle.length > 5) {
-    const existingWithTitle = await prisma.blogPost.findFirst({
-      where: {
-        siteId: site.id,
-        deletedAt: null,
-        title_en: { equals: candidateTitle.trim(), mode: "insensitive" },
-      },
-      select: { id: true, slug: true, published: true },
-    }).catch(() => null);
-    if (existingWithTitle) {
-      console.warn(`[${site.name}] SKIPPED: duplicate title "${candidateTitle}" — already exists as /blog/${existingWithTitle.slug} (published=${existingWithTitle.published})`);
+    // Normalize: strip years, filler words, punctuation — same logic as select-runner
+    const normalizeForDedup = (t: string) => t.toLowerCase()
+      .replace(/\b20\d{2}\b/g, "")
+      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
+      .replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+
+    const normalizedCandidate = normalizeForDedup(candidateTitle);
+
+    // Fetch recent titles and compare normalized forms
+    const recentTitles = await prisma.blogPost.findMany({
+      where: { siteId: site.id, deletedAt: null },
+      select: { id: true, slug: true, title_en: true, published: true },
+      orderBy: { created_at: "desc" },
+      take: 200,
+    }).catch(() => [] as Array<{ id: string; slug: string; title_en: string | null; published: boolean }>);
+
+    const existingMatch = recentTitles.find(
+      (p) => normalizeForDedup(p.title_en || "") === normalizedCandidate,
+    );
+    if (existingMatch) {
+      console.warn(`[${site.name}] SKIPPED: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already exists as /blog/${existingMatch.slug} (published=${existingMatch.published})`);
       return null;
     }
   }

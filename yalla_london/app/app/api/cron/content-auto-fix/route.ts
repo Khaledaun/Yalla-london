@@ -550,8 +550,9 @@ async function handleAutoFix(request: NextRequest) {
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      // Fetch ALL published articles (take:200) — previous take:50 missed thin articles
-      // beyond position 50, leaving SEO-hurting pages live indefinitely
+      // Fetch ALL published articles — scan entire catalog for thin content.
+      // Previous take:200 + orderBy:asc missed newer thin articles beyond position 200.
+      // With ~109 published articles, take:500 covers the full catalog.
       const allPublished = await prisma.blogPost.findMany({
         where: {
           siteId: { in: activeSiteIds },
@@ -560,8 +561,8 @@ async function handleAutoFix(request: NextRequest) {
           created_at: { lt: twoHoursAgo },
         },
         select: { id: true, slug: true, content_en: true, content_ar: true, title_en: true, title_ar: true },
-        orderBy: { created_at: "asc" },
-        take: 200,
+        orderBy: { created_at: "desc" }, // newest first — most likely to have issues
+        take: 500,
       });
 
       let thinCount = 0;

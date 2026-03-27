@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
@@ -25,7 +25,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 
 async function handleGscSync(request: NextRequest) {
   const cronStart = Date.now();
-  const BUDGET_MS = 53_000;
+  const BUDGET_MS = 280_000;
 
   try {
     const authHeader = request.headers.get("authorization");

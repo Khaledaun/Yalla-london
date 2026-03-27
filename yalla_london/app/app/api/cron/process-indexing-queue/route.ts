@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
@@ -29,7 +29,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 
 async function handleProcessQueue(request: NextRequest) {
   const cronStart = Date.now();
-  const BUDGET_MS = 53_000;
+  const BUDGET_MS = 280_000;
 
   try {
     // Feature flag guard

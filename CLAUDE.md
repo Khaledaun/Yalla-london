@@ -4883,6 +4883,48 @@ Subscriber Lifecycle:
 199. **Every cron in vercel.json must have a matching entry in 3 places** — (1) `vercel.json` crons array, (2) `cron-feature-guard.ts` CRON_FLAG_MAP, (3) `departures/route.ts` CRON_DEFS. Missing any one causes: invisible feature flag (can't disable), missing from departures board (can't trigger manually), or not scheduled (never runs).
 200. **Prisma camelCase for URL models is `uRLIndexingStatus`** — not `urlIndexingStatus`. Prisma generates camelCase from the PascalCase model name `URLIndexingStatus` by lowercasing the first letter of consecutive capitals: `u` + `RL` → `uRL`. This is correct and used across 10+ files.
 
+### Session: March 27, 2026 — Aggregated Report Fix Sprint: Cron Timeouts, Title Dedup, Scheduled Publish
+
+**Aggregated report analysis (Grade B, 77/100) revealed 4 root causes fixed across 4 files.**
+
+**Fix 1 (CRITICAL): GSC sync timing out — 0 clicks in 7 days**
+- **Root cause:** `gsc-sync/route.ts` had `export const maxDuration = 60` which OVERRIDES vercel.json's `maxDuration: 300`. Combined with `BUDGET_MS = 53_000`, GSC sync ran for 53s max — insufficient for per-day data fetching across multiple date ranges.
+- **Fix:** `maxDuration = 300`, `BUDGET_MS = 280_000` — gives GSC sync full 5-minute window to complete all 3 steps (current period, previous period, URL discovery).
+- **Impact:** GSC data (clicks, impressions, CTR, position) will populate within 24h of deploy.
+
+**Fix 2 (CRITICAL): process-indexing-queue timing out — 51+ never-submitted pages**
+- **Root cause:** Same `maxDuration = 60` override issue. IndexNow batch processing killed mid-submission.
+- **Fix:** `maxDuration = 300`, `BUDGET_MS = 280_000` — allows full queue processing for all sites.
+- **Impact:** Never-submitted backlog will drain within 2-3 runs.
+
+**Fix 3 (HIGH): daily-content-generate duplicate titles**
+- **Root cause:** Exact case-insensitive title match missed near-duplicates like "Best London Hotels 2025 Guide" vs "Best London Hotels 2026 Complete Guide".
+- **Fix:** Normalized title dedup — strips years (`\b20\d{2}\b`), filler words (comparison, guide, review, complete, ultimate, best, top), punctuation before comparing. Fetches last 200 published titles for comparison.
+- **Pattern matches select-runner.ts** `normalizeForDedup()` — consistent across all 4 BlogPost creation paths.
+
+**Fix 4 (HIGH): scheduled-publish ScheduledContent path had NO dedup**
+- **Root cause:** Orphan auto-publish path had normalized dedup, but the ScheduledContent path (dashboard "Publish Now" → scheduled → published) skipped dedup entirely.
+- **Fix:** Shared `normalizeTitle()` function and `publishedTitleSet` at handler top level. Both paths now check for normalized title matches before publishing. Duplicates are marked `status: "failed"` with warning log.
+- Also: `maxDuration = 300` (was 60).
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `app/api/cron/gsc-sync/route.ts` | maxDuration 60→300, BUDGET_MS 53k→280k |
+| `app/api/cron/process-indexing-queue/route.ts` | maxDuration 60→300, BUDGET_MS 53k→280k |
+| `app/api/cron/daily-content-generate/route.ts` | Exact title match → normalized dedup with year/filler stripping |
+| `app/api/cron/scheduled-publish/route.ts` | maxDuration 60→300, added dedup to ScheduledContent path, shared dedup infrastructure |
+
+**TypeScript:** ZERO errors across entire codebase.
+
+### Critical Rules Learned (March 27 Session — Aggregated Report Fixes)
+
+201. **`export const maxDuration` in a route file OVERRIDES `vercel.json` functions config** — if a route says `maxDuration = 60` but vercel.json says `"maxDuration": 300`, the route wins. Always check the route-level export when a cron is timing out unexpectedly. This caused gsc-sync, process-indexing-queue, and scheduled-publish to silently die at 60s despite vercel.json granting 300s.
+202. **BUDGET_MS must be ~20s less than maxDuration** — `maxDuration = 300` → `BUDGET_MS = 280_000`. The 20s buffer allows for: (a) cron log writing, (b) response serialization, (c) Vercel cold start overhead. Never use `53_000` with `maxDuration = 300` — that wastes 227s of available budget.
+203. **Title dedup must be NORMALIZED, not exact** — "Best London Hotels 2025 Guide" and "Best London Hotels 2026 Complete Guide" are effectively the same article. Strip: years (`\b20\d{2}\b`), filler words (comparison, guide, review, complete, ultimate, best, top), punctuation, extra whitespace. Compare the normalized forms.
+204. **All 4 BlogPost creation paths must have normalized title dedup** — (1) daily-content-generate (article creation), (2) select-runner (reservoir promotion), (3) scheduled-publish ScheduledContent path (dashboard publish), (4) scheduled-publish orphan auto-publish path. Missing ANY one allows duplicates through that path.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { withCronLog } from "@/lib/cron-logger";
 import { getSiteDomain, getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
@@ -23,11 +23,32 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
   const now = new Date();
 
   const results: { id: string; title: string; slug: string; site_id: string }[] = [];
+  const activeSites = getActiveSiteIds();
+
+  // Normalize title for dedup: strip years, fillers, punctuation (shared across both publish paths)
+  const normalizeTitle = (t: string) =>
+    t.toLowerCase()
+      .replace(/\b20\d{2}\b/g, "")
+      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Pre-fetch published titles for dedup — shared by ScheduledContent and orphan paths
+  const recentPublished = await prisma.blogPost.findMany({
+    where: { published: true, ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}) },
+    select: { title_en: true },
+    orderBy: { created_at: "desc" },
+    take: 200,
+  }).catch(() => [] as Array<{ title_en: string | null }>);
+
+  const publishedTitleSet = new Set<string>(
+    recentPublished.map(p => normalizeTitle(p.title_en || "")).filter(Boolean)
+  );
 
   // Find scheduled content that is due for publishing.
   // Filter by active site IDs to prevent cross-site content mixing —
   // each item's site context (domain, SEO gate, IndexNow) must be correct.
-  const activeSites = getActiveSiteIds();
   try {
     const dueContent = await prisma.scheduledContent.findMany({
       where: {
@@ -135,6 +156,21 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
           }
         }
 
+        // Normalized title dedup check before publishing (Rule #145)
+        if (postData?.title_en) {
+          const normScheduledTitle = normalizeTitle(postData.title_en);
+          if (normScheduledTitle && publishedTitleSet.has(normScheduledTitle)) {
+            console.warn(`[Scheduled Publish] BLOCKED duplicate: "${postData.title_en}" (normalized match exists)`);
+            await prisma.scheduledContent.update({
+              where: { id: item.id },
+              data: { status: "failed" },
+            }).catch(() => {});
+            log.trackItem(false);
+            continue;
+          }
+          if (normScheduledTitle) publishedTitleSet.add(normScheduledTitle);
+        }
+
         // Publish the blog post
         const post = await prisma.blogPost.update({
           where: { id: item.content_id },
@@ -215,8 +251,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
   // pipeline but never published (safety net)
   let orphanedDraftCount = 0;
   try {
-    const { getActiveSiteIds } = await import("@/config/sites");
-    const activeSites = getActiveSiteIds();
+    // activeSites already declared at top of handler
     const orphanedDrafts = await prisma.blogPost.findMany({
       where: {
         published: false,
@@ -248,26 +283,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       // These are articles created by the pipeline (via content-selector promoteToBlogPost)
       // but never set published=true — likely due to a crash between creation and update.
       // They already passed the pre-pub gate during promotion, so publish them directly.
-      // Pre-fetch recent published titles for dedup check (Rule #17: cleanTitle on ALL publish paths)
-      const recentPublished = await prisma.blogPost.findMany({
-        where: { published: true, ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}) },
-        select: { title_en: true },
-        orderBy: { created_at: "desc" },
-        take: 200,
-      }).catch(() => [] as Array<{ title_en: string | null }>);
-
-      // Normalize title for dedup: strip years, fillers, punctuation
-      const normalizeTitle = (t: string) =>
-        t.toLowerCase()
-          .replace(/\b20\d{2}\b/g, "")
-          .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
-          .replace(/[^a-z0-9\s]/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-      const publishedTitleSet = new Set<string>(
-        recentPublished.map(p => normalizeTitle(p.title_en || "")).filter(Boolean)
-      );
+      // normalizeTitle and publishedTitleSet defined at top of handler (shared with ScheduledContent path)
 
       for (const orphan of orphanedDrafts) {
         if (log.isExpired()) break;

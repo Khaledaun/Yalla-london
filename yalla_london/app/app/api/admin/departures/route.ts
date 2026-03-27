@@ -55,7 +55,7 @@ interface CronDef {
   icon: string;
   type: 'cron';
   description: string;
-  category: 'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing' | 'ai';
+  category: 'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing' | 'ai' | 'email' | 'agent';
   feedsInto?: string;
 }
 

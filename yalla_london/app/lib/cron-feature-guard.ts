@@ -63,6 +63,9 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "events-sync": "CRON_EVENTS_SYNC",
   "image-pipeline": "CRON_IMAGE_PIPELINE",
   "process-indexing-queue": "CRON_PROCESS_INDEXING_QUEUE",
+  "agent-maintenance": "CRON_AGENT_MAINTENANCE",
+  "retention-executor": "CRON_RETENTION_EXECUTOR",
+  "followup-executor": "CRON_FOLLOWUP_EXECUTOR",
 };
 
 /**

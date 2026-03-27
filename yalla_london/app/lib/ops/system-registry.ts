@@ -437,6 +437,22 @@ export const AGENTS: AgentDef[] = [
     cronJobs: ["sweeper"],
     domain: "Recovery",
   },
+  {
+    id: "ceo-agent",
+    name: "CEO Agent",
+    description: "Business brain handling customer inquiries, CRM pipeline, marketing, metrics, and sales follow-ups via WhatsApp/email/web channels. Processes CEOEvents through AI tool-calling loop with safety gates. Manages CrmOpportunity lifecycle, schedules follow-ups, and triggers retention sequences.",
+    skills: ["marketing-strategy-pmm", "copywriting", "analytics-tracking", "page-cro"],
+    cronJobs: ["ceo-intelligence", "retention-executor", "followup-executor", "subscriber-emails", "campaign-executor"],
+    domain: "Business Operations",
+  },
+  {
+    id: "cto-agent",
+    name: "CTO Agent",
+    description: "Technical brain that autonomously monitors codebase health, browses documentation, runs QA checks, and proposes improvements. Executes a 5-phase maintenance loop (SCAN → BROWSE → PROPOSE → EXECUTE → REPORT) weekly and on-demand via admin API.",
+    skills: ["nextjs-best-practices", "prisma-expert", "web-performance-optimization", "accessibility"],
+    cronJobs: ["agent-maintenance"],
+    domain: "Technical Operations",
+  },
 ];
 
 // ─── Data Flow ──────────────────────────────────────────────────────────

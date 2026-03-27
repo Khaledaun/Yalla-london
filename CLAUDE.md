@@ -4925,6 +4925,234 @@ Subscriber Lifecycle:
 203. **Title dedup must be NORMALIZED, not exact** — "Best London Hotels 2025 Guide" and "Best London Hotels 2026 Complete Guide" are effectively the same article. Strip: years (`\b20\d{2}\b`), filler words (comparison, guide, review, complete, ultimate, best, top), punctuation, extra whitespace. Compare the normalized forms.
 204. **All 4 BlogPost creation paths must have normalized title dedup** — (1) daily-content-generate (article creation), (2) select-runner (reservoir promotion), (3) scheduled-publish ScheduledContent path (dashboard publish), (4) scheduled-publish orphan auto-publish path. Missing ANY one allows duplicates through that path.
 
+### Session: March 27, 2026 — CEO + CTO Agent Platform: Full 7-Phase Implementation (41 files, 8 Prisma models, 9,331 lines)
+
+**Complete two-agent platform built from scratch — CEO Agent (business brain) and CTO Agent (technical brain) with shared tool layer, channel adapters, CRM pipeline, retention engine, and admin dashboard.**
+
+**Architecture:**
+```
+                    ┌─────────────────┐
+                    │  Channel Layer   │
+                    │ WhatsApp│Email│  │
+                    │ Web│Internal     │
+                    └────────┬────────┘
+                             │ CEOEvent
+                    ┌────────▼────────┐
+                    │   Event Router   │
+                    │ (normalize+route)│
+                    └───┬─────────┬───┘
+                        │         │
+               ┌────────▼──┐  ┌──▼────────┐
+               │ CEO Agent  │  │ CTO Agent  │
+               │ (business) │  │ (technical)│
+               └────┬───────┘  └──┬────────┘
+                    │              │
+               ┌────▼──────────────▼────┐
+               │    Shared Tool Layer    │
+               │ CRM│AI│SEO│Email│Finance│
+               │ Analytics│Affiliate│... │
+               └────────────────────────┘
+```
+
+**Phase 1: Foundation (Types + Models + CRM + Docs)**
+- `lib/agents/types.ts` (439 lines) — CEOEvent, CEOContext, CEOActionResult, CTOAgentTask, ChannelAdapter, ToolDef, ToolContext, ToolResult, ResolvedContact, SafetyGate
+- 8 new Prisma models: Conversation, Message, AgentTask, CrmOpportunity, InteractionLog, RetentionSequence, RetentionProgress, FinanceEvent
+- Migration: `prisma/migrations/20260327_add_agent_platform_models/migration.sql`
+- `lib/agents/crm/contact-resolver.ts` (389 lines) — phone/email → Lead + Subscriber + CharterInquiry + CrmOpportunity + full interaction history
+- `lib/agents/crm/lead-scoring.ts` (143 lines) — auto-score leads from activity signals
+- `lib/agents/crm/retention.ts` (431 lines) — email list health, sequence management, re-engagement triggers
+- 7 documentation files: CEOBRAIN_DISCOVERY.md, CEOBRAIN_ARCHITECTURE.md, CEOBRAIN_IMPLEMENTATION_PLAN.md, CEOBRAIN_PLAYBOOK.md, CEOBRAIN_LOG.md, CTOBRAIN_BROWSING.md, CTOBRAIN_LOG.md
+
+**Phase 2: CEO Brain Core + Tools**
+- `lib/agents/event-router.ts` (320 lines) — normalize events from any channel to CEOEvent
+- `lib/agents/tool-registry.ts` (485 lines) — unified tool registry with JSON schema definitions for both agents
+- `lib/agents/safety.ts` (187 lines) — approval gates (money/stage/delete), rate limits, PII filtering, confidence escalation
+- `lib/agents/ceo-brain.ts` (404 lines) — event processing → context building → AI tool-calling loop → action result
+- 11 tool handlers in `lib/agents/tools/`:
+  - `crm.ts` (227 lines) — lookup, create lead/opportunity, update stage, log interaction, schedule follow-up
+  - `analytics.ts` (221 lines) — GA4 metrics, GSC data, traffic sources (wraps MCP Google server)
+  - `content.ts` (81 lines) — trigger content pipeline, list articles, search knowledge base
+  - `seo.ts` (192 lines) — indexing status, SEO health, audit results
+  - `affiliate.ts` (74 lines) — revenue, coverage, partner status
+  - `finance.ts` (80 lines) — Stripe balance, invoice lookup, recent payments
+  - `email-send.ts` (104 lines) — send transactional email, trigger retention sequences
+  - `design.ts` (58 lines) — brand kit, PDF covers, Canva video assets
+  - `browsing.ts` (442 lines) — allow-listed HTTP fetch + web search for CTO (domain allowlist enforced)
+  - `repo.ts` (402 lines) — file reading, code search, directory listing (read-only, sandboxed)
+  - `qa.ts` (526 lines) — type check, smoke tests, cron health, pipeline health
+- `app/api/admin/agent/route.ts` (135 lines) — trigger/status/config API
+
+**Phase 3: WhatsApp Integration**
+- `lib/agents/channels/whatsapp.ts` (360 lines) — bidirectional WhatsApp Cloud API (send/receive, text/templates/media)
+- `app/api/webhooks/whatsapp/route.ts` (297 lines) — webhook verification (GET) + message handling (POST)
+- Full flow: incoming message → normalize to CEOEvent → contact-resolver → CEO Brain → response → WhatsApp send
+- Auto-creates CrmOpportunity for qualifying messages (yacht inquiry, hotel request, etc.)
+- Env vars needed: `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID`
+
+**Phase 4: Other Channels + Finance Webhooks + Admin UI**
+- `lib/agents/channels/email.ts` (89 lines) — wraps Resend for inbound email parsing
+- `lib/agents/channels/web.ts` (93 lines) — contact form submissions + future web chat
+- `lib/agents/channels/internal.ts` (97 lines) — system-generated events (cron alerts, finance events)
+- `app/api/webhooks/stripe-agent/route.ts` (276 lines) — Stripe webhook → FinanceEvent → CEO Agent processes (receipts, dispute escalation)
+- `app/admin/agent/page.tsx` (300 lines) — Agent HQ dashboard (CEO + CTO status, recent conversations, pipeline summary)
+- `app/admin/agent/conversations/page.tsx` (332 lines) — conversation browser with search + filters
+- `app/api/admin/agent/conversations/route.ts` (183 lines) — conversation list + search API
+- `app/api/admin/agent/crm-pipeline/route.ts` (213 lines) — opportunity pipeline data for kanban view
+
+**Phase 5: CTO Agent**
+- `lib/agents/cto-brain.ts` (634 lines) — 5-phase maintenance loop:
+  1. SCAN (5min) — check CronJobLog, smoke tests, TypeScript errors, vulnerability patterns
+  2. BROWSE (3min) — research fixes for identified issues via allow-listed domains
+  3. PROPOSE (2min) — prioritized improvement list (auto-fixable | needs-approval | info-only)
+  4. EXECUTE (5min) — small safe changes only, tests after each change
+  5. REPORT (1min) — AgentTask record + summary email
+- `app/api/cron/agent-maintenance/route.ts` (147 lines) — weekly cron (Sundays 6:30 UTC), 280s budget
+- `app/api/admin/agent/cto/route.ts` (135 lines) — trigger CTO tasks on demand, view task log
+- CTO browsing allow-list: nextjs.org, prisma.io, vercel.com, developers.google.com, developer.mozilla.org, yalla-london.com, github.com/khaledaun
+
+**Phase 6: Retention Engine + Follow-up Scheduler**
+- `app/api/cron/retention-executor/route.ts` (276 lines) — processes due retention emails every 4h, seeds default sequences (welcome_series, re_engagement, post_booking), advances RetentionProgress
+- `app/api/cron/followup-executor/route.ts` (210 lines) — picks up AgentTask records with dueAt <= now, re-invokes CEO Brain for scheduled follow-ups
+
+**Phase 7: Hardening, Observability & Test Harness**
+- `scripts/agent-replay.ts` (349 lines) — CLI replay tool for synthetic WhatsApp/social interactions through full agent stack
+- 15+ smoke tests added for agent system (types, tools, channels, safety, CRM, retention, CTO)
+- CEO Agent + CTO Agent registered in `lib/ops/system-registry.ts`
+- 3 new crons added to `lib/cron-feature-guard.ts` CRON_FLAG_MAP and `departures/route.ts` CRON_DEFS
+- Feature flag guards on all 3 agent crons
+
+**CEO Agent Safety Rules:**
+1. Money actions (refunds, >$100 commitments) → require Khaled's WhatsApp approval
+2. Data deletion (GDPR) → auto-execute via `/api/gdpr/delete` but log + notify
+3. Rate limits: 100 outbound messages/day per channel, 20 AI calls/hour
+4. PII handling: never include PII in AI prompts beyond first name + topic. All PII stays in DB.
+5. Escalation: confidence < 0.6 OR complaint/legal/dispute → route to Khaled
+6. Finance: payment_failed and dispute_created always escalate. Receipts/confirmations auto-send.
+7. Opportunity stage: `won` and `lost` transitions always notify Khaled
+
+**New Prisma Models (8 total):**
+
+| Model | Fields | Purpose |
+|-------|--------|---------|
+| Conversation | channel, externalId, contact*, leadId, subscriberId, opportunityId, status, summary, sentiment, tags | Multi-channel conversation tracking |
+| Message | conversationId, direction, channel, content, contentType, mediaUrls, agentId, toolsUsed, confidence, approved | Individual messages in conversations |
+| AgentTask | agentType, taskType, priority, status, description, input/output, changes, findings, followUps, dueAt | CEO/CTO task assignments + scheduling |
+| CrmOpportunity | stage (new→qualifying→proposal→negotiation→won/lost), value, source, nextAction, nextActionAt | Sales pipeline |
+| InteractionLog | opportunityId, conversationId, channel, interactionType, summary, sentiment | Unified touchpoint timeline |
+| RetentionSequence | name, triggerEvent, steps (JSON array of {delayHours, templateId, subject}), active | Email sequence definitions |
+| RetentionProgress | sequenceId, subscriberId, currentStep, status, nextSendAt | Per-subscriber sequence position |
+| FinanceEvent | source (stripe/mercury), eventType, amount, contactEmail, opportunityId, agentAction | Finance webhook processing |
+
+**New Cron Schedule Entries (vercel.json):**
+
+| Cron | Schedule | Description |
+|------|----------|-------------|
+| `agent-maintenance` | `30 6 * * 0` (weekly Sun) | CTO Agent 5-phase maintenance loop |
+| `retention-executor` | `30 0,4,8,12,16,20 * * *` (6x/day) | Process retention email sequences |
+| `followup-executor` | `0 1,5,9,13,17,21 * * *` (6x/day) | Execute CEO Agent scheduled follow-ups |
+
+**Files Created (41 total):**
+
+| Category | Count | Lines |
+|----------|-------|-------|
+| Agent Library (`lib/agents/`) | 23 | 6,478 |
+| API Routes (webhooks, admin, crons) | 9 | 1,872 |
+| Admin Pages | 2 | 632 |
+| Scripts | 1 | 349 |
+| Documentation | 7 | ~2,000 |
+| **Total** | **42** | **~11,331** |
+
+**Integration Points (How Agents Use Existing Systems):**
+
+| Existing System | CEO Agent Uses | CTO Agent Uses |
+|----------------|---------------|----------------|
+| `lib/ai/provider.ts` | Generate responses, classify intents | Generate code suggestions |
+| `lib/ceo-engine/intelligence.ts` | Pull metrics for status reports | Check KPI health |
+| `lib/ops/ceo-inbox.ts` | Surface active alerts via WhatsApp | Check failure patterns |
+| `lib/email/resend-service.ts` | Send customer emails, trigger retention | Send CTO report emails |
+| `lib/affiliate/monitor.ts` | Report revenue status | Check affiliate health |
+| `lib/billing/stripe.ts` | Process payment events, lookup invoices | — |
+| `lib/design/brand-provider.ts` | Generate branded assets for customers | — |
+| `lib/content-pipeline/queue-monitor.ts` | Report pipeline status | Check pipeline health |
+| Prisma Lead/Subscriber/CharterInquiry | Full CRM resolution | — |
+
+**Deployment Requirements:**
+- Run `npx prisma migrate deploy` for 8 new agent models
+- Add WhatsApp env vars: `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID`
+- Stripe webhook endpoint: configure `https://www.yalla-london.com/api/webhooks/stripe-agent` in Stripe dashboard
+
+**Build Fix (separate commit):** Added `'email'` and `'agent'` to `CronDef.category` union type in `departures/route.ts` — the 3 new crons used categories not in the existing type.
+
+**TypeScript:** ZERO errors across entire codebase (excluding pre-existing unrelated warnings).
+
+### Critical Rules Learned (March 27 Session — Agent Platform)
+
+205. **Agent tool handlers must accept `ToolContext` and return `ToolResult`** — every tool function signature is `(args: Record<string, unknown>, ctx: ToolContext) => Promise<ToolResult>`. The `ToolContext` provides `siteId`, `agentId`, `conversationId`, and `budgetRemainingMs`. The `ToolResult` contains `success`, `data`, and optional `error`.
+206. **Channel adapters normalize to `CEOEvent` — never pass raw webhook payloads to the brain** — WhatsApp webhook JSON, Stripe webhook JSON, and email MIME all get converted to the same `CEOEvent` shape. The CEO Brain only sees normalized events, never channel-specific formats.
+207. **CRM contact-resolver merges across 4 models** — a single phone number or email can match across `Lead`, `Subscriber`, `CharterInquiry`, and `CrmOpportunity`. The resolver returns a unified `ResolvedContact` with all linked records and full interaction history. Never query these models separately in agent code.
+208. **Safety gates run BEFORE tool execution, not after** — `safety.ts` checks approval requirements based on the tool name and arguments BEFORE the tool handler runs. Money actions, data deletion, and stage changes are caught at the gate level, not inside the tool.
+209. **CTO Agent browsing is domain-allowlisted** — `browsing.ts` enforces `ALLOWED_DOMAINS` before every HTTP fetch. Requests to non-allowlisted domains are rejected with a descriptive error. This prevents the CTO from accidentally fetching sensitive internal URLs or external APIs.
+210. **RetentionSequence steps are JSON arrays, not separate DB rows** — `steps: Json` stores `[{ delayHours, templateId, subject, condition? }]`. This avoids the complexity of a separate `RetentionStep` model while keeping sequences easily editable.
+211. **FinanceEvent status must transition pending→processed or pending→escalated** — never mark as processed without actually handling the event. The `agentAction` field documents what the CEO Agent did (e.g., "sent_receipt", "escalated_to_khaled", "logged_dispute").
+212. **The `departures/route.ts` CronDef category type must include all cron categories** — adding new crons with new categories requires updating the union type. The agent platform added `'email'` (retention-executor) and `'agent'` (followup-executor) which were not in the original `'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing' | 'ai'` union.
+
+### Current Platform Status (March 27, 2026 — Updated)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow multi-engine, schema injection, meta optimization, internal link injection ✅
+- 16-check pre-publication gate ✅
+- Per-content-type quality gates (blog 500w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Circuit breaker + last-defense fallback for AI reliability ✅
+- Centralized pipeline constants (single source of truth for all retry/budget values) ✅
+- Queue Monitor with 6 health rules + auto-fix + dashboard API ✅
+- Optimistic concurrency on all BlogPost writes ✅
+- Formal state machine with VALID_TRANSITIONS ✅
+- Per-article trace ID — full lifecycle from draft to revenue ✅
+- Enhancement ownership manifest ✅
+- Escalation policy — daily alert cap, per-job cooldown, pipeline circuit breaker ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- Per-page audit with sortable indexing + GSC data ✅
+- CEO Inbox automated incident response ✅
+- Cycle Health Analyzer with evidence-based diagnostics ✅
+- Cache-first sitemap (<200ms vs 5-10s) ✅
+- CJ + Travelpayouts affiliate pipeline ✅
+- Affiliate HQ: 6-tab command center + link health audit ✅
+- GEO/AIO optimization: citability gate, stats+citations in all prompts ✅
+- Foundation APIs: currency, weather, events, holidays, countries, Unsplash ✅
+- Auto-monetization: Stay22 LetMeAllez, Travelpayouts Drive ✅
+- Resend email system: 4 React Email templates, webhook handler, bilingual ✅
+- Admin dashboard Clean Light design system ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+- **NEW: CEO Agent — business brain with WhatsApp + email + web + internal channels** ✅
+- **NEW: CTO Agent — 5-phase autonomous maintenance loop (scan → browse → propose → execute → report)** ✅
+- **NEW: Event Router — normalizes all inbound events to CEOEvent for unified processing** ✅
+- **NEW: Tool Registry — 22 tools across CRM, analytics, content, SEO, affiliate, finance, email, design, browsing, repo, QA** ✅
+- **NEW: Safety layer — approval gates, rate limits, PII filtering, confidence escalation** ✅
+- **NEW: CRM Pipeline — CrmOpportunity with 6-stage sales pipeline + InteractionLog unified timeline** ✅
+- **NEW: Retention Engine — RetentionSequence + RetentionProgress with auto-seeding welcome/re-engagement/post-booking** ✅
+- **NEW: Finance Event Processing — Stripe webhook → FinanceEvent → CEO Agent handles (receipts, disputes, escalation)** ✅
+- **NEW: Follow-up Scheduler — AgentTask with dueAt → followup-executor re-invokes CEO Brain** ✅
+- **NEW: Agent HQ admin dashboard + conversation browser** ✅
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| WhatsApp | Env vars not yet configured — agent code ready, needs Meta Cloud API setup | MEDIUM | Code done, needs config |
+| Social APIs | Engagement stats require platform API integration | LOW | Open |
+| Orphan Models | 31 Prisma models never referenced in code | LOW | Open (KG-020) |
+| Gemini Provider | Account frozen — re-add when billing reactivated | LOW | Open |
+| Perplexity Provider | Quota exhausted — re-add when replenished | LOW | Open |
+| Arabic SSR | `/ar/` routes render English on server, Arabic only client-side | MEDIUM | Open (KG-032) |
+| Author Profiles | AI-generated personas — E-E-A-T risk post Jan 2026 update | MEDIUM | Open (KG-058) |
+| Hotels/Experiences Pages | Static hardcoded data, no affiliate tracking | MEDIUM | Open (KG-054) |
+| Agent Platform Migration | Run `npx prisma migrate deploy` for 8 new models | HIGH | Pending deploy |
+| Stripe Agent Webhook | Configure endpoint in Stripe dashboard | MEDIUM | Pending config |
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

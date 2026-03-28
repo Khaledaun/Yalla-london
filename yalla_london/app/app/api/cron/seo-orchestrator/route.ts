@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
         const siteUrl = getSiteDomain(siteId);
         const report = await runOrchestrator(prisma, siteId, siteUrl || getSiteDomain(siteId), {
           includeResearch: mode === "weekly",
-          maxDurationMs: Math.min(45000, 53000 - (Date.now() - cronStart)),
+          maxDurationMs: Math.min(45000, 280_000 - (Date.now() - cronStart)),
         });
 
         results[siteId] = {

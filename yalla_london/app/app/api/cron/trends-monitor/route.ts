@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { googleTrends } from "@/lib/integrations/google-trends";
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
   }
 
   const cronStart = Date.now();
-  const BUDGET_MS = 53_000; // 53s budget within 60s maxDuration
+  const BUDGET_MS = 280_000; // 280s budget within 300s maxDuration
 
   try {
     const results = await runTrendsMonitoring(undefined, "GB", cronStart, BUDGET_MS);
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { keywords, geo } = body as { keywords?: string[]; geo?: string };
 
-    const results = await runTrendsMonitoring(keywords, geo, Date.now(), 53_000);
+    const results = await runTrendsMonitoring(keywords, geo, Date.now(), 280_000);
     return NextResponse.json(results);
   } catch (error) {
     console.error("Manual trends monitoring failed:", error);
@@ -163,7 +163,7 @@ async function runTrendsMonitoring(
   summary: TrendsSummary;
 }> {
   const start = cronStart || Date.now();
-  const budget = budgetMs || 53_000;
+  const budget = budgetMs || 280_000;
   const hasBudget = (minMs = 5_000) => (Date.now() - start) < (budget - minMs);
 
   const timestamp = new Date().toISOString();
@@ -286,7 +286,7 @@ async function getKeywordTrends(
   const trends: TrendData[] = [];
   // Budget: leave 18s for trending-search + Grok social + opportunities + DB save + response
   // Previous 45s was too tight — trending search + Grok + DB save easily consumed 15s+
-  const deadlineMs = Date.now() + 35_000; // 35s keyword budget within 53s total budget
+  const deadlineMs = Date.now() + 120_000; // 120s keyword budget within 280s total budget
 
   for (const keyword of keywords) {
     // Stop processing if we're running out of time

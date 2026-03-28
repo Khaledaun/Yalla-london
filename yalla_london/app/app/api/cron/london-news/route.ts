@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDefaultSiteId, isYachtSite } from "@/config/sites";
@@ -652,7 +652,7 @@ export async function GET(request: NextRequest) {
   }
 
   const startTime = Date.now();
-  const BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel Pro 60s limit
+  const BUDGET_MS = 280_000; // 280s budget, 20s buffer for Vercel Pro 300s limit
   const siteId = request.nextUrl.searchParams.get("site_id") || getDefaultSiteId();
 
   // Skip yacht sites — they don't use the news pipeline

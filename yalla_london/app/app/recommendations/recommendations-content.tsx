@@ -14,8 +14,8 @@ const recommendations = [
     name_en: 'The Dorchester',
     name_ar: 'دورتشستر',
     type: 'hotel',
-    description_en: 'Overlooking Hyde Park since 1931, The Dorchester is London\'s crown jewel. Home to Alain Ducasse\'s three-Michelin-starred restaurant, a world-class spa, and the legendary Promenade afternoon tea.',
-    description_ar: 'يطل على هايد بارك منذ 1931، دورتشستر هو جوهرة تاج لندن. يضم مطعم آلان دوكاس الحائز على ثلاث نجوم ميشلان وسبا عالمي وشاي بعد الظهر الأسطوري.',
+    description_en: 'Overlooking Hyde Park since 1931, The Dorchester is London\'s crown jewel of hospitality. Home to Alain Ducasse\'s three-Michelin-starred restaurant serving exquisite French haute cuisine, a world-class spa with nine treatment rooms, and the legendary Promenade afternoon tea beneath marble columns. The Penthouse Suite offers a private terrace overlooking the park, while the rooftop bar provides panoramic views across Mayfair. The hotel\'s legendary concierge team arranges everything from private shopping appointments at Harrods to helicopter transfers.',
+    description_ar: 'يطل على هايد بارك منذ 1931، دورتشستر هو جوهرة تاج لندن في الضيافة. يضم مطعم آلان دوكاس الحائز على ثلاث نجوم ميشلان الذي يقدم أرقى المأكولات الفرنسية، وسبا عالمي بتسع غرف علاج، وشاي بعد الظهر الأسطوري تحت أعمدة الرخام في البروميناد. جناح البنتهاوس يوفر شرفة خاصة تطل على الحديقة، بينما بار السطح يقدم إطلالات بانورامية على مايفير. فريق الكونسيرج الأسطوري يرتب كل شيء من مواعيد تسوق خاصة في هارودز إلى نقل بطائرة هليكوبتر.',
     address_en: 'Park Lane, Mayfair, London W1K 1QA',
     address_ar: 'بارك لين، مايفير، لندن W1K 1QA',
     rating: 4.9,
@@ -24,15 +24,18 @@ const recommendations = [
     features_en: ['Michelin-Starred Dining', 'Hyde Park Views', 'World-Class Spa', 'Butler Service'],
     features_ar: ['مطعم بنجمة ميشلان', 'إطلالة هايد بارك', 'سبا عالمي', 'خدمة الخادم الشخصي'],
     phone: '+44 20 7629 8888',
-    website: 'https://www.dorchestercollection.com/london/the-dorchester'
+    website: 'https://www.dorchestercollection.com/london/the-dorchester',
+    insiderTip: 'Request a Park Suite on the 7th floor for the best unobstructed Hyde Park views. The Promenade afternoon tea is less crowded on weekday mornings — book the 11am slot for a quieter experience.',
+    gccFeatures: ['Arabic-speaking concierge available 24/7', 'Halal room service menu on request', 'Prayer mats provided in-room', 'Family suites with interconnecting doors', 'Walking distance to Edgware Road halal restaurants'],
+    bestFor: ['Gulf families seeking five-star luxury', 'Couples celebrating special occasions', 'Business travellers in Mayfair'],
   },
   {
     id: '2',
     name_en: 'Sketch — The Lecture Room & Library',
     name_ar: 'سكيتش — قاعة المحاضرات والمكتبة',
     type: 'restaurant',
-    description_en: 'A Michelin-starred culinary journey inside a surreal Mayfair townhouse. The Lecture Room serves dazzling French cuisine, while the Gallery (with its famous pink pods) offers an Instagram-famous afternoon tea.',
-    description_ar: 'رحلة طهوية حائزة على نجمة ميشلان داخل منزل مايفير السريالي. تقدم قاعة المحاضرات المأكولات الفرنسية المبهرة بينما يقدم المعرض شاي بعد الظهر الشهير.',
+    description_en: 'A Michelin-starred culinary journey inside a surreal Mayfair townhouse designed by artist Martin Creed. The Lecture Room & Library on the first floor serves dazzling modern French cuisine with foie gras, Wagyu beef, and intricate tasting menus that change with the seasons. Downstairs, the Gallery — David Shrigley\'s candy-pink dining room with 239 original artworks on the walls — has become London\'s most photographed restaurant interior. The egg-shaped pods in the bathroom are an experience unto themselves. Sketch also houses the Parlour for patisserie, the Glade for afternoon tea, and the East Bar for late-night cocktails — each room a completely different artistic universe.',
+    description_ar: 'رحلة طهوية حائزة على نجمة ميشلان داخل منزل مايفير السريالي الذي صممه الفنان مارتن كريد. تقدم قاعة المحاضرات والمكتبة في الطابق الأول مأكولات فرنسية حديثة مبهرة تشمل فوا غرا ولحم واغيو وقوائم تذوق معقدة تتغير مع المواسم. في الأسفل، المعرض — غرفة الطعام الوردية لديفيد شريغلي بـ239 عملًا فنيًا أصليًا — أصبح أكثر مطاعم لندن تصويرًا. كبسولات البيض في الحمام تجربة بحد ذاتها. يضم سكيتش أيضًا البارلور للحلويات والغليد لشاي بعد الظهر وبار الشرق للكوكتيلات المسائية — كل غرفة عالم فني مختلف تمامًا.',
     address_en: '9 Conduit Street, Mayfair, London W1S 2XG',
     address_ar: '9 شارع كوندويت، مايفير، لندن W1S 2XG',
     rating: 4.7,
@@ -41,15 +44,18 @@ const recommendations = [
     features_en: ['Michelin Star', 'Art Installation', 'Afternoon Tea', 'Cocktail Bar'],
     features_ar: ['نجمة ميشلان', 'معرض فني', 'شاي بعد الظهر', 'بار كوكتيل'],
     phone: '+44 20 7659 4500',
-    website: 'https://sketch.london'
+    website: 'https://sketch.london',
+    insiderTip: 'Book the Gallery for lunch rather than dinner — same iconic pink room at roughly half the price. For the Lecture Room, request the corner table by the window for the most intimate setting. The Parlour downstairs does walk-ins and serves the best pastries in Mayfair.',
+    gccFeatures: ['Seafood and vegetarian tasting menus available (no pork)', 'Non-alcoholic cocktail programme in all bars', 'Private dining rooms for family groups up to 12', 'Arabic-speaking staff available on request', 'Walking distance from Bond Street luxury shopping'],
+    bestFor: ['Couples seeking a unique dining experience', 'Instagram-savvy travellers', 'Fashion-conscious diners in Mayfair'],
   },
   {
     id: '3',
     name_en: 'Harrods',
     name_ar: 'هارودز',
     type: 'attraction',
-    description_en: 'The world\'s most famous luxury department store in Knightsbridge. Spanning 1 million sq ft across 330 departments, Harrods offers everything from couture fashion to its legendary Food Halls.',
-    description_ar: 'أشهر متجر فاخر في العالم في نايتسبريدج. يمتد على مليون قدم مربع عبر 330 قسمًا، يقدم هارودز كل شيء من الأزياء الراقية إلى قاعات الطعام الأسطورية.',
+    description_en: 'The world\'s most famous luxury department store in Knightsbridge, spanning over one million square feet across 330 departments on seven floors. The Food Halls are a destination unto themselves — hand-decorated cakes, aged Wagyu, artisanal cheeses, and a dedicated halal butcher counter that sources high-quality British lamb and chicken. The Shoe Heaven on the fifth floor is the largest shoe salon in Europe, and the Fine Jewellery Room showcases Cartier, Bulgari, and Van Cleef & Arpels under a gilded ceiling. The by-appointment Personal Shopping Suite on the fifth floor provides private stylists, refreshments, and direct access to pieces not on the shop floor.',
+    description_ar: 'أشهر متجر فاخر في العالم في نايتسبريدج، يمتد على أكثر من مليون قدم مربع عبر 330 قسمًا في سبعة طوابق. قاعات الطعام وجهة بحد ذاتها — كعك مزخرف يدويًا ولحم واغيو معتق وأجبان حرفية وكاونتر جزار حلال مخصص يوفر لحم ضأن ودجاج بريطاني عالي الجودة. جنة الأحذية في الطابق الخامس هي أكبر صالون أحذية في أوروبا، وغرفة المجوهرات الفاخرة تعرض كارتييه وبولغاري وفان كليف أند آربلز تحت سقف مذهب. جناح التسوق الشخصي في الطابق الخامس بموعد مسبق يوفر مصممين خاصين ومرطبات ووصولًا مباشرًا لقطع غير معروضة.',
     address_en: '87-135 Brompton Road, Knightsbridge, London SW1X 7XL',
     address_ar: '87-135 طريق برومبتون، نايتسبريدج، لندن SW1X 7XL',
     rating: 4.6,
@@ -58,15 +64,18 @@ const recommendations = [
     features_en: ['Personal Shopping', 'Food Halls', 'Luxury Brands', 'Beauty Concierge'],
     features_ar: ['تسوق شخصي', 'قاعات الطعام', 'علامات فاخرة', 'كونسيرج الجمال'],
     phone: '+44 20 7730 1234',
-    website: 'https://www.harrods.com'
+    website: 'https://www.harrods.com',
+    insiderTip: 'Visit on a weekday morning before 11am for the calmest experience — weekends and school holidays are extremely crowded. The Harrods Rewards card gives you 10% back as points and is free to sign up. Ask at the Ground Floor concierge for the Tax Refund desk location to reclaim 16.5% VAT on purchases over £30.',
+    gccFeatures: ['Dedicated halal butcher in the Food Halls', 'Arabic-speaking personal shoppers available', 'Prayer room on the lower ground floor', 'Tax-free shopping desk for GCC passport holders', 'Abaya-friendly fitting rooms in womenswear departments'],
+    bestFor: ['Luxury shoppers and fashion lovers', 'Families looking for a full-day destination', 'Foodies exploring the Food Halls'],
   },
   {
     id: '4',
     name_en: "Claridge's",
     name_ar: 'كلاريدجز',
     type: 'hotel',
-    description_en: 'Art Deco elegance meets modern luxury in this Mayfair institution. Favoured by royalty since the 1850s, Claridge\'s features Gordon Ramsay\'s restaurant, the iconic foyer, and immaculate butler service.',
-    description_ar: 'أناقة آرت ديكو تلتقي بالفخامة الحديثة في هذه المؤسسة العريقة في مايفير. مفضلة لدى الملوك منذ 1850، تضم مطعم غوردون رامزي والبهو الأيقوني.',
+    description_en: 'Art Deco elegance meets modern luxury in this Mayfair institution, favoured by royalty and heads of state since the 1850s. The lobby\'s black-and-white chequered marble floor and Dale Chihuly chandelier set the tone for an experience that is both theatrical and deeply refined. Gordon Ramsay at Claridge\'s delivers impeccable modern British cuisine, while the Foyer & Reading Room hosts one of London\'s most sought-after afternoon teas — finger sandwiches, freshly baked scones, and a rolling trolley of patisserie. The suites preserve original 1930s Deco details including chevron mirrors and lacquered panelling, yet come with every modern comfort: Bose sound systems, marble rain showers, and a dedicated butler who unpacks your luggage and presses your clothes upon arrival.',
+    description_ar: 'أناقة آرت ديكو تلتقي بالفخامة الحديثة في هذه المؤسسة العريقة في مايفير، المفضلة لدى الملوك ورؤساء الدول منذ 1850. أرضية الرخام بالأبيض والأسود في اللوبي وثريا ديل تشيهولي تحدد أجواء تجربة مسرحية وراقية في آن واحد. مطعم غوردون رامزي في كلاريدجز يقدم مأكولات بريطانية حديثة لا تشوبها شائبة، بينما البهو وغرفة القراءة يستضيفان أحد أكثر حفلات الشاي طلبًا في لندن — سندويشات صغيرة وسكونز طازجة وعربة حلويات متنقلة. الأجنحة تحافظ على تفاصيل ديكو الأصلية من الثلاثينيات مع مرايا متعرجة وألواح مطلية، لكنها مجهزة بكل وسائل الراحة الحديثة: أنظمة صوت بوز ودش رخامي وخادم شخصي يفرغ حقائبك ويكوي ملابسك عند الوصول.',
     address_en: 'Brook Street, Mayfair, London W1K 4HR',
     address_ar: 'شارع بروك، مايفير، لندن W1K 4HR',
     rating: 4.9,
@@ -75,15 +84,18 @@ const recommendations = [
     features_en: ['Art Deco Design', 'Gordon Ramsay', 'Afternoon Tea', 'Butler Service'],
     features_ar: ['تصميم آرت ديكو', 'غوردون رامزي', 'شاي بعد الظهر', 'خادم شخصي'],
     phone: '+44 20 7629 8860',
-    website: 'https://www.claridges.co.uk'
+    website: 'https://www.claridges.co.uk',
+    insiderTip: 'The afternoon tea books out weeks in advance — reserve the moment you confirm your trip. Ask for a table in the Foyer rather than the Reading Room for the full Deco ambience. The Davies & Brook restaurant by Daniel Humm is also superb and often easier to book than Gordon Ramsay\'s.',
+    gccFeatures: ['Halal breakfast options available on request', 'Arabic-speaking front desk and concierge', 'Family interconnecting suites on upper floors', 'Steps from Bond Street and Selfridges shopping', 'Discreet VIP entrance on Davies Street for privacy'],
+    bestFor: ['Royalty-level travellers who value heritage', 'Couples on a luxury London getaway', 'Fashion enthusiasts near Bond Street'],
   },
   {
     id: '5',
     name_en: 'Dinner by Heston Blumenthal',
     name_ar: 'دينر باي هيستون بلومنثال',
     type: 'restaurant',
-    description_en: 'Two-Michelin-starred restaurant at the Mandarin Oriental, Hyde Park. Chef Heston Blumenthal reimagines historic British recipes with modern techniques — the Meat Fruit starter is legendary.',
-    description_ar: 'مطعم حائز على نجمتي ميشلان في ماندارين أورينتال، هايد بارك. الشيف هيستون بلومنثال يعيد تخيل الوصفات البريطانية التاريخية بتقنيات حديثة.',
+    description_en: 'A two-Michelin-starred celebration of British culinary history inside the Mandarin Oriental, Hyde Park. Chef Heston Blumenthal has researched recipes dating back to the 14th century and reinterprets them with cutting-edge molecular techniques. The signature Meat Fruit starter — a mandarin-shaped chicken liver parfait encased in a glistening citrus jelly — has become one of London\'s most iconic dishes. The Tipsy Cake, a brioche soaked in spit-roasted pineapple juices, closes every meal perfectly. Floor-to-ceiling windows frame Hyde Park views while an open kitchen lets you watch the brigade at work. The fixed lunch menu at £50 is exceptional value for cooking of this calibre.',
+    description_ar: 'احتفال بنجمتي ميشلان بتاريخ الطهي البريطاني داخل ماندارين أورينتال، هايد بارك. بحث الشيف هيستون بلومنثال في وصفات تعود للقرن الرابع عشر وأعاد تفسيرها بتقنيات جزيئية متطورة. مقبلة فاكهة اللحم المميزة — بارفيه كبد دجاج على شكل يوسفي مغلف بهلام حمضيات لامع — أصبحت من أكثر أطباق لندن شهرة. كعكة تيبسي، بريوش مشبع بعصائر الأناناس المشوي، تختتم كل وجبة بشكل مثالي. نوافذ ممتدة من الأرض للسقف تؤطر مناظر هايد بارك بينما المطبخ المفتوح يتيح لك مشاهدة الفريق وهو يعمل. قائمة الغداء الثابتة بـ50 جنيهًا قيمة استثنائية لطهي بهذا المستوى.',
     address_en: 'Mandarin Oriental, 66 Knightsbridge, London SW1X 7LA',
     address_ar: 'ماندارين أورينتال، 66 نايتسبريدج، لندن SW1X 7LA',
     rating: 4.8,
@@ -92,15 +104,18 @@ const recommendations = [
     features_en: ['Two Michelin Stars', 'Historic Recipes', 'Park Views', 'Tasting Menu'],
     features_ar: ['نجمتا ميشلان', 'وصفات تاريخية', 'إطلالة الحديقة', 'قائمة تذوق'],
     phone: '+44 20 7201 3833',
-    website: 'https://www.dinnerbyheston.co.uk'
+    website: 'https://www.dinnerbyheston.co.uk',
+    insiderTip: 'The set lunch menu is one of London\'s best-kept secrets — two Michelin stars for £50. Book a window table on the park side for the best views. Ask the sommelier about the English wine pairing — the sparkling options rival Champagne and make a great conversation piece.',
+    gccFeatures: ['Extensive seafood and vegetarian dishes (no pork on the main menu)', 'Non-alcoholic pairing menu available on request', 'Located inside Mandarin Oriental with direct hotel access', 'Private dining room seats up to 12 guests', 'Concierge can arrange halal meat alternatives with 48h notice'],
+    bestFor: ['Serious food lovers and culinary adventurers', 'Couples celebrating anniversaries', 'Business dining in a Knightsbridge setting'],
   },
   {
     id: '6',
     name_en: 'The View from The Shard',
     name_ar: 'المنظر من ذا شارد',
     type: 'attraction',
-    description_en: 'Western Europe\'s highest viewing platform at 244 metres. On a clear day, see up to 40 miles across London from the open-air Sky Deck on level 72 of The Shard.',
-    description_ar: 'أعلى منصة مشاهدة في أوروبا الغربية على ارتفاع 244 مترًا. في يوم صافٍ، شاهد حتى 64 كم عبر لندن من سطح السماء المفتوح في الطابق 72.',
+    description_en: 'Western Europe\'s highest viewing platform at 244 metres above street level, occupying floors 68 to 72 of Renzo Piano\'s iconic glass spire. On a clear day the panorama stretches 40 miles in every direction — Tower Bridge, St Paul\'s Cathedral, Wembley Stadium, and the rolling Surrey hills are all visible from the open-air Sky Deck. Digital interactive telescopes overlay historical views and identify landmarks in real time. Level 69 houses a bar serving cocktails and mocktails alongside sharing platters. The experience takes roughly 90 minutes, and the golden-hour sunset slot is the most spectacular — you watch the city transition from daylight to a glittering carpet of lights below.',
+    description_ar: 'أعلى منصة مشاهدة في أوروبا الغربية على ارتفاع 244 مترًا فوق مستوى الشارع، تحتل الطوابق 68 إلى 72 من برج رينزو بيانو الزجاجي الأيقوني. في يوم صاف تمتد البانوراما 64 كم في كل اتجاه — جسر البرج وكاتدرائية سانت بول وملعب ويمبلي وتلال سَري الخضراء كلها مرئية من سطح السماء المفتوح. تلسكوبات تفاعلية رقمية تعرض مناظر تاريخية وتحدد المعالم في الوقت الحقيقي. الطابق 69 يضم بارًا يقدم كوكتيلات وعصائر غير كحولية مع أطباق للمشاركة. التجربة تستغرق نحو 90 دقيقة، وموعد غروب الشمس الذهبي هو الأكثر روعة — تشاهد المدينة تتحول من النهار إلى سجادة متلألئة من الأضواء.',
     address_en: '32 London Bridge Street, London SE1 9SG',
     address_ar: '32 شارع جسر لندن، لندن SE1 9SG',
     rating: 4.5,
@@ -109,15 +124,18 @@ const recommendations = [
     features_en: ['360° Views', 'Open-Air Sky Deck', 'Champagne Bar', 'Interactive Telescopes'],
     features_ar: ['إطلالات 360°', 'سطح سماء مفتوح', 'بار شامبانيا', 'تلسكوبات تفاعلية'],
     phone: '+44 844 499 7111',
-    website: 'https://www.the-shard.com/viewing-gallery'
+    website: 'https://www.the-shard.com/viewing-gallery',
+    insiderTip: 'Book the sunset time slot — you pay the same price but see London in daylight AND lit up at night. Buy tickets online at least a week ahead for up to 20% off walk-up prices. If staying at Shangri-La The Shard, hotel guests receive complimentary access.',
+    gccFeatures: ['Non-alcoholic beverages and mocktails at the bar', 'Family-friendly with no age restrictions', 'Lift access to all viewing levels (fully accessible)', 'Quieter early-morning slots ideal for families with young children', 'Borough Market halal street food options a 2-minute walk away'],
+    bestFor: ['Families with children who love heights', 'First-time London visitors for orientation', 'Photography enthusiasts and sunset chasers'],
   },
   {
     id: '7',
     name_en: 'The Connaught',
     name_ar: 'كونوت',
     type: 'hotel',
-    description_en: 'Understated perfection in Mayfair\'s quietest corner. Features the Connaught Bar (consistently ranked World\'s Best), Hélène Darroze\'s two-Michelin-starred restaurant, and an exclusive Aman Spa.',
-    description_ar: 'كمال هادئ في أهدأ زاوية من مايفير. يضم بار كونوت (المصنف باستمرار كأفضل بار في العالم) ومطعم هيلين داروز بنجمتي ميشلان وسبا آمان الحصري.',
+    description_en: 'Understated perfection on a quiet Mayfair square, where centuries of English hospitality tradition meet contemporary design by India Mahdavi. The Connaught Bar — wrapped in platinum-silver leaf walls and Cuban mahogany — has been named World\'s Best Bar multiple years running and serves cocktails sculpted by master mixologist Agostino Perrone. Hélène Darroze\'s two-Michelin-starred restaurant brings the bold flavours of southwest France to Mayfair with seasonal tasting menus that change weekly. The Aman Spa, the only one inside a hotel outside Asia, offers holistic treatments in a serene subterranean space. Rooms blend Georgian architecture with mid-century furniture, Connolly leather headboards, and rain showers lined in Italian marble.',
+    description_ar: 'كمال هادئ في ميدان مايفير الهادئ، حيث تلتقي قرون من تقاليد الضيافة الإنجليزية بالتصميم المعاصر لإنديا مهدوي. بار كونوت — المغلف بجدران من أوراق البلاتين الفضي وخشب الماهوغاني الكوبي — سُمي أفضل بار في العالم لسنوات متتالية ويقدم كوكتيلات ينحتها خبير المشروبات أغوستينو بيروني. مطعم هيلين داروز بنجمتي ميشلان يجلب نكهات جنوب غرب فرنسا الجريئة إلى مايفير مع قوائم تذوق موسمية تتغير أسبوعيًا. سبا آمان، الوحيد داخل فندق خارج آسيا، يقدم علاجات شاملة في مساحة هادئة تحت الأرض. الغرف تمزج العمارة الجورجية مع أثاث منتصف القرن ورؤوس أسِرَّة من جلد كونولي ودش مطري بالرخام الإيطالي.',
     address_en: 'Carlos Place, Mayfair, London W1K 2AL',
     address_ar: 'كارلوس بلايس، مايفير، لندن W1K 2AL',
     rating: 4.9,
@@ -126,15 +144,18 @@ const recommendations = [
     features_en: ['World\'s Best Bar', 'Aman Spa', 'Michelin Dining', 'Butler Service'],
     features_ar: ['أفضل بار في العالم', 'سبا آمان', 'مطعم ميشلان', 'خادم شخصي'],
     phone: '+44 20 7499 7070',
-    website: 'https://www.the-connaught.co.uk'
+    website: 'https://www.the-connaught.co.uk',
+    insiderTip: 'The Connaught Bar takes reservations only 2 weeks in advance — set a reminder. For a more relaxed drink, the Coburg Bar next door is equally elegant and easier to walk into. Request a Mount Street-facing room for the loveliest neighbourhood views in Mayfair.',
+    gccFeatures: ['Aman Spa single-sex treatment sessions on request', 'Halal dining options arranged through concierge with advance notice', 'Extremely private and discreet — no paparazzi culture', 'Butler service in all suites unpacks and presses garments', 'Two minutes walk from Mount Street luxury boutiques (Balenciaga, Christian Louboutin)'],
+    bestFor: ['Discerning travellers who prefer quiet luxury over flash', 'Spa lovers seeking the Aman experience', 'Repeat London visitors who have outgrown the big-name hotels'],
   },
   {
     id: '8',
     name_en: 'NOBU London',
     name_ar: 'نوبو لندن',
     type: 'restaurant',
-    description_en: 'The original London outpost of Nobu Matsuhisa\'s iconic Japanese-Peruvian restaurant in the Metropolitan Hotel. Famous for Black Cod Miso, yellowtail sashimi, and a buzzy Mayfair atmosphere.',
-    description_ar: 'الفرع الأصلي في لندن لمطعم نوبو ماتسوهيسا الأيقوني الياباني-البيروفي في فندق متروبوليتان. مشهور بسمك القد الأسود بالميسو وساشيمي الهمور.',
+    description_en: 'The original London outpost of Nobu Matsuhisa\'s globally celebrated Japanese-Peruvian fusion concept, nestled inside the Metropolitan Hotel on Old Park Lane overlooking Hyde Park Corner. The Black Cod with Miso — sweet, buttery, and caramelised to perfection — remains one of the most ordered dishes in London fine dining over two decades after it was first served here. The yellowtail sashimi with jalapeño, rock shrimp tempura, and the Wagyu tataki are equally essential. The Omakase experience lets the chef curate seven to nine courses that showcase the freshest fish from Tsukiji and Peru. The dining room hums with a glamorous Mayfair energy — this is where celebrities, fashion editors, and Gulf royalty dine side by side. Late-night the lounge transforms into a cocktail destination with sake-based creations.',
+    description_ar: 'الفرع الأصلي في لندن لمفهوم نوبو ماتسوهيسا الياباني-البيروفي المشهور عالميًا، داخل فندق متروبوليتان على أولد بارك لين المطل على هايد بارك كورنر. سمك القد الأسود بالميسو — حلو وزبدي ومكرمل بإتقان — يظل أحد أكثر الأطباق طلبًا في المطاعم الراقية بلندن منذ أكثر من عقدين. ساشيمي الهمور مع الهالابينو وتمبورا الروبيان الصخري وتاتاكي الواغيو بنفس الأهمية. تجربة الأوماكاسي تتيح للشيف تصميم سبع إلى تسع أطباق تعرض أطزج الأسماك من تسوكيجي وبيرو. غرفة الطعام تنبض بطاقة مايفير الساحرة — هنا يتناول المشاهير ومحررو الأزياء والملوك الخليجيون الطعام جنبًا إلى جنب.',
     address_en: 'Metropolitan Hotel, 19 Old Park Lane, London W1K 1LB',
     address_ar: 'فندق متروبوليتان، 19 أولد بارك لين، لندن W1K 1LB',
     rating: 4.6,
@@ -143,15 +164,18 @@ const recommendations = [
     features_en: ['Japanese-Peruvian Cuisine', 'Celebrity Scene', 'Omakase Menu', 'Cocktail Bar'],
     features_ar: ['مطبخ ياباني-بيروفي', 'أجواء المشاهير', 'قائمة أوماكاسي', 'بار كوكتيل'],
     phone: '+44 20 7447 4747',
-    website: 'https://www.noburestaurants.com/london'
+    website: 'https://www.noburestaurants.com/london',
+    insiderTip: 'The Omakase at the bar counter is the best seat in the house — you watch the chefs work and often receive bonus dishes. Friday and Saturday evenings book out two weeks ahead; Thursday is the sweet spot for atmosphere without the wait. Skip dessert and walk to Sketch for pastries instead.',
+    gccFeatures: ['Entirely seafood-focused menu — naturally halal-friendly', 'Non-alcoholic sake and mocktail programme', 'Private tatami-style dining room for up to 8 guests', 'Popular with Gulf royalty and GCC business community', 'Valet parking available through the Metropolitan Hotel'],
+    bestFor: ['Sushi and seafood aficionados', 'Social diners who enjoy a buzzy atmosphere', 'Business entertaining in a see-and-be-seen setting'],
   },
   {
     id: '9',
     name_en: 'Kensington Palace',
     name_ar: 'قصر كنسينغتون',
     type: 'attraction',
-    description_en: 'The official London residence of the Prince and Princess of Wales, set within the beautiful Kensington Gardens. Explore the King\'s and Queen\'s State Apartments and the stunning Sunken Garden.',
-    description_ar: 'المقر الرسمي في لندن لأمير وأميرة ويلز، داخل حدائق كنسينغتون الجميلة. استكشف شقق الملك والملكة الرسمية والحديقة الغارقة المذهلة.',
+    description_en: 'The official London residence of the Prince and Princess of Wales, set within the tree-lined avenues of Kensington Gardens. The King\'s State Apartments showcase Georgian splendour with ceiling murals by William Kent, while the Queen\'s Apartments trace the life of Queen Victoria from her childhood bedroom where she learned she would become queen. Rotating fashion exhibitions — including pieces from Princess Diana\'s personal wardrobe — draw visitors from around the world. Outside, the Sunken Garden was redesigned as a memorial to Princess Diana with over 12,000 flowers surrounding a tranquil reflecting pool. The Orangery and adjacent Pavilion café serve afternoon tea with views across the palace\'s formal gardens. A walk through Kensington Gardens to the Round Pond and the Peter Pan statue completes the experience.',
+    description_ar: 'المقر الرسمي في لندن لأمير وأميرة ويلز، داخل أجواء حدائق كنسينغتون المظللة بالأشجار. شقق الملك الرسمية تعرض روعة العمارة الجورجية مع لوحات سقف لوليام كينت، بينما شقق الملكة تروي حياة الملكة فيكتوريا من غرفة نومها في الطفولة حيث علمت أنها ستصبح ملكة. معارض أزياء متنقلة — بما فيها قطع من خزانة الأميرة ديانا الشخصية — تستقطب الزوار من حول العالم. في الخارج، أُعيد تصميم الحديقة الغارقة كنصب تذكاري للأميرة ديانا بأكثر من 12,000 زهرة تحيط ببركة عاكسة هادئة. الأورانجري ومقهى الجناح المجاور يقدمان شاي بعد الظهر مع إطلالات على حدائق القصر الرسمية.',
     address_en: 'Kensington Gardens, London W8 4PX',
     address_ar: 'حدائق كنسينغتون، لندن W8 4PX',
     rating: 4.5,
@@ -160,15 +184,18 @@ const recommendations = [
     features_en: ['Royal Residence', 'State Apartments', 'Fashion Exhibitions', 'Sunken Garden'],
     features_ar: ['مقر ملكي', 'شقق رسمية', 'معارض أزياء', 'الحديقة الغارقة'],
     phone: '+44 33 3320 6000',
-    website: 'https://www.hrp.org.uk/kensington-palace'
+    website: 'https://www.hrp.org.uk/kensington-palace',
+    insiderTip: 'Buy tickets online in advance to skip the queue — the walk-up line stretches 30+ minutes on summer weekends. Visit the Sunken Garden first thing in the morning when it is empty and the light is best for photos. Combine with a stroll through Kensington Gardens to the Diana Memorial Playground — free and brilliant for children.',
+    gccFeatures: ['Modest-dress-friendly — no dress code restrictions', 'Flat accessible paths throughout the gardens for pushchairs and wheelchairs', 'Halal cafés and restaurants on nearby Kensington High Street', 'Under-5s enter free; family tickets available', 'Adjacent to Kensington luxury shopping (Whole Foods, Design Museum)'],
+    bestFor: ['Families with children interested in royalty', 'History and fashion enthusiasts', 'Visitors combining culture with Kensington shopping'],
   },
   {
     id: '10',
     name_en: 'Shangri-La The Shard',
     name_ar: 'شانغريلا ذا شارد',
     type: 'hotel',
-    description_en: 'London\'s highest hotel occupying floors 34-52 of The Shard. Every room offers floor-to-ceiling views across the entire city. The 52nd-floor infinity pool is the highest in Western Europe.',
-    description_ar: 'أعلى فندق في لندن يحتل الطوابق 34-52 من ذا شارد. كل غرفة توفر إطلالات بانورامية على المدينة بأكملها. مسبح الإنفينيتي في الطابق 52 هو الأعلى في أوروبا الغربية.',
+    description_en: 'London\'s highest hotel occupying floors 34-52 of The Shard, with every room offering floor-to-ceiling views across the entire city skyline. The 52nd-floor infinity pool — the highest in Western Europe — is a glass-walled marvel where you swim above the clouds at dawn. TĪNG restaurant on the 35th floor serves refined Asian-British fusion with a Cantonese roast duck that rivals anything in Hong Kong, plus a weekend dim sum brunch with live piano. GŎNG bar on the 52nd floor mixes cocktails beside vertiginous views of Tower Bridge, St Paul\'s, and the Thames curving east toward Canary Wharf. The hotel\'s CHI Spa draws on traditional Chinese medicine, and the 24-hour gym sits at a height most cities reserve for observation decks.',
+    description_ar: 'أعلى فندق في لندن يحتل الطوابق 34-52 من ذا شارد، حيث توفر كل غرفة إطلالات بانورامية من الأرض للسقف على أفق المدينة بالكامل. مسبح الإنفينيتي في الطابق 52 — الأعلى في أوروبا الغربية — تحفة زجاجية تسبح فيها فوق الغيوم عند الفجر. مطعم تينغ في الطابق 35 يقدم مأكولات آسيوية-بريطانية راقية مع بط كانتوني مشوي ينافس أفضل ما في هونغ كونغ، بالإضافة إلى برانش ديم سم في عطلة نهاية الأسبوع مع بيانو حي. بار غونغ في الطابق 52 يقدم كوكتيلات بجانب مناظر مذهلة لجسر البرج وكاتدرائية سانت بول ونهر التيمز المنحني شرقًا نحو كناري وارف. سبا تشي يستند إلى الطب الصيني التقليدي، والجيم يعمل على مدار الساعة على ارتفاع تخصصه معظم المدن لمنصات المراقبة.',
     address_en: '31 St Thomas Street, London SE1 9QU',
     address_ar: '31 شارع سانت توماس، لندن SE1 9QU',
     rating: 4.7,
@@ -177,7 +204,10 @@ const recommendations = [
     features_en: ['Infinity Pool', 'Panoramic Views', 'TING Restaurant', 'Sky Bar'],
     features_ar: ['مسبح إنفينيتي', 'إطلالات بانورامية', 'مطعم TING', 'بار السماء'],
     phone: '+44 20 7234 8000',
-    website: 'https://www.shangri-la.com/london/shangrila'
+    website: 'https://www.shangri-la.com/london/shangrila',
+    insiderTip: 'Book a Shard Premier City View room on floors 40-45 for the best Tower Bridge framing — higher floors look down too steeply. The infinity pool is quietest between 6-8am, and guests get complimentary access to The View from The Shard observation deck on floors 68-72. Sunday dim sum brunch at TĪNG is a local secret — book for 11:30am.',
+    gccFeatures: ['Halal room service menu available 24/7', 'Female-only pool and spa sessions on request', 'Prayer mats and qibla direction in all rooms', 'Walking distance to Borough Market halal food stalls', 'Family suites with separate living areas and rollaway beds'],
+    bestFor: ['Families wanting a sky-high experience', 'Couples seeking dramatic skyline views', 'Business travellers near London Bridge'],
   },
 ]
 
@@ -435,6 +465,46 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                     </span>
                   ))}
                 </div>
+
+                {/* GCC Features */}
+                {'gccFeatures' in item && (item as Record<string, unknown>).gccFeatures && (
+                  <div className="mb-4 p-3 bg-yl-cream/60 rounded-xl border border-yl-gold/20">
+                    <p className="font-mono text-[10px] tracking-wider uppercase text-yl-gold mb-2 font-semibold">
+                      {locale === 'en' ? '✦ Gulf Traveller Features' : '✦ مميزات للمسافر الخليجي'}
+                    </p>
+                    <ul className="space-y-1">
+                      {((item as Record<string, unknown>).gccFeatures as string[]).map((f) => (
+                        <li key={f} className="text-xs text-yl-gray-500 font-body flex items-start gap-1.5">
+                          <span className="text-yl-gold mt-0.5 shrink-0">•</span>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Best For */}
+                {'bestFor' in item && (item as Record<string, unknown>).bestFor && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {((item as Record<string, unknown>).bestFor as string[]).map((b) => (
+                      <span key={b} className="px-2.5 py-1 bg-yl-red/5 text-yl-red font-mono text-[10px] tracking-wider rounded-full border border-yl-red/15">
+                        {b}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Insider Tip */}
+                {'insiderTip' in item && (item as Record<string, unknown>).insiderTip && (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-yl-gold/5 to-transparent rounded-xl border-l-2 border-yl-gold">
+                    <p className="font-mono text-[10px] tracking-wider uppercase text-yl-gold mb-1 font-semibold">
+                      {locale === 'en' ? 'Insider Tip' : 'نصيحة من الداخل'}
+                    </p>
+                    <p className="text-xs text-yl-gray-500 font-body leading-relaxed">
+                      {(item as Record<string, unknown>).insiderTip as string}
+                    </p>
+                  </div>
+                )}
 
                 {(() => {
                   const affLink = getPageAffiliateLink(item.name_en, item.type as AffiliateCategory, 'yalla-london', 'recommendations');

@@ -15,8 +15,10 @@ const CONTACT_EMAIL = `info@${SITE_DOMAIN}`
 // Hero background — self-hosted or brand gradient (no external stock photos)
 const HERO_BG = '/images/hero/london-city-night.jpg'
 
-export default function AboutYallaLondon() {
-  const { language, isRTL } = useLanguage()
+export default function AboutYallaLondon({ serverLocale }: { serverLocale?: 'en' | 'ar' }) {
+  const { language: clientLanguage, isRTL: clientIsRTL } = useLanguage()
+  const language = serverLocale ?? clientLanguage
+  const isRTL = language === 'ar' ? true : clientIsRTL
   const t = (key: string) => getTranslation(language, key)
 
   const stats = [

@@ -4,6 +4,16 @@
       "command": "npx",
       "args": ["tsx", "yalla_london/app/scripts/mcp-google-server.ts"],
       "env": {}
+    },
+    "cj-affiliate": {
+      "command": "npx",
+      "args": ["tsx", "yalla_london/app/scripts/mcp-cj-server.ts"],
+      "env": {}
+    },
+    "platform-control": {
+      "command": "npx",
+      "args": ["tsx", "yalla_london/app/scripts/mcp-platform-server.ts"],
+      "env": {}
     }
   }
 }

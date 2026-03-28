@@ -156,7 +156,7 @@ async function generateDailyContentAllSites() {
 
   // Track consecutive AI failures to short-circuit when providers are broken
   let consecutiveAIFailures = 0;
-  const MAX_AI_FAILURES_BEFORE_ABORT = 2;
+  const MAX_AI_FAILURES_BEFORE_ABORT = 4; // Raised from 2 — transient API errors are common, don't abort too early
 
   for (const siteId of siteIds) {
     // Skip yacht sites — they use a different content model (Yacht, YachtDestination, CharterItinerary)
@@ -277,7 +277,7 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
   // because EN(22s) + overhead(5s) = 27s elapsed → 26s remaining < 28s → AR skipped.
   // Lowered to 18s. The per-call AI timeout cap will prevent Vercel overrun.
   if (todayAR === 0) {
-    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 18_000)) {
+    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 10_000)) {
       results.push({ language: "ar", status: "skipped", error: "timeout_approaching — insufficient time for AR generation" });
     } else {
       try {

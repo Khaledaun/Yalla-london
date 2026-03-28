@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Affiliate Injection Cron Job
@@ -17,7 +17,10 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 280_000;
+
+// Known advertiser IDs for CJ deep link fallback
+const VRBO_ADVERTISER_ID = "9220803";
 
 // Per-site keyword-to-affiliate mapping
 type AffiliateRule = {
@@ -138,7 +141,7 @@ async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRu
     // ZERO affiliates without these broad rules. Vrbo is relevant for ANY travel
     // content — vacation rentals aren't just for "hotel" articles.
     if (publisherCid) {
-      const vrboDeepLink = buildCjDeepLink(publisherCid, "9220803", "https://www.vrbo.com/", `${siteId}_cj`);
+      const vrboDeepLink = buildCjDeepLink(publisherCid, VRBO_ADVERTISER_ID, "https://www.vrbo.com/", `${siteId}_cj`);
       const vrboEntry = { name: "Vrbo", url: vrboDeepLink, param: "", category: "hotel" };
 
       // Only add categories that don't already have CJ rules

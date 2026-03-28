@@ -148,8 +148,8 @@ export async function sendWelcomeEmail(
   return sendResendEmail({
     to,
     subject: locale === "ar"
-      ? "مرحباً بك في يالا لندن! 🌟"
-      : "Welcome to Yalla London! 🌟",
+      ? `مرحباً بك في ${getSiteName(siteId).ar}! 🌟`
+      : `Welcome to ${getSiteName(siteId).en}! 🌟`,
     react: React.createElement(WelcomeEmail, {
       name: name || (locale === "ar" ? "صديقنا" : "there"),
       locale,
@@ -232,8 +232,8 @@ export async function sendNewsletterDigest(
   return sendResendEmail({
     to,
     subject: locale === "ar"
-      ? `${weekLabel} — يالا لندن`
-      : `${weekLabel} — Yalla London`,
+      ? `${weekLabel} — ${getSiteName(siteId).ar}`
+      : `${weekLabel} — ${getSiteName(siteId).en}`,
     react: React.createElement(DigestEmail, {
       locale,
       articles,
@@ -268,8 +268,8 @@ export async function sendContactConfirmation(
   return sendResendEmail({
     to,
     subject: locale === "ar"
-      ? "تم استلام رسالتك — يالا لندن"
-      : "We've received your message — Yalla London",
+      ? `تم استلام رسالتك — ${getSiteName(siteId).ar}`
+      : `We've received your message — ${getSiteName(siteId).en}`,
     react: React.createElement(ContactEmail, {
       name: inquiry.name || (locale === "ar" ? "صديقنا" : "there"),
       locale,
@@ -405,6 +405,29 @@ function getDefaultReplyTo(): string {
     } catch {
       return "info@zenitha.luxury";
     }
+  }
+}
+
+const SITE_NAME_AR: Record<string, string> = {
+  "yalla-london": "يالا لندن",
+  "zenitha-yachts-med": "زينيثا يخوت",
+  "arabaldives": "عرب المالديف",
+  "french-riviera": "يالا ريفييرا",
+  "istanbul": "يالا إسطنبول",
+  "thailand": "يالا تايلاند",
+};
+
+function getSiteName(siteId?: string): { en: string; ar: string } {
+  try {
+    const { getSiteConfig, getDefaultSiteId } = require("@/config/sites");
+    const effectiveId = siteId || getDefaultSiteId();
+    const config = getSiteConfig(effectiveId);
+    return {
+      en: config?.name || "Zenitha",
+      ar: SITE_NAME_AR[effectiveId] || config?.name || "زينيثا",
+    };
+  } catch {
+    return { en: "Zenitha", ar: "زينيثا" };
   }
 }
 

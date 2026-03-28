@@ -127,6 +127,18 @@
     "app/api/cron/seo-agent-intelligence/**/*.ts": {
       "maxDuration": 300
     },
+    "app/api/cron/subscriber-emails/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/agent-maintenance/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/retention-executor/**/*.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/followup-executor/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/affiliate/cron/**/*.ts": {
       "maxDuration": 300
     }
@@ -221,7 +233,7 @@
     },
     {
       "path": "/api/cron/content-builder",
-      "schedule": "*/15 * * * *"
+      "schedule": "8,23,38,53 * * * *"
     },
     {
       "path": "/api/cron/content-builder-create",

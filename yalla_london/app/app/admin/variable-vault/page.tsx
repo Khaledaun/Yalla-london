@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SITES as SITE_CONFIG } from "@/config/sites";
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminAlertBanner,
+  AdminLoadingState,
+} from "@/components/admin/admin-ui";
 
 interface SiteInfo {
   id: string;
@@ -63,138 +69,117 @@ export default function VariableVaultHub() {
   }, []);
 
   return (
-    <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#e5e5e5" }}>
-      {/* Header */}
-      <div style={{ borderBottom: "1px solid #222", padding: "20px 32px" }}>
-        <button
-          onClick={() => router.push("/admin/command-center")}
-          style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 14, padding: 0, marginBottom: 8 }}
-        >
-          &larr; Command Center
-        </button>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: "#fff" }}>
-          Variable Vault
-        </h1>
-        <p style={{ margin: "6px 0 0", color: "#888", fontSize: 15 }}>
-          Manage API keys, credentials, and integrations for each site.
-          Values are encrypted (AES-256-GCM) and synced to Vercel env vars.
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <AdminPageHeader
+        title="Variable Vault"
+        subtitle="Manage API keys, credentials, and integrations for each site. Values are encrypted (AES-256-GCM) and synced to Vercel env vars."
+        backHref="/admin/command-center"
+      />
 
       {/* Site cards */}
-      <div style={{ padding: "32px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20 }}>
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {SITE_LIST.map((site) => {
           const summary = summaries[site.id];
           const progress = summary
             ? Math.round((summary.configuredCount / summary.totalVariables) * 100)
             : 0;
 
+          const progressColor =
+            progress === 100
+              ? "#2D5A3D"
+              : progress > 50
+              ? "#3B7EA1"
+              : "#C49A2A";
+
+          const progressTextColor =
+            progress === 100
+              ? "text-[#2D5A3D]"
+              : progress > 50
+              ? "text-[#3B7EA1]"
+              : progress > 0
+              ? "text-[#C49A2A]"
+              : "text-stone-400";
+
           return (
             <button
               key={site.id}
               onClick={() => router.push(`/admin/sites/${site.id}/settings`)}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "24px",
-                background: "#111",
-                border: "1px solid #222",
-                borderRadius: 12,
-                cursor: "pointer",
-                textAlign: "left",
-                color: "#e5e5e5",
-                transition: "border-color 0.2s, transform 0.1s",
-              }}
-              onMouseOver={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = site.primaryColor;
-                (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-              }}
-              onMouseOut={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "#222";
-                (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-              }}
+              className="block w-full text-left transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#3B7EA1]/40 rounded-xl"
             >
-              {/* Site header */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div style={{
-                  width: 40, height: 40, borderRadius: 10,
-                  background: site.primaryColor + "22",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 18, fontWeight: 700, color: site.primaryColor,
-                }}>
-                  {site.name.charAt(0)}
+              <AdminCard className="h-full hover:border-stone-300 transition-colors">
+                {/* Site header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold"
+                    style={{
+                      backgroundColor: site.primaryColor + "18",
+                      color: site.primaryColor,
+                    }}
+                  >
+                    {site.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold text-stone-800 truncate">
+                      {site.name}
+                    </div>
+                    <div className="text-xs text-stone-400 truncate">
+                      {site.domain}
+                    </div>
+                  </div>
+                  <span className="ml-auto shrink-0 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-stone-100 text-stone-500">
+                    {site.destination}
+                  </span>
                 </div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{site.name}</div>
-                  <div style={{ fontSize: 12, color: "#666" }}>{site.domain}</div>
-                </div>
-                <div style={{
-                  marginLeft: "auto",
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  background: "#1a1a1a",
-                  color: "#888",
-                }}>
-                  {site.destination}
-                </div>
-              </div>
 
-              {/* Progress bar */}
-              {loading ? (
-                <div style={{ height: 24, background: "#1a1a1a", borderRadius: 4, animation: "pulse 1.5s infinite" }} />
-              ) : summary ? (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, color: "#888" }}>
-                      {summary.configuredCount} / {summary.totalVariables} variables
-                    </span>
-                    <span style={{
-                      fontSize: 12, fontWeight: 600,
-                      color: progress === 100 ? "#22c55e" : progress > 50 ? "#3b82f6" : progress > 0 ? "#f59e0b" : "#666",
-                    }}>
-                      {progress}%
-                    </span>
-                  </div>
-                  <div style={{ background: "#1a1a1a", borderRadius: 4, height: 6, overflow: "hidden" }}>
-                    <div style={{
-                      width: `${progress}%`,
-                      height: "100%",
-                      borderRadius: 4,
-                      background: progress === 100 ? "#22c55e" : progress > 50 ? "#3b82f6" : "#f59e0b",
-                      transition: "width 0.3s",
-                    }} />
-                  </div>
-                  <div style={{ marginTop: 8, fontSize: 11, color: summary.vercelConfigured ? "#4ade80" : "#888" }}>
-                    {summary.vercelConfigured ? "Vercel sync enabled" : "Vercel sync not configured"}
-                  </div>
-                </>
-              ) : (
-                <div style={{ fontSize: 12, color: "#666" }}>Click to configure</div>
-              )}
+                {/* Progress bar */}
+                {loading ? (
+                  <div className="h-6 bg-stone-100 rounded animate-pulse" />
+                ) : summary ? (
+                  <>
+                    <div className="flex justify-between mb-1.5">
+                      <span className="text-xs text-stone-500">
+                        {summary.configuredCount} / {summary.totalVariables} variables
+                      </span>
+                      <span className={`text-xs font-semibold ${progressTextColor}`}>
+                        {progress}%
+                      </span>
+                    </div>
+                    <div className="bg-stone-100 rounded h-1.5 overflow-hidden">
+                      <div
+                        className="h-full rounded transition-all duration-300"
+                        style={{
+                          width: `${progress}%`,
+                          backgroundColor: progressColor,
+                        }}
+                      />
+                    </div>
+                    <div className={`mt-2 text-[11px] ${summary.vercelConfigured ? "text-[#2D5A3D]" : "text-stone-400"}`}>
+                      {summary.vercelConfigured ? "Vercel sync enabled" : "Vercel sync not configured"}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-stone-400">Click to configure</div>
+                )}
+              </AdminCard>
             </button>
           );
         })}
       </div>
 
       {/* Info box */}
-      <div style={{ padding: "0 32px 32px" }}>
-        <div style={{
-          padding: "16px 20px",
-          background: "#111",
-          border: "1px solid #222",
-          borderRadius: 12,
-          fontSize: 13,
-          color: "#888",
-          lineHeight: 1.6,
-        }}>
-          <strong style={{ color: "#aaa" }}>How it works:</strong>
-          <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+      <div className="mt-6">
+        <AdminCard>
+          <AdminAlertBanner
+            severity="info"
+            message="How it works"
+            detail="Click a site card to open its Variable Vault, fill in API keys and credentials, then save to encrypt and sync."
+          />
+          <ol className="mt-4 ml-5 list-decimal text-sm text-stone-600 leading-relaxed space-y-1">
             <li>Click a site card to open its Variable Vault</li>
             <li>Fill in API keys, analytics IDs, affiliate IDs, and other credentials</li>
-            <li>Click <strong style={{ color: "#60a5fa" }}>Save All Changes</strong> to:
-              <ul style={{ marginTop: 4 }}>
+            <li>
+              Click <strong className="text-[#3B7EA1]">Save All Changes</strong> to:
+              <ul className="mt-1 ml-4 list-disc text-stone-500">
                 <li>Encrypt and store values in the database (Credential table)</li>
                 <li>Sync to Vercel project as per-site environment variables</li>
                 <li>Update runtime config (analytics_settings / seo_settings)</li>
@@ -202,11 +187,14 @@ export default function VariableVaultHub() {
             </li>
             <li>Changes take effect on next deployment or cron run</li>
           </ol>
-          <p style={{ margin: "12px 0 0", color: "#666" }}>
-            To enable Vercel sync, set <code style={{ background: "#1a1a1a", padding: "2px 6px", borderRadius: 4 }}>VERCEL_TOKEN</code> and{" "}
-            <code style={{ background: "#1a1a1a", padding: "2px 6px", borderRadius: 4 }}>VERCEL_PROJECT_ID</code> in your environment.
+          <p className="mt-3 text-xs text-stone-400">
+            To enable Vercel sync, set{" "}
+            <code className="bg-stone-100 px-1.5 py-0.5 rounded text-stone-600">VERCEL_TOKEN</code>{" "}
+            and{" "}
+            <code className="bg-stone-100 px-1.5 py-0.5 rounded text-stone-600">VERCEL_PROJECT_ID</code>{" "}
+            in your environment.
           </p>
-        </div>
+        </AdminCard>
       </div>
     </div>
   );

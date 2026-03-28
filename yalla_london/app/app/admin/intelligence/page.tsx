@@ -4,8 +4,9 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw, Search, TrendingUp, BarChart3, ExternalLink, Copy, Wrench } from "lucide-react";
 import {
-  ZHCard, ZHAlertBanner, ZHActionBtn, ZHSectionLabel, ZHBadge, ZHMonoVal, ZHMetricCell, ZHTable,
-} from "@/components/zh";
+  AdminCard, AdminAlertBanner, AdminButton, AdminSectionLabel, AdminStatusBadge,
+  AdminKPICard, AdminPageHeader, AdminLoadingState,
+} from "@/components/admin/admin-ui";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -132,8 +133,8 @@ export default function IntelligencePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-zh-gold border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+        <AdminLoadingState label="Loading SEO intelligence..." />
       </div>
     );
   }
@@ -145,182 +146,169 @@ export default function IntelligencePage() {
   };
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-zh-ui font-bold text-lg text-zh-cream">SEO Intelligence</h1>
-          <p className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[2px]">
-            Search performance & indexing health
-          </p>
+    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="space-y-5 max-w-4xl mx-auto">
+        {/* Header */}
+        <AdminPageHeader
+          title="SEO Intelligence"
+          subtitle="Search performance & indexing health"
+          action={
+            <AdminButton variant="ghost" size="sm" onClick={fetchData}>
+              <RefreshCw size={13} />
+            </AdminButton>
+          }
+        />
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-stone-100 rounded-lg p-1">
+          {([
+            { id: "overview" as const, label: "Overview" },
+            { id: "gsc" as const, label: "Search Console" },
+            { id: "audit" as const, label: "Public Audit" },
+          ]).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium uppercase tracking-wide transition-colors ${
+                tab === t.id ? "bg-white text-stone-800 shadow-sm font-semibold" : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-        <ZHActionBtn variant="ghost" size="sm" onClick={fetchData}>
-          <RefreshCw size={13} />
-        </ZHActionBtn>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-zh-navy-mid rounded-lg p-1">
-        {([
-          { id: "overview" as const, label: "Overview" },
-          { id: "gsc" as const, label: "Search Console" },
-          { id: "audit" as const, label: "Public Audit" },
-        ]).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 py-1.5 rounded-md font-zh-mono text-[10px] uppercase tracking-[1px] transition-colors ${
-              tab === t.id ? "bg-zh-navy-light text-zh-gold font-semibold" : "text-zh-cream-muted hover:text-zh-cream"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+        {/* OVERVIEW TAB */}
+        {tab === "overview" && (
+          <div className="space-y-4">
+            {/* KPI strip */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <AdminKPICard label="Indexed" value={d.indexed} />
+              <AdminKPICard label="Rate" value={`${d.rate}%`} trend={d.rate > 80 ? { value: d.rate, positive: true } : d.rate > 50 ? { value: d.rate, positive: true } : { value: d.rate, positive: false }} />
+              <AdminKPICard label="Clicks (7d)" value={d.gscClicks7d} trend={d.gscClicksTrend !== null ? { value: Math.abs(d.gscClicksTrend), positive: d.gscClicksTrend > 0 } : undefined} />
+              <AdminKPICard label="Impressions (7d)" value={d.gscImpressions7d.toLocaleString()} />
+            </div>
 
-      {/* OVERVIEW TAB */}
-      {tab === "overview" && (
-        <div className="space-y-4">
-          {/* KPI strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <ZHCard><ZHMetricCell label="Indexed" value={d.indexed} sub={`of ${d.total}`} /></ZHCard>
-            <ZHCard><ZHMetricCell label="Rate" value={`${d.rate}%`} trend={d.rate > 80 ? "up" : d.rate > 50 ? "flat" : "down"} /></ZHCard>
-            <ZHCard><ZHMetricCell label="Clicks (7d)" value={d.gscClicks7d} trend={d.gscClicksTrend !== null ? (d.gscClicksTrend > 0 ? "up" : "down") : undefined} sub={d.gscClicksTrend !== null ? `${d.gscClicksTrend > 0 ? "+" : ""}${d.gscClicksTrend}%` : undefined} /></ZHCard>
-            <ZHCard><ZHMetricCell label="Impressions (7d)" value={d.gscImpressions7d.toLocaleString()} /></ZHCard>
+            {/* Issues */}
+            {d.issues.length > 0 && (
+              <AdminCard>
+                <div className="flex items-center justify-between mb-3">
+                  <AdminSectionLabel>Issues</AdminSectionLabel>
+                  <AdminButton variant="ghost" size="sm" onClick={() => copyAsJson(d.issues)}>
+                    <Copy size={11} /> Copy JSON
+                  </AdminButton>
+                </div>
+                <div className="space-y-2">
+                  {d.issues.map((issue, i) => (
+                    <div key={i} className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <AdminStatusBadge status={issue.severity === "critical" ? "error" : issue.severity === "warning" ? "warning" : "info"} label={issue.severity} />
+                        <span className="text-sm text-stone-800">{issue.message}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-stone-600">{issue.count}</span>
+                        {issue.fixEndpoint && (
+                          <AdminButton variant="secondary" size="sm" onClick={() => fetch(issue.fixEndpoint!, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(issue.fixPayload || {}) })}>
+                            <Wrench size={10} /> Fix
+                          </AdminButton>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AdminCard>
+            )}
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <AdminKPICard label="Never Submitted" value={d.neverSubmitted} />
+              <AdminKPICard label="Errors" value={d.errors} />
+              <AdminKPICard label="Chronic Failures" value={d.chronicFailures} />
+            </div>
           </div>
+        )}
 
-          {/* Issues */}
-          {d.issues.length > 0 && (
-            <ZHCard>
-              <div className="flex items-center justify-between mb-3">
-                <ZHSectionLabel>Issues</ZHSectionLabel>
-                <ZHActionBtn variant="ghost" size="sm" onClick={() => copyAsJson(d.issues)}>
-                  <Copy size={11} /> Copy JSON
-                </ZHActionBtn>
-              </div>
+        {/* GSC TAB */}
+        {tab === "gsc" && (
+          <div className="space-y-4">
+            <AdminAlertBanner severity="info" message="GSC data syncs via the gsc-sync cron every 4 hours. For real-time data, open Google Search Console directly." />
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <AdminKPICard label="Clicks (7d)" value={d.gscClicks7d} />
+              <AdminKPICard label="Impressions (7d)" value={d.gscImpressions7d.toLocaleString()} />
+              <AdminKPICard label="Indexed Pages" value={d.indexed} />
+              <AdminKPICard label="Index Rate" value={`${d.rate}%`} />
+            </div>
+
+            <AdminCard>
+              <AdminSectionLabel>Deeper Analysis</AdminSectionLabel>
               <div className="space-y-2">
-                {d.issues.map((issue, i) => (
-                  <div key={i} className="flex items-center justify-between bg-zh-navy rounded-md px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <ZHBadge variant={issue.severity === "critical" ? "error" : issue.severity === "warning" ? "warn" : "info"}>
-                        {issue.severity}
-                      </ZHBadge>
-                      <span className="font-zh-ui text-sm text-zh-cream">{issue.message}</span>
+                <Link href="/admin/seo-audits" className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 hover:bg-stone-100 transition-colors">
+                  <span className="text-sm text-stone-800">SEO Audits</span>
+                  <ExternalLink size={12} className="text-stone-400" />
+                </Link>
+                <Link href="/admin/cockpit?tab=seo" className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 hover:bg-stone-100 transition-colors">
+                  <span className="text-sm text-stone-800">SEO Intel (Legacy)</span>
+                  <ExternalLink size={12} className="text-stone-400" />
+                </Link>
+                <Link href="/admin/discovery" className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 hover:bg-stone-100 transition-colors">
+                  <span className="text-sm text-stone-800">Discovery Monitor</span>
+                  <ExternalLink size={12} className="text-stone-400" />
+                </Link>
+              </div>
+            </AdminCard>
+          </div>
+        )}
+
+        {/* AUDIT TAB */}
+        {tab === "audit" && (
+          <div className="space-y-4">
+            <AdminCard>
+              <AdminSectionLabel>Public SEO Audit</AdminSectionLabel>
+              <p className="text-sm text-stone-500 mb-3">
+                Run a full aggregated report across SEO, indexing, discovery, content velocity, and public website health.
+              </p>
+              <div className="flex gap-2">
+                <AdminButton variant="primary" loading={auditRunning} onClick={runPublicAudit}>
+                  Run Full Audit
+                </AdminButton>
+                {auditResult && (
+                  <AdminButton variant="ghost" onClick={() => copyAsJson(auditResult)}>
+                    <Copy size={11} /> {copyFeedback || "Copy JSON"}
+                  </AdminButton>
+                )}
+              </div>
+            </AdminCard>
+
+            {auditResult && (
+              <AdminCard>
+                <AdminSectionLabel>Audit Results</AdminSectionLabel>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                  <AdminKPICard label="Overall Score" value={(auditResult as { compositeScore?: number }).compositeScore || 0} />
+                  <AdminKPICard label="Grade" value={(auditResult as { grade?: string }).grade || "?"} />
+                  <AdminKPICard label="Issues" value={((auditResult as { synthesizedIssues?: unknown[] }).synthesizedIssues || []).length} />
+                </div>
+
+                {/* Issues with Fix Now + Copy JSON */}
+                {((auditResult as { synthesizedIssues?: Array<{ severity: string; title: string; detail: string }> }).synthesizedIssues || []).slice(0, 10).map((issue, i) => (
+                  <div key={i} className="flex items-start justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 mb-1">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <AdminStatusBadge status={issue.severity === "critical" ? "error" : issue.severity === "high" ? "warning" : "info"} label={issue.severity} />
+                        <span className="text-sm text-stone-800">{issue.title}</span>
+                      </div>
+                      {issue.detail && <p className="font-mono text-xs text-stone-500 mt-1">{issue.detail}</p>}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <ZHMonoVal size="sm" className="text-zh-cream-muted">{issue.count}</ZHMonoVal>
-                      {issue.fixEndpoint && (
-                        <ZHActionBtn variant="secondary" size="sm" onClick={() => fetch(issue.fixEndpoint!, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(issue.fixPayload || {}) })}>
-                          <Wrench size={10} /> Fix
-                        </ZHActionBtn>
-                      )}
-                    </div>
+                    <AdminButton variant="ghost" size="sm" onClick={() => copyAsJson({ issue: issue.title, severity: issue.severity, detail: issue.detail })}>
+                      <Copy size={10} />
+                    </AdminButton>
                   </div>
                 ))}
-              </div>
-            </ZHCard>
-          )}
-
-          {/* Quick stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <ZHCard>
-              <ZHMetricCell label="Never Submitted" value={d.neverSubmitted} />
-            </ZHCard>
-            <ZHCard>
-              <ZHMetricCell label="Errors" value={d.errors} />
-            </ZHCard>
-            <ZHCard>
-              <ZHMetricCell label="Chronic Failures" value={d.chronicFailures} />
-            </ZHCard>
+              </AdminCard>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* GSC TAB */}
-      {tab === "gsc" && (
-        <div className="space-y-4">
-          <ZHAlertBanner severity="info">
-            GSC data syncs via the <code className="font-zh-mono">gsc-sync</code> cron every 4 hours.
-            For real-time data, open Google Search Console directly.
-          </ZHAlertBanner>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <ZHCard><ZHMetricCell label="Clicks (7d)" value={d.gscClicks7d} /></ZHCard>
-            <ZHCard><ZHMetricCell label="Impressions (7d)" value={d.gscImpressions7d.toLocaleString()} /></ZHCard>
-            <ZHCard><ZHMetricCell label="Indexed Pages" value={d.indexed} /></ZHCard>
-            <ZHCard><ZHMetricCell label="Index Rate" value={`${d.rate}%`} /></ZHCard>
-          </div>
-
-          <ZHCard>
-            <ZHSectionLabel>Deeper Analysis</ZHSectionLabel>
-            <div className="space-y-2">
-              <Link href="/admin/seo-audits" className="flex items-center justify-between bg-zh-navy rounded-md px-3 py-2 hover:bg-zh-navy-light transition-colors">
-                <span className="font-zh-ui text-sm text-zh-cream">SEO Audits</span>
-                <ExternalLink size={12} className="text-zh-cream-muted" />
-              </Link>
-              <Link href="/admin/cockpit?tab=seo" className="flex items-center justify-between bg-zh-navy rounded-md px-3 py-2 hover:bg-zh-navy-light transition-colors">
-                <span className="font-zh-ui text-sm text-zh-cream">SEO Intel (Legacy)</span>
-                <ExternalLink size={12} className="text-zh-cream-muted" />
-              </Link>
-              <Link href="/admin/discovery" className="flex items-center justify-between bg-zh-navy rounded-md px-3 py-2 hover:bg-zh-navy-light transition-colors">
-                <span className="font-zh-ui text-sm text-zh-cream">Discovery Monitor</span>
-                <ExternalLink size={12} className="text-zh-cream-muted" />
-              </Link>
-            </div>
-          </ZHCard>
-        </div>
-      )}
-
-      {/* AUDIT TAB */}
-      {tab === "audit" && (
-        <div className="space-y-4">
-          <ZHCard>
-            <ZHSectionLabel>Public SEO Audit</ZHSectionLabel>
-            <p className="font-zh-ui text-sm text-zh-cream-muted mb-3">
-              Run a full aggregated report across SEO, indexing, discovery, content velocity, and public website health.
-            </p>
-            <div className="flex gap-2">
-              <ZHActionBtn variant="primary" loading={auditRunning} onClick={runPublicAudit}>
-                Run Full Audit
-              </ZHActionBtn>
-              {auditResult && (
-                <ZHActionBtn variant="ghost" onClick={() => copyAsJson(auditResult)}>
-                  <Copy size={11} /> {copyFeedback || "Copy JSON"}
-                </ZHActionBtn>
-              )}
-            </div>
-          </ZHCard>
-
-          {auditResult && (
-            <ZHCard>
-              <ZHSectionLabel>Audit Results</ZHSectionLabel>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-                <ZHMetricCell label="Overall Score" value={(auditResult as { compositeScore?: number }).compositeScore || 0} />
-                <ZHMetricCell label="Grade" value={(auditResult as { grade?: string }).grade || "?"} />
-                <ZHMetricCell label="Issues" value={((auditResult as { synthesizedIssues?: unknown[] }).synthesizedIssues || []).length} />
-              </div>
-
-              {/* Issues with Fix Now + Copy JSON */}
-              {((auditResult as { synthesizedIssues?: Array<{ severity: string; title: string; detail: string }> }).synthesizedIssues || []).slice(0, 10).map((issue, i) => (
-                <div key={i} className="flex items-start justify-between bg-zh-navy rounded-md px-3 py-2 mb-1">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <ZHBadge variant={issue.severity === "critical" ? "error" : issue.severity === "high" ? "warn" : "info"}>
-                        {issue.severity}
-                      </ZHBadge>
-                      <span className="font-zh-ui text-sm text-zh-cream">{issue.title}</span>
-                    </div>
-                    {issue.detail && <p className="font-zh-mono text-xs text-zh-cream-muted mt-1">{issue.detail}</p>}
-                  </div>
-                  <ZHActionBtn variant="ghost" size="sm" onClick={() => copyAsJson({ issue: issue.title, severity: issue.severity, detail: issue.detail })}>
-                    <Copy size={10} />
-                  </ZHActionBtn>
-                </div>
-              ))}
-            </ZHCard>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

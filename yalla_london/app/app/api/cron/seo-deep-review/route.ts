@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * SEO Deep Review — Active Fixer Cron (00:00 UTC daily)
@@ -33,8 +33,10 @@ import { onCronFailure } from "@/lib/ops/failure-hooks";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
-const TOTAL_BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel 60s limit
-const PER_ARTICLE_BUDGET_MS = 25_000; // 25s per article — 18s still too tight: non-AI fixes take 10-12s, AI content_expansion needs 10-12s. 2 articles per run at 25s = 50s within 53s budget.
+const TOTAL_BUDGET_MS = 280_000; // 280s budget, 20s buffer for Vercel 300s limit
+const PER_ARTICLE_BUDGET_MS = 25_000; // 25s per article — non-AI fixes 10-12s + AI content_expansion 10-12s. ~11 articles per run.
+const RECENT_CUTOFF_MS = 26 * 60 * 60 * 1000; // 26h — catches articles published since last run
+const OLDER_CUTOFF_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — catches older under-optimized articles
 
 interface ArticleFix {
   blogPostId: string;
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
     );
 
     // ── Pass 1: Recent articles (last 26h) ──────────────────────────────────
-    const cutoff = new Date(Date.now() - 26 * 60 * 60 * 1000);
+    const cutoff = new Date(Date.now() - RECENT_CUTOFF_MS);
 
     const todayArticles = await prisma.blogPost.findMany({
       where: {
@@ -88,7 +90,7 @@ export async function GET(request: NextRequest) {
     // Catches articles that were published before seo-deep-review ran, or that
     // the seo-deep-review didn't finish fixing due to budget limits.
     // Criteria: short content, missing meta, or no internal links.
-    const olderCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    const olderCutoff = new Date(Date.now() - OLDER_CUTOFF_MS);
     let olderArticles: typeof todayArticles = [];
     try {
       // Find articles with short English content or missing meta description

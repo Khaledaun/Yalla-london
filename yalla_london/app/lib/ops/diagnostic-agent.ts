@@ -18,7 +18,7 @@
  * - Rule #81: Never diagnose drafts with phase_attempts=0 — they're queued, not stuck.
  */
 
-import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
+import { validatePhaseTransition, LIFETIME_RECOVERY_CAP } from "@/lib/content-pipeline/constants";
 
 export type DiagnosisCategory =
   | "timeout"              // AI call exceeds budget
@@ -163,7 +163,7 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
       } else if (lastError.includes("json") || lastError.includes("parse") || lastError.includes("unexpected token") || lastError.includes("syntaxerror") || lastError.includes("not valid")) {
         category = "bad_data";
         details = `Malformed data in phase "${draft.current_phase}". Last error: ${draft.last_error}`;
-      } else if ((draft.phase_attempts || 0) >= 5) {
+      } else if ((draft.phase_attempts || 0) >= LIFETIME_RECOVERY_CAP) {
         category = "stuck_loop";
         details = `Draft stuck in "${draft.current_phase}" for ${draft.phase_attempts} attempts over ${Math.round(ageHours)}h`;
       } else if (lastError.includes("budget")) {

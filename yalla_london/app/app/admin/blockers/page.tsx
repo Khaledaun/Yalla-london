@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { RefreshCw, AlertTriangle, Zap, CheckCircle, Clock, Bug, Link2, Eye } from "lucide-react";
 import {
-  ZHCard, ZHAlertBanner, ZHActionBtn, ZHSectionLabel, ZHBadge, ZHMonoVal, ZHStatusPill,
-} from "@/components/zh";
+  AdminCard, AdminAlertBanner, AdminButton, AdminSectionLabel,
+  AdminStatusBadge, AdminPageHeader, AdminLoadingState,
+} from "@/components/admin/admin-ui";
 
 interface BlockerBreakdown {
   failedCrons24h: number;
@@ -77,8 +78,8 @@ export default function BlockersPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-zh-gold border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+        <AdminLoadingState />
       </div>
     );
   }
@@ -123,110 +124,113 @@ export default function BlockersPage() {
   ];
 
   return (
-    <div className="space-y-5 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-zh-ui font-bold text-lg text-zh-cream">Blockers</h1>
-          <p className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[2px]">
-            {totalBlockers === 0 ? "All clear" : `${totalBlockers} issues need attention`}
-          </p>
+    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="space-y-5 max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <AdminPageHeader title="Blockers" />
+          <AdminButton variant="ghost" size="sm" onClick={fetchData}>
+            <RefreshCw size={13} />
+          </AdminButton>
         </div>
-        <ZHActionBtn variant="ghost" size="sm" onClick={fetchData}>
-          <RefreshCw size={13} />
-        </ZHActionBtn>
-      </div>
+        <p className="text-xs text-stone-500 uppercase tracking-[2px] -mt-3">
+          {totalBlockers === 0 ? "All clear" : `${totalBlockers} issues need attention`}
+        </p>
 
-      {/* Action result toast */}
-      {actionResult && (
-        <ZHAlertBanner severity={actionResult.type === "success" ? "success" : "error"} onDismiss={() => setActionResult(null)}>
-          {actionResult.message}
-        </ZHAlertBanner>
-      )}
-
-      {/* Overall status */}
-      <ZHCard>
-        <div className="flex items-center gap-3">
-          <ZHStatusPill
-            label={totalBlockers === 0 ? "Healthy" : totalBlockers > 10 ? "Critical" : "Degraded"}
-            status={totalBlockers === 0 ? "ok" : totalBlockers > 10 ? "critical" : "degraded"}
+        {/* Action result toast */}
+        {actionResult && (
+          <AdminAlertBanner
+            severity={actionResult.type === "success" ? "info" : "critical"}
+            message={actionResult.message}
+            onDismiss={() => setActionResult(null)}
           />
-          <ZHMonoVal size="lg" className="text-zh-cream">{totalBlockers}</ZHMonoVal>
-          <span className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">total blockers</span>
-        </div>
-      </ZHCard>
+        )}
 
-      {/* Blocker rows */}
-      <div className="space-y-2">
-        {blockerItems.map((item) => {
-          const Icon = item.icon;
-          const severityColor =
-            item.severity === "error" ? "border-l-zh-error-text" :
-            item.severity === "warn" ? "border-l-zh-warn-text" :
-            "border-l-zh-success-text";
-          return (
-            <div
-              key={item.id}
-              className={`bg-zh-navy-mid border border-zh-navy-border rounded-lg p-4 border-l-4 ${severityColor}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Icon size={16} className={
-                    item.severity === "error" ? "text-zh-error-text" :
-                    item.severity === "warn" ? "text-zh-warn-text" :
-                    "text-zh-success-text"
-                  } />
-                  <div>
-                    <div className="font-zh-ui text-sm text-zh-cream">{item.label}</div>
-                    <ZHMonoVal size="sm" className={
-                      item.count > 0 ? "text-zh-error-text" : "text-zh-success-text"
-                    }>
-                      {item.count}
-                    </ZHMonoVal>
+        {/* Overall status */}
+        <AdminCard>
+          <div className="flex items-center gap-3">
+            <AdminStatusBadge
+              status={totalBlockers === 0 ? "healthy" : totalBlockers > 10 ? "critical" : "degraded"}
+              label={totalBlockers === 0 ? "Healthy" : totalBlockers > 10 ? "Critical" : "Degraded"}
+            />
+            <span className="font-mono text-lg font-bold text-stone-800">{totalBlockers}</span>
+            <span className="font-mono text-[10px] text-stone-400 uppercase">total blockers</span>
+          </div>
+        </AdminCard>
+
+        {/* Blocker rows */}
+        <div className="space-y-2">
+          {blockerItems.map((item) => {
+            const Icon = item.icon;
+            const severityBorder =
+              item.severity === "error" ? "border-l-red-500" :
+              item.severity === "warn" ? "border-l-amber-500" :
+              "border-l-emerald-500";
+            return (
+              <div
+                key={item.id}
+                className={`bg-white border border-stone-200 rounded-lg p-4 border-l-4 ${severityBorder}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Icon size={16} className={
+                      item.severity === "error" ? "text-red-500" :
+                      item.severity === "warn" ? "text-amber-500" :
+                      "text-emerald-500"
+                    } />
+                    <div>
+                      <div className="text-sm font-medium text-stone-800">{item.label}</div>
+                      <span className={`font-mono text-xs ${
+                        item.count > 0 ? "text-red-600" : "text-emerald-600"
+                      }`}>
+                        {item.count}
+                      </span>
+                    </div>
                   </div>
+                  {item.count > 0 && item.action && (
+                    "onClick" in item.action ? (
+                      <AdminButton
+                        variant="secondary"
+                        size="sm"
+                        loading={actionLoading === item.id}
+                        onClick={item.action.onClick}
+                      >
+                        {item.action.label}
+                      </AdminButton>
+                    ) : null
+                  )}
                 </div>
-                {item.count > 0 && item.action && (
-                  "onClick" in item.action ? (
-                    <ZHActionBtn
-                      variant="secondary"
-                      size="sm"
-                      loading={actionLoading === item.id}
-                      onClick={item.action.onClick}
-                    >
-                      {item.action.label}
-                    </ZHActionBtn>
-                  ) : null
-                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Env Var Health */}
+        <AdminCard>
+          <AdminSectionLabel>Environment Variables</AdminSectionLabel>
+          {missingEnvVars.length === 0 ? (
+            <div className="flex items-center gap-2 text-emerald-600 font-mono text-xs mt-2">
+              <CheckCircle size={14} />
+              All {envVars.length} required variables configured
+            </div>
+          ) : (
+            <div className="space-y-2 mt-2">
+              <AdminAlertBanner
+                severity="warning"
+                message={`${missingEnvVars.length} of ${envVars.length} required variables missing`}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {missingEnvVars.map((v) => (
+                  <div key={v.key} className="flex items-center justify-between px-3 py-1.5 rounded bg-stone-50 border border-stone-100">
+                    <span className="font-mono text-xs text-stone-600">{v.key}</span>
+                    <AdminStatusBadge status="critical" label="MISSING" />
+                  </div>
+                ))}
               </div>
             </div>
-          );
-        })}
+          )}
+        </AdminCard>
       </div>
-
-      {/* Env Var Health */}
-      <ZHCard>
-        <ZHSectionLabel>Environment Variables</ZHSectionLabel>
-        {missingEnvVars.length === 0 ? (
-          <div className="flex items-center gap-2 text-zh-success-text font-zh-mono text-xs">
-            <CheckCircle size={14} />
-            All {envVars.length} required variables configured
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <ZHAlertBanner severity="warn">
-              {missingEnvVars.length} of {envVars.length} required variables missing
-            </ZHAlertBanner>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              {missingEnvVars.map((v) => (
-                <div key={v.key} className="flex items-center justify-between px-3 py-1.5 rounded bg-zh-navy-light">
-                  <ZHMonoVal size="sm" className="text-zh-cream">{v.key}</ZHMonoVal>
-                  <ZHBadge variant="error">MISSING</ZHBadge>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </ZHCard>
     </div>
   );
 }

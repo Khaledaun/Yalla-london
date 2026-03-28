@@ -90,6 +90,188 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
     label: "Retry affiliate injection",
     manualInstructions: "Go to Affiliate HQ → Actions tab → tap 'Inject Links'.",
   },
+
+  // ─── Content & Pipeline ────────────────────────────────────────────────────
+  "daily-content-generate": {
+    path: "/api/cron/daily-content-generate",
+    label: "Retry daily content generation",
+    manualInstructions: "Go to Cockpit → Content tab → tap 'Generate Content'. Usually an AI provider timeout — check AI Config tab.",
+  },
+  "content-auto-fix-lite": {
+    path: "/api/cron/content-auto-fix-lite",
+    label: "Retry lite auto-fix",
+    manualInstructions: "Go to Cockpit → Crons tab → find Content Auto-Fix Lite → tap 'Run'.",
+  },
+  "reserve-publisher": {
+    path: "/api/cron/reserve-publisher",
+    label: "Retry reserve publisher",
+    manualInstructions: "Go to Cockpit → Crons tab → find Reserve Publisher → tap 'Run'. Ensures at least 1 article/day.",
+  },
+  "schedule-executor": {
+    path: "/api/cron/schedule-executor",
+    label: "Retry schedule executor",
+    manualInstructions: "Go to Cockpit → Crons tab → find Schedule Executor → tap 'Run'. Creates drafts from schedule rules.",
+  },
+  "content-freshness": {
+    path: "/api/cron/content-freshness",
+    label: "Retry content freshness check",
+    manualInstructions: "Go to Cockpit → Crons tab → find Content Freshness → tap 'Run'.",
+  },
+  "sweeper": {
+    path: "/api/cron/sweeper",
+    label: "Retry sweeper",
+    prePath: "/api/cron/diagnostic-sweep",
+    manualInstructions: "Go to Cockpit → Pipeline tab → tap 'Run Sweeper'. If stuck drafts persist, run Diagnostics first.",
+  },
+  "campaign-executor": {
+    path: "/api/cron/campaign-executor",
+    label: "Retry campaign executor",
+    manualInstructions: "Go to Cockpit → Crons tab → find Campaign Executor → tap 'Run'. Check AI Config if timeout.",
+  },
+  "london-news": {
+    path: "/api/cron/london-news",
+    label: "Retry London news fetch",
+    manualInstructions: "Go to Cockpit → Crons tab → find London News → tap 'Run'. Check Grok API key if failing.",
+  },
+  "trends-monitor": {
+    path: "/api/cron/trends-monitor",
+    label: "Retry trends monitor",
+    manualInstructions: "Go to Cockpit → Crons tab → find Trends Monitor → tap 'Run'.",
+  },
+  "image-pipeline": {
+    path: "/api/cron/image-pipeline",
+    label: "Retry image pipeline",
+    manualInstructions: "Go to Cockpit → Crons tab → find Image Pipeline → tap 'Run'. Check UNSPLASH_ACCESS_KEY if failing.",
+  },
+
+  // ─── SEO & Indexing ────────────────────────────────────────────────────────
+  "seo-deep-review": {
+    path: "/api/cron/seo-deep-review",
+    label: "Retry SEO deep review",
+    manualInstructions: "Go to Cockpit → Crons tab → find SEO Deep Review → tap 'Run'. Usually a timeout — AI expansion is heavy.",
+  },
+  "seo-orchestrator": {
+    path: "/api/cron/seo-orchestrator",
+    label: "Retry SEO orchestrator",
+    manualInstructions: "Go to Cockpit → Crons tab → find SEO Orchestrator → tap 'Run'. Handles both daily and weekly modes.",
+  },
+  "seo-audit-runner": {
+    path: "/api/cron/seo-audit-runner",
+    label: "Retry SEO audit runner",
+    manualInstructions: "Go to Cockpit → Crons tab → find SEO Audit Runner → tap 'Run'.",
+  },
+  "daily-seo-audit": {
+    path: "/api/cron/daily-seo-audit",
+    label: "Retry daily SEO audit",
+    manualInstructions: "Go to Cockpit → Crons tab → find Daily SEO Audit → tap 'Run'.",
+  },
+  "pipeline-health": {
+    path: "/api/cron/pipeline-health",
+    label: "Retry pipeline health check",
+    manualInstructions: "Go to Cockpit → Crons tab → find Pipeline Health → tap 'Run'.",
+  },
+  "verify-indexing": {
+    path: "/api/cron/verify-indexing",
+    label: "Retry indexing verification",
+    manualInstructions: "Go to Cockpit → Crons tab → find Verify Indexing → tap 'Run'.",
+  },
+  "process-indexing-queue": {
+    path: "/api/cron/process-indexing-queue",
+    label: "Retry IndexNow queue",
+    manualInstructions: "Go to Cockpit → Crons tab → find Process Indexing Queue → tap 'Run'. Check INDEXNOW_KEY if rejections.",
+  },
+  "google-indexing": {
+    path: "/api/cron/google-indexing",
+    label: "Retry Google indexing",
+    manualInstructions: "Go to Cockpit → Crons tab → find Google Indexing → tap 'Run'.",
+  },
+  "discovery-monitor": {
+    path: "/api/cron/discovery-monitor",
+    label: "Retry discovery monitor",
+    manualInstructions: "Go to Cockpit → Crons tab → find Discovery Monitor → tap 'Run'.",
+  },
+
+  // ─── Analytics & Intelligence ──────────────────────────────────────────────
+  "analytics": {
+    path: "/api/cron/analytics",
+    label: "Retry analytics sync",
+    manualInstructions: "Go to Cockpit → Crons tab → find Analytics → tap 'Run'. Check GA4 credentials if failing.",
+  },
+  "ceo-intelligence": {
+    path: "/api/cron/ceo-intelligence",
+    label: "Retry CEO intelligence report",
+    manualInstructions: "Go to Cockpit → Crons tab → find CEO Intelligence → tap 'Run'.",
+  },
+  "site-health-check": {
+    path: "/api/cron/site-health-check",
+    label: "Retry site health check",
+    manualInstructions: "Go to Cockpit → Crons tab → find Site Health Check → tap 'Run'.",
+  },
+
+  // ─── Affiliate (CJ path) ──────────────────────────────────────────────────
+  "discover-deals": {
+    path: "/api/affiliate/cron/discover-deals",
+    label: "Retry deal discovery",
+    manualInstructions: "Go to Affiliate HQ → Actions tab → tap 'Discover Deals'. Check CJ API token if failing.",
+  },
+  "refresh-links": {
+    path: "/api/affiliate/cron/refresh-links",
+    label: "Retry link refresh",
+    manualInstructions: "Go to Affiliate HQ → Actions tab → tap 'Refresh Links'.",
+  },
+
+  // ─── Social & Email ────────────────────────────────────────────────────────
+  "social": {
+    path: "/api/cron/social",
+    label: "Retry social posting",
+    manualInstructions: "Go to Cockpit → Crons tab → find Social → tap 'Run'. Check Twitter API keys if failing.",
+  },
+  "subscriber-emails": {
+    path: "/api/cron/subscriber-emails",
+    label: "Retry subscriber emails",
+    manualInstructions: "Go to Cockpit → Crons tab → find Subscriber Emails → tap 'Run'. Check RESEND_API_KEY if failing.",
+  },
+  "retention-executor": {
+    path: "/api/cron/retention-executor",
+    label: "Retry retention sequences",
+    manualInstructions: "Go to Cockpit → Crons tab → find Retention Executor → tap 'Run'.",
+  },
+  "followup-executor": {
+    path: "/api/cron/followup-executor",
+    label: "Retry follow-up executor",
+    manualInstructions: "Go to Cockpit → Crons tab → find Follow-up Executor → tap 'Run'.",
+  },
+
+  // ─── Perplexity & AI ──────────────────────────────────────────────────────
+  "perplexity-scheduler": {
+    path: "/api/cron/perplexity-scheduler",
+    label: "Retry Perplexity scheduler",
+    manualInstructions: "Go to Cockpit → Crons tab → find Perplexity Scheduler → tap 'Run'.",
+  },
+  "perplexity-executor": {
+    path: "/api/cron/perplexity-executor",
+    label: "Retry Perplexity executor",
+    manualInstructions: "Go to Cockpit → Crons tab → find Perplexity Executor → tap 'Run'.",
+  },
+
+  // ─── Data & Events ────────────────────────────────────────────────────────
+  "data-refresh": {
+    path: "/api/cron/data-refresh",
+    label: "Retry data refresh",
+    manualInstructions: "Go to Cockpit → Crons tab → find Data Refresh → tap 'Run'.",
+  },
+  "events-sync": {
+    path: "/api/cron/events-sync",
+    label: "Retry events sync",
+    manualInstructions: "Go to Cockpit → Crons tab → find Events Sync → tap 'Run'. Check TICKETMASTER_API_KEY if failing.",
+  },
+
+  // ─── Agent Maintenance ────────────────────────────────────────────────────
+  "agent-maintenance": {
+    path: "/api/cron/agent-maintenance",
+    label: "Retry CTO agent maintenance",
+    manualInstructions: "Go to Agent HQ → CTO tab → tap 'Run Maintenance'. Weekly scan/propose/execute cycle.",
+  },
 };
 
 // ─── Core Functions ────────────────────────────────────────────────────────

@@ -308,6 +308,15 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
           { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
         ],
       },
+      // Catch-all: broad travel keywords so general articles still get affiliate links
+      {
+        keywords: ["london", "travel", "guide", "best", "top", "things to do", "trip", "visit", "weekend", "luxury", "explore", "discover", "itinerary", "لندن", "سفر", "دليل"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Tiqets", url: "https://www.tiqets.com/en/london-c824706/", param: `?marker=${process.env.TRAVELPAYOUTS_MARKER || ""}&utm_source=${utmSource}`, category: "tickets" },
+        ],
+      },
     ],
     'arabaldives': [
       {
@@ -579,8 +588,10 @@ const SUPPRESS_AFFILIATES_KEYWORDS = [
   "obituary", "memorial", "charity", "donation",
 ];
 
-// Minimum keyword occurrences to qualify a category (prevents false positives)
-const MIN_KEYWORD_OCCURRENCES = 2;
+// Minimum keyword score to qualify a category
+// Title match = 5 points, each body occurrence = 1 point
+// Score of 1 = at least 1 body mention. Title match (5) always qualifies.
+const MIN_KEYWORD_SCORE = 1;
 
 function findMatches(content: string, siteId: string, limit = 4, dbRules?: AffiliateRule[] | null, title?: string) {
   const lower = content.toLowerCase();
@@ -617,8 +628,8 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
       }
     }
 
-    // Require minimum relevance: either title match OR 2+ body mentions
-    if (categoryScore < MIN_KEYWORD_OCCURRENCES) continue;
+    // Require minimum relevance: title match (5) OR 1+ body mention
+    if (categoryScore < MIN_KEYWORD_SCORE) continue;
 
     let skippedEmpty = 0;
     for (const aff of rule.affiliates) {
@@ -739,15 +750,20 @@ async function handleAffiliateInjection(request: NextRequest) {
       orderBy: { created_at: "desc" },
     });
 
-    // Filter to posts that need injection — either have placeholders or no affiliate links
-    const needsInjection = posts.filter(
-      (p) =>
-        p.content_en.includes('class="affiliate-placeholder"') ||
-        (!p.content_en.includes('class="affiliate-recommendation"') &&
-         !p.content_en.includes('rel="sponsored"') &&
-         !p.content_en.includes('rel="noopener sponsored"') &&
-         !p.content_en.includes('data-affiliate-id')),
-    );
+    // Filter to posts that need injection — no affiliate links from ANY injection pathway
+    const needsInjection = posts.filter((p) => {
+      const c = p.content_en || "";
+      // Check ALL known affiliate markers from both injection systems
+      const hasAffiliateRecommendation = c.includes('class="affiliate-recommendation"');
+      const hasAffiliateCta = c.includes('class="affiliate-cta-block"');
+      const hasAffiliatePartners = c.includes('class="affiliate-partners-section"');
+      const hasSponsoredRel = c.includes('rel="sponsored"') || c.includes('rel="noopener sponsored"');
+      const hasClickTracker = c.includes('/api/affiliate/click');
+      const hasDataAffiliate = c.includes('data-affiliate-id') || c.includes('data-affiliate=') || c.includes('data-affiliate-partner=');
+      const hasPlaceholder = c.includes('class="affiliate-placeholder"');
+      // Inject if: has placeholder OR has no affiliate markers at all
+      return hasPlaceholder || (!hasAffiliateRecommendation && !hasAffiliateCta && !hasAffiliatePartners && !hasSponsoredRel && !hasClickTracker && !hasDataAffiliate);
+    });
 
     let injected = 0;
     const results: Array<{ slug: string; partners: string[] }> = [];

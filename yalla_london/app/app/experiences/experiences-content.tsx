@@ -106,7 +106,10 @@ const experiences = {
       price: 35,
       image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&q=80',
       featured: true,
-      description: 'Experience the world\'s longest-running musical in London\'s legendary West End. A spectacular tale of obsession, love, and music beneath the Paris Opera House.',
+      description: 'Experience the world\'s longest-running musical in London\'s legendary West End theatre district. Andrew Lloyd Webber\'s spectacular tale of obsession, love, and music unfolds beneath the Paris Opera House with a jaw-dropping chandelier crash, stunning pyrotechnics, and a 230-piece costume collection. The intimate His Majesty\'s Theatre — a Grade II listed Edwardian gem — makes every seat feel close to the action. Over 145 million people worldwide have seen this show, and the London production remains the definitive version.',
+      insiderTip: 'Premium stalls (rows D-G centre) offer the best sightlines for the chandelier scene. Book midweek matinees for cheaper tickets and a less crowded theatre. The show has no interval drinks queue if you pre-order at the bar.',
+      gccFeatures: ['No food or alcohol required — suitable for all guests', 'Shows available six evenings plus matinees', 'Private box seating for families seeking seclusion', 'Theatre is a short walk from halal restaurants on Haymarket', 'Subtitled performances available on select dates'],
+      bestFor: ['Couples', 'Theatre lovers', 'Teenagers and adults'],
       website: 'https://www.thephantomoftheopera.com/london'
     },
     {
@@ -120,7 +123,10 @@ const experiences = {
       price: 0,
       image: 'https://images.unsplash.com/photo-1569587112025-0d460e81a126?w=600&q=80',
       featured: false,
-      description: 'Discover 2 million years of human history for free. Highlights include the Rosetta Stone, the Elgin Marbles, and the Egyptian mummies collection.',
+      description: 'Discover over two million years of human history and culture entirely free of charge at one of the world\'s greatest museums. The collection spans eight million objects across 94 galleries. Highlights include the Rosetta Stone that unlocked Egyptian hieroglyphics, the Elgin Marbles from the Parthenon, and a world-class Egyptian mummies collection with over 100 mummies and coffins. The Islamic world gallery (Room 42) showcases exquisite calligraphy, ceramics, and scientific instruments from the golden age of Islamic civilisation.',
+      insiderTip: 'The free 45-minute Eye-opener tours are the best way to navigate the vast collection — ask at the information desk for the next departure. The Islamic gallery and Egyptian rooms are closest to the main entrance on the ground floor.',
+      gccFeatures: ['Free admission — no booking required', 'Exceptional Islamic art and civilisation gallery (Room 42)', 'Arabic audio guide available for hire', 'Prayer room available on request at the information desk', 'Family trails and activity backpacks for children'],
+      bestFor: ['Culture lovers', 'Families', 'History enthusiasts'],
       website: 'https://www.britishmuseum.org'
     },
     {

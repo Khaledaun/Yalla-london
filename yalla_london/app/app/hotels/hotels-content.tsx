@@ -88,8 +88,11 @@ const hotels = {
       price: 480,
       image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=600&q=80',
       badge: 'Heritage',
-      description: 'Europe\'s first grand hotel, established in 1865 near Regent Street. Features the award-winning Chuan Body + Soul spa, Roux at The Landau restaurant, and the atmospheric Artesian cocktail bar.',
+      description: 'Europe\'s first grand hotel, established in 1865 near Regent Street, The Langham set the standard for luxury hospitality that every London hotel has followed since. The award-winning Chuan Body + Soul spa draws on Traditional Chinese Medicine for its treatments, offering a tranquil escape across 16,000 square feet of wellness space. Roux at The Landau, helmed by the legendary Roux family, serves refined European cuisine in a stunning curved dining room. The Artesian cocktail bar has won multiple World\'s Best Bar awards and is famous for its theatrical presentations. Located in Marylebone, guests enjoy easy access to Oxford Street shopping, BBC Broadcasting House, and the quieter boutique charm of Marylebone High Street. The Palm Court here pioneered the tradition of afternoon tea in London.',
       amenities: ['Chuan Spa', 'Roux Restaurant', 'Artesian Bar', 'Gym'],
+      insiderTip: 'The Langham\'s Sterling Suite is one of London\'s largest at 5,000 square feet. For a quieter experience, visit the Chuan Spa during weekday mornings when it is nearly empty. The hotel is also just a 10-minute walk to London Central Mosque.',
+      gccFeatures: ['10-minute walk to London Central Mosque in Regent\'s Park', 'Halal-friendly dining options at Roux at The Landau', 'Spacious family rooms with Marylebone Village shopping nearby', 'Arabic satellite TV channels available in all rooms', 'Concierge team familiar with arranging halal catering for events'],
+      bestFor: ['Families', 'Spa lovers', 'Business travellers'],
       website: 'https://www.langhamhotels.com/london'
     },
     {

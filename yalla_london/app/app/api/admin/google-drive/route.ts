@@ -267,7 +267,6 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper: get a valid access token, refreshing if expired
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getValidAccessToken(
   prisma: any,
   account: { id: string; accessToken: string; refreshToken: string; tokenExpiresAt: Date },

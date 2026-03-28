@@ -2985,6 +2985,28 @@ model Design {
   @@map("designs")
 }
 
+/// GoogleDriveAccount — Connected Google Drive accounts for multi-account sync
+model GoogleDriveAccount {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  displayName    String   @default("")
+  photoUrl       String?
+  accessToken    String   // encrypted at rest via Supabase
+  refreshToken   String
+  tokenExpiresAt DateTime
+  rootFolderId   String?  @default("root")
+  siteId         String?  // null = shared across all sites
+  label          String?  // user-friendly label e.g. "Khaled's Personal Drive"
+  folderMappings Json?    @default("{}") // { "instagram/post/ramadan": "drive_folder_id", ... }
+  lastSyncAt     DateTime?
+  syncEnabled    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([siteId])
+  @@map("google_drive_accounts")
+}
+
 /// PdfGuide — Generated travel PDF guides with AI content
 model PdfGuide {
   id              String   @id @default(cuid())

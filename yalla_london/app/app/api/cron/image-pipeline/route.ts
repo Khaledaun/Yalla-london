@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveSiteIds } from "@/config/sites";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 280_000;
 
 /**
  * Image Pipeline Cron — two jobs:

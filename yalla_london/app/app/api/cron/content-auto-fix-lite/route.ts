@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Content Auto-Fix LITE — Lightweight DB-Only Fixes
@@ -24,7 +24,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 280_000;
 const META_MAX_CHARS = 155;
 
 /** Retry a DB operation once after 2s if it fails on pool timeout */

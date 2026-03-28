@@ -14,7 +14,7 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
-import { getMaxAttempts, validatePhaseTransition, BUILD_RUNNER_BUDGET_RESERVE_MS } from "@/lib/content-pipeline/constants";
+import { getMaxAttempts, validatePhaseTransition, BUILD_RUNNER_BUDGET_RESERVE_MS, SECOND_DRAFT_MIN_BUDGET_MS } from "@/lib/content-pipeline/constants";
 
 const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -483,7 +483,7 @@ export async function runContentBuilder(
     // With 150+ drafts in drafting, processing only 1 per 15-min cron = 2+ days to clear.
     // When first draft's drafting call finishes early (1-2 sections, 30-60s used),
     // pick up a second draft from the heavy backlog to double throughput.
-    if (result.success && deadline.remainingMs() > 60_000 && ["drafting", "assembly"].includes(currentPhase)) {
+    if (result.success && deadline.remainingMs() > SECOND_DRAFT_MIN_BUDGET_MS && ["drafting", "assembly"].includes(currentPhase)) {
       try {
         const secondDraft = await prisma.articleDraft.findFirst({
           where: {
@@ -558,7 +558,7 @@ export async function runContentBuilder(
     const LIGHT_PHASES = new Set(["research", "outline", "images", "seo", "scoring"]);
     const MAX_ADDITIONAL_DRAFTS = 4;
 
-    if (result.success && deadline.remainingMs() > 60_000) {
+    if (result.success && deadline.remainingMs() > SECOND_DRAFT_MIN_BUDGET_MS) {
       try {
         const moreDrafts = await prisma.articleDraft.findMany({
           where: {

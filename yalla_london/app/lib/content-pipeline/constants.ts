@@ -89,6 +89,12 @@ export const INDEXNOW_CHRONIC_FAILURE_CAP = 15;
 // longer than this (crashed mid-promotion). Must be shorter than cron interval.
 export const PROMOTING_REVERT_MS = 60_000; // 60 seconds
 
+// ─── Second Draft Min Budget ────────────────────────────────────────────────
+// Minimum remaining budget (ms) before build-runner attempts a second heavy-phase
+// draft or batches additional light-phase drafts. Ensures enough time for a
+// meaningful AI call + DB writes.
+export const SECOND_DRAFT_MIN_BUDGET_MS = 60_000; // 60 seconds
+
 // ─── Build Runner Budget Reserve ────────────────────────────────────────────
 // Minimum remaining budget before build-runner skips heavy phases (assembly,
 // drafting). Ensures enough time for DB writes and cron log finalization.

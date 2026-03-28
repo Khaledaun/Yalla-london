@@ -321,7 +321,7 @@
     },
     {
       "path": "/api/cron/social",
-      "schedule": "0 10,15 * * *"
+      "schedule": "5 10,15 * * *"
     },
     {
       "path": "/api/cron/social",
@@ -345,7 +345,7 @@
     },
     {
       "path": "/api/cron/schedule-executor",
-      "schedule": "15 1,3,5,7,9,11,13,15,17,19,21,23 * * *"
+      "schedule": "20 1,3,5,7,9,11,13,15,17,19,21,23 * * *"
     },
     {
       "path": "/api/cron/subscriber-emails",
@@ -401,7 +401,7 @@
     },
     {
       "path": "/api/cron/followup-executor",
-      "schedule": "0 1,5,9,13,17,21 * * *"
+      "schedule": "5 1,5,9,13,17,21 * * *"
     },
     {
       "path": "/api/cron/agent-maintenance",

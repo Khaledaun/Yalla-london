@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ZHBadge, ZHMonoVal } from "@/components/zh";
+import { AdminStatusBadge } from "@/components/admin/admin-ui";
 
 interface SiteSummary {
   id: string;
@@ -32,10 +32,10 @@ const SITE_COLORS: Record<string, string> = {
 
 export function PortfolioStrip({ sites }: PortfolioStripProps) {
   return (
-    <div className="bg-zh-navy-mid border border-zh-navy-border rounded-lg p-4">
-      <div className="font-zh-mono text-[10px] uppercase tracking-[2px] text-zh-cream-muted mb-3">
+    <div className="bg-white border border-[rgba(214,208,196,0.6)] rounded-lg p-4 shadow-[0_1px_3px_rgba(28,25,23,0.04),0_4px_12px_rgba(28,25,23,0.04)]">
+      <p style={{ fontFamily: "var(--font-system)", fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#78716C' }} className="mb-3">
         Portfolio
-      </div>
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {sites.map((site) => {
           const color = SITE_COLORS[site.id] || "#C9A84C";
@@ -43,35 +43,36 @@ export function PortfolioStrip({ sites }: PortfolioStripProps) {
             <Link
               key={site.id}
               href={`/admin/cockpit?site=${site.id}`}
-              className="group block bg-zh-navy border border-zh-navy-border rounded-lg overflow-hidden hover:border-zh-gold-dim transition-colors"
+              className="group block bg-white border border-[rgba(214,208,196,0.6)] rounded-lg overflow-hidden hover:border-[#C49A2A] transition-colors shadow-[0_1px_3px_rgba(28,25,23,0.04)]"
             >
               {/* Accent bar */}
               <div className="h-[3px]" style={{ backgroundColor: color }} />
               <div className="p-3">
                 {/* Name + status */}
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-zh-ui font-semibold text-xs text-zh-cream">{site.name}</span>
-                  <ZHBadge variant={site.isActive ? "success" : "muted"}>
-                    {site.isActive ? "Active" : "Planned"}
-                  </ZHBadge>
+                  <span className="font-[var(--font-system)] font-semibold text-xs text-stone-900">{site.name}</span>
+                  <AdminStatusBadge
+                    status={site.isActive ? "success" : "info"}
+                    label={site.isActive ? "Active" : "Planned"}
+                  />
                 </div>
                 {/* Metrics */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Articles</div>
-                    <ZHMonoVal size="sm" className="text-zh-cream">{site.articlesPublished}</ZHMonoVal>
+                    <div style={{ fontFamily: "var(--font-system)", fontSize: 10, textTransform: 'uppercase', color: '#78716C' }}>Articles</div>
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-sm text-stone-900">{site.articlesPublished}</span>
                   </div>
                   <div>
-                    <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Index %</div>
-                    <ZHMonoVal size="sm" className="text-zh-cream">{site.indexRate}%</ZHMonoVal>
+                    <div style={{ fontFamily: "var(--font-system)", fontSize: 10, textTransform: 'uppercase', color: '#78716C' }}>Index %</div>
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-sm text-stone-900">{site.indexRate}%</span>
                   </div>
                   <div>
-                    <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">SEO</div>
-                    <ZHMonoVal size="sm" className="text-zh-cream">{site.avgSeoScore}</ZHMonoVal>
+                    <div style={{ fontFamily: "var(--font-system)", fontSize: 10, textTransform: 'uppercase', color: '#78716C' }}>SEO</div>
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-sm text-stone-900">{site.avgSeoScore}</span>
                   </div>
                 </div>
                 {/* Domain */}
-                <div className="mt-2 font-zh-mono text-[10px] text-zh-cream-dim truncate">{site.domain}</div>
+                <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="mt-2 text-[10px] text-stone-400 truncate tabular-nums">{site.domain}</div>
               </div>
             </Link>
           );

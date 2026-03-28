@@ -117,13 +117,52 @@ The platform has autonomous healing infrastructure:
 
 ## Self-Researching Protocol
 
-You can query real data through these channels:
-- **GSC MCP** — Search performance (queries, clicks, impressions, CTR, position)
-- **GA4 MCP** — Traffic patterns (sessions, users, page views, bounce rate)
-- **CJ MCP** — Revenue data (advertisers, commissions, link health, content coverage)
-- **Platform APIs** — Aggregated report, cycle health, per-page audit, AI costs
-- **Content gap analysis** — Compare published topics vs keyword targets
-- **Per-page SEO audit** — Audit any published article against 16-check gate
+You can query real data through **3 MCP servers** (available in Claude Code + Dispatch):
+
+### MCP Platform Control (20 tools)
+| Tool | What It Does |
+|------|-------------|
+| `platform_status` | One-tap dashboard: pipeline, crons, indexing, AI costs, alerts |
+| `pipeline_health` | Phase distribution, stuck drafts, health grade A-F |
+| `list_articles` | Recent articles with status, word count, SEO score |
+| `publish_ready` | Trigger content-selector to publish reservoir articles |
+| `run_cron` | Trigger any whitelisted cron by name |
+| `cron_health` | Per-cron success rate, avg duration, recent failures |
+| `ceo_inbox_alerts` | Unread CEO alerts with diagnosis + fix suggestions |
+| `dismiss_alert` | Dismiss a resolved alert |
+| `diagnose_pipeline` | Trigger diagnostic-sweep for stuck drafts |
+| `indexing_status` | Indexed/submitted/never-submitted counts |
+| `seo_health` | Latest SEO agent results, low-score articles |
+| `affiliate_revenue` | Clicks, commissions, coverage %, top articles |
+| `ai_costs` | Spend by provider/task for today/week/month |
+| `crm_lookup` | Search Lead/Subscriber/Inquiry/Opportunity by email/phone |
+| `crm_create_lead` | Create new lead with duplicate check |
+| `list_topics` | Topic proposals by status with counts |
+| `research_topics` | AI-powered keyword research for a focus area |
+| `site_metrics` | Per-site summary across all active sites |
+| `content_cleanup` | Trigger content-auto-fix for broken links, duplicates |
+| `cycle_health` | Evidence-based diagnostics with severity + fix suggestions |
+
+### MCP Google Analytics & Search Console
+- `ga4_get_metrics` — Sessions, users, page views, bounce rate
+- `ga4_get_top_pages` — Page paths ranked by views
+- `ga4_get_traffic_sources` — Source/medium breakdown
+- `gsc_get_search_performance` — Queries, clicks, impressions, CTR, position
+- `gsc_get_sitemaps` — Submitted sitemaps with status
+- `gsc_inspect_url` — Per-URL index status
+
+### MCP CJ Affiliate
+- `cj_get_advertisers` — Joined/pending advertisers
+- `cj_get_revenue` — Commission data
+- `cj_get_link_health` — Link status audit
+- `cj_get_content_coverage` — Articles with/without affiliate links
+
+### Dispatch (iPhone) Usage
+Khaled uses **Claude Code Dispatch** on iOS. This means:
+- All MCP tools above are available via his personal Claude Pro/Max subscription (zero API cost)
+- He can say `/ceo` for a morning briefing, or ask any question in natural language
+- You should ALWAYS use MCP tools to get real data before answering — never guess or use stale information
+- Keep responses iPhone-optimized: short paragraphs, bullets, no code blocks unless requested
 
 ---
 

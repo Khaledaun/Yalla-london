@@ -1,6 +1,6 @@
 "use client";
 
-import { ZHTable, ZHBadge, ZHMonoVal } from "@/components/zh";
+import { AdminStatusBadge } from "@/components/admin/admin-ui";
 
 interface CronJob {
   name: string;
@@ -21,46 +21,68 @@ export function CronTable({ jobs, failedLast24h }: CronTableProps) {
   const recentJobs = jobs.slice(0, 8);
 
   return (
-    <div className="bg-zh-navy-mid border border-zh-navy-border rounded-lg p-4">
+    <div className="bg-white rounded-xl border border-[rgba(214,208,196,0.5)] p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="font-zh-mono text-[10px] uppercase tracking-[2px] text-zh-cream-muted">
+        <span className="text-[10px] uppercase tracking-[0.15em] text-[#78716C] font-[var(--font-system)] font-semibold">
           Recent Cron Runs
         </span>
         {failedLast24h > 0 && (
-          <ZHBadge variant="error">{failedLast24h} failed (24h)</ZHBadge>
+          <AdminStatusBadge status="error" label={`${failedLast24h} failed (24h)`} />
         )}
       </div>
-      <ZHTable headers={["Job", "Status", "Duration", "Items", "Time"]}>
-        {recentJobs.map((job, i) => {
-          const statusVariant =
-            job.status === "completed" ? "success" :
-            job.status === "failed" ? "error" :
-            job.status === "running" ? "warn" : "muted";
-          const ago = getTimeAgo(job.startedAt);
-
-          return (
-            <tr key={i} className="hover:bg-zh-navy-light transition-colors">
-              <td className="py-1.5 px-3">
-                <ZHMonoVal size="sm">{job.name}</ZHMonoVal>
-              </td>
-              <td className="py-1.5 px-3">
-                <ZHBadge variant={statusVariant}>{job.status}</ZHBadge>
-              </td>
-              <td className="py-1.5 px-3">
-                <ZHMonoVal size="sm" className="text-zh-cream-muted">
-                  {job.durationMs ? `${(job.durationMs / 1000).toFixed(1)}s` : "—"}
-                </ZHMonoVal>
-              </td>
-              <td className="py-1.5 px-3">
-                <ZHMonoVal size="sm">{job.itemsProcessed}</ZHMonoVal>
-              </td>
-              <td className="py-1.5 px-3">
-                <ZHMonoVal size="sm" className="text-zh-cream-muted">{ago}</ZHMonoVal>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-[rgba(214,208,196,0.5)]">
+              {["Job", "Status", "Duration", "Items", "Time"].map((h) => (
+                <th
+                  key={h}
+                  className="text-left py-2 px-3 text-[10px] uppercase tracking-[0.15em] text-[#78716C] font-[var(--font-system)] font-semibold"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
-          );
-        })}
-      </ZHTable>
+          </thead>
+          <tbody className="divide-y divide-[rgba(214,208,196,0.3)]">
+            {recentJobs.map((job, i) => {
+              const statusKey =
+                job.status === "completed" ? "success" :
+                job.status === "failed" ? "error" :
+                job.status === "running" ? "warning" : "inactive";
+              const ago = getTimeAgo(job.startedAt);
+
+              return (
+                <tr key={i} className="hover:bg-stone-50 transition-colors">
+                  <td className="py-1.5 px-3">
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-xs text-stone-800">
+                      {job.name}
+                    </span>
+                  </td>
+                  <td className="py-1.5 px-3">
+                    <AdminStatusBadge status={statusKey} label={job.status} />
+                  </td>
+                  <td className="py-1.5 px-3">
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-xs text-stone-500">
+                      {job.durationMs ? `${(job.durationMs / 1000).toFixed(1)}s` : "\u2014"}
+                    </span>
+                  </td>
+                  <td className="py-1.5 px-3">
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-xs text-stone-800">
+                      {job.itemsProcessed}
+                    </span>
+                  </td>
+                  <td className="py-1.5 px-3">
+                    <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-xs text-stone-500">
+                      {ago}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

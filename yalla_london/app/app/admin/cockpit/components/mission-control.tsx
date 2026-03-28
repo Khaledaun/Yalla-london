@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw, AlertTriangle, ExternalLink } from "lucide-react";
-import { ZHCard, ZHAlertBanner, ZHActionBtn, ZHSectionLabel, ZHBadge, ZHMonoVal } from "@/components/zh";
+import { AdminCard, AdminAlertBanner, AdminButton, AdminSectionLabel, AdminStatusBadge, AdminLoadingState } from "@/components/admin/admin-ui";
 import { HeroBar } from "./hero-bar";
 import { ServicePills } from "./service-pills";
 import { PipelineTrackBar } from "./pipeline-track";
@@ -97,24 +97,16 @@ export function MissionControl() {
   }, [fetchData]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-zh-gold border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[2px]">Loading Mission Control…</p>
-        </div>
-      </div>
-    );
+    return <AdminLoadingState label="Loading Mission Control…" />;
   }
 
   if (error) {
     return (
-      <ZHAlertBanner severity="error">
-        <div className="flex items-center justify-between">
-          <span>Failed to load dashboard: {error}</span>
-          <ZHActionBtn variant="secondary" size="sm" onClick={fetchData}>Retry</ZHActionBtn>
-        </div>
-      </ZHAlertBanner>
+      <AdminAlertBanner
+        severity="critical"
+        message={`Failed to load dashboard: ${error}`}
+        action={<AdminButton variant="secondary" size="sm" onClick={fetchData}>Retry</AdminButton>}
+      />
     );
   }
 
@@ -130,18 +122,18 @@ export function MissionControl() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-zh-ui font-bold text-lg text-zh-cream">Mission Control</h1>
-          <p className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[2px]">
+          <h1 className="font-[var(--font-display)] font-extrabold text-xl text-stone-900 tracking-tight">Mission Control</h1>
+          <p className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[0.8px]">
             {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-zh-mono text-[10px] text-zh-cream-dim">
+          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-[11px] text-stone-400">
             {lastRefresh.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
           </span>
-          <ZHActionBtn variant="ghost" size="sm" onClick={fetchData}>
+          <AdminButton variant="ghost" size="sm" onClick={fetchData}>
             <RefreshCw size={13} />
-          </ZHActionBtn>
+          </AdminButton>
         </div>
       </div>
 
@@ -149,13 +141,12 @@ export function MissionControl() {
       {data.alerts.length > 0 && (
         <div className="space-y-2">
           {data.alerts.slice(0, 3).map((alert, i) => (
-            <ZHAlertBanner
+            <AdminAlertBanner
               key={i}
-              severity={alert.severity === "critical" ? "error" : alert.severity === "warning" ? "warn" : "info"}
-            >
-              <div className="font-zh-ui text-sm font-medium">{alert.message}</div>
-              {alert.detail && <div className="font-zh-mono text-xs mt-1 opacity-80">{alert.detail}</div>}
-            </ZHAlertBanner>
+              severity={alert.severity === "critical" ? "critical" : alert.severity === "warning" ? "warning" : "info"}
+              message={alert.message}
+              detail={alert.detail || undefined}
+            />
           ))}
         </div>
       )}
@@ -179,50 +170,51 @@ export function MissionControl() {
         </div>
 
         {/* Revenue Card */}
-        <ZHCard>
-          <ZHSectionLabel>Revenue</ZHSectionLabel>
+        <AdminCard>
+          <AdminSectionLabel>Revenue</AdminSectionLabel>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Clicks (7d)</span>
-              <ZHMonoVal className="text-zh-cream">{r.affiliateClicksWeek}</ZHMonoVal>
+              <span className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[0.8px]">Clicks (7d)</span>
+              <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-stone-900">{r.affiliateClicksWeek}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Revenue (7d)</span>
-              <ZHMonoVal className="text-zh-gold">${r.revenueWeekUsd.toFixed(2)}</ZHMonoVal>
+              <span className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[0.8px]">Revenue (7d)</span>
+              <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-[#C49A2A]">${r.revenueWeekUsd.toFixed(2)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">AI Cost (7d)</span>
-              <ZHMonoVal className="text-zh-error-text">${r.aiCostWeekUsd.toFixed(2)}</ZHMonoVal>
+              <span className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[0.8px]">AI Cost (7d)</span>
+              <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-[#C8322B]">${r.aiCostWeekUsd.toFixed(2)}</span>
             </div>
-            <div className="pt-2 border-t border-zh-navy-border flex items-center justify-between">
-              <span className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Indexing</span>
+            <div className="pt-2 border-t border-[rgba(214,208,196,0.5)] flex items-center justify-between">
+              <span className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[0.8px]">Indexing</span>
               <div className="flex items-center gap-2">
-                <ZHMonoVal className="text-zh-cream">{ix.indexed}/{ix.total}</ZHMonoVal>
-                <ZHBadge variant={ix.rate > 80 ? "success" : ix.rate > 50 ? "warn" : "error"}>
-                  {ix.rate}%
-                </ZHBadge>
+                <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)" }} className="tabular-nums text-stone-900">{ix.indexed}/{ix.total}</span>
+                <AdminStatusBadge
+                  status={ix.rate > 80 ? "success" : ix.rate > 50 ? "warning" : "error"}
+                  label={`${ix.rate}%`}
+                />
               </div>
             </div>
           </div>
-        </ZHCard>
+        </AdminCard>
       </div>
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
-        <ZHActionBtn variant="primary" onClick={() => triggerCron("/api/cron/content-builder")}>
+        <AdminButton variant="primary" onClick={() => triggerCron("/api/cron/content-builder")}>
           Run Pipeline
-        </ZHActionBtn>
-        <ZHActionBtn variant="secondary" onClick={() => triggerCron("/api/cron/content-selector")}>
+        </AdminButton>
+        <AdminButton variant="secondary" onClick={() => triggerCron("/api/cron/content-selector")}>
           Publish Ready
-        </ZHActionBtn>
-        <ZHActionBtn variant="secondary" onClick={() => triggerCron("/api/cron/seo-agent")}>
+        </AdminButton>
+        <AdminButton variant="secondary" onClick={() => triggerCron("/api/cron/seo-agent")}>
           SEO Agent
-        </ZHActionBtn>
-        <ZHActionBtn variant="secondary" onClick={() => runContentCleanup()}>
+        </AdminButton>
+        <AdminButton variant="secondary" onClick={() => runContentCleanup()}>
           Content Cleanup
-        </ZHActionBtn>
+        </AdminButton>
         <Link href="/admin/cockpit/write">
-          <ZHActionBtn variant="ghost">+ Write Article</ZHActionBtn>
+          <AdminButton variant="ghost">+ Write Article</AdminButton>
         </Link>
       </div>
 

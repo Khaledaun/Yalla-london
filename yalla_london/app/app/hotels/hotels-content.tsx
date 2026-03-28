@@ -173,8 +173,11 @@ const hotels = {
       price: 780,
       image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=600&q=80',
       badge: 'Ultra Luxury',
-      description: 'Italian craftsmanship meets British heritage steps from Harrods. Features a 25-metre pool, Bulgari Spa, Il Ristorante by Niko Romito, and a private cinema and ballroom.',
+      description: 'Italian craftsmanship meets British heritage just steps from Harrods in the heart of Knightsbridge. The Bulgari Hotel features 85 exquisitely designed rooms clad in mahogany, silver, and silk, with Italian marble bathrooms equipped with Bulgari amenities. The 25-metre swimming pool is one of the finest hotel pools in London, with a stunning silver-leaf ceiling. The Bulgari Spa offers signature Italian treatments including facials using Bulgari skincare. Il Ristorante by three-Michelin-starred Niko Romito delivers contemporary Italian cuisine with a focus on purity and simplicity. The private 47-seat cinema screens first-run films, and the ballroom with its Swarovski crystal chandeliers hosts London\'s most exclusive events. The Niko Romito Bulgari Bar serves aperitivo-style cocktails in a sophisticated setting.',
       amenities: ['Bulgari Spa', '25m Pool', 'Italian Dining', 'Private Cinema'],
+      insiderTip: 'The Bulgari Suite has a wraparound terrace with views of Hyde Park and Knightsbridge. Book a private screening in the cinema for your family — they can arrange any film you request, including Arabic-language titles.',
+      gccFeatures: ['Steps from Harrods, Harvey Nichols, and Sloane Street luxury shopping', 'Halal room service and bespoke dietary menus', 'Private cinema with Arabic film screenings on request', 'Arabic-speaking concierge and guest services', 'Family suites with Knightsbridge\'s best shopping at the doorstep'],
+      bestFor: ['Luxury shoppers', 'Couples', 'Design and fashion enthusiasts'],
       website: 'https://www.bulgarihotels.com/london'
     },
   ],

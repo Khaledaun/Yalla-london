@@ -58,20 +58,20 @@ export function PortfolioStrip({ sites }: PortfolioStripProps) {
                 {/* Metrics */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase">Articles</div>
+                    <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Articles</div>
                     <ZHMonoVal size="sm" className="text-zh-cream">{site.articlesPublished}</ZHMonoVal>
                   </div>
                   <div>
-                    <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase">Index %</div>
+                    <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">Index %</div>
                     <ZHMonoVal size="sm" className="text-zh-cream">{site.indexRate}%</ZHMonoVal>
                   </div>
                   <div>
-                    <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase">SEO</div>
+                    <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase">SEO</div>
                     <ZHMonoVal size="sm" className="text-zh-cream">{site.avgSeoScore}</ZHMonoVal>
                   </div>
                 </div>
                 {/* Domain */}
-                <div className="mt-2 font-zh-mono text-[9px] text-zh-cream-dim truncate">{site.domain}</div>
+                <div className="mt-2 font-zh-mono text-[10px] text-zh-cream-dim truncate">{site.domain}</div>
               </div>
             </Link>
           );

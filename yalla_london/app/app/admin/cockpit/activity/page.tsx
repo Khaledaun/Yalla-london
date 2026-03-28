@@ -703,7 +703,7 @@ export default function CEOActivityFeed() {
                             >
                               <div className="flex items-start gap-2">
                                 <span
-                                  className="px-1.5 py-0.5 rounded text-[8px] font-bold flex-shrink-0 mt-0.5"
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 mt-0.5"
                                   style={{
                                     fontFamily: "var(--font-system)",
                                     color: typeInfo.color,
@@ -835,7 +835,7 @@ export default function CEOActivityFeed() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="flex items-center gap-2 mb-1">
                               <span
-                                className="px-1.5 py-0.5 rounded text-[8px] font-bold"
+                                className="px-1.5 py-0.5 rounded text-[10px] font-bold"
                                 style={{
                                   fontFamily: "var(--font-system)",
                                   color: sc.text,

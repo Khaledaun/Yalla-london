@@ -347,10 +347,10 @@ function RevenueChart({
                 />
                 {/* X-axis label — only show every Nth label on daily to avoid clutter */}
                 {view === "weekly" ? (
-                  <span className="text-[8px] text-zinc-600 mt-1 truncate max-w-full">{label}</span>
+                  <span className="text-[10px] text-zinc-600 mt-1 truncate max-w-full">{label}</span>
                 ) : (
                   i % 5 === 0 && (
-                    <span className="text-[8px] text-zinc-600 mt-1">{label}</span>
+                    <span className="text-[10px] text-zinc-600 mt-1">{label}</span>
                   )
                 )}
               </div>

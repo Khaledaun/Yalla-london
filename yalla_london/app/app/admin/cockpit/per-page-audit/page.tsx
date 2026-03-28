@@ -419,23 +419,23 @@ export default function PerPageAuditPage() {
                     <div className="grid grid-cols-4 gap-2">
                       <div className="bg-zinc-950 rounded p-1.5 text-center">
                         <div className="text-sm font-bold text-blue-400">{page.clicks}</div>
-                        <div className="text-[9px] text-zinc-500">Clicks</div>
+                        <div className="text-[10px] text-zinc-500">Clicks</div>
                       </div>
                       <div className="bg-zinc-950 rounded p-1.5 text-center">
                         <div className="text-sm font-bold text-violet-400">{page.impressions.toLocaleString()}</div>
-                        <div className="text-[9px] text-zinc-500">Impressions</div>
+                        <div className="text-[10px] text-zinc-500">Impressions</div>
                       </div>
                       <div className="bg-zinc-950 rounded p-1.5 text-center">
                         <div className={`text-sm font-bold ${page.ctr >= 3 ? "text-emerald-400" : page.ctr >= 1 ? "text-amber-400" : "text-zinc-400"}`}>
                           {page.ctr}%
                         </div>
-                        <div className="text-[9px] text-zinc-500">CTR</div>
+                        <div className="text-[10px] text-zinc-500">CTR</div>
                       </div>
                       <div className="bg-zinc-950 rounded p-1.5 text-center">
                         <div className={`text-sm font-bold ${page.position <= 10 ? "text-emerald-400" : page.position <= 20 ? "text-amber-400" : "text-zinc-400"}`}>
                           {page.position > 0 ? page.position : "—"}
                         </div>
-                        <div className="text-[9px] text-zinc-500">Position</div>
+                        <div className="text-[10px] text-zinc-500">Position</div>
                       </div>
                     </div>
                   </div>
@@ -448,8 +448,8 @@ export default function PerPageAuditPage() {
                         {page.issues.map((issue, i) => (
                           <div key={i} className={`rounded px-2 py-1.5 border text-xs ${severityColor(issue.severity)}`}>
                             <div className="flex items-center gap-1.5">
-                              <span className="font-medium uppercase text-[9px] opacity-70">{issue.type}</span>
-                              <span className="font-medium uppercase text-[9px] px-1 rounded bg-black/20">
+                              <span className="font-medium uppercase text-[10px] opacity-70">{issue.type}</span>
+                              <span className="font-medium uppercase text-[10px] px-1 rounded bg-black/20">
                                 {issue.severity}
                               </span>
                             </div>

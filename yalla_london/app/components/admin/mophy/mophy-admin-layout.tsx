@@ -200,15 +200,15 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
               <div className="font-zh-ui font-bold text-sm text-zh-cream tracking-tight">
                 Zenitha HQ
               </div>
-              <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase tracking-[2px]">
+              <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[2px]">
                 zenitha.luxury
               </div>
             </div>
           )}
         </Link>
         {sidebarOpen && !onClose && (
-          <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-zh-cream-muted hover:text-zh-cream transition-colors">
-            <X size={15} />
+          <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg text-zh-cream-muted hover:text-zh-cream transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center">
+            <X size={16} />
           </button>
         )}
         {onClose && (
@@ -252,7 +252,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
                 {sidebarOpen && (
                   <>
-                    <span className={`flex-1 text-left font-zh-mono text-[10px] uppercase tracking-[1.5px] ${active ? 'text-zh-gold font-semibold' : 'text-zh-cream-muted font-medium'}`}>
+                    <span className={`flex-1 text-left font-zh-mono text-[11px] uppercase tracking-[1.5px] ${active ? 'text-zh-gold font-semibold' : 'text-zh-cream-muted font-medium'}`}>
                       {section.label}
                     </span>
                     <ChevronDown size={12} className={`text-zh-cream-dim transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
@@ -272,13 +272,13 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                         href={item.href}
                         onClick={onClose}
                         className={`
-                          flex items-center justify-between px-3 py-1.5 rounded-md transition-colors font-zh-mono text-[10px] uppercase tracking-[0.8px]
+                          flex items-center justify-between px-3 py-2 rounded-md transition-colors font-zh-mono text-[11px] uppercase tracking-[0.8px] min-h-[32px]
                           ${itemActive ? 'text-zh-cream font-semibold bg-zh-navy-light' : 'text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-mid'}
                         `}
                       >
                         <span>{item.label}</span>
                         {isBadge && blockerCount > 0 && (
-                          <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-zh-error text-zh-error-text text-[9px] font-bold px-1">
+                          <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-zh-error text-zh-error-text text-[10px] font-bold px-1">
                             {blockerCount}
                           </span>
                         )}
@@ -305,12 +305,12 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
               <div className="font-zh-ui font-semibold text-xs text-zh-cream truncate">
                 {session?.user?.name || 'Admin'}
               </div>
-              <div className="font-zh-mono text-[8px] text-zh-cream-muted uppercase tracking-[1px]">
+              <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[1px]">
                 CEO
               </div>
             </div>
-            <button onClick={handleSignOut} className="p-2 rounded-lg text-zh-cream-muted hover:text-zh-error-text transition-colors" title="Sign out">
-              <LogOut size={14} />
+            <button onClick={handleSignOut} className="p-2 rounded-lg text-zh-cream-muted hover:text-zh-error-text transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center" title="Sign out">
+              <LogOut size={16} />
             </button>
           </div>
         ) : (
@@ -385,7 +385,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
           {/* Right */}
           <div className="flex items-center gap-2">
             <Link href="/admin/cockpit/write"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md font-zh-mono text-[9px] font-semibold uppercase tracking-[1.5px] bg-zh-gold text-zh-navy hover:bg-zh-gold/90 transition-colors">
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-md font-zh-mono text-[10px] font-semibold uppercase tracking-[1.5px] bg-zh-gold text-zh-navy hover:bg-zh-gold/90 transition-colors min-h-[36px]">
               <Plus size={11} />
               New Article
             </Link>
@@ -410,7 +410,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                       <div className="font-zh-ui font-semibold text-xs text-zh-cream">
                         {session?.user?.name || 'Admin'}
                       </div>
-                      <div className="font-zh-mono text-[9px] text-zh-cream-muted tracking-wider mt-0.5 truncate">
+                      <div className="font-zh-mono text-[10px] text-zh-cream-muted tracking-wider mt-0.5 truncate">
                         {session?.user?.email || ''}
                       </div>
                     </div>
@@ -421,16 +421,16 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                         { label: 'AI Models', href: '/admin/settings?tab=ai-models', icon: Brain },
                       ].map(({ label, href, icon: Icon }) => (
                         <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-md font-zh-mono text-[9px] uppercase tracking-[1px] text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-light transition-colors">
-                          <Icon size={12} />
+                              className="flex items-center gap-2 px-3 py-2 rounded-md font-zh-mono text-[10px] uppercase tracking-[1px] text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-light transition-colors min-h-[36px]">
+                          <Icon size={14} />
                           {label}
                         </Link>
                       ))}
                     </div>
                     <div className="p-1.5 border-t border-zh-navy-border">
                       <button onClick={handleSignOut}
-                              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md font-zh-mono text-[9px] uppercase tracking-[1px] text-zh-error-text hover:bg-zh-error/20 transition-colors">
-                        <LogOut size={12} />
+                              className="flex items-center gap-2 w-full px-3 py-2 rounded-md font-zh-mono text-[10px] uppercase tracking-[1px] text-zh-error-text hover:bg-zh-error/20 transition-colors min-h-[36px]">
+                        <LogOut size={14} />
                         Sign Out
                       </button>
                     </div>
@@ -461,9 +461,9 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
             if (isTrigger) {
               return (
                 <button key="more" onClick={() => setMobileMenuOpen(true)}
-                        className="flex flex-col items-center gap-0.5 min-w-[44px] py-1 text-zh-cream-muted">
+                        className="flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] py-1 text-zh-cream-muted">
                   <Icon size={18} />
-                  <span className="font-zh-mono text-[8px] uppercase tracking-wider">More</span>
+                  <span className="font-zh-mono text-[10px] uppercase tracking-wider">More</span>
                 </button>
               )
             }
@@ -479,9 +479,9 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
 
             return (
               <Link key={item.label} href={item.href}
-                    className={`flex flex-col items-center gap-0.5 min-w-[44px] py-1 transition-colors ${active ? 'text-zh-gold' : 'text-zh-cream-muted'}`}>
+                    className={`flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] py-1 transition-colors ${active ? 'text-zh-gold' : 'text-zh-cream-muted'}`}>
                 <Icon size={18} />
-                <span className="font-zh-mono text-[8px] uppercase tracking-wider">{item.label}</span>
+                <span className="font-zh-mono text-[10px] uppercase tracking-wider">{item.label}</span>
               </Link>
             )
           })}

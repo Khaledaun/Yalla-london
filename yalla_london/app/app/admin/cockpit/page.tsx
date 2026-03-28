@@ -1448,7 +1448,7 @@ function NewsCard({ siteId, triggerAction, actionLoading }: { siteId: string; tr
                     {item.urgency === "breaking" ? "🔴" : item.urgency === "urgent" ? "🟠" : "🔵"}
                   </span>
                   <span className="text-stone-600 truncate flex-1">{item.headline_en}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] ${statusBadge(item.status)}`}>{item.status}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${statusBadge(item.status)}`}>{item.status}</span>
                 </div>
               ))}
             </div>
@@ -1972,7 +1972,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               </button>
             )}
             {indexing.dataSource === "lightweight" && (
-              <div className="mt-1 text-[9px] text-stone-500 italic">Numbers are approximate (blog posts only). Full count includes static pages.</div>
+              <div className="mt-1 text-[10px] text-stone-500 italic">Numbers are approximate (blog posts only). Full count includes static pages.</div>
             )}
           </div>
         )}
@@ -4885,7 +4885,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                                     {" "}
                                     <span className="text-stone-500">{new Date(report.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                                   </div>
-                                  <span className={`text-[9px] px-1 py-0.5 rounded ${
+                                  <span className={`text-[10px] px-1 py-0.5 rounded ${
                                     report.triggeredBy === "scheduled" ? "bg-[rgba(59,126,161,0.08)] text-[#3B7EA1]" : "bg-stone-200/50 text-stone-400"
                                   }`}>
                                     {report.triggeredBy === "scheduled" ? "Daily Auto" : "Manual"}
@@ -5237,7 +5237,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                           ].map((f) => (
                                             <div key={f.label} className="bg-stone-100/50 rounded p-1">
                                               <div className={`font-bold text-sm ${f.color}`}>{f.value}</div>
-                                              <div className="text-stone-500 text-[9px]">{f.label}</div>
+                                              <div className="text-stone-500 text-[10px]">{f.label}</div>
                                             </div>
                                           ))}
                                         </div>
@@ -5260,7 +5260,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                             <p className="text-stone-500 text-[10px] font-medium mb-1">Top Issues</p>
                                             {discoveryData.topIssues.slice(0, 5).map((di, i) => (
                                               <div key={i} className="flex items-start gap-1.5 py-0.5 text-[10px]">
-                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[8px] font-medium uppercase ${di.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-[#C8322B]" : di.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-[#92400E]" : "bg-[rgba(196,154,42,0.10)] text-[#7a5a10]"}`}>{di.severity}</span>
+                                                <span className={`shrink-0 px-1 py-0.5 rounded text-[10px] font-medium uppercase ${di.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-[#C8322B]" : di.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-[#92400E]" : "bg-[rgba(196,154,42,0.10)] text-[#7a5a10]"}`}>{di.severity}</span>
                                                 <span className="text-stone-600">{di.title}</span>
                                               </div>
                                             ))}
@@ -5353,7 +5353,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                                   </span>
                                                   <span className="text-stone-600 truncate">{c.name}</span>
                                                 </div>
-                                                <span className="text-stone-500 text-[9px] shrink-0 ml-2">{c.detail}</span>
+                                                <span className="text-stone-500 text-[10px] shrink-0 ml-2">{c.detail}</span>
                                               </div>
                                             ))}
                                           </div>
@@ -5427,7 +5427,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                           "bg-[rgba(196,154,42,0.04)] border-[rgba(196,154,42,0.3)]/30"
                                         }`}>
                                           <div className="flex items-center gap-1.5">
-                                            <span className={`text-[9px] px-1 py-0.5 rounded font-medium uppercase ${
+                                            <span className={`text-[10px] px-1 py-0.5 rounded font-medium uppercase ${
                                               issue.severity === "critical" ? "bg-[rgba(200,50,43,0.10)] text-[#C8322B]" :
                                               issue.severity === "high" ? "bg-[rgba(217,119,6,0.10)] text-[#92400E]" :
                                               "bg-[rgba(196,154,42,0.10)] text-[#7a5a10]"
@@ -5499,7 +5499,7 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                                           {aggReportCopied === "json-sec" ? "Copied!" : "Copy"}
                                         </button>
                                       </div>
-                                      <pre className="text-stone-400 whitespace-pre-wrap font-mono text-[9px] leading-relaxed max-h-96 overflow-y-auto">{JSON.stringify(rpt, null, 2)}</pre>
+                                      <pre className="text-stone-400 whitespace-pre-wrap font-mono text-[10px] leading-relaxed max-h-96 overflow-y-auto">{JSON.stringify(rpt, null, 2)}</pre>
                                     </div>
                                   )}
                                 </div>
@@ -5615,9 +5615,9 @@ The full report JSON is saved in our SeoAuditReport table with triggeredBy="aggr
                           </div>
                           {/* Submission channels */}
                           <div className="flex gap-1.5 mt-1.5">
-                            {article.submittedIndexNow && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[9px] text-stone-400">IndexNow</span>}
-                            {article.submittedSitemap && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[9px] text-stone-400">Sitemap</span>}
-                            {article.submittedGoogleApi && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[9px] text-stone-400">GSC API</span>}
+                            {article.submittedIndexNow && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[10px] text-stone-400">IndexNow</span>}
+                            {article.submittedSitemap && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[10px] text-stone-400">Sitemap</span>}
+                            {article.submittedGoogleApi && <span className="px-1 py-0.5 rounded bg-stone-200/50 text-[10px] text-stone-400">GSC API</span>}
                           </div>
                           {/* Error if any */}
                           {article.indexingError && (

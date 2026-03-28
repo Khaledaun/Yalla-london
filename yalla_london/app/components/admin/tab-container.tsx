@@ -75,7 +75,7 @@ function TabContainerInner({ tabs, defaultTab, children, title }: TabContainerPr
             >
               {tab.label}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
                       style={{
                         backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : '#C8322B',
                         color: isActive ? '#FAF8F4' : '#FAF8F4',

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, MapPin, Phone, Globe, Search } from 'lucide-react'
+import { Star, MapPin, Phone, Globe, Search, ChevronDown, ChevronUp, Utensils, Users, CalendarCheck, ShoppingBag, Banknote, Train } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink, type AffiliateCategory } from '@/lib/affiliate/page-affiliate-links'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
@@ -193,8 +193,87 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
 
   const labels = typeLabels[locale]
+
+  const insiderTips = [
+    {
+      icon: Utensils,
+      title_en: 'Halal Dining Etiquette in London',
+      title_ar: 'آداب تناول الطعام الحلال في لندن',
+      desc_en: 'Many high-end London restaurants do not advertise halal options but will accommodate requests when asked. Always call ahead to confirm halal meat availability, especially for Michelin-starred venues. Apps like HalalTrip and Zabihah are reliable for finding certified restaurants. During Ramadan, several luxury hotels offer dedicated Iftar and Suhoor menus — book early as these fill quickly with the local Arab community.',
+      desc_ar: 'كثير من مطاعم لندن الراقية لا تعلن عن خيارات حلال لكنها تلبي الطلبات عند السؤال. اتصل دائمًا مسبقًا للتأكد من توفر اللحوم الحلال، خاصة في مطاعم ميشلان. تطبيقات مثل HalalTrip وZabihah موثوقة لإيجاد المطاعم المعتمدة. خلال رمضان، تقدم عدة فنادق فاخرة قوائم إفطار وسحور خاصة — احجز مبكرًا لأنها تمتلئ بسرعة.',
+    },
+    {
+      icon: Users,
+      title_en: 'Best Neighbourhoods for Arab Families',
+      title_ar: 'أفضل الأحياء للعائلات العربية',
+      desc_en: 'Knightsbridge and Mayfair remain the top choices for Gulf families, with easy walking access to Harrods, Hyde Park, and halal restaurants on Edgware Road. Kensington offers a quieter alternative with excellent family suites at The Milestone and Royal Garden hotels. Bayswater and Marble Arch feature the highest concentration of Arabic-speaking shops, cafes, and grocery stores — ideal for longer stays where a sense of home matters.',
+      desc_ar: 'تبقى نايتسبريدج ومايفير الخيارين الأفضل للعائلات الخليجية، مع سهولة الوصول سيرًا إلى هارودز وهايد بارك ومطاعم حلال في إدجوير رود. كنسينغتون تقدم بديلًا أهدأ مع أجنحة عائلية ممتازة. بايزواتر وماربل آرتش تضم أعلى تركيز للمحلات والمقاهي والبقالات الناطقة بالعربية — مثالية للإقامات الطويلة.',
+    },
+    {
+      icon: CalendarCheck,
+      title_en: 'Booking Restaurants During Peak Season',
+      title_ar: 'حجز المطاعم في موسم الذروة',
+      desc_en: 'London\'s top restaurants book out 4-6 weeks in advance during summer (June-August) when Gulf visitors peak. For Michelin-starred venues like Sketch or Dinner by Heston, book the moment your travel dates are confirmed. Many restaurants release cancellation slots at midnight — check OpenTable or Resy at 00:01 for last-minute availability. Hotel concierges at five-star properties can often secure tables at short notice through their direct relationships.',
+      desc_ar: 'تُحجز أفضل مطاعم لندن قبل 4-6 أسابيع خلال الصيف (يونيو-أغسطس) عندما يبلغ زوار الخليج ذروتهم. لمطاعم ميشلان مثل سكيتش أو دينر باي هيستون، احجز فور تأكيد تواريخ سفرك. تطلق كثير من المطاعم مواعيد الإلغاء منتصف الليل — تحقق من OpenTable أو Resy عند 00:01. كونسيرج الفنادق الخمس نجوم يمكنهم تأمين طاولات بإشعار قصير.',
+    },
+    {
+      icon: ShoppingBag,
+      title_en: 'Shopping Tax-Free with VAT Refund',
+      title_ar: 'التسوق المعفى من الضرائب مع استرداد ضريبة القيمة المضافة',
+      desc_en: 'As a non-UK resident, you may be eligible for VAT refund on purchases over a certain threshold. Major stores like Harrods, Selfridges, and Harvey Nichols have dedicated VAT refund desks. Ask for a VAT 407 form at the point of sale, get it stamped at the airport customs desk before departure, and submit it at the refund counter. Digital solutions like Wevat allow you to claim refunds via your phone, often with better rates than traditional paper forms.',
+      desc_ar: 'كمقيم خارج المملكة المتحدة، قد تكون مؤهلًا لاسترداد ضريبة القيمة المضافة على المشتريات فوق حد معين. المتاجر الكبرى مثل هارودز وسيلفريدجز وهارفي نيكولز لديها مكاتب مخصصة لاسترداد الضريبة. اطلب نموذج VAT 407 عند الشراء، واحصل على ختمه في مكتب الجمارك بالمطار قبل المغادرة. حلول رقمية مثل Wevat تتيح لك المطالبة عبر هاتفك بأسعار أفضل غالبًا.',
+    },
+    {
+      icon: Banknote,
+      title_en: 'Currency Exchange Tips',
+      title_ar: 'نصائح تحويل العملات',
+      desc_en: 'Avoid exchanging money at Heathrow Airport — rates are consistently 5-8% worse than in central London. The best rates are found at specialist bureaux on Edgware Road and Queensway, where competition keeps margins tight. Contactless payment is accepted virtually everywhere in London including the Tube, buses, and black cabs. Gulf bank cards (Visa/Mastercard) work seamlessly. For larger purchases, TransferWise (Wise) or Revolut offer near-interbank rates with zero markup.',
+      desc_ar: 'تجنب تحويل العملات في مطار هيثرو — الأسعار أسوأ بنسبة 5-8% من وسط لندن. أفضل الأسعار في مكاتب الصرافة المتخصصة في إدجوير رود وكوينزواي حيث المنافسة تحافظ على هوامش منخفضة. الدفع بدون تلامس مقبول في كل مكان في لندن بما في ذلك المترو والحافلات وسيارات الأجرة السوداء. بطاقات البنوك الخليجية (فيزا/ماستركارد) تعمل بسلاسة. للمشتريات الكبيرة، Wise أو Revolut تقدم أسعارًا قريبة من سعر البنك المركزي.',
+    },
+    {
+      icon: Train,
+      title_en: 'Getting Around London Efficiently',
+      title_ar: 'التنقل في لندن بكفاءة',
+      desc_en: 'The Elizabeth Line (opened 2022) transformed London travel — it connects Heathrow to Bond Street in 28 minutes and Paddington to Canary Wharf in 17 minutes, all without changing trains. Use a contactless bank card instead of buying an Oyster card; daily and weekly caps are identical and you avoid the £7 deposit. For short trips in central London, black cabs are easiest with families (they fit 5 passengers plus luggage). Uber works well but surge pricing applies during theatre hours (6-8pm).',
+      desc_ar: 'خط إليزابيث (افتُتح 2022) غيّر التنقل في لندن — يربط هيثرو ببوند ستريت في 28 دقيقة وبادينغتون بكناري وارف في 17 دقيقة بدون تغيير القطارات. استخدم بطاقة بنكية بدون تلامس بدلًا من شراء بطاقة أويستر؛ الحدود اليومية والأسبوعية متطابقة وتتجنب وديعة 7 جنيهات. للرحلات القصيرة وسط لندن، سيارات الأجرة السوداء الأسهل مع العائلات (تتسع لـ5 ركاب مع أمتعة). أوبر يعمل جيدًا لكن التسعير المرتفع ينطبق خلال ساعات المسرح (6-8 مساءً).',
+    },
+  ]
+
+  const faqItems = [
+    {
+      q_en: 'How are these recommendations selected?',
+      q_ar: 'كيف يتم اختيار هذه التوصيات؟',
+      a_en: 'Our editorial team personally visits and evaluates every venue on this page. We assess quality of service, cultural sensitivity, halal availability, family-friendliness, location convenience, and value for money. Venues must meet our standards across at least four of these six criteria to earn a recommendation. We also incorporate feedback from our community of Arab travellers who share their real experiences with us. No venue can pay for placement — every recommendation is earned through consistent excellence.',
+      a_ar: 'يزور فريقنا التحريري شخصيًا ويقيّم كل مكان في هذه الصفحة. نقيّم جودة الخدمة والحساسية الثقافية وتوفر الحلال وملاءمة العائلات وملاءمة الموقع والقيمة مقابل المال. يجب أن تستوفي الأماكن معاييرنا في أربعة على الأقل من هذه المعايير الستة لتحصل على توصية. لا يمكن لأي مكان الدفع للظهور — كل توصية مكتسبة من خلال التميز المستمر.',
+    },
+    {
+      q_en: 'Are all the listed restaurants halal?',
+      q_ar: 'هل جميع المطاعم المدرجة حلال؟',
+      a_en: 'Not all restaurants on our list are fully halal-certified, but each one either offers halal menu options or can accommodate halal dietary requirements when requested in advance. We clearly note halal availability in each restaurant\'s description and features. For fully halal-certified restaurants, we recommend checking our dedicated halal dining guide which focuses exclusively on certified venues. When in doubt, always call ahead — London\'s top restaurants are experienced in accommodating diverse dietary needs.',
+      a_ar: 'ليست جميع المطاعم في قائمتنا معتمدة حلال بالكامل، لكن كل منها إما يقدم خيارات حلال في القائمة أو يمكنه تلبية متطلبات الطعام الحلال عند الطلب مسبقًا. نوضح توفر الحلال في وصف كل مطعم. للمطاعم المعتمدة حلال بالكامل، ننصح بمراجعة دليلنا المخصص للمطاعم الحلال. عند الشك، اتصل دائمًا مسبقًا — أفضل مطاعم لندن لديها خبرة في تلبية الاحتياجات الغذائية المتنوعة.',
+    },
+    {
+      q_en: 'Which areas of London are best for families with children?',
+      q_ar: 'ما هي أفضل مناطق لندن للعائلات مع أطفال؟',
+      a_en: 'Kensington is our top pick for families — it offers the Natural History Museum, Science Museum, and Victoria & Albert Museum (all free), plus Kensington Gardens and Diana Memorial Playground. South Kensington has excellent family-friendly restaurants and is well-connected by Tube. Knightsbridge combines shopping (Harrods) with Hyde Park activities including boating, cycling, and the Serpentine Gallery. For older children, the South Bank area offers the London Eye, SEA LIFE Aquarium, and Shrek\'s Adventure, all within walking distance of each other.',
+      a_ar: 'كنسينغتون هي خيارنا الأول للعائلات — توفر متحف التاريخ الطبيعي ومتحف العلوم ومتحف فيكتوريا وألبرت (جميعها مجانية)، بالإضافة إلى حدائق كنسينغتون وملعب ديانا التذكاري. ساوث كنسينغتون بها مطاعم عائلية ممتازة ومتصلة جيدًا بالمترو. نايتسبريدج تجمع بين التسوق (هارودز) وأنشطة هايد بارك. للأطفال الأكبر، منطقة ساوث بانك توفر عين لندن وأكواريوم SEA LIFE ومغامرة شريك، كلها على مسافة مشي.',
+    },
+    {
+      q_en: 'Can I book directly through Yalla London?',
+      q_ar: 'هل يمكنني الحجز مباشرة عبر يلا لندن؟',
+      a_en: 'We provide direct links to each venue\'s official website and booking platforms where available. For hotels, we partner with trusted booking services like Booking.com and HalalBooking that offer competitive rates and flexible cancellation policies. Restaurant reservations should be made directly with the venue or through platforms like OpenTable. While we do not handle bookings ourselves, our affiliate partnerships ensure you get the best available rates, and a portion of the booking supports our work in keeping this guide free and up-to-date.',
+      a_ar: 'نوفر روابط مباشرة لموقع كل مكان ومنصات الحجز المتاحة. للفنادق، نتشارك مع خدمات حجز موثوقة مثل Booking.com وHalalBooking التي تقدم أسعارًا تنافسية وسياسات إلغاء مرنة. حجوزات المطاعم يجب أن تتم مباشرة مع المكان أو عبر منصات مثل OpenTable. بينما لا نتعامل مع الحجوزات بأنفسنا، شراكاتنا تضمن لك أفضل الأسعار المتاحة، وجزء من الحجز يدعم عملنا في إبقاء هذا الدليل مجانيًا ومحدثًا.',
+    },
+    {
+      q_en: 'How often are recommendations updated?',
+      q_ar: 'كم مرة يتم تحديث التوصيات؟',
+      a_en: 'We conduct a full review of all recommendations every quarter (January, April, July, and October). During each review, our team revisits venues, checks for changes in service quality, menu updates, and pricing adjustments. Between quarterly reviews, we make immediate updates if a venue closes, changes ownership, or receives significant negative feedback from our community. Seasonal additions — such as Ramadan-specific restaurants, Eid celebration venues, and summer pop-ups — are added as they become available and removed when they end.',
+      a_ar: 'نجري مراجعة شاملة لجميع التوصيات كل ربع سنة (يناير، أبريل، يوليو، وأكتوبر). خلال كل مراجعة، يعيد فريقنا زيارة الأماكن ويتحقق من التغييرات في جودة الخدمة وتحديثات القائمة وتعديلات الأسعار. بين المراجعات الفصلية، نجري تحديثات فورية إذا أغلق مكان أو تغيرت ملكيته أو تلقى ملاحظات سلبية كبيرة. الإضافات الموسمية — مثل مطاعم رمضان وأماكن احتفال العيد — تُضاف عند توفرها وتُزال عند انتهائها.',
+    },
+  ]
 
   const filtered = recommendations.filter(item => {
     const name = locale === 'en' ? item.name_en : item.name_ar
@@ -237,6 +316,42 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
       </section>
 
       <TriBar />
+
+      {/* Editorial Intro */}
+      <section className="py-12 bg-white">
+        <div className="max-w-4xl mx-auto px-7">
+          <h2 className="text-3xl font-heading font-bold text-yl-charcoal mb-6 text-center">
+            {locale === 'en' ? 'Our Curated London Picks' : 'اختياراتنا المنتقاة في لندن'}
+          </h2>
+          <div className="space-y-4 text-base text-yl-gray-500 font-body leading-relaxed">
+            {locale === 'en' ? (
+              <>
+                <p>
+                  Every recommendation on this page has been personally vetted by our editorial team, drawing on years of experience guiding Arab and Gulf travellers through the best of London. We do not simply list popular venues — we select places that consistently deliver exceptional experiences with genuine cultural sensitivity, halal dining options, Arabic-speaking staff, and prayer-friendly arrangements. Whether you are visiting London for the first time with your family or returning for a seasonal getaway, these are the establishments that earn our trust.
+                </p>
+                <p>
+                  Our hotel selections prioritise privacy, generous suite configurations for families, proximity to major attractions, and a track record of welcoming Gulf guests. For restaurants, we focus on Michelin-quality dining that either offers fully halal menus or clearly labelled halal choices alongside outstanding service. Our attraction picks balance iconic London landmarks with lesser-known gems that reward curiosity — from royal palaces to panoramic viewpoints that transform your understanding of the city.
+                </p>
+                <p>
+                  We update these recommendations quarterly, revisiting each venue to confirm standards have been maintained. Seasonal promotions, Ramadan packages, and Eid offers are highlighted as they become available. If you have visited any of these places and have feedback, we would love to hear from you — your insights help us keep this guide honest and useful for every traveller in our community.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  كل توصية في هذه الصفحة تم تقييمها شخصيًا من قبل فريقنا التحريري، بالاعتماد على سنوات من الخبرة في إرشاد المسافرين العرب والخليجيين إلى أفضل ما تقدمه لندن. نحن لا نكتفي بسرد الأماكن الشائعة — بل نختار المنشآت التي تقدم تجارب استثنائية باستمرار مع حساسية ثقافية حقيقية وخيارات طعام حلال وموظفين يتحدثون العربية وترتيبات ملائمة للصلاة. سواء كنت تزور لندن لأول مرة مع عائلتك أو تعود لقضاء إجازة موسمية، فهذه هي المنشآت التي تحظى بثقتنا.
+                </p>
+                <p>
+                  تعطي اختياراتنا للفنادق الأولوية للخصوصية وتوفر أجنحة عائلية واسعة وقربها من المعالم الرئيسية وسجل حافل في استقبال ضيوف الخليج. أما المطاعم فنركز على مطاعم بمستوى ميشلان تقدم قوائم حلال بالكامل أو خيارات حلال واضحة إلى جانب خدمة متميزة. واختياراتنا للمعالم توازن بين معالم لندن الأيقونية والجواهر الأقل شهرة التي تكافئ الفضول — من القصور الملكية إلى نقاط المشاهدة البانورامية التي تغير فهمك للمدينة.
+                </p>
+                <p>
+                  نقوم بتحديث هذه التوصيات كل ثلاثة أشهر، ونعيد زيارة كل مكان للتأكد من الحفاظ على المعايير. يتم إبراز العروض الموسمية وباقات رمضان وعروض العيد فور توفرها. إذا زرت أيًا من هذه الأماكن ولديك ملاحظات، يسعدنا أن نسمع منك — رؤيتك تساعدنا في الحفاظ على هذا الدليل صادقًا ومفيدًا لكل مسافر في مجتمعنا.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Type Filter */}
       <div className="bg-white border-b border-yl-gray-200 py-4 sticky top-16 z-40">
@@ -371,6 +486,76 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
             </p>
           </div>
         )}
+      </section>
+
+      {/* Insider Tips for Arab Travellers */}
+      <section className="py-12 bg-yl-cream">
+        <div className="max-w-7xl mx-auto px-7">
+          <div className="text-center mb-10">
+            <SectionLabel>{locale === 'en' ? 'Practical Advice' : 'نصائح عملية'}</SectionLabel>
+            <h2 className="text-3xl font-heading font-bold text-yl-charcoal">
+              {locale === 'en' ? 'Insider Tips for Arab Travellers' : 'نصائح من الداخل للمسافرين العرب'}
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {insiderTips.map((tip, idx) => {
+              const TipIcon = tip.icon
+              return (
+                <BrandCardLight key={idx} className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center shrink-0">
+                      <TipIcon className="w-5 h-5 text-yl-gold" />
+                    </div>
+                    <h3 className="text-lg font-heading font-semibold text-yl-charcoal">
+                      {locale === 'en' ? tip.title_en : tip.title_ar}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-yl-gray-500 font-body leading-relaxed">
+                    {locale === 'en' ? tip.desc_en : tip.desc_ar}
+                  </p>
+                </BrandCardLight>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-12 bg-white">
+        <div className="max-w-3xl mx-auto px-7">
+          <div className="text-center mb-10">
+            <SectionLabel>{locale === 'en' ? 'Common Questions' : 'أسئلة شائعة'}</SectionLabel>
+            <h2 className="text-3xl font-heading font-bold text-yl-charcoal">
+              {locale === 'en' ? 'Frequently Asked Questions' : 'الأسئلة الشائعة'}
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {faqItems.map((faq, idx) => (
+              <div key={idx} className="border border-yl-gray-200 rounded-[14px] overflow-hidden bg-yl-cream/50">
+                <button
+                  onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-yl-cream transition-colors"
+                >
+                  <span className="font-heading font-semibold text-yl-charcoal pr-4">
+                    {locale === 'en' ? faq.q_en : faq.q_ar}
+                  </span>
+                  {openFaqIndex === idx ? (
+                    <ChevronUp className="w-5 h-5 text-yl-gold shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-yl-gray-400 shrink-0" />
+                  )}
+                </button>
+                {openFaqIndex === idx && (
+                  <div className="px-6 pb-5">
+                    <p className="text-sm text-yl-gray-500 font-body leading-relaxed">
+                      {locale === 'en' ? faq.a_en : faq.a_ar}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <TriBar />

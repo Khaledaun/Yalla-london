@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Star, MapPin, Clock, Search } from 'lucide-react'
+import { Star, MapPin, Clock, Search, ChevronDown, ChevronUp, Users, BookOpen, Utensils, MapPinned, Ticket, CalendarDays } from 'lucide-react'
+import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
@@ -327,6 +328,7 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(t.categories[0])
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
 
   const filteredExperiences = experiences[locale].filter(exp => {
     const matchesSearch = !searchQuery || exp.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -366,6 +368,32 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
       </section>
 
       <TriBar />
+
+      {/* Editorial Intro Section */}
+      <section className="py-12 bg-white">
+        <div className="max-w-4xl mx-auto px-7">
+          <h2 className={`text-3xl font-heading font-bold text-yl-charcoal mb-6 ${isRTL ? 'font-arabic text-right' : ''}`}>
+            {locale === 'ar' ? 'تجارب لا تُنسى في لندن' : 'Unforgettable London Experiences'}
+          </h2>
+          <div className={`space-y-4 font-body text-yl-gray-600 leading-relaxed ${isRTL ? 'text-right' : ''}`}>
+            <p>
+              {locale === 'ar'
+                ? 'تُعد لندن واحدة من أغنى مدن العالم بالتجارب المتنوعة، حيث تمتزج المعالم التاريخية العريقة التي يعود عمرها لألف عام مع مناطق الجذب الحديثة ذات المستوى العالمي. من أبراج لندن الشامخة التي تحتضن جواهر التاج الملكية، إلى عين لندن التي توفر إطلالات بانورامية خلابة على أفق المدينة، تقدم العاصمة البريطانية تجارب تناسب جميع الأذواق والأعمار. سواء كنت من عشاق التاريخ أو محبي الفنون أو تبحث عن مغامرات عائلية ممتعة، ستجد في لندن ما يفوق توقعاتك.'
+                : 'London ranks among the world\'s richest cities for diverse experiences, where thousand-year-old historic landmarks blend seamlessly with world-class modern attractions. From the imposing Tower of London housing the Crown Jewels to the London Eye offering sweeping panoramic views across the city skyline, the British capital delivers experiences for every taste and age group. Whether you are passionate about history, arts and culture, or searching for fun family adventures, London consistently exceeds expectations.'}
+            </p>
+            <p>
+              {locale === 'ar'
+                ? 'ما يميز لندن بشكل خاص للزوار العرب والخليجيين هو الاهتمام المتزايد بتوفير تجارب مراعية للثقافة العربية والإسلامية. توفر العديد من المعالم السياحية الكبرى أدلة صوتية باللغة العربية، بما في ذلك برج لندن والمتحف البريطاني وقصر باكنغهام. كما تنتشر المطاعم الحلال بالقرب من معظم مناطق الجذب السياحي الرئيسية، وتتوفر غرف صلاة في العديد من المتاحف والمراكز التجارية الكبرى. تجعل هذه المرافق من لندن وجهة مثالية للعائلات العربية التي تبحث عن تجربة سياحية مريحة وممتعة دون أي تنازلات.'
+                : 'What makes London particularly appealing for Arab and Gulf visitors is the growing attention to culturally sensitive and inclusive experiences. Many major attractions now provide Arabic audio guides, including the Tower of London, the British Museum, and Buckingham Palace. Halal dining options are widely available near most major tourist areas, and prayer rooms can be found in numerous museums and large shopping centres. These amenities make London an ideal destination for Arab families seeking a comfortable and enjoyable travel experience without compromise.'}
+            </p>
+            <p>
+              {locale === 'ar'
+                ? 'تضم قائمتنا المختارة بعناية أفضل عشر تجارب في لندن، تتراوح بين المعالم التاريخية المجانية مثل المتحف البريطاني والتجارب الفاخرة مثل شاي بعد الظهر في ذا شارد. لقد اختبرنا كل تجربة شخصيًا وقيّمناها بناءً على جودة الخدمة ومدى ملاءمتها للعائلات وسهولة الوصول إليها. ستجد خيارات تناسب جميع الميزانيات، من الأنشطة المجانية إلى التجارب الحصرية التي تستحق كل بنس.'
+                : 'Our carefully curated selection highlights ten of London\'s finest experiences, ranging from free historic landmarks such as the British Museum to luxury outings like afternoon tea at The Shard. We have personally visited and evaluated each experience based on service quality, family-friendliness, and accessibility. You will find options for every budget, from complimentary activities to exclusive experiences that are worth every penny.'}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Category Filter */}
       <div className="bg-white border-b border-yl-gray-200 py-4 sticky top-16 z-40">
@@ -448,6 +476,244 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
           ))}
         </div>
       </div>
+
+      {/* Tips for Arab Travellers Section */}
+      <section className="py-12 bg-yl-cream">
+        <div className="max-w-7xl mx-auto px-7">
+          <h2 className={`text-3xl font-heading font-bold text-yl-charcoal mb-8 text-center ${isRTL ? 'font-arabic' : ''}`}>
+            {locale === 'ar' ? 'نصائح التخطيط للزوار العرب' : 'Planning Tips for Arab Visitors'}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <BrandCardLight className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center">
+                  <CalendarDays className="w-5 h-5 text-yl-gold" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                    {locale === 'ar' ? 'أفضل الأوقات لتجنب الازدحام' : 'Best Times to Avoid Crowds'}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 leading-relaxed">
+                    {locale === 'ar'
+                      ? 'تكون المعالم السياحية أقل ازدحامًا خلال أيام الأسبوع وفي الصباح الباكر. إذا كنت تزور لندن خلال شهر رمضان المبارك، فإن فترة ما بعد الظهر تكون مثالية حيث تقل أعداد الزوار بشكل ملحوظ. تجنب فترات العطل المدرسية البريطانية في أكتوبر وفبراير وأبريل للحصول على تجربة أكثر هدوءًا.'
+                      : 'Attractions are least crowded on weekdays and during early mornings. If visiting London during Ramadan, afternoons are ideal as visitor numbers drop noticeably. Avoid British school half-terms in October, February, and April for a quieter experience. Summer months (July-August) are peak season, so booking tickets in advance is strongly recommended.'}
+                  </p>
+                </div>
+              </div>
+            </BrandCardLight>
+
+            <BrandCardLight className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-yl-gold" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                    {locale === 'ar' ? 'تجارب مناسبة للعائلات والأطفال' : 'Family-Friendly Experiences with Children'}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 leading-relaxed">
+                    {locale === 'ar'
+                      ? 'معظم المعالم الرئيسية في لندن ترحب بالأطفال وتوفر أسعارًا مخفضة لهم. استوديو وارنر براذرز وحدائق كيو والمتحف البريطاني من أفضل الخيارات للعائلات. يدخل الأطفال دون سن 5 سنوات مجانًا في معظم الأماكن. تأكد من حجز عربة أطفال مجانية في المتاحف الكبرى لراحة أطفالك الصغار.'
+                      : 'Most major London attractions welcome children and offer discounted rates. Warner Bros. Studio Tour, Kew Gardens, and the British Museum are among the best choices for families. Children under 5 typically enter free at most venues. Be sure to request a free buggy at larger museums for your little ones\' comfort, and look for family ticket bundles that save up to 20%.'}
+                  </p>
+                </div>
+              </div>
+            </BrandCardLight>
+
+            <BrandCardLight className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-yl-gold" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                    {locale === 'ar' ? 'توفر الأدلة الصوتية العربية' : 'Arabic Audio Guide Availability'}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 leading-relaxed">
+                    {locale === 'ar'
+                      ? 'تتوفر الأدلة الصوتية باللغة العربية في عدد متزايد من المعالم السياحية في لندن. برج لندن والمتحف البريطاني وقصر باكنغهام وكاتدرائية القديس بولس جميعها توفر هذه الخدمة. اسأل عن الدليل الصوتي عند شراء التذكرة. بعض الأماكن تقدمه مجانًا والبعض الآخر يتقاضى رسومًا رمزية تتراوح بين 4 و6 جنيهات استرلينية.'
+                      : 'Arabic audio guides are available at a growing number of London attractions. The Tower of London, British Museum, Buckingham Palace, and St Paul\'s Cathedral all offer this service. Ask about the audio guide when purchasing your ticket. Some venues include it free of charge while others charge a nominal fee of 4-6 pounds. Many museums also offer Arabic-language printed guides at their information desks.'}
+                  </p>
+                </div>
+              </div>
+            </BrandCardLight>
+
+            <BrandCardLight className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center">
+                  <MapPinned className="w-5 h-5 text-yl-gold" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                    {locale === 'ar' ? 'مواقع غرف الصلاة بالقرب من المعالم' : 'Prayer Room Locations at Major Attractions'}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 leading-relaxed">
+                    {locale === 'ar'
+                      ? 'توفر العديد من المعالم السياحية والمراكز التجارية الكبرى غرف صلاة مخصصة. المتحف البريطاني يحتوي على غرفة صلاة هادئة في الطابق السفلي. مركز ويستفيلد للتسوق في شيبردز بوش وستراتفورد يوفران مصليات مجهزة بالكامل. مسجد لندن المركزي في ريجنتس بارك يقع على بعد دقائق من حديقة الحيوان ومتحف مدام توسو.'
+                      : 'Many major attractions and shopping centres provide dedicated prayer rooms. The British Museum has a quiet prayer room in the lower level. Westfield shopping centres in Shepherd\'s Bush and Stratford offer fully equipped prayer facilities. The London Central Mosque in Regent\'s Park is just minutes from London Zoo and Madame Tussauds. Apps like SalatTime and Muslim Pro can help locate nearby prayer spaces throughout central London.'}
+                  </p>
+                </div>
+              </div>
+            </BrandCardLight>
+
+            <BrandCardLight className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center">
+                  <Utensils className="w-5 h-5 text-yl-gold" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                    {locale === 'ar' ? 'طعام حلال بالقرب من المعالم السياحية' : 'Halal Food Near Attractions'}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 leading-relaxed">
+                    {locale === 'ar'
+                      ? 'تنتشر المطاعم الحلال في جميع أنحاء وسط لندن، وخاصة بالقرب من المعالم السياحية الشهيرة. منطقة إيدجوير رود (على بعد دقائق من هايد بارك وقصر باكنغهام) تضم عشرات المطاعم العربية واللبنانية. منطقة وايت تشابل بالقرب من برج لندن مليئة بالمطاعم الآسيوية والشرق أوسطية الحلال. نوصي باستخدام تطبيق Zabihah أو HalalTrip للعثور على أقرب مطعم حلال.'
+                      : 'Halal restaurants are plentiful across central London, especially near popular attractions. Edgware Road (minutes from Hyde Park and Buckingham Palace) is home to dozens of Arabic and Lebanese restaurants. Whitechapel near the Tower of London is packed with halal Asian and Middle Eastern eateries. We recommend using the Zabihah or HalalTrip apps to find the nearest halal restaurant. Many mainstream chains like Nando\'s, Wagamama, and Pizza Express also serve halal chicken at London locations.'}
+                  </p>
+                </div>
+              </div>
+            </BrandCardLight>
+
+            <BrandCardLight className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yl-gold/10 flex items-center justify-center">
+                  <Ticket className="w-5 h-5 text-yl-gold" />
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <h3 className={`font-heading font-bold text-yl-charcoal mb-2 ${isRTL ? 'font-arabic' : ''}`}>
+                    {locale === 'ar' ? 'بطاقة لندن وتوفير التذاكر المجمعة' : 'London Pass and Combo Ticket Savings'}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 leading-relaxed">
+                    {locale === 'ar'
+                      ? 'إذا كنت تخطط لزيارة ثلاث تجارب أو أكثر، فإن بطاقة لندن (London Pass) يمكن أن توفر لك حتى 50% من تكلفة الدخول. تشمل البطاقة الدخول المجاني إلى أكثر من 80 معلمًا سياحيًا بما فيها برج لندن وكاتدرائية القديس بولس وجولة نهر التايمز. تتوفر بطاقات لمدة 1 و2 و3 و6 و10 أيام. كما تتوفر تذاكر مجمعة لعين لندن مع رحلة نهرية أو متحف مدام توسو بتوفير يصل إلى 25%.'
+                      : 'If you plan to visit three or more experiences, the London Pass can save you up to 50% on admission costs. The pass includes free entry to over 80 attractions including the Tower of London, St Paul\'s Cathedral, and Thames River Cruises. Passes are available for 1, 2, 3, 6, and 10 days. Combo tickets for the London Eye with a river cruise or Madame Tussauds offer savings of up to 25%. Book online at least 24 hours in advance for the best prices, as walk-up tickets are typically 10-15% more expensive.'}
+                  </p>
+                </div>
+              </div>
+            </BrandCardLight>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-12 bg-white">
+        <div className="max-w-4xl mx-auto px-7">
+          <h2 className={`text-3xl font-heading font-bold text-yl-charcoal mb-8 text-center ${isRTL ? 'font-arabic' : ''}`}>
+            {locale === 'ar' ? 'الأسئلة الشائعة' : 'Frequently Asked Questions'}
+          </h2>
+          <div className="space-y-3">
+            {[
+              {
+                q: locale === 'ar' ? 'هل المعالم السياحية في لندن مناسبة للعائلات؟' : 'Are London attractions family-friendly?',
+                a: locale === 'ar'
+                  ? 'نعم، الغالبية العظمى من المعالم السياحية في لندن مناسبة تمامًا للعائلات والأطفال. معظم المتاحف والمعارض مجانية الدخول وتوفر أنشطة تفاعلية خاصة بالأطفال. استوديو وارنر براذرز لهاري بوتر وحدائق كيو وعين لندن من أفضل الخيارات العائلية. يدخل الأطفال دون سن 5 سنوات مجانًا في معظم الأماكن، وتتوفر عربات أطفال مجانية في المتاحف الكبرى. كما توفر العديد من الأماكن غرف تغيير حفاضات ومناطق استراحة للعائلات.'
+                  : 'Yes, the vast majority of London attractions are perfectly suited for families and children. Most museums and galleries offer free admission and provide interactive activities specifically for children. Warner Bros. Studio Tour, Kew Gardens, and the London Eye are among the best family choices. Children under 5 typically enter free at most venues, and complimentary buggies are available at larger museums. Many venues also provide baby-changing facilities and family rest areas. During school holidays, special family workshops and events are often available at major museums.',
+              },
+              {
+                q: locale === 'ar' ? 'هل يمكنني العثور على طعام حلال بالقرب من المعالم السياحية؟' : 'Can I find halal food near attractions?',
+                a: locale === 'ar'
+                  ? 'بالتأكيد. لندن هي واحدة من أفضل المدن في أوروبا للطعام الحلال. تتوفر مطاعم حلال بالقرب من جميع المعالم السياحية الرئيسية تقريبًا. شارع إيدجوير رود يضم عشرات المطاعم العربية واللبنانية على بعد دقائق من هايد بارك وقصر باكنغهام. منطقة وايت تشابل قريبة من برج لندن وتحتوي على مطاعم حلال متنوعة. سلاسل مطاعم مثل ناندوز وواغاماما وبيتزا إكسبرس تقدم دجاجًا حلالًا في فروعها بلندن. نوصي بتطبيق Zabihah أو HalalTrip للبحث.'
+                  : 'Absolutely. London is one of the best cities in Europe for halal food. Halal restaurants are available near virtually all major tourist attractions. Edgware Road features dozens of Arabic and Lebanese restaurants just minutes from Hyde Park and Buckingham Palace. Whitechapel, close to the Tower of London, is packed with diverse halal eateries. Major chains such as Nando\'s, Wagamama, and Pizza Express serve halal chicken at their London locations. We recommend the Zabihah or HalalTrip apps for searching nearby options. Even in areas with fewer halal restaurants, fish and vegetarian options are always widely available.',
+              },
+              {
+                q: locale === 'ar' ? 'ما هي التجارب التي تقدم أدلة صوتية باللغة العربية؟' : 'Which experiences offer Arabic audio guides?',
+                a: locale === 'ar'
+                  ? 'تتزايد المعالم التي توفر أدلة صوتية عربية باستمرار. حاليًا، تشمل القائمة: برج لندن (مجاني مع التذكرة)، المتحف البريطاني (مجاني)، قصر باكنغهام (متضمن في سعر التذكرة)، كاتدرائية القديس بولس (4 جنيهات إضافية)، متحف التاريخ الطبيعي (مجاني)، ومتحف فيكتوريا وألبرت (مجاني). كما يقدم العديد من منظمي الجولات السياحية مرشدين يتحدثون العربية بالحجز المسبق. نصيحتنا: اسأل دائمًا عند شراء التذكرة فقد تتوفر خدمات إضافية لم تُعلن عنها.'
+                  : 'The number of attractions offering Arabic audio guides is steadily growing. Currently the list includes: Tower of London (free with ticket), British Museum (free), Buckingham Palace (included in ticket price), St Paul\'s Cathedral (additional 4 pounds), Natural History Museum (free), and the Victoria and Albert Museum (free). Many tour operators also provide Arabic-speaking guides available on advance booking. Our insider tip: always ask at the ticket desk, as some venues have Arabic language materials that are not prominently advertised. Several attractions are also developing Arabic-language mobile apps for self-guided tours.',
+              },
+              {
+                q: locale === 'ar' ? 'ما هو أفضل موسم لزيارة لندن؟' : 'What is the best season to visit London?',
+                a: locale === 'ar'
+                  ? 'تتمتع كل فصول السنة في لندن بسحر خاص. الربيع (أبريل - مايو) يقدم طقسًا معتدلاً وحدائق مزهرة مع أعداد أقل من السياح. الصيف (يونيو - أغسطس) هو الأكثر دفئًا ومثالي للأنشطة الخارجية مثل رحلات التايمز وحدائق كيو، لكنه الأكثر ازدحامًا. الخريف (سبتمبر - أكتوبر) يوفر ألوانًا خريفية جميلة وأجواء هادئة مع أسعار فنادق أقل. الشتاء (نوفمبر - فبراير) يتميز بأسواق عيد الميلاد وحلبات التزلج وعروض مسرحية استثنائية. للزوار الخليجيين الذين يفضلون الدفء، نوصي بالفترة من مايو إلى سبتمبر.'
+                  : 'Each season in London has its own charm. Spring (April-May) brings mild weather and blooming gardens with fewer tourists. Summer (June-August) is warmest and ideal for outdoor activities like Thames cruises and Kew Gardens, though it is the busiest period. Autumn (September-October) offers beautiful fall colours and a relaxed atmosphere with lower hotel rates. Winter (November-February) features Christmas markets, ice-skating rinks, and exceptional theatre productions. For Gulf visitors who prefer warmer weather, we recommend visiting between May and September when daytime temperatures typically range from 18-28 degrees Celsius.',
+              },
+              {
+                q: locale === 'ar' ? 'هل توجد خصومات جماعية للعائلات؟' : 'Are there group discounts for families?',
+                a: locale === 'ar'
+                  ? 'نعم، تقدم معظم المعالم السياحية في لندن تذاكر عائلية بخصومات تصل إلى 25%. عادةً ما تشمل التذكرة العائلية شخصين بالغين وطفلين أو ثلاثة. بطاقة لندن (London Pass) خيار ممتاز للعائلات الكبيرة لأنها تشمل أكثر من 80 معلمًا. كما توفر بعض الفنادق الفاخرة باقات تشمل تذاكر المعالم السياحية. للمجموعات المكونة من 10 أشخاص أو أكثر، تقدم العديد من الأماكن خصومات إضافية تصل إلى 30% عند الحجز المسبق. نصيحة: احجز عبر الإنترنت مسبقًا بيوم على الأقل للحصول على أفضل الأسعار، فالتذاكر عند الباب أغلى بنسبة 10-15%.'
+                  : 'Yes, most London attractions offer family tickets with discounts of up to 25%. A standard family ticket typically covers two adults and two or three children. The London Pass is an excellent choice for larger families as it includes over 80 attractions. Some luxury hotels also offer packages that include attraction tickets. For groups of 10 or more, many venues provide additional discounts of up to 30% when booked in advance. Top tip: always book online at least one day ahead for the best prices, as walk-up tickets are typically 10-15% more expensive. Some attractions also offer annual membership which pays for itself after just two visits.',
+              },
+            ].map((faq, index) => (
+              <div key={index} className="border border-yl-gray-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setOpenFaqIndex(openFaqIndex === index ? null : index)}
+                  className={`w-full flex items-center justify-between p-5 bg-white hover:bg-yl-cream/50 transition-colors duration-200 ${isRTL ? 'text-right' : 'text-left'}`}
+                >
+                  <span className={`font-heading font-bold text-yl-charcoal ${isRTL ? 'font-arabic' : ''}`}>{faq.q}</span>
+                  {openFaqIndex === index ? (
+                    <ChevronUp className="w-5 h-5 text-yl-gold flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-yl-gold flex-shrink-0" />
+                  )}
+                </button>
+                {openFaqIndex === index && (
+                  <div className={`px-5 pb-5 font-body text-sm text-yl-gray-600 leading-relaxed ${isRTL ? 'text-right' : ''}`}>
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Cross-Links Section */}
+      <section className="py-12 bg-yl-cream">
+        <div className="max-w-7xl mx-auto px-7">
+          <h2 className={`text-3xl font-heading font-bold text-yl-charcoal mb-8 text-center ${isRTL ? 'font-arabic' : ''}`}>
+            {locale === 'ar' ? 'اكتشف المزيد' : 'Explore More'}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link href="/hotels" className="group">
+              <BrandCardLight className="p-6 text-center h-full transition-shadow duration-300 group-hover:shadow-lg">
+                <div className="w-12 h-12 rounded-full bg-yl-gold/10 flex items-center justify-center mx-auto mb-4">
+                  <MapPin className="w-6 h-6 text-yl-gold" />
+                </div>
+                <h3 className={`font-heading font-bold text-yl-charcoal mb-2 group-hover:text-yl-red transition-colors ${isRTL ? 'font-arabic' : ''}`}>
+                  {locale === 'ar' ? 'فنادق لندن الفاخرة' : 'Luxury London Hotels'}
+                </h3>
+                <p className="font-body text-sm text-yl-gray-500">
+                  {locale === 'ar'
+                    ? 'اكتشف أفضل الفنادق الفاخرة والمناسبة للعائلات العربية في لندن، مع خيارات طعام حلال وخدمات باللغة العربية.'
+                    : 'Discover the finest luxury hotels suited for Arab families in London, featuring halal dining options and Arabic-speaking concierge services.'}
+                </p>
+              </BrandCardLight>
+            </Link>
+
+            <Link href="/recommendations" className="group">
+              <BrandCardLight className="p-6 text-center h-full transition-shadow duration-300 group-hover:shadow-lg">
+                <div className="w-12 h-12 rounded-full bg-yl-gold/10 flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-6 h-6 text-yl-gold" />
+                </div>
+                <h3 className={`font-heading font-bold text-yl-charcoal mb-2 group-hover:text-yl-red transition-colors ${isRTL ? 'font-arabic' : ''}`}>
+                  {locale === 'ar' ? 'توصياتنا المميزة' : 'Our Top Recommendations'}
+                </h3>
+                <p className="font-body text-sm text-yl-gray-500">
+                  {locale === 'ar'
+                    ? 'قائمة مختارة بعناية من أفضل المطاعم والمقاهي والأماكن المميزة التي نوصي بها شخصيًا لكل زائر عربي.'
+                    : 'A handpicked selection of the best restaurants, cafes, and standout venues we personally recommend for every Arab visitor to London.'}
+                </p>
+              </BrandCardLight>
+            </Link>
+
+            <Link href="/information" className="group">
+              <BrandCardLight className="p-6 text-center h-full transition-shadow duration-300 group-hover:shadow-lg">
+                <div className="w-12 h-12 rounded-full bg-yl-gold/10 flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="w-6 h-6 text-yl-gold" />
+                </div>
+                <h3 className={`font-heading font-bold text-yl-charcoal mb-2 group-hover:text-yl-red transition-colors ${isRTL ? 'font-arabic' : ''}`}>
+                  {locale === 'ar' ? 'دليل المعلومات الشامل' : 'Comprehensive Travel Guide'}
+                </h3>
+                <p className="font-body text-sm text-yl-gray-500">
+                  {locale === 'ar'
+                    ? 'كل ما تحتاج معرفته عن لندن: المواصلات، الطقس، التأشيرات، صرف العملات، ونصائح عملية للمسافرين العرب.'
+                    : 'Everything you need to know about London: transport, weather, visas, currency exchange, and practical tips tailored for Arab travellers.'}
+                </p>
+              </BrandCardLight>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <TriBar />
     </div>

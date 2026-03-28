@@ -305,7 +305,7 @@ export default function FeatureFlagsHealth() {
         <div className="space-y-4">
           {featureFlags.length === 0 && !showAddFlag && (
             <AdminEmptyState
-              icon="flag"
+              icon={Flag}
               title="No feature flags"
               description="Create your first feature flag to start managing rollouts."
               action={
@@ -453,7 +453,7 @@ export default function FeatureFlagsHealth() {
         <div className="space-y-4">
           {(!systemHealth?.metrics || systemHealth.metrics.length === 0) && (
             <AdminEmptyState
-              icon="activity"
+              icon={Activity}
               title="No health metrics"
               description="Health metrics will appear here once system monitoring is active."
             />

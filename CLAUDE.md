@@ -40,7 +40,7 @@ These are not suggestions. These are hard rules for every commit:
 
 5. **No silent failures**: Every `catch` block must either (a) recover meaningfully, (b) log to a place Khaled can see (CronJobLog, dashboard), or (c) cascade to the next fallback. `catch {}` with no action is forbidden.
 
-6. **Budget guards on all cron jobs**: Vercel Pro = 60s max. Every cron route uses 53s budget with 7s buffer. Every expensive operation checks remaining budget before executing.
+6. **Budget guards on all cron jobs**: Vercel Pro default = 60s, but heavy crons use `maxDuration = 300` (5 min) with `BUDGET_MS = 280_000` (20s buffer). Every expensive operation checks remaining budget before executing. IMPORTANT: `export const maxDuration` in the route file OVERRIDES `vercel.json` — always check both.
 
 7. **Test the actual flow, not just the code**: Before declaring any pipeline "fixed," verify that records actually flow from step A → step B → step C in the database. Check the tables.
 
@@ -5322,6 +5322,54 @@ Subscriber Lifecycle:
 221. **Every new cron needs entries in 4 places** — (1) `vercel.json` crons array, (2) `vercel.json` functions maxDuration, (3) `cron-feature-guard.ts` CRON_FLAG_MAP, (4) `departures/route.ts` CRON_DEFS. Missing the crons array means the cron will NEVER fire on schedule.
 222. **`CRON_NAME_ALIASES` resolves cron name mismatches** — departures board calls `/api/cron/discover-deals` but feature guard checks `affiliate-discover-deals`. The alias map in `cron-feature-guard.ts` handles both names.
 223. **AdminCard needs `[key: string]: unknown` index signature** — React's reserved `key` prop in `.map()` callbacks fails TypeScript strict checking without it.
+
+### Session: March 28, 2026 — Codebase Cleanup & Cron Reliability Sprint
+
+**Two-phase session: dead code cleanup + 4 failing cron hardening.**
+
+**Phase 1: Dead Code Cleanup (35 files, 8,895 lines, 11.4MB removed):**
+- Deleted conflicting `.disabled` route files: `robots.txt/route.ts.disabled`, `sitemap.xml/route.ts.disabled`
+- Removed dead root-level phase4b code: `app/api/phase4b/*`, `components/admin/phase4b/*`, `lib/services/*`
+- Removed 6 stale ZIP files (11.4MB): PHASE-4A-PACKAGE-1.zip, yalla-london-app.zip, etc.
+- Removed 14 stale doc files: AUDIT-REPORT.md, IMPLEMENTATION-PLAN.md, phase2-progress.pdf, etc.
+
+**Phase 2: 4 Failing Cron Hardening (4 files, 132 insertions, 77 deletions):**
+
+| Cron | Root Cause | Fix |
+|------|-----------|-----|
+| **seo-agent** | `AGENT_BUDGET_MS` was 120s — bottleneck with 1 active site despite 280s available from `forEachSite()` | Raised to 240s per site |
+| **daily-content-generate** | Aborted after 2 AI failures (transient); skipped AR article generation when >18s remained | Raised `MAX_AI_FAILURES_BEFORE_ABORT` from 2 to 4; lowered AR deadline from 18s to 10s |
+| **retention-executor** | Re-imported `sendEmail`, `prisma`, `getSiteConfig`, `pauseSequence` on every loop iteration (~4 imports × N emails) | Moved all 4 imports outside the per-email loop |
+| **followup-executor** | No CEO Brain import fallback; no per-task timeout; zombie "running" tasks; wrong `durationMs` | Try-catch on import with graceful fallback; 45s `Promise.race` timeout per task; Step 0 zombie recovery (resets tasks stuck >15min); per-task `durationMs`; batch reduced 20→10 |
+
+**SEO/Operations Context (from external audit):**
+- Discovery funnel: 80 published → 76 submitted → 11 crawled → 22 indexed → 19 performing → 3 converting
+- 176 pages never submitted to IndexNow (content-auto-fix-lite catches these, up to 500/run)
+- 6 cron failures in 24h (seo-agent, daily-content-generate, retention-executor, followup-executor × 3)
+- Thin content: 3-5 articles at 59-125 words (content-auto-fix auto-unpublishes <300w)
+- CTR at 0.85% across indexed pages (target: 3.0%)
+
+**Remaining Work (from audit, not yet started):**
+- Thin content remediation: find and expand/noindex the 3-5 posts under 125 words
+- Discovery pipeline: verify content-auto-fix-lite is catching the 176 never-submitted pages
+- CTR optimization: rewrite titles/descriptions for high-impression low-CTR pages
+- Internal linking: fix 11 published articles with zero inbound internal links
+
+**Files Modified:**
+- `app/api/cron/seo-agent/route.ts` — AGENT_BUDGET_MS 120s→240s
+- `app/api/cron/daily-content-generate/route.ts` — AI failure threshold 2→4, AR deadline 18s→10s
+- `app/api/cron/retention-executor/route.ts` — imports moved outside loop
+- `app/api/cron/followup-executor/route.ts` — CEO Brain fallback, per-task timeout, zombie recovery, batch 20→10
+
+### Critical Rules Learned (March 28 Session — Cron Reliability)
+
+224. **`AGENT_BUDGET_MS` must scale with site count** — with 1 active site, `forEachSite()` gives the entire 280s budget to that site. A hardcoded 120s cap wastes 160s of available budget. Set per-site budget to `240_000` (or dynamically via `forEachSite` remaining).
+225. **`MAX_AI_FAILURES_BEFORE_ABORT` must be ≥4 for crons making multiple AI calls** — transient API errors (429, 503, timeout) are common across providers. Aborting after 2 failures means a single provider outage kills the entire cron run. 4 failures allows retry across multiple providers.
+226. **Dynamic imports inside per-item loops are redundant** — `await import("@/lib/email/sender")` inside a `for (const email of emails)` loop re-resolves the module on every iteration. Move imports before the loop. Node.js caches resolved modules, but the `await` still adds latency per iteration.
+227. **`processCEOEvent` import must be wrapped in try-catch** — if `ceo-brain.ts` has a syntax error, missing dependency, or circular import, the entire followup-executor cron dies with an unhandled import error. Wrap in try-catch, set tasks back to "pending" with error note, and log as `"failed"`.
+228. **Per-task timeout via `Promise.race` is mandatory for agent crons** — CEO Brain makes AI calls that can hang indefinitely. Without a 45s timeout, one stuck task consumes the entire 280s budget. `Promise.race([processCEOEvent(event), setTimeout reject]` ensures the loop advances.
+229. **Zombie "running" task recovery must run as Step 0** — if Vercel kills the function mid-execution, tasks marked "running" stay stuck forever. Step 0 resets any "running" tasks older than 15 minutes back to "pending" so they're retried on the next run.
+230. **`durationMs` on AgentTask must be per-task, not per-cron** — `Date.now() - startTime` measures total cron duration. `Date.now() - taskStart` measures actual task processing time. The per-task metric is what matters for diagnosing slow AI calls vs slow DB queries.
 
 ## Weekly Manual Checks
 

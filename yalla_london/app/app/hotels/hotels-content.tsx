@@ -105,8 +105,11 @@ const hotels = {
       price: 720,
       image: 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600&q=80',
       badge: 'Premium',
-      description: 'Commanding Park Lane with views over Hyde Park. Features a rooftop spa with panoramic London views, Amaranto Italian restaurant, and spacious rooms with floor-to-ceiling windows.',
+      description: 'Commanding the prime stretch of Park Lane with views over Hyde Park, the Four Seasons delivers the brand\'s signature blend of warmth and precision. The rooftop spa on the 10th floor offers treatment rooms with floor-to-ceiling windows overlooking the London skyline, and the vitality pool is one of the city\'s most scenic. Amaranto serves refined Italian cuisine in an intimate setting, while the lounge bar is a favourite for Mayfair power meetings. Rooms are among the largest in London, with the Conservatory Suites featuring private terraces and the Presidential Suite spanning over 3,000 square feet. The hotel\'s Kids For All Seasons programme makes it particularly popular with Gulf families travelling with children during summer holidays.',
       amenities: ['Rooftop Spa', 'Park Views', 'Italian Dining', 'Lounge Bar'],
+      insiderTip: 'The Conservatory Suite has a private glass-walled terrace overlooking Hyde Park — one of the most coveted balcony views in London. Ask the concierge about the hotel\'s private guided tours of nearby galleries, tailored for families.',
+      gccFeatures: ['Dedicated Kids For All Seasons programme with supervised activities', 'Halal room service and dietary accommodation at Amaranto', 'Arabic-speaking staff and guest relations', 'Direct Hyde Park access for family walks and cycling', 'Prayer mats and qibla cards provided on request'],
+      bestFor: ['Families with children', 'Couples', 'Wellness travellers'],
       website: 'https://www.fourseasons.com/london'
     },
     {
@@ -119,8 +122,11 @@ const hotels = {
       price: 550,
       image: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80',
       badge: 'Modern Grand',
-      description: 'A Victorian grande dame reimagined for modern luxury near Embankment. Houses the ESPA Life spa (one of London\'s largest), Kerridge\'s Bar & Grill by Tom Kerridge, and penthouse suites with Big Ben views.',
+      description: 'A Victorian grande dame reimagined for modern luxury near Embankment. The Corinthia occupies an 1885 building that once served as the Ministry of Defence, and its restoration blends original grandeur with cutting-edge contemporary design. The ESPA Life spa is one of London\'s largest at over 3,300 square metres, featuring a stainless steel pool, amphitheatre sauna, and Daniel Galvin hair salon. Kerridge\'s Bar & Grill by two-Michelin-starred Tom Kerridge serves elevated British pub classics. The penthouse suites command direct views of Big Ben, the London Eye, and the Houses of Parliament. The hotel\'s lobby, with its dramatic crystal chandeliers and sweeping marble staircase, is one of London\'s most photographed interiors. Northall restaurant offers seasonal British menus with private dining options.',
       amenities: ['ESPA Life Spa', 'Tom Kerridge', 'Penthouse Suites', 'Fitness'],
+      insiderTip: 'The Hamilton Penthouse is a 5,000-square-foot duplex with a private roof terrace and views of every major London landmark. The ESPA Life spa offers a Hammam-style experience that is especially popular with Gulf guests.',
+      gccFeatures: ['Hammam-inspired treatments at ESPA Life spa', 'Arabic-speaking reception and concierge staff', 'Family suites with kitchenettes for longer stays', 'Halal dining arrangements through in-room dining', 'Central Westminster location near Harrods by taxi in 10 minutes'],
+      bestFor: ['Spa lovers', 'Families', 'Sightseeing-focused travellers'],
       website: 'https://www.corinthia.com/london'
     },
     {

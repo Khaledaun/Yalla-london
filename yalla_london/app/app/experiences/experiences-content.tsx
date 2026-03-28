@@ -140,7 +140,10 @@ const experiences = {
       price: 65,
       image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80',
       featured: false,
-      description: 'Enjoy a luxury afternoon tea on the 31st floor of The Shard with panoramic views across London. Features artisan sandwiches, pastries, and premium teas.',
+      description: 'Indulge in a luxury afternoon tea on the 31st floor of The Shard — Western Europe\'s tallest building — with floor-to-ceiling windows revealing panoramic views stretching to the Surrey Hills. The menu features freshly baked scones with clotted cream, artisan finger sandwiches, and a rotating selection of hand-crafted pastries from the head patissier. Choose from over 20 premium loose-leaf teas including rare single-estate Darjeeling and delicate jasmine silver tips. The elegant setting and impeccable service make this a quintessential London luxury experience.',
+      insiderTip: 'Request a window table when booking — the south-facing seats have the most dramatic views toward Tower Bridge and the City. Afternoon tea sells out weeks in advance during summer, so book early.',
+      gccFeatures: ['Non-alcoholic afternoon tea option available by default', 'Halal dietary requirements accommodated with advance notice', 'Private dining rooms for families and groups', 'Elegant dress code naturally aligns with modest fashion', 'Adjacent prayer facilities at London Bridge Mosque (3-min walk)'],
+      bestFor: ['Couples', 'Luxury travellers', 'Foodies'],
       website: 'https://www.the-shard.com/restaurants/aqua-shard'
     },
     {
@@ -154,7 +157,10 @@ const experiences = {
       price: 20,
       image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=600&q=80',
       featured: false,
-      description: 'Explore 300 acres of stunning gardens, glasshouses, and a treetop walkway at this UNESCO World Heritage Site. Home to the world\'s largest collection of living plants.',
+      description: 'Explore 300 acres of stunning botanical gardens, Victorian glasshouses, and an 18-metre-high treetop walkway at this UNESCO World Heritage Site in leafy Richmond. Kew is home to the world\'s largest collection of living plants — over 50,000 species — displayed across themed gardens from Japanese landscapes to Mediterranean terraces. The iconic Palm House, a masterpiece of Victorian engineering, transports you into a tropical rainforest. Children love the interactive play areas and the 200-metre-long Great Pagoda with panoramic views.',
+      insiderTip: 'Visit in spring (April-May) for the bluebell woods and cherry blossom walkway, or December for the magical after-dark Christmas light trail. The Orangery restaurant offers the best lunch on-site.',
+      gccFeatures: ['Expansive outdoor spaces ideal for families with children', 'Halal-friendly food options at the on-site cafes', 'Peaceful and serene environment suitable for all visitors', 'Flat terrain and wide paths for pushchairs and wheelchairs', 'Modest dress comfortable in the garden setting'],
+      bestFor: ['Families', 'Nature lovers', 'Photographers'],
       website: 'https://www.kew.org'
     },
     {

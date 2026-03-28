@@ -45,10 +45,12 @@ interface ArticleData {
 interface ArticleClientProps {
   article: ArticleData | null
   relatedArticles?: RelatedArticleData[]
+  serverLocale?: 'en' | 'ar'
 }
 
-export default function ArticleClient({ article, relatedArticles = [] }: ArticleClientProps) {
-  const { language, isRTL } = useLanguage()
+export default function ArticleClient({ article, relatedArticles = [], serverLocale }: ArticleClientProps) {
+  const { language: clientLanguage, isRTL } = useLanguage()
+  const language = serverLocale ?? clientLanguage
   const t = (key: string) => getTranslation(language, key)
   const [isLiked, setIsLiked] = useState(false)
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)

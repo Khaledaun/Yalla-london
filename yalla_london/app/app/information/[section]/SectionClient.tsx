@@ -64,6 +64,7 @@ interface SectionClientProps {
     prev: SectionNav | null
     next: SectionNav | null
   }
+  serverLocale?: 'en' | 'ar'
 }
 
 // ---------- Component ----------
@@ -72,8 +73,10 @@ export default function SectionClient({
   section,
   relatedArticles,
   navigation,
+  serverLocale,
 }: SectionClientProps) {
-  const { language, isRTL } = useLanguage()
+  const { language: clientLanguage, isRTL } = useLanguage()
+  const language = serverLocale ?? clientLanguage
   const t = (key: string) => getTranslation(language, key)
 
   const sectionName = language === 'en' ? section.name_en : section.name_ar

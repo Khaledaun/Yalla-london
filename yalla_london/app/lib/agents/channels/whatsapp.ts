@@ -95,7 +95,6 @@ async function sendTemplateMessage(
     template: {
       name: templateName,
       language: { code: "en" },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       components: components as any,
     },
   });

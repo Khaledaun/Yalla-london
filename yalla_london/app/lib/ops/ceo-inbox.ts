@@ -133,6 +133,11 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
     label: "Retry London news fetch",
     manualInstructions: "Go to Cockpit → Crons tab → find London News → tap 'Run'. Check Grok API key if failing.",
   },
+  "fact-verification": {
+    path: "/api/cron/fact-verification",
+    label: "Retry fact verification",
+    manualInstructions: "Go to Cockpit → Crons tab → find Fact Verification → tap 'Run'.",
+  },
   "trends-monitor": {
     path: "/api/cron/trends-monitor",
     label: "Retry trends monitor",
@@ -189,6 +194,11 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
     path: "/api/cron/discovery-monitor",
     label: "Retry discovery monitor",
     manualInstructions: "Go to Cockpit → Crons tab → find Discovery Monitor → tap 'Run'.",
+  },
+  "seo-agent-intelligence": {
+    path: "/api/cron/seo-agent-intelligence",
+    label: "Retry SEO agent intelligence",
+    manualInstructions: "Go to Cockpit → Crons tab → find SEO Agent Intelligence → tap 'Run'.",
   },
 
   // ─── Analytics & Intelligence ──────────────────────────────────────────────

@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ZHStatusPill } from "@/components/zh";
+import { AdminStatusBadge } from "@/components/admin/admin-ui";
 
 interface Service {
   name: string;
   status: "ok" | "degraded" | "critical" | "unknown";
   message?: string;
 }
+
+const STATUS_MAP: Record<string, string> = {
+  ok: "success",
+  degraded: "warning",
+  critical: "error",
+  unknown: "info",
+};
 
 export function ServicePills() {
   const [services, setServices] = useState<Service[]>([]);
@@ -36,7 +43,7 @@ export function ServicePills() {
     return (
       <div className="flex flex-wrap gap-2">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="h-7 w-20 bg-zh-navy-mid rounded-full animate-pulse" />
+          <div key={i} className="h-7 w-20 bg-stone-100 rounded-full animate-pulse" />
         ))}
       </div>
     );
@@ -45,10 +52,10 @@ export function ServicePills() {
   return (
     <div className="flex flex-wrap gap-2">
       {services.map((s) => (
-        <ZHStatusPill
+        <AdminStatusBadge
           key={s.name}
+          status={STATUS_MAP[s.status] || "info"}
           label={s.name}
-          status={s.status}
         />
       ))}
     </div>

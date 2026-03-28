@@ -139,8 +139,11 @@ const hotels = {
       price: 690,
       image: 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=600&q=80',
       badge: 'Exclusive',
-      description: 'Understated elegance in the heart of Mayfair. The Connaught features Hélène Darroze\'s two-Michelin-starred restaurant, the legendary Connaught Bar (World\'s Best Bar), and an Aman Spa.',
+      description: 'Understated elegance in the heart of Mayfair, The Connaught is the hotel of choice for those who value discretion and impeccable taste above all else. Hélène Darroze\'s two-Michelin-starred restaurant showcases Basque-inspired cuisine with British seasonal ingredients in an intimate dining room. The Connaught Bar, designed by the late David Collins, has been named the World\'s Best Bar multiple times and serves bespoke martinis prepared tableside from a gleaming trolley. The Aman Spa brings the serene philosophy of the Aman resort brand to central London, with treatment rooms that feel a world away from Mayfair\'s bustle. The hotel has just 121 rooms, giving it the feel of a private members\' club. Carlos Place, the quiet Mayfair square outside, is home to the Damien Hirst sculpture Charity.',
       amenities: ['Aman Spa', 'Connaught Bar', 'Michelin Dining', 'Butler Service'],
+      insiderTip: 'The Connaught\'s butler service is the most personalised in London — your butler will remember your preferences from previous stays. Request the Apartment Suite for a separate living room and study, ideal for extended stays.',
+      gccFeatures: ['Ultra-private atmosphere favoured by Gulf dignitaries', 'Aman Spa with serene treatment philosophy', 'Halal room service and bespoke dietary arrangements', 'Butler service that recalls guest preferences across visits', 'Steps from Mount Street\'s designer boutiques and art galleries'],
+      bestFor: ['VIPs and dignitaries', 'Couples', 'Extended luxury stays'],
       website: 'https://www.the-connaught.co.uk'
     },
     {
@@ -153,8 +156,11 @@ const hotels = {
       price: 450,
       image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80',
       badge: 'Sky High',
-      description: 'Occupying floors 34-52 of The Shard, Western Europe\'s tallest building. Every room offers floor-to-ceiling views across London. Features an infinity pool on the 52nd floor and TING restaurant.',
+      description: 'Occupying floors 34 to 52 of The Shard, Western Europe\'s tallest building, this is London\'s most dramatic hotel address. Every one of the 202 rooms offers floor-to-ceiling views stretching up to 40 miles across the capital, with the Tower of London, St Paul\'s Cathedral, and the Thames winding below. The infinity pool on the 52nd floor is the highest in Western Europe, offering a swimming experience unlike anything else in London. TING restaurant on the 35th floor serves Pan-Asian cuisine with views that make every table a window seat. GONG bar on the 52nd floor has become one of London\'s most sought-after cocktail destinations. The hotel\'s Asian heritage means an innate understanding of hospitality for Gulf travellers, with genuine warmth and attentiveness to cultural preferences.',
       amenities: ['Infinity Pool', 'Shard Views', 'TING Restaurant', 'Sky Bar'],
+      insiderTip: 'Request a west-facing room above floor 40 for sunset views over the entire City and West End skyline. The infinity pool is quietest before 8am — arrive early for a near-private swim above the clouds.',
+      gccFeatures: ['Shangri-La\'s Asian hospitality tradition with cultural sensitivity', 'Halal options available at TING restaurant and room service', 'Prayer mats provided on request with qibla direction', 'Borough Market nearby for diverse halal street food', 'Family rooms with panoramic views and rollaway beds available'],
+      bestFor: ['Couples', 'Instagram and photography enthusiasts', 'First-time London visitors'],
       website: 'https://www.shangri-la.com/london/shangrila'
     },
     {

@@ -80,6 +80,9 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     { path: "/experiences", priority: 0.8 },
     { path: "/events", priority: 0.8 },
     { path: "/news", priority: 0.8 },
+    { path: "/halal-restaurants-london", priority: 0.9 },
+    { path: "/luxury-hotels-london", priority: 0.9 },
+    { path: "/london-with-kids", priority: 0.9 },
     { path: "/about", priority: 0.7 },
     { path: "/contact", priority: 0.6 },
   ];

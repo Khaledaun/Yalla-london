@@ -13,6 +13,9 @@
  * surfaces them to the dashboard for Khaled to act on.
  */
 
+import type { PostBridgeClient } from "@/lib/integrations/post-bridge-client";
+import type { SocialAccount } from "@/lib/integrations/post-bridge-types";
+
 // ─── Types ──────────────────────────────────────────────────────
 
 export interface ScheduledPost {
@@ -147,6 +150,83 @@ export async function publishPost(postId: string): Promise<PublishResult> {
   }
 
   const platform = (post.platform || "").toLowerCase();
+
+  // ── Post Bridge auto-publish (handles most platforms) ──────
+  const { isPostBridgeConfigured, getPostBridgeClient } = await import(
+    "@/lib/integrations/post-bridge-client"
+  );
+
+  if (isPostBridgeConfigured()) {
+    const pbClient = getPostBridgeClient();
+    if (pbClient) {
+      // Check if Post Bridge has an account for this platform
+      const pbAccountId = await getPostBridgeAccountId(
+        pbClient,
+        (post.site_id as string) || "",
+        platform,
+      );
+
+      if (pbAccountId) {
+        try {
+          const pbResult = await pbClient.createPost({
+            caption: post.content,
+            social_account_ids: [pbAccountId],
+          });
+
+          const postUrl = pbResult.published_url || "";
+
+          await prisma.scheduledContent.update({
+            where: { id: postId },
+            data: {
+              status: pbResult.status === "published" ? "published" : "failed",
+              published: pbResult.status === "published",
+              published_time:
+                pbResult.status === "published" ? new Date() : undefined,
+              metadata: {
+                ...(typeof post.metadata === "object" && post.metadata !== null
+                  ? post.metadata
+                  : {}),
+                post_bridge_id: pbResult.id,
+                post_bridge_status: pbResult.status,
+                post_url: postUrl,
+              },
+            },
+          });
+
+          if (pbResult.status === "published") {
+            return { success: true, postUrl };
+          }
+          return {
+            success: false,
+            error: pbResult.error || `Post Bridge status: ${pbResult.status}`,
+          };
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : String(err);
+          console.warn(
+            `[social-scheduler] Post Bridge publish failed for post ${postId}: ${message}`,
+          );
+
+          await prisma.scheduledContent.update({
+            where: { id: postId },
+            data: {
+              status: "failed",
+              metadata: {
+                ...(typeof post.metadata === "object" && post.metadata !== null
+                  ? post.metadata
+                  : {}),
+                last_publish_error: message,
+                last_publish_attempt: new Date().toISOString(),
+                publish_source: "post-bridge",
+              },
+            },
+          });
+
+          // Fall through to Twitter direct / manual fallback
+        }
+      }
+    }
+  }
 
   // ── Twitter/X auto-publish ──────────────────────────────────
   if (platform === "twitter" || platform === "x") {
@@ -324,4 +404,47 @@ export async function getPostsDueNow(site: string): Promise<ScheduledPost[]> {
   });
 
   return rows.map((row: Record<string, unknown>) => mapToScheduledPost(row));
+}
+
+// ─── Post Bridge Account Resolution ───────────────────────────────
+
+let _pbAccountsCache: SocialAccount[] | null = null;
+let _pbAccountsCacheTs = 0;
+const PB_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Resolve a Post Bridge social account ID for a given platform.
+ * Caches the account list for 5 minutes to avoid repeated API calls
+ * during batch cron processing.
+ */
+async function getPostBridgeAccountId(
+  client: PostBridgeClient,
+  _siteId: string,
+  platform: string,
+): Promise<string | null> {
+  const now = Date.now();
+  if (!_pbAccountsCache || now - _pbAccountsCacheTs > PB_CACHE_TTL_MS) {
+    try {
+      _pbAccountsCache = await client.getAccounts();
+      _pbAccountsCacheTs = now;
+    } catch (err) {
+      console.warn(
+        "[social-scheduler] Failed to fetch Post Bridge accounts:",
+        err instanceof Error ? err.message : String(err),
+      );
+      return null;
+    }
+  }
+
+  const normalizedPlatform = platform === "x" ? "twitter" : platform;
+  const account = _pbAccountsCache.find(
+    (a) => a.connected && a.platform === normalizedPlatform,
+  );
+  return account?.id ?? null;
+}
+
+/** Reset the Post Bridge accounts cache (useful for tests or config changes). */
+export function resetPostBridgeAccountsCache(): void {
+  _pbAccountsCache = null;
+  _pbAccountsCacheTs = 0;
 }

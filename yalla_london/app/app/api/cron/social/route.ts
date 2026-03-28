@@ -72,10 +72,35 @@ async function handleSocialCron(request: NextRequest) {
       (process.env.TWITTER_ACCESS_TOKEN_SECRET || process.env.TWITTER_ACCESS_SECRET)
     );
 
-    // Only fetch posts for platforms we can actually auto-publish.
-    // Other platforms (Instagram, TikTok, LinkedIn) stay pending until Khaled
-    // publishes them manually via /admin/social-calendar.
-    const autoPublishPlatforms = twitterConfigured ? ['twitter', 'x'] : [];
+    // Post Bridge can auto-publish to any connected platform
+    const { isPostBridgeConfigured, getPostBridgeClient } = await import(
+      "@/lib/integrations/post-bridge-client"
+    );
+    let postBridgePlatforms: string[] = [];
+    if (isPostBridgeConfigured()) {
+      const pbClient = getPostBridgeClient();
+      if (pbClient) {
+        try {
+          const accounts = await pbClient.getAccounts();
+          postBridgePlatforms = accounts
+            .filter((a) => a.connected)
+            .map((a) => a.platform);
+        } catch (err) {
+          console.warn(
+            "[social-cron] Failed to fetch Post Bridge accounts:",
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+    }
+
+    // Merge auto-publish platforms: Post Bridge platforms + Twitter direct
+    const autoPublishPlatforms = [
+      ...new Set<string>([
+        ...postBridgePlatforms,
+        ...(twitterConfigured ? ["twitter", "x"] : []),
+      ]),
+    ];
 
     // Count pending non-auto posts for dashboard visibility (scoped to active sites)
     const { getActiveSiteIds } = await import("@/config/sites");
@@ -130,26 +155,22 @@ async function handleSocialCron(request: NextRequest) {
       }
       const platform = (post.platform || '').toLowerCase();
       try {
-        if (platform === 'twitter' || platform === 'x') {
-          // Real Twitter/X publish via twitter-api-v2 (credentials from env vars)
-          const { publishPost } = await import('@/lib/social/scheduler');
-          const result = await publishPost(post.id);
-          if (result.success) {
-            console.log(`[social-cron] Published tweet for post ${post.id}: ${result.postUrl}`);
-          } else {
-            console.warn(`[social-cron] Tweet failed for post ${post.id}: ${result.error}`);
-          }
-          results.push({
-            postId: post.id,
-            platform,
-            status: result.success ? 'published' : 'failed',
-            postUrl: result.postUrl,
-            reason: result.error,
-          });
+        // All auto-publishable platforms route through publishPost() which handles:
+        // Post Bridge → Twitter direct → manual fallback
+        const { publishPost } = await import('@/lib/social/scheduler');
+        const result = await publishPost(post.id);
+        if (result.success) {
+          console.log(`[social-cron] Published ${platform} post ${post.id}: ${result.postUrl}`);
         } else {
-          // Should not reach here given the query filter — defensive log only
-          console.warn(`[social-cron] Unexpected platform in auto-publish queue: ${platform} (post ${post.id})`);
+          console.warn(`[social-cron] Publish failed for ${platform} post ${post.id}: ${result.error}`);
         }
+        results.push({
+          postId: post.id,
+          platform,
+          status: result.success ? 'published' : 'failed',
+          postUrl: result.postUrl,
+          reason: result.error,
+        });
       } catch (error) {
         // Mark individual post as failed
         await prisma.scheduledContent.update({

@@ -1465,6 +1465,96 @@ test("Hardening", "weekly-topics creates topics that schedule-executor can consu
     : { status: FAIL, details: `weekly creates ready: ${weeklyCreatesReady}, executor accepts ready: ${executorAcceptsReady}` };
 });
 
+// ==================== Kapso & Post Bridge Integration ====================
+
+test("Kapso & Post Bridge", "Kapso client module exports all required functions", () => {
+  const filePath = "lib/integrations/kapso-client.ts";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const hasGetClient = content.includes("export function getKapsoClient");
+  const hasIsConfigured = content.includes("export function isKapsoConfigured");
+  const hasGetPhoneId = content.includes("export function getPhoneNumberId");
+  const hasIsProxy = content.includes("export function isKapsoProxyEnabled");
+  const hasReset = content.includes("export function resetKapsoClient");
+  const all = hasGetClient && hasIsConfigured && hasGetPhoneId && hasIsProxy && hasReset;
+  return all
+    ? { status: PASS, details: "All 5 exports: getKapsoClient, isKapsoConfigured, getPhoneNumberId, isKapsoProxyEnabled, resetKapsoClient" }
+    : { status: FAIL, details: `getClient=${hasGetClient} isConfigured=${hasIsConfigured} getPhoneId=${hasGetPhoneId} isProxy=${hasIsProxy} reset=${hasReset}` };
+});
+
+test("Kapso & Post Bridge", "Post Bridge client module exports all required functions", () => {
+  const filePath = "lib/integrations/post-bridge-client.ts";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const hasClass = content.includes("export class PostBridgeClient");
+  const hasGetClient = content.includes("export function getPostBridgeClient");
+  const hasIsConfigured = content.includes("export function isPostBridgeConfigured");
+  const hasReset = content.includes("export function resetPostBridgeClient");
+  const all = hasClass && hasGetClient && hasIsConfigured && hasReset;
+  return all
+    ? { status: PASS, details: "All 4 exports: PostBridgeClient class, getPostBridgeClient, isPostBridgeConfigured, resetPostBridgeClient" }
+    : { status: FAIL, details: `class=${hasClass} getClient=${hasGetClient} isConfigured=${hasIsConfigured} reset=${hasReset}` };
+});
+
+test("Kapso & Post Bridge", "Post Bridge types file defines all 9 platforms", () => {
+  const filePath = "lib/integrations/post-bridge-types.ts";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const platforms = ["twitter", "instagram", "linkedin", "facebook", "tiktok", "youtube", "bluesky", "threads", "pinterest"];
+  const missing = platforms.filter(p => !content.includes(`"${p}"`));
+  return missing.length === 0
+    ? { status: PASS, details: "All 9 platforms defined: twitter, instagram, linkedin, facebook, tiktok, youtube, bluesky, threads, pinterest" }
+    : { status: FAIL, details: `Missing platforms: ${missing.join(", ")}` };
+});
+
+test("Kapso & Post Bridge", "Social scheduler imports Post Bridge", () => {
+  const filePath = "lib/social/scheduler.ts";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const importsPostBridge = content.includes("post-bridge-client") || content.includes("PostBridgeClient");
+  return importsPostBridge
+    ? { status: PASS, details: "scheduler.ts imports PostBridgeClient from post-bridge-client" }
+    : { status: FAIL, details: "scheduler.ts does not reference Post Bridge client" };
+});
+
+test("Kapso & Post Bridge", "Social cron routes through publishPost", () => {
+  const filePath = "app/api/cron/social/route.ts";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const hasPublishPost = content.includes("publishPost");
+  return hasPublishPost
+    ? { status: PASS, details: "Social cron calls publishPost() from scheduler" }
+    : { status: FAIL, details: "Social cron does not use publishPost() — may bypass Post Bridge routing" };
+});
+
+test("Kapso & Post Bridge", "Post Bridge sync-accounts admin route exists", () => {
+  const filePath = "app/api/admin/post-bridge/sync-accounts/route.ts";
+  return fileExists(filePath)
+    ? { status: PASS, details: "sync-accounts route exists at app/api/admin/post-bridge/sync-accounts/route.ts" }
+    : { status: FAIL, details: `Missing: ${filePath}` };
+});
+
+test("Kapso & Post Bridge", "Agent tool registry includes social tools", () => {
+  const filePath = "lib/agents/tool-registry.ts";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const hasPublishTool = content.includes("publish_to_social");
+  return hasPublishTool
+    ? { status: PASS, details: "publish_to_social registered in agent tool registry" }
+    : { status: FAIL, details: "publish_to_social not found in tool-registry.ts" };
+});
+
+test("Kapso & Post Bridge", ".env.example includes Kapso and Post Bridge vars", () => {
+  const filePath = ".env.example";
+  if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
+  const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
+  const hasPostBridge = content.includes("POST_BRIDGE_API_KEY");
+  const hasKapso = content.includes("KAPSO_API_KEY");
+  return hasPostBridge && hasKapso
+    ? { status: PASS, details: "Both POST_BRIDGE_API_KEY and KAPSO_API_KEY in .env.example" }
+    : { status: FAIL, details: `POST_BRIDGE_API_KEY=${hasPostBridge} KAPSO_API_KEY=${hasKapso}` };
+});
+
 for (const cat of categories) {
   const catResults = results.filter(r => r.category === cat);
   const catPass = catResults.filter(r => r.status === PASS).length;

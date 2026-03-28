@@ -103,7 +103,8 @@ async function handler(request: NextRequest) {
     // -----------------------------------------------------------------------
     const { getDefaultSiteId } = await import("@/config/sites");
 
-    let processCEOEvent: ((event: unknown) => Promise<{ success: boolean; responseText?: string; toolsUsed?: string[]; crmActions?: unknown[] }>) | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let processCEOEvent: ((event: any) => Promise<{ success: boolean; responseText?: string; toolsUsed?: string[]; crmActions?: unknown[] }>) | null = null;
     try {
       const ceoBrain = await import("@/lib/agents/ceo-brain");
       processCEOEvent = ceoBrain.processCEOEvent;

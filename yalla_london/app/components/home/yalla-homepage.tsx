@@ -405,7 +405,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
   // Inject Event structured data (JSON-LD) for SEO — only for live Ticketmaster events with real URLs
   useEffect(() => {
-    if (liveEvents.length === 0) return;
+    if (liveEvents.length === 0) return undefined;
     const existingScript = document.getElementById('homepage-events-jsonld')
     if (existingScript) existingScript.remove()
 

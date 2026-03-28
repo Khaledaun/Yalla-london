@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   AdminPageHeader,
   AdminCard,
@@ -10,6 +10,7 @@ import {
   AdminEmptyState,
   AdminSectionLabel,
   AdminTabs,
+  AdminLoadingState,
 } from '@/components/admin/admin-ui'
 import {
   Users,
@@ -19,178 +20,113 @@ import {
   Trash2,
   Send,
   Eye,
-  TrendingUp,
-  BarChart3,
   Search,
   Download,
-  Target,
   Globe,
   User,
   MapPin,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Subscriber {
   id: string
   email: string
-  name?: string
-  status: 'active' | 'unsubscribed' | 'bounced'
-  subscribedAt: string
-  lastActivity: string
-  source: 'website' | 'social' | 'referral' | 'manual'
-  tags: string[]
-  location?: string
-  interests: string[]
-  engagement: {
-    opens: number
-    clicks: number
-    lastOpen: string
-  }
+  first_name?: string
+  last_name?: string
+  status: string
+  source?: string
+  created_at: string
+  updated_at: string
+  confirmed_at?: string
+  unsubscribed_at?: string
+  engagement_score?: number
+  metadata_json?: Record<string, unknown>
+  preferences_json?: Record<string, unknown>
 }
 
 interface Campaign {
   id: string
   name: string
   subject: string
-  content: string
-  status: 'draft' | 'scheduled' | 'sent' | 'paused'
+  status: string
   scheduledAt?: string
   sentAt?: string
-  recipients: number
-  opens: number
-  clicks: number
-  unsubscribes: number
+  recipientCount: number
+  openCount: number
+  clickCount: number
+  sentCount: number
   createdAt: string
-  tags: string[]
 }
 
-interface Analytics {
-  totalSubscribers: number
-  newThisWeek: number
-  unsubscribed: number
-  engagementRate: number
-  openRate: number
-  clickRate: number
-  topCountries: { country: string; count: number }[]
-  topInterests: { interest: string; count: number }[]
-  monthlyGrowth: number[]
+interface CRMData {
+  subscribers: Subscriber[]
+  campaigns: Campaign[]
+  stats: {
+    totalSubscribers: number
+    activeSubscribers: number
+    unsubscribed: number
+    bounced: number
+    totalCampaigns: number
+    sentCampaigns: number
+  }
 }
 
 export default function CRMSystem() {
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([
-    {
-      id: '1',
-      email: 'john.doe@example.com',
-      name: 'John Doe',
-      status: 'active',
-      subscribedAt: '2024-01-10',
-      lastActivity: '2024-01-15',
-      source: 'website',
-      tags: ['london', 'food', 'travel'],
-      location: 'London, UK',
-      interests: ['restaurants', 'events', 'travel'],
-      engagement: { opens: 12, clicks: 8, lastOpen: '2024-01-15' }
-    },
-    {
-      id: '2',
-      email: 'sarah.smith@example.com',
-      name: 'Sarah Smith',
-      status: 'active',
-      subscribedAt: '2024-01-12',
-      lastActivity: '2024-01-14',
-      source: 'social',
-      tags: ['london', 'culture', 'art'],
-      location: 'Manchester, UK',
-      interests: ['museums', 'art', 'culture'],
-      engagement: { opens: 8, clicks: 5, lastOpen: '2024-01-14' }
-    },
-    {
-      id: '3',
-      email: 'mike.wilson@example.com',
-      name: 'Mike Wilson',
-      status: 'active',
-      subscribedAt: '2024-01-08',
-      lastActivity: '2024-01-13',
-      source: 'referral',
-      tags: ['london', 'business', 'networking'],
-      location: 'Birmingham, UK',
-      interests: ['business', 'networking', 'events'],
-      engagement: { opens: 15, clicks: 12, lastOpen: '2024-01-13' }
-    }
-  ])
-
-  const [campaigns, setCampaigns] = useState<Campaign[]>([
-    {
-      id: '1', name: 'Weekly London Events',
-      subject: 'This Week in London: Must-See Events & Hidden Gems',
-      content: 'Discover the best events happening in London this week...',
-      status: 'sent', sentAt: '2024-01-15 10:00:00', recipients: 2847, opens: 854, clicks: 234, unsubscribes: 12,
-      createdAt: '2024-01-14', tags: ['weekly', 'events', 'london']
-    },
-    {
-      id: '2', name: 'Restaurant Recommendations',
-      subject: 'New Restaurant Alert: London\'s Hottest Dining Spots',
-      content: 'Check out these amazing new restaurants in London...',
-      status: 'scheduled', scheduledAt: '2024-01-20 12:00:00', recipients: 2847, opens: 0, clicks: 0, unsubscribes: 0,
-      createdAt: '2024-01-16', tags: ['restaurants', 'food', 'dining']
-    },
-    {
-      id: '3', name: 'Travel Tips & Guides',
-      subject: 'Your Ultimate London Travel Guide',
-      content: 'Everything you need to know for your London trip...',
-      status: 'draft', recipients: 0, opens: 0, clicks: 0, unsubscribes: 0,
-      createdAt: '2024-01-17', tags: ['travel', 'guide', 'tips']
-    }
-  ])
-
-  const [analytics] = useState<Analytics>({
-    totalSubscribers: 2847, newThisWeek: 45, unsubscribed: 12,
-    engagementRate: 23.4, openRate: 30.0, clickRate: 8.2,
-    topCountries: [
-      { country: 'United Kingdom', count: 1847 }, { country: 'United States', count: 456 },
-      { country: 'Canada', count: 234 }, { country: 'Australia', count: 189 }, { country: 'Germany', count: 121 }
-    ],
-    topInterests: [
-      { interest: 'Restaurants', count: 1247 }, { interest: 'Events', count: 892 },
-      { interest: 'Travel', count: 654 }, { interest: 'Culture', count: 456 }, { interest: 'Shopping', count: 234 }
-    ],
-    monthlyGrowth: [2100, 2300, 2500, 2700, 2847, 0, 0, 0, 0, 0, 0, 0]
-  })
-
+  const [data, setData] = useState<CRMData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedSubscriber, setSelectedSubscriber] = useState<Subscriber | null>(null)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'unsubscribed' | 'bounced'>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
   const [activeTab, setActiveTab] = useState('subscribers')
 
-  const filteredSubscribers = subscribers.filter(subscriber => {
-    const matchesSearch = subscriber.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subscriber.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || subscriber.status === filterStatus
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await fetch('/api/admin/crm')
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || `HTTP ${res.status}`)
+      }
+      const json = await res.json()
+      setData(json)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load CRM data'
+      setError(message)
+      console.warn('[crm] fetch error:', message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const filteredSubscribers = (data?.subscribers || []).filter(sub => {
+    const name = `${sub.first_name || ''} ${sub.last_name || ''}`.trim()
+    const matchesSearch = sub.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || sub.status.toLowerCase() === filterStatus
     return matchesSearch && matchesStatus
   })
 
   const statusMap: Record<string, string> = {
+    CONFIRMED: 'active', PENDING: 'pending', UNSUBSCRIBED: 'rejected', BOUNCED: 'warning',
     active: 'active', unsubscribed: 'rejected', bounced: 'warning',
-    sent: 'success', scheduled: 'pending', draft: 'draft', paused: 'warning',
+    sent: 'success', scheduled: 'pending', draft: 'draft', sending: 'pending', failed: 'warning',
   }
 
-  const sourceIcons: Record<string, typeof Globe> = {
-    website: Globe, social: Users, referral: User, manual: Plus,
-  }
+  const stats = data?.stats || { totalSubscribers: 0, activeSubscribers: 0, unsubscribed: 0, bounced: 0, totalCampaigns: 0, sentCampaigns: 0 }
 
-  const sendCampaign = async (campaignId: string) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setCampaigns(prev => prev.map(campaign =>
-        campaign.id === campaignId
-          ? { ...campaign, status: 'sent' as const, sentAt: new Date().toISOString() }
-          : campaign
-      ))
-      toast.success('Campaign sent successfully!')
-    } catch {
-      toast.error('Failed to send campaign')
-    }
+  if (loading) {
+    return (
+      <div className="admin-page p-4 md:p-6">
+        <AdminPageHeader title="CRM & Newsletter" subtitle="Manage subscribers and email campaigns" />
+        <AdminLoadingState label="Loading CRM data..." />
+      </div>
+    )
   }
 
   return (
@@ -200,27 +136,37 @@ export default function CRMSystem() {
         subtitle="Manage subscribers and email campaigns"
         action={
           <div className="flex gap-2">
-            <AdminButton variant="secondary"><Download size={14} /> Export</AdminButton>
+            <AdminButton variant="secondary" onClick={fetchData}><RefreshCw size={14} /> Refresh</AdminButton>
             <AdminButton variant="primary"><Plus size={14} /> New Campaign</AdminButton>
           </div>
         }
       />
 
+      {error && (
+        <AdminCard className="mb-4 border-l-4 border-l-[#C8322B]">
+          <p style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#C8322B' }}>
+            Failed to load CRM data: {error}
+          </p>
+          <AdminButton variant="secondary" size="sm" onClick={fetchData} className="mt-2">
+            <RefreshCw size={12} /> Retry
+          </AdminButton>
+        </AdminCard>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <AdminKPICard value={analytics.totalSubscribers.toLocaleString()} label="Total Subscribers" color="#1C1917" />
-        <AdminKPICard value={analytics.newThisWeek} label="New This Week" color="#2D5A3D" trend={{ value: 12, positive: true }} />
-        <AdminKPICard value={`${analytics.openRate}%`} label="Open Rate" color="#3B7EA1" />
-        <AdminKPICard value={`${analytics.clickRate}%`} label="Click Rate" color="#C49A2A" />
+        <AdminKPICard value={stats.totalSubscribers} label="Total Subscribers" color="#1C1917" />
+        <AdminKPICard value={stats.activeSubscribers} label="Active" color="#2D5A3D" />
+        <AdminKPICard value={stats.unsubscribed} label="Unsubscribed" color="#C8322B" />
+        <AdminKPICard value={stats.totalCampaigns} label="Campaigns" color="#3B7EA1" />
       </div>
 
       {/* Tabs */}
       <div className="mb-4">
         <AdminTabs
           tabs={[
-            { id: 'subscribers', label: 'Subscribers' },
-            { id: 'campaigns', label: 'Campaigns' },
-            { id: 'analytics', label: 'Analytics' },
+            { id: 'subscribers', label: `Subscribers (${stats.totalSubscribers})` },
+            { id: 'campaigns', label: `Campaigns (${stats.totalCampaigns})` },
           ]}
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -233,7 +179,6 @@ export default function CRMSystem() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <AdminSectionLabel>Newsletter Subscribers</AdminSectionLabel>
-              <AdminButton variant="primary" size="sm"><Plus size={13} /> Add</AdminButton>
             </div>
 
             {/* Search and Filter */}
@@ -249,55 +194,65 @@ export default function CRMSystem() {
                   />
                 </div>
                 <select className="admin-select" value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}>
+                  onChange={(e) => setFilterStatus(e.target.value)}>
                   <option value="all">All Status</option>
-                  <option value="active">Active</option>
+                  <option value="confirmed">Active</option>
+                  <option value="pending">Pending</option>
                   <option value="unsubscribed">Unsubscribed</option>
                   <option value="bounced">Bounced</option>
                 </select>
               </div>
             </AdminCard>
 
-            {filteredSubscribers.map((subscriber) => {
-              const SourceIcon = sourceIcons[subscriber.source] || Mail
-              return (
-                <AdminCard
-                  key={subscriber.id}
-                  className={`cursor-pointer transition-all ${selectedSubscriber?.id === subscriber.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
-                  elevated={selectedSubscriber?.id === subscriber.id}
-                >
-                  <div onClick={() => setSelectedSubscriber(subscriber)}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
-                            {subscriber.name || subscriber.email}
-                          </span>
-                          <SourceIcon size={13} style={{ color: '#3B7EA1' }} />
-                          <AdminStatusBadge status={statusMap[subscriber.status] || subscriber.status} label={subscriber.status} />
+            {filteredSubscribers.length === 0 ? (
+              <AdminCard>
+                <AdminEmptyState
+                  icon={Users}
+                  title={data?.subscribers.length === 0 ? "No Subscribers Yet" : "No Matches"}
+                  description={data?.subscribers.length === 0
+                    ? "Subscribers will appear here when users sign up on your site"
+                    : "Try a different search term or filter"
+                  }
+                />
+              </AdminCard>
+            ) : (
+              filteredSubscribers.map((subscriber) => {
+                const name = `${subscriber.first_name || ''} ${subscriber.last_name || ''}`.trim()
+                return (
+                  <AdminCard
+                    key={subscriber.id}
+                    className={`cursor-pointer transition-all ${selectedSubscriber?.id === subscriber.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
+                    elevated={selectedSubscriber?.id === subscriber.id}
+                  >
+                    <div onClick={() => setSelectedSubscriber(subscriber)}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                              {name || subscriber.email}
+                            </span>
+                            <AdminStatusBadge status={statusMap[subscriber.status] || 'inactive'} label={subscriber.status.toLowerCase()} />
+                          </div>
+                          <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{subscriber.email}</p>
+                          <div className="flex gap-3 mt-1" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                            <span>Joined: {new Date(subscriber.created_at).toLocaleDateString()}</span>
+                            {subscriber.source && <span>Source: {subscriber.source}</span>}
+                          </div>
                         </div>
-                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{subscriber.email}</p>
-                        <div className="flex gap-3 mt-1" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
-                          <span>Joined: {subscriber.subscribedAt}</span>
-                          <span>Last: {subscriber.lastActivity}</span>
-                        </div>
-                        <div className="flex gap-1 mt-2">
-                          {subscriber.tags.slice(0, 3).map(tag => (
-                            <AdminStatusBadge key={tag} status="inactive" label={tag} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
-                          {subscriber.engagement.opens}
-                        </div>
-                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>opens</div>
+                        {subscriber.engagement_score != null && (
+                          <div className="text-right">
+                            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                              {Math.round(subscriber.engagement_score)}
+                            </div>
+                            <div style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>score</div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </AdminCard>
-              )
-            })}
+                  </AdminCard>
+                )
+              })
+            )}
           </div>
 
           {/* Subscriber Details */}
@@ -308,11 +263,11 @@ export default function CRMSystem() {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-11 h-11 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: '#C8322B', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: '#FAF8F4' }}>
-                    {selectedSubscriber.name ? selectedSubscriber.name[0].toUpperCase() : selectedSubscriber.email[0].toUpperCase()}
+                    {(selectedSubscriber.first_name || selectedSubscriber.email)[0].toUpperCase()}
                   </div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#1C1917' }}>
-                      {selectedSubscriber.name || 'No Name'}
+                      {`${selectedSubscriber.first_name || ''} ${selectedSubscriber.last_name || ''}`.trim() || 'No Name'}
                     </div>
                     <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{selectedSubscriber.email}</div>
                   </div>
@@ -321,48 +276,42 @@ export default function CRMSystem() {
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
                     <FormLabel>Status</FormLabel>
-                    <AdminStatusBadge status={statusMap[selectedSubscriber.status]} label={selectedSubscriber.status} />
+                    <AdminStatusBadge status={statusMap[selectedSubscriber.status] || 'inactive'} label={selectedSubscriber.status} />
                   </div>
                   <div>
                     <FormLabel>Source</FormLabel>
                     <span className="capitalize" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
-                      {selectedSubscriber.source}
+                      {selectedSubscriber.source || 'Unknown'}
                     </span>
                   </div>
                 </div>
 
-                {selectedSubscriber.location && (
-                  <div className="mb-3">
-                    <FormLabel>Location</FormLabel>
-                    <div className="flex items-center gap-1.5" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
-                      <MapPin size={13} style={{ color: '#A8A29E' }} />
-                      {selectedSubscriber.location}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <FormLabel>Subscribed</FormLabel>
+                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
+                      {new Date(selectedSubscriber.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {selectedSubscriber.confirmed_at && (
+                    <div>
+                      <FormLabel>Confirmed</FormLabel>
+                      <span style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
+                        {new Date(selectedSubscriber.confirmed_at).toLocaleDateString()}
+                      </span>
                     </div>
+                  )}
+                </div>
+
+                {selectedSubscriber.engagement_score != null && (
+                  <div className="mb-4">
+                    <AdminKPICard value={Math.round(selectedSubscriber.engagement_score)} label="Engagement Score" color="#3B7EA1" />
                   </div>
                 )}
 
-                <div className="mb-3">
-                  <FormLabel>Interests</FormLabel>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedSubscriber.interests.map(i => <AdminStatusBadge key={i} status="pending" label={i} />)}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <FormLabel>Tags</FormLabel>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedSubscriber.tags.map(t => <AdminStatusBadge key={t} status="inactive" label={t} />)}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <AdminKPICard value={selectedSubscriber.engagement.opens} label="Email Opens" color="#3B7EA1" />
-                  <AdminKPICard value={selectedSubscriber.engagement.clicks} label="Link Clicks" color="#2D5A3D" />
-                </div>
-
                 <div className="flex gap-2">
-                  <AdminButton variant="secondary" className="flex-1"><Edit size={13} /> Edit</AdminButton>
                   <AdminButton variant="secondary" className="flex-1"><Mail size={13} /> Email</AdminButton>
+                  <AdminButton variant="secondary" className="flex-1"><Trash2 size={13} /> Remove</AdminButton>
                 </div>
               </AdminCard>
             ) : (
@@ -383,40 +332,46 @@ export default function CRMSystem() {
               <AdminButton variant="primary" size="sm"><Plus size={13} /> Create</AdminButton>
             </div>
 
-            {campaigns.map((campaign) => (
-              <AdminCard
-                key={campaign.id}
-                className={`cursor-pointer transition-all ${selectedCampaign?.id === campaign.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
-                elevated={selectedCampaign?.id === campaign.id}
-              >
-                <div onClick={() => setSelectedCampaign(campaign)}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
-                          {campaign.name}
-                        </span>
-                        <AdminStatusBadge status={statusMap[campaign.status] || campaign.status} label={campaign.status} />
+            {(data?.campaigns || []).length === 0 ? (
+              <AdminCard>
+                <AdminEmptyState
+                  icon={Mail}
+                  title="No Campaigns Yet"
+                  description="Create your first email campaign to engage subscribers"
+                />
+              </AdminCard>
+            ) : (
+              (data?.campaigns || []).map((campaign) => (
+                <AdminCard
+                  key={campaign.id}
+                  className={`cursor-pointer transition-all ${selectedCampaign?.id === campaign.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
+                  elevated={selectedCampaign?.id === campaign.id}
+                >
+                  <div onClick={() => setSelectedCampaign(campaign)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                            {campaign.name}
+                          </span>
+                          <AdminStatusBadge status={statusMap[campaign.status] || campaign.status} label={campaign.status} />
+                        </div>
+                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginBottom: 4 }}>{campaign.subject}</p>
+                        <div className="flex gap-3" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                          <span>Recipients: {campaign.recipientCount}</span>
+                          <span>Opens: {campaign.openCount}</span>
+                          <span>Clicks: {campaign.clickCount}</span>
+                        </div>
                       </div>
-                      <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginBottom: 4 }}>{campaign.subject}</p>
-                      <div className="flex gap-3" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
-                        <span>Recipients: {campaign.recipients}</span>
-                        <span>Opens: {campaign.opens}</span>
-                        <span>Clicks: {campaign.clicks}</span>
+                      <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textAlign: 'right' }}>
+                        {campaign.sentAt && <span>Sent: {new Date(campaign.sentAt).toLocaleDateString()}</span>}
+                        {!campaign.sentAt && campaign.scheduledAt && <span>Scheduled: {new Date(campaign.scheduledAt).toLocaleDateString()}</span>}
                       </div>
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textAlign: 'right' }}>
-                      {campaign.status === 'sent' && campaign.sentAt && (
-                        <span>Sent: {new Date(campaign.sentAt).toLocaleDateString()}</span>
-                      )}
-                      {campaign.status === 'scheduled' && campaign.scheduledAt && (
-                        <span>Scheduled: {new Date(campaign.scheduledAt).toLocaleDateString()}</span>
-                      )}
                     </div>
                   </div>
-                </div>
-              </AdminCard>
-            ))}
+                </AdminCard>
+              ))
+            )}
           </div>
 
           {/* Campaign Details */}
@@ -438,29 +393,19 @@ export default function CRMSystem() {
                   <input className="admin-input w-full" value={selectedCampaign.subject} readOnly />
                 </div>
 
-                <div className="mb-4">
-                  <FormLabel>Content Preview</FormLabel>
-                  <textarea className="admin-input w-full resize-none" value={selectedCampaign.content} readOnly rows={4} />
-                </div>
-
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <AdminKPICard value={selectedCampaign.recipients} label="Recipients" color="#3B7EA1" />
-                  <AdminKPICard value={selectedCampaign.opens} label="Opens" color="#2D5A3D" />
-                  <AdminKPICard value={selectedCampaign.clicks} label="Clicks" color="#C49A2A" />
-                  <AdminKPICard value={selectedCampaign.unsubscribes} label="Unsubscribes" color="#C8322B" />
+                  <AdminKPICard value={selectedCampaign.recipientCount} label="Recipients" color="#3B7EA1" />
+                  <AdminKPICard value={selectedCampaign.openCount} label="Opens" color="#2D5A3D" />
+                  <AdminKPICard value={selectedCampaign.clickCount} label="Clicks" color="#C49A2A" />
+                  <AdminKPICard value={selectedCampaign.sentCount} label="Sent" color="#1C1917" />
                 </div>
 
                 <div className="flex gap-2">
                   {(selectedCampaign.status === 'draft' || selectedCampaign.status === 'scheduled') && (
-                    <AdminButton
-                      variant={selectedCampaign.status === 'draft' ? 'primary' : 'success'}
-                      className="flex-1"
-                      onClick={() => sendCampaign(selectedCampaign.id)}
-                    >
+                    <AdminButton variant="primary" className="flex-1">
                       <Send size={13} /> Send Now
                     </AdminButton>
                   )}
-                  <AdminButton variant="secondary" className="flex-1"><Edit size={13} /> Edit</AdminButton>
                   <AdminButton variant="secondary" className="flex-1"><Eye size={13} /> Preview</AdminButton>
                 </div>
               </AdminCard>
@@ -472,81 +417,11 @@ export default function CRMSystem() {
           </div>
         </div>
       )}
-
-      {/* Analytics Tab */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <AdminCard accent accentColor="blue">
-              <AdminSectionLabel>Top Countries</AdminSectionLabel>
-              <div className="space-y-2">
-                {analytics.topCountries.map((country, index) => (
-                  <div key={index} className="flex items-center justify-between p-2.5 rounded-xl"
-                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: '#3B7EA1', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#FAF8F4' }}>
-                        {index + 1}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{country.country}</span>
-                    </div>
-                    <AdminStatusBadge status="active" label={String(country.count)} />
-                  </div>
-                ))}
-              </div>
-            </AdminCard>
-
-            <AdminCard accent accentColor="gold">
-              <AdminSectionLabel>Top Interests</AdminSectionLabel>
-              <div className="space-y-2">
-                {analytics.topInterests.map((interest, index) => (
-                  <div key={index} className="flex items-center justify-between p-2.5 rounded-xl"
-                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: '#C49A2A', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#FAF8F4' }}>
-                        {index + 1}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{interest.interest}</span>
-                    </div>
-                    <AdminStatusBadge status="warning" label={String(interest.count)} />
-                  </div>
-                ))}
-              </div>
-            </AdminCard>
-          </div>
-
-          <AdminCard accent accentColor="green">
-            <AdminSectionLabel>Subscriber Growth</AdminSectionLabel>
-            <div className="h-52 flex items-end justify-between gap-1.5 pt-4">
-              {analytics.monthlyGrowth.map((count, index) => {
-                const maxVal = Math.max(...analytics.monthlyGrowth)
-                return (
-                  <div key={index} className="flex flex-col items-center gap-1.5 flex-1">
-                    <div
-                      className="w-full rounded-t transition-all"
-                      style={{
-                        height: maxVal > 0 ? `${(count / maxVal) * 160}px` : '0px',
-                        backgroundColor: count > 0 ? '#2D5A3D' : 'rgba(214,208,196,0.3)',
-                        minWidth: 12,
-                      }}
-                    />
-                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E' }}>
-                      {new Date(2024, index).toLocaleDateString('en', { month: 'short' })}
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, color: '#44403C' }}>{count || ''}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </AdminCard>
-        </div>
-      )}
     </div>
   )
 }
 
-/* ─── Form Label ─────────────────────────────────────────────────── */
+/* Form Label */
 function FormLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{

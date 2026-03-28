@@ -31,7 +31,7 @@ export async function getDesignAssets(
     // Get Canva video count (module may not exist in all environments)
     let videoCount = 0;
     try {
-      const registryPath = "@/lib/canva/video-registry";
+      const registryPath = "@/lib/design/canva-video-registry";
       // Dynamic path prevents TS static analysis from erroring on missing module
       const mod = await import(registryPath);
       if (mod?.getVideoCount) videoCount = mod.getVideoCount();

@@ -174,7 +174,10 @@ const experiences = {
       price: 40,
       image: 'https://images.unsplash.com/photo-1513467535987-fd81bc7d62f8?w=600&q=80',
       featured: false,
-      description: 'Discover the legendary Harrods Food Hall, explore luxury boutiques along Sloane Street, and learn the fascinating history of Knightsbridge with a local guide.',
+      description: 'Discover the legendary Harrods Food Hall — a cathedral of gastronomy spanning over 25 departments across an entire floor — then explore luxury boutiques along Sloane Street with a knowledgeable local guide. The walking tour covers the hidden history of Knightsbridge, from its medieval origins to its transformation into London\'s most exclusive shopping district. You will pass Harvey Nichols, the Lanesborough Hotel, and the elegant garden squares that make this neighbourhood a favourite of Gulf visitors year after year.',
+      insiderTip: 'Visit Harrods on a weekday morning before 11 AM to avoid the worst crowds. The lower ground floor food halls are less busy than the ground floor and have better sampling opportunities.',
+      gccFeatures: ['Harrods has a dedicated Arabic-speaking concierge service', 'Extensive halal food counters in the Food Hall', 'Knightsbridge is the heart of London\'s Arab community', 'Prayer facilities at Harrods and nearby mosques', 'Tax-free shopping available for GCC visitors'],
+      bestFor: ['Luxury shoppers', 'Foodies', 'Gulf families'],
       website: 'https://www.harrods.com'
     },
   ],

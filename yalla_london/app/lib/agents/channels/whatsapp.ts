@@ -1,14 +1,17 @@
 /**
- * WhatsApp Channel Adapter — Meta Cloud API integration
+ * WhatsApp Channel Adapter — Meta Cloud API integration via Kapso SDK
  *
  * Implements ChannelAdapter for bidirectional WhatsApp messaging.
- * Uses Meta Cloud API (no intermediary like Kapso) via pure HTTP fetch.
+ * Uses @kapso/whatsapp-cloud-api SDK for typed, validated API calls.
+ * Supports direct mode (graph.facebook.com) and proxy mode (api.kapso.ai).
  *
  * Env vars:
  *   WHATSAPP_PHONE_NUMBER_ID  — Meta Business phone number ID
  *   WHATSAPP_ACCESS_TOKEN     — Meta Business API access token
  *   WHATSAPP_VERIFY_TOKEN     — Webhook verification token (custom string)
  *   WHATSAPP_BUSINESS_ACCOUNT_ID — Meta Business account ID
+ *   KAPSO_API_KEY             — Kapso proxy API key (optional)
+ *   KAPSO_PROXY_ENABLED       — "true" to route via api.kapso.ai (optional)
  */
 
 import type {
@@ -17,6 +20,11 @@ import type {
   SendOptions,
   SendResult,
 } from "../types";
+import {
+  getKapsoClient,
+  getPhoneNumberId,
+  isKapsoConfigured,
+} from "@/lib/integrations/kapso-client";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -32,65 +40,43 @@ function getConfig() {
 }
 
 export function isWhatsAppConfigured(): boolean {
-  const cfg = getConfig();
-  return !!(cfg.phoneNumberId && cfg.accessToken);
+  return isKapsoConfigured();
 }
 
 // ---------------------------------------------------------------------------
-// WhatsApp Cloud API helpers
+// WhatsApp Cloud API helpers — via Kapso SDK
 // ---------------------------------------------------------------------------
 
-const CLOUD_API_BASE = "https://graph.facebook.com/v19.0";
-
 /**
- * Send a text message via WhatsApp Cloud API.
+ * Send a text message via Kapso SDK.
  */
 async function sendTextMessage(
   to: string,
   text: string,
 ): Promise<{ messageId: string }> {
-  const cfg = getConfig();
-  const url = `${CLOUD_API_BASE}/${cfg.phoneNumberId}/messages`;
+  const client = getKapsoClient();
+  const phoneNumberId = getPhoneNumberId();
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to,
-      type: "text",
-      text: { body: text },
-    }),
+  const result = await client.messages.sendText({
+    phoneNumberId,
+    to,
+    body: text,
   });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(
-      `WhatsApp API ${response.status}: ${errBody.slice(0, 300)}`,
-    );
-  }
-
-  const result = (await response.json()) as {
-    messages?: Array<{ id: string }>;
-  };
   const messageId = result.messages?.[0]?.id || "";
   return { messageId };
 }
 
 /**
- * Send a template message via WhatsApp Cloud API.
+ * Send a template message via Kapso SDK.
  */
 async function sendTemplateMessage(
   to: string,
   templateName: string,
   templateParams?: Record<string, string>,
 ): Promise<{ messageId: string }> {
-  const cfg = getConfig();
-  const url = `${CLOUD_API_BASE}/${cfg.phoneNumberId}/messages`;
+  const client = getKapsoClient();
+  const phoneNumberId = getPhoneNumberId();
 
   const components: Array<Record<string, unknown>> = [];
   if (templateParams && Object.keys(templateParams).length > 0) {
@@ -103,57 +89,36 @@ async function sendTemplateMessage(
     });
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.accessToken}`,
-      "Content-Type": "application/json",
+  const result = await client.messages.sendTemplate({
+    phoneNumberId,
+    to,
+    template: {
+      name: templateName,
+      language: { code: "en" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      components: components as any,
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to,
-      type: "template",
-      template: {
-        name: templateName,
-        language: { code: "en" },
-        components,
-      },
-    }),
   });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(
-      `WhatsApp template API ${response.status}: ${errBody.slice(0, 300)}`,
-    );
-  }
-
-  const result = (await response.json()) as {
-    messages?: Array<{ id: string }>;
-  };
   return { messageId: result.messages?.[0]?.id || "" };
 }
 
 /**
- * Mark a message as read (blue ticks).
+ * Mark a message as read (blue ticks) via Kapso SDK sendRaw.
+ * The SDK has no dedicated markAsRead method — use sendRaw with status payload.
  */
 async function markAsRead(messageId: string): Promise<void> {
-  const cfg = getConfig();
-  const url = `${CLOUD_API_BASE}/${cfg.phoneNumberId}/messages`;
+  const client = getKapsoClient();
+  const phoneNumberId = getPhoneNumberId();
 
   try {
-    await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${cfg.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    await client.messages.sendRaw({
+      phoneNumberId,
+      payload: {
         messaging_product: "whatsapp",
         status: "read",
         message_id: messageId,
-      }),
+      },
     });
   } catch (err) {
     console.warn(

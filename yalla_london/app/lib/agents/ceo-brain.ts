@@ -30,7 +30,7 @@ import {
   CEO_TOOL_DEFS,
 } from "./tool-registry";
 import { resolveContact } from "./crm/contact-resolver";
-import { checkToolSafety, filterPII, checkConfidence, checkRateLimit } from "./safety";
+import { checkToolSafety, filterPII, checkConfidence, checkRateLimit, buildSafeContext, auditLog } from "./safety";
 import { generateCompletion, type AIMessage } from "@/lib/ai/provider";
 import { getSiteConfig } from "@/config/sites";
 
@@ -243,27 +243,69 @@ function buildToolDescriptions(registry: ToolRegistry): string {
   return `TOOLS:\n${lines.join("\n\n")}\n\nTo call a tool, respond with EXACTLY this format on its own line:\nTOOL_CALL: {"tool":"<name>","params":{<json params>}}\n\nYou may call multiple tools. After I provide results, continue your response.`;
 }
 
+/** Extract balanced JSON object starting at position — handles nested braces */
+function extractBalancedJson(text: string, start: number): string | null {
+  if (text[start] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === "\\") { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") { depth--; if (depth === 0) return text.slice(start, i + 1); }
+  }
+  return null;
+}
+
 /** Parse tool calls from AI response text */
 function parseToolCalls(
   text: string,
 ): Array<{ tool: string; params: Record<string, unknown> }> {
   const calls: Array<{ tool: string; params: Record<string, unknown> }> = [];
-  const regex = /TOOL_CALL:\s*(\{[\s\S]*?\})\s*$/gm;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
+  const marker = "TOOL_CALL:";
+  let searchFrom = 0;
+  while (true) {
+    const idx = text.indexOf(marker, searchFrom);
+    if (idx === -1) break;
+    // Find opening brace after marker
+    const afterMarker = idx + marker.length;
+    const braceIdx = text.indexOf("{", afterMarker);
+    if (braceIdx === -1 || braceIdx - afterMarker > 20) { searchFrom = afterMarker; continue; }
+    const jsonStr = extractBalancedJson(text, braceIdx);
+    if (!jsonStr) { searchFrom = braceIdx + 1; continue; }
+    searchFrom = braceIdx + jsonStr.length;
     try {
-      const parsed = JSON.parse(match[1]);
+      const parsed = JSON.parse(jsonStr);
       if (parsed.tool && typeof parsed.tool === "string") {
-        calls.push({
-          tool: parsed.tool,
-          params: parsed.params || {},
-        });
+        calls.push({ tool: parsed.tool, params: parsed.params || {} });
       }
     } catch (err) {
       console.warn("[ceo-brain] Malformed tool-call JSON — skipping:", err instanceof Error ? err.message : String(err));
     }
   }
   return calls;
+}
+
+/** Truncate tool result data for AI context — preserves structure, limits size */
+function truncateToolData(data: unknown, maxLen = 800): string {
+  if (data === undefined || data === null) return "(no data)";
+  const json = JSON.stringify(data);
+  if (json.length <= maxLen) return json;
+  // For arrays, show count + first 2 items
+  if (Array.isArray(data)) {
+    const preview = data.slice(0, 2).map(item => JSON.stringify(item).slice(0, 200));
+    return `[${data.length} items] First 2: [${preview.join(", ")}...]`;
+  }
+  // For objects, show keys + truncated values
+  if (typeof data === "object") {
+    const keys = Object.keys(data as Record<string, unknown>);
+    return `{${keys.length} keys: ${keys.join(", ")}} ${json.slice(0, maxLen)}...`;
+  }
+  return json.slice(0, maxLen) + "...";
 }
 
 // ---------------------------------------------------------------------------
@@ -331,8 +373,11 @@ export async function processCEOEvent(
 
   // 5. Tool-calling loop
   let finalResponse = "";
-  let confidence = 0.8;
+  let confidence = 0.9; // starts high, degrades on tool failures/unknown topics
   const crmActions: CRMAction[] = [];
+  const pendingApprovals: Array<{ tool: string; params: Record<string, unknown>; reason: string }> = [];
+  let toolSuccessCount = 0;
+  let toolFailCount = 0;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const result = await generateCompletion(messages, {
@@ -364,6 +409,17 @@ export async function processCEOEvent(
         toolResultsForRound.push(
           `Tool ${call.tool}: BLOCKED — ${safetyCheck.reason}`,
         );
+        auditLog("tool_blocked", "ceo", { tool: call.tool, reason: safetyCheck.reason, siteId: event.siteId });
+        continue;
+      }
+
+      // Handle tools that need human approval — queue instead of executing
+      if (safetyCheck.requiresApproval) {
+        pendingApprovals.push({ tool: call.tool, params: call.params, reason: safetyCheck.reason || "Requires human approval" });
+        toolResultsForRound.push(
+          `Tool ${call.tool}: QUEUED FOR APPROVAL — ${safetyCheck.reason || "This action requires human review before execution."}`,
+        );
+        auditLog("tool_queued_approval", "ceo", { tool: call.tool, reason: safetyCheck.reason, params: call.params, siteId: event.siteId });
         continue;
       }
 
@@ -374,10 +430,31 @@ export async function processCEOEvent(
         conversationId: event.metadata?.conversationId as string | undefined,
       };
 
-      // Execute tool
-      const toolResult = await registry.execute(call.tool, call.params, toolCtx);
+      // Execute tool with per-tool timeout (Fix #14)
+      const toolStart = Date.now();
+      const TOOL_TIMEOUT_MS = 15_000;
+      let toolResult: ToolResult;
+      try {
+        toolResult = await Promise.race([
+          registry.execute(call.tool, call.params, toolCtx),
+          new Promise<ToolResult>((_, reject) =>
+            setTimeout(() => reject(new Error(`Tool ${call.tool} timed out after ${TOOL_TIMEOUT_MS}ms`)), TOOL_TIMEOUT_MS),
+          ),
+        ]);
+      } catch (err) {
+        toolResult = { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+
       toolsUsed.push(call.tool);
       toolResults[call.tool] = toolResult;
+      if (toolResult.success) toolSuccessCount++; else toolFailCount++;
+
+      auditLog("tool_executed", "ceo", {
+        tool: call.tool,
+        success: toolResult.success,
+        durationMs: Date.now() - toolStart,
+        siteId: event.siteId,
+      });
 
       // Collect CRM actions from tool results
       if (toolResult.success && call.tool.startsWith("crm_")) {
@@ -396,10 +473,12 @@ export async function processCEOEvent(
         }
       }
 
+      // Smart result truncation — prefer summary, then error, then truncated data
+      const resultText = toolResult.summary
+        || toolResult.error
+        || truncateToolData(toolResult.data);
       toolResultsForRound.push(
-        `Tool ${call.tool}: ${toolResult.success ? "SUCCESS" : "FAILED"}\n${
-          toolResult.summary || toolResult.error || JSON.stringify(toolResult.data || {}).slice(0, 500)
-        }`,
+        `Tool ${call.tool}: ${toolResult.success ? "SUCCESS" : "FAILED"}\n${resultText}`,
       );
     }
 
@@ -424,12 +503,25 @@ export async function processCEOEvent(
       "I've gathered the information. Let me know if you need anything else.";
   }
 
-  // 6. Confidence check — escalate if too low
+  // 6. Dynamic confidence calculation
+  const totalToolCalls = toolSuccessCount + toolFailCount;
+  if (totalToolCalls > 0) {
+    // Degrade confidence based on tool failure ratio
+    const failRatio = toolFailCount / totalToolCalls;
+    confidence = Math.max(0.3, confidence - failRatio * 0.4);
+  }
+  if (pendingApprovals.length > 0) {
+    // Approval-pending actions lower confidence (agent can't fully answer)
+    confidence = Math.max(0.3, confidence - 0.15);
+  }
+
+  // 7. Confidence check — escalate if too low
   const confidenceCheck = checkConfidence(confidence, DEFAULT_SAFETY_CONFIG);
   const needsEscalation = confidenceCheck.shouldEscalate;
 
-  // 7. Build result
+  // 8. Build result
   const durationMs = Date.now() - startMs;
+  const hasApprovalPending = pendingApprovals.length > 0;
 
   const actionResult: CEOActionResult = {
     success: true,
@@ -437,80 +529,86 @@ export async function processCEOEvent(
     responseType: "text",
     toolsUsed,
     confidence,
-    needsApproval: needsEscalation,
+    needsApproval: needsEscalation || hasApprovalPending,
     crmActions,
     followUps: [],
-    error: needsEscalation ? confidenceCheck.reason : undefined,
+    error: needsEscalation
+      ? confidenceCheck.reason
+      : hasApprovalPending
+        ? `Pending approvals: ${pendingApprovals.map(a => `${a.tool} (${a.reason})`).join(", ")}`
+        : undefined,
   };
 
-  // 8. Persist Conversation + Messages to DB
+  // 9. Persist Conversation + Messages to DB (in transaction for atomicity)
   try {
     const { prisma } = await import("@/lib/db");
 
-    // Find or create conversation
-    let conversation = await prisma.conversation.findFirst({
-      where: { channel: event.channel, externalId: event.externalId },
-    });
-
-    const conversationData: Record<string, unknown> = {
-      status: "active",
-      lastMessageAt: new Date(),
-    };
-
-    // Link to lead/opportunity if contact resolver found them
-    if (ctx.contact?.leadId) {
-      conversationData.leadId = ctx.contact.leadId;
-    }
-    if (ctx.contact?.opportunityId) {
-      conversationData.opportunityId = ctx.contact.opportunityId;
-    }
-
-    if (conversation) {
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: conversationData,
+    await prisma.$transaction(async (tx) => {
+      // Find or create conversation
+      let conversation = await tx.conversation.findFirst({
+        where: { channel: event.channel, externalId: event.externalId },
       });
-    } else {
-      conversation = await prisma.conversation.create({
+
+      const conversationData: Record<string, unknown> = {
+        status: "active",
+        lastMessageAt: new Date(),
+      };
+
+      // Link to lead/opportunity if contact resolver found them
+      if (ctx.contact?.leadId) {
+        conversationData.leadId = ctx.contact.leadId;
+      }
+      if (ctx.contact?.opportunityId) {
+        conversationData.opportunityId = ctx.contact.opportunityId;
+      }
+
+      if (conversation) {
+        await tx.conversation.update({
+          where: { id: conversation.id },
+          data: conversationData,
+        });
+      } else {
+        conversation = await tx.conversation.create({
+          data: {
+            channel: event.channel,
+            externalId: event.externalId,
+            siteId: event.siteId,
+            contactName: event.senderName || ctx.contact?.name || null,
+            ...(ctx.contact?.leadId ? { leadId: ctx.contact.leadId } : {}),
+            ...(ctx.contact?.opportunityId ? { opportunityId: ctx.contact.opportunityId } : {}),
+            status: "active",
+            lastMessageAt: new Date(),
+          },
+        });
+      }
+
+      // Create inbound message (user's message)
+      await tx.message.create({
         data: {
+          conversationId: conversation.id,
+          direction: "inbound",
           channel: event.channel,
-          externalId: event.externalId,
-          siteId: event.siteId,
-          contactName: event.senderName || ctx.contact?.name || null,
-          ...(ctx.contact?.leadId ? { leadId: ctx.contact.leadId } : {}),
-          ...(ctx.contact?.opportunityId ? { opportunityId: ctx.contact.opportunityId } : {}),
-          status: "active",
-          lastMessageAt: new Date(),
+          content: event.content,
+          contentType: event.contentType,
+          mediaUrls: event.mediaUrls || [],
         },
       });
-    }
 
-    // Create inbound message (user's message)
-    await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        direction: "inbound",
-        channel: event.channel,
-        content: event.content,
-        contentType: event.contentType,
-        mediaUrls: event.mediaUrls || [],
-      },
-    });
-
-    // Create outbound message (agent's response)
-    await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        direction: "outbound",
-        channel: event.channel,
-        content: finalResponse,
-        contentType: "text",
-        agentId: "ceo",
-        toolsUsed: toolsUsed,
-        confidence,
-        approved: !needsEscalation,
-      },
-    });
+      // Create outbound message (agent's response)
+      await tx.message.create({
+        data: {
+          conversationId: conversation.id,
+          direction: "outbound",
+          channel: event.channel,
+          content: finalResponse,
+          contentType: "text",
+          agentId: "ceo",
+          toolsUsed: toolsUsed,
+          confidence,
+          approved: !(needsEscalation || hasApprovalPending),
+        },
+      });
+    }, { timeout: 15000 });
   } catch (err) {
     console.warn(
       "[ceo-brain] Failed to persist conversation/messages:",

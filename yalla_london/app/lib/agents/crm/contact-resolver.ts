@@ -49,22 +49,14 @@ export async function resolveContact(
   const normalizedPhone = phone ? normalizePhone(phone) : undefined;
   const normalizedEmail = email?.toLowerCase().trim();
 
-  // 1. Find Lead by email or phone
-  const lead = await findLead(siteId, normalizedEmail, normalizedPhone);
+  // 1-3. Find Lead, Subscriber, CharterInquiry in parallel (no cross-dependencies)
+  const [lead, subscriber, inquiry] = await Promise.all([
+    findLead(siteId, normalizedEmail, normalizedPhone),
+    normalizedEmail ? findSubscriber(siteId, normalizedEmail) : null,
+    findInquiry(siteId, normalizedEmail, normalizedPhone),
+  ]);
 
-  // 2. Find Subscriber by email
-  const subscriber = normalizedEmail
-    ? await findSubscriber(siteId, normalizedEmail)
-    : null;
-
-  // 3. Find CharterInquiry by email or phone
-  const inquiry = await findInquiry(
-    siteId,
-    normalizedEmail,
-    normalizedPhone,
-  );
-
-  // 4. Find CrmOpportunity by linked IDs or contact info
+  // 4. Find CrmOpportunity (depends on lead.id and inquiry.id from above)
   const opportunity = await findOpportunity(
     siteId,
     lead?.id,

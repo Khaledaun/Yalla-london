@@ -49,26 +49,21 @@ export async function scoreAndUpdateLead(
   // 1. Source score (0-25)
   const sourceScore = SOURCE_SCORES[lead.lead_source || ""] || 5;
 
-  // 2. Interaction score (0-30) — based on interaction count and variety
-  const interactionCount = await prisma.interactionLog.count({
-    where: { leadId: lead.id },
-  });
+  // 2-3. Batch all count queries in parallel (no cross-dependencies)
+  const [interactionCount, inquiryCount, opportunityCount] = await Promise.all([
+    prisma.interactionLog.count({ where: { leadId: lead.id } }),
+    prisma.charterInquiry.count({ where: { email: lead.email, siteId: lead.site_id } }),
+    prisma.crmOpportunity.count({ where: { leadId: lead.id } }),
+  ]);
+
+  // 2. Interaction score (0-30)
   const interactionScore = Math.min(30, interactionCount * 5);
 
   // 3. Engagement score (0-25) — has inquiry, has opportunity, has consent
   let engagementScore = 0;
   if (lead.marketing_consent) engagementScore += 5;
-
-  const hasInquiry = await prisma.charterInquiry.count({
-    where: { email: lead.email, siteId: lead.site_id },
-  });
-  if (hasInquiry > 0) engagementScore += 10;
-
-  const hasOpportunity = await prisma.crmOpportunity.count({
-    where: { leadId: lead.id },
-  });
-  if (hasOpportunity > 0) engagementScore += 10;
-
+  if (inquiryCount > 0) engagementScore += 10;
+  if (opportunityCount > 0) engagementScore += 10;
   engagementScore = Math.min(25, engagementScore);
 
   // 4. Recency score (0-20) — recent activity gets more points

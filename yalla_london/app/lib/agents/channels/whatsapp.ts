@@ -320,18 +320,35 @@ export function createWhatsAppAdapter(siteId: string): ChannelAdapter {
     },
 
     async verifySignature(request: Request): Promise<boolean> {
-      // Meta verifies via X-Hub-Signature-256 header
+      // Meta verifies via X-Hub-Signature-256 header: sha256=<hex digest>
       const signature = request.headers.get("x-hub-signature-256");
-      if (!signature) return false;
+      if (!signature || !signature.startsWith("sha256=")) return false;
 
-      const cfg = getConfig();
-      if (!cfg.accessToken) return false;
+      const appSecret = process.env.WHATSAPP_APP_SECRET;
+      if (!appSecret) {
+        console.warn("[whatsapp] WHATSAPP_APP_SECRET not configured — signature verification skipped");
+        return false;
+      }
 
-      // For production: verify HMAC-SHA256 of body against app secret
-      // Meta sends: sha256=<hex digest>
-      // The app secret is separate from the access token
-      // For now, accept if signature header is present (webhook is HTTPS-only)
-      return true;
+      try {
+        const body = await request.clone().text();
+        const { createHmac } = await import("crypto");
+        const expectedHash = createHmac("sha256", appSecret)
+          .update(body)
+          .digest("hex");
+        const expectedSignature = `sha256=${expectedHash}`;
+
+        // Timing-safe comparison to prevent timing attacks
+        if (signature.length !== expectedSignature.length) return false;
+        const { timingSafeEqual } = await import("crypto");
+        return timingSafeEqual(
+          Buffer.from(signature),
+          Buffer.from(expectedSignature),
+        );
+      } catch (err) {
+        console.warn("[whatsapp] Signature verification error:", err instanceof Error ? err.message : String(err));
+        return false;
+      }
     },
   };
 }

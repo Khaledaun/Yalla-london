@@ -411,6 +411,40 @@ export const CEO_TOOL_DEFS: ToolDef[] = [
     },
     execute: stub("get_recent_topics"),
   },
+  {
+    name: "publish_to_social",
+    description: "Publish or schedule a post to a social media platform via Post Bridge or Twitter direct",
+    agents: ["ceo"],
+    safety: "needs_approval",
+    inputSchema: {
+      type: "object",
+      properties: {
+        platform: { type: "string", description: "Target platform (twitter, instagram, linkedin, facebook, tiktok, youtube, bluesky, threads, pinterest)" },
+        content: { type: "string", description: "Post content text" },
+        siteId: { type: "string" },
+        title: { type: "string", description: "Short title for the scheduled content record" },
+        language: { type: "string", description: "Content language (default: en)" },
+        scheduledTime: { type: "string", description: "ISO 8601 date for scheduling (omit for immediate publish)" },
+      },
+      required: ["platform", "content"],
+    },
+    execute: stub("publish_to_social"),
+  },
+  {
+    name: "get_social_status",
+    description: "Get social media posting status: pending, published, failed counts, Post Bridge connectivity, and Twitter config",
+    agents: ["ceo"],
+    safety: "auto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteId: { type: "string" },
+        platform: { type: "string", description: "Filter by platform (optional)" },
+      },
+      required: [],
+    },
+    execute: stub("get_social_status"),
+  },
 ];
 
 // ---------------------------------------------------------------------------

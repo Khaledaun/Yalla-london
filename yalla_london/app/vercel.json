@@ -394,6 +394,18 @@
     {
       "path": "/api/cron/image-pipeline",
       "schedule": "20 2,10,18 * * *"
+    },
+    {
+      "path": "/api/cron/retention-executor",
+      "schedule": "30 0,4,8,12,16,20 * * *"
+    },
+    {
+      "path": "/api/cron/followup-executor",
+      "schedule": "0 1,5,9,13,17,21 * * *"
+    },
+    {
+      "path": "/api/cron/agent-maintenance",
+      "schedule": "30 6 * * 0"
     }
   ]
 }

@@ -21,6 +21,7 @@ export const ALLOWED_DOMAINS: readonly string[] = [
   "developers.google.com",
   "developer.mozilla.org",
   "www.yalla-london.com",
+  "www.zenithayachts.com",
   "github.com",
 ] as const;
 

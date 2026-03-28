@@ -199,7 +199,8 @@ export async function POST(request: NextRequest) {
         // Process a test event through the CEO brain
         const channel = (body.channel as Channel) || "internal";
         const content = (body.content as string) || "";
-        const siteId = (body.siteId as string) || "yalla-london";
+        const { getDefaultSiteId } = await import("@/config/sites");
+        const siteId = (body.siteId as string) || getDefaultSiteId();
         const externalId = (body.externalId as string) || "admin-test";
 
         if (!content) {

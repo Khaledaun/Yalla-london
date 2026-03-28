@@ -5255,6 +5255,74 @@ Subscriber Lifecycle:
 | CTO Agent Git Isolation | `EXECUTE` phase writes files without git branching — no rollback | LOW | Acceptable for v1 |
 | Agent Conversation Memory | No multi-turn conversation history in context builder | MEDIUM | Future enhancement |
 
+### Session: March 28, 2026 — System-Wide Audit & Hardening Sprint (8 Batches, 18 Files)
+
+**External-grade audit and hardening of the entire platform — 8 batches covering pipeline constants, CEO Inbox, cron scheduling, SEO, affiliates, email, feature guards, and admin UI.**
+
+**Batch 1: Constants Centralization (5 files)**
+- **CRITICAL FIX:** Sweeper recovery cap was hardcoded `>= 10` while `LIFETIME_RECOVERY_CAP = 5` in constants — drafts got 10 recovery attempts in sweeper but only 5 in diagnostic-agent. Fixed by importing constant.
+- `select-runner.ts`: Replaced 3 hardcoded values with imports from `constants.ts` (SELECTOR_STALE_MARKER_MS, LIFETIME_RECOVERY_CAP, ASSEMBLY_RAW_FALLBACK_ATTEMPTS)
+- `build-runner.ts`: Replaced hardcoded `maxAttempts` per phase with `getMaxAttempts(phase)` from constants
+- `diagnostic-agent.ts`: Aligned assembly threshold with `ASSEMBLY_RAW_FALLBACK_ATTEMPTS`
+
+**Batch 2: CEO Inbox Coverage (1 file)**
+- Added 37 new `JOB_FIX_MAP` entries — all 43+ crons now have auto-fix strategies
+- Covers: all SEO crons, affiliate crons, discovery, events-sync, image-pipeline, process-indexing-queue, agent crons, data-refresh
+
+**Batch 3: Cron Schedule Optimization (1 file)**
+- Fixed `content-builder` offset from `*/15` to `8,23,38,53` to avoid `:00/:15/:30/:45` collisions
+- Added `maxDuration: 300` to `subscriber-emails` (was missing, defaulted to 60s)
+- Registered 3 new agent crons in crons array (was MISSING — would never fire)
+
+**Batch 4: SEO Deep Review Hardening (1 file)**
+- Added named time constants for all budget calculations
+- Added budget guard between Pass 1 and Pass 2 (prevents timeout in expensive AI calls)
+
+**Batch 5: Affiliate Injection Hardening (1 file)**
+- Extracted Vrbo advertiser ID `9220803` to named constant
+- Added budget guard before CJ deep link generation
+- Added `maxDuration: 300` override
+
+**Batch 6: Email Multi-Tenant Personalization (1 file)**
+- Created `getSiteName()` helper for dynamic site name in email subjects
+- Welcome emails now show correct site branding (was hardcoded "Yalla London")
+
+**Batch 7: Feature Guard Alignment (2 files)**
+- Added `CRON_NAME_ALIASES` map to resolve mismatches (e.g., `discover-deals` ↔ `affiliate-discover-deals`)
+- Added 6 missing cron definitions to departures board
+
+**Batch 8: Admin UI Consolidation (6 files)**
+- Converted 5 admin pages from ZH dark theme to Admin-UI Clean Light design system
+- Fixed AdminCard `[key: string]: unknown` index signature for React `.map()` key prop
+- Fixed AdminPageHeader `children` vs `title` prop misuse
+- Fixed AdminKPICard trend type (string → object)
+
+**Post-Audit Fix: 4 additional issues found and fixed:**
+1. **CRITICAL:** 3 agent crons missing from `vercel.json` crons array — would never execute on schedule
+2. **HIGH:** Hardcoded `"yalla-london"` siteId fallback in agent admin API → replaced with `getDefaultSiteId()`
+3. **HIGH:** CTO Agent browsing allow-list missing zenithayachts.com → added
+4. **LOW:** Inaccurate cron schedule comment → corrected
+
+**Files Modified (22 total):**
+- `lib/content-pipeline/constants.ts`, `select-runner.ts`, `sweeper.ts`, `build-runner.ts`, `diagnostic-agent.ts`
+- `lib/ops/ceo-inbox.ts`
+- `vercel.json`
+- `app/api/cron/seo-deep-review/route.ts`, `agent-maintenance/route.ts`
+- `app/api/cron/affiliate-injection/route.ts`
+- `lib/email/resend-service.ts`
+- `lib/cron-feature-guard.ts`, `app/api/admin/departures/route.ts`
+- `app/admin/automation/page.tsx`, `blockers/page.tsx`, `feature-flags/page.tsx`, `intelligence/page.tsx`, `variable-vault/page.tsx`
+- `components/admin/admin-ui.tsx`
+- `app/api/admin/agent/route.ts`
+- `lib/agents/tools/browsing.ts`
+
+### Critical Rules Learned (March 28 Session — Hardening Sprint)
+
+220. **Sweeper MUST import `LIFETIME_RECOVERY_CAP` from constants.ts** — hardcoded `>= 10` while constants had `5` meant drafts got 10 recovery attempts in sweeper but only 5 in diagnostic-agent. This mismatch let broken drafts cycle indefinitely.
+221. **Every new cron needs entries in 4 places** — (1) `vercel.json` crons array, (2) `vercel.json` functions maxDuration, (3) `cron-feature-guard.ts` CRON_FLAG_MAP, (4) `departures/route.ts` CRON_DEFS. Missing the crons array means the cron will NEVER fire on schedule.
+222. **`CRON_NAME_ALIASES` resolves cron name mismatches** — departures board calls `/api/cron/discover-deals` but feature guard checks `affiliate-discover-deals`. The alias map in `cron-feature-guard.ts` handles both names.
+223. **AdminCard needs `[key: string]: unknown` index signature** — React's reserved `key` prop in `.map()` callbacks fails TypeScript strict checking without it.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

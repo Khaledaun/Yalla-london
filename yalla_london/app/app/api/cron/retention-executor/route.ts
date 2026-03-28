@@ -71,6 +71,12 @@ async function handler(request: NextRequest) {
     // -----------------------------------------------------------------------
     // Step 2: Process due retention emails
     // -----------------------------------------------------------------------
+    // Import email service and config ONCE outside the loop (not per-email)
+    const { sendEmail } = await import("@/lib/email/sender");
+    const { getSiteConfig: getSiteConf } = await import("@/config/sites");
+    const { prisma } = await import("@/lib/db");
+    const { pauseSequence } = await import("@/lib/agents/crm/retention").then((m) => ({ pauseSequence: m.pauseSequence }));
+
     const dueEmails = await getDueEmails(50);
 
     for (const due of dueEmails) {
@@ -78,7 +84,6 @@ async function handler(request: NextRequest) {
 
       try {
         // Look up the subscriber to get their email
-        const { prisma } = await import("@/lib/db");
         const subscriber = await prisma.subscriber.findUnique({
           where: { id: due.subscriberId },
           select: { id: true, email: true, name: true, status: true, locale: true },
@@ -86,15 +91,11 @@ async function handler(request: NextRequest) {
 
         if (!subscriber || subscriber.status === "UNSUBSCRIBED" || subscriber.status === "BOUNCED") {
           // Skip unsubscribed/bounced — mark progress as paused
-          await import("@/lib/agents/crm/retention").then(
-            (m) => m.pauseSequence(due.sequenceId, due.subscriberId, "unsubscribed"),
-          );
+          await pauseSequence(due.sequenceId, due.subscriberId, "unsubscribed");
           continue;
         }
 
         // Determine which email to send based on step templateId
-        const { sendEmail } = await import("@/lib/email/sender");
-        const { getSiteConfig: getSiteConf } = await import("@/config/sites");
         const siteConfig = getSiteConf(due.siteId);
         const siteName = siteConfig?.name || "Yalla London";
         const locale = (subscriber.locale as string) || "en";

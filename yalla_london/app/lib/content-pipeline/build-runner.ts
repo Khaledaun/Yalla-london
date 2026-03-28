@@ -14,7 +14,7 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPipelineFailure } from "@/lib/ops/failure-hooks";
-import { getMaxAttempts, validatePhaseTransition } from "@/lib/content-pipeline/constants";
+import { getMaxAttempts, validatePhaseTransition, BUILD_RUNNER_BUDGET_RESERVE_MS } from "@/lib/content-pipeline/constants";
 
 const DEFAULT_TIMEOUT_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -232,8 +232,8 @@ export async function runContentBuilder(
     // skip this run for heavy phases — they need at least 30s to succeed.
     // The draft will be picked up on the next cron run with a fresh budget.
     const heavyPhasesForBudget = ["assembly", "drafting"];
-    if (heavyPhasesForBudget.includes(currentPhase) && deadline.remainingMs() < 15_000) {
-      console.warn(`[content-builder] Skipping heavy phase "${currentPhase}" — only ${Math.round(deadline.remainingMs() / 1000)}s remaining (need 15s+). Will retry next cron run.`);
+    if (heavyPhasesForBudget.includes(currentPhase) && deadline.remainingMs() < BUILD_RUNNER_BUDGET_RESERVE_MS) {
+      console.warn(`[content-builder] Skipping heavy phase "${currentPhase}" — only ${Math.round(deadline.remainingMs() / 1000)}s remaining (need ${BUILD_RUNNER_BUDGET_RESERVE_MS / 1000}s+). Will retry next cron run.`);
       return {
         success: true,
         message: `Budget too low for heavy phase "${currentPhase}" (${Math.round(deadline.remainingMs() / 1000)}s remaining) — deferred to next run`,

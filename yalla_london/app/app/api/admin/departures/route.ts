@@ -258,9 +258,11 @@ export async function GET(req: NextRequest) {
     statsMap.set(log.job_name, prev);
   }
 
-  // Derive job name from cron path
+  // Derive job name from cron path, resolving aliases for affiliate/orchestrator crons
+  const { resolveCronAlias } = await import("@/lib/cron-feature-guard");
   function jobName(path: string): string {
-    return path.split('/').pop()?.split('?')[0] ?? path;
+    const raw = path.split('/').pop()?.split('?')[0] ?? path;
+    return resolveCronAlias(raw);
   }
 
   // Build cron departures (deduplicated by next fire — keep closest)

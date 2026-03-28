@@ -1,24 +1,32 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { 
-  Flag, 
-  Activity, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Settings, 
+import {
+  Flag,
+  Activity,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Settings,
   RefreshCw,
-  Database,
   Server,
-  Globe,
   Zap,
   Shield,
-  Clock,
   TrendingUp,
   TrendingDown,
   Minus
 } from 'lucide-react'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminStatusBadge,
+  AdminKPICard,
+  AdminButton,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminTabs,
+} from '@/components/admin/admin-ui'
 
 interface FeatureFlag {
   id: string
@@ -187,10 +195,10 @@ export default function FeatureFlagsHealth() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return 'text-green-600 bg-green-50'
-      case 'warning': return 'text-yellow-600 bg-yellow-50'
-      case 'critical': return 'text-red-600 bg-red-50'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'healthy': return 'text-[#2D5A3D] bg-[rgba(45,90,61,0.08)]'
+      case 'warning': return 'text-[#C49A2A] bg-[rgba(196,154,42,0.08)]'
+      case 'critical': return 'text-[#C8322B] bg-[rgba(200,50,43,0.10)]'
+      default: return 'text-stone-500 bg-stone-50'
     }
   }
 
@@ -205,144 +213,127 @@ export default function FeatureFlagsHealth() {
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'up': return <TrendingUp className="h-4 w-4 text-red-500" />
-      case 'down': return <TrendingDown className="h-4 w-4 text-green-500" />
-      case 'stable': return <Minus className="h-4 w-4 text-gray-500" />
-      default: return <Minus className="h-4 w-4 text-gray-500" />
+      case 'up': return <TrendingUp className="h-4 w-4 text-[#C8322B]" />
+      case 'down': return <TrendingDown className="h-4 w-4 text-[#2D5A3D]" />
+      case 'stable': return <Minus className="h-4 w-4 text-stone-400" />
+      default: return <Minus className="h-4 w-4 text-stone-400" />
     }
+  }
+
+  const healthStatusMap: Record<string, string> = {
+    healthy: 'success',
+    warning: 'warning',
+    critical: 'error',
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <div className="text-center">
-          <Flag className="h-12 w-12 animate-pulse text-purple-500 mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900">Loading Feature Flags & Health...</h2>
-          <p className="text-gray-600">Monitoring system performance and feature rollouts</p>
-        </div>
+      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+        <AdminLoadingState label="Loading Feature Flags & Health..." />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Flag className="h-8 w-8 text-purple-500" />
-            Feature Flags & Health
-          </h1>
-          <p className="text-gray-600 mt-1">Manage feature rollouts and monitor system health</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={loadFeatureData}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowAddFlag(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-          >
-            <Flag className="h-4 w-4" />
-            Add Feature Flag
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Feature Flags & Health"
+        subtitle="Manage feature rollouts and monitor system health"
+        action={
+          <div className="flex items-center gap-2">
+            <AdminButton variant="secondary" onClick={loadFeatureData}>
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              Refresh
+            </AdminButton>
+            <AdminButton variant="primary" onClick={() => setShowAddFlag(true)}>
+              <Flag className="h-4 w-4 mr-1.5" />
+              Add Flag
+            </AdminButton>
+          </div>
+        }
+      />
 
       {/* System Health Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <AdminCard>
+          <div className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">System Status</p>
-              <p className="text-2xl font-bold text-gray-900 capitalize">{systemHealth?.overall}</p>
+              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">System Status</p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <AdminStatusBadge status={healthStatusMap[systemHealth?.overall || 'healthy'] || 'success'} label={systemHealth?.overall || 'healthy'} />
+              </div>
             </div>
             <div className={`p-2 rounded-full ${getStatusColor(systemHealth?.overall || 'healthy')}`}>
               {getStatusIcon(systemHealth?.overall || 'healthy')}
             </div>
           </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Uptime</p>
-              <p className="text-2xl font-bold text-gray-900">{systemHealth?.uptime}%</p>
-            </div>
-            <Server className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Response Time</p>
-              <p className="text-2xl font-bold text-gray-900">{systemHealth?.responseTime}ms</p>
-            </div>
-            <Zap className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Error Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{systemHealth?.errorRate}%</p>
-            </div>
-            <Shield className="h-8 w-8 text-purple-500" />
-          </div>
-        </div>
+        </AdminCard>
+
+        <AdminKPICard
+          value={`${systemHealth?.uptime ?? 0}%`}
+          label="Uptime"
+          color="green"
+        />
+
+        <AdminKPICard
+          value={`${systemHealth?.responseTime ?? 0}ms`}
+          label="Response Time"
+          color="blue"
+        />
+
+        <AdminKPICard
+          value={`${systemHealth?.errorRate ?? 0}%`}
+          label="Error Rate"
+          color="red"
+        />
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {[
-            { id: 'flags', label: 'Feature Flags', icon: Flag },
-            { id: 'health', label: 'System Health', icon: Activity },
-            { id: 'analytics', label: 'Analytics', icon: TrendingUp }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <AdminTabs
+        tabs={[
+          { id: 'flags', label: 'Feature Flags', count: featureFlags.length },
+          { id: 'health', label: 'System Health' },
+          { id: 'analytics', label: 'Analytics' },
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as 'flags' | 'health' | 'analytics')}
+      />
 
       {/* Tab Content */}
       {activeTab === 'flags' && (
-        <div className="space-y-6">
-          <div className="space-y-4">
-            {featureFlags.map((flag) => (
-              <div key={flag.id} className="bg-white p-6 rounded-lg border border-gray-200">
+        <div className="space-y-4">
+          {featureFlags.length === 0 && !showAddFlag && (
+            <AdminEmptyState
+              icon={Flag}
+              title="No feature flags"
+              description="Create your first feature flag to start managing rollouts."
+              action={
+                <AdminButton variant="primary" onClick={() => setShowAddFlag(true)}>
+                  <Flag className="h-4 w-4 mr-1.5" />
+                  Add Flag
+                </AdminButton>
+              }
+            />
+          )}
+
+          {featureFlags.map((flag) => (
+            <AdminCard key={flag.id}>
+              <div className="p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{flag.name}</h3>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        flag.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {flag.enabled ? 'Enabled' : 'Disabled'}
-                      </span>
+                      <h3 className="text-base font-semibold text-stone-800">{flag.name}</h3>
+                      <AdminStatusBadge
+                        status={flag.enabled ? 'active' : 'inactive'}
+                        label={flag.enabled ? 'Enabled' : 'Disabled'}
+                      />
                     </div>
-                    <p className="text-gray-600 mb-4">{flag.description}</p>
-                    
+                    <p className="text-sm text-stone-500 mb-4">{flag.description}</p>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Rollout</h4>
+                        <AdminSectionLabel>Rollout</AdminSectionLabel>
                         <div className="flex items-center gap-3">
                           <input
                             type="range"
@@ -350,206 +341,225 @@ export default function FeatureFlagsHealth() {
                             max="100"
                             value={flag.rolloutPercentage}
                             onChange={(e) => handleUpdateRollout(flag.id, parseInt(e.target.value))}
-                            className="flex-1"
+                            className="flex-1 accent-[#3B7EA1]"
                           />
-                          <span className="text-sm font-medium text-gray-900 w-12">{flag.rolloutPercentage}%</span>
+                          <span className="text-sm font-medium text-stone-800 w-12">{flag.rolloutPercentage}%</span>
                         </div>
                       </div>
-                      
+
                       <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Metrics</h4>
-                        <div className="text-sm text-gray-600">
+                        <AdminSectionLabel>Metrics</AdminSectionLabel>
+                        <div className="text-sm text-stone-500 space-y-0.5">
                           <div>Impressions: {flag.metrics.impressions.toLocaleString()}</div>
                           <div>Conversions: {flag.metrics.conversions}</div>
                           <div>Rate: {flag.metrics.conversionRate}%</div>
                         </div>
                       </div>
-                      
+
                       <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Target Users</h4>
+                        <AdminSectionLabel>Target Users</AdminSectionLabel>
                         <div className="flex flex-wrap gap-1">
                           {flag.targetUsers.map((user) => (
-                            <span key={user} className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                            <span key={user} className="px-2 py-1 bg-[rgba(59,126,161,0.08)] text-[#3B7EA1] rounded text-xs font-medium">
                               {user}
                             </span>
                           ))}
+                          {flag.targetUsers.length === 0 && (
+                            <span className="text-xs text-stone-400">All users</span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 ml-4">
-                    <button
+                    <AdminButton
+                      variant={flag.enabled ? 'danger' : 'success'}
+                      size="sm"
                       onClick={() => handleToggleFlag(flag.id)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                        flag.enabled
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      }`}
                     >
                       {flag.enabled ? 'Disable' : 'Enable'}
-                    </button>
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
+                    </AdminButton>
+                    <AdminButton variant="ghost" size="sm">
                       <Settings className="h-4 w-4" />
-                    </button>
+                    </AdminButton>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </AdminCard>
+          ))}
 
           {/* Add Flag Form */}
           {showAddFlag && (
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Feature Flag</h3>
-              <form className="space-y-4" onSubmit={handleCreateFlag}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="e.g., New Dashboard UI"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
+            <AdminCard accent accentColor="blue">
+              <div className="p-5">
+                <h3 className="text-base font-semibold text-stone-800 mb-4">Add New Feature Flag</h3>
+                <form className="space-y-4" onSubmit={handleCreateFlag}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        placeholder="e.g., New Dashboard UI"
+                        required
+                        className="w-full px-3 py-2 border rounded-lg text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#3B7EA1] focus:border-transparent"
+                        style={{ borderColor: 'rgba(214,208,196,0.5)' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">Rollout Percentage</label>
+                      <input
+                        type="number"
+                        name="rollout"
+                        min="0"
+                        max="100"
+                        defaultValue="0"
+                        className="w-full px-3 py-2 border rounded-lg text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#3B7EA1] focus:border-transparent"
+                        style={{ borderColor: 'rgba(214,208,196,0.5)' }}
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Rollout Percentage</label>
-                    <input
-                      type="number"
-                      name="rollout"
-                      min="0"
-                      max="100"
-                      defaultValue="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    <label className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">Description</label>
+                    <textarea
+                      name="description"
+                      rows={3}
+                      placeholder="Describe what this feature flag enables..."
+                      className="w-full px-3 py-2 border rounded-lg text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#3B7EA1] focus:border-transparent"
+                      style={{ borderColor: 'rgba(214,208,196,0.5)' }}
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea
-                    name="description"
-                    rows={3}
-                    placeholder="Describe what this feature flag enables..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
-                    Add Flag
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddFlag(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
+                  <div className="flex items-center gap-3">
+                    <AdminButton type="submit" variant="primary">
+                      Add Flag
+                    </AdminButton>
+                    <AdminButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setShowAddFlag(false)}
+                    >
+                      Cancel
+                    </AdminButton>
+                  </div>
+                </form>
+              </div>
+            </AdminCard>
           )}
         </div>
       )}
 
       {activeTab === 'health' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
+          {(!systemHealth?.metrics || systemHealth.metrics.length === 0) && (
+            <AdminEmptyState
+              icon={Activity}
+              title="No health metrics"
+              description="Health metrics will appear here once system monitoring is active."
+            />
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systemHealth?.metrics.map((metric) => (
-              <div key={metric.id} className="bg-white p-6 rounded-lg border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium text-gray-900">{metric.name}</h3>
-                  <div className={`p-1 rounded-full ${getStatusColor(metric.status)}`}>
-                    {getStatusIcon(metric.status)}
+              <AdminCard key={metric.id}>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-stone-800">{metric.name}</h3>
+                    <div className={`p-1 rounded-full ${getStatusColor(metric.status)}`}>
+                      {getStatusIcon(metric.status)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-stone-800">
+                        {metric.value}{metric.unit}
+                      </span>
+                      {getTrendIcon(metric.trend)}
+                    </div>
+
+                    <div className="w-full bg-stone-100 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${
+                          metric.status === 'healthy' ? 'bg-[#2D5A3D]' :
+                          metric.status === 'warning' ? 'bg-[#C49A2A]' : 'bg-[#C8322B]'
+                        }`}
+                        style={{ width: `${Math.min((metric.value / metric.threshold) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+
+                    <div className="text-sm text-stone-500">
+                      Threshold: {metric.threshold}{metric.unit}
+                    </div>
+
+                    <div className="text-xs text-stone-400">
+                      Last checked: {new Date(metric.lastChecked).toLocaleString()}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-gray-900">
-                      {metric.value}{metric.unit}
-                    </span>
-                    {getTrendIcon(metric.trend)}
-                  </div>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${
-                        metric.status === 'healthy' ? 'bg-green-500' :
-                        metric.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${Math.min((metric.value / metric.threshold) * 100, 100)}%` }}
-                    ></div>
-                  </div>
-                  
-                  <div className="text-sm text-gray-600">
-                    Threshold: {metric.threshold}{metric.unit}
-                  </div>
-                  
-                  <div className="text-xs text-gray-500">
-                    Last checked: {new Date(metric.lastChecked).toLocaleString()}
-                  </div>
-                </div>
-              </div>
+              </AdminCard>
             ))}
           </div>
         </div>
       )}
 
       {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Flag Performance</h3>
-              <div className="space-y-4">
-                {featureFlags.map((flag) => (
-                  <div key={flag.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{flag.name}</p>
-                      <p className="text-sm text-gray-600">
-                        {flag.metrics.impressions} impressions • {flag.metrics.conversionRate}% conversion
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">
-                        {flag.metrics.conversions} conversions
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AdminCard>
+              <div className="p-5">
+                <h3 className="text-base font-semibold text-stone-800 mb-4">Feature Flag Performance</h3>
+                <div className="space-y-3">
+                  {featureFlags.length === 0 && (
+                    <p className="text-sm text-stone-400">No feature flags to analyze.</p>
+                  )}
+                  {featureFlags.map((flag) => (
+                    <div key={flag.id} className="flex items-center justify-between p-3 bg-[#FAF8F4] rounded-lg">
+                      <div>
+                        <p className="font-medium text-stone-800 text-sm">{flag.name}</p>
+                        <p className="text-xs text-stone-500">
+                          {flag.metrics.impressions} impressions &middot; {flag.metrics.conversionRate}% conversion
+                        </p>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        {flag.rolloutPercentage}% rollout
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-stone-800">
+                          {flag.metrics.conversions} conversions
+                        </div>
+                        <div className="text-xs text-stone-400">
+                          {flag.rolloutPercentage}% rollout
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            </AdminCard>
+
+            <AdminCard>
+              <div className="p-5">
+                <h3 className="text-base font-semibold text-stone-800 mb-4">System Performance</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-stone-500">Average Response Time</span>
+                    <span className="text-sm font-medium text-stone-800">{systemHealth?.responseTime}ms</span>
                   </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">System Performance</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Average Response Time</span>
-                  <span className="font-medium text-gray-900">{systemHealth?.responseTime}ms</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Uptime (30 days)</span>
-                  <span className="font-medium text-gray-900">{systemHealth?.uptime}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Error Rate</span>
-                  <span className="font-medium text-gray-900">{systemHealth?.errorRate}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Active Feature Flags</span>
-                  <span className="font-medium text-gray-900">
-                    {featureFlags.filter(f => f.enabled).length} / {featureFlags.length}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-stone-500">Uptime (30 days)</span>
+                    <span className="text-sm font-medium text-stone-800">{systemHealth?.uptime}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-stone-500">Error Rate</span>
+                    <span className="text-sm font-medium text-stone-800">{systemHealth?.errorRate}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-stone-500">Active Feature Flags</span>
+                    <span className="text-sm font-medium text-stone-800">
+                      {featureFlags.filter(f => f.enabled).length} / {featureFlags.length}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </AdminCard>
           </div>
         </div>
       )}

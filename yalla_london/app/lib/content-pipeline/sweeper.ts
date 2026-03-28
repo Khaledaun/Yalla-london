@@ -17,6 +17,7 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import type { SweeperLogEntry } from "@/lib/ops/failure-hooks";
+import { LIFETIME_RECOVERY_CAP } from "@/lib/content-pipeline/constants";
 
 export interface SweeperResult {
   success: boolean;
@@ -133,9 +134,9 @@ export async function runSweeper(): Promise<SweeperResult> {
         }
       }
 
-      // PERMANENT FAILURE CAP: If phase_attempts >= 10, this draft has been
+      // PERMANENT FAILURE CAP: If phase_attempts >= LIFETIME_RECOVERY_CAP, this draft has been
       // recovered too many times. Mark as permanently_failed and stop wasting compute.
-      if (currentAttempts >= 10) {
+      if (currentAttempts >= LIFETIME_RECOVERY_CAP) {
         console.log(`[sweeper] Draft ${draftId} (${keyword} ${locale}) has ${currentAttempts} total attempts — marking as permanently failed`);
         try {
           await prisma.articleDraft.update({
@@ -361,9 +362,9 @@ export async function runSweeper(): Promise<SweeperResult> {
         continue;
       }
 
-      // PERMANENT FAILURE CAP: same as section 1
+      // PERMANENT FAILURE CAP: same as section 1 — uses centralized constant
       const failAttempts = (draft.phase_attempts as number) || 0;
-      if (failAttempts >= 10) {
+      if (failAttempts >= LIFETIME_RECOVERY_CAP) {
         console.log(`[sweeper] Draft ${draftId} (${keyword} ${locale}) has ${failAttempts} total attempts — rejecting permanently`);
         try {
           await prisma.articleDraft.update({

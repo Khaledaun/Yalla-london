@@ -22,7 +22,7 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
-import { validatePhaseTransition } from "@/lib/content-pipeline/constants";
+import { validatePhaseTransition, SELECTOR_STALE_MARKER_MS, PROMOTING_REVERT_MS } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
@@ -64,7 +64,7 @@ export async function runContentSelector(
         where: {
           job_name: "content-selector",
           status: "started",
-          started_at: { lt: new Date(Date.now() - 90_000) },
+          started_at: { lt: new Date(Date.now() - SELECTOR_STALE_MARKER_MS) },
         },
         data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
       });
@@ -80,7 +80,7 @@ export async function runContentSelector(
       const stuckPromoting = await prisma.articleDraft.updateMany({
         where: {
           current_phase: "promoting",
-          updated_at: { lt: new Date(Date.now() - 60_000) },
+          updated_at: { lt: new Date(Date.now() - PROMOTING_REVERT_MS) },
         },
         data: {
           current_phase: "reservoir",
@@ -105,7 +105,7 @@ export async function runContentSelector(
         status: "started",
         // Aligned with stale marker cleanup (90s) — previously 120s created a 30s
         // gap where a stale marker was cleaned but a new run was still blocked.
-        started_at: { gte: new Date(Date.now() - 90_000) },
+        started_at: { gte: new Date(Date.now() - SELECTOR_STALE_MARKER_MS) },
       },
       orderBy: { started_at: "desc" },
     });

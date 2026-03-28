@@ -84,6 +84,16 @@ export const NEVER_SUBMITTED_BATCH_SIZE = 200;
 // IndexNow chronic failure cap: stop submitting after this many failed attempts.
 export const INDEXNOW_CHRONIC_FAILURE_CAP = 15;
 
+// ─── Promoting Revert ───────────────────────────────────────────────────────
+// Content-selector reverts "promoting" drafts back to "reservoir" if stuck
+// longer than this (crashed mid-promotion). Must be shorter than cron interval.
+export const PROMOTING_REVERT_MS = 60_000; // 60 seconds
+
+// ─── Build Runner Budget Reserve ────────────────────────────────────────────
+// Minimum remaining budget before build-runner skips heavy phases (assembly,
+// drafting). Ensures enough time for DB writes and cron log finalization.
+export const BUILD_RUNNER_BUDGET_RESERVE_MS = 15_000; // 15 seconds
+
 // ─── Active Draft Exclusion ─────────────────────────────────────────────────
 // Drafts not updated within this window are considered stuck (not active).
 // Prevents diagnostic-agent-touched drafts from blocking new creation.

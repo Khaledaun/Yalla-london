@@ -24,6 +24,7 @@ export function AdminCard({
   elevated?: boolean
   accent?: boolean
   accentColor?: 'red' | 'gold' | 'blue' | 'green'
+  [key: string]: unknown
 }) {
   const accentColors = {
     red: '#C8322B',

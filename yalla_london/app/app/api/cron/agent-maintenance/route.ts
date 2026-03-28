@@ -1,7 +1,7 @@
 /**
  * CTO Agent Maintenance — Weekly Cron
  *
- * Schedule: Sundays 6:30 UTC (after ceo-intelligence at 5:50, before seo-orchestrator at 6:10)
+ * Schedule: Sundays 6:30 UTC (after ceo-intelligence at 5:50 and seo-orchestrator daily at 6:10)
  * Budget: 280s (300s maxDuration - 20s buffer)
  *
  * Runs the CTO Agent's 5-phase maintenance loop:

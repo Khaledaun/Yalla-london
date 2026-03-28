@@ -15,6 +15,24 @@
 import { NextResponse } from "next/server";
 
 /**
+ * Alias resolution for cron job names.
+ * Maps short/alternate names (e.g. from vercel.json path segments) to canonical names.
+ * Canonical names are the keys used in CRON_FLAG_MAP below.
+ */
+const CRON_NAME_ALIASES: Record<string, string> = {
+  // Affiliate crons: vercel.json paths use short names, code uses prefixed names
+  "sync-advertisers": "affiliate-sync-advertisers",
+  "sync-commissions": "affiliate-sync-commissions",
+  "discover-deals": "affiliate-discover-deals",
+  "refresh-links": "affiliate-refresh-links",
+  // SEO orchestrator: query-param variants resolve to same flag
+  "seo-orchestrator-daily": "seo-orchestrator",
+  "seo-orchestrator-weekly": "seo-orchestrator",
+  "seo-orchestrator?mode=daily": "seo-orchestrator",
+  "seo-orchestrator?mode=weekly": "seo-orchestrator",
+};
+
+/**
  * Map of cron job names to their feature flag keys.
  * Add new cron jobs here as they're created.
  */
@@ -81,7 +99,9 @@ const CRON_FLAG_MAP: Record<string, string> = {
 export async function checkCronEnabled(
   jobName: string
 ): Promise<NextResponse | null> {
-  const flagKey = CRON_FLAG_MAP[jobName] || `CRON_${jobName.toUpperCase().replace(/-/g, "_")}`;
+  // Resolve aliases first (e.g. "discover-deals" → "affiliate-discover-deals")
+  const canonicalName = CRON_NAME_ALIASES[jobName] || jobName;
+  const flagKey = CRON_FLAG_MAP[canonicalName] || `CRON_${canonicalName.toUpperCase().replace(/-/g, "_")}`;
 
   try {
     const { isFeatureFlagEnabled } = await import("@/lib/feature-flags");
@@ -125,4 +145,12 @@ export async function checkCronEnabled(
  */
 export function getAllCronFlagKeys(): Record<string, string> {
   return { ...CRON_FLAG_MAP };
+}
+
+/**
+ * Resolve a cron name alias to its canonical name.
+ * Returns the input unchanged if no alias exists.
+ */
+export function resolveCronAlias(jobName: string): string {
+  return CRON_NAME_ALIASES[jobName] || jobName;
 }

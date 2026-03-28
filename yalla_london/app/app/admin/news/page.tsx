@@ -413,7 +413,7 @@ export default function AdminNewsPage() {
                             </span>
                           )}
                           {item.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[9px] bg-gray-50 text-gray-400 px-1.5 py-0.5 rounded">
+                            <span key={tag} className="text-[10px] bg-gray-50 text-gray-400 px-1.5 py-0.5 rounded">
                               {tag}
                             </span>
                           ))}

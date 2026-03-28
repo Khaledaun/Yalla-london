@@ -136,7 +136,7 @@ export function MissionControl() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-zh-mono text-[9px] text-zh-cream-dim">
+          <span className="font-zh-mono text-[10px] text-zh-cream-dim">
             {lastRefresh.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
           </span>
           <ZHActionBtn variant="ghost" size="sm" onClick={fetchData}>

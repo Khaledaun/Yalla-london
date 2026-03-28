@@ -7,7 +7,13 @@ import { ChevronLeft, X } from 'lucide-react'
 /* ═══════════════════════════════════════════════════════════════════
    Admin UI — Shared Component Library
    Clean Light Design System for Yalla London Admin
-   Created: 2026-03-15
+
+   Design Principles:
+   - Tailwind-first (no inline styles except dynamic values)
+   - 4px spacing rhythm (gap-1=4, gap-2=8, gap-3=12, gap-4=16)
+   - 44px minimum touch targets on mobile
+   - WCAG AA contrast (4.5:1 minimum for text)
+   - Typography scale: 11/12/13/14/16/20/28px
    ═══════════════════════════════════════════════════════════════════ */
 
 // ─── AdminCard ──────────────────────────────────────────────────────
@@ -26,16 +32,24 @@ export function AdminCard({
   accentColor?: 'red' | 'gold' | 'blue' | 'green'
   [key: string]: unknown
 }) {
-  const accentColors = {
-    red: '#C8322B',
-    gold: '#C49A2A',
-    blue: '#3B7EA1',
-    green: '#2D5A3D',
+  const accentBorders: Record<string, string> = {
+    red: 'border-t-[3px] border-t-[#C8322B]',
+    gold: 'border-t-[3px] border-t-[#C49A2A]',
+    blue: 'border-t-[3px] border-t-[#3B7EA1]',
+    green: 'border-t-[3px] border-t-[#2D5A3D]',
   }
   return (
     <div
-      className={`${elevated ? 'admin-card-elevated' : 'admin-card'} ${className}`}
-      style={accent ? { borderTop: `3px solid ${accentColors[accentColor]}` } : undefined}
+      className={`
+        bg-white rounded-xl p-5
+        border border-[rgba(214,208,196,0.6)]
+        ${elevated
+          ? 'shadow-[0_2px_8px_rgba(28,25,23,0.06),0_8px_24px_rgba(28,25,23,0.06)]'
+          : 'shadow-[0_1px_3px_rgba(28,25,23,0.04),0_4px_12px_rgba(28,25,23,0.04)]'
+        }
+        ${accent ? accentBorders[accentColor] : ''}
+        ${className}
+      `}
     >
       {children}
     </div>
@@ -56,46 +70,29 @@ export function AdminPageHeader({
   backHref?: string
 }) {
   return (
-    <div className="flex items-start justify-between mb-6">
-      <div className="flex items-start gap-3">
+    <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex items-start gap-3 min-w-0">
         {backHref && (
           <Link
             href={backHref}
-            className="mt-1 p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-700"
+            className="mt-0.5 p-2 -ml-2 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-700 flex-shrink-0"
+            aria-label="Go back"
           >
             <ChevronLeft size={18} />
           </Link>
         )}
-        <div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: 22,
-              color: '#1C1917',
-              letterSpacing: '-0.3px',
-              lineHeight: 1.2,
-            }}
-          >
+        <div className="min-w-0">
+          <h1 className="font-[var(--font-display)] font-extrabold text-xl text-stone-900 tracking-tight leading-tight truncate">
             {title}
           </h1>
           {subtitle && (
-            <p
-              style={{
-                fontFamily: 'var(--font-system)',
-                fontSize: 11,
-                color: '#78716C',
-                marginTop: 4,
-                textTransform: 'uppercase',
-                letterSpacing: '0.8px',
-              }}
-            >
+            <p className="font-[var(--font-system)] text-[11px] text-stone-500 mt-1 uppercase tracking-[0.8px]">
               {subtitle}
             </p>
           )}
         </div>
       </div>
-      {action && <div className="flex items-center gap-2">{action}</div>}
+      {action && <div className="flex items-center gap-2 flex-shrink-0">{action}</div>}
     </div>
   )
 }
@@ -104,17 +101,7 @@ export function AdminPageHeader({
 
 export function AdminSectionLabel({ children }: { children?: React.ReactNode }) {
   return (
-    <p
-      style={{
-        fontFamily: 'var(--font-system)',
-        fontSize: 10,
-        fontWeight: 600,
-        textTransform: 'uppercase',
-        letterSpacing: '1.5px',
-        color: '#78716C',
-        marginBottom: 10,
-      }}
-    >
+    <p className="font-[var(--font-system)] text-[11px] font-semibold uppercase tracking-[1.2px] text-stone-500 mb-3">
       {children}
     </p>
   )
@@ -123,22 +110,22 @@ export function AdminSectionLabel({ children }: { children?: React.ReactNode }) 
 // ─── AdminStatusBadge ───────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  published: { label: 'Published', dot: '#2D5A3D', bg: 'rgba(45,90,61,0.08)', text: '#2D5A3D' },
-  draft: { label: 'Draft', dot: '#C49A2A', bg: 'rgba(196,154,42,0.08)', text: '#7a5a10' },
-  reservoir: { label: 'Ready', dot: '#3B7EA1', bg: 'rgba(59,126,161,0.08)', text: '#1e5a7a' },
-  stuck: { label: 'Stuck', dot: '#C8322B', bg: 'rgba(200,50,43,0.10)', text: '#C8322B' },
-  running: { label: 'Running', dot: '#7C3AED', bg: 'rgba(124,58,237,0.08)', text: '#5B21B6' },
-  failed: { label: 'Failed', dot: '#C8322B', bg: 'rgba(200,50,43,0.10)', text: '#C8322B' },
-  success: { label: 'Success', dot: '#2D5A3D', bg: 'rgba(45,90,61,0.08)', text: '#2D5A3D' },
-  indexed: { label: 'Indexed', dot: '#2D5A3D', bg: 'rgba(45,90,61,0.08)', text: '#2D5A3D' },
-  pending: { label: 'Pending', dot: '#C49A2A', bg: 'rgba(196,154,42,0.08)', text: '#7a5a10' },
-  active: { label: 'Active', dot: '#2D5A3D', bg: 'rgba(45,90,61,0.08)', text: '#2D5A3D' },
-  inactive: { label: 'Inactive', dot: '#78716C', bg: 'rgba(120,113,108,0.08)', text: '#78716C' },
-  error: { label: 'Error', dot: '#C8322B', bg: 'rgba(200,50,43,0.10)', text: '#C8322B' },
-  warning: { label: 'Warning', dot: '#C49A2A', bg: 'rgba(196,154,42,0.08)', text: '#7a5a10' },
-  rejected: { label: 'Rejected', dot: '#C8322B', bg: 'rgba(200,50,43,0.10)', text: '#C8322B' },
-  generating: { label: 'Generating', dot: '#7C3AED', bg: 'rgba(124,58,237,0.08)', text: '#5B21B6' },
-  promoting: { label: 'Promoting', dot: '#3B7EA1', bg: 'rgba(59,126,161,0.08)', text: '#1e5a7a' },
+  published: { label: 'Published', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
+  draft: { label: 'Draft', dot: 'bg-[#C49A2A]', bg: 'bg-[rgba(196,154,42,0.08)]', text: 'text-[#6B4F0F]' },
+  reservoir: { label: 'Ready', dot: 'bg-[#3B7EA1]', bg: 'bg-[rgba(59,126,161,0.08)]', text: 'text-[#1B5070]' },
+  stuck: { label: 'Stuck', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
+  running: { label: 'Running', dot: 'bg-[#7C3AED]', bg: 'bg-[rgba(124,58,237,0.08)]', text: 'text-[#5B21B6]' },
+  failed: { label: 'Failed', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
+  success: { label: 'Success', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
+  indexed: { label: 'Indexed', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
+  pending: { label: 'Pending', dot: 'bg-[#C49A2A]', bg: 'bg-[rgba(196,154,42,0.08)]', text: 'text-[#6B4F0F]' },
+  active: { label: 'Active', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
+  inactive: { label: 'Inactive', dot: 'bg-stone-400', bg: 'bg-stone-100', text: 'text-stone-600' },
+  error: { label: 'Error', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
+  warning: { label: 'Warning', dot: 'bg-[#C49A2A]', bg: 'bg-[rgba(196,154,42,0.08)]', text: 'text-[#6B4F0F]' },
+  rejected: { label: 'Rejected', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
+  generating: { label: 'Generating', dot: 'bg-[#7C3AED]', bg: 'bg-[rgba(124,58,237,0.08)]', text: 'text-[#5B21B6]' },
+  promoting: { label: 'Promoting', dot: 'bg-[#3B7EA1]', bg: 'bg-[rgba(59,126,161,0.08)]', text: 'text-[#1B5070]' },
 }
 
 export function AdminStatusBadge({
@@ -150,26 +137,19 @@ export function AdminStatusBadge({
 }) {
   const s = STATUS_CONFIG[status] ?? {
     label: status,
-    dot: '#78716C',
-    bg: 'rgba(120,113,108,0.08)',
-    text: '#44403C',
+    dot: 'bg-stone-400',
+    bg: 'bg-stone-100',
+    text: 'text-stone-600',
   }
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
-      style={{
-        backgroundColor: s.bg,
-        fontFamily: 'var(--font-system)',
-        fontSize: 10,
-        fontWeight: 600,
-        color: s.text,
-        letterSpacing: '0.5px',
-      }}
+      className={`
+        inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+        font-[var(--font-system)] text-[11px] font-semibold tracking-[0.3px]
+        ${s.bg} ${s.text}
+      `}
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-        style={{ backgroundColor: s.dot }}
-      />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
       {overrideLabel ?? s.label}
     </span>
   )
@@ -193,42 +173,25 @@ export function AdminKPICard({
   return (
     <div
       onClick={onClick}
-      className={`admin-card text-center ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`
+        bg-white rounded-xl p-4 text-center
+        border border-[rgba(214,208,196,0.6)]
+        shadow-[0_1px_3px_rgba(28,25,23,0.04),0_4px_12px_rgba(28,25,23,0.04)]
+        ${onClick ? 'cursor-pointer hover:shadow-[0_2px_8px_rgba(28,25,23,0.08),0_8px_24px_rgba(28,25,23,0.06)] active:scale-[0.98] transition-all' : ''}
+      `}
     >
       <div
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontWeight: 800,
-          fontSize: 28,
-          color,
-          lineHeight: 1,
-        }}
+        className="font-[var(--font-display)] font-extrabold text-[28px] leading-none"
+        style={{ color }}
       >
         {value}
       </div>
       {trend && (
-        <div
-          style={{
-            fontFamily: 'var(--font-system)',
-            fontSize: 9,
-            color: trend.positive ? '#2D5A3D' : '#C8322B',
-            marginTop: 2,
-          }}
-        >
-          {trend.positive ? '↑' : '↓'} {Math.abs(trend.value)}%
+        <div className={`font-[var(--font-system)] text-[11px] font-semibold mt-1 ${trend.positive ? 'text-[#2D5A3D]' : 'text-[#C8322B]'}`}>
+          {trend.positive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%
         </div>
       )}
-      <div
-        style={{
-          fontFamily: 'var(--font-system)',
-          fontSize: 9,
-          fontWeight: 600,
-          color: '#A8A29E',
-          textTransform: 'uppercase',
-          letterSpacing: '1px',
-          marginTop: 6,
-        }}
-      >
+      <div className="font-[var(--font-system)] text-[11px] font-semibold text-stone-500 uppercase tracking-[0.8px] mt-2">
         {label}
       </div>
     </div>
@@ -238,6 +201,20 @@ export function AdminKPICard({
 // ─── AdminButton ────────────────────────────────────────────────────
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'ghost'
+
+const VARIANT_CLASSES: Record<ButtonVariant, string> = {
+  primary: 'bg-[#C8322B] text-[#FAF8F4] border-transparent hover:bg-[#B02D26] shadow-sm',
+  secondary: 'bg-white text-stone-800 border-[rgba(214,208,196,0.8)] hover:bg-stone-50 shadow-[0_1px_3px_rgba(28,25,23,0.06)]',
+  danger: 'bg-[#C8322B] text-[#FAF8F4] border-transparent hover:bg-[#B02D26] shadow-sm',
+  success: 'bg-[#2D5A3D] text-[#FAF8F4] border-transparent hover:bg-[#24493A] shadow-sm',
+  ghost: 'bg-transparent text-stone-600 border-transparent hover:bg-stone-100',
+}
+
+const SIZE_CLASSES: Record<string, string> = {
+  sm: 'px-3 py-1.5 text-[11px] min-h-[36px]',
+  md: 'px-4 py-2 text-[11px] min-h-[40px]',
+  lg: 'px-5 py-2.5 text-xs min-h-[44px]',
+}
 
 export function AdminButton({
   children,
@@ -258,42 +235,21 @@ export function AdminButton({
   className?: string
   type?: 'button' | 'submit' | 'reset'
 }) {
-  const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
-    primary: { backgroundColor: '#C8322B', color: '#FAF8F4', border: 'none' },
-    secondary: {
-      backgroundColor: '#FFFFFF',
-      color: '#1C1917',
-      border: '1px solid rgba(214,208,196,0.8)',
-    },
-    danger: { backgroundColor: '#C8322B', color: '#FAF8F4', border: 'none' },
-    success: { backgroundColor: '#2D5A3D', color: '#FAF8F4', border: 'none' },
-    ghost: {
-      backgroundColor: 'transparent',
-      color: '#5C564F',
-      border: '1px solid transparent',
-    },
-  }
-  const sizeStyles = {
-    sm: { padding: '6px 12px', fontSize: 10 },
-    md: { padding: '8px 16px', fontSize: 11 },
-    lg: { padding: '12px 20px', fontSize: 12 },
-  }
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className={`rounded-lg font-semibold transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 ${className}`}
-      style={{
-        fontFamily: 'var(--font-system)',
-        fontWeight: 600,
-        letterSpacing: '0.5px',
-        textTransform: 'uppercase',
-        boxShadow:
-          variant === 'secondary' ? '0 1px 3px rgba(28,25,23,0.06)' : undefined,
-        ...variantStyles[variant],
-        ...sizeStyles[size],
-      }}
+      className={`
+        inline-flex items-center justify-center gap-1.5
+        rounded-lg border font-[var(--font-system)] font-semibold
+        uppercase tracking-[0.5px]
+        transition-all active:scale-[0.97]
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+        ${VARIANT_CLASSES[variant]}
+        ${SIZE_CLASSES[size]}
+        ${className}
+      `}
     >
       {loading ? (
         <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -306,20 +262,12 @@ export function AdminButton({
 
 // ─── AdminLoadingState ──────────────────────────────────────────────
 
-export function AdminLoadingState({ label = 'Loading…' }: { label?: string }) {
+export function AdminLoadingState({ label = 'Loading\u2026' }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center h-48">
+    <div className="flex items-center justify-center py-16">
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-stone-200 border-t-[#C8322B] rounded-full animate-spin mx-auto mb-3" />
-        <p
-          style={{
-            fontFamily: 'var(--font-system)',
-            fontSize: 11,
-            color: '#78716C',
-            textTransform: 'uppercase',
-            letterSpacing: '1.5px',
-          }}
-        >
+        <p className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[1.2px]">
           {label}
         </p>
       </div>
@@ -342,35 +290,14 @@ export function AdminEmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-      <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-        style={{
-          backgroundColor: '#FAF8F4',
-          border: '1px solid rgba(214,208,196,0.6)',
-        }}
-      >
-        <Icon size={22} color="#A8A29E" />
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-stone-100 border border-stone-200">
+        <Icon size={24} color="#78716C" />
       </div>
-      <p
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontWeight: 700,
-          fontSize: 16,
-          color: '#44403C',
-        }}
-      >
+      <p className="font-[var(--font-display)] font-bold text-base text-stone-700">
         {title}
       </p>
       {description && (
-        <p
-          style={{
-            fontFamily: 'var(--font-system)',
-            fontSize: 11,
-            color: '#78716C',
-            marginTop: 6,
-            maxWidth: 280,
-          }}
-        >
+        <p className="font-[var(--font-system)] text-[12px] text-stone-500 mt-2 max-w-[300px] leading-relaxed">
           {description}
         </p>
       )}
@@ -380,6 +307,24 @@ export function AdminEmptyState({
 }
 
 // ─── AdminAlertBanner ───────────────────────────────────────────────
+
+const ALERT_CONFIG = {
+  critical: {
+    wrapper: 'bg-[rgba(200,50,43,0.06)] border-[#C8322B33] border-l-[#C8322B]',
+    title: 'text-[#9B2520]',
+    icon: '\uD83D\uDD34',
+  },
+  warning: {
+    wrapper: 'bg-[rgba(196,154,42,0.06)] border-[#C49A2A33] border-l-[#C49A2A]',
+    title: 'text-[#6B4F0F]',
+    icon: '\uD83D\uDFE1',
+  },
+  info: {
+    wrapper: 'bg-[rgba(59,126,161,0.06)] border-[#3B7EA133] border-l-[#3B7EA1]',
+    title: 'text-[#1B5070]',
+    icon: '\u2139\uFE0F',
+  },
+}
 
 export function AdminAlertBanner({
   severity,
@@ -394,57 +339,16 @@ export function AdminAlertBanner({
   onDismiss?: () => void
   action?: React.ReactNode
 }) {
-  const config = {
-    critical: {
-      bg: 'rgba(200,50,43,0.06)',
-      border: '#C8322B',
-      text: '#C8322B',
-      icon: '🔴',
-    },
-    warning: {
-      bg: 'rgba(196,154,42,0.06)',
-      border: '#C49A2A',
-      text: '#7a5a10',
-      icon: '🟡',
-    },
-    info: {
-      bg: 'rgba(59,126,161,0.06)',
-      border: '#3B7EA1',
-      text: '#1e5a7a',
-      icon: 'ℹ️',
-    },
-  }
-  const c = config[severity]
+  const c = ALERT_CONFIG[severity]
   return (
-    <div
-      className="rounded-xl px-4 py-3 mb-4 flex items-start gap-3"
-      style={{
-        backgroundColor: c.bg,
-        border: `1px solid ${c.border}33`,
-        borderLeft: `3px solid ${c.border}`,
-      }}
-    >
-      <span className="text-base mt-0.5">{c.icon}</span>
+    <div className={`rounded-xl px-4 py-3 mb-4 flex items-start gap-3 border border-l-[3px] ${c.wrapper}`}>
+      <span className="text-base mt-0.5 flex-shrink-0">{c.icon}</span>
       <div className="flex-1 min-w-0">
-        <p
-          style={{
-            fontFamily: 'var(--font-system)',
-            fontSize: 12,
-            fontWeight: 600,
-            color: c.text,
-          }}
-        >
+        <p className={`font-[var(--font-system)] text-[12px] font-semibold ${c.title}`}>
           {message}
         </p>
         {detail && (
-          <p
-            style={{
-              fontFamily: 'var(--font-system)',
-              fontSize: 11,
-              color: '#78716C',
-              marginTop: 2,
-            }}
-          >
+          <p className="font-[var(--font-system)] text-[11px] text-stone-500 mt-1 leading-relaxed">
             {detail}
           </p>
         )}
@@ -453,9 +357,10 @@ export function AdminAlertBanner({
       {onDismiss && (
         <button
           onClick={onDismiss}
-          className="text-stone-400 hover:text-stone-600 transition-colors flex-shrink-0"
+          className="p-1.5 -mr-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors flex-shrink-0"
+          aria-label="Dismiss"
         >
-          <X size={14} />
+          <X size={16} />
         </button>
       )}
     </div>
@@ -474,22 +379,28 @@ export function AdminTabs({
   onTabChange: (id: string) => void
 }) {
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onTabChange(tab.id)}
-          className={`admin-filter-pill ${activeTab === tab.id ? 'active' : ''}`}
+          className={`
+            inline-flex items-center gap-1.5
+            px-3.5 py-2 rounded-full
+            font-[var(--font-system)] text-[11px] font-medium
+            whitespace-nowrap transition-all min-h-[36px]
+            ${activeTab === tab.id
+              ? 'bg-[rgba(200,50,43,0.06)] text-[#C8322B] font-semibold'
+              : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
+            }
+          `}
         >
           {tab.label}
           {tab.count !== undefined && (
-            <span
-              style={{
-                fontFamily: 'var(--font-system)',
-                fontSize: 9,
-                opacity: 0.7,
-              }}
-            >
+            <span className={`
+              font-[var(--font-system)] text-[10px] tabular-nums
+              ${activeTab === tab.id ? 'text-[#C8322B]/60' : 'text-stone-400'}
+            `}>
               {tab.count}
             </span>
           )}

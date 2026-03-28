@@ -211,17 +211,17 @@ export default function AutomationPage() {
 
                     <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                       <div>
-                        <span className="text-[8px] text-stone-400 uppercase">Success</span>
+                        <span className="text-[10px] text-stone-400 uppercase">Success</span>
                         <div className="font-mono text-emerald-600">{healthPct}%</div>
                       </div>
                       <div>
-                        <span className="text-[8px] text-stone-400 uppercase">Duration</span>
+                        <span className="text-[10px] text-stone-400 uppercase">Duration</span>
                         <div className="font-mono text-stone-600">{info.lastDuration ? `${(info.lastDuration / 1000).toFixed(1)}s` : "—"}</div>
                       </div>
                     </div>
 
                     {info.lastError && (
-                      <p className="font-mono text-[9px] text-red-600 truncate mb-2" title={info.lastError}>
+                      <p className="font-mono text-[10px] text-red-600 truncate mb-2" title={info.lastError}>
                         {info.lastError}
                       </p>
                     )}

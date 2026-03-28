@@ -513,7 +513,7 @@ function PipelineTab() {
             return (
               <div key={phase} className="flex-1 text-center">
                 <div className={`text-sm font-bold ${count > 0 ? "text-blue-600" : "text-gray-300"}`}>{count}</div>
-                <div className="text-[9px] text-gray-500 capitalize truncate">{phase}</div>
+                <div className="text-[10px] text-gray-500 capitalize truncate">{phase}</div>
               </div>
             );
           })}

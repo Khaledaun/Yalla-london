@@ -55,7 +55,25 @@ export class ToolRegistry {
     return this.tools.get(toolId)?.def.inputSchema;
   }
 
-  /** Execute a tool with safety checks, error wrapping, and logging */
+  /** Per-tool invocation counters for rate limiting (resets on cold start) */
+  private rateLimitCounters = new Map<string, { count: number; windowStart: number }>();
+
+  /** Check if a tool has exceeded its declared rate limit (per-minute window) */
+  private checkRateLimit(toolId: string, rateLimit?: number): boolean {
+    if (!rateLimit || rateLimit <= 0) return true; // no limit declared
+    const now = Date.now();
+    const windowMs = 60_000; // 1-minute window
+    const entry = this.rateLimitCounters.get(toolId);
+    if (!entry || now - entry.windowStart > windowMs) {
+      this.rateLimitCounters.set(toolId, { count: 1, windowStart: now });
+      return true;
+    }
+    if (entry.count >= rateLimit) return false;
+    entry.count++;
+    return true;
+  }
+
+  /** Execute a tool with safety checks, rate limiting, error wrapping, and logging */
   async execute(
     toolId: string,
     params: Record<string, unknown>,
@@ -81,6 +99,14 @@ export class ToolRegistry {
       console.warn(
         `[tool-registry] Tool "${toolId}" needs approval — proceeding (gate in safety.ts)`,
       );
+    }
+
+    // Rate limit enforcement
+    if (!this.checkRateLimit(toolId, def.rateLimit)) {
+      return {
+        success: false,
+        error: `Tool "${toolId}" rate-limited — max ${def.rateLimit} calls/minute exceeded`,
+      };
     }
 
     const start = Date.now();
@@ -400,11 +426,11 @@ export const CTO_TOOL_DEFS: ToolDef[] = [
     inputSchema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Absolute or repo-relative path" },
+        filePath: { type: "string", description: "Absolute or repo-relative path" },
         startLine: { type: "number" },
         endLine: { type: "number" },
       },
-      required: ["path"],
+      required: ["filePath"],
     },
     execute: stub("read_file"),
   },
@@ -433,7 +459,7 @@ export const CTO_TOOL_DEFS: ToolDef[] = [
       type: "object",
       properties: {
         directory: { type: "string" },
-        glob: { type: "string" },
+        pattern: { type: "string" },
       },
       required: ["directory"],
     },
@@ -497,6 +523,42 @@ export const CTO_TOOL_DEFS: ToolDef[] = [
       required: [],
     },
     execute: stub("check_pipeline_health"),
+  },
+  {
+    name: "browsing_fetch",
+    description: "Fetch a URL from the allow-listed domains (read-only HTTP GET/HEAD)",
+    agents: ["cto"],
+    safety: "auto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Full URL to fetch (must be on allow-list)" },
+        method: { type: "string", enum: ["GET", "HEAD"], description: "HTTP method (default GET)" },
+        maxBodyKb: { type: "number", description: "Max response body size in KB (default 500)" },
+        headers: { type: "object", description: "Optional custom request headers" },
+      },
+      required: ["url"],
+    },
+    execute: stub("browsing_fetch"),
+  },
+  {
+    name: "browsing_search",
+    description: "Search documentation sites by query (constructs likely doc URL and fetches)",
+    agents: ["cto"],
+    safety: "auto",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query (include site name like 'Next.js', 'Prisma')" },
+        allowedDomains: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional subset of allowed domains to restrict search",
+        },
+      },
+      required: ["query"],
+    },
+    execute: stub("browsing_search"),
   },
 ];
 

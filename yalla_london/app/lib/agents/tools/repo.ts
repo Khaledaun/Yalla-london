@@ -176,7 +176,7 @@ export async function repoSearchCode(
     let includeGlob = "";
     if (glob) {
       // Sanitize glob — only allow typical file patterns
-      const safeGlob = glob.replace(/[;&|`$(){}]/g, "");
+      const safeGlob = glob.replace(/[;&|`$(){}'"\\\[\]]/g, "");
       includeGlob = `--include="${safeGlob}"`;
     }
 

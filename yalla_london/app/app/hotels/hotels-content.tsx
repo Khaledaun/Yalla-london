@@ -20,8 +20,11 @@ const hotels = {
       price: 650,
       image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80',
       badge: 'Palace Hotel',
-      description: 'Overlooking Hyde Park since 1931, The Dorchester is one of London\'s most iconic luxury hotels. Home to three-Michelin-starred Alain Ducasse, a world-class spa, and legendary afternoon tea.',
+      description: 'Overlooking Hyde Park since 1931, The Dorchester is one of London\'s most iconic luxury hotels. Home to three-Michelin-starred Alain Ducasse at The Dorchester, a world-class spa with nine treatment rooms, and legendary afternoon tea in The Promenade. The hotel\'s 250 rooms and suites blend classic English style with contemporary comfort, many offering direct views over Hyde Park. The Dorchester Rooftop penthouse suite is among London\'s most exclusive, with a private terrace and panoramic skyline views. The Spatisserie offers lighter dining, while The Grill at The Dorchester serves refined British cuisine. During summer, the hotel\'s terraces become a favourite gathering spot for Gulf families enjoying the park.',
       amenities: ['Spa', 'Michelin Dining', 'Hyde Park Views', 'Butler Service'],
+      insiderTip: 'Request a Park Suite on the 7th floor for the best unobstructed Hyde Park views. The Dorchester also offers a private VIP entrance on Deanery Street for guests who prefer discretion.',
+      gccFeatures: ['Arabic-speaking concierge team', 'Halal room service available 24/7', 'Prayer mats and qibla direction provided on request', 'Family interconnecting suites with separate living areas', '5-minute walk to London Central Mosque via Hyde Park'],
+      bestFor: ['Families', 'Couples', 'Extended summer stays'],
       website: 'https://www.dorchestercollection.com/london/the-dorchester'
     },
     {
@@ -34,8 +37,11 @@ const hotels = {
       price: 750,
       image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80',
       badge: '5 Star',
-      description: 'The epitome of English grandeur on Piccadilly. Famous for its opulent Louis XVI interiors, legendary afternoon tea in the Palm Court, and the Ritz Restaurant with its gilded ceiling.',
+      description: 'The epitome of English grandeur on Piccadilly. Famous for its opulent Louis XVI interiors, the legendary afternoon tea in the Palm Court is a London institution requiring weeks of advance booking. The Ritz Restaurant features a breathtaking gilded ceiling, hand-painted murals, and a menu of refined French cuisine. With 136 individually designed rooms and suites, each adorned with antique furnishings and marble bathrooms, the hotel feels like a private palace. The Ritz Club casino adds an exclusive nightlife dimension, while Green Park is just steps from the front entrance. The hotel\'s dedicated shopping concierge can arrange private after-hours sessions at Bond Street boutiques.',
       amenities: ['Palm Court Tea', 'Fine Dining', 'Casino', 'Concierge'],
+      insiderTip: 'Book the Palm Court afternoon tea at least 8 weeks in advance for weekend sittings. Ask for a table near the central fountain for the most photogenic spot. The Ritz also offers a private dining room for families who prefer seclusion.',
+      gccFeatures: ['Dedicated Arabic-speaking guest relations team', 'Halal-certified afternoon tea options available on request', 'Walking distance to Jermyn Street and Bond Street luxury shopping', 'Spacious family suites with separate children\'s sleeping areas', 'In-room dining with halal meat options'],
+      bestFor: ['Couples', 'Special occasions', 'Shopping trips'],
       website: 'https://www.theritzlondon.com'
     },
     {
@@ -48,8 +54,11 @@ const hotels = {
       price: 580,
       image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&q=80',
       badge: 'Art Deco Icon',
-      description: 'The quintessential Mayfair hotel. Claridge\'s Art Deco masterpiece has hosted royalty and heads of state since the 1850s. Home to Gordon Ramsay\'s restaurant and the iconic foyer.',
+      description: 'The quintessential Mayfair hotel. Claridge\'s Art Deco masterpiece has hosted royalty and heads of state since the 1850s, and it remains the London residence of choice for Gulf royal families during summer visits. Gordon Ramsay at Claridge\'s holds a Michelin star and serves exquisite seasonal British cuisine, while the Fumoir bar offers rare cognacs and an intimate jazz atmosphere. The hotel\'s 190 rooms feature the signature black-and-white marble bathrooms and bespoke English furnishings. The Christmas tree designed by a different fashion house each year is a London talking point. Davies and Brook by Daniel Humm adds a contemporary fine dining option, and the Painter\'s Room serves creative afternoon teas.',
       amenities: ['Art Deco Design', 'Gordon Ramsay', 'Fumoir Bar', 'Butler Service'],
+      insiderTip: 'The Grand Piano Suite on the 6th floor has its own baby grand piano and a terrace overlooking Mayfair rooftops. Claridge\'s butler service is among the most discreet in London — they will unpack and press your wardrobe on arrival.',
+      gccFeatures: ['Long history of hosting Gulf royal families', 'Arabic-speaking staff across front desk and concierge', 'Halal room service menu curated for Gulf guests', 'Adjacent to Mount Street and Bond Street luxury boutiques', 'Private dining rooms for family celebrations'],
+      bestFor: ['Royalty and VIPs', 'Families', 'Fashion and culture lovers'],
       website: 'https://www.claridges.co.uk'
     },
     {
@@ -62,8 +71,11 @@ const hotels = {
       price: 520,
       image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=600&q=80',
       badge: 'Historic Landmark',
-      description: 'London\'s first luxury hotel, opened in 1889 on the banks of the Thames. The Savoy blends Edwardian and Art Deco styles with Thames-view suites, the American Bar, and Kaspar\'s seafood bar.',
+      description: 'London\'s first luxury hotel, opened in 1889 on the banks of the Thames. The Savoy\'s extraordinary history includes hosting Monet, Churchill, and Frank Sinatra. The hotel blends Edwardian grandeur in the River Restaurant with Art Deco glamour in the Beaufort Bar. Thames-view suites on the upper floors offer sweeping panoramas of the South Bank and London Eye. The American Bar, repeatedly voted among the world\'s best cocktail bars, has its own resident pianist every evening. Kaspar\'s seafood bar and grill provides a more relaxed dining experience. The hotel\'s heated indoor pool and full-service spa are an oasis in the heart of the West End, with Covent Garden\'s theatres and boutiques just a two-minute walk away.',
       amenities: ['Thames Views', 'American Bar', 'Pool & Spa', 'River Restaurant'],
+      insiderTip: 'Request a river-view room on floors 5-7 for the best Thames panoramas. The Savoy is the only hotel in London where traffic drives on the right — the forecourt entrance is uniquely designed for arriving guests.',
+      gccFeatures: ['Halal options available through in-room dining', 'Walking distance to the West End for family entertainment', 'Connecting rooms and suites suitable for larger families', 'Concierge experienced with Gulf visitor requirements', 'Close to Savoy Mosque and Islamic Centre at Regent\'s Park'],
+      bestFor: ['Theatre lovers', 'Couples', 'History enthusiasts'],
       website: 'https://www.thesavoylondon.com'
     },
     {

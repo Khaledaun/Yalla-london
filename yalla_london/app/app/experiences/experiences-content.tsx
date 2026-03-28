@@ -21,7 +21,10 @@ const experiences = {
       price: 53,
       image: 'https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=600&q=80',
       featured: true,
-      description: 'Walk through the actual sets, see authentic costumes and props, and discover the filmmaking secrets behind the Harry Potter films.',
+      description: 'Walk through the actual sets used in all eight Harry Potter films, see authentic costumes and hand-crafted props, and discover the filmmaking secrets behind the magic. Step onto Platform 9¾, stroll down Diagon Alley, and try a mug of Butterbeer in the backlot cafe. The Digital Art department showcase reveals how creatures like Dobby were brought to life through motion capture and CGI.',
+      insiderTip: 'Book the first morning slot (9:00 AM) for the emptiest sets and best photo opportunities. The last entry is often discounted — check the website a week in advance.',
+      gccFeatures: ['Halal snacks available at the backlot cafe', 'Prayer room on request at the visitor centre', 'Arabic audio guide included with entry', 'Family-friendly with pushchair access throughout', 'Private VIP group tours available for families'],
+      bestFor: ['Families', 'Harry Potter fans', 'Children aged 5-15'],
       website: 'https://www.wbstudiotour.co.uk'
     },
     {
@@ -35,7 +38,10 @@ const experiences = {
       price: 32,
       image: 'https://images.unsplash.com/photo-1520986606214-8b456906c813?w=600&q=80',
       featured: true,
-      description: 'Soar 135 metres above the city in a glass capsule for 360-degree views of Big Ben, Buckingham Palace, and St Paul\'s Cathedral.',
+      description: 'Soar 135 metres above the city in a climate-controlled glass capsule for breathtaking 360-degree views of Big Ben, Buckingham Palace, St Paul\'s Cathedral, and the winding Thames below. Each rotation takes roughly 30 minutes, giving you ample time to spot landmarks and take photos. On clear days the visibility stretches 40 kilometres — all the way to Windsor Castle.',
+      insiderTip: 'Upgrade to the fast-track ticket to skip the queue, which can exceed an hour during summer weekends. Sunset slots offer the most dramatic golden-hour photography.',
+      gccFeatures: ['Private capsule bookings for families up to 15 guests', 'Nearby halal restaurants on the South Bank', 'Climate-controlled capsules comfortable in all weather', 'Pushchair and wheelchair accessible', 'Arabic information leaflets at the ticket desk'],
+      bestFor: ['First-time visitors', 'Couples', 'Families with young children'],
       website: 'https://www.londoneye.com'
     },
     {
@@ -49,7 +55,10 @@ const experiences = {
       price: 33,
       image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=600&q=80',
       featured: true,
-      description: 'Explore 1,000 years of history at this UNESCO World Heritage Site. See the Crown Jewels, meet the Yeoman Warders, and discover the Tower\'s dark past.',
+      description: 'Explore over 1,000 years of royal history at this imposing UNESCO World Heritage fortress on the Thames. View the dazzling Crown Jewels collection — including the 530-carat Great Star of Africa diamond — meet the iconic Yeoman Warders (Beefeaters) who share gripping tales of royal intrigue, and walk the very grounds where Anne Boleyn and Sir Walter Raleigh were imprisoned. The White Tower houses a remarkable collection of royal armour dating back to Henry VIII.',
+      insiderTip: 'Arrive at opening time (9:00 AM) and head straight for the Crown Jewels — the queue builds to 90 minutes by midday. The free Yeoman Warder tours depart every 30 minutes from the main entrance.',
+      gccFeatures: ['Arabic audio guide available at no extra charge', 'Halal food options at the New Armouries Cafe', 'Prayer facilities at nearby Tower Hill mosque (5-min walk)', 'Family ticket discounts for 2 adults + 3 children', 'Step-free access to most areas including Crown Jewels'],
+      bestFor: ['History enthusiasts', 'Families', 'Culture lovers'],
       website: 'https://www.hrp.org.uk/tower-of-london'
     },
     {
@@ -63,7 +72,10 @@ const experiences = {
       price: 15,
       image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
       featured: false,
-      description: 'Glide past the Houses of Parliament, the Shard, Tower Bridge, and Canary Wharf with live commentary on London\'s landmarks.',
+      description: 'Glide along the Thames past the Houses of Parliament, the Shard, Tower Bridge, the Globe Theatre, and Canary Wharf while an entertaining live commentary brings each landmark to life. The open-air upper deck is perfect for photography, while the heated lower saloon keeps you comfortable year-round. This is one of the best-value ways to see London from an entirely different perspective — and a welcome break for tired feet after a day of walking.',
+      insiderTip: 'Sit on the right side (starboard) heading to Greenwich for the best views of Tower Bridge and the Tower of London. The hop-on hop-off river pass offers better value than a single journey if you plan to explore Greenwich.',
+      gccFeatures: ['Covered heated saloon suitable for all weather and modest dress', 'Halal-certified snacks sold onboard', 'Private boat charter available for groups up to 12', 'Family-friendly with no age restrictions', 'Accessible boarding at Westminster Pier'],
+      bestFor: ['Families', 'Photographers', 'First-time visitors'],
       website: 'https://www.thamesclippers.com'
     },
     {
@@ -77,7 +89,10 @@ const experiences = {
       price: 30,
       image: 'https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?w=600&q=80',
       featured: false,
-      description: 'Visit the working rooms of The King\'s official London residence during the annual summer opening. See the Throne Room, Picture Gallery, and Grand Staircase.',
+      description: 'Step inside The King\'s official London residence during the exclusive annual summer opening (late July to September). Walk through nineteen lavishly decorated State Rooms, including the Throne Room with its pair of thrones used for the 2023 Coronation, the Picture Gallery housing masterpieces by Rembrandt and Vermeer, and the Grand Staircase with its gilded bronze balustrade. The multimedia guide adds fascinating behind-the-scenes stories about state banquets and royal receptions.',
+      insiderTip: 'Book the combined ticket that includes the Royal Mews and Queen\'s Gallery for the full royal experience. Tuesday and Wednesday mornings are the quietest visiting days.',
+      gccFeatures: ['Multimedia guide available in Arabic', 'Modest dress code naturally suits the formal palace environment', 'Halal restaurants within a 10-minute walk in Victoria', 'Private group tours can be arranged for families', 'Air-conditioned State Rooms'],
+      bestFor: ['Culture lovers', 'Luxury travellers', 'Royal history enthusiasts'],
       website: 'https://www.rct.uk/visit/buckingham-palace'
     },
     {

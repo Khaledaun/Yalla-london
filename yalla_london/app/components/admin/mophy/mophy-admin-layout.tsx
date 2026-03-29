@@ -10,91 +10,216 @@ import {
   User, LogOut, Palette, Key, Globe, BarChart3, Wallet,
   Command, Plus, Zap, Store, Activity, Clock, Wrench, Ship,
   Anchor, AlertTriangle, Eye, Image as ImageIcon, Mail, TrendingUp,
+  LayoutDashboard, Building2, PieChart, Users, ShoppingCart,
+  Newspaper, Share2, FolderOpen, BookOpen, Paintbrush, Github,
+  Monitor, Timer, FlaskConical, Terminal, MessageCircle,
+  Megaphone, Blocks, Database, Shield, TestTube2,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ZENITHA HQ — Navigation Structure
-// 6 sections consolidating all 68 admin pages. Zero deletions.
+// 15 top-level sections surfacing all 120+ admin pages. Zero deletions.
+// See: docs/plans/INTERNAL-OPS-DASHBOARD-PLAN.md
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const navigation = [
+  // ─── 1. EXECUTIVE OVERVIEW ─────────────────────────────────────
   {
-    id: 'command',
-    label: 'COMMAND',
-    icon: Zap,
+    id: 'executive',
+    label: 'EXECUTIVE',
+    icon: LayoutDashboard,
     items: [
       { label: 'Mission Control',   href: '/admin/cockpit' },
       { label: 'Blockers',          href: '/admin/blockers', badge: true },
       { label: 'System Health',     href: '/admin/cockpit/health' },
+      { label: 'Cycle Health',      href: '/admin/ops/cycle-health' },
+      { label: 'Activity Feed',     href: '/admin/activity' },
     ],
   },
+  // ─── 2. SITES & BRANDS ────────────────────────────────────────
   {
-    id: 'content',
-    label: 'CONTENT',
-    icon: FileText,
+    id: 'sites',
+    label: 'SITES',
+    icon: Building2,
     items: [
-      { label: 'Article Library',   href: '/admin/articles' },
-      { label: 'Content Pipeline',  href: '/admin/topics-pipeline' },
-      { label: 'Topic Research',    href: '/admin/topics' },
-      { label: 'Write Article',     href: '/admin/cockpit/write' },
+      { label: 'All Sites',         href: '/admin/command-center/sites' },
+      { label: 'New Site Wizard',    href: '/admin/cockpit/new-site' },
+      { label: 'Site Settings',      href: '/admin/site-control' },
+      { label: 'Yacht Platform',     href: '/admin/yachts' },
     ],
   },
+  // ─── 3. ANALYTICS & ATTRIBUTION ───────────────────────────────
   {
-    id: 'intelligence',
-    label: 'INTELLIGENCE',
-    icon: Search,
+    id: 'analytics',
+    label: 'ANALYTICS',
+    icon: PieChart,
     items: [
-      { label: 'SEO Command',       href: '/admin/intelligence' },
+      { label: 'Overview',          href: '/admin/analytics' },
       { label: 'Search Console',    href: '/admin/seo-audits' },
-      { label: 'Analytics',         href: '/admin/analytics' },
+      { label: 'AI Costs',          href: '/admin/ai-costs' },
+      { label: 'Performance',       href: '/admin/articles/performance' },
     ],
   },
+  // ─── 4. LEADS & CRM ──────────────────────────────────────────
   {
-    id: 'revenue',
-    label: 'REVENUE',
-    icon: Wallet,
+    id: 'crm',
+    label: 'CRM',
+    icon: Users,
+    items: [
+      { label: 'CRM Dashboard',     href: '/admin/crm' },
+      { label: 'Agent HQ',          href: '/admin/agent' },
+      { label: 'Conversations',     href: '/admin/agent/conversations' },
+      { label: 'Yacht Inquiries',   href: '/admin/yachts/inquiries' },
+      { label: 'Team',              href: '/admin/team' },
+    ],
+  },
+  // ─── 5. COMMERCE & BOOKINGS ───────────────────────────────────
+  {
+    id: 'commerce',
+    label: 'COMMERCE',
+    icon: ShoppingCart,
     items: [
       { label: 'Affiliate Hub',     href: '/admin/affiliate-hq' },
       { label: 'Commerce',          href: '/admin/cockpit/commerce' },
+      { label: 'Finance',           href: '/admin/cockpit/finance' },
+      { label: 'Billing',           href: '/admin/billing' },
+      { label: 'Transactions',      href: '/admin/transactions' },
     ],
   },
+  // ─── 6. CONTENT & SEO ────────────────────────────────────────
+  {
+    id: 'content',
+    label: 'CONTENT',
+    icon: Newspaper,
+    items: [
+      { label: 'Articles',          href: '/admin/articles' },
+      { label: 'Write Article',     href: '/admin/cockpit/write' },
+      { label: 'Pipeline Phases',   href: '/admin/topics-pipeline' },
+      { label: 'Topic Research',    href: '/admin/topics' },
+      { label: 'News',              href: '/admin/news' },
+      { label: 'SEO Command',       href: '/admin/intelligence' },
+      { label: 'Indexing',          href: '/admin/indexing' },
+      { label: 'Per-Page Audit',    href: '/admin/cockpit/per-page-audit' },
+    ],
+  },
+  // ─── 7. SOCIAL MEDIA BRIDGE ──────────────────────────────────
+  {
+    id: 'social',
+    label: 'SOCIAL',
+    icon: Share2,
+    items: [
+      { label: 'Social Hub',        href: '/admin/social-hub' },
+      { label: 'Calendar',          href: '/admin/social-calendar' },
+      { label: 'Messaging',         href: '/admin/ops/messaging' },
+      { label: 'Email Campaigns',   href: '/admin/email-campaigns' },
+    ],
+  },
+  // ─── 8. ASSET & MEDIA LIBRARY ────────────────────────────────
+  {
+    id: 'assets',
+    label: 'ASSETS',
+    icon: ImageIcon,
+    items: [
+      { label: 'Media Library',     href: '/admin/media' },
+      { label: 'Photo Pool',        href: '/admin/photo-pool' },
+      { label: 'Video Library',     href: '/admin/cockpit/video-library' },
+      { label: 'Asset Library',     href: '/admin/asset-library' },
+      { label: 'PDF Generator',     href: '/admin/pdf-generator' },
+    ],
+  },
+  // ─── 9. DOCS & KNOWLEDGE ─────────────────────────────────────
+  {
+    id: 'docs',
+    label: 'DOCS',
+    icon: BookOpen,
+    items: [
+      { label: 'Knowledge Hub',     href: '/admin/ops/docs' },
+      { label: 'Legal Pages',       href: '/admin/legal' },
+      { label: 'Prompts',           href: '/admin/prompts' },
+      { label: 'Content Types',     href: '/admin/content-types' },
+    ],
+  },
+  // ─── 10. DESIGN SYSTEM CENTER ────────────────────────────────
   {
     id: 'design',
     label: 'DESIGN',
-    icon: Palette,
+    icon: Paintbrush,
     items: [
+      { label: 'Design Center',     href: '/admin/ops/design-center' },
+      { label: 'Design Studio',     href: '/admin/design-studio' },
       { label: 'Brand Assets',      href: '/admin/design' },
-      { label: 'Media Library',     href: '/admin/media' },
-      { label: 'Email & Social',    href: '/admin/email-campaigns' },
+      { label: 'Homepage Builder',   href: '/admin/design/homepage' },
     ],
   },
+  // ─── 11. GITHUB & DEVOPS ─────────────────────────────────────
   {
-    id: 'agents',
-    label: 'AGENTS',
-    icon: Bot,
+    id: 'devops',
+    label: 'DEVOPS',
+    icon: Github,
     items: [
-      { label: 'Agent HQ',          href: '/admin/agent' },
-      { label: 'Conversations',     href: '/admin/agent/conversations' },
+      { label: 'Dev Tasks',         href: '/admin/ops/devops' },
+      { label: 'Integrations',      href: '/admin/integrations' },
+      { label: 'API Monitor',       href: '/admin/api-monitor' },
+      { label: 'API Security',      href: '/admin/api-security' },
     ],
   },
+  // ─── 12. MONITORING & OBSERVABILITY ──────────────────────────
   {
-    id: 'system',
-    label: 'SYSTEM',
-    icon: Wrench,
+    id: 'monitoring',
+    label: 'MONITORING',
+    icon: Monitor,
     items: [
+      { label: 'Health Monitor',    href: '/admin/health-monitoring' },
+      { label: 'Discovery',         href: '/admin/discovery' },
+      { label: 'Master Audit',      href: '/admin/master-audit' },
+      { label: 'Site Health',       href: '/admin/site-health' },
+    ],
+  },
+  // ─── 13. CRON & SCHEDULER ────────────────────────────────────
+  {
+    id: 'crons',
+    label: 'CRONS',
+    icon: Timer,
+    items: [
+      { label: 'Departures Board',  href: '/admin/departures' },
+      { label: 'Cron Monitor',      href: '/admin/cron-monitor' },
+      { label: 'Cron Logs',         href: '/admin/cron-logs' },
+      { label: 'Feature Flags',     href: '/admin/feature-flags' },
       { label: 'Automation',        href: '/admin/automation' },
-      { label: 'AI Tools',          href: '/admin/ai-studio' },
+    ],
+  },
+  // ─── 14. TESTING, QA & LOGS ──────────────────────────────────
+  {
+    id: 'testing',
+    label: 'QA & LOGS',
+    icon: TestTube2,
+    items: [
+      { label: 'Test Center',       href: '/admin/ops/test-center' },
+      { label: 'Audit Logs',        href: '/admin/audit-logs' },
+      { label: 'Sync Test',         href: '/admin/sync-test' },
+      { label: 'Validator',         href: '/admin/cockpit/validator' },
+    ],
+  },
+  // ─── 15. COMMAND CENTER ──────────────────────────────────────
+  {
+    id: 'commandcenter',
+    label: 'COMMAND',
+    icon: Terminal,
+    items: [
+      { label: 'Operations',        href: '/admin/operations' },
+      { label: 'AI Studio',         href: '/admin/ai-studio' },
+      { label: 'AI Assistant',      href: '/admin/ai-assistant' },
+      { label: 'Env Vault',         href: '/admin/variable-vault' },
       { label: 'Settings',          href: '/admin/settings' },
-      { label: 'Yacht Management',  href: '/admin/yachts' },
     ],
   },
 ]
 
 const mobileBottomNav = [
-  { label: 'HQ',      icon: Zap,      href: '/admin/cockpit' },
-  { label: 'Content', icon: FileText,  href: '/admin/articles' },
+  { label: 'HQ',      icon: LayoutDashboard, href: '/admin/cockpit' },
+  { label: 'Content', icon: Newspaper, href: '/admin/articles' },
   { label: 'New',     icon: Plus,      href: '/admin/cockpit/write', primary: true },
-  { label: 'Crons',   icon: Clock,     href: '/admin/automation' },
+  { label: 'Crons',   icon: Timer,     href: '/admin/departures' },
   { label: 'More',    icon: Menu,      href: '__menu__' },
 ]
 

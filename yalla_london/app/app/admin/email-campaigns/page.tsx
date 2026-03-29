@@ -221,7 +221,7 @@ export default function EmailCampaignsPage() {
     setIsCreating(true);
     try {
       // Read siteId from cookie or let server default — never hardcode a specific site
-      const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || undefined;
+      const siteId = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || undefined;
       const res = await fetch("/api/admin/email-campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

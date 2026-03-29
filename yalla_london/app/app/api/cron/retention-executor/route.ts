@@ -45,13 +45,39 @@ async function handler(request: NextRequest) {
   const errors: string[] = [];
 
   try {
-    const {
-      seedDefaultSequences,
-      getDueEmails,
-      advanceStep,
-      startSequence,
-      findInactiveSubscribers,
-    } = await import("@/lib/agents/crm/retention");
+    // Eagerly connect DB — prevents cold-start "Engine is not yet connected" crashes
+    const { prisma } = await import("@/lib/db");
+    try { await prisma.$connect(); } catch { /* already connected */ }
+
+    // Import all dependencies in one block — if retention module is broken, fail fast
+    let seedDefaultSequences: (siteId: string) => Promise<number>;
+    let getDueEmails: (limit: number) => Promise<Array<{ subscriberId: string; sequenceId: string; siteId: string; progressId: string; step: { subject: string; templateId: string } }>>;
+    let advanceStep: (progressId: string) => Promise<{ advanced: boolean }>;
+    let startSequence: (siteId: string, subscriberId: string, trigger: string) => Promise<{ started: boolean }>;
+    let findInactiveSubscribers: (siteId: string, daysInactive: number, limit: number) => Promise<string[]>;
+    let pauseSequence: (sequenceId: string, subscriberId: string, reason?: "paused" | "unsubscribed") => Promise<boolean>;
+
+    try {
+      const mod = await import("@/lib/agents/crm/retention");
+      seedDefaultSequences = mod.seedDefaultSequences;
+      getDueEmails = mod.getDueEmails;
+      advanceStep = mod.advanceStep;
+      startSequence = mod.startSequence;
+      findInactiveSubscribers = mod.findInactiveSubscribers;
+      pauseSequence = mod.pauseSequence;
+    } catch (importErr) {
+      const msg = `Retention module import failed: ${importErr instanceof Error ? importErr.message : String(importErr)}`;
+      console.warn(`[retention-executor] ${msg} — nothing to do, returning success`);
+      try {
+        const { logCronExecution } = await import("@/lib/cron-logger");
+        await logCronExecution("retention-executor", "completed", {
+          durationMs: Date.now() - startTime,
+          itemsProcessed: 0,
+          resultSummary: { message: msg, emailsSent: 0 },
+        });
+      } catch { /* best effort */ }
+      return NextResponse.json({ success: true, durationMs: Date.now() - startTime, emailsSent: 0, note: msg });
+    }
 
     // -----------------------------------------------------------------------
     // Step 1: Seed default sequences for any site that doesn't have them
@@ -74,8 +100,6 @@ async function handler(request: NextRequest) {
     // Import email service and config ONCE outside the loop (not per-email)
     const { sendEmail } = await import("@/lib/email/sender");
     const { getSiteConfig: getSiteConf } = await import("@/config/sites");
-    const { prisma } = await import("@/lib/db");
-    const { pauseSequence } = await import("@/lib/agents/crm/retention").then((m) => ({ pauseSequence: m.pauseSequence }));
 
     const dueEmails = await getDueEmails(50);
 

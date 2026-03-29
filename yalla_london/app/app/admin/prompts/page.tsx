@@ -80,6 +80,10 @@ export default function PromptsPage() {
     const fetchPrompts = async () => {
       try {
         const response = await fetch('/api/admin/prompts')
+        if (!response.ok) {
+          console.warn('[prompts] Fetch failed:', response.status);
+          return;
+        }
         const data = await response.json()
 
         if (data.success && data.templates) {
@@ -177,7 +181,7 @@ export default function PromptsPage() {
       }
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.template) {
         // Add new prompt to the list
         const newPrompt: PromptTemplate = {
           id: data.template.id,
@@ -190,8 +194,8 @@ export default function PromptsPage() {
           variables: extractVariables(editedPrompt.prompt || ''),
           version: 1,
           isActive: true,
-          createdAt: data.template.createdAt,
-          updatedAt: data.template.createdAt,
+          createdAt: data.template.createdAt || new Date().toISOString(),
+          updatedAt: data.template.createdAt || new Date().toISOString(),
           usageCount: 0
         }
 

@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,10 +30,22 @@ interface ChannelCard {
 }
 
 // ---------------------------------------------------------------------------
-// Static channel definitions
+// Static channel definitions (env `set` values are defaults, overridden at runtime)
 // ---------------------------------------------------------------------------
 
-const CHANNELS: ChannelCard[] = [
+interface ChannelDef {
+  id: string;
+  icon: string;
+  name: string;
+  description: string;
+  status: ChannelStatus;
+  envKeys: { key: string; label: string }[];
+  actionLabel: string;
+  actionHref?: string;
+  note?: string;
+}
+
+const CHANNEL_DEFS: ChannelDef[] = [
   {
     id: "whatsapp",
     icon: "💬",
@@ -40,11 +53,11 @@ const CHANNELS: ChannelCard[] = [
     description:
       "Bidirectional WhatsApp Cloud API for customer conversations, CEO agent responses, and automated follow-ups via Meta Business.",
     status: "wired",
-    envChecks: [
-      { key: "WHATSAPP_PHONE_NUMBER_ID", label: "Phone Number ID", set: false },
-      { key: "WHATSAPP_ACCESS_TOKEN", label: "Access Token", set: false },
-      { key: "WHATSAPP_VERIFY_TOKEN", label: "Verify Token", set: false },
-      { key: "WHATSAPP_BUSINESS_ACCOUNT_ID", label: "Business Account ID", set: false },
+    envKeys: [
+      { key: "WHATSAPP_PHONE_NUMBER_ID", label: "Phone Number ID" },
+      { key: "WHATSAPP_ACCESS_TOKEN", label: "Access Token" },
+      { key: "WHATSAPP_VERIFY_TOKEN", label: "Verify Token" },
+      { key: "WHATSAPP_BUSINESS_ACCOUNT_ID", label: "Business Account ID" },
     ],
     actionLabel: "View Conversations",
     actionHref: "/admin/agent/conversations",
@@ -57,10 +70,10 @@ const CHANNELS: ChannelCard[] = [
     description:
       "Transactional email via Resend — welcome sequences, booking confirmations, CEO alert notifications, and retention campaigns.",
     status: "wired",
-    envChecks: [
-      { key: "RESEND_API_KEY", label: "Resend API Key", set: false },
-      { key: "RESEND_WEBHOOK_SECRET", label: "Webhook Secret", set: false },
-      { key: "EMAIL_FROM", label: "From Address", set: false },
+    envKeys: [
+      { key: "RESEND_API_KEY", label: "Resend API Key" },
+      { key: "RESEND_WEBHOOK_SECRET", label: "Webhook Secret" },
+      { key: "EMAIL_FROM", label: "From Address" },
     ],
     actionLabel: "Email Campaigns",
     actionHref: "/admin/email-campaigns",
@@ -73,9 +86,9 @@ const CHANNELS: ChannelCard[] = [
     description:
       "Customer messaging platform for live chat, ticketing, and unified inbox. Planned integration for multi-channel support operations.",
     status: "planned",
-    envChecks: [
-      { key: "KASPO_API_KEY", label: "API Key", set: false },
-      { key: "KASPO_WORKSPACE_ID", label: "Workspace ID", set: false },
+    envKeys: [
+      { key: "KASPO_API_KEY", label: "API Key" },
+      { key: "KASPO_WORKSPACE_ID", label: "Workspace ID" },
     ],
     actionLabel: "Coming Soon",
   },
@@ -86,14 +99,21 @@ const CHANNELS: ChannelCard[] = [
     description:
       "SMS notifications and two-way messaging via Twilio. Planned for booking reminders, OTP verification, and high-priority CEO alerts.",
     status: "planned",
-    envChecks: [
-      { key: "TWILIO_ACCOUNT_SID", label: "Account SID", set: false },
-      { key: "TWILIO_AUTH_TOKEN", label: "Auth Token", set: false },
-      { key: "TWILIO_PHONE_NUMBER", label: "Phone Number", set: false },
+    envKeys: [
+      { key: "TWILIO_ACCOUNT_SID", label: "Account SID" },
+      { key: "TWILIO_AUTH_TOKEN", label: "Auth Token" },
+      { key: "TWILIO_PHONE_NUMBER", label: "Phone Number" },
     ],
     actionLabel: "Coming Soon",
   },
 ];
+
+function buildChannels(envStatus: Record<string, boolean>): ChannelCard[] {
+  return CHANNEL_DEFS.map(({ envKeys, ...rest }) => ({
+    ...rest,
+    envChecks: envKeys.map((e) => ({ ...e, set: !!envStatus[e.key] })),
+  }));
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -162,8 +182,23 @@ function EnvRow({ check }: { check: EnvCheck }) {
 // ---------------------------------------------------------------------------
 
 export default function MessagingIntegrationsPage() {
-  const connectedCount = CHANNELS.filter((c) => c.status === "wired").length;
-  const plannedCount = CHANNELS.filter((c) => c.status === "planned").length;
+  const [channels, setChannels] = useState<ChannelCard[]>(() => buildChannels({}));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/env-check", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.vars) setChannels(buildChannels(data.vars));
+      } catch {
+        // env check is best-effort — page still renders with all-unknown
+      }
+    })();
+  }, []);
+
+  const connectedCount = channels.filter((c) => c.status === "wired").length;
+  const plannedCount = channels.filter((c) => c.status === "planned").length;
 
   return (
     <div
@@ -245,7 +280,7 @@ export default function MessagingIntegrationsPage() {
         {[
           { label: "Connected", value: connectedCount, color: "#34D399" },
           { label: "Planned", value: plannedCount, color: "#94A3B8" },
-          { label: "Total Channels", value: CHANNELS.length, color: "#7DD3FC" },
+          { label: "Total Channels", value: channels.length, color: "#7DD3FC" },
           { label: "Messages Today", value: 0, color: "#C8322B" },
         ].map((stat) => (
           <div
@@ -286,7 +321,7 @@ export default function MessagingIntegrationsPage() {
           gap: "16px",
         }}
       >
-        {CHANNELS.map((channel) => {
+        {channels.map((channel) => {
           const isLive = channel.status === "wired" || channel.status === "partial";
           return (
             <div

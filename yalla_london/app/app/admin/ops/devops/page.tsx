@@ -135,8 +135,9 @@ export default function DevOpsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setSmokeResult(data?.result ?? null);
-    } catch {
-      setSmokeResult({ passed: 0, failed: 0, warned: 0, total: 0 });
+    } catch (err) {
+      setSmokeResult(null);
+      setError(err instanceof Error ? err.message : "Smoke test endpoint failed");
     } finally {
       setSmokeLoading(false);
     }

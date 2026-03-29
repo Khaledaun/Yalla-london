@@ -135,7 +135,7 @@ export default function CycleHealthPage() {
       const res = await fetch("/api/admin/cycle-health", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setReport(data);
+      setReport(data.report ?? data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load health data");
     } finally {

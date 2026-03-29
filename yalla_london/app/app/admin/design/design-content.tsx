@@ -282,7 +282,7 @@ export default function DesignContent() {
                 onClick={async () => {
                   setIsSeeding(true);
                   try {
-                    const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || getDefaultSiteId();
+                    const siteId = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || getDefaultSiteId();
                     const res = await fetch("/api/admin/designs", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },

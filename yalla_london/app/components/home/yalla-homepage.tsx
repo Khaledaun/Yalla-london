@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -14,6 +14,7 @@ import { WeatherStrip } from '@/components/weather-strip'
 import { FollowUs } from '@/components/follow-us'
 import { TriBar, BrandButton, BrandTag, BrandCard, BrandCardLight, SectionLabel, WatermarkStamp } from '@/components/brand-kit'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
+import ScrollExpandHero from '@/components/home/scroll-expand-hero'
 
 interface YallaHomepageProps {
   locale?: 'en' | 'ar'
@@ -51,13 +52,6 @@ const TESTIMONIALS = [
   },
 ]
 
-const HERO_IMAGES = [
-  { src: '/images/hero/tower-bridge.jpg', alt: 'Tower Bridge with London red bus' },
-  { src: '/images/hero/london-city-night.jpg', alt: 'London city view at night' },
-  { src: '/images/hero/london-tube.jpg', alt: 'London Underground station' },
-]
-
-const HERO_INTERVAL_MS = 3000
 
 const heroContent = {
   en: {
@@ -350,7 +344,6 @@ function formatRelativeDate(dateStr: string, lang: 'en' | 'ar'): string {
 
 export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [email, setEmail] = useState('')
-  const [heroIndex, setHeroIndex] = useState(0)
   const [dbArticles, setDbArticles] = useState<DBArticle[]>([])
   const [liveEvents, setLiveEvents] = useState<EventItem[]>([])
   const isRTL = locale === 'ar'
@@ -476,113 +469,21 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       }
     : featured
 
-  const nextSlide = useCallback(() => {
-    setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
-  }, [])
-
-  useEffect(() => {
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReduced) return undefined
-    const timer = setInterval(nextSlide, HERO_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [nextSlide])
-
   return (
     <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* ═══ NEWS SIDE BANNER — floats on right edge ═══ */}
       <NewsSideBanner />
 
-      {/* ═══ HERO — Full-screen immersive ═══ */}
-      {/* -mt-24 pulls hero UP behind the fixed header so it starts from the very top */}
-      <section className="relative w-full h-screen min-h-[600px] flex items-end overflow-hidden -mt-24 -mx-[calc((100vw-100%)/2)]" style={{ width: '100vw' }}>
-        {/* Rotating Background Images — full bleed */}
-        {HERO_IMAGES.map((img, i) => (
-          <Image
-            key={img.src}
-            src={img.src}
-            alt={img.alt}
-            fill
-            sizes="100vw"
-            className={`object-cover transition-opacity duration-1000 ease-yl ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
-            priority={i === 0}
-          />
-        ))}
-        {/* Cinematic gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-yl-dark-navy via-yl-dark-navy/50 to-yl-dark-navy/20" />
-
-        {/* Watermark Stamps — multiple for immersive feel */}
-        <WatermarkStamp />
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <img
-            src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png"
-            alt=""
-            className="absolute left-[-60px] top-[15%] w-[200px] h-[200px] opacity-[0.04] object-contain rotate-[-15deg]"
-          />
-          <img
-            src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png"
-            alt=""
-            className="absolute right-[10%] top-[8%] w-[160px] h-[160px] opacity-[0.03] object-contain rotate-[12deg]"
-          />
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-7 pb-20 md:pb-28">
-          <div className="max-w-2xl">
-            {/* Section label */}
-            <span style={{ textShadow: '0 1px 6px rgba(15,22,33,0.5)' }}>
-              <SectionLabel className="mb-4">
-                {isRTL ? 'دليلك الفاخر' : 'Your Luxury Guide'}
-              </SectionLabel>
-            </span>
-
-            <h1
-              className={`text-5xl sm:text-6xl md:text-8xl font-heading font-extrabold leading-[1.05] mb-4 ${isRTL ? 'font-arabic' : ''}`}
-              style={{ textShadow: '0 2px 16px rgba(15,22,33,0.8), 0 1px 4px rgba(15,22,33,0.6)' }}
-            >
-              <span className="text-yl-parchment">{hero.titleLine1}</span>
-              <br />
-              <span className="text-yl-red">{hero.titleLine2}</span>
-            </h1>
-            <p
-              className="font-body text-lg md:text-xl text-white/80 mb-10 max-w-xl leading-relaxed"
-              style={{ textShadow: '0 1px 8px rgba(15,22,33,0.6)' }}
-            >
-              {hero.description}
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <BrandButton variant="primary" size="lg" href={hero.ctaLink}>
-                {hero.cta} <ArrowRight className="w-4 h-4 ml-2" />
-              </BrandButton>
-              <BrandButton variant="outline" size="lg" href="/shop">
-                <Download className="w-4 h-4 mr-2" /> {locale === 'ar' ? 'تحميل الدليل' : 'Get the Guide'}
-              </BrandButton>
-            </div>
-          </div>
-
-          {/* Quick Navigation Pills */}
-          <div className="flex flex-wrap gap-3 mt-12">
-            {t.quickLinks.map((label, i) => (
-              <React.Fragment key={i}>
-                {i > 0 && <span className="text-white/30 select-none mx-1" aria-hidden="true">|</span>}
-                <Link
-                  href={t.quickLinksHref[i]}
-                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-yl-parchment font-mono text-[10px] tracking-[1.5px] uppercase rounded-full border border-white/20 hover:bg-white/20 hover:border-yl-gold/50 hover:text-yl-gold transition-all duration-300 ease-yl"
-                >
-                  {label}
-                </Link>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        {/* Scroll hint */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center pt-2">
-            <div className="w-1 h-2.5 rounded-full bg-white/50 animate-pulse" />
-          </div>
-        </div>
-      </section>
+      {/* ═══ HERO — Scroll-to-expand immersive ═══ */}
+      <ScrollExpandHero
+        mediaType="image"
+        mediaSrc="/images/hero/london-city-night.jpg"
+        bgImageSrc="/images/hero/tower-bridge.jpg"
+        title={`${hero.titleLine1} ${hero.titleLine2}`}
+        subtitle={hero.description}
+        scrollHint={isRTL ? 'مرر لاستكشاف' : 'Scroll to explore'}
+      >
 
       {/* Tri-bar Divider */}
       <TriBar />
@@ -1023,6 +924,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           <FollowUs variant="dark" showLabel={true} />
         </div>
       </section>
+
+      </ScrollExpandHero>
     </div>
   )
 }

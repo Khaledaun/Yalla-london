@@ -587,6 +587,59 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       {/* Tri-bar Divider */}
       <TriBar />
 
+      {/* ═══ INTENT SELECTOR ═══ */}
+      <section className="bg-yl-dark-navy py-12 px-7">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6" dir={isRTL ? 'rtl' : 'ltr'}>
+          {[
+            {
+              href: '/luxury-hotels-london',
+              icon: Gem,
+              titleEn: 'Luxury Hotels',
+              titleAr: 'فنادق فاخرة',
+              subtitleEn: 'Handpicked 5-star stays',
+              subtitleAr: 'إقامات خمس نجوم مختارة',
+            },
+            {
+              href: '/halal-restaurants-london',
+              icon: Utensils,
+              titleEn: 'Halal Dining',
+              titleAr: 'مطاعم حلال',
+              subtitleEn: 'Top halal restaurants',
+              subtitleAr: 'أفضل المطاعم الحلال',
+            },
+            {
+              href: '/experiences',
+              icon: Compass,
+              titleEn: 'Experiences & Tours',
+              titleAr: 'تجارب وجولات',
+              subtitleEn: 'Curated London activities',
+              subtitleAr: 'أنشطة لندن المختارة',
+            },
+          ].map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group block rounded-2xl bg-white/95 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ease-yl"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-yl-gold/10 flex items-center justify-center">
+                  <card.icon className="w-6 h-6 text-yl-gold" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-yl-dark-navy group-hover:text-yl-gold transition-colors duration-300">
+                    {isRTL ? card.titleAr : card.titleEn}
+                  </h3>
+                  <p className="font-body text-sm text-yl-gray-500 mt-0.5">
+                    {isRTL ? card.subtitleAr : card.subtitleEn}
+                  </p>
+                </div>
+                <ArrowRight className={`w-5 h-5 text-yl-gray-300 group-hover:text-yl-gold transition-all duration-300 ${isRTL ? 'rotate-180 mr-auto' : 'ml-auto'} group-hover:translate-x-1`} />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* ═══ TRENDING BAR ═══ */}
       <div className="bg-yl-cream border-b border-yl-gray-200 py-3 px-7">
         <div className="max-w-7xl mx-auto flex items-center gap-6 overflow-x-auto">

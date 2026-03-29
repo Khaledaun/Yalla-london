@@ -116,10 +116,12 @@ export default function TopicsPipelinePage() {
 
       const longtailsArray = newTopic.longtails.split(',').map(k => k.trim()).filter(Boolean)
       const featuredArray = newTopic.featured_longtails.split(',').map(k => k.trim()).filter(Boolean)
-      const linksArray = newTopic.authority_links.split(',').map(url => ({
-        url: url.trim(),
-        title: new URL(url.trim()).hostname
-      })).filter(l => l.url)
+      const linksArray = newTopic.authority_links.split(',').map(url => {
+        const trimmed = url.trim()
+        if (!trimmed) return null
+        try { return { url: trimmed, title: new URL(trimmed).hostname } }
+        catch { return { url: trimmed, title: trimmed.replace(/^https?:\/\//, '').split('/')[0] } }
+      }).filter((l): l is { url: string; title: string } => !!l)
 
       const response = await fetch('/api/admin/topics', {
         method: 'POST',

@@ -45,7 +45,13 @@ function ForcePublishButton() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locale: "both", count: 2 }),
       });
-      const data = await res.json();
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        setResult({ published: 0, skipped: 0, articles: [`HTTP ${res.status}: ${errText.slice(0, 200) || "Request failed"}`] });
+        setState("error");
+        return;
+      }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         const articles = (data.published || []).map((p: { keyword: string; locale: string }) => `${p.keyword} (${p.locale.toUpperCase()})`);
         setResult({ published: data.published?.length || 0, skipped: data.skipped?.length || 0, articles });
@@ -211,7 +217,11 @@ function ReadyArticlesTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ draftId: article.id, locale: "both", count: 1 }),
       });
-      const data = await res.json();
+      if (!res.ok) {
+        setPublishResult((prev) => ({ ...prev, [article.id]: `HTTP ${res.status}: Request failed` }));
+        return;
+      }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       setPublishResult((prev) => ({
         ...prev,
         [article.id]: data.success

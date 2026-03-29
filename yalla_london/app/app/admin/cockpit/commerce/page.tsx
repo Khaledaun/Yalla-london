@@ -286,7 +286,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "run_now" }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Trend scan failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast(data.message);
         await Promise.all([fetchTrends(), fetchBriefs(), fetchStats()]);
@@ -308,7 +309,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "generate" }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Report generation failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast(data.message);
       } else {
@@ -329,7 +331,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "approve", briefId }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Approve failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast(data.message);
         await fetchBriefs();
@@ -351,7 +354,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reject", briefId }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Reject failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast(data.message);
         await fetchBriefs();
@@ -373,7 +377,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "test_connection" }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Connection test failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast(`Connected to ${data.shopName} (${data.listingCount} listings)`);
         await fetchEtsyStatus();
@@ -395,7 +400,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "publish_draft", draftId }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Publish to Etsy failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast(`Published! ${data.etsyUrl}`);
         await Promise.all([fetchEtsyStatus(), fetchEtsyDrafts()]);
@@ -418,7 +424,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "disconnect" }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Disconnect failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         showToast("Etsy disconnected");
         await fetchEtsyStatus();
@@ -445,7 +452,8 @@ export default function CommerceHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idea: quickCreateIdea.trim() }),
       });
-      const data = await res.json();
+      if (!res.ok) { showToast(`Product creation failed (HTTP ${res.status})`); return; }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success) {
         setQuickCreateResult({
           success: true,
@@ -1661,7 +1669,8 @@ function CampaignsTab() {
     setCreating(true);
     try {
       const res = await fetch("/api/admin/commerce/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate_from_latest_brief" }) });
-      const data = await res.json();
+      if (!res.ok) { console.warn("[campaigns-tab] Create failed: HTTP", res.status); setCreating(false); return; }
+      const data = await res.json().catch(() => ({}));
       if (data.data) setCampaigns((prev) => [data.data, ...prev]);
     } catch (err) { console.warn("[campaigns-tab] Create failed:", err); }
     setCreating(false);
@@ -1971,7 +1980,8 @@ function TrendRunEngineTab() {
     setRunning(true);
     try {
       const res = await fetch("/api/admin/commerce/trends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "run" }) });
-      const data = await res.json();
+      if (!res.ok) { console.warn("[trendrun-tab] Trigger failed: HTTP", res.status); setRunning(false); return; }
+      const data = await res.json().catch(() => ({}));
       if (data.data) setRuns((prev) => [data.data, ...prev]);
     } catch (err) { console.warn("[trendrun-tab] Trigger failed:", err); }
     setRunning(false);

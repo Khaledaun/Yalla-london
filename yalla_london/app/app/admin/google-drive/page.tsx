@@ -62,6 +62,9 @@ export default function GoogleDrivePage() {
   const [mappingFolderId, setMappingFolderId] = useState("");
   const [mappingFolderName, setMappingFolderName] = useState("Root");
 
+  // Asset Library import state
+  const [importingFolder, setImportingFolder] = useState<string | null>(null);
+
   // Connect form
   const [connectLabel, setConnectLabel] = useState("");
   const [connectSiteId, setConnectSiteId] = useState("yalla-london");
@@ -153,6 +156,28 @@ export default function GoogleDrivePage() {
     setMappingFolderName(folder.name);
     setBrowsingAccount(null);
     setFolderStack([]);
+  };
+
+  const sendToAssetLibrary = async (folderId: string, folderName: string) => {
+    if (!browsingAccount) return;
+    setImportingFolder(folderId);
+    try {
+      const res = await fetch("/api/admin/asset-library/import-drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: browsingAccount, folderId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionResult(`✓ Imported ${data.imported} files from "${folderName}" to Asset Library (${data.skipped} skipped)`);
+      } else {
+        setActionResult(`✗ Import failed: ${data.error}`);
+      }
+    } catch {
+      setActionResult("✗ Import to Asset Library failed");
+    } finally {
+      setImportingFolder(null);
+    }
   };
 
   if (loading) return <AdminLoadingState label="Loading Google Drive..." />;
@@ -372,9 +397,19 @@ export default function GoogleDrivePage() {
                     <button onClick={() => navigateInto(f)} className="text-sm flex items-center gap-2 flex-1 text-left">
                       <span>📁</span> {f.name}
                     </button>
-                    <AdminButton size="sm" onClick={() => selectFolderForMapping(f)}>
-                      Select
-                    </AdminButton>
+                    <div className="flex gap-1">
+                      <AdminButton
+                        size="sm"
+                        variant="secondary"
+                        disabled={importingFolder === f.id}
+                        onClick={() => sendToAssetLibrary(f.id, f.name)}
+                      >
+                        {importingFolder === f.id ? "Importing..." : "To Assets"}
+                      </AdminButton>
+                      <AdminButton size="sm" onClick={() => selectFolderForMapping(f)}>
+                        Select
+                      </AdminButton>
+                    </div>
                   </div>
                 ))
               )}

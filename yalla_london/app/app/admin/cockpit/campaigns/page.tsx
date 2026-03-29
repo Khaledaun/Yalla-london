@@ -246,7 +246,7 @@ export default function CampaignsPage() {
       });
       if (!res.ok) throw new Error("Creation failed");
       const data = await res.json();
-      showToast(`Campaign created: ${data.totalItems ?? 0} articles queued`);
+      showToast(`Campaign created: ${data.totalItems ?? data.itemCount ?? 0} articles queued`);
       setShowCreate(false);
       setPreview(null);
       loadCampaigns();
@@ -454,9 +454,9 @@ export default function CampaignsPage() {
               borderRadius: 8, padding: 12, fontSize: 13,
             }}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>Campaign Started</div>
-              <div>{kickstartResult.totalItems} articles queued</div>
-              <div>{kickstartResult.firstBatch.succeeded} enhanced in first batch</div>
-              {kickstartResult.firstBatch.failed > 0 && (
+              <div>{kickstartResult.totalItems ?? 0} articles queued</div>
+              <div>{kickstartResult.firstBatch?.succeeded ?? 0} enhanced in first batch</div>
+              {(kickstartResult.firstBatch?.failed ?? 0) > 0 && (
                 <div style={{ color: "#FCA5A5" }}>{kickstartResult.firstBatch.failed} failed</div>
               )}
               <div style={{ opacity: 0.8, marginTop: 4 }}>

@@ -62,9 +62,14 @@ export default function VideoLibraryPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Self-captured upload form
-  const [scForm, setScForm] = useState({
-    title: "", locationTags: "", sceneTags: "", moodTags: "",
-    siteId: "yalla-london", notes: "", exportedUrl: "",
+  const [scForm, setScForm] = useState(() => {
+    const cookieSiteId = typeof document !== "undefined"
+      ? document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || "yalla-london"
+      : "yalla-london";
+    return {
+      title: "", locationTags: "", sceneTags: "", moodTags: "",
+      siteId: cookieSiteId, notes: "", exportedUrl: "",
+    };
   });
 
   const fetchStats = useCallback(async () => {

@@ -83,7 +83,10 @@ export default function CockpitEmailPage() {
   }, [fetchData]);
 
   const handleTestSend = async () => {
-    if (!testEmail || !testEmail.includes("@")) return;
+    if (!testEmail || !testEmail.includes("@")) {
+      setTestResult({ success: false, message: "Please enter a valid email address" });
+      return;
+    }
     setTestSending(true);
     setTestResult(null);
     try {

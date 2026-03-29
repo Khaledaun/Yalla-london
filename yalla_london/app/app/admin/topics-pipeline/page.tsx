@@ -88,6 +88,12 @@ export default function TopicsPipelinePage() {
         ? '/api/admin/topics'
         : `/api/admin/topics?status=${selectedStatus}`
       const response = await fetch(url)
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '')
+        setError(`Failed to fetch topics (${response.status})`)
+        console.warn('[topics-pipeline] Fetch failed:', response.status, errText.slice(0, 200))
+        return
+      }
       const data = await response.json()
 
       if (response.ok) {
@@ -142,9 +148,15 @@ export default function TopicsPipelinePage() {
         })
       })
 
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '')
+        setError(`Failed to create topic (${response.status})`)
+        console.warn('[topics-pipeline] Create failed:', response.status, errText.slice(0, 200))
+        return
+      }
       const data = await response.json()
 
-      if (response.ok && data.success) {
+      if (data.success) {
         setNewTopic({
           title: '',
           primary_keyword: '',

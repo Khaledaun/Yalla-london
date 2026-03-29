@@ -225,7 +225,9 @@ export default function MessagingIntegrationsPage() {
             whiteSpace: "nowrap",
           }}
         >
-          Production
+          {typeof window !== "undefined"
+            ? (process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.NODE_ENV || "production")
+            : "production"}
         </span>
       </div>
 

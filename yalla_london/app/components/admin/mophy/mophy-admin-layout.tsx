@@ -54,7 +54,7 @@ const navigation = [
     label: 'ANALYTICS',
     icon: PieChart,
     items: [
-      { label: 'Overview',          href: '/admin/analytics' },
+      { label: 'Overview',          href: '/admin/seo' },
       { label: 'Search Console',    href: '/admin/seo-audits' },
       { label: 'AI Costs',          href: '/admin/ai-costs' },
       { label: 'Performance',       href: '/admin/articles/performance' },

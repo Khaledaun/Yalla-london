@@ -167,12 +167,17 @@ export default function CycleHealthPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fixActionId: issueId, ...action.payload }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Request failed");
+        setFixResults((r) => ({ ...r, [issueId]: errText || "Failed" }));
+        return;
+      }
       const data = await res.json();
       setFixResults((r) => ({
         ...r,
-        [issueId]: data.message || (res.ok ? "Fixed" : "Failed"),
+        [issueId]: data.message || "Fixed",
       }));
-      if (res.ok) setTimeout(fetchReport, 1500);
+      setTimeout(fetchReport, 1500);
     } catch {
       setFixResults((r) => ({ ...r, [issueId]: "Request failed" }));
     } finally {

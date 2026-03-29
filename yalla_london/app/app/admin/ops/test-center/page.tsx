@@ -797,7 +797,7 @@ export default function TestCenterPage() {
           <p className="text-gray-400 text-sm mt-0.5">QA, audit exports, action logs, and JSON inspection</p>
         </div>
         <span className="px-2.5 py-1 bg-[#1E293B] rounded-lg text-[11px] font-mono text-gray-400 flex-shrink-0">
-          {"production"}
+          {process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.NODE_ENV || "production"}
         </span>
       </div>
 

@@ -280,6 +280,31 @@ export default async function HalalRestaurantsLondonPage() {
           </Link>
         </div>
       </section>
+
+      {/* Per-restaurant JSON-LD for rich results */}
+      {AREAS.flatMap(area =>
+        area.highlights.map(restaurantName => (
+          <script
+            key={`restaurant-${area.slug}-${restaurantName}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Restaurant",
+                "name": restaurantName,
+                "address": {
+                  "@type": "PostalAddress",
+                  "addressLocality": area.name,
+                  "addressRegion": "London",
+                  "addressCountry": "GB"
+                },
+                "servesCuisine": area.cuisines,
+                "url": `${baseUrl}/halal-restaurants-london#${area.slug}`
+              })
+            }}
+          />
+        ))
+      )}
     </div>
   )
 }

@@ -8,7 +8,7 @@ import { getTranslation } from '@/lib/i18n'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp } from '@/components/brand-kit'
 import {
   Calendar, User, ArrowLeft, Heart, BookOpen, ChevronRight,
-  Tag, Clock, Share2,
+  Tag, Clock, Share2, ChevronDown, List,
 } from 'lucide-react'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
@@ -182,6 +182,110 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
     });
     return () => { cancelled = true; };
   }, [rawContent]);
+
+  // ═══ Heading extraction for TOC ═══
+  const slugify = (text: string) =>
+    text.toLowerCase().replace(/[^\w\u0600-\u06FF\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+  interface TocHeading { id: string; text: string; level: 2 | 3 }
+  interface FaqItem { question: string; answer: string }
+
+  const tocHeadings = useMemo<TocHeading[]>(() => {
+    if (!sanitizedContent) return [];
+    const headings: TocHeading[] = [];
+    const regex = /<h([23])[^>]*>(.*?)<\/h\1>/gi;
+    let match;
+    while ((match = regex.exec(sanitizedContent)) !== null) {
+      const text = match[2].replace(/<[^>]*>/g, '').trim();
+      if (text) headings.push({ id: slugify(text), text, level: parseInt(match[1]) as 2 | 3 });
+    }
+    return headings;
+  }, [sanitizedContent]);
+
+  // Inject IDs into sanitized content so scroll targets exist
+  const contentWithIds = useMemo(() => {
+    if (tocHeadings.length < 3) return sanitizedContent;
+    let result = sanitizedContent;
+    for (const h of tocHeadings) {
+      // Replace the first occurrence of the heading tag that matches this text
+      const escapedText = h.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const tagRegex = new RegExp(`(<h${h.level})([^>]*>)(\\s*(?:<[^>]*>)*\\s*${escapedText})`, 'i');
+      result = result.replace(tagRegex, `$1 id="${h.id}"$2$3`);
+    }
+    return result;
+  }, [sanitizedContent, tocHeadings]);
+
+  // ═══ Key Takeaways extraction ═══
+  const keyTakeaways = useMemo(() => {
+    if (!sanitizedContent) return '';
+    // Try <section class="key-takeaways">
+    const sectionMatch = sanitizedContent.match(/<section\s+class="key-takeaways"[^>]*>([\s\S]*?)<\/section>/i);
+    if (sectionMatch) return sectionMatch[1].trim();
+    // Try H2 containing "Key Takeaways" or Arabic equivalent
+    const ktRegex = /<h2[^>]*>[^<]*(Key Takeaways|النقاط الرئيسية)[^<]*<\/h2>([\s\S]*?)(?=<h2[\s>]|$)/i;
+    const h2Match = sanitizedContent.match(ktRegex);
+    if (h2Match) return h2Match[2].trim();
+    return '';
+  }, [sanitizedContent]);
+
+  // ═══ FAQ extraction (question-mark H2 headings) ═══
+  const faqItems = useMemo<FaqItem[]>(() => {
+    if (!sanitizedContent) return [];
+    const items: FaqItem[] = [];
+    // Split content by H2 boundaries
+    const parts = sanitizedContent.split(/(?=<h2[\s>])/i);
+    for (const part of parts) {
+      const h2Match = part.match(/^<h2[^>]*>(.*?)<\/h2>/i);
+      if (!h2Match) continue;
+      const questionText = h2Match[1].replace(/<[^>]*>/g, '').trim();
+      if (!questionText.includes('?') && !questionText.includes('؟')) continue;
+      const answer = part.replace(/^<h2[^>]*>.*?<\/h2>/i, '').trim();
+      if (answer) items.push({ question: questionText, answer });
+    }
+    return items;
+  }, [sanitizedContent]);
+
+  // ═══ Active TOC heading (IntersectionObserver) ═══
+  const [activeTocId, setActiveTocId] = useState('');
+  const [mobileTocOpen, setMobileTocOpen] = useState(false);
+  const [openFaqIndexes, setOpenFaqIndexes] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (tocHeadings.length < 3) return undefined;
+    const ids = tocHeadings.map(h => h.id);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveTocId(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: '-80px 0px -60% 0px', threshold: 0.1 }
+    );
+    const elements: Element[] = [];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) { observer.observe(el); elements.push(el); }
+    }
+    return () => { for (const el of elements) observer.unobserve(el); };
+  }, [tocHeadings]);
+
+  const toggleFaq = (idx: number) => {
+    setOpenFaqIndexes(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+
+  const scrollToHeading = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    setMobileTocOpen(false);
+  };
+
+  const showToc = tocHeadings.length >= 3;
 
   // Check if content is too thin to display (empty or placeholder articles)
   const strippedContent = rawContent.replace(/<[^>]*>/g, '').trim();
@@ -380,6 +484,56 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                   </div>
                 </div>
 
+                {/* ─── Mobile Table of Contents ─── */}
+                {showToc && !isThinContent && (
+                  <div className="lg:hidden mb-8 rounded-xl border border-yl-gray-200 bg-yl-cream/50 overflow-hidden">
+                    <button
+                      onClick={() => setMobileTocOpen(!mobileTocOpen)}
+                      className="flex items-center justify-between w-full px-5 py-3.5 text-left"
+                    >
+                      <span className={`flex items-center gap-2 text-sm font-semibold text-yl-charcoal ${isRTL ? 'font-arabic' : 'font-heading'}`}>
+                        <List className="h-4 w-4 text-yl-gray-500" />
+                        {language === 'en' ? 'Table of Contents' : 'جدول المحتويات'}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-yl-gray-500 transition-transform duration-200 ${mobileTocOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {mobileTocOpen && (
+                      <nav className="px-5 pb-4 border-t border-yl-gray-200/60">
+                        <ul className="space-y-1 pt-3">
+                          {tocHeadings.map((h) => (
+                            <li key={h.id}>
+                              <button
+                                onClick={() => scrollToHeading(h.id)}
+                                className={`block w-full text-left text-sm py-1.5 transition-colors hover:text-yl-red ${
+                                  h.level === 3 ? (isRTL ? 'pr-4' : 'pl-4') : ''
+                                } ${activeTocId === h.id ? 'text-yl-red font-semibold' : 'text-yl-gray-500'} ${isRTL ? 'font-arabic text-right' : 'font-body'}`}
+                              >
+                                {h.text}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </nav>
+                    )}
+                  </div>
+                )}
+
+                {/* ─── Key Takeaways Box ─── */}
+                {keyTakeaways && !isThinContent && (
+                  <div className="mb-10 rounded-xl border-l-4 border-yl-gold bg-yl-gold/10 p-5 md:p-6">
+                    <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
+                      <span className="text-xl" role="img" aria-label={language === 'en' ? 'star' : 'نجمة'}>&#9733;</span>
+                      <h3 className="text-base font-bold text-yl-charcoal">
+                        {language === 'en' ? 'Key Takeaways' : 'النقاط الرئيسية'}
+                      </h3>
+                    </div>
+                    <div
+                      className={`text-sm text-yl-gray-600 leading-relaxed [&_ul]:list-disc [&_ul]:ml-5 [&_li]:mb-1.5 ${isRTL ? 'font-arabic [&_ul]:mr-5 [&_ul]:ml-0' : 'font-body'}`}
+                      dangerouslySetInnerHTML={{ __html: keyTakeaways }}
+                    />
+                  </div>
+                )}
+
                 {/* ─── Article HTML Content ─── */}
                 {isThinContent ? (
                   <div className="text-center py-12">
@@ -393,9 +547,59 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                   <div
                     className="yalla-article-content"
                     dangerouslySetInnerHTML={{
-                      __html: sanitizedContent
+                      __html: contentWithIds
                     }}
                   />
+                )}
+
+                {/* ─── FAQ Accordion ─── */}
+                {faqItems.length >= 2 && !isThinContent && (
+                  <div className="mt-12 pt-8 border-t border-yl-gray-200">
+                    <h2 className={`text-xl font-bold text-yl-charcoal mb-6 ${isRTL ? 'font-arabic' : 'font-heading'}`}>
+                      {language === 'en' ? 'Frequently Asked Questions' : 'الأسئلة الشائعة'}
+                    </h2>
+                    <div className="space-y-3">
+                      {faqItems.map((item, idx) => (
+                        <div key={idx} className="rounded-xl border border-yl-gray-200 bg-white overflow-hidden">
+                          <button
+                            onClick={() => toggleFaq(idx)}
+                            className="flex items-center justify-between w-full px-5 py-4 text-left gap-3"
+                          >
+                            <span className={`text-sm font-semibold text-yl-charcoal ${isRTL ? 'font-arabic text-right' : 'font-heading'}`}>
+                              {item.question}
+                            </span>
+                            <ChevronDown className={`h-4 w-4 text-yl-gray-500 shrink-0 transition-transform duration-200 ${openFaqIndexes.has(idx) ? 'rotate-180' : ''}`} />
+                          </button>
+                          {openFaqIndexes.has(idx) && (
+                            <div className="px-5 pb-4 border-t border-yl-gray-100">
+                              <div
+                                className={`text-sm text-yl-gray-600 leading-relaxed pt-3 [&_p]:mb-3 [&_ul]:list-disc [&_ul]:ml-5 [&_li]:mb-1.5 ${isRTL ? 'font-arabic [&_ul]:mr-5 [&_ul]:ml-0' : 'font-body'}`}
+                                dangerouslySetInnerHTML={{ __html: item.answer }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* FAQ structured data — Article with mainEntity (NOT deprecated FAQPage) */}
+                    <script
+                      type="application/ld+json"
+                      dangerouslySetInnerHTML={{
+                        __html: JSON.stringify({
+                          "@context": "https://schema.org",
+                          "@type": "Article",
+                          "mainEntity": faqItems.map((item) => ({
+                            "@type": "Question",
+                            "name": item.question,
+                            "acceptedAnswer": {
+                              "@type": "Answer",
+                              "text": item.answer.replace(/<[^>]*>/g, '').trim()
+                            }
+                          }))
+                        })
+                      }}
+                    />
+                  </div>
                 )}
 
                 {/* ─── Stay22 Hotel Map — auto-shown for accommodation-related articles ─── */}
@@ -501,6 +705,37 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
             {/* ─── Sidebar ─── */}
             <aside className="hidden lg:block w-72 shrink-0">
               <div className="sticky top-24 space-y-6">
+                {/* Table of Contents — Desktop sidebar */}
+                {showToc && !isThinContent && (
+                  <BrandCardLight className="p-5" hoverable={false}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <List className="h-4 w-4 text-yl-gray-500/50" />
+                      <span className={`text-xs font-medium uppercase tracking-wider text-yl-gray-500/60 ${isRTL ? 'font-arabic tracking-normal' : 'font-body'}`}>
+                        {language === 'en' ? 'Contents' : 'المحتويات'}
+                      </span>
+                    </div>
+                    <nav>
+                      <ul className="space-y-0.5">
+                        {tocHeadings.map((h) => (
+                          <li key={h.id}>
+                            <button
+                              onClick={() => scrollToHeading(h.id)}
+                              className={`block w-full text-left text-[13px] py-1.5 leading-snug transition-colors hover:text-yl-red ${
+                                h.level === 3 ? (isRTL ? 'pr-3 border-r-2' : 'pl-3 border-l-2') + ' border-yl-gray-200' : ''
+                              } ${activeTocId === h.id
+                                ? 'text-yl-red font-semibold' + (h.level === 2 ? (isRTL ? ' border-r-2 pr-2 border-yl-red' : ' border-l-2 pl-2 border-yl-red') : '')
+                                : 'text-yl-gray-500'
+                              } ${isRTL ? 'font-arabic text-right' : 'font-body'}`}
+                            >
+                              {h.text}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </nav>
+                  </BrandCardLight>
+                )}
+
                 {/* Back button */}
                 <BrandButton variant="outline" size="sm" href="/blog" className="w-full justify-start gap-2">
                   <ArrowLeft className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />

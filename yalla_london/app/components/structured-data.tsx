@@ -396,7 +396,16 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       "about": articleData.topics ? articleData.topics.map((topic: string) => ({
         "@type": "Thing",
         "name": topic
-      })) : undefined
+      })) : undefined,
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["[itemprop='headline']", "[itemprop='description']"]
+      },
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": siteName,
+        "url": baseUrl
+      }
     };
   }
 

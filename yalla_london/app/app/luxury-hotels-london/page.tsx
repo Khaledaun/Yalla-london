@@ -266,6 +266,31 @@ export default async function LuxuryHotelsLondonPage() {
           </Link>
         </div>
       </section>
+
+      {/* Per-hotel JSON-LD for rich results */}
+      {NEIGHBOURHOODS.flatMap(area =>
+        area.hotels.map(hotelName => (
+          <script
+            key={`hotel-${area.slug}-${hotelName}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "LodgingBusiness",
+                "name": hotelName,
+                "address": {
+                  "@type": "PostalAddress",
+                  "addressLocality": area.name,
+                  "addressRegion": "London",
+                  "addressCountry": "GB"
+                },
+                "priceRange": area.priceRange,
+                "url": `${baseUrl}/luxury-hotels-london#${area.slug}`
+              })
+            }}
+          />
+        ))
+      )}
     </div>
   )
 }

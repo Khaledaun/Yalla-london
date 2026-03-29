@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+const BUDGET_MS = 280_000; // 280s usable budget (20s buffer from 300s Vercel Pro limit)
+
 /**
  * Sweeper Agent — Automatic Failure Recovery
  *

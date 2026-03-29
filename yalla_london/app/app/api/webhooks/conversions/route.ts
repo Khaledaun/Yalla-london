@@ -25,26 +25,29 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const partner = searchParams.get('partner') || 'generic';
 
-    // Verify webhook signature if secret is configured
+    // Verify webhook signature — fail-closed: require secret to be configured
     const secret = WEBHOOK_SECRETS[partner];
-    if (secret) {
-      const signature = request.headers.get('x-webhook-signature');
-      const body = await request.text();
-
-      if (!verifySignature(body, signature, secret)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid webhook signature' },
-          { status: 401 }
-        );
-      }
-
-      // Re-parse body since we already consumed it
-      const payload = JSON.parse(body);
-      return handleWebhook(partner, payload);
+    if (!secret) {
+      console.warn(`[conversions-webhook] No webhook secret configured for partner "${partner}" — rejecting request`);
+      return NextResponse.json(
+        { success: false, error: 'Webhook secret not configured for this partner' },
+        { status: 503 }
+      );
     }
 
-    const body = await request.json();
-    return handleWebhook(partner, body);
+    const signature = request.headers.get('x-webhook-signature');
+    const body = await request.text();
+
+    if (!verifySignature(body, signature, secret)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid webhook signature' },
+        { status: 401 }
+      );
+    }
+
+    // Re-parse body since we already consumed it
+    const payload = JSON.parse(body);
+    return handleWebhook(partner, payload);
   } catch (error) {
     console.error('Webhook error:', error);
     return NextResponse.json(

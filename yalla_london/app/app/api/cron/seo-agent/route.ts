@@ -7,7 +7,7 @@ import { onCronFailure } from "@/lib/ops/failure-hooks";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
-const BUDGET_MS = 53_000; // Standard Vercel Pro 60s budget with 7s buffer (used as fallback guard)
+const BUDGET_MS = 280_000; // 280s usable budget (20s buffer from 300s Vercel Pro limit)
 
 /**
  * Autonomous SEO Agent - Runs 3x daily (7am, 1pm, 8pm UTC)

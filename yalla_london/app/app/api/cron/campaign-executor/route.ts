@@ -97,7 +97,7 @@ async function handler(request: Request) {
         data: {
           job_name: 'campaign-executor',
           job_type: 'scheduled',
-          status: 'completed',
+          status: totalSucceeded > 0 ? 'completed' : (totalProcessed > 0 ? 'failed' : 'completed'),
           duration_ms: Date.now() - cronStart,
           items_processed: totalProcessed,
           items_succeeded: totalSucceeded,

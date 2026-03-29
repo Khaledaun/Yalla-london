@@ -1336,7 +1336,7 @@ async function testPipelinePublishedPosts(siteId: string): Promise<LiveTestResul
       prisma.blogPost.count({ where: { siteId, published: true } }),
       prisma.blogPost.count({ where: { siteId } }),
     ]);
-    const recent = await prisma.blogPost.findFirst({ where: { siteId, published: true }, orderBy: { published_at: "desc" }, select: { title_en: true, seo_score: true, published_at: true } });
+    const recent = await prisma.blogPost.findFirst({ where: { siteId, published: true }, orderBy: { created_at: "desc" }, select: { title_en: true, seo_score: true, created_at: true } });
     return makeResult({
       success: published > 0, readiness: published > 0 ? 100 : 0,
       plainLanguage: published > 0 ? `${published}/${total} posts published. Latest: "${recent?.title_en?.slice(0, 50)}" (SEO: ${recent?.seo_score || "N/A"}).` : "No published posts yet.",

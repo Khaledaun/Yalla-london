@@ -171,7 +171,7 @@ export function BrandCardLight({
   className = '',
   hoverable = true,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   hoverable?: boolean;
 }) {
@@ -191,7 +191,7 @@ export function SectionLabel({
   children,
   className = '',
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }) {
   return (

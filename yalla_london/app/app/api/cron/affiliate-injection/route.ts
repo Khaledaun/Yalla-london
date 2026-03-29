@@ -522,7 +522,10 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
 // Travelpayouts uses marker-based tracking: ?marker={MARKER}&utm_source={siteId}
 function getTravelpayoutsRules(siteId: string): AffiliateRule[] {
   const marker = process.env.TRAVELPAYOUTS_MARKER;
-  if (!marker) return [];
+  if (!marker) {
+    console.warn("[affiliate-injection] TRAVELPAYOUTS_MARKER not set — 0 Travelpayouts rules loaded");
+    return [];
+  }
 
   const tp = (name: string, url: string, category: string) => ({
     name, url, param: `${url.includes("?") ? "&" : "?"}marker=${marker}&utm_source=${siteId}`, category,

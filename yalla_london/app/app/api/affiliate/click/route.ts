@@ -35,18 +35,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/", request.url), 302);
     }
 
-    // Record click event (fire-and-forget — never blocks redirect)
+    // Record click event via AuditLog (CjClickEvent requires linkId FK — direct URLs have no CjLink record)
     try {
       const { prisma } = await import("@/lib/db");
       const siteId = sid?.split("_")[0] || undefined;
-      await prisma.cjClickEvent.create({
+      const partner = detectPartner(directUrl);
+      await prisma.auditLog.create({
         data: {
-          affiliateUrl: directUrl,
-          pageUrl: request.headers.get("referer") || "",
-          device: detectDevice(request.headers.get("user-agent") || ""),
-          country: request.headers.get("x-vercel-ip-country") || null,
-          sessionId: sid || null,
-          siteId: siteId || null,
+          action: "AFFILIATE_CLICK_DIRECT",
+          details: {
+            affiliateUrl: directUrl,
+            partner,
+            pageUrl: request.headers.get("referer") || "",
+            device: detectDevice(request.headers.get("user-agent") || ""),
+            country: request.headers.get("x-vercel-ip-country") || null,
+            sessionId: sid || null,
+            siteId: siteId || null,
+          },
         },
       }).catch(err => console.warn("[affiliate-click] DB record failed:", err instanceof Error ? err.message : String(err)));
     } catch (err) {

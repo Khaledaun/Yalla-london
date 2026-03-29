@@ -156,7 +156,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
 
   // Budget guard — exit early if we're running out of time
   const agentStart = Date.now();
-  const AGENT_BUDGET_MS = 120_000; // 120s budget per site (within forEachSite's 280s total)
+  const AGENT_BUDGET_MS = 240_000; // 240s budget per site — with 1 active site, use most of the 300s maxDuration
   const budgetLeft = () => AGENT_BUDGET_MS - (Date.now() - agentStart);
   const hasBudget = (minMs = 3_000) => budgetLeft() > minMs;
 

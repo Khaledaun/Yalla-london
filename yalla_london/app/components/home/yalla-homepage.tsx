@@ -403,6 +403,38 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   // Use live Ticketmaster events if available, otherwise fallback
   const displayEvents = liveEvents.length > 0 ? liveEvents : FALLBACK_EVENTS[locale]
 
+  // Inject Event structured data (JSON-LD) for SEO — only for live Ticketmaster events with real URLs
+  useEffect(() => {
+    if (liveEvents.length === 0) return undefined;
+    const existingScript = document.getElementById('homepage-events-jsonld')
+    if (existingScript) existingScript.remove()
+
+    const currentYear = new Date().getFullYear()
+    const monthMap: Record<string, string> = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12' }
+    const events = liveEvents.map(e => {
+      const mm = monthMap[e.month] || '01'
+      const dateStr = `${currentYear}-${mm}-${e.day.padStart(2,'0')}`
+      return {
+        '@type': 'Event',
+        name: e.title,
+        startDate: dateStr,
+        location: { '@type': 'Place', name: e.venue, address: { '@type': 'PostalAddress', addressLocality: 'London', addressCountry: 'GB' } },
+        ...(e.url ? { url: e.url } : {}),
+        ...(e.image ? { image: e.image } : {}),
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        eventStatus: 'https://schema.org/EventScheduled',
+      }
+    })
+
+    const script = document.createElement('script')
+    script.id = 'homepage-events-jsonld'
+    script.type = 'application/ld+json'
+    script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': events })
+    document.head.appendChild(script)
+
+    return () => { script.remove() }
+  }, [liveEvents])
+
   // Fetch real published articles from DB for the "Latest Stories" section
   useEffect(() => {
     (async () => {

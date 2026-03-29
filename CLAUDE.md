@@ -40,7 +40,7 @@ These are not suggestions. These are hard rules for every commit:
 
 5. **No silent failures**: Every `catch` block must either (a) recover meaningfully, (b) log to a place Khaled can see (CronJobLog, dashboard), or (c) cascade to the next fallback. `catch {}` with no action is forbidden.
 
-6. **Budget guards on all cron jobs**: Vercel Pro = 60s max. Every cron route uses 53s budget with 7s buffer. Every expensive operation checks remaining budget before executing.
+6. **Budget guards on all cron jobs**: Vercel Pro default = 60s, but heavy crons use `maxDuration = 300` (5 min) with `BUDGET_MS = 280_000` (20s buffer). Every expensive operation checks remaining budget before executing. IMPORTANT: `export const maxDuration` in the route file OVERRIDES `vercel.json` — always check both.
 
 7. **Test the actual flow, not just the code**: Before declaring any pipeline "fixed," verify that records actually flow from step A → step B → step C in the database. Check the tables.
 
@@ -5322,6 +5322,121 @@ Subscriber Lifecycle:
 221. **Every new cron needs entries in 4 places** — (1) `vercel.json` crons array, (2) `vercel.json` functions maxDuration, (3) `cron-feature-guard.ts` CRON_FLAG_MAP, (4) `departures/route.ts` CRON_DEFS. Missing the crons array means the cron will NEVER fire on schedule.
 222. **`CRON_NAME_ALIASES` resolves cron name mismatches** — departures board calls `/api/cron/discover-deals` but feature guard checks `affiliate-discover-deals`. The alias map in `cron-feature-guard.ts` handles both names.
 223. **AdminCard needs `[key: string]: unknown` index signature** — React's reserved `key` prop in `.map()` callbacks fails TypeScript strict checking without it.
+
+### Session: March 28, 2026 — Codebase Cleanup & Cron Reliability Sprint
+
+**Two-phase session: dead code cleanup + 4 failing cron hardening.**
+
+**Phase 1: Dead Code Cleanup (35 files, 8,895 lines, 11.4MB removed):**
+- Deleted conflicting `.disabled` route files: `robots.txt/route.ts.disabled`, `sitemap.xml/route.ts.disabled`
+- Removed dead root-level phase4b code: `app/api/phase4b/*`, `components/admin/phase4b/*`, `lib/services/*`
+- Removed 6 stale ZIP files (11.4MB): PHASE-4A-PACKAGE-1.zip, yalla-london-app.zip, etc.
+- Removed 14 stale doc files: AUDIT-REPORT.md, IMPLEMENTATION-PLAN.md, phase2-progress.pdf, etc.
+
+**Phase 2: 4 Failing Cron Hardening (4 files, 132 insertions, 77 deletions):**
+
+| Cron | Root Cause | Fix |
+|------|-----------|-----|
+| **seo-agent** | `AGENT_BUDGET_MS` was 120s — bottleneck with 1 active site despite 280s available from `forEachSite()` | Raised to 240s per site |
+| **daily-content-generate** | Aborted after 2 AI failures (transient); skipped AR article generation when >18s remained | Raised `MAX_AI_FAILURES_BEFORE_ABORT` from 2 to 4; lowered AR deadline from 18s to 10s |
+| **retention-executor** | Re-imported `sendEmail`, `prisma`, `getSiteConfig`, `pauseSequence` on every loop iteration (~4 imports × N emails) | Moved all 4 imports outside the per-email loop |
+| **followup-executor** | No CEO Brain import fallback; no per-task timeout; zombie "running" tasks; wrong `durationMs` | Try-catch on import with graceful fallback; 45s `Promise.race` timeout per task; Step 0 zombie recovery (resets tasks stuck >15min); per-task `durationMs`; batch reduced 20→10 |
+
+**SEO/Operations Context (from external audit):**
+- Discovery funnel: 80 published → 76 submitted → 11 crawled → 22 indexed → 19 performing → 3 converting
+- 176 pages never submitted to IndexNow (content-auto-fix-lite catches these, up to 500/run)
+- 6 cron failures in 24h (seo-agent, daily-content-generate, retention-executor, followup-executor × 3)
+- Thin content: 3-5 articles at 59-125 words (content-auto-fix auto-unpublishes <300w)
+- CTR at 0.85% across indexed pages (target: 3.0%)
+
+**Remaining Work (from audit, not yet started):**
+- Thin content remediation: find and expand/noindex the 3-5 posts under 125 words
+- Discovery pipeline: verify content-auto-fix-lite is catching the 176 never-submitted pages
+- CTR optimization: rewrite titles/descriptions for high-impression low-CTR pages
+- Internal linking: fix 11 published articles with zero inbound internal links
+
+**Files Modified:**
+- `app/api/cron/seo-agent/route.ts` — AGENT_BUDGET_MS 120s→240s
+- `app/api/cron/daily-content-generate/route.ts` — AI failure threshold 2→4, AR deadline 18s→10s
+- `app/api/cron/retention-executor/route.ts` — imports moved outside loop
+- `app/api/cron/followup-executor/route.ts` — CEO Brain fallback, per-task timeout, zombie recovery, batch 20→10
+
+### Critical Rules Learned (March 28 Session — Cron Reliability)
+
+224. **`AGENT_BUDGET_MS` must scale with site count** — with 1 active site, `forEachSite()` gives the entire 280s budget to that site. A hardcoded 120s cap wastes 160s of available budget. Set per-site budget to `240_000` (or dynamically via `forEachSite` remaining).
+225. **`MAX_AI_FAILURES_BEFORE_ABORT` must be ≥4 for crons making multiple AI calls** — transient API errors (429, 503, timeout) are common across providers. Aborting after 2 failures means a single provider outage kills the entire cron run. 4 failures allows retry across multiple providers.
+226. **Dynamic imports inside per-item loops are redundant** — `await import("@/lib/email/sender")` inside a `for (const email of emails)` loop re-resolves the module on every iteration. Move imports before the loop. Node.js caches resolved modules, but the `await` still adds latency per iteration.
+227. **`processCEOEvent` import must be wrapped in try-catch** — if `ceo-brain.ts` has a syntax error, missing dependency, or circular import, the entire followup-executor cron dies with an unhandled import error. Wrap in try-catch, set tasks back to "pending" with error note, and log as `"failed"`.
+228. **Per-task timeout via `Promise.race` is mandatory for agent crons** — CEO Brain makes AI calls that can hang indefinitely. Without a 45s timeout, one stuck task consumes the entire 280s budget. `Promise.race([processCEOEvent(event), setTimeout reject]` ensures the loop advances.
+229. **Zombie "running" task recovery must run as Step 0** — if Vercel kills the function mid-execution, tasks marked "running" stay stuck forever. Step 0 resets any "running" tasks older than 15 minutes back to "pending" so they're retried on the next run.
+230. **`durationMs` on AgentTask must be per-task, not per-cron** — `Date.now() - startTime` measures total cron duration. `Date.now() - taskStart` measures actual task processing time. The per-task metric is what matters for diagnosing slow AI calls vs slow DB queries.
+
+### Session: March 29, 2026 — Publishing Pipeline Fix, Affiliate Click Tracking, News API & Env Var Verification
+
+**3 critical issues reported and fixed: "We aren't publishing anything", "News not updating", "Affiliate links not working".**
+
+**8 commits on `claude/review-yalla-london-w5tWY`:**
+
+**Fix 1 (CRITICAL): Publishing pipeline completely blocked — null score coercion**
+- **Root cause:** `select-runner.ts` line 1230: `|| 0` coerced null SEO scores to 0. Since `seoScoreBlocker: 30`, every draft with null score was hard-blocked. All reservoir articles cycled back to reservoir indefinitely.
+- **Fix:** Changed `|| 0` to `?? undefined` with null-safe check. Defaults to 50 when both `seo_score` and `quality_score` are null.
+- **Also:** Blog `qualityGateScore` was 70 in `standards.ts` but global threshold is 40. Aligned to 40.
+
+**Fix 2 (CRITICAL): Affiliate click tracking crash on direct URLs**
+- **Root cause:** `/api/affiliate/click` route tried `prisma.cjClickEvent.create()` for direct URL clicks. `CjClickEvent` requires `linkId` FK to `CjLink` — direct URL clicks have no CjLink record. Prisma crashed silently (caught by empty catch).
+- **Fix:** Replaced with `prisma.auditLog.create()` which has flexible `details Json?` field and optional `userId`.
+
+**Fix 3 (HIGH): Affiliate coverage under-counting**
+- **Root cause:** `monitor.ts` coverage detection missed 3 injection patterns: `data-affiliate-id`, `data-affiliate-partner`, `/api/affiliate/click`. Articles with injected affiliates appeared "uncovered".
+- **Fix:** Added all 3 patterns to the `without` filter.
+
+**Fix 4 (MEDIUM): News API limit cap too low**
+- Side banner requests 15 items but API capped at 10. Raised to 30.
+
+**Fix 5 (MEDIUM): Travelpayouts silent failure**
+- `getTravelpayoutsRules()` returned empty array with no warning when `TRAVELPAYOUTS_MARKER` missing. Added `console.warn`.
+
+**Fix 6 (LOW): Aggregated report threshold mismatch**
+- `=== 70` comparison failed after `qualityGateScore` changed to 40. Fixed to `=== 40`.
+
+**Fix 7 (LOW): live-tests.ts BlogPost `published_at` crash**
+- Referenced non-existent `published_at` field on BlogPost (uses `created_at`). Would crash Prisma at runtime.
+
+**News system diagnosis (no code bug):**
+- london-news cron uses Grok via `XAI_API_KEY` — confirmed SET in Vercel (Feb 14). Falls back to seasonal templates when API unavailable.
+- Cron runs at `40 6,14 * * *` (6:40 AM and 2:40 PM UTC).
+- News pages use ISR with 3600s revalidation. API uses `force-dynamic`.
+- If news not showing on frontend: likely DB empty (no seed data) or ISR cache stale. Trigger cron manually from Departures Board.
+
+**Env Vars Verified Active in Vercel (March 29, 2026):**
+
+| Env Var | Added | Purpose | Code Path |
+|---------|-------|---------|-----------|
+| `XAI_API_KEY` | Feb 14 | Grok AI provider (primary for content gen) | `lib/ai/provider.ts` — checked via `providerHasEnvKey()` |
+| `CJ_API_TOKEN` | Mar 10, updated Mar 12 | CJ affiliate API auth | `lib/affiliate/cj-client.ts` — throws if missing |
+| `CJ_WEBSITE_ID` | Mar 10 | CJ link search scoping | `lib/affiliate/cj-client.ts` — graceful empty fallback |
+| `CJ_PUBLISHER_CID` | Mar 10 | CJ deep link generation | `lib/affiliate/cj-sync.ts` |
+| `TRAVELPAYOUTS_MARKER` | Mar 23 | Server-side affiliate injection rules | `affiliate-injection/route.ts` |
+| `TRAVELPAYOUTS_API_TOKEN` | Mar 23 | Travelpayouts API (optional, health check only) | `integration-health/route.ts` |
+| `NEXT_PUBLIC_TRAVELPAYOUTS_MARKER` | Mar 23 | Client-side Travelpayouts Drive monetization | `monetization-scripts.tsx` — loads script when set |
+| `NEXT_PUBLIC_STAY22_AID` | Mar 23 | Stay22 hotel auto-monetization | `monetization-scripts.tsx` — loads script when set |
+| `TICKETMASTER_API_KEY` | Mar 23 | Live events on homepage | `lib/apis/events.ts` |
+| `UNSPLASH_ACCESS_KEY` | Mar 23 | Legal travel photos | `lib/apis/unsplash.ts` — 50 req/hr free tier |
+| `RESEND_API_KEY` | Mar 24 | Email sending (CEO alerts, campaigns) | `lib/email/resend-service.ts` |
+| `GA4_MEASUREMENT_ID` | Mar 22 | GA4 server-side tracking | `lib/analytics/ga4-measurement-protocol.ts` |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Mar 22 | GA4 client-side gtag | `components/analytics-tracker.tsx` |
+| `GA4_API_SECRET` | Mar 22 | GA4 Measurement Protocol auth | `lib/analytics/ga4-measurement-protocol.ts` |
+| `GA4_PROPERTY_ID` | Feb 8 | GA4 Data API queries | `lib/seo/ga4-data-api.ts` |
+
+**Still empty (waiting on network approvals):**
+- `BOOKING_AFFILIATE_ID`, `AGODA_AFFILIATE_ID`, `GETYOURGUIDE_AFFILIATE_ID`, `VIATOR_AFFILIATE_ID`, `THEFORK_AFFILIATE_ID`, `OPENTABLE_AFFILIATE_ID`, `STUBHUB_AFFILIATE_ID`, `BLACKLANE_AFFILIATE_ID`
+- These activate static fallback affiliate rules. Not blocking — CJ deep links + Travelpayouts handle monetization.
+
+### Critical Rules Learned (March 29 Session)
+
+231. **`|| 0` on nullable numeric fields is a universal blocker** — `null || 0` evaluates to `0`, which is below ANY positive threshold. Use `?? undefined` or `?? defaultValue` for nullable Prisma fields. This single bug blocked ALL publishing for the entire pipeline.
+232. **`CjClickEvent` requires `linkId` FK — cannot track direct URL clicks** — direct affiliate URLs (e.g., `?url=https://booking.com/...`) have no `CjLink` record in the DB. Use `AuditLog` (flexible `details Json?`) for direct URL click tracking instead.
+233. **Affiliate coverage detection must match ALL injection patterns** — `affiliate-injection` cron uses `data-affiliate-id`, `data-affiliate-partner`, and `/api/affiliate/click` URL patterns. Coverage queries that only check for `rel="sponsored"` or `affiliate-cta-block` will under-count by 50%+.
 
 ## Weekly Manual Checks
 

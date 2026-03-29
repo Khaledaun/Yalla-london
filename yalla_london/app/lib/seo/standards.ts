@@ -178,7 +178,7 @@ export const CONTENT_TYPE_THRESHOLDS = {
     metaTitleOptimal: { min: 50, max: 60 },
     metaDescriptionMin: 120,
     metaDescriptionOptimal: { min: 120, max: 160 },
-    qualityGateScore: 70,
+    qualityGateScore: 40,
     /**
      * SEO score hard blocker — lowered from 50 to 30 (March 18, 2026).
      * The scoring formula gives 0 points for post-publish features

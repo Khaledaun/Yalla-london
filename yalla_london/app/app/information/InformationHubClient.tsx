@@ -77,10 +77,12 @@ interface ArticleData {
 interface InformationHubClientProps {
   sections: SectionData[]
   articles: ArticleData[]
+  serverLocale?: 'en' | 'ar'
 }
 
-export default function InformationHubClient({ sections, articles }: InformationHubClientProps) {
-  const { language, isRTL } = useLanguage()
+export default function InformationHubClient({ sections, articles, serverLocale }: InformationHubClientProps) {
+  const { language: clientLanguage, isRTL } = useLanguage()
+  const language = serverLocale ?? clientLanguage
   const t = (key: string) => getTranslation(language, key)
 
   const featuredArticles = articles.slice(0, 6)

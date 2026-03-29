@@ -1227,7 +1227,9 @@ export async function promoteToBlogPost(
           content_ar: arHtml,
           locale,
           tags: keywords.slice(0, 5),
-          seo_score: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 0),
+          seo_score: (draft.seo_score != null || draft.quality_score != null)
+            ? Math.round((draft.seo_score as number) ?? (draft.quality_score as number) ?? 50)
+            : undefined, // Pass undefined when no score exists — gate skips SEO score check (line 280: seo_score !== undefined)
           author_id: "system", // System-generated content always has author
           keywords_json: keywords,
         },

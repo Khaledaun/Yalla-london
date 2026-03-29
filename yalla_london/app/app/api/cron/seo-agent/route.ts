@@ -322,7 +322,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           .filter((p: { slug: string | null }) => p.slug)
           .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
 
-        for (const post of needsLinks.slice(0, 10)) {
+        for (const post of needsLinks.slice(0, 25)) {
           if (!post.content_en || post.content_en.length < 200) continue;
 
           // Find 3 related posts (different slug, has title)
@@ -358,7 +358,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
         }
 
         // Also inject Arabic related-articles for posts with content_ar and few Arabic internal links
-        for (const post of needsLinks.slice(0, 10)) {
+        for (const post of needsLinks.slice(0, 25)) {
           const arHtml = (post as Record<string, unknown>).content_ar as string | null;
           if (!arHtml || arHtml.length < 200) continue;
           if (arHtml.includes("related-articles")) continue;

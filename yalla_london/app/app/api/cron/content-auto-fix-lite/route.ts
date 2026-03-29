@@ -462,7 +462,7 @@ async function handleAutoFixLite(request: NextRequest) {
           deletedAt: null,
         },
         select: { slug: true, siteId: true },
-        take: 500,
+        take: 2000, // Raised from 500 to cover ALL published posts (was missing oldest 64+)
         orderBy: { created_at: "desc" },
       }), "never-submitted-catchup") as Array<{ slug: string; siteId: string }>;
 

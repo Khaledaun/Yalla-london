@@ -413,7 +413,7 @@ MINIMUM words for this section: ${minWordsPerSection} — you MUST write at leas
 Key points to cover: ${JSON.stringify(section.keyPoints)}
 Keywords to include naturally: ${JSON.stringify(section.keywords)}
 ${section.linkOpportunities?.length ? `Internal link opportunities: ${JSON.stringify(section.linkOpportunities)}` : ""}
-${isIntro && intro ? `\nThis is the FIRST section. Start with this hook: "${intro.hook}"` : ""}
+${isIntro && intro ? `\nThis is the FIRST section. Start with this hook: "${intro.hook}"\nCRITICAL FOR AI SEARCH: Your FIRST paragraph (40-60 words) must directly answer the article's main question/topic. AI Overviews cite articles that answer immediately — no preamble, no "welcome to", no "in this guide". Example: "The Shard offers London's most dramatic dining at 800 feet, with three restaurants spanning floors 31-35. Prices range from £65 for lunch to £180 for dinner."` : ""}
 ${isLast && conclusion ? `\nThis is the LAST section. End with CTA: "${conclusion.callToAction}"` : ""}
 ${contextSections ? `\nPrevious sections for context:\n${contextSections}` : ""}
 

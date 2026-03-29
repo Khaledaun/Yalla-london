@@ -106,6 +106,7 @@ async function handleProcessQueue(request: NextRequest) {
           },
           select: { url: true, id: true },
           take: 250, // Raised from 100 to clear 198-page backlog faster
+          orderBy: { created_at: "asc" }, // Process oldest discovered first to prevent starvation
         });
 
         if (pendingUrls.length === 0) {

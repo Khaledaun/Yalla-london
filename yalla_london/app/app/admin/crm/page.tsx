@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   AdminPageHeader,
   AdminCard,
@@ -10,550 +10,807 @@ import {
   AdminEmptyState,
   AdminSectionLabel,
   AdminTabs,
+  AdminLoadingState,
+  AdminAlertBanner,
 } from '@/components/admin/admin-ui'
 import {
   Users,
   Mail,
   Plus,
   Edit,
-  Trash2,
   Send,
-  Eye,
   TrendingUp,
-  BarChart3,
   Search,
   Download,
   Target,
-  Globe,
   User,
-  MapPin,
+  Phone,
+  MessageSquare,
+  Shield,
+  DollarSign,
+  ChevronRight,
+  RefreshCw,
+  FileText,
+  Clock,
+  Star,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
-interface Subscriber {
+/* ── Types ── */
+interface Contact {
+  id: string
+  type: 'lead' | 'subscriber'
+  name: string
+  email: string | null
+  phone: string | null
+  source: string | null
+  score: number | null
+  status: string | null
+  consent: boolean | null
+  updatedAt: string
+  createdAt: string
+}
+
+interface OpportunityItem {
+  id: string
+  contactName: string
+  contactEmail: string | null
+  contactPhone: string | null
+  value: number | null
+  currency: string | null
+  source: string | null
+  tags: string[]
+  nextAction: string | null
+  nextActionAt: string | null
+  lastInteraction: { summary: string; createdAt: string; channel: string } | null
+  createdAt: string
+  updatedAt: string
+}
+
+interface PipelineStage {
+  stage: string
+  items: OpportunityItem[]
+  count: number
+  totalValue: number
+}
+
+interface SubscriberRecord {
   id: string
   email: string
-  name?: string
-  status: 'active' | 'unsubscribed' | 'bounced'
-  subscribedAt: string
-  lastActivity: string
-  source: 'website' | 'social' | 'referral' | 'manual'
-  tags: string[]
-  location?: string
-  interests: string[]
-  engagement: {
-    opens: number
-    clicks: number
-    lastOpen: string
-  }
+  first_name: string | null
+  last_name: string | null
+  status: string
+  source: string | null
+  engagement_score: number | null
+  preferences_json: unknown
+  confirmed_at: string | null
+  unsubscribed_at: string | null
+  unsubscribe_reason: string | null
+  last_campaign_sent: string | null
+  created_at: string
+  updated_at: string
 }
 
-interface Campaign {
+interface ConsentEntry {
   id: string
-  name: string
-  subject: string
-  content: string
-  status: 'draft' | 'scheduled' | 'sent' | 'paused'
-  scheduledAt?: string
-  sentAt?: string
-  recipients: number
-  opens: number
-  clicks: number
-  unsubscribes: number
-  createdAt: string
-  tags: string[]
+  consent_type: string
+  action: string
+  legal_basis: string | null
+  processing_purposes: string[]
+  timestamp: string
+  subscriber: {
+    email: string
+    first_name: string | null
+    last_name: string | null
+  } | null
 }
 
-interface Analytics {
+interface KPIs {
+  totalLeads: number
   totalSubscribers: number
-  newThisWeek: number
-  unsubscribed: number
-  engagementRate: number
-  openRate: number
-  clickRate: number
-  topCountries: { country: string; count: number }[]
-  topInterests: { interest: string; count: number }[]
-  monthlyGrowth: number[]
+  confirmedSubscribers: number
+  totalOpportunities: number
+  totalOpportunityValue: number
+  interactionsThisWeek: number
 }
 
-export default function CRMSystem() {
-  const [subscribers, setSubscribers] = useState<Subscriber[]>([
-    {
-      id: '1',
-      email: 'john.doe@example.com',
-      name: 'John Doe',
-      status: 'active',
-      subscribedAt: '2024-01-10',
-      lastActivity: '2024-01-15',
-      source: 'website',
-      tags: ['london', 'food', 'travel'],
-      location: 'London, UK',
-      interests: ['restaurants', 'events', 'travel'],
-      engagement: { opens: 12, clicks: 8, lastOpen: '2024-01-15' }
-    },
-    {
-      id: '2',
-      email: 'sarah.smith@example.com',
-      name: 'Sarah Smith',
-      status: 'active',
-      subscribedAt: '2024-01-12',
-      lastActivity: '2024-01-14',
-      source: 'social',
-      tags: ['london', 'culture', 'art'],
-      location: 'Manchester, UK',
-      interests: ['museums', 'art', 'culture'],
-      engagement: { opens: 8, clicks: 5, lastOpen: '2024-01-14' }
-    },
-    {
-      id: '3',
-      email: 'mike.wilson@example.com',
-      name: 'Mike Wilson',
-      status: 'active',
-      subscribedAt: '2024-01-08',
-      lastActivity: '2024-01-13',
-      source: 'referral',
-      tags: ['london', 'business', 'networking'],
-      location: 'Birmingham, UK',
-      interests: ['business', 'networking', 'events'],
-      engagement: { opens: 15, clicks: 12, lastOpen: '2024-01-13' }
-    }
-  ])
+interface OpportunityStage {
+  stage: string
+  count: number
+  value: number
+}
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([
-    {
-      id: '1', name: 'Weekly London Events',
-      subject: 'This Week in London: Must-See Events & Hidden Gems',
-      content: 'Discover the best events happening in London this week...',
-      status: 'sent', sentAt: '2024-01-15 10:00:00', recipients: 2847, opens: 854, clicks: 234, unsubscribes: 12,
-      createdAt: '2024-01-14', tags: ['weekly', 'events', 'london']
-    },
-    {
-      id: '2', name: 'Restaurant Recommendations',
-      subject: 'New Restaurant Alert: London\'s Hottest Dining Spots',
-      content: 'Check out these amazing new restaurants in London...',
-      status: 'scheduled', scheduledAt: '2024-01-20 12:00:00', recipients: 2847, opens: 0, clicks: 0, unsubscribes: 0,
-      createdAt: '2024-01-16', tags: ['restaurants', 'food', 'dining']
-    },
-    {
-      id: '3', name: 'Travel Tips & Guides',
-      subject: 'Your Ultimate London Travel Guide',
-      content: 'Everything you need to know for your London trip...',
-      status: 'draft', recipients: 0, opens: 0, clicks: 0, unsubscribes: 0,
-      createdAt: '2024-01-17', tags: ['travel', 'guide', 'tips']
-    }
-  ])
+/* ── Helpers ── */
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString()
+}
 
-  const [analytics] = useState<Analytics>({
-    totalSubscribers: 2847, newThisWeek: 45, unsubscribed: 12,
-    engagementRate: 23.4, openRate: 30.0, clickRate: 8.2,
-    topCountries: [
-      { country: 'United Kingdom', count: 1847 }, { country: 'United States', count: 456 },
-      { country: 'Canada', count: 234 }, { country: 'Australia', count: 189 }, { country: 'Germany', count: 121 }
-    ],
-    topInterests: [
-      { interest: 'Restaurants', count: 1247 }, { interest: 'Events', count: 892 },
-      { interest: 'Travel', count: 654 }, { interest: 'Culture', count: 456 }, { interest: 'Shopping', count: 234 }
-    ],
-    monthlyGrowth: [2100, 2300, 2500, 2700, 2847, 0, 0, 0, 0, 0, 0, 0]
-  })
+function formatCurrency(value: number, currency = 'GBP'): string {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
+}
 
-  const [selectedSubscriber, setSelectedSubscriber] = useState<Subscriber | null>(null)
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'unsubscribed' | 'bounced'>('all')
-  const [activeTab, setActiveTab] = useState('subscribers')
+const stageLabels: Record<string, string> = {
+  new: 'New', qualifying: 'Qualifying', proposal: 'Proposal',
+  negotiation: 'Negotiation', won: 'Won', lost: 'Lost',
+}
 
-  const filteredSubscribers = subscribers.filter(subscriber => {
-    const matchesSearch = subscriber.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         subscriber.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || subscriber.status === filterStatus
-    return matchesSearch && matchesStatus
-  })
+const stageColors: Record<string, string> = {
+  new: '#3B7EA1', qualifying: '#C49A2A', proposal: '#2D5A3D',
+  negotiation: '#C8322B', won: '#2D5A3D', lost: '#78716C',
+}
 
-  const statusMap: Record<string, string> = {
-    active: 'active', unsubscribed: 'rejected', bounced: 'warning',
-    sent: 'success', scheduled: 'pending', draft: 'draft', paused: 'warning',
-  }
+const subscriberStatusMap: Record<string, string> = {
+  CONFIRMED: 'active', PENDING: 'pending', UNSUBSCRIBED: 'rejected',
+  BOUNCED: 'warning', COMPLAINED: 'warning',
+}
 
-  const sourceIcons: Record<string, typeof Globe> = {
-    website: Globe, social: Users, referral: User, manual: Plus,
-  }
+function ScoreBadge({ score }: { score: number | null }) {
+  if (score === null || score === undefined) return null
+  const color = score >= 70 ? '#2D5A3D' : score >= 40 ? '#C49A2A' : '#78716C'
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+      style={{ backgroundColor: `${color}15`, color, fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-display)' }}
+    >
+      <Star size={9} /> {score}
+    </span>
+  )
+}
 
-  const sendCampaign = async (campaignId: string) => {
+/* ── Main Component ── */
+export default function CRMPage() {
+  const [activeTab, setActiveTab] = useState('overview')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Overview state
+  const [kpis, setKpis] = useState<KPIs | null>(null)
+  const [recentLeads, setRecentLeads] = useState<Contact[]>([])
+  const [oppStages, setOppStages] = useState<OpportunityStage[]>([])
+
+  // Contacts state
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [contactsTotal, setContactsTotal] = useState(0)
+  const [contactsPage, setContactsPage] = useState(1)
+  const [contactSearch, setContactSearch] = useState('')
+
+  // Opportunities state
+  const [pipeline, setPipeline] = useState<PipelineStage[]>([])
+
+  // Subscribers state
+  const [subscribers, setSubscribers] = useState<SubscriberRecord[]>([])
+  const [subscribersTotal, setSubscribersTotal] = useState(0)
+  const [subscribersPage, setSubscribersPage] = useState(1)
+  const [subscriberFilter, setSubscriberFilter] = useState('all')
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
+
+  // Consent state
+  const [consentLogs, setConsentLogs] = useState<ConsentEntry[]>([])
+  const [consentTotal, setConsentTotal] = useState(0)
+  const [consentPage, setConsentPage] = useState(1)
+
+  // Actions
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  const fetchData = useCallback(async (view: string) => {
+    setLoading(true)
+    setError(null)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setCampaigns(prev => prev.map(campaign =>
-        campaign.id === campaignId
-          ? { ...campaign, status: 'sent' as const, sentAt: new Date().toISOString() }
-          : campaign
-      ))
-      toast.success('Campaign sent successfully!')
-    } catch {
-      toast.error('Failed to send campaign')
+      const params = new URLSearchParams({ view })
+
+      if (view === 'contacts') {
+        params.set('page', String(contactsPage))
+        if (contactSearch) params.set('search', contactSearch)
+      }
+      if (view === 'subscribers') {
+        params.set('page', String(subscribersPage))
+        if (subscriberFilter !== 'all') params.set('status', subscriberFilter)
+      }
+      if (view === 'consent') {
+        params.set('page', String(consentPage))
+      }
+
+      const res = await fetch(`/api/admin/crm?${params}`)
+      if (!res.ok) throw new Error('Failed to load data')
+      const data = await res.json()
+
+      switch (view) {
+        case 'overview':
+          setKpis(data.kpis)
+          setRecentLeads(data.recentLeads?.map((l: Record<string, unknown>) => ({
+            id: l.id, type: 'lead', name: (l.name as string) || (l.email as string) || 'Unknown',
+            email: l.email, phone: l.phone, source: l.lead_source,
+            score: l.score, status: l.status, consent: null,
+            updatedAt: l.updated_at, createdAt: l.created_at,
+          })) || [])
+          setOppStages(data.opportunityStages || [])
+          break
+        case 'contacts':
+          setContacts(data.contacts || [])
+          setContactsTotal(data.total || 0)
+          break
+        case 'opportunities':
+          setPipeline(data.pipeline || [])
+          break
+        case 'subscribers':
+          setSubscribers(data.subscribers || [])
+          setSubscribersTotal(data.total || 0)
+          setStatusCounts(data.statusCounts || {})
+          break
+        case 'consent':
+          setConsentLogs(data.logs || [])
+          setConsentTotal(data.total || 0)
+          break
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
     }
+  }, [contactsPage, contactSearch, subscribersPage, subscriberFilter, consentPage])
+
+  useEffect(() => {
+    fetchData(activeTab)
+  }, [activeTab, fetchData])
+
+  const postAction = async (action: string, payload: Record<string, unknown>) => {
+    setActionLoading(action)
+    try {
+      const res = await fetch('/api/admin/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' }))
+        throw new Error(err.error || 'Action failed')
+      }
+      toast.success(`${action.replace(/_/g, ' ')} completed`)
+      fetchData(activeTab)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action failed')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  /* ── Create Lead Modal State ── */
+  const [showCreateLead, setShowCreateLead] = useState(false)
+  const [newLead, setNewLead] = useState({ name: '', email: '', phone: '', source: 'manual' })
+
+  const handleCreateLead = async () => {
+    if (!newLead.email && !newLead.phone) {
+      toast.error('Email or phone required')
+      return
+    }
+    await postAction('create_lead', newLead)
+    setShowCreateLead(false)
+    setNewLead({ name: '', email: '', phone: '', source: 'manual' })
+  }
+
+  /* ── Move Opportunity Stage ── */
+  const moveOpportunity = async (opportunityId: string, stage: string) => {
+    await postAction('update_opportunity_stage', { opportunityId, stage })
   }
 
   return (
     <div className="admin-page p-4 md:p-6">
       <AdminPageHeader
-        title="CRM & Newsletter"
-        subtitle="Manage subscribers and email campaigns"
+        title="CRM"
+        subtitle="Contacts, opportunities, and marketing consent"
         action={
           <div className="flex gap-2">
-            <AdminButton variant="secondary"><Download size={14} /> Export</AdminButton>
-            <AdminButton variant="primary"><Plus size={14} /> New Campaign</AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={() => fetchData(activeTab)}>
+              <RefreshCw size={13} /> Refresh
+            </AdminButton>
+            <AdminButton variant="primary" size="sm" onClick={() => setShowCreateLead(true)}>
+              <Plus size={13} /> New Lead
+            </AdminButton>
           </div>
         }
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <AdminKPICard value={analytics.totalSubscribers.toLocaleString()} label="Total Subscribers" color="#1C1917" />
-        <AdminKPICard value={analytics.newThisWeek} label="New This Week" color="#2D5A3D" trend={{ value: 12, positive: true }} />
-        <AdminKPICard value={`${analytics.openRate}%`} label="Open Rate" color="#3B7EA1" />
-        <AdminKPICard value={`${analytics.clickRate}%`} label="Click Rate" color="#C49A2A" />
-      </div>
+      {error && <AdminAlertBanner severity="warning" message={error} />}
 
-      {/* Tabs */}
+      {/* ── Create Lead Inline Form ── */}
+      {showCreateLead && (
+        <AdminCard className="mb-4" accent accentColor="green">
+          <AdminSectionLabel>Create New Lead</AdminSectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+            <input className="admin-input" placeholder="Full name" value={newLead.name}
+              onChange={e => setNewLead(p => ({ ...p, name: e.target.value }))} />
+            <input className="admin-input" placeholder="Email" type="email" value={newLead.email}
+              onChange={e => setNewLead(p => ({ ...p, email: e.target.value }))} />
+            <input className="admin-input" placeholder="Phone (with +country code)" value={newLead.phone}
+              onChange={e => setNewLead(p => ({ ...p, phone: e.target.value }))} />
+            <select className="admin-select" value={newLead.source}
+              onChange={e => setNewLead(p => ({ ...p, source: e.target.value }))}>
+              <option value="manual">Manual</option>
+              <option value="website">Website</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="referral">Referral</option>
+              <option value="social">Social Media</option>
+            </select>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <AdminButton variant="primary" size="sm" onClick={handleCreateLead}
+              disabled={actionLoading === 'create_lead'}>
+              {actionLoading === 'create_lead' ? 'Creating...' : 'Create Lead'}
+            </AdminButton>
+            <AdminButton variant="ghost" size="sm" onClick={() => setShowCreateLead(false)}>Cancel</AdminButton>
+          </div>
+        </AdminCard>
+      )}
+
+      {/* ── Tabs ── */}
       <div className="mb-4">
         <AdminTabs
           tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'contacts', label: 'Contacts', count: contactsTotal > 0 ? contactsTotal : undefined },
+            { id: 'opportunities', label: 'Pipeline' },
             { id: 'subscribers', label: 'Subscribers' },
-            { id: 'campaigns', label: 'Campaigns' },
-            { id: 'analytics', label: 'Analytics' },
+            { id: 'consent', label: 'Consent' },
           ]}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
       </div>
 
-      {/* Subscribers Tab */}
-      {activeTab === 'subscribers' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <AdminSectionLabel>Newsletter Subscribers</AdminSectionLabel>
-              <AdminButton variant="primary" size="sm"><Plus size={13} /> Add</AdminButton>
-            </div>
-
-            {/* Search and Filter */}
-            <AdminCard>
-              <div className="flex gap-3">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#A8A29E' }} />
-                  <input
-                    placeholder="Search subscribers..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="admin-input pl-10 w-full"
-                  />
-                </div>
-                <select className="admin-select" value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}>
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="unsubscribed">Unsubscribed</option>
-                  <option value="bounced">Bounced</option>
-                </select>
+      {loading ? (
+        <AdminLoadingState label="Loading CRM data..." />
+      ) : (
+        <>
+          {/* ═══════ OVERVIEW TAB ═══════ */}
+          {activeTab === 'overview' && kpis && (
+            <div className="space-y-4">
+              {/* KPI Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <AdminKPICard value={kpis.totalLeads} label="Total Leads" color="#1C1917" />
+                <AdminKPICard value={kpis.totalSubscribers} label="Subscribers" color="#3B7EA1" />
+                <AdminKPICard value={kpis.confirmedSubscribers} label="Confirmed" color="#2D5A3D" />
+                <AdminKPICard value={kpis.totalOpportunities} label="Opportunities" color="#C49A2A" />
+                <AdminKPICard value={formatCurrency(kpis.totalOpportunityValue)} label="Pipeline Value" color="#C8322B" />
+                <AdminKPICard value={kpis.interactionsThisWeek} label="Interactions (7d)" color="#78716C" />
               </div>
-            </AdminCard>
 
-            {filteredSubscribers.map((subscriber) => {
-              const SourceIcon = sourceIcons[subscriber.source] || Mail
-              return (
-                <AdminCard
-                  key={subscriber.id}
-                  className={`cursor-pointer transition-all ${selectedSubscriber?.id === subscriber.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
-                  elevated={selectedSubscriber?.id === subscriber.id}
-                >
-                  <div onClick={() => setSelectedSubscriber(subscriber)}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
-                            {subscriber.name || subscriber.email}
+              {/* Pipeline Summary + Recent Leads */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Pipeline Summary */}
+                <AdminCard>
+                  <AdminSectionLabel>Opportunity Pipeline</AdminSectionLabel>
+                  <div className="space-y-2 mt-2">
+                    {oppStages.filter(s => s.count > 0).map(s => (
+                      <div key={s.stage} className="flex items-center justify-between p-2.5 rounded-xl"
+                        style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stageColors[s.stage] || '#78716C' }} />
+                          <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>
+                            {stageLabels[s.stage] || s.stage}
                           </span>
-                          <SourceIcon size={13} style={{ color: '#3B7EA1' }} />
-                          <AdminStatusBadge status={statusMap[subscriber.status] || subscriber.status} label={subscriber.status} />
                         </div>
-                        <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{subscriber.email}</p>
-                        <div className="flex gap-3 mt-1" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
-                          <span>Joined: {subscriber.subscribedAt}</span>
-                          <span>Last: {subscriber.lastActivity}</span>
-                        </div>
-                        <div className="flex gap-1 mt-2">
-                          {subscriber.tags.slice(0, 3).map(tag => (
-                            <AdminStatusBadge key={tag} status="inactive" label={tag} />
-                          ))}
+                        <div className="flex items-center gap-3">
+                          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                            {s.count}
+                          </span>
+                          {s.value > 0 && (
+                            <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                              {formatCurrency(s.value)}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
-                          {subscriber.engagement.opens}
+                    ))}
+                    {oppStages.every(s => s.count === 0) && (
+                      <AdminEmptyState icon={Target} title="No Opportunities" description="Create your first opportunity to track deals" />
+                    )}
+                  </div>
+                </AdminCard>
+
+                {/* Recent Activity */}
+                <AdminCard>
+                  <AdminSectionLabel>Recent Leads</AdminSectionLabel>
+                  <div className="space-y-2 mt-2">
+                    {recentLeads.length > 0 ? recentLeads.slice(0, 8).map(lead => (
+                      <Link
+                        key={lead.id}
+                        href={`/admin/crm/contact/${lead.id}`}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:shadow-sm transition-all"
+                        style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: '#C8322B', color: '#FAF8F4', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12 }}>
+                            {(lead.name || '?')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate" style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>
+                              {lead.name}
+                            </div>
+                            <div className="truncate" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
+                              {lead.email || lead.phone || 'No contact'}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', textTransform: 'uppercase', letterSpacing: '0.5px' }}>opens</div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <ScoreBadge score={lead.score as number} />
+                          <ChevronRight size={14} style={{ color: '#A8A29E' }} />
+                        </div>
+                      </Link>
+                    )) : (
+                      <AdminEmptyState icon={Users} title="No Leads Yet" description="Create a lead or wait for one to come in" />
+                    )}
+                  </div>
+                </AdminCard>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════ CONTACTS TAB ═══════ */}
+          {activeTab === 'contacts' && (
+            <div className="space-y-3">
+              {/* Search */}
+              <AdminCard>
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#A8A29E' }} />
+                    <input
+                      placeholder="Search by name, email, or phone..."
+                      value={contactSearch}
+                      onChange={e => { setContactSearch(e.target.value); setContactsPage(1) }}
+                      className="admin-input pl-10 w-full"
+                    />
+                  </div>
+                </div>
+              </AdminCard>
+
+              {/* Contact List */}
+              {contacts.length > 0 ? contacts.map(contact => (
+                <Link
+                  key={`${contact.type}-${contact.id}`}
+                  href={`/admin/crm/contact/${contact.id}`}
+                  className="block"
+                >
+                  <AdminCard className="hover:shadow-md transition-all cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: contact.type === 'lead' ? '#C8322B' : '#3B7EA1', color: '#FAF8F4', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>
+                          {(contact.name || '?')[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="truncate" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
+                              {contact.name}
+                            </span>
+                            <AdminStatusBadge
+                              status={contact.type === 'lead' ? 'warning' : 'active'}
+                              label={contact.type}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                            {contact.email && (
+                              <span className="flex items-center gap-1 truncate"><Mail size={10} /> {contact.email}</span>
+                            )}
+                            {contact.phone && (
+                              <span className="flex items-center gap-1"><Phone size={10} /> {contact.phone}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1" style={{ fontSize: 10, color: '#A8A29E' }}>
+                            {contact.source && <span className="capitalize">{contact.source}</span>}
+                            <span>{relativeTime(contact.updatedAt)}</span>
+                          </div>
+                        </div>
                       </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <ScoreBadge score={contact.score} />
+                        {contact.consent && <Shield size={12} style={{ color: '#2D5A3D' }} />}
+                        <ChevronRight size={16} style={{ color: '#A8A29E' }} />
+                      </div>
+                    </div>
+                  </AdminCard>
+                </Link>
+              )) : (
+                <AdminCard>
+                  <AdminEmptyState icon={Users} title="No Contacts Found"
+                    description={contactSearch ? 'Try a different search term' : 'Create a lead to get started'} />
+                </AdminCard>
+              )}
+
+              {/* Pagination */}
+              {contactsTotal > 25 && (
+                <div className="flex items-center justify-between">
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                    Showing {(contactsPage - 1) * 25 + 1}-{Math.min(contactsPage * 25, contactsTotal)} of {contactsTotal}
+                  </span>
+                  <div className="flex gap-2">
+                    <AdminButton variant="ghost" size="sm" disabled={contactsPage <= 1}
+                      onClick={() => setContactsPage(p => p - 1)}>Previous</AdminButton>
+                    <AdminButton variant="ghost" size="sm" disabled={contactsPage * 25 >= contactsTotal}
+                      onClick={() => setContactsPage(p => p + 1)}>Next</AdminButton>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ OPPORTUNITIES (PIPELINE) TAB ═══════ */}
+          {activeTab === 'opportunities' && (
+            <div className="space-y-4">
+              {/* Pipeline stage cards — vertical on mobile, horizontal scroll on desktop */}
+              <div className="flex flex-col lg:flex-row gap-3 lg:overflow-x-auto lg:pb-4">
+                {pipeline.map(stage => (
+                  <div key={stage.stage} className="lg:min-w-[280px] lg:max-w-[320px] flex-shrink-0">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stageColors[stage.stage] || '#78716C' }} />
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {stageLabels[stage.stage] || stage.stage}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#FAF8F4', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, color: '#78716C' }}>
+                          {stage.count}
+                        </span>
+                      </div>
+                      {stage.totalValue > 0 && (
+                        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
+                          {formatCurrency(stage.totalValue)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      {stage.items.length > 0 ? stage.items.map(opp => (
+                        <AdminCard key={opp.id} className="!p-3">
+                          <div className="flex items-start justify-between mb-1">
+                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917' }}>
+                              {opp.contactName || opp.contactEmail || 'Unknown'}
+                            </span>
+                            {opp.value && (
+                              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#2D5A3D' }}>
+                                {formatCurrency(opp.value, opp.currency || 'GBP')}
+                              </span>
+                            )}
+                          </div>
+                          {opp.contactEmail && (
+                            <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', marginBottom: 4 }}>
+                              {opp.contactEmail}
+                            </div>
+                          )}
+                          {opp.lastInteraction && (
+                            <div className="p-2 rounded-lg mb-2" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.2)' }}>
+                              <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#44403C' }}>
+                                {opp.lastInteraction.summary?.substring(0, 80)}
+                              </div>
+                              <div style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', marginTop: 2 }}>
+                                {opp.lastInteraction.channel} &middot; {relativeTime(opp.lastInteraction.createdAt)}
+                              </div>
+                            </div>
+                          )}
+                          {opp.nextAction && (
+                            <div className="flex items-center gap-1 mb-2" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#C49A2A' }}>
+                              <Clock size={10} /> {opp.nextAction}
+                            </div>
+                          )}
+                          {/* Stage move buttons */}
+                          <div className="flex gap-1 flex-wrap">
+                            {stage.stage !== 'won' && stage.stage !== 'lost' && (
+                              <>
+                                {stage.stage !== 'new' && (
+                                  <AdminButton variant="ghost" size="sm"
+                                    onClick={() => {
+                                      const stages = ['new', 'qualifying', 'proposal', 'negotiation']
+                                      const idx = stages.indexOf(stage.stage)
+                                      if (idx > 0) moveOpportunity(opp.id, stages[idx - 1])
+                                    }}>
+                                    &larr;
+                                  </AdminButton>
+                                )}
+                                <AdminButton variant="ghost" size="sm"
+                                  onClick={() => {
+                                    const stages = ['new', 'qualifying', 'proposal', 'negotiation', 'won']
+                                    const idx = stages.indexOf(stage.stage)
+                                    if (idx < stages.length - 1) moveOpportunity(opp.id, stages[idx + 1])
+                                  }}>
+                                  &rarr;
+                                </AdminButton>
+                                <AdminButton variant="ghost" size="sm"
+                                  onClick={() => moveOpportunity(opp.id, 'lost')}>
+                                  Lost
+                                </AdminButton>
+                              </>
+                            )}
+                          </div>
+                        </AdminCard>
+                      )) : (
+                        <div className="p-4 rounded-xl text-center" style={{ backgroundColor: '#FAF8F4', border: '1px dashed rgba(214,208,196,0.5)' }}>
+                          <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#A8A29E' }}>Empty</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pipeline.length === 0 && (
+                <AdminCard>
+                  <AdminEmptyState icon={Target} title="No Opportunities"
+                    description="Create an opportunity to start tracking your pipeline" />
+                </AdminCard>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ SUBSCRIBERS TAB ═══════ */}
+          {activeTab === 'subscribers' && (
+            <div className="space-y-3">
+              {/* Status filter */}
+              <AdminCard>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <select className="admin-select" value={subscriberFilter}
+                    onChange={e => { setSubscriberFilter(e.target.value); setSubscribersPage(1) }}>
+                    <option value="all">All ({Object.values(statusCounts).reduce((a, b) => a + b, 0)})</option>
+                    <option value="CONFIRMED">Confirmed ({statusCounts.CONFIRMED || 0})</option>
+                    <option value="PENDING">Pending ({statusCounts.PENDING || 0})</option>
+                    <option value="UNSUBSCRIBED">Unsubscribed ({statusCounts.UNSUBSCRIBED || 0})</option>
+                    <option value="BOUNCED">Bounced ({statusCounts.BOUNCED || 0})</option>
+                  </select>
+                  <AdminButton variant="secondary" size="sm">
+                    <Download size={13} /> Export
+                  </AdminButton>
+                </div>
+              </AdminCard>
+
+              {/* Subscriber List */}
+              {subscribers.length > 0 ? subscribers.map(sub => (
+                <AdminCard key={sub.id}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: '#3B7EA1', color: '#FAF8F4', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13 }}>
+                        {(sub.first_name || sub.email || '?')[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="truncate" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917' }}>
+                            {[sub.first_name, sub.last_name].filter(Boolean).join(' ') || sub.email}
+                          </span>
+                          <AdminStatusBadge
+                            status={subscriberStatusMap[sub.status] || 'pending'}
+                            label={sub.status.toLowerCase()}
+                          />
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                          {sub.email}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5" style={{ fontSize: 10, color: '#A8A29E' }}>
+                          {sub.source && <span className="capitalize">{sub.source}</span>}
+                          <span>Joined {new Date(sub.created_at).toLocaleDateString()}</span>
+                          {sub.engagement_score !== null && (
+                            <span>Engagement: {sub.engagement_score}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {sub.status === 'CONFIRMED' && (
+                        <AdminButton variant="ghost" size="sm"
+                          onClick={() => postAction('update_subscriber_status', { subscriberId: sub.id, status: 'UNSUBSCRIBED' })}>
+                          Unsub
+                        </AdminButton>
+                      )}
+                      {sub.status === 'UNSUBSCRIBED' && (
+                        <AdminButton variant="ghost" size="sm"
+                          onClick={() => postAction('update_subscriber_status', { subscriberId: sub.id, status: 'CONFIRMED' })}>
+                          Re-sub
+                        </AdminButton>
+                      )}
                     </div>
                   </div>
                 </AdminCard>
-              )
-            })}
-          </div>
+              )) : (
+                <AdminCard>
+                  <AdminEmptyState icon={Mail} title="No Subscribers"
+                    description={subscriberFilter !== 'all' ? 'No subscribers with this status' : 'No subscribers yet'} />
+                </AdminCard>
+              )}
 
-          {/* Subscriber Details */}
-          <div>
-            {selectedSubscriber ? (
-              <AdminCard accent accentColor="red">
-                <AdminSectionLabel>Subscriber Details</AdminSectionLabel>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: '#C8322B', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: '#FAF8F4' }}>
-                    {selectedSubscriber.name ? selectedSubscriber.name[0].toUpperCase() : selectedSubscriber.email[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#1C1917' }}>
-                      {selectedSubscriber.name || 'No Name'}
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>{selectedSubscriber.email}</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div>
-                    <FormLabel>Status</FormLabel>
-                    <AdminStatusBadge status={statusMap[selectedSubscriber.status]} label={selectedSubscriber.status} />
-                  </div>
-                  <div>
-                    <FormLabel>Source</FormLabel>
-                    <span className="capitalize" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
-                      {selectedSubscriber.source}
-                    </span>
+              {/* Pagination */}
+              {subscribersTotal > 25 && (
+                <div className="flex items-center justify-between">
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                    Showing {(subscribersPage - 1) * 25 + 1}-{Math.min(subscribersPage * 25, subscribersTotal)} of {subscribersTotal}
+                  </span>
+                  <div className="flex gap-2">
+                    <AdminButton variant="ghost" size="sm" disabled={subscribersPage <= 1}
+                      onClick={() => setSubscribersPage(p => p - 1)}>Previous</AdminButton>
+                    <AdminButton variant="ghost" size="sm" disabled={subscribersPage * 25 >= subscribersTotal}
+                      onClick={() => setSubscribersPage(p => p + 1)}>Next</AdminButton>
                   </div>
                 </div>
-
-                {selectedSubscriber.location && (
-                  <div className="mb-3">
-                    <FormLabel>Location</FormLabel>
-                    <div className="flex items-center gap-1.5" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#44403C' }}>
-                      <MapPin size={13} style={{ color: '#A8A29E' }} />
-                      {selectedSubscriber.location}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mb-3">
-                  <FormLabel>Interests</FormLabel>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedSubscriber.interests.map(i => <AdminStatusBadge key={i} status="pending" label={i} />)}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <FormLabel>Tags</FormLabel>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedSubscriber.tags.map(t => <AdminStatusBadge key={t} status="inactive" label={t} />)}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <AdminKPICard value={selectedSubscriber.engagement.opens} label="Email Opens" color="#3B7EA1" />
-                  <AdminKPICard value={selectedSubscriber.engagement.clicks} label="Link Clicks" color="#2D5A3D" />
-                </div>
-
-                <div className="flex gap-2">
-                  <AdminButton variant="secondary" className="flex-1"><Edit size={13} /> Edit</AdminButton>
-                  <AdminButton variant="secondary" className="flex-1"><Mail size={13} /> Email</AdminButton>
-                </div>
-              </AdminCard>
-            ) : (
-              <AdminCard>
-                <AdminEmptyState icon={User} title="Select a Subscriber" description="Choose a subscriber from the list to view details" />
-              </AdminCard>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Campaigns Tab */}
-      {activeTab === 'campaigns' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <AdminSectionLabel>Email Campaigns</AdminSectionLabel>
-              <AdminButton variant="primary" size="sm"><Plus size={13} /> Create</AdminButton>
+              )}
             </div>
+          )}
 
-            {campaigns.map((campaign) => (
-              <AdminCard
-                key={campaign.id}
-                className={`cursor-pointer transition-all ${selectedCampaign?.id === campaign.id ? 'ring-2 ring-[#C8322B]' : 'hover:shadow-md'}`}
-                elevated={selectedCampaign?.id === campaign.id}
-              >
-                <div onClick={() => setSelectedCampaign(campaign)}>
+          {/* ═══════ CONSENT TAB ═══════ */}
+          {activeTab === 'consent' && (
+            <div className="space-y-3">
+              <AdminAlertBanner
+                severity="info"
+                message="GDPR consent audit trail. All consent changes are logged with timestamp, legal basis, and processing purposes."
+              />
+
+              {consentLogs.length > 0 ? consentLogs.map(log => (
+                <AdminCard key={log.id}>
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                    <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: '#1C1917' }}>
-                          {campaign.name}
+                        <AdminStatusBadge
+                          status={log.action === 'granted' ? 'active' : log.action === 'withdrawn' ? 'rejected' : 'pending'}
+                          label={log.action}
+                        />
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917' }}>
+                          {log.consent_type}
                         </span>
-                        <AdminStatusBadge status={statusMap[campaign.status] || campaign.status} label={campaign.status} />
                       </div>
-                      <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginBottom: 4 }}>{campaign.subject}</p>
-                      <div className="flex gap-3" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
-                        <span>Recipients: {campaign.recipients}</span>
-                        <span>Opens: {campaign.opens}</span>
-                        <span>Clicks: {campaign.clicks}</span>
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textAlign: 'right' }}>
-                      {campaign.status === 'sent' && campaign.sentAt && (
-                        <span>Sent: {new Date(campaign.sentAt).toLocaleDateString()}</span>
+                      {log.subscriber && (
+                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginBottom: 4 }}>
+                          {[log.subscriber.first_name, log.subscriber.last_name].filter(Boolean).join(' ') || log.subscriber.email}
+                          {' '}&middot; {log.subscriber.email}
+                        </div>
                       )}
-                      {campaign.status === 'scheduled' && campaign.scheduledAt && (
-                        <span>Scheduled: {new Date(campaign.scheduledAt).toLocaleDateString()}</span>
+                      {log.legal_basis && (
+                        <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E' }}>
+                          Legal basis: {log.legal_basis}
+                        </div>
+                      )}
+                      {log.processing_purposes?.length > 0 && (
+                        <div className="flex gap-1 mt-1">
+                          {log.processing_purposes.map(p => (
+                            <AdminStatusBadge key={p} status="inactive" label={p.replace(/_/g, ' ')} />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              </AdminCard>
-            ))}
-          </div>
-
-          {/* Campaign Details */}
-          <div>
-            {selectedCampaign ? (
-              <AdminCard accent accentColor="blue">
-                <AdminSectionLabel>Campaign Details</AdminSectionLabel>
-                <div className="mb-3">
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917' }}>
-                    {selectedCampaign.name}
-                  </div>
-                  <div className="mt-1">
-                    <AdminStatusBadge status={statusMap[selectedCampaign.status]} label={selectedCampaign.status} />
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <FormLabel>Subject Line</FormLabel>
-                  <input className="admin-input w-full" value={selectedCampaign.subject} readOnly />
-                </div>
-
-                <div className="mb-4">
-                  <FormLabel>Content Preview</FormLabel>
-                  <textarea className="admin-input w-full resize-none" value={selectedCampaign.content} readOnly rows={4} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <AdminKPICard value={selectedCampaign.recipients} label="Recipients" color="#3B7EA1" />
-                  <AdminKPICard value={selectedCampaign.opens} label="Opens" color="#2D5A3D" />
-                  <AdminKPICard value={selectedCampaign.clicks} label="Clicks" color="#C49A2A" />
-                  <AdminKPICard value={selectedCampaign.unsubscribes} label="Unsubscribes" color="#C8322B" />
-                </div>
-
-                <div className="flex gap-2">
-                  {(selectedCampaign.status === 'draft' || selectedCampaign.status === 'scheduled') && (
-                    <AdminButton
-                      variant={selectedCampaign.status === 'draft' ? 'primary' : 'success'}
-                      className="flex-1"
-                      onClick={() => sendCampaign(selectedCampaign.id)}
-                    >
-                      <Send size={13} /> Send Now
-                    </AdminButton>
-                  )}
-                  <AdminButton variant="secondary" className="flex-1"><Edit size={13} /> Edit</AdminButton>
-                  <AdminButton variant="secondary" className="flex-1"><Eye size={13} /> Preview</AdminButton>
-                </div>
-              </AdminCard>
-            ) : (
-              <AdminCard>
-                <AdminEmptyState icon={Mail} title="Select a Campaign" description="Choose a campaign from the list to view details" />
-              </AdminCard>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Analytics Tab */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <AdminCard accent accentColor="blue">
-              <AdminSectionLabel>Top Countries</AdminSectionLabel>
-              <div className="space-y-2">
-                {analytics.topCountries.map((country, index) => (
-                  <div key={index} className="flex items-center justify-between p-2.5 rounded-xl"
-                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: '#3B7EA1', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#FAF8F4' }}>
-                        {index + 1}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{country.country}</span>
+                    <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#A8A29E', textAlign: 'right', flexShrink: 0 }}>
+                      <div>{new Date(log.timestamp).toLocaleDateString()}</div>
+                      <div>{new Date(log.timestamp).toLocaleTimeString()}</div>
                     </div>
-                    <AdminStatusBadge status="active" label={String(country.count)} />
                   </div>
-                ))}
-              </div>
-            </AdminCard>
+                </AdminCard>
+              )) : (
+                <AdminCard>
+                  <AdminEmptyState icon={Shield} title="No Consent Records"
+                    description="Consent changes will appear here as subscribers manage their preferences" />
+                </AdminCard>
+              )}
 
-            <AdminCard accent accentColor="gold">
-              <AdminSectionLabel>Top Interests</AdminSectionLabel>
-              <div className="space-y-2">
-                {analytics.topInterests.map((interest, index) => (
-                  <div key={index} className="flex items-center justify-between p-2.5 rounded-xl"
-                    style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.3)' }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: '#C49A2A', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#FAF8F4' }}>
-                        {index + 1}
-                      </div>
-                      <span style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{interest.interest}</span>
-                    </div>
-                    <AdminStatusBadge status="warning" label={String(interest.count)} />
+              {/* Pagination */}
+              {consentTotal > 25 && (
+                <div className="flex items-center justify-between">
+                  <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>
+                    Page {consentPage} of {Math.ceil(consentTotal / 25)}
+                  </span>
+                  <div className="flex gap-2">
+                    <AdminButton variant="ghost" size="sm" disabled={consentPage <= 1}
+                      onClick={() => setConsentPage(p => p - 1)}>Previous</AdminButton>
+                    <AdminButton variant="ghost" size="sm" disabled={consentPage * 25 >= consentTotal}
+                      onClick={() => setConsentPage(p => p + 1)}>Next</AdminButton>
                   </div>
-                ))}
-              </div>
-            </AdminCard>
-          </div>
-
-          <AdminCard accent accentColor="green">
-            <AdminSectionLabel>Subscriber Growth</AdminSectionLabel>
-            <div className="h-52 flex items-end justify-between gap-1.5 pt-4">
-              {analytics.monthlyGrowth.map((count, index) => {
-                const maxVal = Math.max(...analytics.monthlyGrowth)
-                return (
-                  <div key={index} className="flex flex-col items-center gap-1.5 flex-1">
-                    <div
-                      className="w-full rounded-t transition-all"
-                      style={{
-                        height: maxVal > 0 ? `${(count / maxVal) * 160}px` : '0px',
-                        backgroundColor: count > 0 ? '#2D5A3D' : 'rgba(214,208,196,0.3)',
-                        minWidth: 12,
-                      }}
-                    />
-                    <span style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E' }}>
-                      {new Date(2024, index).toLocaleDateString('en', { month: 'short' })}
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, color: '#44403C' }}>{count || ''}</span>
-                  </div>
-                )
-              })}
+                </div>
+              )}
             </div>
-          </AdminCard>
-        </div>
+          )}
+        </>
       )}
-    </div>
-  )
-}
-
-/* ─── Form Label ─────────────────────────────────────────────────── */
-function FormLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      fontFamily: 'var(--font-system)', fontSize: 10, fontWeight: 600,
-      textTransform: 'uppercase', letterSpacing: '1px', color: '#78716C', marginBottom: 4,
-    }}>
-      {children}
     </div>
   )
 }

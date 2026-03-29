@@ -49,6 +49,20 @@ const SITES = [
   { id: "thailand", name: "Yalla Thailand" },
 ];
 
+interface DriveAccount {
+  id: string;
+  email: string;
+  displayName: string;
+  rootFolderId: string;
+  siteId: string | null;
+}
+
+interface DriveFolder {
+  id: string;
+  name: string;
+  path: string;
+}
+
 export default function AssetLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [tree, setTree] = useState<FolderNode[]>([]);
@@ -63,6 +77,99 @@ export default function AssetLibraryPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Import from Drive state
+  const [showDriveModal, setShowDriveModal] = useState(false);
+  const [driveAccounts, setDriveAccounts] = useState<DriveAccount[]>([]);
+  const [selectedDriveAccount, setSelectedDriveAccount] = useState<string>("");
+  const [driveFolders, setDriveFolders] = useState<DriveFolder[]>([]);
+  const [driveFolderStack, setDriveFolderStack] = useState<{ id: string; name: string }[]>([]);
+  const [driveFolderLoading, setDriveFolderLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: { file: string; error: string }[]; total: number } | null>(null);
+
+  // Drive import functions
+  const fetchDriveAccounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/google-drive");
+      if (!res.ok) return;
+      const data = await res.json();
+      setDriveAccounts(data.accounts || []);
+      if (data.accounts?.length > 0 && !selectedDriveAccount) {
+        setSelectedDriveAccount(data.accounts[0].id);
+      }
+    } catch (err) {
+      console.warn("[asset-library] drive accounts fetch failed:", err);
+    }
+  }, [selectedDriveAccount]);
+
+  const browseDriveFolders = useCallback(async (accountId: string, parentId?: string) => {
+    setDriveFolderLoading(true);
+    try {
+      const res = await fetch("/api/admin/google-drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list_folders", accountId, parentId }),
+      });
+      if (!res.ok) { setDriveFolders([]); return; }
+      const data = await res.json();
+      setDriveFolders(data.folders || []);
+    } catch {
+      setDriveFolders([]);
+    } finally {
+      setDriveFolderLoading(false);
+    }
+  }, []);
+
+  const navigateDriveInto = useCallback((folder: DriveFolder) => {
+    setDriveFolderStack((prev) => [...prev, { id: folder.id, name: folder.name }]);
+    browseDriveFolders(selectedDriveAccount, folder.id);
+  }, [selectedDriveAccount, browseDriveFolders]);
+
+  const navigateDriveBack = useCallback(() => {
+    setDriveFolderStack((prev) => {
+      const next = [...prev];
+      next.pop();
+      const parentId = next.length > 0 ? next[next.length - 1].id : undefined;
+      browseDriveFolders(selectedDriveAccount, parentId);
+      return next;
+    });
+  }, [selectedDriveAccount, browseDriveFolders]);
+
+  const startImport = async (accountId: string, folderId: string) => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/admin/asset-library/import-drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId, folderId, siteId: activeSiteId }),
+      });
+      if (!res.ok) {
+        setActionResult("Import failed — server error");
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        setImportResult({ imported: data.imported, skipped: data.skipped, errors: data.errors || [], total: data.total });
+        fetchTree();
+        fetchAssets();
+        fetchStats();
+      } else {
+        setActionResult(`Import error: ${data.error}`);
+      }
+    } catch {
+      setActionResult("Import failed — network error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const openDriveModal = () => {
+    setShowDriveModal(true);
+    setImportResult(null);
+    fetchDriveAccounts();
+  };
 
   const fetchTree = useCallback(async () => {
     try {
@@ -168,6 +275,9 @@ export default function AssetLibraryPage() {
             </select>
             <AdminButton size="sm" onClick={() => doAction("organize")}>
               Auto-Organize
+            </AdminButton>
+            <AdminButton size="sm" onClick={openDriveModal}>
+              Import from Drive
             </AdminButton>
           </div>
         }
@@ -289,6 +399,139 @@ export default function AssetLibraryPage() {
                 )}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Drive Import Modal */}
+      {showDriveModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">Import from Google Drive</h3>
+                <p className="text-xs text-gray-500">Select a folder to import files into the Asset Library</p>
+              </div>
+              <button
+                onClick={() => { setShowDriveModal(false); setDriveFolderStack([]); setDriveFolders([]); setImportResult(null); }}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
+              {/* Account Selector */}
+              {driveAccounts.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No Google Drive accounts connected. Go to Google Drive settings to connect one.</p>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Drive Account</label>
+                    <select
+                      value={selectedDriveAccount}
+                      onChange={(e) => {
+                        setSelectedDriveAccount(e.target.value);
+                        setDriveFolderStack([]);
+                        setDriveFolders([]);
+                        browseDriveFolders(e.target.value);
+                      }}
+                      className="w-full p-2 border rounded-lg text-sm"
+                    >
+                      {driveAccounts.map((acc) => (
+                        <option key={acc.id} value={acc.id}>{acc.displayName || acc.email}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Folder Browser */}
+                  {selectedDriveAccount && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-500">
+                          {driveFolderStack.length > 0
+                            ? driveFolderStack.map((f) => f.name).join(" / ")
+                            : "Root"}
+                        </p>
+                        {driveFolders.length === 0 && !driveFolderLoading && driveFolderStack.length === 0 && (
+                          <AdminButton size="sm" variant="secondary" onClick={() => browseDriveFolders(selectedDriveAccount)}>
+                            Browse
+                          </AdminButton>
+                        )}
+                      </div>
+
+                      {driveFolderStack.length > 0 && (
+                        <button
+                          onClick={navigateDriveBack}
+                          className="w-full text-left p-2 hover:bg-gray-50 rounded-lg text-sm flex items-center gap-2 mb-1"
+                        >
+                          <span>⬆️</span> <span>Back</span>
+                        </button>
+                      )}
+
+                      {driveFolderLoading ? (
+                        <p className="text-sm text-gray-500 text-center py-6">Loading folders...</p>
+                      ) : driveFolders.length === 0 && (driveFolderStack.length > 0 || driveFolders.length === 0) ? (
+                        <p className="text-sm text-gray-400 text-center py-4">
+                          {driveFolderStack.length > 0 ? "No subfolders" : "Click Browse to load folders"}
+                        </p>
+                      ) : (
+                        <div className="space-y-1 max-h-[30vh] overflow-y-auto">
+                          {driveFolders.map((f) => (
+                            <div key={f.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                              <button onClick={() => navigateDriveInto(f)} className="text-sm flex items-center gap-2 flex-1 text-left">
+                                <span>📁</span> {f.name}
+                              </button>
+                              <AdminButton
+                                size="sm"
+                                disabled={importing}
+                                onClick={() => startImport(selectedDriveAccount, f.id)}
+                              >
+                                {importing ? "Importing..." : "Import"}
+                              </AdminButton>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Import Current Folder Button */}
+                  {driveFolderStack.length > 0 && (
+                    <AdminButton
+                      disabled={importing}
+                      onClick={() => {
+                        const current = driveFolderStack[driveFolderStack.length - 1];
+                        startImport(selectedDriveAccount, current.id);
+                      }}
+                    >
+                      {importing ? "Importing..." : `Import All from "${driveFolderStack[driveFolderStack.length - 1].name}"`}
+                    </AdminButton>
+                  )}
+
+                  {/* Import Result */}
+                  {importResult && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                      <p className="font-medium text-green-800">Import Complete</p>
+                      <p className="text-green-700 mt-1">
+                        {importResult.imported} imported, {importResult.skipped} skipped, {importResult.errors.length} errors
+                        {importResult.total > 0 && ` (${importResult.total} total files)`}
+                      </p>
+                      {importResult.errors.length > 0 && (
+                        <div className="mt-2 text-xs text-red-600 space-y-1">
+                          {importResult.errors.slice(0, 5).map((e, i) => (
+                            <p key={i}>{e.file}: {e.error}</p>
+                          ))}
+                          {importResult.errors.length > 5 && (
+                            <p>... and {importResult.errors.length - 5} more</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

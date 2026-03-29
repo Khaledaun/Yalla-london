@@ -7,11 +7,11 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Image, 
-  Search, 
+import {
+  LayoutDashboard,
+  FileText,
+  Image,
+  Search,
   CheckSquare,
   Palette,
   Upload,
@@ -55,7 +55,11 @@ import {
   Share2,
   Mail,
   Video,
-  Sparkles
+  Sparkles,
+  Inbox,
+  Phone,
+  FolderOpen,
+  HardDrive
 } from 'lucide-react'
 import { isPremiumFeatureEnabled, validatePremiumFeatureAccess } from '@/lib/feature-flags'
 import { getActiveSiteIds, getSiteConfig, getDefaultSiteId } from '@/config/sites'
@@ -80,192 +84,264 @@ export interface SiteContext {
   canSwitchSites: boolean
 }
 
+export interface NavSection {
+  id: string
+  label: string
+  items: NavItem[]
+}
+
 /**
- * Premium Admin Navigation Structure - Enterprise Grade
- * Aligned with Yalla London requirements
+ * Premium Admin Navigation Structure
+ * Grouped into logical sections for Khaled's iPhone workflow
  */
-export const adminNavigation: NavItem[] = [
+export const adminSections: NavSection[] = [
+  /* ── COCKPIT ── */
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    href: '/admin/cockpit',
-    featureFlag: 'ADMIN_DASHBOARD',
-    description: 'KPIs, analytics, automation status'
-  },
-  {
-    id: 'activity-feed',
-    label: 'Activity Feed',
-    icon: Activity,
-    href: '/admin/cockpit/activity',
-    badgeText: 'Live',
-    badgeVariant: 'default',
-    description: 'Timeline, self-healing, learning, observations'
-  },
-  {
-    id: 'articles',
-    label: 'Articles',
-    icon: FileText,
-    href: '/admin/articles',
-    featureFlag: 'CONTENT_MANAGEMENT',
-    badgeText: 'Workflow',
-    badgeVariant: 'outline',
-    description: 'Drafts, generated, reviewed, ready-to-publish, published'
-  },
-  {
-    id: 'media',
-    label: 'Media',
-    icon: Image,
-    href: '/admin/media',
-    description: 'Upload/manage assets with progress %, metadata'
-  },
-  {
-    id: 'seo-audits',
-    label: 'SEO Audits',
-    icon: Search,
-    href: '/admin/seo-audits',
-    badgeText: 'AI',
-    badgeVariant: 'secondary',
-    description: 'Scoring, fixes, preview, history'
-  },
-  {
-    id: 'master-audit',
-    label: 'Master Audit',
-    icon: Shield,
-    href: '/admin/master-audit',
-    badgeText: 'Full Site',
-    badgeVariant: 'outline',
-    description: '8 validators, 6 hard gates, per-page results'
-  },
-  {
-    id: 'pipeline-phases',
-    label: 'Pipeline Phases',
-    icon: TrendingUp,
-    href: '/admin/pipeline-phases',
-    badgeText: 'Live',
-    badgeVariant: 'default',
-    description: 'Per-phase view of content pipeline — advance, retry, delete'
-  },
-  {
-    id: 'topics-pipeline',
-    label: 'Topics & Pipeline',
-    icon: TrendingUp,
-    href: '/admin/topics-pipeline',
-    badgeText: 'Auto',
-    badgeVariant: 'default',
-    description: 'Topic research, approval, content pipeline status'
-  },
-  {
-    id: 'prompts',
-    label: 'Prompts',
-    icon: Brain,
-    href: '/admin/prompts',
-    description: 'Editable, versioned prompt templates'
-  },
-  {
-    id: 'content-types',
-    label: 'Content Types',
-    icon: Layers,
-    href: '/admin/content-types',
-    description: 'Taxonomy management'
-  },
-  {
-    id: 'design-hub',
-    label: 'Design Hub',
-    icon: Palette,
-    href: '/admin/design',
-    badgeText: 'Studio',
-    badgeVariant: 'outline',
-    description: 'Create and manage visual assets across all sites'
-  },
-  {
-    id: 'content-engine',
-    label: 'Content Engine',
-    icon: Sparkles,
-    href: '/admin/content-engine',
-    badgeText: 'AI',
-    badgeVariant: 'secondary',
-    description: 'AI-powered 4-agent content generation pipeline'
-  },
-  {
-    id: 'email-center',
-    label: 'Email Center',
-    icon: Mail,
-    href: '/admin/cockpit/email',
-    description: 'Email status, test send, campaigns overview'
-  },
-  {
-    id: 'social-calendar',
-    label: 'Social Calendar',
-    icon: Calendar,
-    href: '/admin/social-calendar',
-    description: 'Schedule and manage social media posts'
-  },
-  {
-    id: 'finance-hub',
-    label: 'Finance Hub',
-    icon: DollarSign,
-    href: '/admin/cockpit/finance',
-    badgeText: 'Live',
-    badgeVariant: 'default',
-    description: 'Stripe + Mercury + Affiliate revenue'
-  },
-  {
-    id: 'integrations',
-    label: 'Integrations',
-    icon: Activity,
-    href: '/admin/integrations',
-    badgeText: 'Health',
-    badgeVariant: 'default',
-    description: 'API health, affiliate links, monetization status'
-  },
-  {
-    id: 'automation-hub',
-    label: 'Automation Hub',
-    icon: Bot,
-    href: '/admin/automation-hub',
-    badgeText: 'Jobs',
-    badgeVariant: 'outline',
-    description: 'Publishing schedules, jobs'
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    featureFlag: 'SETTINGS_MANAGEMENT',
-    children: [
+    id: 'cockpit',
+    label: 'Cockpit',
+    items: [
       {
-        id: 'theme',
-        label: 'Theme',
-        icon: Palette,
-        href: '/admin/settings/theme',
-        description: 'Theme, logo/colors'
+        id: 'dashboard',
+        label: 'HQ',
+        icon: LayoutDashboard,
+        href: '/admin/cockpit',
+        description: 'Mission control — KPIs, alerts, quick actions',
       },
       {
-        id: 'api-keys',
-        label: 'API Keys',
-        icon: Key,
-        description: 'External service credentials',
-        requiresElevated: true,
-        comingSoon: true
+        id: 'departures',
+        label: 'Departures',
+        icon: Clock,
+        href: '/admin/departures',
+        description: 'Cron schedule, live countdowns, Do Now',
       },
       {
-        id: 'roles',
-        label: 'Roles',
+        id: 'activity-feed',
+        label: 'Activity',
+        icon: Activity,
+        href: '/admin/cockpit/activity',
+        badgeText: 'Live',
+        badgeVariant: 'default',
+        description: 'Timeline, self-healing, observations',
+      },
+    ],
+  },
+
+  /* ── COMMS ── */
+  {
+    id: 'comms',
+    label: 'Comms',
+    items: [
+      {
+        id: 'inbox',
+        label: 'Inbox',
+        icon: Inbox,
+        href: '/admin/communications',
+        description: 'All conversations — WhatsApp, email, web',
+      },
+      {
+        id: 'crm',
+        label: 'CRM',
         icon: Users,
-        description: 'User roles and permissions',
-        comingSoon: true
+        href: '/admin/crm',
+        description: 'Contacts, pipeline, subscribers, consent',
       },
       {
-        id: 'site',
-        label: 'Site Settings',
-        icon: Globe,
-        href: '/admin/cockpit/new-site',
-        description: 'General site configuration'
-      }
-    ]
-  }
+        id: 'social-hub',
+        label: 'Social Hub',
+        icon: Share2,
+        href: '/admin/social-hub',
+        description: 'Social accounts, posts, scheduling',
+      },
+      {
+        id: 'email-campaigns',
+        label: 'Email Campaigns',
+        icon: Mail,
+        href: '/admin/email-campaigns',
+        description: 'Templates, campaigns, subscriber management',
+      },
+    ],
+  },
+
+  /* ── CONTENT ── */
+  {
+    id: 'content',
+    label: 'Content',
+    items: [
+      {
+        id: 'articles',
+        label: 'Articles',
+        icon: FileText,
+        href: '/admin/articles',
+        description: 'Drafts, published, workflow status',
+      },
+      {
+        id: 'topics-pipeline',
+        label: 'Topics & Pipeline',
+        icon: TrendingUp,
+        href: '/admin/topics-pipeline',
+        badgeText: 'Auto',
+        badgeVariant: 'default',
+        description: 'Topic research, approval, pipeline status',
+      },
+      {
+        id: 'pipeline-phases',
+        label: 'Pipeline Phases',
+        icon: Layers,
+        href: '/admin/pipeline-phases',
+        badgeText: 'Live',
+        badgeVariant: 'default',
+        description: 'Per-phase view — advance, retry, delete',
+      },
+      {
+        id: 'content-engine',
+        label: 'Content Engine',
+        icon: Sparkles,
+        href: '/admin/content-engine',
+        badgeText: 'AI',
+        badgeVariant: 'secondary',
+        description: '4-agent AI content generation',
+      },
+      {
+        id: 'prompts',
+        label: 'Prompts',
+        icon: Brain,
+        href: '/admin/prompts',
+        description: 'Editable, versioned prompt templates',
+      },
+    ],
+  },
+
+  /* ── SEO ── */
+  {
+    id: 'seo',
+    label: 'SEO',
+    items: [
+      {
+        id: 'seo-audits',
+        label: 'SEO Audits',
+        icon: Search,
+        href: '/admin/seo-audits',
+        badgeText: 'AI',
+        badgeVariant: 'secondary',
+        description: 'Scoring, fixes, preview, history',
+      },
+      {
+        id: 'master-audit',
+        label: 'Master Audit',
+        icon: Shield,
+        href: '/admin/master-audit',
+        badgeText: 'Full Site',
+        badgeVariant: 'outline',
+        description: '8 validators, 6 hard gates, per-page results',
+      },
+    ],
+  },
+
+  /* ── DESIGN & MEDIA ── */
+  {
+    id: 'design',
+    label: 'Design & Media',
+    items: [
+      {
+        id: 'design-hub',
+        label: 'Design Hub',
+        icon: Palette,
+        href: '/admin/design',
+        badgeText: 'Studio',
+        badgeVariant: 'outline',
+        description: 'Create and manage visual assets',
+      },
+      {
+        id: 'asset-library',
+        label: 'Asset Library',
+        icon: FolderOpen,
+        href: '/admin/asset-library',
+        description: 'All media assets, Canva clips, uploads',
+      },
+      {
+        id: 'google-drive',
+        label: 'Google Drive',
+        icon: HardDrive,
+        href: '/admin/google-drive',
+        description: 'Import files from Drive to Asset Library',
+      },
+      {
+        id: 'media',
+        label: 'Media Library',
+        icon: Image,
+        href: '/admin/media',
+        description: 'Upload/manage files with metadata',
+      },
+    ],
+  },
+
+  /* ── COMMERCE ── */
+  {
+    id: 'commerce',
+    label: 'Commerce',
+    items: [
+      {
+        id: 'affiliate-hq',
+        label: 'Affiliate HQ',
+        icon: DollarSign,
+        href: '/admin/affiliate-hq',
+        description: 'Revenue, partners, coverage, links',
+      },
+      {
+        id: 'finance-hub',
+        label: 'Finance Hub',
+        icon: Briefcase,
+        href: '/admin/cockpit/finance',
+        description: 'Stripe + Mercury + Affiliate revenue',
+      },
+    ],
+  },
+
+  /* ── SYSTEM ── */
+  {
+    id: 'system',
+    label: 'System',
+    items: [
+      {
+        id: 'integrations',
+        label: 'Integrations',
+        icon: Activity,
+        href: '/admin/integrations',
+        badgeText: 'Health',
+        badgeVariant: 'default',
+        description: 'API health, monetization status',
+      },
+      {
+        id: 'ai-costs',
+        label: 'AI Costs',
+        icon: BarChart3,
+        href: '/admin/ai-costs',
+        description: 'Provider spend, per-task breakdown',
+      },
+      {
+        id: 'automation-hub',
+        label: 'Automation',
+        icon: Bot,
+        href: '/admin/automation-hub',
+        description: 'Publishing schedules, cron jobs',
+      },
+      {
+        id: 'settings',
+        label: 'Settings',
+        icon: Settings,
+        children: [
+          { id: 'theme', label: 'Theme', icon: Palette, href: '/admin/settings/theme', description: 'Theme, logo/colors' },
+          { id: 'api-keys', label: 'API Keys', icon: Key, description: 'External service credentials', comingSoon: true },
+          { id: 'roles', label: 'Roles', icon: Users, description: 'User roles and permissions', comingSoon: true },
+          { id: 'site', label: 'Site Settings', icon: Globe, href: '/admin/cockpit/new-site', description: 'General site configuration' },
+        ],
+      },
+    ],
+  },
 ]
+
+// Flat list for backward compatibility
+export const adminNavigation: NavItem[] = adminSections.flatMap(s => s.items)
 
 interface PremiumAdminNavProps {
   siteContext?: SiteContext
@@ -457,9 +533,18 @@ export function PremiumAdminNav({
         </div>
       )}
 
-      {/* Navigation Items */}
-      <div className="space-y-1">
-        {adminNavigation.map(item => renderNavItem(item))}
+      {/* Navigation — grouped by section */}
+      <div className="space-y-4">
+        {adminSections.map(section => (
+          <div key={section.id}>
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+              {section.label}
+            </p>
+            <div className="space-y-0.5">
+              {section.items.map(item => renderNavItem(item))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -497,6 +582,44 @@ export function PremiumAdminNav({
             <span>New Prompt</span>
           </Link>
         </div>
+      </div>
+    </nav>
+  )
+}
+
+/* ── Mobile Bottom Navigation ── */
+export function MobileBottomNav() {
+  const pathname = usePathname()
+
+  const tabs = [
+    { id: 'hq', label: 'HQ', icon: LayoutDashboard, href: '/admin/cockpit' },
+    { id: 'content', label: 'Content', icon: FileText, href: '/admin/articles' },
+    { id: 'inbox', label: 'Inbox', icon: Inbox, href: '/admin/communications' },
+    { id: 'crm', label: 'CRM', icon: Users, href: '/admin/crm' },
+    { id: 'more', label: 'More', icon: Settings, href: '/admin/settings' },
+  ]
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 md:hidden safe-area-bottom">
+      <div className="flex items-center justify-around h-14">
+        {tabs.map(tab => {
+          const isActive = pathname === tab.href || pathname?.startsWith(tab.href + '/')
+          const Icon = tab.icon
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className={`flex flex-col items-center justify-center flex-1 h-full text-[10px] font-medium transition-colors
+                ${isActive
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400'
+                }`}
+            >
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+              <span className="mt-0.5">{tab.label}</span>
+            </Link>
+          )
+        })}
       </div>
     </nav>
   )

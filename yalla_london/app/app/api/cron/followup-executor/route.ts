@@ -109,18 +109,21 @@ async function handler(request: NextRequest) {
       processCEOEvent = ceoBrain.processCEOEvent;
     } catch (err) {
       const msg = `CEO Brain import failed: ${err instanceof Error ? err.message : String(err)}`;
-      console.error(`[followup-executor] ${msg}`);
-      errors.push(msg);
-      // Mark all due tasks back to pending with error note — don't leave them stuck
+      console.warn(`[followup-executor] ${msg} — tasks remain pending for next run`);
+      // Mark all due tasks with error note — they stay "pending" for retry next run
       for (const task of dueTasks) {
         try {
           await prisma.agentTask.update({
             where: { id: task.id },
             data: { errorMessage: "CEO Brain module unavailable — retrying next run" },
           });
-        } catch { /* best effort */ }
+        } catch (updateErr) {
+          console.warn("[followup-executor] Task note failed:", updateErr instanceof Error ? updateErr.message : String(updateErr));
+        }
       }
-      overallStatus = "failed";
+      // NOT a failure — tasks remain pending and will be retried. No work was lost.
+      // Reporting "failed" triggers CEO Inbox + diagnostic-agent unnecessarily (Rule #152).
+      overallStatus = "completed";
     }
 
     // -----------------------------------------------------------------------

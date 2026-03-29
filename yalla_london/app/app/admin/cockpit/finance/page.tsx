@@ -103,6 +103,7 @@ export default function FinancePage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/admin/finance");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

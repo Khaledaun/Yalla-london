@@ -117,6 +117,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -141,6 +142,8 @@ export default function CampaignsPage() {
 
   // ── Load campaigns ──────────────────────────────────────────────
   const loadCampaigns = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const params = selectedSiteId ? `?siteId=${selectedSiteId}` : "";
       const res = await fetch(`/api/admin/campaigns${params}`);
@@ -149,6 +152,7 @@ export default function CampaignsPage() {
       setCampaigns(data.campaigns || []);
     } catch (err) {
       console.warn("Failed to load campaigns:", err);
+      setLoadError(err instanceof Error ? err.message : "Failed to load campaigns");
     } finally {
       setLoading(false);
     }
@@ -242,7 +246,7 @@ export default function CampaignsPage() {
       });
       if (!res.ok) throw new Error("Creation failed");
       const data = await res.json();
-      showToast(`Campaign created: ${data.totalItems} articles queued`);
+      showToast(`Campaign created: ${data.totalItems ?? 0} articles queued`);
       setShowCreate(false);
       setPreview(null);
       loadCampaigns();
@@ -322,6 +326,21 @@ export default function CampaignsPage() {
     return (
       <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, sans-serif" }}>
         <p>Loading campaigns...</p>
+      </div>
+    );
+  }
+
+  if (loadError && campaigns.length === 0) {
+    return (
+      <div style={{ padding: 20, fontFamily: "system-ui, -apple-system, sans-serif", textAlign: "center" }}>
+        <p style={{ color: "#991B1B", fontWeight: 600 }}>Failed to load campaigns</p>
+        <p style={{ color: "#6B7280", fontSize: 13, margin: "4px 0 12px" }}>{loadError}</p>
+        <button
+          onClick={() => { setLoading(true); loadCampaigns(); }}
+          style={{ padding: "8px 20px", background: "#C8322B", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -588,7 +607,7 @@ export default function CampaignsPage() {
                     <span style={{ fontWeight: 700, fontSize: 15 }}>{campaign.name}</span>
                   </div>
                   <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>
-                    {campaign.type} · {campaign.totalItems} articles · ${campaign.currentCostUsd.toFixed(3)} spent
+                    {campaign.type} · {campaign.totalItems ?? 0} articles · ${(campaign.currentCostUsd ?? 0).toFixed(3)} spent
                     {campaign.runCount > 0 && ` · ${campaign.runCount} runs`}
                   </div>
                 </div>
@@ -647,22 +666,22 @@ export default function CampaignsPage() {
               </div>
 
               {/* Progress bar */}
-              {campaign.totalItems > 0 && (
+              {(campaign.totalItems ?? 0) > 0 && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{
                     background: "#F3F4F6", borderRadius: 6, height: 8, overflow: "hidden",
                   }}>
                     <div style={{
-                      width: `${Math.round(((campaign.completedItems + campaign.failedItems + campaign.skippedItems) / campaign.totalItems) * 100)}%`,
+                      width: `${Math.round((((campaign.completedItems ?? 0) + (campaign.failedItems ?? 0) + (campaign.skippedItems ?? 0)) / (campaign.totalItems || 1)) * 100)}%`,
                       height: "100%",
-                      background: campaign.failedItems > 0 ? "linear-gradient(90deg, #10B981, #EF4444)" : "#10B981",
+                      background: (campaign.failedItems ?? 0) > 0 ? "linear-gradient(90deg, #10B981, #EF4444)" : "#10B981",
                       borderRadius: 6,
                       transition: "width 0.5s ease",
                     }} />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6B7280", marginTop: 2 }}>
-                    <span>{campaign.completedItems} done · {campaign.failedItems} failed · {campaign.skippedItems} skipped</span>
-                    <span>{Math.round(((campaign.completedItems + campaign.failedItems + campaign.skippedItems) / campaign.totalItems) * 100)}%</span>
+                    <span>{campaign.completedItems ?? 0} done · {campaign.failedItems ?? 0} failed · {campaign.skippedItems ?? 0} skipped</span>
+                    <span>{Math.round((((campaign.completedItems ?? 0) + (campaign.failedItems ?? 0) + (campaign.skippedItems ?? 0)) / (campaign.totalItems || 1)) * 100)}%</span>
                   </div>
                 </div>
               )}

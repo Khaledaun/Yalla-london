@@ -221,7 +221,7 @@ export default function EmailCampaignsPage() {
     setIsCreating(true);
     try {
       // Read siteId from cookie or let server default — never hardcode a specific site
-      const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || undefined;
+      const siteId = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || undefined;
       const res = await fetch("/api/admin/email-campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -337,6 +337,13 @@ export default function EmailCampaignsPage() {
           language: "en",
         }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Request failed");
+        setTestResult({ success: false, message: `HTTP ${res.status}: ${errText.slice(0, 200)}` });
+        toast.error(`Welcome email failed (${res.status})`);
+        setIsSendingTest(false);
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       setTestResult({
         success: data.success ?? false,
@@ -541,7 +548,7 @@ export default function EmailCampaignsPage() {
                     const res = await fetch("/api/admin/email-templates", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london" }),
+                      body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || "yalla-london" }),
                     });
                     if (!res.ok) throw new Error("Seed failed");
                     const data = await res.json();
@@ -685,7 +692,7 @@ export default function EmailCampaignsPage() {
                     const res = await fetch("/api/admin/email-templates", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london" }),
+                      body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || "yalla-london" }),
                     });
                     if (!res.ok) throw new Error("Seed failed");
                     const data = await res.json();
@@ -719,7 +726,7 @@ export default function EmailCampaignsPage() {
                         const res = await fetch("/api/admin/email-templates", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/x-site-id=([^;]+)/)?.[1] || "yalla-london" }),
+                          body: JSON.stringify({ action: "seed_templates", site: document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || "yalla-london" }),
                         });
                         if (!res.ok) throw new Error("Seed failed");
                         const data = await res.json();

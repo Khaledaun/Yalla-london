@@ -79,7 +79,13 @@ const KNOWN_SITES = [
 ];
 
 export default function SiteHealthPage() {
-  const [siteId, setSiteId] = useState<string>("");
+  const [siteId, setSiteId] = useState<string>(() => {
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)
+      if (match?.[1]) return match[1]
+    }
+    return "yalla-london"
+  });
   const [overview, setOverview] = useState<SiteHealthOverview | null>(null);
   const [history, setHistory] = useState<AuditRunSummary[]>([]);
   const [issues, setIssues] = useState<AuditIssue[]>([]);

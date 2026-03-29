@@ -268,6 +268,12 @@ export default function CEOOperationsDashboard() {
       if (payload && method === 'POST') opts.body = JSON.stringify(payload)
       const url = method === 'GET' && siteId ? `${endpoint}?siteId=${encodeURIComponent(siteId)}` : endpoint
       const res = await fetch(url, opts)
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        setActionResult(`${label}: Failed (HTTP ${res.status})`)
+        console.warn(`[ai-assistant] ${label} failed:`, res.status, errText.slice(0, 200))
+        return
+      }
       const data = await res.json().catch(() => ({}))
       setActionResult(`${label}: ${data.success !== false ? 'Done' : data.error || 'Failed'}`)
       if (label !== 'Health Check') setTimeout(fetchOpsData, 2000)
@@ -346,7 +352,8 @@ export default function CEOOperationsDashboard() {
   const fetchHealthReport = async () => {
     setHealthLoading(true)
     try {
-      const siteParam = siteId ? `?siteId=${encodeURIComponent(siteId)}` : '?siteId=yalla-london'
+      const effectiveSiteId = siteId || (typeof document !== 'undefined' ? document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] : null) || 'yalla-london'
+      const siteParam = `?siteId=${encodeURIComponent(effectiveSiteId)}`
       const res = await fetch(`/api/admin/aggregated-report${siteParam}`)
       if (res.ok) {
         const data = await res.json()
@@ -485,7 +492,7 @@ export default function CEOOperationsDashboard() {
               { label: 'Published', value: context.contentVelocity?.publishedToday ?? 0, color: (context.contentVelocity?.publishedToday ?? 0) > 0 ? '#2D5A3D' : '#78716C' },
               { label: 'Stuck', value: context.contentVelocity?.stuck ?? 0, color: (context.contentVelocity?.stuck ?? 0) > 0 ? '#C49A2A' : '#2D5A3D' },
               { label: 'Indexed', value: context.seoHealth?.indexed ?? 0, color: '#3B7EA1' },
-              { label: 'Crons OK', value: `${context.cronHealth?.healthy ?? 0}/${context.cronHealth?.total ?? 24}`, color: (context.cronHealth?.failed24h ?? 0) === 0 ? '#2D5A3D' : '#C8322B' },
+              { label: 'Crons OK', value: `${context.cronHealth?.healthy ?? 0}/${context.cronHealth?.total ?? '?'}`, color: (context.cronHealth?.failed24h ?? 0) === 0 ? '#2D5A3D' : '#C8322B' },
               { label: 'Revenue 7d', value: `$${(context.revenueSnapshot?.commissions7d ?? 0).toFixed(2)}`, color: '#C49A2A' },
               { label: 'AI Cost', value: `$${(context.aiCosts?.todayUsd ?? 0).toFixed(2)}`, color: '#78716C' },
               { label: 'Coverage', value: `${context.revenueSnapshot?.affiliateCoverage ?? 0}%`, color: (context.revenueSnapshot?.affiliateCoverage ?? 0) >= 80 ? '#2D5A3D' : '#C49A2A' },

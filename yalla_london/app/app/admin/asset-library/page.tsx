@@ -69,7 +69,13 @@ export default function AssetLibraryPage() {
   const [assets, setAssets] = useState<AssetItem[]>([]);
   const [totalAssets, setTotalAssets] = useState(0);
   const [stats, setStats] = useState<{ totalAssets: number; recentUploads: number; byCategory: { category: string; count: number }[] } | null>(null);
-  const [activeSiteId, setActiveSiteId] = useState("yalla-london");
+  const [activeSiteId, setActiveSiteId] = useState(() => {
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)
+      if (match?.[1]) return match[1]
+    }
+    return "yalla-london"
+  });
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("browse");

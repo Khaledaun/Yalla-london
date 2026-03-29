@@ -511,7 +511,15 @@ export default function ProductFileGeneratorPage() {
         }),
       });
 
-      const data = await res.json();
+      if (!res.ok) {
+        setGenerationResults((prev) => ({
+          ...prev,
+          [genKey]: { success: false, action: "generate_from_post", error: `HTTP ${res.status}: Request failed` },
+        }));
+        setGenerating(null);
+        return;
+      }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       setGenerationResults((prev) => ({ ...prev, [genKey]: data }));
 
       if (data.success && data.base64 && data.mimeType) {
@@ -545,7 +553,11 @@ export default function ProductFileGeneratorPage() {
         }),
       });
 
-      const data = await res.json();
+      if (!res.ok) {
+        console.warn("[generate-page] Template preview HTTP", res.status);
+        return;
+      }
+      const data = await res.json().catch(() => ({ success: false, error: "Non-JSON response" }));
       if (data.success && data.html) {
         setPreviewHtml(data.html);
       }

@@ -173,6 +173,10 @@ export default function NewSitePage() {
     setValidation(null);
     try {
       const res = await fetch(`/api/admin/new-site?siteId=${config.siteId}&domain=${config.domain}`);
+      if (!res.ok) {
+        setValidation({ available: false, errors: [`Server error (${res.status})`], suggestions: [] });
+        return;
+      }
       const json = await res.json();
       setValidation(json);
     } catch (err) {
@@ -192,6 +196,10 @@ export default function NewSitePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config, saveTasks: false }),
       });
+      if (!res.ok) {
+        console.warn("[new-site] Plan generation failed:", res.status);
+        return;
+      }
       const json = await res.json();
       setPlan(json.plan);
     } catch (err) {
@@ -209,6 +217,10 @@ export default function NewSitePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config, saveTasks: true }),
       });
+      if (!res.ok) {
+        console.warn("[new-site] Save plan failed:", res.status);
+        return;
+      }
       const json = await res.json();
       if (json.tasksCreated > 0) setPlanSaved(true);
     } catch (err) {
@@ -232,6 +244,12 @@ export default function NewSitePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Build failed");
+        setBuildResult({ success: false, error: `Server error (${res.status}): ${errText.slice(0, 200)}`, steps: [], topicsCreated: 0, nextSteps: [] });
+        setStep(8);
+        return;
+      }
       const json = await res.json();
       setBuildResult(json);
       setStep(8);
@@ -252,6 +270,11 @@ export default function NewSitePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "quick", siteId: config.siteId }),
       });
+      if (!res.ok) {
+        console.warn("[new-site] Diagnostics failed:", res.status);
+        setDiagnostics([]);
+        return;
+      }
       const json = await res.json();
       setDiagnostics(json.results ?? []);
     } catch (err) {

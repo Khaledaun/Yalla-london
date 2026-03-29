@@ -138,8 +138,11 @@ export default function IndexingCenterContent() {
       // run_seo_cron calls the cron endpoint directly
       if (action === "run_seo_cron") {
         const res = await fetch("/api/admin/run-all-crons", { method: "POST" });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Cron failed");
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          throw new Error(errText.slice(0, 200) || `HTTP ${res.status}`);
+        }
+        const json = await res.json().catch(() => ({ message: "Triggered" }));
         toast.success(json.message || "SEO Agent triggered");
         await fetchData();
         setActionLoading(null);
@@ -150,8 +153,11 @@ export default function IndexingCenterContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...payload }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Action failed");
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText.slice(0, 200) || `HTTP ${res.status}`);
+      }
+      const json = await res.json().catch(() => ({ message: "Done" }));
       toast.success(json.message || "Done");
       await fetchData();
     } catch (e: any) {

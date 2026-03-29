@@ -436,6 +436,12 @@ export default function DeparturesContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cronPath }),
       })
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        setTriggerResult({ path: cronPath, ok: false, msg: `HTTP ${res.status}: ${errText.slice(0, 200)}` })
+        setTriggering(null)
+        return
+      }
       const json = await res.json()
       setTriggerResult({
         path: cronPath,

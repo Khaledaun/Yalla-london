@@ -167,6 +167,8 @@ function TodoTab() {
         body: JSON.stringify(item.actionPayload || {}),
       })
       if (res.ok) setDone((prev) => new Set([...prev, item.id]))
+    } catch (err) {
+      console.warn('[settings] action failed:', err instanceof Error ? err.message : err)
     } finally {
       setRunning(null)
     }

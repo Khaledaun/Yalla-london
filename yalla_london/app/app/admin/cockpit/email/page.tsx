@@ -83,7 +83,10 @@ export default function CockpitEmailPage() {
   }, [fetchData]);
 
   const handleTestSend = async () => {
-    if (!testEmail || !testEmail.includes("@")) return;
+    if (!testEmail || !testEmail.includes("@")) {
+      setTestResult({ success: false, message: "Please enter a valid email address" });
+      return;
+    }
     setTestSending(true);
     setTestResult(null);
     try {
@@ -92,6 +95,12 @@ export default function CockpitEmailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "test_send", to: testEmail }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Request failed");
+        setTestResult({ success: false, message: `HTTP ${res.status}: ${errText.slice(0, 200)}` });
+        setTestSending(false);
+        return;
+      }
       const json = await res.json().catch(() => ({ success: false, error: "Invalid response" }));
       setTestResult({
         success: json.success,

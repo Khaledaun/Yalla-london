@@ -118,7 +118,13 @@ function formatDuration(ms: number | null): string {
 // ---------------------------------------------------------------------------
 
 export default function AdminNewsPage() {
-  const [activeSiteId, setActiveSiteId] = useState('yalla-london')
+  const [activeSiteId, setActiveSiteId] = useState(() => {
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)
+      if (match) return decodeURIComponent(match[1])
+    }
+    return 'yalla-london'
+  })
   const [newsItems, setNewsItems] = useState<NewsItem[]>([])
   const [researchLogs, setResearchLogs] = useState<ResearchLog[]>([])
   const [stats, setStats] = useState<NewsStats | null>(null)

@@ -282,7 +282,7 @@ export default function DesignContent() {
                 onClick={async () => {
                   setIsSeeding(true);
                   try {
-                    const siteId = document.cookie.match(/x-site-id=([^;]+)/)?.[1] || getDefaultSiteId();
+                    const siteId = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || getDefaultSiteId();
                     const res = await fetch("/api/admin/designs", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -338,7 +338,7 @@ export default function DesignContent() {
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Canva Video Assets</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    433 clips across 4 collections (luxury travel, beach, aesthetic, brand)
+                    Video clips across 4 collections (luxury travel, beach, aesthetic, brand)
                   </p>
                   <button
                     className="admin-btn admin-btn-primary text-sm px-3 py-1.5 mt-3 inline-flex items-center gap-1"

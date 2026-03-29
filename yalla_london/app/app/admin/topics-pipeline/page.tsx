@@ -88,6 +88,12 @@ export default function TopicsPipelinePage() {
         ? '/api/admin/topics'
         : `/api/admin/topics?status=${selectedStatus}`
       const response = await fetch(url)
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '')
+        setError(`Failed to fetch topics (${response.status})`)
+        console.warn('[topics-pipeline] Fetch failed:', response.status, errText.slice(0, 200))
+        return
+      }
       const data = await response.json()
 
       if (response.ok) {
@@ -116,10 +122,12 @@ export default function TopicsPipelinePage() {
 
       const longtailsArray = newTopic.longtails.split(',').map(k => k.trim()).filter(Boolean)
       const featuredArray = newTopic.featured_longtails.split(',').map(k => k.trim()).filter(Boolean)
-      const linksArray = newTopic.authority_links.split(',').map(url => ({
-        url: url.trim(),
-        title: new URL(url.trim()).hostname
-      })).filter(l => l.url)
+      const linksArray = newTopic.authority_links.split(',').map(url => {
+        const trimmed = url.trim()
+        if (!trimmed) return null
+        try { return { url: trimmed, title: new URL(trimmed).hostname } }
+        catch { return { url: trimmed, title: trimmed.replace(/^https?:\/\//, '').split('/')[0] } }
+      }).filter((l): l is { url: string; title: string } => !!l)
 
       const response = await fetch('/api/admin/topics', {
         method: 'POST',
@@ -140,9 +148,15 @@ export default function TopicsPipelinePage() {
         })
       })
 
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '')
+        setError(`Failed to create topic (${response.status})`)
+        console.warn('[topics-pipeline] Create failed:', response.status, errText.slice(0, 200))
+        return
+      }
       const data = await response.json()
 
-      if (response.ok && data.success) {
+      if (data.success) {
         setNewTopic({
           title: '',
           primary_keyword: '',

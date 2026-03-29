@@ -123,6 +123,13 @@ export default function ArticlesPage() {
           return
         }
 
+        if (!response.ok) {
+          console.warn('[articles] Fetch failed:', response.status)
+          setArticles([])
+          setLoading(false)
+          return
+        }
+
         const data = await response.json().catch(() => null)
 
         if (data?.success && data.articles) {
@@ -436,7 +443,7 @@ export default function ArticlesPage() {
           />
         ) : viewMode === 'pipeline' ? (
           <div className="mt-2">
-            <RichArticleList source="all" showHeader={true} siteId={undefined} />
+            <RichArticleList source="all" showHeader={true} siteId={typeof document !== 'undefined' ? document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] ?? undefined : undefined} />
           </div>
         ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

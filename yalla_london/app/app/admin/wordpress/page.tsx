@@ -103,7 +103,11 @@ export default function WordPressPage() {
           data: { apiUrl, username, appPassword },
         }),
       });
-      const data = await res.json();
+      if (!res.ok) {
+        toast.error(`Connection failed: HTTP ${res.status}`);
+        return;
+      }
+      const data = await res.json().catch(() => ({ connected: false, error: "Non-JSON response" }));
 
       if (data.connected) {
         setConnected(true);

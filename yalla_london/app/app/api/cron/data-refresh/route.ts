@@ -3,6 +3,7 @@ import { getExchangeRates, SITE_BASE_CURRENCIES } from "@/lib/apis/currency";
 import { getWeatherForecast, SITE_DESTINATIONS } from "@/lib/apis/weather";
 import { getUpcomingGCCHolidays } from "@/lib/apis/holidays";
 import { getDestinationInfo, DESTINATION_CODES } from "@/lib/apis/countries";
+import { logCronExecution } from "@/lib/cron-logger";
 
 export const maxDuration = 60;
 
@@ -83,11 +84,26 @@ export async function GET(request: NextRequest) {
   }
 
   const allSuccess = Object.values(results).every((r) => r.success);
+  const durationMs = Date.now() - startTime;
+  const itemsProcessed = Object.keys(results).length;
+  const itemsSucceeded = Object.values(results).filter((r) => r.success).length;
+
+  try {
+    await logCronExecution("data-refresh", allSuccess ? "completed" : "failed", {
+      durationMs,
+      itemsProcessed,
+      itemsSucceeded,
+      itemsFailed: itemsProcessed - itemsSucceeded,
+      resultSummary: results,
+    });
+  } catch (logErr) {
+    console.warn("[data-refresh] CronJobLog write failed:", logErr instanceof Error ? logErr.message : logErr);
+  }
 
   return NextResponse.json({
     success: allSuccess,
     results,
-    durationMs: Date.now() - startTime,
+    durationMs,
   });
 }
 

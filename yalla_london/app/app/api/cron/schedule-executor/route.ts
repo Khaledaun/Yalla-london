@@ -130,7 +130,7 @@ async function handleScheduleExecutor(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Reservoir full (${reservoirCount}/50)`,
+        message: `Reservoir full (${reservoirCount}/80)`,
         ...results,
         reservoirCount,
         durationMs,

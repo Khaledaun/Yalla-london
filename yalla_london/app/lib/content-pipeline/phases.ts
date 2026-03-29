@@ -179,7 +179,7 @@ Return JSON:
     const researchTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const research = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a travel SEO researcher for the ${site.destination} market targeting all international visitors and tourists. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: isArabic(draft.locale) ? 2500 : 1500,
+      maxTokens: isArabic(draft.locale) ? 3500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,
       phaseBudgetHint: 'light',
@@ -284,7 +284,7 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
 AUTHENTICITY: Include 1 sensory/experiential detail per section, 1 insider tip per section, 1 honest caveat, price details (£/€/$) in 3+ sections.${isArabic(draft.locale) ? " Arabic: use نصيحة/نصيحتنا for tips, رائحة/مذاق/أجواء for sensory." : ""}
 GEO CITABILITY: 1+ statistic per section, 2+ source attributions, 40-80 word self-contained opening paragraphs, 1+ comparison table.
 Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: isArabic(draft.locale) ? 2000 : 1200,
+      maxTokens: isArabic(draft.locale) ? 3500 : 1200,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
       phaseBudgetHint: 'heavy',  // Outline needs 25-35s — JSON output with complex structure

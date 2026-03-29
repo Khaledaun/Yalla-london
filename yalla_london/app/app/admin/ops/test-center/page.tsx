@@ -34,6 +34,60 @@ interface ActionLog {
   detail?: string;
 }
 
+// ---------------------------------------------------------------------------
+// API Response → UI Type transformers
+// ---------------------------------------------------------------------------
+
+/** Transform dev-tasks/test API response to TestRunResult */
+function transformTestResponse(data: Record<string, unknown>): TestRunResult {
+  const summary = (data.summary ?? data) as Record<string, unknown>;
+  const rawResults = (data.results ?? []) as Array<Record<string, unknown>>;
+
+  return {
+    total: (summary.total as number) ?? 0,
+    pass: (summary.passed ?? summary.pass ?? 0) as number,
+    warn: (summary.skipped ?? summary.warn ?? 0) as number,
+    fail: (summary.failed ?? summary.fail ?? 0) as number,
+    durationMs: (summary.durationMs ?? data.durationMs ?? 0) as number,
+    results: rawResults.map((r, i) => {
+      const inner = (r.result ?? r) as Record<string, unknown>;
+      const success = inner.success;
+      const status: "pass" | "warn" | "fail" =
+        success === true ? "pass" : success === false ? "fail" : "warn";
+      return {
+        id: (r.taskId ?? r.id ?? String(i)) as string,
+        name: (r.testType ?? r.name ?? "unknown") as string,
+        status,
+        duration: (inner.durationMs ?? inner.duration) as number | undefined,
+        detail: (inner.plainLanguage ?? inner.detail ?? inner.error) as string | undefined,
+        category: (inner.phase ?? r.category) as string | undefined,
+      };
+    }),
+  };
+}
+
+/** Transform action-logs API response to ActionLog[] */
+function transformActionLogs(data: unknown): ActionLog[] {
+  const raw = Array.isArray(data) ? data : ((data as Record<string, unknown>)?.logs as unknown[]) ?? [];
+  return (raw as Array<Record<string, unknown>>).map((log) => {
+    const apiStatus = (log.status as string) ?? "";
+    const uiStatus: ActionLog["status"] =
+      apiStatus === "failed" || apiStatus === "timeout" ? "error" :
+      apiStatus === "partial" ? "warning" :
+      apiStatus === "success" || apiStatus === "running" ? "info" : "info";
+
+    return {
+      id: (log.id as string) ?? "",
+      timestamp: (log.timestamp as string) ?? "",
+      action: (log.action as string) ?? "",
+      user: (log.siteId as string) ?? undefined,
+      target: undefined,
+      status: uiStatus,
+      detail: (log.summary ?? log.error ?? log.detail) as string | undefined,
+    };
+  });
+}
+
 type Tab = "smoke" | "audit" | "logs" | "json";
 
 // ─── Secret key detector ─────────────────────────────────────────────────────
@@ -273,8 +327,8 @@ function SmokeTestsTab() {
         body: JSON.stringify({ action: "test_all" }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json() as TestRunResult;
-      setResults(data);
+      const data = await res.json();
+      setResults(transformTestResponse(data));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -531,7 +585,7 @@ function ActionLogsTab() {
       const res = await fetch("/api/admin/action-logs?limit=100");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setLogs(Array.isArray(data) ? data : (data.logs ?? []));
+      setLogs(transformActionLogs(data));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {

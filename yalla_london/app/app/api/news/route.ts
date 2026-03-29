@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
 
   // Parse query parameters
   const rawLimit = parseInt(searchParams.get('limit') || '3', 10);
-  const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 3 : rawLimit), 10);
+  const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 3 : rawLimit), 30);
   const category = searchParams.get('category') || undefined;
   const majorOnly = searchParams.get('major_only') === 'true';
 

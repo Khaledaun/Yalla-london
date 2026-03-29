@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 interface CronLogHandle {
   /** Increment success/failure counters */
@@ -76,8 +77,8 @@ export async function logCronExecution(
         timed_out: status === "timed_out",
       },
     });
-  } catch {
-    // best-effort — never break the cron route
+  } catch (logError) {
+    console.error(`[cron-logger] Failed to persist log for ${jobName}:`, logError instanceof Error ? logError.message : logError);
   }
 }
 
@@ -94,16 +95,12 @@ export function withCronLog(
 
   return async function cronHandler(request: NextRequest) {
     // 1. Auth check
+    // If CRON_SECRET is configured and doesn't match, reject.
+    // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!cronSecret && process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Server misconfiguration: CRON_SECRET not set" },
-        { status: 503 },
-      );
     }
 
     const startTime = Date.now();
@@ -168,6 +165,9 @@ export function withCronLog(
       errorMessage = error instanceof Error ? error.message : String(error);
       errorStack = error instanceof Error ? error.stack ?? null : null;
       console.error(`[cron-logger] ${jobName} failed:`, error);
+
+      // Fire failure hook for automatic recovery
+      onCronFailure({ jobName, error }).catch(err => console.error(`[cron-logger] onCronFailure hook failed for ${jobName}:`, err instanceof Error ? err.message : err));
     }
 
     if (timedOut) status = "timed_out";

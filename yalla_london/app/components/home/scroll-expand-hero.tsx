@@ -152,7 +152,7 @@ const ScrollExpandHero = ({
   return (
     <div
       ref={sectionRef}
-      className="transition-colors duration-700 ease-in-out overflow-x-hidden bg-cream-50"
+      className="transition-colors duration-700 ease-in-out overflow-x-hidden bg-yl-cream"
     >
       <section className="relative flex flex-col items-center justify-start min-h-[100dvh]">
         <div className="relative w-full flex flex-col items-center min-h-[100dvh]">
@@ -191,7 +191,7 @@ const ScrollExpandHero = ({
                   height: `${mediaHeight}px`,
                   maxWidth: '95vw',
                   maxHeight: '85vh',
-                  boxShadow: '0 25px 80px rgba(139, 21, 56, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 25px 80px rgba(200, 50, 43, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2)',
                 }}
               >
                 {mediaType === 'video' ? (
@@ -289,19 +289,19 @@ const ScrollExpandHero = ({
               {/* Animated Title - Splits and moves apart */}
               <div className="flex items-center justify-center text-center gap-4 w-full relative z-10 flex-col mix-blend-normal">
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-cream-50 drop-shadow-lg"
+                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-yl-cream drop-shadow-lg"
                   style={{
                     transform: `translateX(-${textTranslateX}vw)`,
-                    textShadow: '0 4px 30px rgba(139, 21, 56, 0.5)'
+                    textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
                   }}
                 >
                   {firstHalf}
                 </motion.h1>
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-cream-50 drop-shadow-lg"
+                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-yl-cream drop-shadow-lg"
                   style={{
                     transform: `translateX(${textTranslateX}vw)`,
-                    textShadow: '0 4px 30px rgba(139, 21, 56, 0.5)'
+                    textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
                   }}
                 >
                   {secondHalf}
@@ -319,7 +319,7 @@ const ScrollExpandHero = ({
 
             {/* Content revealed after expansion */}
             <motion.section
-              className="flex flex-col w-full px-8 py-16 md:px-16 lg:py-24 bg-cream-50"
+              className="flex flex-col w-full px-8 py-16 md:px-16 lg:py-24 bg-yl-cream"
               initial={{ opacity: 0 }}
               animate={{ opacity: showContent ? 1 : 0 }}
               transition={{ duration: 0.7 }}

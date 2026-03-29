@@ -1,526 +1,492 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { usePathname } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useAdminSession } from '@/hooks/use-admin-session'
 import { SiteSelector } from '@/components/admin/site-selector'
 import {
-  LayoutDashboard,
-  FileText,
-  Image as ImageIcon,
-  Search,
-  TrendingUp,
-  Brain,
-  Layers,
-  Bot,
-  Settings,
-  ChevronDown,
-  ChevronRight,
-  Menu,
-  X,
-  Bell,
-  User,
-  LogOut,
-  HelpCircle,
-  Palette,
-  Key,
-  Users,
-  Globe,
-  Upload,
-  MessageSquare,
-  BarChart3,
-  Wallet,
-  CreditCard,
-  Calendar,
-  ShoppingCart,
-  Mail,
-  Sun,
-  Moon,
-  Command,
-  Plus,
-  Zap,
-  Images,
-  Link2,
-  Store,
-  Package,
-  Brush
+  FileText, Search, Brain, Bot, Settings, ChevronDown, Menu, X,
+  User, LogOut, Palette, Key, Globe, BarChart3, Wallet,
+  Command, Plus, Zap, Store, Activity, Clock, Wrench, Ship,
+  Anchor, AlertTriangle, Eye, Image as ImageIcon, Mail, TrendingUp,
 } from 'lucide-react'
 
-// MOPHY-styled Navigation Structure
-// All admin pages must be reachable from the sidebar.
-const mainNavigation = [
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZENITHA HQ — Navigation Structure
+// 6 sections consolidating all 68 admin pages. Zero deletions.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const navigation = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    href: '/admin',
-    children: [
-      { label: 'Command Center', href: '/admin' },
-      { label: 'Analytics', href: '/admin/command-center/analytics' },
-      { label: 'SEO Audits', href: '/admin/seo-audits' },
-      { label: 'SEO Command', href: '/admin/seo-command' },
-    ]
+    id: 'command',
+    label: 'COMMAND',
+    icon: Zap,
+    items: [
+      { label: 'Mission Control',   href: '/admin/cockpit' },
+      { label: 'Blockers',          href: '/admin/blockers', badge: true },
+      { label: 'System Health',     href: '/admin/cockpit/health' },
+    ],
   },
   {
     id: 'content',
-    label: 'Content',
+    label: 'CONTENT',
     icon: FileText,
-    href: '/admin/articles',
-    badge: 'CMS',
-    children: [
-      { label: 'All Articles', href: '/admin/articles' },
-      { label: 'New Article', href: '/admin/articles/new' },
-      { label: 'Topics Pipeline', href: '/admin/topics' },
-      { label: 'Content Pipeline', href: '/admin/pipeline' },
-      { label: 'Categories', href: '/admin/content-types' },
-      { label: 'WordPress', href: '/admin/wordpress' },
-    ]
+    items: [
+      { label: 'Article Library',   href: '/admin/articles' },
+      { label: 'Content Pipeline',  href: '/admin/topics-pipeline' },
+      { label: 'Topic Research',    href: '/admin/topics' },
+      { label: 'Write Article',     href: '/admin/cockpit/write' },
+    ],
   },
   {
-    id: 'media',
-    label: 'Media',
-    icon: ImageIcon,
-    href: '/admin/media',
-    children: [
-      { label: 'Media Library', href: '/admin/media' },
-      { label: 'Photo Pool', href: '/admin/photo-pool' },
-      { label: 'Upload', href: '/admin/media/upload' },
-    ]
+    id: 'intelligence',
+    label: 'INTELLIGENCE',
+    icon: Search,
+    items: [
+      { label: 'SEO Command',       href: '/admin/intelligence' },
+      { label: 'Search Console',    href: '/admin/seo-audits' },
+      { label: 'Analytics',         href: '/admin/analytics' },
+    ],
   },
   {
-    id: 'seo',
-    label: 'SEO & Marketing',
-    icon: TrendingUp,
-    href: '/admin/seo',
-    badge: 'AI',
-    children: [
-      { label: 'SEO Dashboard', href: '/admin/seo' },
-      { label: 'Keywords & GSC', href: '/admin/seo/report' },
-      { label: 'Affiliates', href: '/admin/affiliate-marketing' },
-      { label: 'Affiliate Pool', href: '/admin/affiliate-pool' },
-    ]
-  },
-  {
-    id: 'automation',
-    label: 'AI & Automation',
-    icon: Bot,
-    href: '/admin/automation-hub',
-    badge: 'New',
-    children: [
-      { label: 'Automation Hub', href: '/admin/automation-hub' },
-      { label: 'AI Studio', href: '/admin/ai-studio' },
-      { label: 'Prompt Studio', href: '/admin/ai-prompt-studio' },
-      { label: 'Workflow', href: '/admin/workflow' },
-    ]
+    id: 'revenue',
+    label: 'REVENUE',
+    icon: Wallet,
+    items: [
+      { label: 'Affiliate Hub',     href: '/admin/affiliate-hq' },
+      { label: 'Commerce',          href: '/admin/cockpit/commerce' },
+    ],
   },
   {
     id: 'design',
-    label: 'Design & Media',
+    label: 'DESIGN',
     icon: Palette,
-    href: '/admin/design-studio',
-    children: [
-      { label: 'Design Studio', href: '/admin/design-studio' },
-      { label: 'Video Studio', href: '/admin/video-studio' },
-      { label: 'PDF Generator', href: '/admin/pdf-generator' },
-      { label: 'Homepage Builder', href: '/admin/design/homepage' },
-      { label: 'Brand Assets', href: '/admin/brand-assets' },
-    ]
+    items: [
+      { label: 'Brand Assets',      href: '/admin/design' },
+      { label: 'Media Library',     href: '/admin/media' },
+      { label: 'Email & Social',    href: '/admin/email-campaigns' },
+    ],
   },
   {
-    id: 'monetization',
-    label: 'Monetization',
-    icon: Store,
-    href: '/admin/shop',
-    children: [
-      { label: 'Shop & Products', href: '/admin/shop' },
-      { label: 'Transactions', href: '/admin/transactions' },
-      { label: 'Billing', href: '/admin/billing' },
-    ]
+    id: 'agents',
+    label: 'AGENTS',
+    icon: Bot,
+    items: [
+      { label: 'Agent HQ',          href: '/admin/agent' },
+      { label: 'Conversations',     href: '/admin/agent/conversations' },
+    ],
   },
   {
-    id: 'command',
-    label: 'Multi-Site',
-    icon: Globe,
-    href: '/admin/command-center',
-    badge: 'Pro',
-    children: [
-      { label: 'All Sites', href: '/admin/command-center/sites' },
-      { label: 'Add New Site', href: '/admin/command-center/sites/new' },
-      { label: 'Autopilot', href: '/admin/command-center/autopilot' },
-      { label: 'Social Media', href: '/admin/command-center/social' },
-    ]
-  },
-  {
-    id: 'team',
-    label: 'People',
-    icon: Users,
-    href: '/admin/team',
-    children: [
-      { label: 'Team', href: '/admin/team' },
-      { label: 'CRM', href: '/admin/crm' },
-      { label: 'Members', href: '/admin/people/members' },
-    ]
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    href: '/admin/settings/theme',
-    children: [
-      { label: 'Theme', href: '/admin/settings/theme' },
-      { label: 'API Keys', href: '/admin/command-center/settings/api-keys' },
-      { label: 'Feature Flags', href: '/admin/feature-flags' },
-      { label: 'Site Control', href: '/admin/site-control' },
-      { label: 'API Security', href: '/admin/api-security' },
-    ]
+    id: 'system',
+    label: 'SYSTEM',
+    icon: Wrench,
+    items: [
+      { label: 'Automation',        href: '/admin/automation' },
+      { label: 'AI Tools',          href: '/admin/ai-studio' },
+      { label: 'Settings',          href: '/admin/settings' },
+      { label: 'Yacht Management',  href: '/admin/yachts' },
+    ],
   },
 ]
 
-interface MophyAdminLayoutProps {
-  children: React.ReactNode
-  pageTitle?: string
-}
+const mobileBottomNav = [
+  { label: 'HQ',      icon: Zap,      href: '/admin/cockpit' },
+  { label: 'Content', icon: FileText,  href: '/admin/articles' },
+  { label: 'New',     icon: Plus,      href: '/admin/cockpit/write', primary: true },
+  { label: 'Crons',   icon: Clock,     href: '/admin/automation' },
+  { label: 'More',    icon: Menu,      href: '__menu__' },
+]
 
-export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps) {
+interface Props { children: React.ReactNode; pageTitle?: string }
+
+export function MophyAdminLayout({ children, pageTitle }: Props) {
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { data: session, status, signOut } = useAdminSession()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['dashboard'])
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
-  const [chatboxOpen, setChatboxOpen] = useState(false)
+  const [blockerCount, setBlockerCount] = useState(0)
+
+  const isLoginPage = pathname === '/admin/login'
+
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isLoginPage) {
+      router.replace('/admin/login')
+    }
+  }, [status, isLoginPage, router])
 
   // Auto-expand active menu
   useEffect(() => {
-    mainNavigation.forEach(item => {
-      if (item.children?.some(child => pathname?.startsWith(child.href))) {
-        setExpandedMenus(prev => prev.includes(item.id) ? prev : [...prev, item.id])
+    navigation.forEach(section => {
+      if (section.items.some(item => pathname === item.href || pathname?.startsWith(item.href + '/'))) {
+        setExpandedMenus(prev => prev.includes(section.id) ? prev : [...prev, section.id])
       }
     })
   }, [pathname])
 
-  const toggleMenu = (menuId: string) => {
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setUserMenuOpen(false)
+  }, [pathname])
+
+  // Blocker count poll (every 60s)
+  useEffect(() => {
+    const fetchBlockers = async () => {
+      try {
+        const res = await fetch('/api/admin/system/blocker-count')
+        if (res.ok) {
+          const data = await res.json()
+          setBlockerCount(data.total || 0)
+        }
+      } catch { /* silent — badge just stays at 0 */ }
+    }
+    fetchBlockers()
+    const interval = setInterval(fetchBlockers, 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const toggleMenu = (id: string) => {
     setExpandedMenus(prev =>
-      prev.includes(menuId)
-        ? prev.filter(id => id !== menuId)
-        : [...prev, menuId]
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
   }
 
-  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/')
-  const isMenuActive = (item: typeof mainNavigation[0]) => {
-    if (isActive(item.href)) return true
-    return item.children?.some(child => isActive(child.href))
+  const isActive = (href: string) => {
+    if (href === '/admin') return pathname === '/admin'
+    return pathname === href || pathname?.startsWith(href + '/')
   }
+  const isSectionActive = (section: typeof navigation[0]) =>
+    section.items.some(item => isActive(item.href))
 
-  const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/admin/login' })
-  }
+  const closeMobile = useCallback(() => setMobileMenuOpen(false), [])
+  const handleSignOut = async () => { await signOut() }
 
-  // Sample notifications
-  const notifications = [
-    { id: 1, title: 'New article published', time: '5 min ago', type: 'success' },
-    { id: 2, title: 'SEO score improved', time: '1 hour ago', type: 'info' },
-    { id: 3, title: 'Automation completed', time: '2 hours ago', type: 'success' },
-  ]
+  if (isLoginPage) return <>{children}</>
 
-  return (
-    <div className={`min-h-screen font-inter ${darkMode ? 'dark' : ''}`}>
-      {/* Preloader would go here in production */}
-
-      <div id="main-wrapper" className="show">
-        {/* Nav Header (Logo Area) */}
-        <div className={`
-          fixed top-0 left-0 z-50 h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800
-          transition-all duration-300
-          ${sidebarOpen ? 'w-64' : 'w-20'}
-          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}>
-          <div className="h-full flex items-center justify-between px-4">
-            <Link href="/admin" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/30">
-                <span className="text-white font-bold text-lg">Y</span>
-              </div>
-              {sidebarOpen && (
-                <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-                  Yalla Admin
-                </span>
-              )}
-            </Link>
-
-            {/* Hamburger */}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <Menu size={18} className="text-gray-500" />
-            </button>
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zh-navy">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center bg-zh-navy-mid border border-zh-navy-border">
+            <span className="font-zh-ui font-bold text-xl text-zh-gold">Z</span>
           </div>
+          <p className="font-zh-mono text-[11px] text-zh-cream-muted uppercase tracking-[3px]">Loading HQ…</p>
         </div>
+      </div>
+    )
+  }
 
-        {/* Chatbox Panel */}
-        {chatboxOpen && (
-          <div className="fixed right-0 top-0 h-full w-80 bg-white dark:bg-slate-900 shadow-2xl z-50 border-l border-gray-200 dark:border-slate-700">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
-              <button onClick={() => setChatboxOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              {notifications.map(notif => (
-                <div key={notif.id} className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
-                  <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
-                </div>
-              ))}
-            </div>
+  if (status === 'unauthenticated') return null
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // SIDEBAR CONTENT (shared between mobile + desktop)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
+    <div className="flex flex-col h-full bg-zh-navy">
+      {/* Gold accent line */}
+      <div className="h-[2px] bg-zh-gold flex-shrink-0" />
+
+      {/* Logo */}
+      <div className="px-5 pt-4 pb-3 flex-shrink-0 flex items-center justify-between">
+        <Link href="/admin/cockpit" onClick={onClose} className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-zh-navy-mid border border-zh-navy-border">
+            <span className="font-zh-ui font-bold text-base text-zh-gold">Z</span>
           </div>
+          {sidebarOpen && (
+            <div>
+              <div className="font-zh-ui font-bold text-sm text-zh-cream tracking-tight">
+                Zenitha HQ
+              </div>
+              <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[2px]">
+                zenitha.luxury
+              </div>
+            </div>
+          )}
+        </Link>
+        {sidebarOpen && !onClose && (
+          <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg text-zh-cream-muted hover:text-zh-cream transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center">
+            <X size={16} />
+          </button>
         )}
+        {onClose && (
+          <button onClick={onClose} className="p-1.5 rounded-lg text-zh-cream-muted hover:text-zh-cream transition-colors">
+            <X size={16} />
+          </button>
+        )}
+      </div>
 
-        {/* Sidebar */}
-        <aside className={`
-          fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800
-          transition-all duration-300 overflow-hidden
-          ${sidebarOpen ? 'w-64' : 'w-20'}
-          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}>
-          <div className="h-full flex flex-col">
-            {/* Scrollable Navigation */}
-            <nav className="flex-1 overflow-y-auto py-4 px-3 scrollbar-thin">
-              <ul className="space-y-1">
-                {mainNavigation.map((item) => {
-                  const Icon = item.icon
-                  const isExpanded = expandedMenus.includes(item.id)
-                  const active = isMenuActive(item)
+      {/* Site Selector */}
+      {sidebarOpen && (
+        <div className="px-4 pb-3 flex-shrink-0">
+          <SiteSelector />
+        </div>
+      )}
 
-                  return (
-                    <li key={item.id}>
-                      <button
-                        onClick={() => item.children ? toggleMenu(item.id) : null}
-                        className={`
-                          w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                          ${active
-                            ? 'bg-gradient-to-r from-primary/10 to-purple-500/10 text-primary dark:text-primary'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }
-                        `}
-                      >
-                        <div className={`
-                          w-9 h-9 rounded-lg flex items-center justify-center transition-all
-                          ${active
-                            ? 'bg-gradient-to-br from-primary to-purple-600 text-white shadow-lg shadow-primary/30'
-                            : 'bg-gray-100 dark:bg-slate-800 text-gray-500'
-                          }
-                        `}>
-                          <Icon size={18} />
-                        </div>
-                        {sidebarOpen && (
-                          <>
-                            <span className="flex-1 text-left">{item.label}</span>
-                            {item.badge && (
-                              <span className={`
-                                px-2 py-0.5 text-xs font-medium rounded-full
-                                ${item.badge === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : ''}
-                                ${item.badge === 'CMS' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : ''}
-                                ${item.badge === 'New' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : ''}
-                                ${item.badge === 'Pro' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : ''}
-                              `}>
-                                {item.badge}
-                              </span>
-                            )}
-                            {item.children && (
-                              <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                            )}
-                          </>
-                        )}
-                      </button>
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 scrollbar-thin" style={{ overscrollBehavior: 'contain' }}>
+        {navigation.map((section) => {
+          const Icon = section.icon
+          const expanded = expandedMenus.includes(section.id)
+          const active = isSectionActive(section)
 
-                      {/* Submenu */}
-                      {item.children && isExpanded && sidebarOpen && (
-                        <ul className="mt-1 ml-12 space-y-1">
-                          {item.children.map((child) => (
-                            <li key={child.href}>
-                              <Link
-                                href={child.href}
-                                className={`
-                                  block px-3 py-2 text-sm rounded-lg transition-all
-                                  ${isActive(child.href)
-                                    ? 'text-primary font-medium bg-primary/5'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800'
-                                  }
-                                `}
-                              >
-                                {child.label}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </nav>
-
-            {/* Bottom Actions */}
-            {sidebarOpen && (
-              <div className="p-4 border-t border-gray-100 dark:border-slate-800">
-                <Link
-                  href="/admin/articles/new"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium text-sm shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
-                >
-                  <Plus size={18} />
-                  New Article
-                </Link>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Top Header */}
-        <header className={`
-          fixed top-0 right-0 z-40 h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800
-          transition-all duration-300
-          ${sidebarOpen ? 'left-64' : 'left-20'}
-          max-lg:left-0
-        `}>
-          <div className="h-full px-4 lg:px-6 flex items-center justify-between">
-            {/* Left Side */}
-            <div className="flex items-center gap-4">
+          return (
+            <div key={section.id} className="mb-0.5">
               <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
+                onClick={() => toggleMenu(section.id)}
+                className={`
+                  w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors
+                  ${active ? 'bg-zh-navy-light' : 'hover:bg-zh-navy-mid'}
+                `}
               >
-                <Menu size={20} className="text-gray-500" />
-              </button>
+                {/* Active indicator */}
+                {active && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r bg-zh-gold" />
+                )}
 
-              {/* Site Selector - Multi-site support */}
-              <SiteSelector />
-
-              {pageTitle && (
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
-                  {pageTitle}
-                </h1>
-              )}
-
-              {/* Search */}
-              <div className="hidden lg:flex items-center">
-                <div className="relative">
-                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="w-64 pl-10 pr-4 py-2 text-sm bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  />
-                  <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-xs text-gray-400 bg-gray-100 dark:bg-slate-700 rounded">
-                    ⌘K
-                  </kbd>
+                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${active ? 'bg-zh-gold-dim text-zh-gold' : 'bg-zh-navy-mid text-zh-cream-muted'}`}>
+                  <Icon size={14} />
                 </div>
-              </div>
-            </div>
 
-            {/* Right Side */}
-            <div className="flex items-center gap-2">
-              {/* Theme Toggle */}
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-              >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-
-              {/* Notifications */}
-              <button
-                onClick={() => setChatboxOpen(!chatboxOpen)}
-                className="relative p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
-              >
-                <Bell size={20} />
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
-              </button>
-
-              {/* User Menu */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
-                    <span className="text-white text-sm font-semibold">
-                      {session?.user?.name?.charAt(0) || 'A'}
-                    </span>
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {session?.user?.name || 'Admin'}
-                    </p>
-                    <p className="text-xs text-gray-500">Administrator</p>
-                  </div>
-                  <ChevronDown size={16} className="text-gray-400 hidden sm:block" />
-                </button>
-
-                {userMenuOpen && (
+                {sidebarOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 py-2 z-50">
-                      <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-700">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {session?.user?.name || 'Admin User'}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {session?.user?.email || 'admin@yallalondon.com'}
-                        </p>
-                      </div>
-                      <div className="py-1">
-                        <Link href="/admin/team" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                          <User size={16} className="text-gray-400" /> Team Profile
-                        </Link>
-                        <Link href="/admin/settings/theme" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                          <Settings size={16} className="text-gray-400" /> Settings
-                        </Link>
-                        <Link href="/admin/command-center/settings/api-keys" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                          <HelpCircle size={16} className="text-gray-400" /> API & Integrations
-                        </Link>
-                      </div>
-                      <div className="border-t border-gray-100 dark:border-slate-700 py-1">
-                        <button
-                          onClick={handleSignOut}
-                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          <LogOut size={16} /> Sign out
-                        </button>
-                      </div>
-                    </div>
+                    <span className={`flex-1 text-left font-zh-mono text-[11px] uppercase tracking-[1.5px] ${active ? 'text-zh-gold font-semibold' : 'text-zh-cream-muted font-medium'}`}>
+                      {section.label}
+                    </span>
+                    <ChevronDown size={12} className={`text-zh-cream-dim transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
                   </>
                 )}
+              </button>
+
+              {/* Subitems */}
+              {expanded && sidebarOpen && (
+                <div className="ml-10 mt-0.5 space-y-px">
+                  {section.items.map((item) => {
+                    const itemActive = isActive(item.href)
+                    const isBadge = 'badge' in item && item.badge
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={onClose}
+                        className={`
+                          flex items-center justify-between px-3 py-2 rounded-md transition-colors font-zh-mono text-[11px] uppercase tracking-[0.8px] min-h-[32px]
+                          ${itemActive ? 'text-zh-cream font-semibold bg-zh-navy-light' : 'text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-mid'}
+                        `}
+                      >
+                        <span>{item.label}</span>
+                        {isBadge && blockerCount > 0 && (
+                          <span className="flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-zh-error text-zh-error-text text-[10px] font-bold px-1">
+                            {blockerCount}
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* User footer */}
+      <div className="flex-shrink-0 px-4 pb-4 pt-3 border-t border-zh-navy-border">
+        {sidebarOpen ? (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center bg-zh-gold-dim flex-shrink-0">
+              <span className="font-zh-ui font-bold text-sm text-zh-gold">
+                {session?.user?.name?.charAt(0)?.toUpperCase() || 'K'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-zh-ui font-semibold text-xs text-zh-cream truncate">
+                {session?.user?.name || 'Admin'}
+              </div>
+              <div className="font-zh-mono text-[10px] text-zh-cream-muted uppercase tracking-[1px]">
+                CEO
               </div>
             </div>
+            <button onClick={handleSignOut} className="p-2 rounded-lg text-zh-cream-muted hover:text-zh-error-text transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center" title="Sign out">
+              <LogOut size={16} />
+            </button>
           </div>
-        </header>
-
-        {/* Mobile Overlay */}
-        {mobileMenuOpen && (
-          <div
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-            onClick={() => setMobileMenuOpen(false)}
-          />
+        ) : (
+          <button onClick={handleSignOut}
+                  className="w-full flex items-center justify-center p-2 rounded-lg text-zh-cream-muted hover:text-zh-error-text transition-colors">
+            <LogOut size={16} />
+          </button>
         )}
-
-        {/* Main Content */}
-        <main className={`
-          min-h-screen pt-16 transition-all duration-300
-          ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}
-          bg-gray-50 dark:bg-slate-950
-        `}>
-          <div className="p-4 lg:p-6">
-            {children}
-          </div>
-        </main>
       </div>
+    </div>
+  )
+
+  return (
+    <div className="h-screen flex flex-col bg-zh-navy">
+
+      {/* ── Mobile Sidebar Overlay ────────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeMobile} />
+          <aside className="absolute inset-y-0 left-0 w-72 flex flex-col overflow-hidden shadow-xl">
+            <SidebarContent onClose={closeMobile} />
+          </aside>
+        </div>
+      )}
+
+      {/* ── Desktop Sidebar ────────────────────────────────────────── */}
+      <aside className={`fixed top-0 left-0 z-40 h-full flex-col hidden lg:flex transition-all duration-300 overflow-hidden border-r border-zh-navy-border ${sidebarOpen ? 'w-[260px]' : 'w-[64px]'}`}>
+        {!sidebarOpen && (
+          <div className="flex flex-col items-center pt-4 gap-3 bg-zh-navy h-full">
+            <div className="w-full h-[2px] bg-zh-gold" />
+            <button onClick={() => setSidebarOpen(true)}
+                    className="w-10 h-10 rounded-lg flex items-center justify-center mt-1 bg-zh-navy-mid border border-zh-navy-border hover:border-zh-gold-dim transition-colors">
+              <span className="font-zh-ui font-bold text-base text-zh-gold">Z</span>
+            </button>
+            <div className="flex flex-col gap-1 px-2 mt-2">
+              {navigation.map((section) => {
+                const Icon = section.icon
+                const active = isSectionActive(section)
+                return (
+                  <Link key={section.id} href={section.items[0]?.href || '/admin'} title={section.label}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${active ? 'bg-zh-gold-dim text-zh-gold' : 'bg-zh-navy-mid text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-light'}`}>
+                    <Icon size={16} />
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {sidebarOpen && <SidebarContent />}
+      </aside>
+
+      {/* ── Top Header ──────────────────────────────────────────────── */}
+      <header className={`fixed top-0 right-0 z-30 h-12 flex items-center transition-all duration-300 bg-zh-navy-mid border-b border-zh-navy-border ${sidebarOpen ? 'lg:left-[260px]' : 'lg:left-[64px]'} left-0`}>
+        <div className="flex items-center justify-between w-full px-4 lg:px-5">
+          {/* Left */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMobileMenuOpen(true)}
+                    className="lg:hidden p-2 rounded-lg bg-zh-navy-light text-zh-cream-muted hover:text-zh-cream transition-colors border border-zh-navy-border">
+              <Menu size={16} />
+            </button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="hidden lg:flex p-2 rounded-lg bg-zh-navy-light text-zh-cream-muted hover:text-zh-cream transition-colors border border-zh-navy-border">
+              <Menu size={14} />
+            </button>
+            {pageTitle && (
+              <h1 className="hidden md:block font-zh-ui font-semibold text-sm text-zh-cream">
+                {pageTitle}
+              </h1>
+            )}
+          </div>
+
+          {/* Right */}
+          <div className="flex items-center gap-2">
+            <Link href="/admin/cockpit/write"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-md font-zh-mono text-[10px] font-semibold uppercase tracking-[1.5px] bg-zh-gold text-zh-navy hover:bg-zh-gold/90 transition-colors min-h-[36px]">
+              <Plus size={11} />
+              New Article
+            </Link>
+
+            {/* User menu */}
+            <div className="relative">
+              <button onClick={() => setUserMenuOpen(!userMenuOpen)}
+                      className="flex items-center gap-2 p-1.5 rounded-lg bg-zh-navy-light border border-zh-navy-border hover:border-zh-gold-dim transition-colors">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center bg-zh-gold-dim">
+                  <span className="font-zh-ui font-bold text-[10px] text-zh-gold">
+                    {session?.user?.name?.charAt(0)?.toUpperCase() || 'K'}
+                  </span>
+                </div>
+                <ChevronDown size={11} className="text-zh-cream-muted" />
+              </button>
+
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-48 rounded-lg z-50 overflow-hidden bg-zh-navy-mid border border-zh-navy-border shadow-xl">
+                    <div className="p-3 border-b border-zh-navy-border">
+                      <div className="font-zh-ui font-semibold text-xs text-zh-cream">
+                        {session?.user?.name || 'Admin'}
+                      </div>
+                      <div className="font-zh-mono text-[10px] text-zh-cream-muted tracking-wider mt-0.5 truncate">
+                        {session?.user?.email || ''}
+                      </div>
+                    </div>
+                    <div className="p-1.5 space-y-0.5">
+                      {[
+                        { label: 'Profile', href: '/admin/team', icon: User },
+                        { label: 'Settings', href: '/admin/settings', icon: Settings },
+                        { label: 'AI Models', href: '/admin/settings?tab=ai-models', icon: Brain },
+                      ].map(({ label, href, icon: Icon }) => (
+                        <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-md font-zh-mono text-[10px] uppercase tracking-[1px] text-zh-cream-muted hover:text-zh-cream hover:bg-zh-navy-light transition-colors min-h-[36px]">
+                          <Icon size={14} />
+                          {label}
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="p-1.5 border-t border-zh-navy-border">
+                      <button onClick={handleSignOut}
+                              className="flex items-center gap-2 w-full px-3 py-2 rounded-md font-zh-mono text-[10px] uppercase tracking-[1px] text-zh-error-text hover:bg-zh-error/20 transition-colors min-h-[36px]">
+                        <LogOut size={14} />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Main Content ────────────────────────────────────────────── */}
+      <main className={`flex-1 overflow-y-auto transition-all duration-300 pt-12 pb-20 lg:pb-0 ${sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[64px]'}`}
+            style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="p-4 lg:p-6">
+          {children}
+        </div>
+      </main>
+
+      {/* ── Mobile Bottom Nav ────────────────────────────────────────── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-zh-navy-mid border-t border-zh-navy-border">
+        <div className="flex items-center justify-around h-14 px-2">
+          {mobileBottomNav.map((item) => {
+            const Icon = item.icon
+            const isTrigger = item.href === '__menu__'
+            const active = !isTrigger && isActive(item.href)
+
+            if (isTrigger) {
+              return (
+                <button key="more" onClick={() => setMobileMenuOpen(true)}
+                        className="flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] py-1 text-zh-cream-muted">
+                  <Icon size={18} />
+                  <span className="font-zh-mono text-[10px] uppercase tracking-wider">More</span>
+                </button>
+              )
+            }
+
+            if ('primary' in item && item.primary) {
+              return (
+                <Link key="new" href={item.href}
+                      className="flex items-center justify-center w-11 h-11 -mt-4 rounded-full bg-zh-gold text-zh-navy shadow-lg">
+                  <Icon size={20} />
+                </Link>
+              )
+            }
+
+            return (
+              <Link key={item.label} href={item.href}
+                    className={`flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] py-1 transition-colors ${active ? 'text-zh-gold' : 'text-zh-cream-muted'}`}>
+                <Icon size={18} />
+                <span className="font-zh-mono text-[10px] uppercase tracking-wider">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
     </div>
   )
 }

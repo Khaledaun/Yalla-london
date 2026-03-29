@@ -106,7 +106,7 @@ Return as JSON in this format:
   "wordCount": 2000
 }`;
 
-  return generateJSON<GeneratedArticle>(prompt, { ...options, systemPrompt });
+  return generateJSON<GeneratedArticle>(prompt, { taskType: "content_generation", calledFrom: "content-generator:resortReview", ...options, systemPrompt });
 }
 
 /**
@@ -289,7 +289,7 @@ For each idea, provide:
 
 Return as JSON array.`;
 
-  return generateJSON(prompt, { ...options, systemPrompt });
+  return generateJSON(prompt, { taskType: "topic_research", calledFrom: "content-generator:generateIdeas", ...options, systemPrompt });
 }
 
 /**
@@ -330,5 +330,5 @@ Return as JSON with:
 - changes: List of changes made
 - seoScore: SEO score from 0-100`;
 
-  return generateJSON(prompt, { ...options, systemPrompt });
+  return generateJSON(prompt, { taskType: "content_generation", calledFrom: "content-generator:improveContent", ...options, systemPrompt });
 }

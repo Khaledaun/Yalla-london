@@ -1,37 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+  AdminPageHeader,
+  AdminCard,
+  AdminKPICard,
+  AdminButton,
+  AdminStatusBadge,
+  AdminLoadingState,
+  AdminEmptyState,
+  AdminSectionLabel,
+  AdminTabs,
+} from '@/components/admin/admin-ui'
 import {
   Users,
   Plus,
@@ -41,7 +21,6 @@ import {
   Star,
   CheckCircle,
   XCircle,
-  Eye,
   Sparkles,
   Linkedin,
   Twitter,
@@ -51,6 +30,7 @@ import {
   RefreshCw,
   UserPlus,
   Award,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -102,11 +82,75 @@ interface Skill {
 }
 
 const PROFICIENCY_LEVELS = [
-  { value: 'LEARNING', label: 'Learning', color: 'bg-yellow-500' },
-  { value: 'PROFICIENT', label: 'Proficient', color: 'bg-blue-500' },
-  { value: 'EXPERT', label: 'Expert', color: 'bg-green-500' },
-  { value: 'THOUGHT_LEADER', label: 'Thought Leader', color: 'bg-purple-500' },
+  { value: 'LEARNING', label: 'Learning', status: 'warning' },
+  { value: 'PROFICIENT', label: 'Proficient', status: 'pending' },
+  { value: 'EXPERT', label: 'Expert', status: 'success' },
+  { value: 'THOUGHT_LEADER', label: 'Thought Leader', status: 'running' },
 ]
+
+/* ─── Modal Shell ─────────────────────────────────────────────────── */
+function Modal({ open, onClose, title, description, children, footer }: {
+  open: boolean
+  onClose: () => void
+  title: string
+  description?: string
+  children: React.ReactNode
+  footer?: React.ReactNode
+}) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
+      <div
+        className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl"
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid rgba(214,208,196,0.6)',
+          boxShadow: '0 20px 60px rgba(28,25,23,0.15)',
+        }}
+      >
+        <div className="px-6 pt-5 pb-3 flex items-start justify-between" style={{ borderBottom: '1px solid rgba(214,208,196,0.4)' }}>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18, color: '#1C1917' }}>{title}</h2>
+            {description && (
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 4 }}>{description}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-700">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-6 py-4">{children}</div>
+        {footer && (
+          <div className="px-6 py-4 flex items-center justify-end gap-2" style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}>
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Form Label ─────────────────────────────────────────────────── */
+function FormLabel({ children, htmlFor, required }: { children: React.ReactNode; htmlFor?: string; required?: boolean }) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      style={{
+        fontFamily: 'var(--font-system)',
+        fontSize: 10,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        color: '#78716C',
+        display: 'block',
+        marginBottom: 4,
+      }}
+    >
+      {children}{required && <span style={{ color: '#C8322B' }}> *</span>}
+    </label>
+  )
+}
 
 export default function TeamManagementPage() {
   const [members, setMembers] = useState<TeamMember[]>([])
@@ -322,7 +366,6 @@ export default function TeamManagementPage() {
         toast.success('Skill added successfully')
         setExpertiseForm({ skill_id: '', proficiency: 'EXPERT', is_primary: false })
         fetchMembers()
-        // Refresh the selected member
         const updatedMember = members.find(m => m.id === selectedMember.id)
         if (updatedMember) {
           setSelectedMember({ ...updatedMember, ...data.data })
@@ -361,23 +404,10 @@ export default function TeamManagementPage() {
 
   const resetForm = () => {
     setFormData({
-      name_en: '',
-      name_ar: '',
-      slug: '',
-      title_en: '',
-      title_ar: '',
-      bio_en: '',
-      bio_ar: '',
-      avatar_url: '',
-      cover_image_url: '',
-      email_public: '',
-      linkedin_url: '',
-      twitter_url: '',
-      instagram_url: '',
-      website_url: '',
-      is_active: true,
-      is_featured: false,
-      display_order: 0,
+      name_en: '', name_ar: '', slug: '', title_en: '', title_ar: '',
+      bio_en: '', bio_ar: '', avatar_url: '', cover_image_url: '',
+      email_public: '', linkedin_url: '', twitter_url: '', instagram_url: '',
+      website_url: '', is_active: true, is_featured: false, display_order: 0,
     })
   }
 
@@ -411,19 +441,11 @@ export default function TeamManagementPage() {
   }
 
   const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '')
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   }
 
   const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
   // Filter members
@@ -442,868 +464,488 @@ export default function TeamManagementPage() {
     return matchesSearch && matchesTab
   })
 
-  return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+  /* ─── Member Form (shared between create / edit) ────────────────── */
+  const MemberForm = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your team members and their profiles</p>
+          <FormLabel htmlFor="name_en" required>Name (English)</FormLabel>
+          <input
+            id="name_en"
+            className="admin-input w-full"
+            value={formData.name_en}
+            onChange={(e) => setFormData({ ...formData, name_en: e.target.value, slug: generateSlug(e.target.value) })}
+            placeholder="John Doe"
+          />
         </div>
-        <div className="flex gap-2">
-          <Link href="/admin/skills">
-            <Button variant="outline">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Manage Skills
-            </Button>
-          </Link>
-          <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Member
-          </Button>
+        <div>
+          <FormLabel htmlFor="name_ar">Name (Arabic)</FormLabel>
+          <input
+            id="name_ar" dir="rtl" className="admin-input w-full"
+            value={formData.name_ar}
+            onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
+            placeholder="\u062C\u0648\u0646 \u062F\u0648"
+          />
         </div>
       </div>
-      <div className="space-y-6">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Total Members</p>
-                  <p className="text-2xl font-bold">{members.length}</p>
-                </div>
-                <Users className="h-8 w-8 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Active</p>
-                  <p className="text-2xl font-bold">{members.filter((m) => m.is_active).length}</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-100 text-sm">Featured</p>
-                  <p className="text-2xl font-bold">{members.filter((m) => m.is_featured).length}</p>
-                </div>
-                <Star className="h-8 w-8 text-yellow-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Total Skills</p>
-                  <p className="text-2xl font-bold">
-                    {members.reduce((acc, m) => acc + (m.expertise?.length || 0), 0)}
-                  </p>
-                </div>
-                <Award className="h-8 w-8 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FormLabel htmlFor="title_en" required>Title (English)</FormLabel>
+          <input id="title_en" className="admin-input w-full" value={formData.title_en}
+            onChange={(e) => setFormData({ ...formData, title_en: e.target.value })} placeholder="Senior Developer" />
         </div>
+        <div>
+          <FormLabel htmlFor="title_ar">Title (Arabic)</FormLabel>
+          <input id="title_ar" dir="rtl" className="admin-input w-full" value={formData.title_ar}
+            onChange={(e) => setFormData({ ...formData, title_ar: e.target.value })} placeholder="\u0645\u0637\u0648\u0631 \u0623\u0648\u0644" />
+        </div>
+      </div>
+      <div>
+        <FormLabel htmlFor="slug" required>Slug</FormLabel>
+        <input id="slug" className="admin-input w-full" value={formData.slug}
+          onChange={(e) => setFormData({ ...formData, slug: e.target.value })} placeholder="john-doe" />
+      </div>
+      <div>
+        <FormLabel htmlFor="bio_en" required>Bio (English)</FormLabel>
+        <textarea id="bio_en" className="admin-input w-full" rows={3} value={formData.bio_en}
+          onChange={(e) => setFormData({ ...formData, bio_en: e.target.value })} placeholder="Write a brief bio..." />
+      </div>
+      <div>
+        <FormLabel htmlFor="bio_ar">Bio (Arabic)</FormLabel>
+        <textarea id="bio_ar" dir="rtl" className="admin-input w-full" rows={3} value={formData.bio_ar}
+          onChange={(e) => setFormData({ ...formData, bio_ar: e.target.value })} placeholder="\u0627\u0643\u062A\u0628 \u0646\u0628\u0630\u0629 \u0645\u062E\u062A\u0635\u0631\u0629..." />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FormLabel htmlFor="avatar_url">Avatar URL</FormLabel>
+          <input id="avatar_url" className="admin-input w-full" value={formData.avatar_url}
+            onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })} placeholder="https://..." />
+        </div>
+        <div>
+          <FormLabel htmlFor="cover_image_url">Cover Image URL</FormLabel>
+          <input id="cover_image_url" className="admin-input w-full" value={formData.cover_image_url}
+            onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })} placeholder="https://..." />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FormLabel htmlFor="email_public">Public Email</FormLabel>
+          <input id="email_public" type="email" className="admin-input w-full" value={formData.email_public}
+            onChange={(e) => setFormData({ ...formData, email_public: e.target.value })} placeholder="john@example.com" />
+        </div>
+        <div>
+          <FormLabel htmlFor="website_url">Website</FormLabel>
+          <input id="website_url" className="admin-input w-full" value={formData.website_url}
+            onChange={(e) => setFormData({ ...formData, website_url: e.target.value })} placeholder="https://..." />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <FormLabel htmlFor="linkedin_url">LinkedIn</FormLabel>
+          <input id="linkedin_url" className="admin-input w-full" value={formData.linkedin_url}
+            onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })} placeholder="https://linkedin.com/in/..." />
+        </div>
+        <div>
+          <FormLabel htmlFor="twitter_url">Twitter</FormLabel>
+          <input id="twitter_url" className="admin-input w-full" value={formData.twitter_url}
+            onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })} placeholder="https://twitter.com/..." />
+        </div>
+        <div>
+          <FormLabel htmlFor="instagram_url">Instagram</FormLabel>
+          <input id="instagram_url" className="admin-input w-full" value={formData.instagram_url}
+            onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })} placeholder="https://instagram.com/..." />
+        </div>
+      </div>
+      <div className="flex items-center gap-6">
+        <label className="flex items-center gap-2 cursor-pointer" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#44403C' }}>
+          <input type="checkbox" checked={formData.is_active}
+            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="h-4 w-4 rounded" /> Active
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#44403C' }}>
+          <input type="checkbox" checked={formData.is_featured}
+            onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })} className="h-4 w-4 rounded" /> Featured
+        </label>
+        <div className="flex items-center gap-2">
+          <FormLabel>Order</FormLabel>
+          <input type="number" className="admin-input w-20" value={formData.display_order}
+            onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })} />
+        </div>
+      </div>
+    </div>
+  )
 
-        {/* Search and Tabs */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search team members..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Button variant="outline" onClick={fetchMembers}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+  return (
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Team Management"
+        subtitle="Manage your team members and their profiles"
+        action={
+          <div className="flex gap-2">
+            <Link href="/admin/skills">
+              <AdminButton variant="secondary"><Sparkles size={14} /> Manage Skills</AdminButton>
+            </Link>
+            <AdminButton variant="primary" onClick={() => setIsCreateOpen(true)}>
+              <UserPlus size={14} /> Add Member
+            </AdminButton>
+          </div>
+        }
+      />
 
-        {/* Team Members Table */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="all">All ({members.length})</TabsTrigger>
-            <TabsTrigger value="active">Active ({members.filter((m) => m.is_active).length})</TabsTrigger>
-            <TabsTrigger value="featured">Featured ({members.filter((m) => m.is_featured).length})</TabsTrigger>
-            <TabsTrigger value="inactive">Inactive ({members.filter((m) => !m.is_active).length})</TabsTrigger>
-          </TabsList>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <AdminKPICard value={members.length} label="Total Members" color="#3B7EA1" />
+        <AdminKPICard value={members.filter(m => m.is_active).length} label="Active" color="#2D5A3D" />
+        <AdminKPICard value={members.filter(m => m.is_featured).length} label="Featured" color="#C49A2A" />
+        <AdminKPICard
+          value={members.reduce((acc, m) => acc + (m.expertise?.length || 0), 0)}
+          label="Total Skills"
+          color="#1C1917"
+        />
+      </div>
 
-          <TabsContent value={activeTab} className="mt-4">
-            <Card>
-              <CardContent className="p-0">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+      {/* Search */}
+      <AdminCard className="mb-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#A8A29E' }} />
+            <input
+              placeholder="Search team members..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="admin-input pl-10 w-full"
+            />
+          </div>
+          <AdminButton variant="secondary" onClick={fetchMembers}>
+            <RefreshCw size={14} /> Refresh
+          </AdminButton>
+        </div>
+      </AdminCard>
+
+      {/* Tabs + Table */}
+      <div className="mb-4">
+        <AdminTabs
+          tabs={[
+            { id: 'all', label: 'All', count: members.length },
+            { id: 'active', label: 'Active', count: members.filter(m => m.is_active).length },
+            { id: 'featured', label: 'Featured', count: members.filter(m => m.is_featured).length },
+            { id: 'inactive', label: 'Inactive', count: members.filter(m => !m.is_active).length },
+          ]}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      </div>
+
+      <AdminCard className="mb-6">
+        {loading ? (
+          <AdminLoadingState label="Loading team..." />
+        ) : filteredMembers.length === 0 ? (
+          <AdminEmptyState
+            icon={Users}
+            title="No team members found"
+            description={searchQuery ? 'Try adjusting your search.' : 'Get started by adding your first team member.'}
+            action={
+              <AdminButton variant="primary" onClick={() => setIsCreateOpen(true)}>
+                <UserPlus size={14} /> Add Member
+              </AdminButton>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto -mx-4 md:mx-0">
+            <table className="w-full" style={{ fontFamily: 'var(--font-system)', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(214,208,196,0.5)' }}>
+                  {['Member', 'Title', 'Skills', 'Status', 'Featured', ''].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left" style={{
+                      fontFamily: 'var(--font-system)', fontSize: 9, fontWeight: 600,
+                      textTransform: 'uppercase', letterSpacing: '1.5px', color: '#78716C',
+                      ...(h === 'Status' || h === 'Featured' ? { textAlign: 'center' } : {}),
+                    }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMembers.map((member) => (
+                  <tr key={member.id} className="transition-colors hover:bg-stone-50/50"
+                    style={{ borderBottom: '1px solid rgba(214,208,196,0.3)' }}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{
+                            backgroundColor: member.avatar_url ? 'transparent' : '#3B7EA1',
+                            backgroundImage: member.avatar_url ? `url(${member.avatar_url})` : undefined,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#FAF8F4',
+                          }}
+                        >
+                          {!member.avatar_url && getInitials(member.name_en)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#1C1917', fontSize: 12 }}>{member.name_en}</div>
+                          {member.name_ar && (
+                            <div dir="rtl" style={{ fontSize: 11, color: '#78716C' }}>{member.name_ar}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div style={{ fontSize: 12, color: '#44403C' }}>{member.title_en}</div>
+                      {member.title_ar && (
+                        <div dir="rtl" style={{ fontSize: 11, color: '#78716C' }}>{member.title_ar}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {member.expertise?.slice(0, 3).map((exp) => (
+                          <AdminStatusBadge key={exp.id} status={exp.is_primary ? 'active' : 'pending'}
+                            label={`${exp.skill.icon || ''} ${exp.skill.name_en}`} />
+                        ))}
+                        {member.expertise && member.expertise.length > 3 && (
+                          <AdminStatusBadge status="inactive" label={`+${member.expertise.length - 3}`} />
+                        )}
+                        {(!member.expertise || member.expertise.length === 0) && (
+                          <span style={{ color: '#A8A29E', fontFamily: 'var(--font-system)', fontSize: 11 }}>No skills</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => handleToggleActive(member)} className="cursor-pointer">
+                        <AdminStatusBadge status={member.is_active ? 'active' : 'inactive'} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => handleToggleFeatured(member)} className="cursor-pointer p-1 rounded-lg hover:bg-stone-100 transition-colors">
+                        <Star size={16} className={member.is_featured ? 'fill-[#C49A2A]' : ''} style={{ color: member.is_featured ? '#C49A2A' : '#D6D0C4' }} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <AdminButton variant="ghost" size="sm" onClick={() => openExpertiseDialog(member)}>
+                          <Sparkles size={13} />
+                        </AdminButton>
+                        <AdminButton variant="ghost" size="sm" onClick={() => openEditDialog(member)}>
+                          <Edit size={13} />
+                        </AdminButton>
+                        <AdminButton variant="ghost" size="sm" onClick={() => { setSelectedMember(member); setIsDeleteOpen(true) }}>
+                          <Trash2 size={13} style={{ color: '#C8322B' }} />
+                        </AdminButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </AdminCard>
+
+      {/* Team Grid View */}
+      {filteredMembers.length > 0 && (
+        <>
+          <AdminSectionLabel>Team Cards</AdminSectionLabel>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredMembers.slice(0, 6).map((member) => (
+              <AdminCard key={member.id} elevated className="hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{
+                      backgroundColor: member.avatar_url ? 'transparent' : '#3B7EA1',
+                      backgroundImage: member.avatar_url ? `url(${member.avatar_url})` : undefined,
+                      backgroundSize: 'cover', backgroundPosition: 'center',
+                      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: '#FAF8F4',
+                    }}
+                  >
+                    {!member.avatar_url && getInitials(member.name_en)}
                   </div>
-                ) : filteredMembers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Users className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">No team members found</h3>
-                    <p className="mt-2 text-gray-500">
-                      {searchQuery ? 'Try adjusting your search.' : 'Get started by adding your first team member.'}
-                    </p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Skills</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-center">Featured</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredMembers.map((member) => (
-                        <TableRow key={member.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar>
-                                <AvatarImage src={member.avatar_url || undefined} />
-                                <AvatarFallback>{getInitials(member.name_en)}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">{member.name_en}</div>
-                                {member.name_ar && (
-                                  <div className="text-sm text-gray-500" dir="rtl">
-                                    {member.name_ar}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">{member.title_en}</div>
-                            {member.title_ar && (
-                              <div className="text-xs text-gray-500" dir="rtl">
-                                {member.title_ar}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {member.expertise?.slice(0, 3).map((exp) => (
-                                <Badge
-                                  key={exp.id}
-                                  variant={exp.is_primary ? 'default' : 'outline'}
-                                  className="text-xs"
-                                >
-                                  {exp.skill.icon && <span className="mr-1">{exp.skill.icon}</span>}
-                                  {exp.skill.name_en}
-                                </Badge>
-                              ))}
-                              {member.expertise && member.expertise.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{member.expertise.length - 3} more
-                                </Badge>
-                              )}
-                              {(!member.expertise || member.expertise.length === 0) && (
-                                <span className="text-gray-400 text-sm">No skills</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button variant="ghost" size="sm" onClick={() => handleToggleActive(member)}>
-                              {member.is_active ? (
-                                <Badge className="bg-green-500">Active</Badge>
-                              ) : (
-                                <Badge variant="secondary">Inactive</Badge>
-                              )}
-                            </Button>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button variant="ghost" size="sm" onClick={() => handleToggleFeatured(member)}>
-                              <Star
-                                className={`h-5 w-5 ${
-                                  member.is_featured ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'
-                                }`}
-                              />
-                            </Button>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => openExpertiseDialog(member)}>
-                                <Sparkles className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => openEditDialog(member)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:text-red-700"
-                                onClick={() => {
-                                  setSelectedMember(member)
-                                  setIsDeleteOpen(true)
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Team Grid View */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredMembers.slice(0, 6).map((member) => (
-            <Card key={member.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={member.avatar_url || undefined} />
-                    <AvatarFallback className="text-lg">{getInitials(member.name_en)}</AvatarFallback>
-                  </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold truncate">{member.name_en}</h3>
-                      {member.is_featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#1C1917' }}>
+                        {member.name_en}
+                      </span>
+                      {member.is_featured && <Star size={13} className="fill-[#C49A2A] flex-shrink-0" style={{ color: '#C49A2A' }} />}
                     </div>
-                    <p className="text-sm text-gray-600 truncate">{member.title_en}</p>
+                    <p className="truncate" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', marginTop: 2 }}>{member.title_en}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {member.expertise?.slice(0, 2).map((exp) => (
-                        <Badge key={exp.id} variant="outline" className="text-xs">
-                          {exp.skill.icon} {exp.skill.name_en}
-                        </Badge>
+                        <AdminStatusBadge key={exp.id} status="pending" label={`${exp.skill.icon || ''} ${exp.skill.name_en}`} />
                       ))}
                     </div>
                   </div>
                 </div>
 
                 {/* Social Links */}
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+                <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(214,208,196,0.4)' }}>
                   {member.linkedin_url && (
-                    <a
-                      href={member.linkedin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-blue-600"
-                    >
-                      <Linkedin className="h-4 w-4" />
+                    <a href={member.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#3B7EA1] transition-colors">
+                      <Linkedin size={14} />
                     </a>
                   )}
                   {member.twitter_url && (
-                    <a
-                      href={member.twitter_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-sky-500"
-                    >
-                      <Twitter className="h-4 w-4" />
+                    <a href={member.twitter_url} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#3B7EA1] transition-colors">
+                      <Twitter size={14} />
                     </a>
                   )}
                   {member.instagram_url && (
-                    <a
-                      href={member.instagram_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-pink-500"
-                    >
-                      <Instagram className="h-4 w-4" />
+                    <a href={member.instagram_url} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#C8322B] transition-colors">
+                      <Instagram size={14} />
                     </a>
                   )}
                   {member.website_url && (
-                    <a
-                      href={member.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <Globe className="h-4 w-4" />
+                    <a href={member.website_url} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-stone-600 transition-colors">
+                      <Globe size={14} />
                     </a>
                   )}
                   {member.email_public && (
-                    <a
-                      href={`mailto:${member.email_public}`}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <Mail className="h-4 w-4" />
+                    <a href={`mailto:${member.email_public}`} className="text-stone-400 hover:text-stone-600 transition-colors">
+                      <Mail size={14} />
                     </a>
                   )}
                   <div className="flex-1" />
-                  <Button variant="outline" size="sm" onClick={() => openEditDialog(member)}>
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
+                  <AdminButton variant="secondary" size="sm" onClick={() => openEditDialog(member)}>
+                    <Edit size={12} /> Edit
+                  </AdminButton>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Create Member Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Team Member</DialogTitle>
-            <DialogDescription>Add a new member to your team.</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name_en">Name (English) *</Label>
-                <Input
-                  id="name_en"
-                  value={formData.name_en}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      name_en: e.target.value,
-                      slug: generateSlug(e.target.value),
-                    })
-                  }}
-                  placeholder="John Doe"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name_ar">Name (Arabic)</Label>
-                <Input
-                  id="name_ar"
-                  dir="rtl"
-                  value={formData.name_ar}
-                  onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
-                  placeholder="جون دو"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title_en">Title (English) *</Label>
-                <Input
-                  id="title_en"
-                  value={formData.title_en}
-                  onChange={(e) => setFormData({ ...formData, title_en: e.target.value })}
-                  placeholder="Senior Developer"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="title_ar">Title (Arabic)</Label>
-                <Input
-                  id="title_ar"
-                  dir="rtl"
-                  value={formData.title_ar}
-                  onChange={(e) => setFormData({ ...formData, title_ar: e.target.value })}
-                  placeholder="مطور أول"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="slug">Slug *</Label>
-              <Input
-                id="slug"
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                placeholder="john-doe"
-              />
-            </div>
-
-            {/* Bio */}
-            <div className="space-y-2">
-              <Label htmlFor="bio_en">Bio (English) *</Label>
-              <Textarea
-                id="bio_en"
-                value={formData.bio_en}
-                onChange={(e) => setFormData({ ...formData, bio_en: e.target.value })}
-                placeholder="Write a brief bio..."
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bio_ar">Bio (Arabic)</Label>
-              <Textarea
-                id="bio_ar"
-                dir="rtl"
-                value={formData.bio_ar}
-                onChange={(e) => setFormData({ ...formData, bio_ar: e.target.value })}
-                placeholder="اكتب نبذة مختصرة..."
-                rows={3}
-              />
-            </div>
-
-            {/* Images */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="avatar_url">Avatar URL</Label>
-                <Input
-                  id="avatar_url"
-                  value={formData.avatar_url}
-                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cover_image_url">Cover Image URL</Label>
-                <Input
-                  id="cover_image_url"
-                  value={formData.cover_image_url}
-                  onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-
-            {/* Contact & Social */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email_public">Public Email</Label>
-                <Input
-                  id="email_public"
-                  type="email"
-                  value={formData.email_public}
-                  onChange={(e) => setFormData({ ...formData, email_public: e.target.value })}
-                  placeholder="john@example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="website_url">Website</Label>
-                <Input
-                  id="website_url"
-                  value={formData.website_url}
-                  onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="linkedin_url">LinkedIn</Label>
-                <Input
-                  id="linkedin_url"
-                  value={formData.linkedin_url}
-                  onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                  placeholder="https://linkedin.com/in/..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="twitter_url">Twitter</Label>
-                <Input
-                  id="twitter_url"
-                  value={formData.twitter_url}
-                  onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
-                  placeholder="https://twitter.com/..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="instagram_url">Instagram</Label>
-                <Input
-                  id="instagram_url"
-                  value={formData.instagram_url}
-                  onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                  placeholder="https://instagram.com/..."
-                />
-              </div>
-            </div>
-
-            {/* Settings */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="is_active">Active</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_featured"
-                  checked={formData.is_featured}
-                  onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="is_featured">Featured</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="display_order">Order</Label>
-                <Input
-                  id="display_order"
-                  type="number"
-                  value={formData.display_order}
-                  onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                  className="w-20"
-                />
-              </div>
-            </div>
+              </AdminCard>
+            ))}
           </div>
+        </>
+      )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateMember}
-              disabled={!formData.name_en || !formData.title_en || !formData.bio_en}
-            >
+      {/* Create Member Modal */}
+      <Modal
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Add Team Member"
+        description="Add a new member to your team."
+        footer={
+          <>
+            <AdminButton variant="secondary" onClick={() => setIsCreateOpen(false)}>Cancel</AdminButton>
+            <AdminButton variant="primary" onClick={handleCreateMember}
+              disabled={!formData.name_en || !formData.title_en || !formData.bio_en}>
               Create Member
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AdminButton>
+          </>
+        }
+      >
+        <MemberForm />
+      </Modal>
 
-      {/* Edit Member Dialog - Same structure as Create */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Team Member</DialogTitle>
-            <DialogDescription>Update the team member&apos;s details.</DialogDescription>
-          </DialogHeader>
+      {/* Edit Member Modal */}
+      <Modal
+        open={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title="Edit Team Member"
+        description="Update the team member's details."
+        footer={
+          <>
+            <AdminButton variant="secondary" onClick={() => setIsEditOpen(false)}>Cancel</AdminButton>
+            <AdminButton variant="primary" onClick={handleUpdateMember}>Save Changes</AdminButton>
+          </>
+        }
+      >
+        <MemberForm />
+      </Modal>
 
-          <div className="grid gap-4 py-4">
-            {/* Same form fields as Create */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Name (English) *</Label>
-                <Input
-                  value={formData.name_en}
-                  onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Name (Arabic)</Label>
-                <Input
-                  dir="rtl"
-                  value={formData.name_ar}
-                  onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Title (English) *</Label>
-                <Input
-                  value={formData.title_en}
-                  onChange={(e) => setFormData({ ...formData, title_en: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Title (Arabic)</Label>
-                <Input
-                  dir="rtl"
-                  value={formData.title_ar}
-                  onChange={(e) => setFormData({ ...formData, title_ar: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Slug *</Label>
-              <Input
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Bio (English) *</Label>
-              <Textarea
-                value={formData.bio_en}
-                onChange={(e) => setFormData({ ...formData, bio_en: e.target.value })}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Bio (Arabic)</Label>
-              <Textarea
-                dir="rtl"
-                value={formData.bio_ar}
-                onChange={(e) => setFormData({ ...formData, bio_ar: e.target.value })}
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Avatar URL</Label>
-                <Input
-                  value={formData.avatar_url}
-                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Cover Image URL</Label>
-                <Input
-                  value={formData.cover_image_url}
-                  onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Public Email</Label>
-                <Input
-                  type="email"
-                  value={formData.email_public}
-                  onChange={(e) => setFormData({ ...formData, email_public: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Website</Label>
-                <Input
-                  value={formData.website_url}
-                  onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>LinkedIn</Label>
-                <Input
-                  value={formData.linkedin_url}
-                  onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Twitter</Label>
-                <Input
-                  value={formData.twitter_url}
-                  onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Instagram</Label>
-                <Input
-                  value={formData.instagram_url}
-                  onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="edit_is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="edit_is_active">Active</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="edit_is_featured"
-                  checked={formData.is_featured}
-                  onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="edit_is_featured">Featured</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label>Order</Label>
-                <Input
-                  type="number"
-                  value={formData.display_order}
-                  onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
-                  className="w-20"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateMember}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Expertise Management Dialog */}
-      <Dialog open={isExpertiseOpen} onOpenChange={setIsExpertiseOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Manage Skills - {selectedMember?.name_en}</DialogTitle>
-            <DialogDescription>Add or remove skills for this team member.</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            {/* Current Skills */}
-            <div>
-              <Label className="text-sm font-medium">Current Skills</Label>
-              <div className="mt-2 space-y-2">
-                {selectedMember?.expertise && selectedMember.expertise.length > 0 ? (
-                  selectedMember.expertise.map((exp) => (
-                    <div
-                      key={exp.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        {exp.skill.icon && <span className="text-xl">{exp.skill.icon}</span>}
-                        <div>
-                          <div className="font-medium">{exp.skill.name_en}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge
-                              className={
-                                PROFICIENCY_LEVELS.find((p) => p.value === exp.proficiency)?.color
-                              }
-                            >
-                              {PROFICIENCY_LEVELS.find((p) => p.value === exp.proficiency)?.label}
-                            </Badge>
-                            {exp.is_primary && (
-                              <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-                                <Star className="h-3 w-3 mr-1" />
-                                Primary
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+      {/* Expertise Management Modal */}
+      <Modal
+        open={isExpertiseOpen}
+        onClose={() => setIsExpertiseOpen(false)}
+        title={`Manage Skills - ${selectedMember?.name_en || ''}`}
+        description="Add or remove skills for this team member."
+        footer={
+          <AdminButton variant="secondary" onClick={() => setIsExpertiseOpen(false)}>Done</AdminButton>
+        }
+      >
+        <div className="space-y-4">
+          <AdminSectionLabel>Current Skills</AdminSectionLabel>
+          <div className="space-y-2">
+            {selectedMember?.expertise && selectedMember.expertise.length > 0 ? (
+              selectedMember.expertise.map((exp) => (
+                <div key={exp.id} className="flex items-center justify-between p-3 rounded-xl"
+                  style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}>
+                  <div className="flex items-center gap-3">
+                    {exp.skill.icon && <span className="text-lg">{exp.skill.icon}</span>}
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-system)', fontWeight: 600, fontSize: 12, color: '#1C1917' }}>{exp.skill.name_en}</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <AdminStatusBadge
+                          status={PROFICIENCY_LEVELS.find(p => p.value === exp.proficiency)?.status || 'pending'}
+                          label={PROFICIENCY_LEVELS.find(p => p.value === exp.proficiency)?.label || exp.proficiency}
+                        />
+                        {exp.is_primary && (
+                          <AdminStatusBadge status="warning" label="Primary" />
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500"
-                        onClick={() => handleRemoveExpertise(exp.skill.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-sm">No skills assigned yet.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Add New Skill */}
-            <div className="border-t pt-4">
-              <Label className="text-sm font-medium">Add New Skill</Label>
-              <div className="grid grid-cols-3 gap-4 mt-2">
-                <div className="col-span-1">
-                  <Select
-                    value={expertiseForm.skill_id}
-                    onValueChange={(v) => setExpertiseForm({ ...expertiseForm, skill_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select skill" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {skills
-                        .filter(
-                          (s) => !selectedMember?.expertise?.some((e) => e.skill.id === s.id)
-                        )
-                        .map((skill) => (
-                          <SelectItem key={skill.id} value={skill.id}>
-                            {skill.icon} {skill.name_en}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  </div>
+                  <AdminButton variant="ghost" size="sm" onClick={() => handleRemoveExpertise(exp.skill.id)}>
+                    <Trash2 size={13} style={{ color: '#C8322B' }} />
+                  </AdminButton>
                 </div>
-                <div className="col-span-1">
-                  <Select
-                    value={expertiseForm.proficiency}
-                    onValueChange={(v) => setExpertiseForm({ ...expertiseForm, proficiency: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROFICIENCY_LEVELS.map((level) => (
-                        <SelectItem key={level.value} value={level.value}>
-                          {level.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="is_primary_skill"
-                    checked={expertiseForm.is_primary}
-                    onChange={(e) =>
-                      setExpertiseForm({ ...expertiseForm, is_primary: e.target.checked })
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="is_primary_skill" className="text-sm">
-                    Primary
-                  </Label>
-                </div>
-              </div>
-              <Button
-                className="mt-4"
-                onClick={handleAddExpertise}
-                disabled={!expertiseForm.skill_id}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Skill
-              </Button>
-            </div>
+              ))
+            ) : (
+              <p style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C' }}>No skills assigned yet.</p>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsExpertiseOpen(false)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div style={{ borderTop: '1px solid rgba(214,208,196,0.4)', paddingTop: 16 }}>
+            <AdminSectionLabel>Add New Skill</AdminSectionLabel>
+            <div className="grid grid-cols-3 gap-3">
+              <select
+                className="admin-select"
+                value={expertiseForm.skill_id}
+                onChange={(e) => setExpertiseForm({ ...expertiseForm, skill_id: e.target.value })}
+              >
+                <option value="">Select skill</option>
+                {skills
+                  .filter(s => !selectedMember?.expertise?.some(e => e.skill.id === s.id))
+                  .map(skill => (
+                    <option key={skill.id} value={skill.id}>{skill.icon} {skill.name_en}</option>
+                  ))}
+              </select>
+              <select
+                className="admin-select"
+                value={expertiseForm.proficiency}
+                onChange={(e) => setExpertiseForm({ ...expertiseForm, proficiency: e.target.value })}
+              >
+                {PROFICIENCY_LEVELS.map(level => (
+                  <option key={level.value} value={level.value}>{level.label}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 cursor-pointer" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#44403C' }}>
+                <input type="checkbox" checked={expertiseForm.is_primary}
+                  onChange={(e) => setExpertiseForm({ ...expertiseForm, is_primary: e.target.checked })} className="h-4 w-4 rounded" />
+                Primary
+              </label>
+            </div>
+            <div className="mt-3">
+              <AdminButton variant="secondary" onClick={handleAddExpertise} disabled={!expertiseForm.skill_id}>
+                <Plus size={14} /> Add Skill
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Team Member</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete &quot;{selectedMember?.name_en}&quot;? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteMember}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        title="Delete Team Member"
+        description={`Are you sure you want to delete "${selectedMember?.name_en}"? This action cannot be undone.`}
+        footer={
+          <>
+            <AdminButton variant="secondary" onClick={() => setIsDeleteOpen(false)}>Cancel</AdminButton>
+            <AdminButton variant="danger" onClick={handleDeleteMember}>Delete</AdminButton>
+          </>
+        }
+      >
+        <div />
+      </Modal>
     </div>
   )
 }

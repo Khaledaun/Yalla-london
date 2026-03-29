@@ -20,18 +20,18 @@ const BlogPostCreateSchema = z.object({
   content_en: z.string().min(1, "English content is required"),
   content_ar: z.string().min(1, "Arabic content is required"),
   slug: z.string().min(1, "Slug is required"),
-  category_id: z.string().uuid("Valid category ID is required"),
-  author_id: z.string().uuid("Valid author ID is required"),
-  featured_image: z.string().url("Valid featured image URL is required"),
+  category_id: z.string().min(1, "Category ID is required"),
+  author_id: z.string().min(1, "Author ID is required"),
+  featured_image: z.string().min(1, "Featured image is required"),
   page_type: z
-    .enum(["guide", "place", "event", "list", "faq", "news", "itinerary"])
+    .enum(["guide", "comparison", "hotel-review", "restaurant-review", "service-review", "news", "events", "sales", "listicle", "deep-dive", "seasonal", "answer", "place", "event", "list", "faq", "itinerary"])
     .default("guide"),
   tags: z.array(z.string()).default([]),
   meta_title_en: z.string().optional(),
   meta_title_ar: z.string().optional(),
   meta_description_en: z.string().optional(),
   meta_description_ar: z.string().optional(),
-  place_id: z.string().uuid().optional(),
+  place_id: z.string().nullable().optional(),
   published: z.boolean().default(false),
   seo_score: z.number().min(0).max(100).default(0),
 });

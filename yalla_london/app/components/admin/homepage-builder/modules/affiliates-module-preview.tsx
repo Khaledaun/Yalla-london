@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -133,10 +134,13 @@ function AffiliateCard({ affiliate, showLogos, layout }: AffiliateCardProps) {
         <div className="flex items-center gap-4 mb-4">
           {showLogos && (
             <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-              <img
+              <Image
                 src={affiliate.logo}
                 alt={`${affiliate.name} logo`}
+                width={64}
+                height={64}
                 className="w-full h-full object-cover"
+                unoptimized
               />
             </div>
           )}

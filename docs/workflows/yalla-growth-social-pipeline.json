@@ -1,0 +1,133 @@
+{
+  "id": "workflow-yalla-growth-social-2026",
+  "name": "yalla-growth-social-pipeline",
+  "description": "Yalla London Growth & Social Pipeline: Weekly strategy → content creation → distribution → tracking → iteration. Covers social media marketing, brand growth, and community building across all sites.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-growth",
+      "type": "start",
+      "name": "start-growth",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "Weekly Cron Trigger (Monday 10am UTC)" }
+    },
+    {
+      "id": "agent-strategy",
+      "type": "subAgent",
+      "name": "growth-strategist",
+      "position": { "x": 300, "y": 200 },
+      "data": {
+        "description": "Growth Strategy Agent",
+        "prompt": "Weekly growth strategy review per site:\n1. Review last week's performance (impressions, engagement, clicks, followers)\n2. Identify top-performing content themes\n3. Plan content calendar for the week (3-5 social posts per site)\n4. Cross-promote between Zenitha network sites\n5. Identify trending hashtags and topics in luxury travel space\n6. GCC audience targeting: Arabic content timing (evening GST), Ramadan/Eid seasons\n7. Platform strategy: Instagram (visuals), X/Twitter (tips), TikTok (short video)\nOutput: Weekly social content plan per site.",
+        "model": "sonnet",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-content-repurpose",
+      "type": "subAgent",
+      "name": "content-repurposer",
+      "position": { "x": 550, "y": 120 },
+      "data": {
+        "description": "Content Repurposer Agent",
+        "prompt": "Repurpose published blog content into social media formats:\n- Extract key quotes and tips from blog posts for Twitter/X threads\n- Create Instagram carousel summaries (5-7 slides) from listicle articles\n- Generate short-form video scripts from travel guides\n- Create Pinterest pins from featured images + overlay text\n- Bilingual versions: EN posts for global reach, AR posts for Gulf audience\n- Include affiliate links where platform allows (Instagram bio, link stickers)\nTag with source article URL for attribution tracking.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-community",
+      "type": "subAgent",
+      "name": "community-builder",
+      "position": { "x": 550, "y": 380 },
+      "data": {
+        "description": "Community Builder Agent",
+        "prompt": "Build and nurture community across platforms:\n- Respond to comments and DMs (template responses for common questions)\n- Engage with related travel content creators and influencers\n- Share user-generated content (with permission)\n- Create polls and questions to boost engagement\n- Cross-site community: introduce Yalla London followers to Arabaldives, Yalla Riviera\n- Track community growth metrics: followers, engagement rate, sentiment\n- Identify potential brand ambassadors (frequent engagers with Gulf audience)",
+        "model": "haiku",
+        "color": "yellow",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-distributor",
+      "type": "subAgent",
+      "name": "content-distributor",
+      "position": { "x": 850, "y": 250 },
+      "data": {
+        "description": "Multi-Platform Distributor",
+        "prompt": "Distribute social content across platforms:\n- Instagram: Visual posts, Stories, Reels\n- Twitter/X: Threads, tips, link sharing\n- TikTok: Short travel clips\n- Pinterest: Destination pins, travel boards\n- LinkedIn: Zenitha.Luxury brand updates\nPlatform-specific optimization:\n- Optimal posting times per platform and audience (GCC evening = 4-8pm GST)\n- Platform-native formatting (aspect ratios, caption lengths, hashtag counts)\n- UTM parameters on all links for attribution tracking",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-engagement-tracker",
+      "type": "subAgent",
+      "name": "engagement-tracker",
+      "position": { "x": 1100, "y": 250 },
+      "data": {
+        "description": "Engagement & Growth Tracker",
+        "prompt": "Track social engagement metrics:\n- Per-post: impressions, likes, comments, shares, saves, clicks\n- Per-platform: follower growth, engagement rate, reach\n- Per-site: which site content performs best on which platform\n- Referral traffic: social → website visits → affiliate clicks\n- Content type analysis: which formats drive most engagement\n- Hashtag performance tracking\n- Competitor benchmarking (luxury travel accounts)\nGenerate weekly social performance report for dashboard.",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "ifelse-iterate",
+      "type": "ifElse",
+      "name": "iteration-check",
+      "position": { "x": 1350, "y": 250 },
+      "data": {
+        "evaluationTarget": "Engagement trends and performance",
+        "branches": [
+          { "id": "b-iterate", "label": "Iterate", "condition": "Underperforming content themes or declining engagement detected" },
+          { "id": "b-continue", "label": "Continue", "condition": "Engagement metrics stable or growing" }
+        ],
+        "outputPorts": 2
+      }
+    },
+    {
+      "id": "agent-strategy-adjuster",
+      "type": "subAgent",
+      "name": "strategy-adjuster",
+      "position": { "x": 1600, "y": 180 },
+      "data": {
+        "description": "Strategy Adjustment Agent",
+        "prompt": "Adjust growth strategy based on performance data:\n- Double down on high-performing content themes\n- Retire underperforming content formats\n- Adjust posting schedule based on engagement time analysis\n- Reallocate effort between platforms (invest more in best-performing)\n- Update hashtag strategy based on performance\n- Test new content angles (behind-the-scenes, user stories, seasonal)\nFeed adjustments back into next week's strategy cycle.",
+        "model": "sonnet",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-growth",
+      "type": "end",
+      "name": "end-growth",
+      "position": { "x": 1600, "y": 340 },
+      "data": { "label": "Weekly Social Report (Dashboard)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-strategy", "from": "start-growth", "to": "agent-strategy", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-strategy-repurpose", "from": "agent-strategy", "to": "agent-content-repurpose", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-strategy-community", "from": "agent-strategy", "to": "agent-community", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-repurpose-distribute", "from": "agent-content-repurpose", "to": "agent-distributor", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-community-distribute", "from": "agent-community", "to": "agent-distributor", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-distribute-track", "from": "agent-distributor", "to": "agent-engagement-tracker", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-track-iterate", "from": "agent-engagement-tracker", "to": "ifelse-iterate", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-iterate-adjust", "from": "ifelse-iterate", "to": "agent-strategy-adjuster", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-iterate-end", "from": "ifelse-iterate", "to": "end-growth", "fromPort": "branch-1", "toPort": "in" },
+    { "id": "conn-adjust-strategy", "from": "agent-strategy-adjuster", "to": "agent-strategy", "fromPort": "output", "toPort": "input" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["growth", "social-media", "weekly", "multi-platform", "engagement"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

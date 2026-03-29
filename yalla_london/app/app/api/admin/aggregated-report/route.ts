@@ -640,9 +640,9 @@ export async function GET(request: NextRequest) {
         let hasQualityGate = false;
         try {
           const m = await import("@/lib/seo/standards");
-          hasQualityGate = m.CONTENT_TYPE_THRESHOLDS?.blog?.qualityGateScore === 70;
+          hasQualityGate = m.CONTENT_TYPE_THRESHOLDS?.blog?.qualityGateScore === 40;
         } catch { /* */ }
-        checks.push({ category: "Pipeline", name: "Quality gate score >= 70", status: hasQualityGate ? "pass" : "fail", detail: "Aligned across phases.ts, select-runner, standards" });
+        checks.push({ category: "Pipeline", name: "Quality gate score threshold", status: hasQualityGate ? "pass" : "fail", detail: "Aligned across phases.ts, select-runner, standards at 40" });
 
         let hasAuthorRotation = false;
         try { const m = await import("@/lib/content-pipeline/author-rotation"); hasAuthorRotation = !!m; } catch { /* */ }

@@ -186,7 +186,10 @@ export async function getContentCoverage(siteId?: string): Promise<ContentCovera
       !(a.content_en || "").includes('rel="sponsored') &&
       !(a.content_en || "").includes("affiliate-cta-block") &&
       !(a.content_en || "").includes("affiliate-recommendation") &&
-      !(a.content_en || "").includes('rel="noopener sponsored"')
+      !(a.content_en || "").includes('rel="noopener sponsored"') &&
+      !(a.content_en || "").includes("data-affiliate-id") &&
+      !(a.content_en || "").includes("data-affiliate-partner") &&
+      !(a.content_en || "").includes("/api/affiliate/click")
   );
 
   return {

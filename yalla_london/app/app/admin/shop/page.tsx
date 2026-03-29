@@ -89,7 +89,7 @@ export default function AdminShopPage() {
         action={
           <AdminButton
             variant="primary"
-            onClick={() => { window.location.href = '/admin/command-center/products/pdf' }}
+            onClick={() => { window.location.href = '/admin/design' }}
           >
             <Plus size={14} /> Add Product
           </AdminButton>
@@ -103,7 +103,7 @@ export default function AdminShopPage() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <AdminKPICard
-              value={`\u00A3${stats.totalRevenue.toFixed(2)}`}
+              value={`\u00A3${(stats.totalRevenue ?? 0).toFixed(2)}`}
               label="Total Revenue"
               color="#2D5A3D"
             />
@@ -147,7 +147,7 @@ export default function AdminShopPage() {
                 title="No products found"
                 description="Add your first digital product to start selling."
                 action={
-                  <AdminButton variant="primary" onClick={() => { window.location.href = '/admin/command-center/products/pdf' }}>
+                  <AdminButton variant="primary" onClick={() => { window.location.href = '/admin/design' }}>
                     <Plus size={14} /> Add Product
                   </AdminButton>
                 }

@@ -25,8 +25,10 @@ interface ContactFormData {
   newsletter: boolean
 }
 
-export default function YallaContactPage() {
-  const { language, isRTL } = useLanguage()
+export default function YallaContactPage({ serverLocale }: { serverLocale?: 'en' | 'ar' }) {
+  const { language: clientLanguage, isRTL: clientIsRTL } = useLanguage()
+  const language = serverLocale ?? clientLanguage
+  const isRTL = language === 'ar' ? true : clientIsRTL
   const t = (key: string) => getTranslation(language, key)
 
   const [formData, setFormData] = useState<ContactFormData>({

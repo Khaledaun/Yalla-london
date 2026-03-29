@@ -7,6 +7,7 @@ import { ZenithaLuxuryContact } from "@/components/zenitha-luxury/zenitha-luxury
 export default async function ContactPage() {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
 
   if (isParentBrandSite(siteId)) {
     return <ZenithaLuxuryContact />;
@@ -16,5 +17,5 @@ export default async function ContactPage() {
     return <ZenithaContactPage siteId={siteId} />;
   }
 
-  return <YallaContactPage />;
+  return <YallaContactPage serverLocale={locale} />;
 }

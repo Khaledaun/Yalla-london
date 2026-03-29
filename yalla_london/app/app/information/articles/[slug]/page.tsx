@@ -265,6 +265,7 @@ export default async function ArticleDetailPage({ params }: Props) {
 
   // Resolve site identity for schema generation
   const headersList = await headers();
+  const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
@@ -294,7 +295,7 @@ export default async function ArticleDetailPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      <ArticleClient article={clientArticle} relatedArticles={relatedArticles} />
+      <ArticleClient article={clientArticle} relatedArticles={relatedArticles} serverLocale={locale} />
     </>
   );
 }

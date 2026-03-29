@@ -28,10 +28,12 @@ interface ArticleData {
 
 interface ArticleListClientProps {
   articles: ArticleData[]
+  serverLocale?: 'en' | 'ar'
 }
 
-export default function ArticleListClient({ articles }: ArticleListClientProps) {
-  const { language, isRTL } = useLanguage()
+export default function ArticleListClient({ articles, serverLocale }: ArticleListClientProps) {
+  const { language: clientLanguage, isRTL } = useLanguage()
+  const language = serverLocale ?? clientLanguage
   const t = (key: string) => getTranslation(language, key)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')

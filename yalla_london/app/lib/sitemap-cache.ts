@@ -162,6 +162,9 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       ["/terms", staticDate, "yearly", 0.3],
       ["/affiliate-disclosure", staticDate, "yearly", 0.3],
       ["/shop", staticDate, "weekly", 0.7],
+      ["/halal-restaurants-london", staticDate, "weekly", 0.9],
+      ["/luxury-hotels-london", staticDate, "weekly", 0.9],
+      ["/london-with-kids", staticDate, "weekly", 0.9],
     ];
     for (const [path, lastMod, freq, prio] of blogStatic) {
       entries.push({

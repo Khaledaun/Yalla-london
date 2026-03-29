@@ -181,6 +181,7 @@ function transformArticlesForClient() {
 
 export default async function ArticlesPage() {
   const headersList = await headers();
+  const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
@@ -208,7 +209,7 @@ export default async function ArticlesPage() {
       />
 
       {/* Server-rendered article list passed to client component for interactivity */}
-      <ArticleListClient articles={articles} />
+      <ArticleListClient articles={articles} serverLocale={locale} />
     </>
   );
 }

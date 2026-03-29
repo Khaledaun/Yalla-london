@@ -269,6 +269,7 @@ export default async function SectionPage({ params }: Props) {
 
   // Resolve site identity for schema
   const headersList = await headers();
+  const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
@@ -300,6 +301,7 @@ export default async function SectionPage({ params }: Props) {
         section={clientSection}
         relatedArticles={relatedArticles}
         navigation={navigation}
+        serverLocale={locale}
       />
     </>
   );

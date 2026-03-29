@@ -444,16 +444,17 @@ export async function POST(request: NextRequest) {
     const asset = await prisma.mediaAsset.create({
       data: {
         filename: `${slug}.png`,
-        originalFilename: `${title || "cover"} - ${templateId}.png`,
-        mimeType: "image/png",
-        fileSize: buffer.length,
+        original_name: `${title || "cover"} - ${templateId}.png`,
+        mime_type: "image/png",
+        file_size: buffer.length,
         width: 1200,
         height: 1600,
-        fileType: "image",
+        file_type: "image",
         category: "pdf-cover",
         tags: [`pdf-cover`, templateId, siteId],
-        siteId,
+        site_id: siteId,
         url: `data:image/png;base64,${base64}`,
+        cloud_storage_path: `pdf-covers/${slug}.png`,
       },
     });
 

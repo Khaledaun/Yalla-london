@@ -198,6 +198,7 @@ function transformArticlesForClient() {
 
 export default async function InformationPage() {
   const headersList = await headers();
+  const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
@@ -226,7 +227,7 @@ export default async function InformationPage() {
       />
 
       {/* Server-rendered information hub passed to client component for interactivity */}
-      <InformationHubClient sections={sections} articles={articles} />
+      <InformationHubClient sections={sections} articles={articles} serverLocale={locale} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import { ZenithaLuxuryAbout } from "@/components/zenitha-luxury/zenitha-luxury-a
 export default async function AboutPage() {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const locale = (headersList.get("x-locale") || "en") as "en" | "ar";
 
   if (isParentBrandSite(siteId)) {
     return <ZenithaLuxuryAbout />;
@@ -16,5 +17,5 @@ export default async function AboutPage() {
     return <AboutZenithaYachts />;
   }
 
-  return <AboutYallaLondon />;
+  return <AboutYallaLondon serverLocale={locale} />;
 }

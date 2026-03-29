@@ -308,8 +308,8 @@ export default function CampaignsPage() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Request failed" }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        const errText = await res.text().catch(() => "Request failed");
+        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
       }
       const data = await res.json();
       setKickstartResult(data);

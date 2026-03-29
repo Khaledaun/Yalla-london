@@ -268,6 +268,12 @@ export default function CEOOperationsDashboard() {
       if (payload && method === 'POST') opts.body = JSON.stringify(payload)
       const url = method === 'GET' && siteId ? `${endpoint}?siteId=${encodeURIComponent(siteId)}` : endpoint
       const res = await fetch(url, opts)
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        setActionResult(`${label}: Failed (HTTP ${res.status})`)
+        console.warn(`[ai-assistant] ${label} failed:`, res.status, errText.slice(0, 200))
+        return
+      }
       const data = await res.json().catch(() => ({}))
       setActionResult(`${label}: ${data.success !== false ? 'Done' : data.error || 'Failed'}`)
       if (label !== 'Health Check') setTimeout(fetchOpsData, 2000)

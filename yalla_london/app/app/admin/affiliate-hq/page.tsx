@@ -173,6 +173,13 @@ export default function AffiliateHQPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Request failed");
+        setActionResult(`${action}: Failed (HTTP ${res.status})`);
+        console.warn(`[affiliate-hq] ${action} failed:`, res.status, errText.slice(0, 200));
+        setActionLoading(null);
+        return;
+      }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
 
       // Build detailed result message for visibility

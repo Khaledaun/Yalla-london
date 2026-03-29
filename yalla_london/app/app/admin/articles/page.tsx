@@ -123,6 +123,13 @@ export default function ArticlesPage() {
           return
         }
 
+        if (!response.ok) {
+          console.warn('[articles] Fetch failed:', response.status)
+          setArticles([])
+          setLoading(false)
+          return
+        }
+
         const data = await response.json().catch(() => null)
 
         if (data?.success && data.articles) {

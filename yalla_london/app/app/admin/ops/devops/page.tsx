@@ -97,7 +97,7 @@ export default function DevOpsPage() {
     setTaskLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/dev-tasks/test", {
+      const res = await fetch("/api/admin/dev-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "sync_plan" }),
@@ -130,11 +130,22 @@ export default function DevOpsPage() {
       const res = await fetch("/api/admin/dev-tasks/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run_smoke" }),
+        body: JSON.stringify({ action: "test_all" }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setSmokeResult(data?.result ?? null);
+      // Normalize test_all response { summary: { total, passed, failed, skipped } }
+      const summary = data?.summary ?? data?.result;
+      if (summary) {
+        setSmokeResult({
+          total: summary.total ?? 0,
+          passed: summary.passed ?? 0,
+          failed: summary.failed ?? 0,
+          warned: summary.skipped ?? summary.warned ?? 0,
+        });
+      } else {
+        setSmokeResult(null);
+      }
     } catch (err) {
       setSmokeResult(null);
       setError(err instanceof Error ? err.message : "Smoke test endpoint failed");

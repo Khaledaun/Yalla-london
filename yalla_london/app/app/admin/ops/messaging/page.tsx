@@ -281,7 +281,7 @@ export default function MessagingIntegrationsPage() {
           { label: "Connected", value: connectedCount, color: "#34D399" },
           { label: "Planned", value: plannedCount, color: "#94A3B8" },
           { label: "Total Channels", value: channels.length, color: "#7DD3FC" },
-          { label: "Messages Today", value: 0, color: "#C8322B" },
+          { label: "Env Vars Set", value: channels.reduce((n, c) => n + c.envChecks.filter(e => e.set).length, 0), color: "#C8322B" },
         ].map((stat) => (
           <div
             key={stat.label}

@@ -37,6 +37,7 @@ export default function IntelligencePage() {
   const [auditResult, setAuditResult] = useState<Record<string, unknown> | null>(null);
   const [fixingIssue, setFixingIssue] = useState<number | null>(null);
   const [fixResult, setFixResult] = useState<{ idx: number; ok: boolean; msg: string } | null>(null);
+  const [showAllAuditIssues, setShowAllAuditIssues] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -97,6 +98,7 @@ export default function IntelligencePage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     if (autoRefresh) {
       intervalRef.current = setInterval(() => { fetchData(); }, 30_000);
     }
@@ -145,10 +147,8 @@ export default function IntelligencePage() {
       setCopyFeedback("Copied!");
       setTimeout(() => setCopyFeedback(null), 2000);
     } catch {
-      // Last resort — show the JSON in a prompt so user can manually copy
       setCopyFeedback("Copy failed — tap and hold to select");
       setTimeout(() => setCopyFeedback(null), 3000);
-      window.prompt("Copy this JSON:", text);
     }
   };
 
@@ -284,7 +284,10 @@ export default function IntelligencePage() {
                 <div className="space-y-1 mt-2">
                   {d.topPages.map((p, i) => (
                     <div key={i} className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs">
-                      <span className="text-stone-700 truncate max-w-[55%]">{p.url.replace(/^https?:\/\/[^/]+/, "")}</span>
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-stone-700 hover:text-blue-700 truncate max-w-[55%] flex items-center gap-1">
+                        {p.url.replace(/^https?:\/\/[^/]+/, "")}
+                        <ExternalLink size={10} className="shrink-0 opacity-40" />
+                      </a>
                       <div className="flex items-center gap-3 text-stone-500">
                         <span>{p.clicks} clicks</span>
                         <span>{p.impressions} imp</span>
@@ -346,20 +349,33 @@ export default function IntelligencePage() {
                 </div>
 
                 {/* Issues with Fix Now + Copy JSON */}
-                {((auditResult as { synthesizedIssues?: Array<{ severity: string; title: string; detail: string }> }).synthesizedIssues || []).slice(0, 10).map((issue, i) => (
-                  <div key={i} className="flex items-start justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 mb-1">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <AdminStatusBadge status={issue.severity === "critical" ? "error" : issue.severity === "high" ? "warning" : "info"} label={issue.severity} />
-                        <span className="text-sm text-stone-800">{issue.title}</span>
-                      </div>
-                      {issue.detail && <p className="font-mono text-xs text-stone-500 mt-1">{issue.detail}</p>}
-                    </div>
-                    <AdminButton variant="ghost" size="sm" onClick={() => copyAsJson({ issue: issue.title, severity: issue.severity, detail: issue.detail })}>
-                      <Copy size={10} />
-                    </AdminButton>
-                  </div>
-                ))}
+                {(() => {
+                  const allIssues = (auditResult as { synthesizedIssues?: Array<{ severity: string; title: string; detail: string }> }).synthesizedIssues || [];
+                  const visible = showAllAuditIssues ? allIssues : allIssues.slice(0, 10);
+                  return (
+                    <>
+                      {visible.map((issue, i) => (
+                        <div key={i} className="flex items-start justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 mb-1">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <AdminStatusBadge status={issue.severity === "critical" ? "error" : issue.severity === "high" ? "warning" : "info"} label={issue.severity} />
+                              <span className="text-sm text-stone-800">{issue.title}</span>
+                            </div>
+                            {issue.detail && <p className="font-mono text-xs text-stone-500 mt-1">{issue.detail}</p>}
+                          </div>
+                          <AdminButton variant="ghost" size="sm" onClick={() => copyAsJson({ issue: issue.title, severity: issue.severity, detail: issue.detail })}>
+                            <Copy size={10} />
+                          </AdminButton>
+                        </div>
+                      ))}
+                      {allIssues.length > 10 && !showAllAuditIssues && (
+                        <button onClick={() => setShowAllAuditIssues(true)} className="text-xs text-blue-600 hover:text-blue-800 mt-2">
+                          Show all {allIssues.length} issues
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
               </AdminCard>
             )}
           </div>

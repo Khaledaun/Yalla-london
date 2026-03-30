@@ -198,6 +198,17 @@ export default function CRMPage() {
   const [consentTotal, setConsentTotal] = useState(0)
   const [consentPage, setConsentPage] = useState(1)
 
+  // Interaction logger state
+  const [interactionContactId, setInteractionContactId] = useState<string | null>(null)
+  const [interactionForm, setInteractionForm] = useState({ type: 'note' as string, summary: '', sentiment: 'neutral' as string })
+  const [interactionLoading, setInteractionLoading] = useState(false)
+  const [interactionSuccess, setInteractionSuccess] = useState<string | null>(null)
+
+  // Kanban interaction logger state
+  const [kanbanLogOppId, setKanbanLogOppId] = useState('')
+  const [kanbanLogForm, setKanbanLogForm] = useState({ type: 'note' as string, summary: '', sentiment: 'neutral' as string })
+  const [kanbanLogLoading, setKanbanLogLoading] = useState(false)
+
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -297,9 +308,167 @@ export default function CRMPage() {
     setNewLead({ name: '', email: '', phone: '', source: 'manual' })
   }
 
+  /* ── Log Interaction ── */
+  const handleLogInteraction = async (contactId: string) => {
+    if (!interactionForm.summary.trim()) {
+      toast.error('Please enter a summary')
+      return
+    }
+    setInteractionLoading(true)
+    try {
+      const res = await fetch('/api/admin/agent/crm-pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'log_interaction',
+          contactId,
+          type: interactionForm.type,
+          summary: interactionForm.summary.trim(),
+          sentiment: interactionForm.sentiment,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' }))
+        throw new Error(err.error || 'Failed to log interaction')
+      }
+      toast.success('Interaction logged')
+      setInteractionSuccess(contactId)
+      setInteractionForm({ type: 'note', summary: '', sentiment: 'neutral' })
+      setTimeout(() => {
+        setInteractionSuccess(null)
+        setInteractionContactId(null)
+      }, 2000)
+      fetchData(activeTab)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to log interaction')
+    } finally {
+      setInteractionLoading(false)
+    }
+  }
+
   /* ── Move Opportunity Stage ── */
   const moveOpportunity = async (opportunityId: string, stage: string) => {
     await postAction('update_opportunity_stage', { opportunityId, stage })
+  }
+
+  /* ── Inline Interaction Logger Component ── */
+  const InteractionLogger = ({ contactId }: { contactId: string }) => {
+    const isOpen = interactionContactId === contactId
+    const isSuccess = interactionSuccess === contactId
+
+    if (isSuccess) {
+      return (
+        <div className="mt-2 p-3 rounded-xl" style={{ backgroundColor: '#2D5A3D10', border: '1px solid #2D5A3D30' }}>
+          <div className="flex items-center gap-2" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#2D5A3D', fontWeight: 600 }}>
+            <span>Interaction logged successfully</span>
+          </div>
+        </div>
+      )
+    }
+
+    if (!isOpen) {
+      return (
+        <div className="mt-2">
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInteractionContactId(contactId) }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+            style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)', fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', cursor: 'pointer' }}
+          >
+            <MessageSquare size={11} /> Log Interaction
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className="mt-2 p-3 rounded-xl space-y-2.5"
+        style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+      >
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#1C1917', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Log Interaction
+        </div>
+
+        {/* Type dropdown */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 2 }}>Type</label>
+            <select
+              className="admin-select w-full"
+              value={interactionForm.type}
+              onChange={e => setInteractionForm(p => ({ ...p, type: e.target.value }))}
+            >
+              <option value="call">Call</option>
+              <option value="email">Email</option>
+              <option value="meeting">Meeting</option>
+              <option value="note">Note</option>
+            </select>
+          </div>
+
+          {/* Sentiment */}
+          <div>
+            <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 2 }}>Sentiment</label>
+            <div className="flex gap-1">
+              {([
+                { value: 'positive', label: '+', color: '#2D5A3D', bg: '#2D5A3D15' },
+                { value: 'neutral', label: '=', color: '#C49A2A', bg: '#C49A2A15' },
+                { value: 'negative', label: '-', color: '#C8322B', bg: '#C8322B15' },
+              ] as const).map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => setInteractionForm(p => ({ ...p, sentiment: s.value }))}
+                  className="flex-1 py-1.5 rounded-lg transition-all text-center"
+                  style={{
+                    backgroundColor: interactionForm.sentiment === s.value ? s.bg : 'transparent',
+                    border: `1.5px solid ${interactionForm.sentiment === s.value ? s.color : 'rgba(214,208,196,0.4)'}`,
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: interactionForm.sentiment === s.value ? s.color : '#A8A29E',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div>
+          <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 2 }}>Summary</label>
+          <textarea
+            className="admin-input w-full"
+            rows={2}
+            placeholder="Brief summary of the interaction..."
+            value={interactionForm.summary}
+            onChange={e => setInteractionForm(p => ({ ...p, summary: e.target.value }))}
+            style={{ resize: 'none' }}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <AdminButton
+            variant="primary"
+            size="sm"
+            onClick={() => handleLogInteraction(contactId)}
+            disabled={interactionLoading || !interactionForm.summary.trim()}
+          >
+            {interactionLoading ? 'Saving...' : 'Save'}
+          </AdminButton>
+          <AdminButton
+            variant="ghost"
+            size="sm"
+            onClick={() => { setInteractionContactId(null); setInteractionForm({ type: 'note', summary: '', sentiment: 'neutral' }) }}
+          >
+            Cancel
+          </AdminButton>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -475,12 +644,11 @@ export default function CRMPage() {
 
               {/* Contact List */}
               {contacts.length > 0 ? contacts.map(contact => (
-                <Link
-                  key={`${contact.type}-${contact.id}`}
-                  href={`/admin/crm/contact/${contact.id}`}
-                  className="block"
-                >
-                  <AdminCard className="hover:shadow-md transition-all cursor-pointer">
+                <AdminCard key={`${contact.type}-${contact.id}`} className="hover:shadow-md transition-all">
+                  <Link
+                    href={`/admin/crm/contact/${contact.id}`}
+                    className="block"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -517,8 +685,9 @@ export default function CRMPage() {
                         <ChevronRight size={16} style={{ color: '#A8A29E' }} />
                       </div>
                     </div>
-                  </AdminCard>
-                </Link>
+                  </Link>
+                  <InteractionLogger contactId={contact.id} />
+                </AdminCard>
               )) : (
                 <AdminCard>
                   <AdminEmptyState icon={Users} title="No Contacts Found"
@@ -543,96 +712,219 @@ export default function CRMPage() {
             </div>
           )}
 
-          {/* ═══════ OPPORTUNITIES (PIPELINE) TAB ═══════ */}
+          {/* ═══════ OPPORTUNITIES (PIPELINE) TAB — KANBAN ═══════ */}
           {activeTab === 'opportunities' && (
             <div className="space-y-4">
-              {/* Pipeline stage cards — vertical on mobile, horizontal scroll on desktop */}
-              <div className="flex flex-col lg:flex-row gap-3 lg:overflow-x-auto lg:pb-4">
+              {/* Mobile stage tabs — horizontal scroll indicator */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 md:hidden" style={{ scrollbarWidth: 'none' }}>
                 {pipeline.map(stage => (
-                  <div key={stage.stage} className="lg:min-w-[280px] lg:max-w-[320px] flex-shrink-0">
-                    <div className="flex items-center justify-between mb-2 px-1">
+                  <button
+                    key={stage.stage}
+                    onClick={() => {
+                      const col = document.getElementById(`kanban-col-${stage.stage}`)
+                      col?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap flex-shrink-0"
+                    style={{
+                      backgroundColor: `${stageColors[stage.stage] || '#78716C'}12`,
+                      border: `1.5px solid ${stageColors[stage.stage] || '#78716C'}40`,
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      fontSize: 10,
+                      color: stageColors[stage.stage] || '#78716C',
+                      cursor: 'pointer',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    {stageLabels[stage.stage] || stage.stage}
+                    <span className="px-1 py-0 rounded-full" style={{ backgroundColor: `${stageColors[stage.stage] || '#78716C'}20`, fontSize: 9 }}>
+                      {stage.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Kanban Board — horizontal scroll with snap on mobile */}
+              <div
+                className="flex gap-3 overflow-x-auto pb-4"
+                style={{
+                  scrollSnapType: 'x mandatory',
+                  WebkitOverflowScrolling: 'touch',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(214,208,196,0.5) transparent',
+                  minHeight: 320,
+                }}
+              >
+                {pipeline.map(stage => (
+                  <div
+                    key={stage.stage}
+                    id={`kanban-col-${stage.stage}`}
+                    className="flex-shrink-0 flex flex-col"
+                    style={{ width: 280, scrollSnapAlign: 'start' }}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      e.currentTarget.style.backgroundColor = `${stageColors[stage.stage] || '#78716C'}08`
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
+                    onDrop={async (e) => {
+                      e.preventDefault()
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      const oppId = e.dataTransfer.getData('text/plain')
+                      const fromStage = e.dataTransfer.getData('application/x-stage')
+                      if (oppId && fromStage !== stage.stage) {
+                        await moveOpportunity(oppId, stage.stage)
+                      }
+                    }}
+                  >
+                    {/* Column Header */}
+                    <div
+                      className="flex items-center justify-between mb-2.5 px-2 py-2 rounded-xl"
+                      style={{ backgroundColor: `${stageColors[stage.stage] || '#78716C'}08`, border: `1px solid ${stageColors[stage.stage] || '#78716C'}20` }}
+                    >
                       <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stageColors[stage.stage] || '#78716C' }} />
-                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stageColors[stage.stage] || '#78716C' }} />
+                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#1C1917', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                           {stageLabels[stage.stage] || stage.stage}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: '#FAF8F4', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, color: '#78716C' }}>
+                        <span
+                          className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full"
+                          style={{ backgroundColor: stageColors[stage.stage] || '#78716C', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 9, color: '#FFFFFF' }}
+                        >
                           {stage.count}
                         </span>
                       </div>
                       {stage.totalValue > 0 && (
-                        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C' }}>
+                        <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', fontWeight: 600 }}>
                           {formatCurrency(stage.totalValue)}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      {stage.items.length > 0 ? stage.items.map(opp => (
-                        <AdminCard key={opp.id} className="!p-3">
-                          <div className="flex items-start justify-between mb-1">
-                            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917' }}>
-                              {opp.contactName || opp.contactEmail || 'Unknown'}
-                            </span>
-                            {opp.value && (
-                              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#2D5A3D' }}>
-                                {formatCurrency(opp.value, opp.currency || 'GBP')}
+                    {/* Column Body — cards */}
+                    <div
+                      className="flex-1 space-y-2 rounded-xl p-1.5 transition-colors"
+                      style={{ minHeight: 100, border: '1px dashed rgba(214,208,196,0.3)', borderRadius: 12 }}
+                    >
+                      {stage.items.length > 0 ? stage.items.map(opp => {
+                        const daysInStage = Math.max(0, Math.floor((Date.now() - new Date(opp.updatedAt).getTime()) / 86400000))
+                        return (
+                          <div
+                            key={opp.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', opp.id)
+                              e.dataTransfer.setData('application/x-stage', stage.stage)
+                              e.dataTransfer.effectAllowed = 'move'
+                              ;(e.currentTarget as HTMLElement).style.opacity = '0.5'
+                            }}
+                            onDragEnd={(e) => {
+                              ;(e.currentTarget as HTMLElement).style.opacity = '1'
+                            }}
+                            className="rounded-xl p-3 transition-shadow hover:shadow-md"
+                            style={{
+                              backgroundColor: '#FFFFFF',
+                              border: '1px solid rgba(214,208,196,0.5)',
+                              cursor: 'grab',
+                              userSelect: 'none',
+                            }}
+                          >
+                            {/* Card: Name + Value */}
+                            <div className="flex items-start justify-between mb-1.5">
+                              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: '#1C1917', lineHeight: 1.3 }}>
+                                {opp.contactName || opp.contactEmail || 'Unknown'}
                               </span>
+                            </div>
+
+                            {/* Card: Value + Source */}
+                            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                              {opp.value != null && opp.value > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded"
+                                  style={{ backgroundColor: '#2D5A3D10', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#2D5A3D' }}
+                                >
+                                  <DollarSign size={9} /> {formatCurrency(opp.value, opp.currency || 'GBP')}
+                                </span>
+                              )}
+                              {opp.source && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded capitalize"
+                                  style={{ backgroundColor: '#FAF8F4', fontFamily: 'var(--font-system)', fontSize: 9, color: '#78716C', border: '1px solid rgba(214,208,196,0.3)' }}
+                                >
+                                  {opp.source}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Card: Next Action */}
+                            {opp.nextAction && (
+                              <div className="flex items-center gap-1 mb-2 px-2 py-1 rounded-lg" style={{ backgroundColor: '#C49A2A08', border: '1px solid #C49A2A20' }}>
+                                <Clock size={9} style={{ color: '#C49A2A', flexShrink: 0 }} />
+                                <span style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#92400E', lineHeight: 1.3 }}>
+                                  {opp.nextAction.length > 50 ? opp.nextAction.substring(0, 50) + '...' : opp.nextAction}
+                                </span>
+                              </div>
                             )}
-                          </div>
-                          {opp.contactEmail && (
-                            <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', marginBottom: 4 }}>
-                              {opp.contactEmail}
-                            </div>
-                          )}
-                          {opp.lastInteraction && (
-                            <div className="p-2 rounded-lg mb-2" style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.2)' }}>
-                              <div style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#44403C' }}>
-                                {opp.lastInteraction.summary?.substring(0, 80)}
-                              </div>
-                              <div style={{ fontFamily: 'var(--font-system)', fontSize: 9, color: '#A8A29E', marginTop: 2 }}>
-                                {opp.lastInteraction.channel} &middot; {relativeTime(opp.lastInteraction.createdAt)}
-                              </div>
-                            </div>
-                          )}
-                          {opp.nextAction && (
-                            <div className="flex items-center gap-1 mb-2" style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#C49A2A' }}>
-                              <Clock size={10} /> {opp.nextAction}
-                            </div>
-                          )}
-                          {/* Stage move buttons */}
-                          <div className="flex gap-1 flex-wrap">
-                            {stage.stage !== 'won' && stage.stage !== 'lost' && (
-                              <>
-                                {stage.stage !== 'new' && (
-                                  <AdminButton variant="ghost" size="sm"
-                                    onClick={() => {
-                                      const stages = ['new', 'qualifying', 'proposal', 'negotiation']
+
+                            {/* Card: Days in Stage */}
+                            <div className="flex items-center justify-between">
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+                                style={{
+                                  backgroundColor: daysInStage > 7 ? '#C8322B10' : daysInStage > 3 ? '#C49A2A10' : '#78716C10',
+                                  fontFamily: 'var(--font-system)',
+                                  fontSize: 9,
+                                  fontWeight: 600,
+                                  color: daysInStage > 7 ? '#C8322B' : daysInStage > 3 ? '#C49A2A' : '#78716C',
+                                }}
+                              >
+                                <Clock size={8} />
+                                {daysInStage === 0 ? 'Today' : `${daysInStage}d in stage`}
+                              </span>
+                              {/* Quick arrow buttons on desktop */}
+                              {stage.stage !== 'won' && stage.stage !== 'lost' && (
+                                <div className="hidden md:flex gap-0.5">
+                                  {stage.stage !== 'new' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        const stages = ['new', 'qualifying', 'proposal', 'negotiation']
+                                        const idx = stages.indexOf(stage.stage)
+                                        if (idx > 0) moveOpportunity(opp.id, stages[idx - 1])
+                                      }}
+                                      className="w-5 h-5 rounded flex items-center justify-center transition-colors"
+                                      style={{ backgroundColor: 'transparent', color: '#A8A29E', cursor: 'pointer', border: '1px solid rgba(214,208,196,0.4)', fontSize: 10 }}
+                                      title="Move to previous stage"
+                                    >
+                                      &#8592;
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const stages = ['new', 'qualifying', 'proposal', 'negotiation', 'won']
                                       const idx = stages.indexOf(stage.stage)
-                                      if (idx > 0) moveOpportunity(opp.id, stages[idx - 1])
-                                    }}>
-                                    &larr;
-                                  </AdminButton>
-                                )}
-                                <AdminButton variant="ghost" size="sm"
-                                  onClick={() => {
-                                    const stages = ['new', 'qualifying', 'proposal', 'negotiation', 'won']
-                                    const idx = stages.indexOf(stage.stage)
-                                    if (idx < stages.length - 1) moveOpportunity(opp.id, stages[idx + 1])
-                                  }}>
-                                  &rarr;
-                                </AdminButton>
-                                <AdminButton variant="ghost" size="sm"
-                                  onClick={() => moveOpportunity(opp.id, 'lost')}>
-                                  Lost
-                                </AdminButton>
-                              </>
-                            )}
+                                      if (idx < stages.length - 1) moveOpportunity(opp.id, stages[idx + 1])
+                                    }}
+                                    className="w-5 h-5 rounded flex items-center justify-center transition-colors"
+                                    style={{ backgroundColor: 'transparent', color: '#A8A29E', cursor: 'pointer', border: '1px solid rgba(214,208,196,0.4)', fontSize: 10 }}
+                                    title="Move to next stage"
+                                  >
+                                    &#8594;
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </AdminCard>
-                      )) : (
-                        <div className="p-4 rounded-xl text-center" style={{ backgroundColor: '#FAF8F4', border: '1px dashed rgba(214,208,196,0.5)' }}>
-                          <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#A8A29E' }}>Empty</span>
+                        )
+                      }) : (
+                        <div className="flex items-center justify-center p-6 rounded-xl" style={{ border: '1px dashed rgba(214,208,196,0.4)' }}>
+                          <span style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#A8A29E' }}>
+                            Drop here
+                          </span>
                         </div>
                       )}
                     </div>
@@ -646,6 +938,125 @@ export default function CRMPage() {
                     description="Create an opportunity to start tracking your pipeline" />
                 </AdminCard>
               )}
+
+              {/* ── Inline Interaction Logger (below kanban) ── */}
+              <AdminCard>
+                <AdminSectionLabel>Log Interaction</AdminSectionLabel>
+                <div className="mt-3 space-y-3">
+                  {/* Select Opportunity */}
+                  <div>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 4 }}>Opportunity</label>
+                    <select
+                      className="admin-select w-full"
+                      value={kanbanLogOppId}
+                      onChange={e => setKanbanLogOppId(e.target.value)}
+                    >
+                      <option value="">Select an opportunity...</option>
+                      {pipeline.flatMap(s => s.items).map(opp => (
+                        <option key={opp.id} value={opp.id}>
+                          {opp.contactName || opp.contactEmail || 'Unknown'} ({stageLabels[pipeline.find(s => s.items.some(i => i.id === opp.id))?.stage || ''] || ''})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Type */}
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 4 }}>Type</label>
+                      <select
+                        className="admin-select w-full"
+                        value={kanbanLogForm.type}
+                        onChange={e => setKanbanLogForm(p => ({ ...p, type: e.target.value }))}
+                      >
+                        <option value="call">Call</option>
+                        <option value="email">Email</option>
+                        <option value="meeting">Meeting</option>
+                        <option value="note">Note</option>
+                        <option value="whatsapp">WhatsApp</option>
+                      </select>
+                    </div>
+                    {/* Sentiment */}
+                    <div>
+                      <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 4 }}>Sentiment</label>
+                      <div className="flex gap-1">
+                        {([
+                          { value: 'positive', label: '+', color: '#2D5A3D', bg: '#2D5A3D15' },
+                          { value: 'neutral', label: '=', color: '#C49A2A', bg: '#C49A2A15' },
+                          { value: 'negative', label: '-', color: '#C8322B', bg: '#C8322B15' },
+                        ] as const).map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => setKanbanLogForm(p => ({ ...p, sentiment: s.value }))}
+                            className="flex-1 py-1.5 rounded-lg transition-all text-center"
+                            style={{
+                              backgroundColor: kanbanLogForm.sentiment === s.value ? s.bg : 'transparent',
+                              border: `1.5px solid ${kanbanLogForm.sentiment === s.value ? s.color : 'rgba(214,208,196,0.4)'}`,
+                              fontFamily: 'var(--font-display)',
+                              fontWeight: 700,
+                              fontSize: 13,
+                              color: kanbanLogForm.sentiment === s.value ? s.color : '#A8A29E',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <div>
+                    <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 4 }}>Summary</label>
+                    <textarea
+                      className="admin-input w-full"
+                      rows={2}
+                      placeholder="Brief summary of the interaction..."
+                      value={kanbanLogForm.summary}
+                      onChange={e => setKanbanLogForm(p => ({ ...p, summary: e.target.value }))}
+                      style={{ resize: 'none' }}
+                    />
+                  </div>
+
+                  {/* Submit */}
+                  <div className="flex gap-2">
+                    <AdminButton
+                      variant="primary"
+                      size="sm"
+                      disabled={kanbanLogLoading || !kanbanLogOppId || !kanbanLogForm.summary.trim()}
+                      onClick={async () => {
+                        if (!kanbanLogOppId || !kanbanLogForm.summary.trim()) return
+                        setKanbanLogLoading(true)
+                        try {
+                          const res = await fetch('/api/admin/crm', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              action: 'log_interaction',
+                              contactId: kanbanLogOppId,
+                              type: kanbanLogForm.type,
+                              summary: kanbanLogForm.summary.trim(),
+                              sentiment: kanbanLogForm.sentiment,
+                            }),
+                          })
+                          if (!res.ok) throw new Error('Failed to log interaction')
+                          toast.success('Interaction logged')
+                          setKanbanLogForm({ type: 'note', summary: '', sentiment: 'neutral' })
+                          setKanbanLogOppId('')
+                          fetchData('opportunities')
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : 'Failed to log interaction')
+                        } finally {
+                          setKanbanLogLoading(false)
+                        }
+                      }}
+                    >
+                      {kanbanLogLoading ? 'Saving...' : 'Log Interaction'}
+                    </AdminButton>
+                  </div>
+                </div>
+              </AdminCard>
             </div>
           )}
 

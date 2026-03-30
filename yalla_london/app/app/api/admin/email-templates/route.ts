@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
-import { getSiteConfig } from "@/config/sites";
+import { getSiteConfig, getDefaultSiteId } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     // Seed action: create all 10 branded templates at once
     if (body.action === "seed_templates") {
-      const siteId = body.site || "yalla-london";
+      const siteId = body.site || getDefaultSiteId();
       const { getYallaLondonTemplates } = await import("@/lib/email/template-library");
       const defs = getYallaLondonTemplates(siteId);
       let created = 0;

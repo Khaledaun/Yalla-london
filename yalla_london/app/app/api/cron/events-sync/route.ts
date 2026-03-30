@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUpcomingEvents, formatEventPrice, formatEventDate } from "@/lib/apis/events";
+import { getActiveSiteIds } from "@/config/sites";
 
 export const maxDuration = 60;
 
@@ -19,8 +20,9 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const results: Record<string, { synced: number; skipped: number; error?: string }> = {};
 
-  // Sites with Ticketmaster coverage
-  const eventSites = ["yalla-london", "yalla-istanbul"];
+  // Sites with Ticketmaster coverage (exclude yacht site which doesn't use events pipeline)
+  const TICKETMASTER_SITES = new Set(["yalla-london", "yalla-istanbul"]);
+  const eventSites = getActiveSiteIds().filter(id => TICKETMASTER_SITES.has(id));
 
   for (const siteId of eventSites) {
     if (Date.now() - startTime > BUDGET_MS) {

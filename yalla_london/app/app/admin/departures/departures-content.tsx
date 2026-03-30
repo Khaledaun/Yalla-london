@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { RefreshCw, Play, CheckCircle, AlertTriangle, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react'
+import { RefreshCw, Play, CheckCircle, AlertTriangle, ChevronDown, ChevronRight, ArrowRight, X, Copy, RotateCcw, Clock } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -403,6 +403,11 @@ export default function DeparturesContent() {
   const [loading, setLoading] = useState(true)
   const [triggering, setTriggering] = useState<string | null>(null)
   const [triggerResult, setTriggerResult] = useState<{ path: string; ok: boolean; msg: string } | null>(null)
+  const [cronModal, setCronModal] = useState<{
+    cronPath: string; cronName: string; startedAt: number;
+    loading: boolean; result: Record<string, unknown> | null;
+    ok: boolean; durationMs: number; error: string | null;
+  } | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('timeline')
   const [autoRefresh, setAutoRefresh] = useState(true)
@@ -428,31 +433,39 @@ export default function DeparturesContent() {
   }, [load, autoRefresh])
 
   const handleTrigger = useCallback(async (cronPath: string) => {
+    const cronName = cronPath.split('/').pop()?.split('?')[0] ?? cronPath
+    const startedAt = Date.now()
     setTriggering(cronPath)
     setTriggerResult(null)
+    setCronModal({ cronPath, cronName, startedAt, loading: true, result: null, ok: false, durationMs: 0, error: null })
     try {
       const res = await fetch('/api/admin/departures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cronPath }),
       })
+      const durationMs = Date.now() - startedAt
       if (!res.ok) {
         const errText = await res.text().catch(() => '')
-        setTriggerResult({ path: cronPath, ok: false, msg: `HTTP ${res.status}: ${errText.slice(0, 200)}` })
-        setTriggering(null)
+        const msg = `HTTP ${res.status}: ${errText.slice(0, 200)}`
+        setCronModal(prev => prev ? { ...prev, loading: false, ok: false, durationMs, error: msg } : null)
+        setTriggerResult({ path: cronPath, ok: false, msg })
         return
       }
       const json = await res.json()
+      const ok = json.triggered && json.statusCode < 400
+      setCronModal(prev => prev ? { ...prev, loading: false, ok, durationMs, result: json, error: ok ? null : (json.error ?? 'Unknown') } : null)
       setTriggerResult({
         path: cronPath,
-        ok: json.triggered && json.statusCode < 400,
-        msg: json.triggered
-          ? `Triggered (HTTP ${json.statusCode})`
-          : `Failed: ${json.error ?? 'Unknown'}`,
+        ok,
+        msg: ok ? `Triggered (HTTP ${json.statusCode})` : `Failed: ${json.error ?? 'Unknown'}`,
       })
       setTimeout(load, 2000)
     } catch (err) {
-      setTriggerResult({ path: cronPath, ok: false, msg: String(err) })
+      const durationMs = Date.now() - startedAt
+      const msg = err instanceof Error ? err.message : String(err)
+      setCronModal(prev => prev ? { ...prev, loading: false, ok: false, durationMs, error: msg } : null)
+      setTriggerResult({ path: cronPath, ok: false, msg })
     } finally {
       setTriggering(null)
     }
@@ -622,6 +635,124 @@ export default function DeparturesContent() {
           onTrigger={handleTrigger}
           triggering={triggering}
         />
+      )}
+
+      {/* Cron Response Modal */}
+      {cronModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => !cronModal.loading && setCronModal(null)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+              <div className="flex items-center gap-2 min-w-0">
+                {cronModal.loading
+                  ? <RefreshCw className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
+                  : cronModal.ok
+                    ? <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                    : <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />}
+                <span className="text-sm font-semibold text-white truncate">{cronModal.cronName}</span>
+                {!cronModal.loading && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                    cronModal.ok ? 'bg-emerald-900/50 text-emerald-300' : 'bg-red-900/50 text-red-300'
+                  }`}>{cronModal.ok ? 'Success' : 'Failed'}</span>
+                )}
+              </div>
+              <button onClick={() => setCronModal(null)} disabled={cronModal.loading} className="text-zinc-400 hover:text-white disabled:opacity-30 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {cronModal.loading ? (
+                <div className="flex flex-col items-center py-8 gap-3">
+                  <RefreshCw className="w-8 h-8 text-blue-400 animate-spin" />
+                  <p className="text-sm text-zinc-400">Running {cronModal.cronName}…</p>
+                  <p className="text-xs text-zinc-600">Started {new Date(cronModal.startedAt).toLocaleTimeString('en-GB')}</p>
+                </div>
+              ) : (
+                <>
+                  {/* Duration & timing */}
+                  <div className="flex items-center gap-4 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {cronModal.durationMs < 1000 ? `${cronModal.durationMs}ms` : `${(cronModal.durationMs / 1000).toFixed(1)}s`}</span>
+                    <span>Started {new Date(cronModal.startedAt).toLocaleTimeString('en-GB')}</span>
+                  </div>
+
+                  {/* Error */}
+                  {cronModal.error && (
+                    <div className="p-3 rounded-xl bg-red-950/40 border border-red-800">
+                      <div className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-1">Error</div>
+                      <pre className="text-xs text-red-300 whitespace-pre-wrap break-all">{cronModal.error}</pre>
+                    </div>
+                  )}
+
+                  {/* Full JSON result — collapsible key-value pairs */}
+                  {cronModal.result && (() => {
+                    const entries = Object.entries(cronModal.result);
+                    return (
+                      <div className="rounded-xl bg-zinc-800/60 border border-zinc-700 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700/60">
+                          <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Response ({entries.length} fields)</div>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(JSON.stringify(cronModal.result, null, 2)); }}
+                            className="text-[10px] flex items-center gap-1 text-zinc-500 hover:text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700 hover:border-zinc-500"
+                          ><Copy className="w-3 h-3" /> Copy JSON</button>
+                        </div>
+                        <div className="divide-y divide-zinc-700/40 max-h-[50vh] overflow-y-auto">
+                          {entries.map(([key, val]) => {
+                            const isComplex = val !== null && typeof val === 'object';
+                            return (
+                              <details key={key} className="group">
+                                <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-700/30 text-xs select-none">
+                                  {isComplex && <ChevronRight className="w-3 h-3 text-zinc-500 group-open:rotate-90 transition-transform shrink-0" />}
+                                  <span className="font-medium text-zinc-300 shrink-0">{key}</span>
+                                  {!isComplex && (
+                                    <span className={`ml-auto truncate max-w-[60%] text-right font-mono ${
+                                      val === true ? 'text-emerald-400' :
+                                      val === false ? 'text-red-400' :
+                                      typeof val === 'number' ? 'text-blue-300' :
+                                      'text-zinc-400'
+                                    }`}>{String(val)}</span>
+                                  )}
+                                  {isComplex && !Array.isArray(val) && (
+                                    <span className="ml-auto text-zinc-600 font-mono">{`{${Object.keys(val as Record<string, unknown>).length}}`}</span>
+                                  )}
+                                  {isComplex && Array.isArray(val) && (
+                                    <span className="ml-auto text-zinc-600 font-mono">[{(val as unknown[]).length}]</span>
+                                  )}
+                                </summary>
+                                {isComplex && (
+                                  <pre className="text-[11px] text-zinc-400 whitespace-pre-wrap break-all px-3 pb-2 pl-8 font-mono leading-relaxed">
+                                    {JSON.stringify(val, null, 2)}
+                                  </pre>
+                                )}
+                              </details>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            {!cronModal.loading && (
+              <div className="flex items-center gap-2 px-4 py-3 border-t border-zinc-700">
+                {!cronModal.ok && (
+                  <button
+                    onClick={() => { setCronModal(null); handleTrigger(cronModal.cronPath); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-10 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+                  ><RotateCcw className="w-3.5 h-3.5" /> Retry</button>
+                )}
+                <button
+                  onClick={() => setCronModal(null)}
+                  className={`${cronModal.ok ? 'flex-1' : 'flex-1'} flex items-center justify-center h-10 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-sm rounded-xl transition-colors`}
+                >Close</button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Footer */}

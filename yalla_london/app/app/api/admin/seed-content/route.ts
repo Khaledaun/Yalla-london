@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-middleware";
 import { getSiteDomain, getDefaultSiteId, getDefaultSiteName, SITES } from "@/config/sites";
 
 /**
@@ -17,7 +18,7 @@ import { getSiteDomain, getDefaultSiteId, getDefaultSiteName, SITES } from "@/co
  * GET  → Dry-run: shows what would be created/updated
  * POST → Execute: creates/updates all records
  *
- * Auth: CRON_SECRET bearer token
+ * Auth: Admin auth OR CRON_SECRET bearer token
  */
 
 function checkAuth(request: NextRequest): NextResponse | null {
@@ -270,8 +271,11 @@ function buildUrlIndexingStatus(post: any) {
 // ─── Route Handlers ─────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const authError = checkAuth(request);
-  if (authError) return authError;
+  const cronAuthError = checkAuth(request);
+  if (cronAuthError) {
+    const adminAuthError = await requireAdmin(request);
+    if (adminAuthError) return adminAuthError;
+  }
 
   try {
     const { blogPosts, categories: staticCats } = await import(
@@ -320,8 +324,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = checkAuth(request);
-  if (authError) return authError;
+  const cronAuthError = checkAuth(request);
+  if (cronAuthError) {
+    const adminAuthError = await requireAdmin(request);
+    if (adminAuthError) return adminAuthError;
+  }
 
   const startTime = Date.now();
   const TIME_BUDGET_MS = 50_000; // 50s budget, 10s buffer before Vercel 60s kill

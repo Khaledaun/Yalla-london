@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
+import { getDefaultSiteId } from "@/config/sites";
 
 // ---------------------------------------------------------------------------
 // Auth: Cookie-based session. Login via admin credentials OR CRON_SECRET.
@@ -1444,6 +1445,7 @@ async function testDbConnection(): Promise<TestSuiteResult> {
 async function testDesignCrud(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
   let createdId = "";
 
   // CREATE
@@ -1452,7 +1454,7 @@ async function testDesignCrud(): Promise<TestSuiteResult> {
       data: {
         title: "__test_design__",
         type: "banner",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         canvasData: { nodes: [], version: 1 },
         width: 1200,
         height: 630,
@@ -1527,13 +1529,14 @@ async function testDesignCrud(): Promise<TestSuiteResult> {
 async function testEmailTemplateCrud(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
   let createdId = "";
 
   try {
     const rec = await prisma.emailTemplate.create({
       data: {
         name: "__test_email_template__",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         type: "newsletter",
         htmlContent: "<h1>Test</h1>",
       },
@@ -1584,13 +1587,14 @@ async function testEmailTemplateCrud(): Promise<TestSuiteResult> {
 async function testEmailCampaignCrud(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
   let createdId = "";
 
   try {
     const rec = await prisma.emailCampaign.create({
       data: {
         name: "__test_campaign__",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         subject: "Test Subject",
         htmlContent: "<p>Test campaign</p>",
       },
@@ -1647,7 +1651,7 @@ async function testVideoProjectCrud(): Promise<TestSuiteResult> {
     const rec = await prisma.videoProject.create({
       data: {
         title: "__test_video__",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         category: "destination-highlight",
         format: "instagram-reel",
         scenes: [{ text: "Test scene", duration: 3 }],
@@ -1707,7 +1711,7 @@ async function testContentPipelineCrud(): Promise<TestSuiteResult> {
   try {
     const rec = await prisma.contentPipeline.create({
       data: {
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         status: "researching",
         topic: "__test_pipeline__",
       },
@@ -1812,7 +1816,7 @@ async function testPdfGuideCrud(): Promise<TestSuiteResult> {
       data: {
         title: "__test_pdf_guide__",
         slug: testSlug,
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         style: "luxury",
         contentSections: [{ heading: "Test Section", body: "Test body content" }],
       },
@@ -1948,7 +1952,7 @@ async function testBrandKit(): Promise<TestSuiteResult> {
     const { generateBrandKit } = await import("@/lib/design/brand-kit-generator");
     tests.push({ name: "Import brand-kit-generator", passed: true });
 
-    const kit = generateBrandKit("yalla-london");
+    const kit = generateBrandKit(getDefaultSiteId());
     const hasColors = kit.colorPalette && kit.colorPalette.length > 0;
     const hasTypography = kit.typography && kit.typography.length > 0;
     tests.push({
@@ -2330,7 +2334,7 @@ async function testDistribution(): Promise<TestSuiteResult> {
     const { getDistributionTargetsForDesign } = await import("@/lib/design/distribution");
     tests.push({ name: "Import distribution", passed: true });
 
-    const targets = getDistributionTargetsForDesign({ type: "social-post", site: "yalla-london" });
+    const targets = getDistributionTargetsForDesign({ type: "social-post", site: getDefaultSiteId() });
     tests.push({
       name: "getDistributionTargetsForDesign() returns targets",
       passed: Array.isArray(targets) && targets.length > 0,

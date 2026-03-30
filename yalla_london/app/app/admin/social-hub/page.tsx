@@ -95,6 +95,7 @@ export default function SocialHubPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
+      if (!res.ok) { setActionResult(`✗ ${action} failed (HTTP ${res.status})`); return; }
       const data = await res.json();
       setActionResult(data.success ? `✓ ${action} succeeded` : `✗ ${data.error}`);
       if (data.success) fetchData();
@@ -290,17 +291,70 @@ export default function SocialHubPage() {
             ) : (
               <div className="space-y-2">
                 {upcoming.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium">{p.title}</p>
-                      <p className="text-xs text-gray-500">
-                        <PlatformIcon platform={p.platform} inline /> {p.platform} · {p.content_type} · {p.scheduled_time ? new Date(p.scheduled_time).toLocaleString() : "Not scheduled"}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
+                  <div key={p.id} className="p-3 bg-gray-50 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{p.title}</p>
+                        <p className="text-xs text-gray-500">
+                          <PlatformIcon platform={p.platform} inline /> {p.platform} · {p.content_type} · {p.scheduled_time ? new Date(p.scheduled_time).toLocaleString() : "Not scheduled"}
+                        </p>
+                      </div>
                       <AdminStatusBadge status="warning" label={p.status} />
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <AdminButton size="sm" variant="primary" onClick={() => doAction("publish_now", { postId: p.id })}>
                         Publish Now
+                      </AdminButton>
+                      <AdminButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch("/api/admin/social-calendar", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "mark_published", postId: p.id }),
+                            });
+                            if (!res.ok) { setActionResult(`✗ HTTP ${res.status}`); return; }
+                            const data = await res.json();
+                            setActionResult(data.success ? "\u2713 Marked as published" : `\u2717 ${data.error || "Failed"}`);
+                            if (data.success) fetchData();
+                          } catch {
+                            setActionResult("\u2717 Failed to mark as published");
+                          }
+                        }}
+                      >
+                        <span className="text-xs">Mark Published</span>
+                      </AdminButton>
+                      <AdminButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const text = p.title || "";
+                          navigator.clipboard.writeText(text).then(
+                            () => setActionResult("\u2713 Copied to clipboard"),
+                            () => setActionResult("\u2717 Failed to copy")
+                          );
+                        }}
+                      >
+                        <span className="text-xs">Copy Text</span>
+                      </AdminButton>
+                      <AdminButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const urls: Record<string, string> = {
+                            twitter: "https://twitter.com",
+                            instagram: "https://instagram.com",
+                            facebook: "https://facebook.com",
+                            tiktok: "https://tiktok.com",
+                            linkedin: "https://linkedin.com",
+                          };
+                          const platformKey = (p.platform || "").toLowerCase();
+                          window.open(urls[platformKey] || "https://twitter.com", "_blank", "noopener");
+                        }}
+                      >
+                        <span className="text-xs">Open Platform</span>
                       </AdminButton>
                     </div>
                   </div>

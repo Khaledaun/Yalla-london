@@ -17,18 +17,10 @@ import {
   Plus,
   Edit,
   Save,
-  History,
   Play,
   Copy,
-  Languages,
   FileText,
-  Zap,
-  Settings,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
   Trash2,
-  RotateCcw
 } from 'lucide-react'
 
 interface PromptTemplate {
@@ -48,18 +40,6 @@ interface PromptTemplate {
   usageCount: number
 }
 
-interface PromptVersion {
-  id: string
-  promptId: string
-  version: number
-  prompt: string
-  createdAt: string
-  createdBy: string
-  changeNote: string
-}
-
-// Version history placeholder - will be fetched from API in future
-const mockVersions: { [key: string]: PromptVersion[] } = {}
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([])
@@ -67,7 +47,6 @@ export default function PromptsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTemplate | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [editedPrompt, setEditedPrompt] = useState<Partial<PromptTemplate>>({})
@@ -245,6 +224,11 @@ export default function PromptsPage() {
         method: 'DELETE'
       })
 
+      if (!response.ok) {
+        console.warn('[prompts] Delete failed:', response.status)
+        return
+      }
+
       const data = await response.json()
 
       if (data.success) {
@@ -256,26 +240,10 @@ export default function PromptsPage() {
         alert(data.error) // Show error for system templates
       }
     } catch (err) {
-      console.error('Failed to delete prompt:', err)
+      console.error('[prompts] Failed to delete prompt:', err)
     }
   }
 
-  const handleRevertVersion = (version: PromptVersion) => {
-    if (selectedPrompt) {
-      const revertedPrompt = {
-        ...selectedPrompt,
-        prompt: version.prompt,
-        version: selectedPrompt.version + 1,
-        updatedAt: new Date().toISOString()
-      }
-
-      setPrompts(prev => prev.map(p =>
-        p.id === selectedPrompt.id ? revertedPrompt : p
-      ))
-      setSelectedPrompt(revertedPrompt)
-      setShowVersionHistory(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -473,10 +441,6 @@ export default function PromptsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <AdminButton variant="ghost" size="sm" onClick={() => setShowVersionHistory(true)}>
-                        <History size={12} />
-                        History
-                      </AdminButton>
                       <AdminButton variant="ghost" size="sm" onClick={handleCopyPrompt}>
                         <Copy size={12} />
                         Copy
@@ -941,99 +905,6 @@ export default function PromptsPage() {
         </div>
       )}
 
-      {/* Version History Modal */}
-      {showVersionHistory && selectedPrompt && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ backgroundColor: 'rgba(28,25,23,0.5)' }}
-        >
-          <AdminCard elevated className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <History size={16} color="#3B7EA1" />
-                  <p
-                    style={{
-                      fontFamily: 'var(--font-display)',
-                      fontWeight: 800,
-                      fontSize: 16,
-                      color: '#1C1917',
-                    }}
-                  >
-                    Version History: {selectedPrompt.name}
-                  </p>
-                </div>
-                <AdminButton variant="ghost" size="sm" onClick={() => setShowVersionHistory(false)}>
-                  Close
-                </AdminButton>
-              </div>
-
-              <div className="space-y-3">
-                {mockVersions[selectedPrompt.id]?.length ? (
-                  mockVersions[selectedPrompt.id].map((version) => (
-                    <div
-                      key={version.id}
-                      className="admin-card-inset p-4 rounded-lg"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <AdminStatusBadge status="inactive" label={`v${version.version}`} />
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-system)',
-                              fontSize: 11,
-                              color: '#78716C',
-                            }}
-                          >
-                            by {version.createdBy} on {new Date(version.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <AdminButton variant="ghost" size="sm" onClick={() => handleRevertVersion(version)}>
-                          <RotateCcw size={12} />
-                          Revert
-                        </AdminButton>
-                      </div>
-                      <p
-                        style={{
-                          fontFamily: 'var(--font-system)',
-                          fontSize: 11,
-                          color: '#78716C',
-                          marginBottom: 8,
-                        }}
-                      >
-                        {version.changeNote}
-                      </p>
-                      <div
-                        className="p-3 rounded-lg"
-                        style={{ backgroundColor: 'rgba(250,248,244,0.8)' }}
-                      >
-                        <pre
-                          style={{
-                            fontFamily: 'var(--font-system)',
-                            fontSize: 11,
-                            color: '#44403C',
-                            whiteSpace: 'pre-wrap',
-                            margin: 0,
-                          }}
-                        >
-                          {version.prompt.substring(0, 200)}
-                          {version.prompt.length > 200 && '...'}
-                        </pre>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <AdminEmptyState
-                    icon={History}
-                    title="No version history"
-                    description="Version history will appear here as changes are made."
-                  />
-                )}
-              </div>
-            </div>
-          </AdminCard>
-        </div>
-      )}
     </div>
   )
 }

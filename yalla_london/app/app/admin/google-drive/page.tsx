@@ -106,6 +106,7 @@ export default function GoogleDrivePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
+      if (!res.ok) { setActionResult(`✗ ${action} failed (HTTP ${res.status})`); return; }
       const data = await res.json();
 
       if (action === "connect" && data.authUrl) {
@@ -129,6 +130,7 @@ export default function GoogleDrivePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "list_folders", accountId, parentId }),
       });
+      if (!res.ok) { setFolders([]); return; }
       const data = await res.json();
       setFolders(data.folders || []);
     } catch {
@@ -139,16 +141,18 @@ export default function GoogleDrivePage() {
   };
 
   const navigateInto = (folder: DriveFolder) => {
+    if (!browsingAccount) return;
     setFolderStack((prev) => [...prev, { id: folder.id, name: folder.name }]);
-    browseFolders(browsingAccount!, folder.id);
+    browseFolders(browsingAccount, folder.id);
   };
 
   const navigateBack = () => {
+    if (!browsingAccount) return;
     const newStack = [...folderStack];
     newStack.pop();
     setFolderStack(newStack);
     const parentId = newStack.length > 0 ? newStack[newStack.length - 1].id : undefined;
-    browseFolders(browsingAccount!, parentId);
+    browseFolders(browsingAccount, parentId);
   };
 
   const selectFolderForMapping = (folder: DriveFolder) => {
@@ -167,6 +171,7 @@ export default function GoogleDrivePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accountId: browsingAccount, folderId }),
       });
+      if (!res.ok) { setActionResult(`✗ Import failed (HTTP ${res.status})`); return; }
       const data = await res.json();
       if (data.success) {
         setActionResult(`✓ Imported ${data.imported} files from "${folderName}" to Asset Library (${data.skipped} skipped)`);
@@ -203,6 +208,74 @@ export default function GoogleDrivePage() {
           message="Google Drive not configured. Set GOOGLE_DRIVE_CLIENT_ID and GOOGLE_DRIVE_CLIENT_SECRET in Vercel env vars."
         />
       )}
+
+      {/* Connection Status Summary */}
+      <AdminCard title="Connection Status">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* OAuth Status */}
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full"
+                style={{
+                  backgroundColor:
+                    accounts.length > 0 && !accounts.some((a) => a.tokenExpired)
+                      ? "#2D5A3D"
+                      : accounts.length > 0
+                        ? "#C49A2A"
+                        : "#9CA3AF",
+                }}
+              />
+              <span className="text-sm font-medium">
+                {accounts.length > 0 && !accounts.some((a) => a.tokenExpired)
+                  ? "Connected"
+                  : accounts.length > 0
+                    ? "Token Issue"
+                    : "Not Connected"}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">OAuth Status</p>
+          </div>
+          {/* Accounts */}
+          <div className="text-center">
+            <p className="text-lg font-bold">{accounts.length}</p>
+            <p className="text-xs text-gray-500">Accounts</p>
+          </div>
+          {/* Folder Mappings */}
+          <div className="text-center">
+            <p className="text-lg font-bold">
+              {accounts.reduce((sum, a) => sum + Object.keys(a.folderMappings).length, 0)}
+            </p>
+            <p className="text-xs text-gray-500">Folder Mappings</p>
+          </div>
+          {/* Last Sync */}
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {(() => {
+                const syncs = accounts.map((a) => a.lastSyncAt).filter(Boolean) as string[];
+                if (syncs.length === 0) return "Never";
+                const latest = syncs.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+                return new Date(latest).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+              })()}
+            </p>
+            <p className="text-xs text-gray-500">Last Sync</p>
+          </div>
+        </div>
+        {accounts.length > 0 && (
+          <div className="mt-3 pt-3 border-t flex justify-end">
+            <AdminButton
+              size="sm"
+              onClick={() => {
+                accounts.forEach((acc) => {
+                  doAction("sync_folder", { accountId: acc.id, driveFolderId: acc.rootFolderId });
+                });
+              }}
+            >
+              Sync All Now
+            </AdminButton>
+          </div>
+        )}
+      </AdminCard>
 
       {/* Connect New Account */}
       {configured && (

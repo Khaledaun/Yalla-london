@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 /**
  * POST /api/admin/events/seed
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   const marker = process.env.TRAVELPAYOUTS_MARKER || "";
   const tp = (url: string) => marker ? `${url}${url.includes("?") ? "&" : "?"}marker=${marker}&utm_source=yalla-london` : url;
 
-  const siteId = "yalla-london";
+  const siteId = getDefaultSiteId();
 
   // ═══ PERMANENT ATTRACTIONS (always available, date set far future) ═══
   const attractions: Array<{

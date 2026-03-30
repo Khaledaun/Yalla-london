@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -17,7 +18,7 @@ const DESIGNS = [
     title: "Yalla London Social Card — OG Image",
     alt_text: "Yalla London branded OG social card for link sharing",
     tags: ["canva", "generated", "brand-kit", "og-image"],
-    site_id: "yalla-london",
+    site_id: getDefaultSiteId(),
     category: "marketing",
     folder: "canva-generated",
     cloud_storage_path: "canva/DAHEtUZnUC0",
@@ -41,7 +42,7 @@ const DESIGNS = [
     title: "Mayfair's Finest Hotels — Instagram Post",
     alt_text: "Instagram post showcasing luxury hotels in Mayfair London",
     tags: ["canva", "generated", "brand-kit", "instagram", "hotels"],
-    site_id: "yalla-london",
+    site_id: getDefaultSiteId(),
     category: "social-media",
     folder: "canva-generated",
     cloud_storage_path: "canva/DAHEtaQR13o",
@@ -65,7 +66,7 @@ const DESIGNS = [
     title: "Halal Dining Delights — Instagram Post",
     alt_text: "Instagram post about best halal restaurants in London 2026",
     tags: ["canva", "generated", "brand-kit", "instagram", "halal", "restaurants"],
-    site_id: "yalla-london",
+    site_id: getDefaultSiteId(),
     category: "social-media",
     folder: "canva-generated",
     cloud_storage_path: "canva/DAHEtYt_maY",
@@ -89,7 +90,7 @@ const DESIGNS = [
     title: "London Luxury Guide — PDF Cover",
     alt_text: "PDF guide cover for The Ultimate London Luxury Travel Guide 2026",
     tags: ["canva", "generated", "brand-kit", "pdf-cover", "guide"],
-    site_id: "yalla-london",
+    site_id: getDefaultSiteId(),
     category: "marketing",
     folder: "canva-generated",
     cloud_storage_path: "canva/DAHEtd_SJwo",
@@ -113,7 +114,7 @@ const DESIGNS = [
     title: "London Eye VIP Experience — Instagram Post",
     alt_text: "Instagram post promoting London Eye skip-the-queue VIP experience",
     tags: ["canva", "generated", "brand-kit", "instagram", "london-eye"],
-    site_id: "yalla-london",
+    site_id: getDefaultSiteId(),
     category: "social-media",
     folder: "canva-generated",
     cloud_storage_path: "canva/DAHEtYTQm9I",

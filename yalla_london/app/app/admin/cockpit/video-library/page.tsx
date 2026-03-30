@@ -60,6 +60,7 @@ export default function VideoLibraryPage() {
   const [filter, setFilter] = useState({ status: "", collection: "", search: "" });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Self-captured upload form
   const [scForm, setScForm] = useState(() => {
@@ -258,24 +259,58 @@ export default function VideoLibraryPage() {
               <option value="used">Used</option>
               <option value="retired">Retired</option>
             </select>
-            <select
-              value={filter.collection}
-              onChange={e => { setFilter(f => ({ ...f, collection: e.target.value })); setPage(1); }}
-              style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 }}
-            >
-              <option value="">All Collections</option>
-              <option value="60-luxury-travel">Luxury Travel (61)</option>
-              <option value="50-aesthetic-reels">Aesthetic Reels (50)</option>
-              <option value="300-beach-clips">Beach Clips (314)</option>
-              <option value="faceless-ig-templates">IG Templates (52)</option>
-              <option value="self-captured">Self-Captured</option>
-            </select>
+            {/* Collection filter tabs */}
+            <div style={{ display: "flex", gap: 4, overflowX: "auto", flexShrink: 0 }}>
+              {[
+                { value: "", label: "All", count: stats?.total ?? 0 },
+                ...(stats?.byCollection?.filter(c => c.collection).map(c => ({
+                  value: c.collection!, label: c.collection!, count: c.count,
+                })) ?? []),
+                ...(stats?.collections?.filter(c => !stats?.byCollection?.some(b => b.collection === c.slug)).map(col => ({
+                  value: col.slug, label: col.name, count: col.pageCount,
+                })) ?? []),
+              ].map(tab => (
+                <button
+                  key={tab.value}
+                  onClick={() => { setFilter(f => ({ ...f, collection: tab.value })); setPage(1); }}
+                  style={{
+                    padding: "5px 10px", borderRadius: 6, border: "1px solid",
+                    borderColor: filter.collection === tab.value ? "#3B7EA1" : "#ddd",
+                    background: filter.collection === tab.value ? "#3B7EA1" : "#fff",
+                    color: filter.collection === tab.value ? "#fff" : "#333",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
+            </div>
             <input
               placeholder="Search tags, text..."
               value={filter.search}
               onChange={e => { setFilter(f => ({ ...f, search: e.target.value })); setPage(1); }}
               style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13, flex: 1, minWidth: 150 }}
             />
+            <div style={{ display: "flex", gap: 2, background: "#f5f5f5", borderRadius: 6, padding: 2 }}>
+              <button
+                onClick={() => setViewMode("grid")}
+                title="Grid view"
+                style={{
+                  padding: "6px 10px", borderRadius: 4, border: "none", cursor: "pointer",
+                  background: viewMode === "grid" ? "#3B7EA1" : "transparent",
+                  color: viewMode === "grid" ? "#fff" : "#666", fontSize: 14, lineHeight: 1,
+                }}
+              >▦</button>
+              <button
+                onClick={() => setViewMode("list")}
+                title="List view"
+                style={{
+                  padding: "6px 10px", borderRadius: 4, border: "none", cursor: "pointer",
+                  background: viewMode === "list" ? "#3B7EA1" : "transparent",
+                  color: viewMode === "list" ? "#fff" : "#666", fontSize: 14, lineHeight: 1,
+                }}
+              >☰</button>
+            </div>
           </div>
 
           {/* Asset Grid */}
@@ -286,20 +321,25 @@ export default function VideoLibraryPage() {
               <p style={{ fontSize: 18 }}>No videos yet</p>
               <p style={{ fontSize: 14 }}>Go to the <strong>Import Canva</strong> tab to import your collections</p>
             </div>
-          ) : (
+          ) : viewMode === "grid" ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
               {assets.map(asset => (
                 <div key={asset.id} style={{
                   background: "#fff", border: "1px solid rgba(214,208,196,0.5)", borderRadius: 12,
                   overflow: "hidden",
                 }}>
-                  {/* Thumbnail placeholder */}
+                  {/* Thumbnail — real image or gradient fallback */}
                   <div style={{
-                    height: 120, background: "linear-gradient(135deg, #1a365d 0%, #3B7EA1 100%)",
+                    height: 120, position: "relative", overflow: "hidden",
+                    background: asset.thumbnailUrl ? "#000" : "linear-gradient(135deg, #1a365d 0%, #3B7EA1 100%)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#fff", fontSize: 24, position: "relative",
+                    color: "#fff", fontSize: 24,
                   }}>
-                    {sourceIcon(asset.source)}
+                    {asset.thumbnailUrl ? (
+                      <img src={asset.thumbnailUrl} alt={asset.assetCode} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      sourceIcon(asset.source)
+                    )}
                     <span style={{
                       position: "absolute", top: 6, right: 6,
                       background: statusColor(asset.status), color: "#fff",
@@ -333,9 +373,83 @@ export default function VideoLibraryPage() {
                         <span key={t} style={{ fontSize: 9, background: "#F4ECF7", color: "#7D3C98", padding: "1px 5px", borderRadius: 3 }}>{t}</span>
                       ))}
                     </div>
-                    <div style={{ marginTop: 6, fontSize: 10, color: "#999" }}>
-                      {asset.collectionName} · Used {asset.usageCount}x
+                    <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "#999" }}>
+                        {asset.collectionName} · Used {asset.usageCount}x
+                      </span>
+                      {asset.canvaDesignId && (
+                        <a
+                          href={`https://www.canva.com/design/${asset.canvaDesignId}/edit`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            fontSize: 10, color: "#3B7EA1", textDecoration: "none", fontWeight: 600,
+                            padding: "2px 6px", border: "1px solid #3B7EA1", borderRadius: 4,
+                          }}
+                        >
+                          Open in Canva
+                        </a>
+                      )}
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* List view */
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {assets.map(asset => (
+                <div key={asset.id} style={{
+                  background: "#fff", border: "1px solid rgba(214,208,196,0.5)", borderRadius: 10,
+                  padding: "10px 14px", display: "flex", gap: 12, alignItems: "center",
+                }}>
+                  {/* Thumbnail */}
+                  <div style={{
+                    width: 64, height: 48, borderRadius: 6, overflow: "hidden", flexShrink: 0,
+                    background: asset.thumbnailUrl ? "#000" : "linear-gradient(135deg, #1a365d, #3B7EA1)",
+                    display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 16,
+                  }}>
+                    {asset.thumbnailUrl ? (
+                      <img src={asset.thumbnailUrl} alt={asset.assetCode} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : sourceIcon(asset.source)}
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{asset.assetCode}</span>
+                      <span style={{
+                        fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 600,
+                        background: statusColor(asset.status), color: "#fff",
+                      }}>{asset.status.toUpperCase()}</span>
+                    </div>
+                    {asset.textOverlay && (
+                      <p style={{ fontSize: 11, color: "#555", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {asset.textOverlay}
+                      </p>
+                    )}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
+                      {[...asset.locationTags.slice(0, 2), ...asset.sceneTags.slice(0, 2), ...asset.moodTags.slice(0, 1)].map(t => (
+                        <span key={t} style={{ fontSize: 9, background: "#f0f0f0", color: "#555", padding: "1px 5px", borderRadius: 3 }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Meta + Canva link */}
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: 10, color: "#999", marginBottom: 4 }}>{asset.collectionName}</div>
+                    <div style={{ fontSize: 10, color: "#999", marginBottom: 6 }}>Used {asset.usageCount}x</div>
+                    {asset.canvaDesignId && (
+                      <a
+                        href={`https://www.canva.com/design/${asset.canvaDesignId}/edit`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: 10, color: "#3B7EA1", textDecoration: "none", fontWeight: 600,
+                          padding: "2px 8px", border: "1px solid #3B7EA1", borderRadius: 4,
+                        }}
+                      >
+                        Open in Canva
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

@@ -6,10 +6,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-middleware";
 import { exchangeCodeForTokens, getAccountInfo } from "@/lib/integrations/google-drive";
 import { getDefaultSiteId } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const code = request.nextUrl.searchParams.get("code");
   const stateRaw = request.nextUrl.searchParams.get("state");
   const error = request.nextUrl.searchParams.get("error");

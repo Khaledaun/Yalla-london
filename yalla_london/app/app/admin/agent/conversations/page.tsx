@@ -50,6 +50,8 @@ export default function ConversationBrowserPage() {
   const [channel, setChannel] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchConversations = useCallback(async (page = 1) => {
     setLoading(true);
@@ -58,6 +60,8 @@ export default function ConversationBrowserPage() {
       if (channel) params.set("channel", channel);
       if (status) params.set("status", status);
       if (search) params.set("search", search);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
 
       const res = await fetch(`/api/admin/agent/conversations?${params}`);
       if (res.ok) {
@@ -70,7 +74,7 @@ export default function ConversationBrowserPage() {
     } finally {
       setLoading(false);
     }
-  }, [channel, status, search]);
+  }, [channel, status, search, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchConversations();
@@ -150,6 +154,20 @@ export default function ConversationBrowserPage() {
           <option value="resolved">Resolved</option>
           <option value="archived">Archived</option>
         </select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          title="From date"
+          style={{ padding: "8px 12px", border: "1px solid #D6D0C4", borderRadius: "6px", fontSize: "14px" }}
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          title="To date"
+          style={{ padding: "8px 12px", border: "1px solid #D6D0C4", borderRadius: "6px", fontSize: "14px" }}
+        />
         <button
           onClick={() => fetchConversations(1)}
           style={{ padding: "8px 16px", background: "#3B7EA1", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px" }}

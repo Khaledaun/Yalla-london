@@ -224,14 +224,6 @@
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/seo/cron?task=daily",
-      "schedule": "30 7 * * *"
-    },
-    {
-      "path": "/api/seo/cron?task=weekly",
-      "schedule": "0 8 * * 0"
-    },
-    {
       "path": "/api/cron/content-builder",
       "schedule": "8,23,38,53 * * * *"
     },

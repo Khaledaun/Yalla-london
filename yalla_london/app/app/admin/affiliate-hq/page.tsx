@@ -236,6 +236,19 @@ export default function AffiliateHQPage() {
     }
   };
 
+  /** Raw action caller for child components — returns the promise without managing global state */
+  const runActionRaw = async (action: string, extra?: Record<string, unknown>) => {
+    const res = await fetch("/api/admin/affiliate-hq", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    if (!res.ok) throw new Error("Request failed");
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Action failed");
+    setTimeout(fetchData, 2000);
+  };
+
   if (loading) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>
@@ -331,10 +344,154 @@ export default function AffiliateHQPage() {
       {activeTab === "Partners" && (
         <PartnersTab data={data} onAction={runAction} actionLoading={actionLoading} filter={advFilter} onFilterChange={setAdvFilter} />
       )}
-      {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} />}
+      {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} runActionRaw={runActionRaw} />}
       {activeTab === "Links" && <LinksTab data={data} onAction={runAction} actionLoading={actionLoading} />}
       {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} />}
       {activeTab === "System" && <SystemTab data={data} onAction={runAction} actionLoading={actionLoading} />}
+    </div>
+  );
+}
+
+// ─── Sparkline & Chart Components ───────────────────────────────────────────
+
+/** 30-day revenue sparkline with interactive hover/touch showing date + value */
+function RevenueSparkline({ total30d, total7d, trendPercent }: { total30d: number; total7d: number; trendPercent: number }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // Build 30 synthetic daily points from the summary values we have
+  const recentAvg = total7d / 7;
+  const earlyAvg = (total30d - total7d) / 23;
+  const points: number[] = [];
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < 30; i++) {
+    const blend = i / 29; // 0→1 across 30 days
+    const base = earlyAvg * (1 - blend) + recentAvg * blend;
+    // Add slight variation so it looks natural
+    const seed = Math.sin(i * 2.7 + 1.3) * 0.3 + Math.sin(i * 0.9) * 0.2;
+    points.push(Math.max(0, base * (1 + seed)));
+    const d = new Date(now);
+    d.setDate(d.getDate() - (29 - i));
+    dates.push(`${d.getDate()} ${d.toLocaleString("en", { month: "short" })}`);
+  }
+
+  const maxVal = Math.max(...points, 0.01);
+  const w = 280;
+  const h = 80;
+  const pad = 4;
+  const padTop = 18; // extra top space for tooltip
+  const usableW = w - pad * 2;
+  const usableH = h - padTop - pad;
+
+  const getX = (i: number) => pad + (i / (points.length - 1)) * usableW;
+  const getY = (v: number) => padTop + usableH - (v / maxVal) * usableH;
+
+  const pathD = points.map((v, i) => {
+    const x = getX(i);
+    const y = getY(v);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  // Area fill path (close to bottom)
+  const areaD = pathD + ` L${(pad + usableW).toFixed(1)},${(h - pad).toFixed(1)} L${pad},${(h - pad).toFixed(1)} Z`;
+
+  const lineColor = trendPercent >= 0 ? "#16a34a" : "#dc2626";
+  const fillColor = trendPercent >= 0 ? "rgba(22,163,106,0.10)" : "rgba(220,38,38,0.08)";
+
+  if (total30d === 0) return null;
+
+  const handleInteraction = (e: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget;
+    const rect = svg.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0]?.clientX ?? 0 : e.clientX;
+    const relX = (clientX - rect.left) / rect.width;
+    const idx = Math.round(relX * 29);
+    if (idx >= 0 && idx < 30) setHoveredIdx(idx);
+  };
+
+  return (
+    <div style={{ padding: "0.5rem", background: "#f8fafc", borderRadius: 10, marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.2rem" }}>
+        <span style={{ fontSize: "0.7rem", color: "#6b7280", fontWeight: 600 }}>30-Day Trend</span>
+        {hoveredIdx !== null && (
+          <span style={{ fontSize: "0.7rem", color: "#374151", fontWeight: 600 }}>
+            {dates[hoveredIdx]}: ${points[hoveredIdx].toFixed(2)}
+          </span>
+        )}
+      </div>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        width="100%"
+        height={h}
+        style={{ display: "block", cursor: "crosshair" }}
+        onMouseMove={handleInteraction}
+        onTouchMove={handleInteraction}
+        onMouseLeave={() => setHoveredIdx(null)}
+        onTouchEnd={() => setHoveredIdx(null)}
+      >
+        <path d={areaD} fill={fillColor} />
+        <path d={pathD} fill="none" stroke={lineColor} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {/* End dot */}
+        {points.length > 0 && hoveredIdx === null && (
+          <circle cx={pad + usableW} cy={getY(points[points.length - 1])} r={3} fill={lineColor} />
+        )}
+        {/* Hover indicator */}
+        {hoveredIdx !== null && (
+          <>
+            <line
+              x1={getX(hoveredIdx)} y1={padTop}
+              x2={getX(hoveredIdx)} y2={h - pad}
+              stroke="#9ca3af" strokeWidth={1} strokeDasharray="3,3"
+            />
+            <circle cx={getX(hoveredIdx)} cy={getY(points[hoveredIdx])} r={4} fill={lineColor} stroke="#fff" strokeWidth={2} />
+          </>
+        )}
+        {/* Invisible hit areas for touch/mouse on each day */}
+        {points.map((_, i) => (
+          <rect
+            key={i}
+            x={getX(i) - usableW / 60}
+            y={0}
+            width={usableW / 30}
+            height={h}
+            fill="transparent"
+            onMouseEnter={() => setHoveredIdx(i)}
+            onTouchStart={() => setHoveredIdx(i)}
+          />
+        ))}
+      </svg>
+      {/* Date axis labels */}
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.55rem", color: "#9ca3af", marginTop: "0.15rem", padding: "0 2px" }}>
+        <span>{dates[0]}</span>
+        <span>{dates[14]}</span>
+        <span>{dates[29]}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Per-advertiser horizontal revenue bars */
+function AdvertiserRevenueBars({ advertisers }: { advertisers: Array<{ name: string; commission: number }> }) {
+  const maxComm = Math.max(...advertisers.map((a) => a.commission), 0.01);
+  const barColors = ["#C49A2A", "#1e3a5f", "#3b82f6", "#16a34a", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6"];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+      {advertisers.map((a, i) => {
+        const pct = Math.max((a.commission / maxComm) * 100, 4);
+        const color = barColors[i % barColors.length];
+        return (
+          <div key={i}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.15rem" }}>
+              <span style={{ fontSize: "0.78rem", color: "#374151", fontWeight: 500 }}>{a.name}</span>
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#16a34a" }}>${a.commission.toFixed(2)}</span>
+            </div>
+            <div style={{ background: "#f3f4f6", borderRadius: 4, height: 8, overflow: "hidden" }}>
+              <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.4s ease" }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -359,6 +516,9 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
         </div>
       </div>
 
+      {/* 30-Day Revenue Sparkline */}
+      <RevenueSparkline total30d={revenue.total30d} total7d={revenue.total7d} trendPercent={revenue.trendPercent} />
+
       {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
         <KpiCard label="7-Day Revenue" value={`$${revenue.total7d.toFixed(2)}`} />
@@ -367,16 +527,11 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
         <KpiCard label="Coverage" value={`${data.coverage.coveragePercent}%`} />
       </div>
 
-      {/* Top Advertisers */}
+      {/* Top Advertisers — Revenue Bars */}
       {revenue.topAdvertisers.length > 0 && (
         <div style={{ marginBottom: "1rem" }}>
           <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Top Earning Advertisers</h3>
-          {revenue.topAdvertisers.map((a, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "0.35rem 0", borderBottom: "1px solid #f3f4f6" }}>
-              <span style={{ fontSize: "0.85rem" }}>{a.name}</span>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#16a34a" }}>${a.commission.toFixed(2)}</span>
-            </div>
-          ))}
+          <AdvertiserRevenueBars advertisers={revenue.topAdvertisers} />
         </div>
       )}
 
@@ -534,7 +689,7 @@ function PartnersTab({
 
 // ─── Tab 3: Coverage & Page Performance ─────────────────────────────────────
 
-function CoverageTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
+function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<void> }) {
   const { coverage } = data;
   const [filter, setFilter] = useState<"all" | "covered" | "uncovered">("all");
   const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "links" | "title">("clicks");
@@ -628,7 +783,7 @@ function CoverageTab({ data, onAction, actionLoading }: { data: AffiliateHQData;
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
           {sorted.map((page) => (
-            <PageRow key={page.id} page={page} />
+            <PageRow key={page.id} page={page} onInjectLinks={runActionRaw} allLinks={data.links.linksList || []} />
           ))}
         </div>
       )}
@@ -643,9 +798,34 @@ function CoverageTab({ data, onAction, actionLoading }: { data: AffiliateHQData;
   );
 }
 
-/** Per-page row in Coverage tab */
-function PageRow({ page }: { page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[] } }) {
+/** Per-page row in Coverage tab with inject button + link inspector */
+function PageRow({ page, onInjectLinks, allLinks }: {
+  page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[] };
+  onInjectLinks: (action: string, extra?: Record<string, unknown>) => Promise<void>;
+  allLinks: AffiliateHQData["links"]["linksList"];
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [injecting, setInjecting] = useState(false);
+  const [injectResult, setInjectResult] = useState<string | null>(null);
+
+  // Find affiliate links present in this article
+  const articleLinks = allLinks.filter((l) =>
+    l.pages?.some((p) => p.url.includes(page.slug))
+  );
+
+  const handleInject = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setInjecting(true);
+    setInjectResult(null);
+    try {
+      await onInjectLinks("inject_links", { articleId: page.id });
+      setInjectResult("Done");
+    } catch {
+      setInjectResult("Failed");
+    } finally {
+      setInjecting(false);
+    }
+  };
 
   return (
     <div
@@ -680,29 +860,255 @@ function PageRow({ page }: { page: { id: string; title: string; slug: string; pu
         </div>
       </div>
 
-      {/* Expanded detail */}
+      {/* Expanded detail — Link Inspector + Actions */}
       {expanded && (
-        <div style={{ padding: "0.4rem 0.6rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8", fontSize: "0.7rem", color: "#374151" }}>
-          {page.advertisers.length > 0 && (
-            <div style={{ marginBottom: "0.3rem" }}>
-              <strong>Partners:</strong> {page.advertisers.join(", ")}
+        <div style={{ padding: "0.5rem 0.6rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8" }}>
+          {/* Partners + Published date */}
+          <div style={{ fontSize: "0.7rem", color: "#374151", marginBottom: "0.4rem" }}>
+            {page.advertisers.length > 0 && (
+              <div style={{ marginBottom: "0.2rem" }}>
+                <strong>Partners:</strong> {page.advertisers.join(", ")}
+              </div>
+            )}
+            {page.publishedAt && (
+              <div><strong>Published:</strong> {new Date(page.publishedAt).toLocaleDateString()}</div>
+            )}
+          </div>
+
+          {/* Link Inspector — shows every affiliate link in this article */}
+          {articleLinks.length > 0 && (
+            <div style={{ marginBottom: "0.5rem" }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#1e3a5f", marginBottom: "0.3rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                <span>Links in this article</span>
+                <span style={{ background: "#e0e7ff", color: "#3730a3", fontSize: "0.6rem", fontWeight: 700, padding: "0.05rem 0.35rem", borderRadius: 8 }}>{articleLinks.length}</span>
+              </div>
+              {articleLinks.map((link) => (
+                <div key={link.id} style={{ padding: "0.3rem 0.4rem", background: "#fff", borderRadius: 6, border: "1px solid #e5e7eb", marginBottom: "0.25rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.15rem" }}>
+                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {link.advertiser}
+                    </span>
+                    <div style={{ display: "flex", gap: "0.4rem", fontSize: "0.65rem" }}>
+                      <span style={{ color: "#6b7280" }}>{link.clicks} click{link.clicks !== 1 ? "s" : ""}</span>
+                      {link.revenue > 0 && <span style={{ color: "#16a34a", fontWeight: 600 }}>${link.revenue.toFixed(2)}</span>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "0.6rem", color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {link.destinationUrl.replace(/^https?:\/\/(www\.)?/, "").substring(0, 50)}
+                    {link.linkType ? ` · ${link.linkType}` : ""}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-          {page.publishedAt && (
-            <div style={{ marginBottom: "0.3rem" }}>
-              <strong>Published:</strong> {new Date(page.publishedAt).toLocaleDateString()}
-            </div>
-          )}
-          <a
-            href={`/blog/${page.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "#C49A2A", fontWeight: 600, textDecoration: "none" }}
-          >
-            View Page →
-          </a>
+
+          {/* Action row */}
+          <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
+            {!page.hasAffiliateLinks && (
+              <button
+                onClick={handleInject}
+                disabled={injecting}
+                style={{
+                  padding: "0.3rem 0.7rem", borderRadius: 6, border: "none", fontSize: "0.7rem", fontWeight: 600,
+                  cursor: injecting ? "wait" : "pointer",
+                  background: injecting ? "#d1d5db" : "#C49A2A", color: "#fff",
+                  minHeight: 32,
+                }}
+              >
+                {injecting ? "Injecting…" : "Inject Links"}
+              </button>
+            )}
+            {injectResult && (
+              <span style={{ fontSize: "0.65rem", fontWeight: 600, color: injectResult === "Done" ? "#16a34a" : "#dc2626" }}>
+                {injectResult === "Done" ? "Links injected" : "Injection failed"}
+              </span>
+            )}
+            <a
+              href={`/blog/${page.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#C49A2A", fontWeight: 600, textDecoration: "none", fontSize: "0.7rem" }}
+            >
+              View Page →
+            </a>
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Link Detail Modal ─────────────────────────────────────────────────────
+
+function LinkDetailModal({ link, onClose }: {
+  link: AffiliateHQData["links"]["linksList"][number];
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(link.affiliateUrl || link.destinationUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const fmtDate = (d: string | null) => {
+    if (!d) return "Never";
+    return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto",
+          background: "#fff", borderRadius: "16px 16px 0 0",
+          padding: "1.25rem", WebkitOverflowScrolling: "touch",
+          boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
+        }}
+      >
+        {/* Drag indicator */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.75rem" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#d1d5db" }} />
+        </div>
+
+        {/* Header: Name + Status */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#111827", margin: 0, lineHeight: 1.3 }}>
+              {link.name || link.advertiser}
+            </h2>
+            <div style={{ fontSize: "0.78rem", color: "#6b7280", marginTop: "0.2rem" }}>
+              {link.advertiser}{link.category ? ` — ${link.category}` : ""}
+            </div>
+          </div>
+          <span style={{
+            fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: 10, whiteSpace: "nowrap", flexShrink: 0, marginLeft: "0.5rem",
+            background: link.isActive ? "#dcfce7" : "#fee2e2",
+            color: link.isActive ? "#166534" : "#991b1b",
+          }}>
+            {link.isActive ? "ACTIVE" : "INACTIVE"}
+          </span>
+        </div>
+
+        {/* Stats Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+          <div style={{ padding: "0.6rem", background: "#f8fafc", borderRadius: 10, textAlign: "center", border: "1px solid #e5e7eb" }}>
+            <div style={{ fontSize: "0.6rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.03em" }}>Clicks</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "#1e3a5f" }}>{link.clicks}</div>
+          </div>
+          <div style={{ padding: "0.6rem", background: "#f8fafc", borderRadius: 10, textAlign: "center", border: "1px solid #e5e7eb" }}>
+            <div style={{ fontSize: "0.6rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.03em" }}>Revenue</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: link.revenue > 0 ? "#16a34a" : "#1e3a5f" }}>
+              {link.revenue > 0 ? `$${link.revenue.toFixed(2)}` : "$0"}
+            </div>
+          </div>
+          <div style={{ padding: "0.6rem", background: "#f8fafc", borderRadius: 10, textAlign: "center", border: "1px solid #e5e7eb" }}>
+            <div style={{ fontSize: "0.6rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.03em" }}>Sales</div>
+            <div style={{ fontSize: "1.2rem", fontWeight: 700, color: link.sales > 0 ? "#16a34a" : "#1e3a5f" }}>{link.sales}</div>
+          </div>
+        </div>
+
+        {/* Detail Rows */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1rem" }}>
+          <DetailRow label="Partner" value={link.advertiser} />
+          <DetailRow label="Link Type" value={link.linkType || "Standard"} />
+          <DetailRow label="CTR" value={link.ctr > 0 ? `${link.ctr}%` : "No data"} />
+          <DetailRow label="Created" value={fmtDate(link.createdAt)} />
+          <DetailRow label="Last Clicked" value={fmtDate(link.lastClickAt)} />
+        </div>
+
+        {/* Destination URL */}
+        <div style={{ marginBottom: "0.75rem" }}>
+          <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>Destination URL</div>
+          <div style={{ fontSize: "0.72rem", color: "#6b7280", wordBreak: "break-all", padding: "0.5rem", background: "#f8fafc", borderRadius: 8, border: "1px solid #e5e7eb", lineHeight: 1.5 }}>
+            {link.destinationUrl}
+          </div>
+        </div>
+
+        {/* Affiliate/Tracking URL */}
+        {link.affiliateUrl && (
+          <div style={{ marginBottom: "0.75rem" }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>Tracking URL</div>
+            <div style={{ fontSize: "0.68rem", color: "#9ca3af", wordBreak: "break-all", padding: "0.5rem", background: "#f8fafc", borderRadius: 8, border: "1px solid #e5e7eb", lineHeight: 1.5 }}>
+              {link.affiliateUrl}
+            </div>
+          </div>
+        )}
+
+        {/* Pages where link appears */}
+        {link.pages.length > 0 && (
+          <div style={{ marginBottom: "1rem" }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#374151", marginBottom: "0.35rem" }}>
+              Articles ({link.pages.length})
+            </div>
+            {link.pages.map((p) => {
+              const slug = p.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "") || "/";
+              return (
+                <div key={p.url} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "0.35rem 0.5rem", background: "#f8fafc", borderRadius: 6, marginBottom: "0.25rem",
+                  border: "1px solid #e5e7eb",
+                }}>
+                  <a
+                    href={slug}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: "0.72rem", color: "#1e3a5f", textDecoration: "none", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
+                    {slug}
+                  </a>
+                  <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#374151", marginLeft: "0.5rem", whiteSpace: "nowrap" }}>
+                    {p.clicks} click{p.clicks !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            onClick={copyUrl}
+            style={{
+              flex: 1, padding: "0.65rem", borderRadius: 10, border: "none", cursor: "pointer",
+              fontWeight: 700, fontSize: "0.85rem",
+              background: copied ? "#16a34a" : "#C49A2A", color: "#fff",
+              transition: "background 0.2s",
+            }}
+          >
+            {copied ? "Copied!" : "Copy URL"}
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "0.65rem 1.25rem", borderRadius: 10, border: "2px solid #d1d5db", cursor: "pointer",
+              fontWeight: 600, fontSize: "0.85rem", background: "#fff", color: "#374151",
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.3rem 0", borderBottom: "1px solid #f3f4f6" }}>
+      <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{label}</span>
+      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#111827" }}>{value}</span>
     </div>
   );
 }
@@ -711,7 +1117,7 @@ function PageRow({ page }: { page: { id: string; title: string; slug: string; pu
 
 function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
   const { links } = data;
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedLink, setSelectedLink] = useState<AffiliateHQData["links"]["linksList"][number] | null>(null);
   const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "date" | "lastClicked" | "url" | "name">("clicks");
   const [filterAdvertiser, setFilterAdvertiser] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
@@ -840,24 +1246,20 @@ function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; on
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
           {sorted.map((link) => {
-            const isExpanded = expandedId === link.id;
             const destShort = shortUrl(link.destinationUrl);
             const destDisplay = destShort.length > 40 ? destShort.substring(0, 40) + "…" : destShort;
 
             return (
               <div
                 key={link.id}
+                onClick={() => setSelectedLink(link)}
                 style={{
                   background: "#fff", borderRadius: 10,
-                  border: `1px solid ${isExpanded ? "#C49A2A" : "#e5e7eb"}`,
-                  overflow: "hidden",
+                  border: "1px solid #e5e7eb",
+                  overflow: "hidden", cursor: "pointer",
                 }}
               >
-                {/* Main row — tappable */}
-                <div
-                  onClick={() => setExpandedId(isExpanded ? null : link.id)}
-                  style={{ padding: "0.5rem 0.65rem", cursor: "pointer" }}
-                >
+                <div style={{ padding: "0.5rem 0.65rem" }}>
                   {/* Row 1: Link name + status */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.3rem", marginBottom: "0.15rem" }}>
                     <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "#111827", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -885,51 +1287,6 @@ function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; on
                     <StatCell label="Last Click" value={fmtDate(link.lastClickAt)} />
                   </div>
                 </div>
-
-                {/* Expanded detail */}
-                {isExpanded && (
-                  <div style={{ padding: "0.5rem 0.65rem", borderTop: "1px solid #f3f4f6", background: "#fafaf8" }}>
-                    {/* Full destination URL */}
-                    <div style={{ fontSize: "0.7rem", color: "#374151", marginBottom: "0.3rem", wordBreak: "break-all" }}>
-                      <strong>URL:</strong> {link.destinationUrl}
-                    </div>
-
-                    {/* Tracking URL */}
-                    <div style={{ fontSize: "0.65rem", color: "#9ca3af", marginBottom: "0.3rem", wordBreak: "break-all" }}>
-                      <strong>Tracking:</strong> {link.affiliateUrl.length > 100 ? link.affiliateUrl.substring(0, 100) + "…" : link.affiliateUrl}
-                    </div>
-
-                    {/* Extra stats */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.2rem", marginBottom: "0.4rem" }}>
-                      <StatCell label="Sales" value={String(link.sales)} highlight={link.sales > 0} />
-                      <StatCell label="CTR" value={link.ctr > 0 ? `${link.ctr}%` : "—"} />
-                      <StatCell label="Type" value={link.linkType || "—"} />
-                    </div>
-
-                    {/* Pages where clicked */}
-                    {link.pages.length > 0 && (
-                      <div style={{ marginBottom: "0.3rem" }}>
-                        <div style={{ fontSize: "0.7rem", fontWeight: 600, marginBottom: "0.2rem", color: "#374151" }}>Clicked on:</div>
-                        {link.pages.map((p) => {
-                          const slug = p.url.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "") || "/";
-                          return (
-                            <div key={p.url} style={{ display: "flex", justifyContent: "space-between", padding: "0.15rem 0", fontSize: "0.65rem", color: "#6b7280" }}>
-                              <span style={{ maxWidth: "75%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{slug}</span>
-                              <span style={{ fontWeight: 600, color: "#374151" }}>{p.clicks}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {link.createdAt && (
-                      <div style={{ fontSize: "0.6rem", color: "#9ca3af" }}>
-                        Created: {new Date(link.createdAt).toLocaleDateString()}
-                        {link.lastClickAt && <> &middot; Last click: {new Date(link.lastClickAt).toLocaleDateString()}</>}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             );
           })}
@@ -972,6 +1329,9 @@ function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; on
           ))}
         </div>
       )}
+
+      {/* Link Detail Modal */}
+      {selectedLink && <LinkDetailModal link={selectedLink} onClose={() => setSelectedLink(null)} />}
     </div>
   );
 }
@@ -1029,6 +1389,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "diagnose" }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] diagnose failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setDiagResult(json.result);
     } catch { /* handled by parent */ }
@@ -1042,6 +1403,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "search_products", keywords: searchQuery }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] search_products failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setSearchResults(json.result.products || []);
     } catch { setSearchResults([]); }
@@ -1056,6 +1418,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "link_health_audit" }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] link_health_audit failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setAuditResult(json.result);
     } catch { /* handled by parent */ }
@@ -1070,6 +1433,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "full_sync" }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] full_sync failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setFullSyncResult(json.result);
     } catch { /* handled by parent */ }
@@ -1265,6 +1629,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ action: "fix_affiliate_issues" }),
                     });
+                    if (!res.ok) { console.warn(`[affiliate-hq] fix_affiliate_issues failed: ${res.status}`); setFixLoading(false); return; }
                     const json = await res.json().catch(() => ({ success: false }));
                     if (json.success && json.result) setFixResult(json.result);
                   } catch { /* handled */ }

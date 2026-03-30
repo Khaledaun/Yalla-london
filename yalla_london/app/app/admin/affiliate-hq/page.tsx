@@ -1389,6 +1389,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "diagnose" }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] diagnose failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setDiagResult(json.result);
     } catch { /* handled by parent */ }
@@ -1402,6 +1403,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "search_products", keywords: searchQuery }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] search_products failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setSearchResults(json.result.products || []);
     } catch { setSearchResults([]); }
@@ -1416,6 +1418,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "link_health_audit" }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] link_health_audit failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setAuditResult(json.result);
     } catch { /* handled by parent */ }
@@ -1430,6 +1433,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "full_sync" }),
       });
+      if (!res.ok) { console.warn(`[affiliate-hq] full_sync failed: ${res.status}`); return; }
       const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status} (non-JSON response)` }));
       if (json.success && json.result) setFullSyncResult(json.result);
     } catch { /* handled by parent */ }
@@ -1625,6 +1629,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ action: "fix_affiliate_issues" }),
                     });
+                    if (!res.ok) { console.warn(`[affiliate-hq] fix_affiliate_issues failed: ${res.status}`); setFixLoading(false); return; }
                     const json = await res.json().catch(() => ({ success: false }));
                     if (json.success && json.result) setFixResult(json.result);
                   } catch { /* handled */ }

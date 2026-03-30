@@ -118,6 +118,8 @@ export default function SocialCalendarPage() {
   const [showNewPost, setShowNewPost] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [bannerCollapsed, setBannerCollapsed] = useState(false);
 
   // New post form
   const [newPlatform, setNewPlatform] = useState("twitter");
@@ -309,50 +311,101 @@ export default function SocialCalendarPage() {
         />
 
         {/* Platform Status Banner */}
-        <div
-          className="flex items-center gap-3 overflow-x-auto mb-4 py-2.5 px-3 rounded-xl"
-          style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid rgba(214,208,196,0.5)",
-            fontFamily: "var(--font-system)",
-          }}
-        >
-          {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => {
-            const isTwitter = key === "twitter";
-            const hasPostsOnPlatform = posts.some((p) => p.platforms.includes(key) && p.status === "published");
-            const isConnected = isTwitter && hasPostsOnPlatform;
-            return (
-              <div
-                key={key}
-                className="flex items-center gap-1.5 shrink-0"
-                style={{ fontSize: 11 }}
-              >
-                <span
-                  className="inline-block w-2 h-2 rounded-full shrink-0"
-                  style={{
-                    backgroundColor: isConnected ? "#2D5A3D" : "#C49A2A",
-                  }}
-                />
-                <span style={{ fontWeight: 600, color: "#44403C" }}>
-                  {conf.icon} {conf.label}
-                </span>
-                <span style={{ color: "#A8A29E", fontSize: 10, whiteSpace: "nowrap" }}>
-                  {isConnected ? "Connected" : "Manual Only"}
-                </span>
-              </div>
-            );
-          })}
-          <span
-            className="shrink-0 text-amber-600 pl-2"
+        {!bannerDismissed && (
+          <div
+            className="mb-4 rounded-xl overflow-hidden"
             style={{
-              borderLeft: "1px solid rgba(214,208,196,0.5)",
-              fontSize: 10,
-              whiteSpace: "nowrap",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(214,208,196,0.5)",
+              fontFamily: "var(--font-system)",
             }}
           >
-            Manual = Copy &amp; Post workflow
-          </span>
-        </div>
+            {/* Banner header — always visible */}
+            <div
+              className="flex items-center justify-between px-3 py-2"
+              style={{ cursor: "pointer" }}
+              onClick={() => setBannerCollapsed((prev) => !prev)}
+            >
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#78716C", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Platform Status
+                </span>
+                {/* Collapsed summary dots */}
+                {bannerCollapsed && (
+                  <div className="flex items-center gap-1.5 ml-1">
+                    {Object.entries(PLATFORM_CONFIG).map(([key]) => {
+                      const isTwitter = key === "twitter";
+                      return (
+                        <span
+                          key={key}
+                          className="inline-block w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: isTwitter ? "#2D5A3D" : "#C49A2A" }}
+                          title={PLATFORM_CONFIG[key].label}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setBannerDismissed(true); }}
+                  className="p-1 rounded hover:bg-stone-100 transition-colors"
+                  title="Dismiss"
+                >
+                  <X size={12} className="text-stone-400" />
+                </button>
+                <span
+                  className="text-stone-400 transition-transform"
+                  style={{ transform: bannerCollapsed ? "rotate(-90deg)" : "rotate(0deg)", display: "inline-flex" }}
+                >
+                  <ChevronLeft size={12} style={{ transform: "rotate(-90deg)" }} />
+                </span>
+              </div>
+            </div>
+
+            {/* Banner content — collapsible */}
+            {!bannerCollapsed && (
+              <div className="flex items-center gap-3 overflow-x-auto px-3 pb-2.5">
+                {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => {
+                  const isTwitter = key === "twitter";
+                  // Twitter shows green when env var would be set (proxy: check if any twitter post succeeded)
+                  const twitterConnected = isTwitter && posts.some((p) => p.platforms.includes("twitter") && p.status === "published");
+                  const dotColor = isTwitter
+                    ? (twitterConnected ? "#2D5A3D" : "#78716C")
+                    : "#C49A2A";
+                  const statusText = isTwitter
+                    ? (twitterConnected ? "Connected" : "Not Connected")
+                    : "Manual Only";
+                  const statusNote = !isTwitter ? "Copy & Post" : undefined;
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center gap-1.5 shrink-0"
+                      style={{ fontSize: 11 }}
+                    >
+                      <span
+                        className="inline-block w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: dotColor }}
+                      />
+                      <span style={{ fontWeight: 600, color: "#44403C" }}>
+                        {conf.icon} {conf.label}
+                      </span>
+                      <span style={{ color: "#A8A29E", fontSize: 10, whiteSpace: "nowrap" }}>
+                        {statusText}
+                      </span>
+                      {statusNote && (
+                        <span style={{ color: "#C49A2A", fontSize: 9, whiteSpace: "nowrap" }}>
+                          ({statusNote})
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Error Banner */}
         {fetchError && (
@@ -507,6 +560,26 @@ export default function SocialCalendarPage() {
                             <Copy size={12} />
                             Copy
                           </AdminButton>
+                          {post.platforms.length > 0 && (
+                            <AdminButton
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const platformUrls: Record<string, string> = {
+                                  twitter: "https://twitter.com/compose/tweet",
+                                  instagram: "https://instagram.com",
+                                  facebook: "https://facebook.com",
+                                  tiktok: "https://tiktok.com/upload",
+                                  linkedin: "https://linkedin.com/feed",
+                                };
+                                const key = post.platforms[0];
+                                window.open(platformUrls[key] || "https://twitter.com", "_blank", "noopener");
+                              }}
+                            >
+                              <Send size={12} />
+                              Open
+                            </AdminButton>
+                          )}
                           {post.media.length > 0 && (
                             <AdminButton
                               variant="ghost"
@@ -644,7 +717,7 @@ export default function SocialCalendarPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 p-5 pt-0">
+            <div className="flex items-center justify-end gap-2 p-5 pt-0 flex-wrap">
               <AdminButton
                 variant="ghost"
                 size="sm"
@@ -653,6 +726,26 @@ export default function SocialCalendarPage() {
                 <Copy size={12} />
                 Copy Text
               </AdminButton>
+              {selectedPost.platforms.length > 0 && (
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const platformUrls: Record<string, string> = {
+                      twitter: "https://twitter.com/compose/tweet",
+                      instagram: "https://instagram.com",
+                      facebook: "https://facebook.com",
+                      tiktok: "https://tiktok.com/upload",
+                      linkedin: "https://linkedin.com/feed",
+                    };
+                    const key = selectedPost.platforms[0];
+                    window.open(platformUrls[key] || "https://twitter.com", "_blank", "noopener");
+                  }}
+                >
+                  <Send size={12} />
+                  Open Platform
+                </AdminButton>
+              )}
               {selectedPost.status !== "published" && (
                 <AdminButton
                   variant="success"

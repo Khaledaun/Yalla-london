@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Activity, AlertTriangle, CheckCircle, ChevronDown, ChevronLeft,
-  ChevronRight, Clock, Filter, Loader2, RefreshCw, Server, Timer, XCircle,
-  Calendar,
+  ChevronRight, Clock, Copy, Filter, Loader2, RefreshCw, RotateCcw, Server, Timer, X, XCircle,
+  Calendar, Eye,
 } from 'lucide-react';
 import {
   AdminCard,
@@ -57,6 +57,36 @@ export default function CronLogsPage() {
   const [jobFilter, setJobFilter] = useState('');
   const [hours, setHours] = useState(168);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const [jsonModal, setJsonModal] = useState<{
+    log: CronLog;
+    copied: boolean;
+  } | null>(null);
+
+  const handleRetry = async (log: CronLog) => {
+    setRetrying(log.id);
+    try {
+      const cronPath = `/api/cron/${log.jobName}`;
+      const res = await fetch('/api/admin/departures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: cronPath }),
+      });
+      if (res.ok) {
+        setTimeout(() => fetchLogs(), 2000);
+      }
+    } catch (e) {
+      console.warn('[cron-logs] retry failed:', e);
+    } finally {
+      setRetrying(null);
+    }
+  };
+
+  const copyJson = (data: Record<string, unknown>) => {
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).catch(() => {});
+    if (jsonModal) setJsonModal({ ...jsonModal, copied: true });
+    setTimeout(() => { if (jsonModal) setJsonModal(m => m ? { ...m, copied: false } : null); }, 2000);
+  };
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -145,6 +175,36 @@ export default function CronLogsPage() {
           </div>
         )}
 
+        {/* Status Quick Filter Tabs */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {[
+            { key: '', label: 'All', count: summary?.total },
+            { key: 'failed', label: 'Failed', count: summary?.failed, color: '#C8322B' },
+            { key: 'timed_out', label: 'Timed Out', count: summary?.timedOut, color: '#C49A2A' },
+            { key: 'running', label: 'Running', count: summary?.running, color: '#3B7EA1' },
+            { key: 'completed', label: 'Completed', count: summary?.completed, color: '#2D5A3D' },
+          ].map(tab => (
+            <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
+              className="flex-shrink-0"
+              style={{
+                padding: '8px 14px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                fontFamily: 'var(--font-system)', cursor: 'pointer', whiteSpace: 'nowrap',
+                border: statusFilter === tab.key ? `1.5px solid ${tab.color || '#1C1917'}` : '1.5px solid rgba(214,208,196,0.5)',
+                background: statusFilter === tab.key ? `${tab.color || '#1C1917'}10` : '#fff',
+                color: statusFilter === tab.key ? (tab.color || '#1C1917') : '#78716C',
+              }}>
+              {tab.label}
+              {tab.count != null && tab.count > 0 && (
+                <span style={{
+                  marginLeft: 6, fontSize: 9, fontWeight: 700,
+                  background: statusFilter === tab.key ? (tab.color || '#1C1917') : '#78716C',
+                  color: '#fff', borderRadius: 10, padding: '1px 6px',
+                }}>{tab.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Filters */}
         <AdminCard>
           <div className="flex flex-wrap items-center gap-2">
@@ -159,17 +219,6 @@ export default function CronLogsPage() {
                 </button>
               ))}
             </div>
-
-            {/* Status select */}
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                    className="admin-select"
-                    style={{ fontSize:10, paddingTop:6, paddingBottom:6, width:'auto' }}>
-              <option value="">All statuses</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="timed_out">Timed Out</option>
-              <option value="running">Running</option>
-            </select>
 
             {/* Job select */}
             <select value={jobFilter} onChange={e => setJobFilter(e.target.value)}
@@ -304,12 +353,51 @@ export default function CronLogsPage() {
                       )}
                       {log.resultSummary && Object.keys(log.resultSummary).length > 0 && (
                         <div className="mt-2 p-3 rounded-xl" style={{ backgroundColor:'rgba(120,113,108,0.06)', border:'1px solid rgba(120,113,108,0.12)' }}>
-                          <div style={{ fontFamily:'var(--font-system)', fontSize:8, fontWeight:600, color:'#78716C', textTransform:'uppercase', letterSpacing:'1px', marginBottom:4 }}>
-                            Result Summary
+                          <div className="flex items-center justify-between" style={{ marginBottom:4 }}>
+                            <div style={{ fontFamily:'var(--font-system)', fontSize:8, fontWeight:600, color:'#78716C', textTransform:'uppercase', letterSpacing:'1px' }}>
+                              Result Summary
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); setJsonModal({ log, copied: false }); }}
+                              style={{
+                                display:'flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:6,
+                                border:'1px solid rgba(59,126,161,0.3)', background:'rgba(59,126,161,0.05)',
+                                color:'#3B7EA1', fontSize:9, fontWeight:600, fontFamily:'var(--font-system)',
+                                cursor:'pointer',
+                              }}>
+                              <Eye size={10} /> View Full
+                            </button>
                           </div>
                           <pre style={{ fontFamily:'var(--font-system)', fontSize:9, color:'#78716C', whiteSpace:'pre-wrap', wordBreak:'break-all', maxHeight:120, overflow:'auto' }}>
                             {JSON.stringify(log.resultSummary, null, 2)}
                           </pre>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      {(log.status === 'failed' || log.status === 'timed_out') && (
+                        <div className="mt-3 flex gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); handleRetry(log); }}
+                            disabled={retrying === log.id}
+                            style={{
+                              display:'flex', alignItems:'center', gap:5, padding:'7px 14px', borderRadius:8,
+                              border:'1px solid rgba(200,50,43,0.3)', background:'rgba(200,50,43,0.05)',
+                              color:'#C8322B', fontSize:10, fontWeight:600, fontFamily:'var(--font-system)',
+                              cursor: retrying === log.id ? 'wait' : 'pointer', opacity: retrying === log.id ? 0.6 : 1,
+                            }}>
+                            {retrying === log.id ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                            {retrying === log.id ? 'Retrying...' : 'Retry Now'}
+                          </button>
+                          {log.resultSummary && Object.keys(log.resultSummary).length > 0 && (
+                            <button onClick={(e) => { e.stopPropagation(); setJsonModal({ log, copied: false }); }}
+                              style={{
+                                display:'flex', alignItems:'center', gap:5, padding:'7px 14px', borderRadius:8,
+                                border:'1px solid rgba(59,126,161,0.3)', background:'rgba(59,126,161,0.05)',
+                                color:'#3B7EA1', fontSize:10, fontWeight:600, fontFamily:'var(--font-system)',
+                                cursor:'pointer',
+                              }}>
+                              <Eye size={12} /> View Full Response
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -338,6 +426,102 @@ export default function CronLogsPage() {
         )}
         </>)}
       </div>
+
+      {/* JSON Full Response Modal */}
+      {jsonModal && (
+        <div style={{ position:'fixed', inset:0, zIndex:9999 }}>
+          <div onClick={() => setJsonModal(null)}
+            style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)' }} />
+          <div style={{
+            position:'absolute', bottom:0, left:0, right:0, maxHeight:'85vh',
+            background:'#fff', borderRadius:'20px 20px 0 0',
+            display:'flex', flexDirection:'column',
+            boxShadow:'0 -4px 30px rgba(0,0,0,0.15)',
+          }}>
+            {/* Header */}
+            <div style={{
+              display:'flex', alignItems:'center', justifyContent:'space-between',
+              padding:'16px 20px', borderBottom:'1px solid rgba(214,208,196,0.5)',
+              flexShrink:0,
+            }}>
+              <div>
+                <div style={{ fontFamily:'var(--font-system)', fontSize:12, fontWeight:700, color:'#1C1917', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                  {jsonModal.log.jobName}
+                </div>
+                <div style={{ fontFamily:'var(--font-system)', fontSize:9, color:'#78716C', marginTop:2 }}>
+                  {new Date(jsonModal.log.startedAt).toLocaleString('en-GB')} · {fmt(jsonModal.log.durationMs)}
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <AdminStatusBadge status={jsonModal.log.status} label={STATUS_CONFIG[jsonModal.log.status]?.label || jsonModal.log.status} />
+                <button onClick={() => setJsonModal(null)}
+                  style={{ width:32, height:32, borderRadius:8, border:'1px solid rgba(214,208,196,0.5)', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+                  <X size={14} style={{ color:'#78716C' }} />
+                </button>
+              </div>
+            </div>
+
+            {/* JSON Content */}
+            <div style={{ flex:1, overflow:'auto', padding:'16px 20px' }}>
+              {jsonModal.log.errorMessage && (
+                <div style={{ marginBottom:12, padding:12, borderRadius:10, background:'rgba(200,50,43,0.05)', border:'1px solid rgba(200,50,43,0.15)' }}>
+                  <div style={{ fontFamily:'var(--font-system)', fontSize:8, fontWeight:600, color:'#C8322B', textTransform:'uppercase', letterSpacing:'1px', marginBottom:4 }}>Error Message</div>
+                  <pre style={{ fontFamily:'var(--font-system)', fontSize:10, color:'#C8322B', whiteSpace:'pre-wrap', wordBreak:'break-all', margin:0 }}>
+                    {jsonModal.log.errorMessage}
+                  </pre>
+                </div>
+              )}
+              {jsonModal.log.resultSummary && Object.keys(jsonModal.log.resultSummary).length > 0 ? (
+                <div style={{ padding:12, borderRadius:10, background:'rgba(120,113,108,0.04)', border:'1px solid rgba(120,113,108,0.10)' }}>
+                  <div style={{ fontFamily:'var(--font-system)', fontSize:8, fontWeight:600, color:'#78716C', textTransform:'uppercase', letterSpacing:'1px', marginBottom:8 }}>Result Summary</div>
+                  {Object.entries(jsonModal.log.resultSummary).map(([key, val]) => (
+                    <div key={key} style={{ marginBottom:6 }}>
+                      <div style={{ fontFamily:'var(--font-system)', fontSize:9, fontWeight:600, color:'#1C1917', marginBottom:2 }}>{key}</div>
+                      <pre style={{ fontFamily:'var(--font-system)', fontSize:9, color:'#78716C', whiteSpace:'pre-wrap', wordBreak:'break-all', margin:0, paddingLeft:8 }}>
+                        {typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign:'center', padding:'20px 0', fontFamily:'var(--font-system)', fontSize:10, color:'#78716C' }}>
+                  No result summary available
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div style={{
+              display:'flex', gap:8, padding:'12px 20px', borderTop:'1px solid rgba(214,208,196,0.5)',
+              flexShrink:0,
+            }}>
+              {jsonModal.log.resultSummary && (
+                <button onClick={() => copyJson(jsonModal.log.resultSummary!)}
+                  style={{
+                    flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                    padding:'10px 16px', borderRadius:10, fontSize:11, fontWeight:600,
+                    fontFamily:'var(--font-system)', cursor:'pointer',
+                    border:'1px solid rgba(59,126,161,0.3)', background:'rgba(59,126,161,0.05)', color:'#3B7EA1',
+                  }}>
+                  <Copy size={13} />
+                  {jsonModal.copied ? 'Copied!' : 'Copy JSON'}
+                </button>
+              )}
+              {(jsonModal.log.status === 'failed' || jsonModal.log.status === 'timed_out') && (
+                <button onClick={() => { handleRetry(jsonModal.log); setJsonModal(null); }}
+                  style={{
+                    flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                    padding:'10px 16px', borderRadius:10, fontSize:11, fontWeight:600,
+                    fontFamily:'var(--font-system)', cursor:'pointer',
+                    border:'1px solid rgba(200,50,43,0.3)', background:'rgba(200,50,43,0.05)', color:'#C8322B',
+                  }}>
+                  <RotateCcw size={13} /> Retry
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

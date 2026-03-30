@@ -127,6 +127,65 @@ export default function PerPageAuditPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "issues" | "critical" | "not_indexed">("all");
 
+  // Phase 4A: Per-row action states
+  const [rowActionLoading, setRowActionLoading] = useState<Record<string, string>>({});
+  const [rowActionResults, setRowActionResults] = useState<Record<string, { success: boolean; data: unknown; action: string }>>({});
+  const [rowActionExpanded, setRowActionExpanded] = useState<Record<string, boolean>>({});
+
+  // Phase 4B: Bulk action states
+  const [bulkLoading, setBulkLoading] = useState<Record<string, boolean>>({});
+  const [bulkResult, setBulkResult] = useState<{ success: boolean; message: string; data?: unknown; action: string } | null>(null);
+  const [bulkResultExpanded, setBulkResultExpanded] = useState(false);
+
+  const runRowAction = async (pageId: string, actionKey: string, url: string, body: Record<string, unknown>) => {
+    setRowActionLoading((prev) => ({ ...prev, [`${pageId}_${actionKey}`]: actionKey }));
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = res.ok ? await res.json().catch(() => ({ ok: true })) : { error: `HTTP ${res.status}` };
+      setRowActionResults((prev) => ({
+        ...prev,
+        [`${pageId}_${actionKey}`]: { success: res.ok, data, action: actionKey },
+      }));
+      setRowActionExpanded((prev) => ({ ...prev, [`${pageId}_${actionKey}`]: true }));
+    } catch (err) {
+      setRowActionResults((prev) => ({
+        ...prev,
+        [`${pageId}_${actionKey}`]: { success: false, data: { error: err instanceof Error ? err.message : "Request failed" }, action: actionKey },
+      }));
+      setRowActionExpanded((prev) => ({ ...prev, [`${pageId}_${actionKey}`]: true }));
+    } finally {
+      setRowActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[`${pageId}_${actionKey}`];
+        return next;
+      });
+    }
+  };
+
+  const runBulkAction = async (actionKey: string, url: string, body: Record<string, unknown>) => {
+    setBulkLoading((prev) => ({ ...prev, [actionKey]: true }));
+    setBulkResult(null);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = res.ok ? await res.json().catch(() => ({ ok: true })) : { error: `HTTP ${res.status}` };
+      setBulkResult({ success: res.ok, message: res.ok ? "Action completed" : (data.error || `Failed (HTTP ${res.status})`), data, action: actionKey });
+      setBulkResultExpanded(true);
+    } catch (err) {
+      setBulkResult({ success: false, message: err instanceof Error ? err.message : "Request failed", action: actionKey });
+      setBulkResultExpanded(true);
+    } finally {
+      setBulkLoading((prev) => ({ ...prev, [actionKey]: false }));
+    }
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -264,6 +323,73 @@ export default function PerPageAuditPage() {
             </div>
             <div className="text-[10px] text-zinc-500">Critical</div>
           </div>
+        </div>
+      )}
+
+      {/* Phase 4B: Sticky Quick Actions Bar */}
+      {!loading && pages.length > 0 && (
+        <div className="mx-4 mb-3 p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 space-y-2">
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Quick Actions</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => runBulkAction("submit_all", "/api/admin/content-indexing", { action: "submit_all", siteId })}
+              disabled={!!bulkLoading["submit_all"]}
+              className="px-3 py-1.5 text-xs font-medium rounded bg-emerald-900/60 text-emerald-300 hover:bg-emerald-800/60 border border-emerald-700/50 disabled:opacity-50"
+            >
+              {bulkLoading["submit_all"] ? (
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> Submitting…</span>
+              ) : (
+                "Submit All Never-Indexed"
+              )}
+            </button>
+            <button
+              onClick={() => runBulkAction("full_audit", "/api/admin/seo-audit", { action: "full_audit", siteId })}
+              disabled={!!bulkLoading["full_audit"]}
+              className="px-3 py-1.5 text-xs font-medium rounded bg-blue-900/60 text-blue-300 hover:bg-blue-800/60 border border-blue-700/50 disabled:opacity-50"
+            >
+              {bulkLoading["full_audit"] ? (
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> Running…</span>
+              ) : (
+                "Run Full Audit"
+              )}
+            </button>
+            <button
+              onClick={() => runBulkAction("refresh_gsc", "/api/admin/departures", { action: "do_now", path: "/api/cron/gsc-sync" })}
+              disabled={!!bulkLoading["refresh_gsc"]}
+              className="px-3 py-1.5 text-xs font-medium rounded bg-violet-900/60 text-violet-300 hover:bg-violet-800/60 border border-violet-700/50 disabled:opacity-50"
+            >
+              {bulkLoading["refresh_gsc"] ? (
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" /> Syncing…</span>
+              ) : (
+                "Refresh GSC Data"
+              )}
+            </button>
+          </div>
+
+          {/* Bulk result banner */}
+          {bulkResult && (
+            <div className={`rounded px-3 py-2 text-xs border ${bulkResult.success ? "bg-emerald-950/30 border-emerald-800/50 text-emerald-300" : "bg-red-950/30 border-red-800/50 text-red-300"}`}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{bulkResult.action}: {bulkResult.message}</span>
+                <div className="flex items-center gap-2">
+                  {bulkResult.data && (
+                    <button
+                      onClick={() => setBulkResultExpanded(!bulkResultExpanded)}
+                      className="text-[10px] text-zinc-400 hover:text-zinc-200"
+                    >
+                      {bulkResultExpanded ? "▲ Hide" : "▼ Details"}
+                    </button>
+                  )}
+                  <button onClick={() => setBulkResult(null)} className="text-zinc-500 hover:text-zinc-300 text-[10px]">✕</button>
+                </div>
+              </div>
+              {bulkResultExpanded && bulkResult.data && (
+                <pre className="mt-2 p-2 bg-black/30 rounded text-[10px] text-zinc-300 overflow-auto max-h-48 whitespace-pre-wrap">
+                  {JSON.stringify(bulkResult.data, null, 2)}
+                </pre>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -470,6 +596,96 @@ export default function PerPageAuditPage() {
                       {page.indexingError}
                     </div>
                   )}
+
+                  {/* Phase 4A: Per-row action buttons */}
+                  <div>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">Actions</p>
+                    <div className="flex flex-wrap gap-2">
+                      {/* Audit This URL */}
+                      <button
+                        onClick={() => runRowAction(page.id, "audit_url", "/api/admin/seo-audit", { action: "audit_url", url: page.url, siteId })}
+                        disabled={!!rowActionLoading[`${page.id}_audit_url`]}
+                        className="px-2.5 py-1 text-xs font-medium rounded bg-blue-900/60 text-blue-300 hover:bg-blue-800/60 border border-blue-700/50 disabled:opacity-50"
+                      >
+                        {rowActionLoading[`${page.id}_audit_url`] ? (
+                          <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> Auditing…</span>
+                        ) : (
+                          "Audit This URL"
+                        )}
+                      </button>
+
+                      {/* Submit to Google — only when not indexed */}
+                      {page.indexingStatus !== "indexed" && (
+                        <button
+                          onClick={() => runRowAction(page.id, "submit_google", "/api/admin/content-indexing", { action: "submit", slug: page.slug, siteId })}
+                          disabled={!!rowActionLoading[`${page.id}_submit_google`]}
+                          className="px-2.5 py-1 text-xs font-medium rounded bg-emerald-900/60 text-emerald-300 hover:bg-emerald-800/60 border border-emerald-700/50 disabled:opacity-50"
+                        >
+                          {rowActionLoading[`${page.id}_submit_google`] ? (
+                            <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> Submitting…</span>
+                          ) : (
+                            "Submit to Google"
+                          )}
+                        </button>
+                      )}
+
+                      {/* Run SEO Fix */}
+                      <button
+                        onClick={() => runRowAction(page.id, "seo_fix", "/api/admin/seo-intelligence", { action: "fix_article", articleId: page.id, siteId })}
+                        disabled={!!rowActionLoading[`${page.id}_seo_fix`]}
+                        className="px-2.5 py-1 text-xs font-medium rounded bg-amber-900/60 text-amber-300 hover:bg-amber-800/60 border border-amber-700/50 disabled:opacity-50"
+                      >
+                        {rowActionLoading[`${page.id}_seo_fix`] ? (
+                          <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Fixing…</span>
+                        ) : (
+                          "Run SEO Fix"
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Per-row action result panels */}
+                    {(["audit_url", "submit_google", "seo_fix"] as const).map((actionKey) => {
+                      const resultKey = `${page.id}_${actionKey}`;
+                      const result = rowActionResults[resultKey];
+                      if (!result) return null;
+                      const isResultExpanded = rowActionExpanded[resultKey] ?? false;
+                      const actionLabel = actionKey === "audit_url" ? "Audit" : actionKey === "submit_google" ? "Submit" : "SEO Fix";
+                      return (
+                        <div
+                          key={actionKey}
+                          className={`mt-2 rounded border text-xs ${result.success ? "bg-emerald-950/20 border-emerald-800/40 text-emerald-300" : "bg-red-950/20 border-red-800/40 text-red-300"}`}
+                        >
+                          <button
+                            onClick={() => setRowActionExpanded((prev) => ({ ...prev, [resultKey]: !isResultExpanded }))}
+                            className="w-full text-left px-2.5 py-1.5 flex items-center justify-between"
+                          >
+                            <span className="font-medium">{actionLabel}: {result.success ? "Success" : "Failed"}</span>
+                            <span className="text-[10px] text-zinc-400">{isResultExpanded ? "▲" : "▼"}</span>
+                          </button>
+                          {isResultExpanded && result.data && (
+                            <div className="px-2.5 pb-2">
+                              {typeof result.data === "object" && result.data !== null ? (
+                                <div className="space-y-0.5">
+                                  {Object.entries(result.data as Record<string, unknown>).map(([k, v]) => (
+                                    <div key={k} className="flex gap-2 text-[10px]">
+                                      <span className="text-zinc-500 shrink-0 font-mono">{k}:</span>
+                                      <span className="text-zinc-300 break-all">
+                                        {typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "—")}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <pre className="p-1.5 bg-black/30 rounded text-[10px] text-zinc-300 overflow-auto max-h-32 whitespace-pre-wrap">
+                                  {JSON.stringify(result.data, null, 2)}
+                                </pre>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

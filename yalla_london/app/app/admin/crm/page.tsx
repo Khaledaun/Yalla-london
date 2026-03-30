@@ -198,6 +198,12 @@ export default function CRMPage() {
   const [consentTotal, setConsentTotal] = useState(0)
   const [consentPage, setConsentPage] = useState(1)
 
+  // Interaction logger state
+  const [interactionContactId, setInteractionContactId] = useState<string | null>(null)
+  const [interactionForm, setInteractionForm] = useState({ type: 'note' as string, summary: '', sentiment: 'neutral' as string })
+  const [interactionLoading, setInteractionLoading] = useState(false)
+  const [interactionSuccess, setInteractionSuccess] = useState<string | null>(null)
+
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -297,9 +303,167 @@ export default function CRMPage() {
     setNewLead({ name: '', email: '', phone: '', source: 'manual' })
   }
 
+  /* ── Log Interaction ── */
+  const handleLogInteraction = async (contactId: string) => {
+    if (!interactionForm.summary.trim()) {
+      toast.error('Please enter a summary')
+      return
+    }
+    setInteractionLoading(true)
+    try {
+      const res = await fetch('/api/admin/agent/crm-pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'log_interaction',
+          contactId,
+          type: interactionForm.type,
+          summary: interactionForm.summary.trim(),
+          sentiment: interactionForm.sentiment,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' }))
+        throw new Error(err.error || 'Failed to log interaction')
+      }
+      toast.success('Interaction logged')
+      setInteractionSuccess(contactId)
+      setInteractionForm({ type: 'note', summary: '', sentiment: 'neutral' })
+      setTimeout(() => {
+        setInteractionSuccess(null)
+        setInteractionContactId(null)
+      }, 2000)
+      fetchData(activeTab)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to log interaction')
+    } finally {
+      setInteractionLoading(false)
+    }
+  }
+
   /* ── Move Opportunity Stage ── */
   const moveOpportunity = async (opportunityId: string, stage: string) => {
     await postAction('update_opportunity_stage', { opportunityId, stage })
+  }
+
+  /* ── Inline Interaction Logger Component ── */
+  const InteractionLogger = ({ contactId }: { contactId: string }) => {
+    const isOpen = interactionContactId === contactId
+    const isSuccess = interactionSuccess === contactId
+
+    if (isSuccess) {
+      return (
+        <div className="mt-2 p-3 rounded-xl" style={{ backgroundColor: '#2D5A3D10', border: '1px solid #2D5A3D30' }}>
+          <div className="flex items-center gap-2" style={{ fontFamily: 'var(--font-system)', fontSize: 12, color: '#2D5A3D', fontWeight: 600 }}>
+            <span>Interaction logged successfully</span>
+          </div>
+        </div>
+      )
+    }
+
+    if (!isOpen) {
+      return (
+        <div className="mt-2">
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setInteractionContactId(contactId) }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+            style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)', fontFamily: 'var(--font-system)', fontSize: 11, color: '#78716C', cursor: 'pointer' }}
+          >
+            <MessageSquare size={11} /> Log Interaction
+          </button>
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className="mt-2 p-3 rounded-xl space-y-2.5"
+        style={{ backgroundColor: '#FAF8F4', border: '1px solid rgba(214,208,196,0.4)' }}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+      >
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, color: '#1C1917', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Log Interaction
+        </div>
+
+        {/* Type dropdown */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 2 }}>Type</label>
+            <select
+              className="admin-select w-full"
+              value={interactionForm.type}
+              onChange={e => setInteractionForm(p => ({ ...p, type: e.target.value }))}
+            >
+              <option value="call">Call</option>
+              <option value="email">Email</option>
+              <option value="meeting">Meeting</option>
+              <option value="note">Note</option>
+            </select>
+          </div>
+
+          {/* Sentiment */}
+          <div>
+            <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 2 }}>Sentiment</label>
+            <div className="flex gap-1">
+              {([
+                { value: 'positive', label: '+', color: '#2D5A3D', bg: '#2D5A3D15' },
+                { value: 'neutral', label: '=', color: '#C49A2A', bg: '#C49A2A15' },
+                { value: 'negative', label: '-', color: '#C8322B', bg: '#C8322B15' },
+              ] as const).map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => setInteractionForm(p => ({ ...p, sentiment: s.value }))}
+                  className="flex-1 py-1.5 rounded-lg transition-all text-center"
+                  style={{
+                    backgroundColor: interactionForm.sentiment === s.value ? s.bg : 'transparent',
+                    border: `1.5px solid ${interactionForm.sentiment === s.value ? s.color : 'rgba(214,208,196,0.4)'}`,
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: interactionForm.sentiment === s.value ? s.color : '#A8A29E',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div>
+          <label style={{ fontFamily: 'var(--font-system)', fontSize: 10, color: '#78716C', display: 'block', marginBottom: 2 }}>Summary</label>
+          <textarea
+            className="admin-input w-full"
+            rows={2}
+            placeholder="Brief summary of the interaction..."
+            value={interactionForm.summary}
+            onChange={e => setInteractionForm(p => ({ ...p, summary: e.target.value }))}
+            style={{ resize: 'none' }}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <AdminButton
+            variant="primary"
+            size="sm"
+            onClick={() => handleLogInteraction(contactId)}
+            disabled={interactionLoading || !interactionForm.summary.trim()}
+          >
+            {interactionLoading ? 'Saving...' : 'Save'}
+          </AdminButton>
+          <AdminButton
+            variant="ghost"
+            size="sm"
+            onClick={() => { setInteractionContactId(null); setInteractionForm({ type: 'note', summary: '', sentiment: 'neutral' }) }}
+          >
+            Cancel
+          </AdminButton>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -475,12 +639,11 @@ export default function CRMPage() {
 
               {/* Contact List */}
               {contacts.length > 0 ? contacts.map(contact => (
-                <Link
-                  key={`${contact.type}-${contact.id}`}
-                  href={`/admin/crm/contact/${contact.id}`}
-                  className="block"
-                >
-                  <AdminCard className="hover:shadow-md transition-all cursor-pointer">
+                <AdminCard key={`${contact.type}-${contact.id}`} className="hover:shadow-md transition-all">
+                  <Link
+                    href={`/admin/crm/contact/${contact.id}`}
+                    className="block"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -517,8 +680,9 @@ export default function CRMPage() {
                         <ChevronRight size={16} style={{ color: '#A8A29E' }} />
                       </div>
                     </div>
-                  </AdminCard>
-                </Link>
+                  </Link>
+                  <InteractionLogger contactId={contact.id} />
+                </AdminCard>
               )) : (
                 <AdminCard>
                   <AdminEmptyState icon={Users} title="No Contacts Found"
@@ -600,8 +764,11 @@ export default function CRMPage() {
                               <Clock size={10} /> {opp.nextAction}
                             </div>
                           )}
+                          {/* Interaction Logger */}
+                          <InteractionLogger contactId={opp.id} />
+
                           {/* Stage move buttons */}
-                          <div className="flex gap-1 flex-wrap">
+                          <div className="flex gap-1 flex-wrap mt-2">
                             {stage.stage !== 'won' && stage.stage !== 'lost' && (
                               <>
                                 {stage.stage !== 'new' && (

@@ -308,6 +308,52 @@ export default function SocialCalendarPage() {
           }
         />
 
+        {/* Platform Status Banner */}
+        <div
+          className="flex items-center gap-3 overflow-x-auto mb-4 py-2.5 px-3 rounded-xl"
+          style={{
+            backgroundColor: "#FFFFFF",
+            border: "1px solid rgba(214,208,196,0.5)",
+            fontFamily: "var(--font-system)",
+          }}
+        >
+          {Object.entries(PLATFORM_CONFIG).map(([key, conf]) => {
+            const isTwitter = key === "twitter";
+            const hasPostsOnPlatform = posts.some((p) => p.platforms.includes(key) && p.status === "published");
+            const isConnected = isTwitter && hasPostsOnPlatform;
+            return (
+              <div
+                key={key}
+                className="flex items-center gap-1.5 shrink-0"
+                style={{ fontSize: 11 }}
+              >
+                <span
+                  className="inline-block w-2 h-2 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: isConnected ? "#2D5A3D" : "#C49A2A",
+                  }}
+                />
+                <span style={{ fontWeight: 600, color: "#44403C" }}>
+                  {conf.icon} {conf.label}
+                </span>
+                <span style={{ color: "#A8A29E", fontSize: 10, whiteSpace: "nowrap" }}>
+                  {isConnected ? "Connected" : "Manual Only"}
+                </span>
+              </div>
+            );
+          })}
+          <span
+            className="shrink-0 text-amber-600 pl-2"
+            style={{
+              borderLeft: "1px solid rgba(214,208,196,0.5)",
+              fontSize: 10,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Manual = Copy &amp; Post workflow
+          </span>
+        </div>
+
         {/* Error Banner */}
         {fetchError && (
           <AdminAlertBanner

@@ -2431,6 +2431,58 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkQueueResult | null>(null);
 
+  // ─── Phase 1A: Type/Locale filters, Sort, Bulk selection ──────────────
+  const [typeFilter, setTypeFilter] = useState<"all" | "blog" | "news" | "information" | "guide">("all");
+  const [localeFilter, setLocaleFilter] = useState<"all" | "en" | "ar">("all");
+  const [sortCol, setSortCol] = useState<"title" | "date" | "words" | "seo" | "status" | "clicks">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState<string | null>(null);
+  const [cronResponsePanel, setCronResponsePanel] = useState<{ label: string; data: Record<string, unknown> } | null>(null);
+
+  const toggleSort = (col: typeof sortCol) => {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortCol(col); setSortDir("desc"); }
+  };
+  const sortArrow = (col: typeof sortCol) => sortCol === col ? (sortDir === "asc" ? " ↑" : " ↓") : "";
+
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map(a => a.id)));
+  };
+
+  const doBulkAction = async (action: string, label: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkActionLoading(action);
+    let ok = 0, fail = 0;
+    for (const id of selectedIds) {
+      try {
+        const body: Record<string, string> = { action };
+        const item = data?.articles.find(a => a.id === id);
+        if (action === "re_queue" || action === "delete_draft") body.draftId = id;
+        if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
+        if (action === "publish_selected" && item?.status === "reservoir") {
+          const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: id, locale: item.locale, count: 1, siteId: activeSiteId }) });
+          const j = await r.json();
+          if (j.success) ok++; else fail++;
+          continue;
+        }
+        const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const j = await r.json();
+        if (j.success) ok++; else fail++;
+      } catch { fail++; }
+    }
+    setActionResult(prev => ({ ...prev, __bulk: `✅ ${label}: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ""}` }));
+    setSelectedIds(new Set());
+    setBulkActionLoading(null);
+    fetchData();
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -2592,14 +2644,35 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     }
   };
 
+  const detectArticleType = (item: ContentItem): string => {
+    const u = item.url || item.slug || "";
+    if (u.includes("/news/")) return "news";
+    if (u.includes("/information/")) return "information";
+    if (u.includes("/guides/")) return "guide";
+    return "blog";
+  };
+
   const filtered = (data?.articles ?? []).filter((a) => {
     if (filter === "published" && a.type !== "published") return false;
     if (filter === "draft" && a.type !== "draft") return false;
     if (filter === "reservoir" && a.status !== "reservoir") return false;
     if (filter === "rejected" && a.status !== "rejected") return false;
     if (filter === "stuck" && a.hoursInPhase < 3) return false;
+    if (typeFilter !== "all" && detectArticleType(a) !== typeFilter) return false;
+    if (localeFilter !== "all" && a.locale !== localeFilter) return false;
     if (search && !a.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
+  }).sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    switch (sortCol) {
+      case "title": return dir * a.title.localeCompare(b.title);
+      case "date": return dir * ((a.generatedAt || "").localeCompare(b.generatedAt || ""));
+      case "words": return dir * ((a.wordCount || 0) - (b.wordCount || 0));
+      case "seo": return dir * ((a.seoScore ?? 0) - (b.seoScore ?? 0));
+      case "clicks": return dir * ((a.gscClicks ?? 0) - (b.gscClicks ?? 0));
+      case "status": return dir * (a.status.localeCompare(b.status));
+      default: return 0;
+    }
   });
 
   const indexColor = (s: string | null) => {
@@ -2902,10 +2975,12 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <ActionButton
                   onClick={async () => {
                     setActionLoading("run-builder");
+                    setCronResponsePanel(null);
                     try {
                       const r = await fetch("/api/cron/content-builder", { method: "POST" });
                       const j = await r.json();
                       setActionResult((prev) => ({ ...prev, __builder: j.success !== false ? "✅ Builder triggered" : `❌ ${j.error ?? "Failed"}` }));
+                      setCronResponsePanel({ label: "Run Pipeline", data: j });
                       setTimeout(() => fetchData(), 3000);
                     } catch (e) {
                       setActionResult((prev) => ({ ...prev, __builder: `❌ ${e instanceof Error ? e.message : "Error"}` }));
@@ -2918,10 +2993,12 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <ActionButton
                   onClick={async () => {
                     setActionLoading("run-selector");
+                    setCronResponsePanel(null);
                     try {
                       const r = await fetch("/api/cron/content-selector", { method: "POST" });
                       const j = await r.json();
                       setActionResult((prev) => ({ ...prev, __selector: j.success !== false ? "✅ Selector ran" : `❌ ${j.error ?? "Failed"}` }));
+                      setCronResponsePanel({ label: "Publish Ready", data: j });
                       setTimeout(() => fetchData(), 2000);
                     } catch (e) {
                       setActionResult((prev) => ({ ...prev, __selector: `❌ ${e instanceof Error ? e.message : "Error"}` }));
@@ -2952,12 +3029,42 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
-                      filter === f ? "bg-stone-100 text-stone-800" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                      filter === f ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
                     }`}
                   >
                     {f}
                   </button>
                 ))}
+              </div>
+              {/* Type + Locale filters */}
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">Type:</span>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+                  className="bg-stone-100 border border-stone-200 rounded-lg px-2 py-1 text-xs text-stone-700 focus:outline-none"
+                >
+                  <option value="all">All Types</option>
+                  <option value="blog">Blog</option>
+                  <option value="news">News</option>
+                  <option value="information">Info</option>
+                  <option value="guide">Guide</option>
+                </select>
+                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider ml-2">Locale:</span>
+                {(["all", "en", "ar"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setLocaleFilter(l)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      localeFilter === l ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                    }`}
+                  >
+                    {l === "all" ? "All" : l.toUpperCase()}
+                  </button>
+                ))}
+                {selectedIds.size > 0 && (
+                  <span className="ml-auto text-xs text-[#3B7EA1] font-medium">{selectedIds.size} selected</span>
+                )}
               </div>
 
               {/* Content table */}
@@ -2971,13 +3078,16 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-stone-200 text-stone-500 text-left">
-                          <th className="px-3 py-2.5 font-medium min-w-[200px]">Page</th>
-                          <th className="px-3 py-2.5 font-medium whitespace-nowrap">Status</th>
-                          <th className="px-3 py-2.5 font-medium whitespace-nowrap">Created</th>
+                          <th className="px-2 py-2.5 w-8">
+                            <input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} className="rounded border-stone-300" />
+                          </th>
+                          <th className="px-3 py-2.5 font-medium min-w-[200px] cursor-pointer select-none hover:text-stone-700" onClick={() => toggleSort("title")}>Page{sortArrow("title")}</th>
+                          <th className="px-3 py-2.5 font-medium whitespace-nowrap cursor-pointer select-none hover:text-stone-700" onClick={() => toggleSort("status")}>Status{sortArrow("status")}</th>
+                          <th className="px-3 py-2.5 font-medium whitespace-nowrap cursor-pointer select-none hover:text-stone-700" onClick={() => toggleSort("date")}>Created{sortArrow("date")}</th>
                           <th className="px-3 py-2.5 font-medium whitespace-nowrap">Google</th>
-                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">SEO</th>
-                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Words</th>
-                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Clicks</th>
+                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap cursor-pointer select-none hover:text-stone-700" onClick={() => toggleSort("seo")}>SEO{sortArrow("seo")}</th>
+                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap cursor-pointer select-none hover:text-stone-700" onClick={() => toggleSort("words")}>Words{sortArrow("words")}</th>
+                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap cursor-pointer select-none hover:text-stone-700" onClick={() => toggleSort("clicks")}>Clicks{sortArrow("clicks")}</th>
                           <th className="px-3 py-2.5 font-medium whitespace-nowrap">Actions</th>
                         </tr>
                       </thead>
@@ -2988,7 +3098,11 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                           const checks = gateResults[item.id];
 
                           return (
-                            <tr key={item.id} className="border-b border-stone-200/50 hover:bg-stone-100/30 transition-colors group">
+                            <tr key={item.id} className={`border-b border-stone-200/50 hover:bg-stone-100/30 transition-colors group ${selectedIds.has(item.id) ? "bg-[#3B7EA1]/5" : ""}`}>
+                              {/* Checkbox */}
+                              <td className="px-2 py-2.5 w-8">
+                                <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} className="rounded border-stone-300" />
+                              </td>
                               {/* Page name */}
                               <td className="px-3 py-2.5">
                                 <p className="text-stone-800 font-medium truncate max-w-[280px]" title={item.title}>
@@ -3037,8 +3151,16 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                 <span className={`inline-block px-1.5 py-0.5 rounded-full border text-[10px] font-medium leading-none ${badge.color}`}>
                                   {badge.label}
                                 </span>
-                                {item.phase && item.type === "draft" && item.status !== "reservoir" && (
-                                  <p className="text-stone-500 text-[10px] mt-0.5">{item.phase}</p>
+                                {item.phase && item.type === "draft" && (
+                                  <span className={`inline-block mt-0.5 px-1.5 py-px rounded text-[9px] font-medium ${
+                                    item.phase === "research" || item.phase === "outline" ? "bg-purple-100 text-purple-700" :
+                                    item.phase === "drafting" ? "bg-blue-100 text-blue-700" :
+                                    item.phase === "assembly" ? "bg-amber-100 text-amber-700" :
+                                    item.phase === "images" || item.phase === "seo" ? "bg-teal-100 text-teal-700" :
+                                    item.phase === "scoring" ? "bg-indigo-100 text-indigo-700" :
+                                    item.phase === "reservoir" ? "bg-green-100 text-green-700" :
+                                    "bg-stone-100 text-stone-500"
+                                  }`}>{item.phase}</span>
                                 )}
                               </td>
 
@@ -3188,6 +3310,45 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                </Card>
+              )}
+
+              {/* Sticky bulk action bar */}
+              {selectedIds.size > 0 && (
+                <div className="sticky bottom-0 z-20 bg-white border-t border-stone-200 shadow-lg rounded-b-xl px-4 py-2.5 flex flex-wrap gap-2 items-center">
+                  <span className="text-xs font-medium text-stone-600">{selectedIds.size} selected</span>
+                  <ActionButton onClick={() => doBulkAction("publish_selected", "Publish")} loading={bulkActionLoading === "publish_selected"} variant="success">Publish Selected</ActionButton>
+                  <ActionButton onClick={() => doBulkAction("unpublish", "Unpublish")} loading={bulkActionLoading === "unpublish"} variant="amber">Unpublish Selected</ActionButton>
+                  <ActionButton onClick={() => doBulkAction("re_queue", "Re-queue")} loading={bulkActionLoading === "re_queue"}>Re-queue Selected</ActionButton>
+                  <ActionButton onClick={() => { if (confirm(`Delete ${selectedIds.size} items?`)) doBulkAction("delete_draft", "Delete"); }} loading={bulkActionLoading === "delete_draft"} variant="danger">Delete Selected</ActionButton>
+                  <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-stone-400 hover:text-stone-600">Clear</button>
+                </div>
+              )}
+
+              {/* Bulk action result */}
+              {actionResult.__bulk && (
+                <p className={`text-xs px-1 ${actionResult.__bulk.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__bulk}</p>
+              )}
+
+              {/* Phase 1B: Cron response panel */}
+              {cronResponsePanel && (
+                <Card className="border-l-4 border-l-[#3B7EA1]">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-xs font-semibold text-stone-700">{cronResponsePanel.label} — Response</p>
+                    <button onClick={() => setCronResponsePanel(null)} className="text-stone-400 hover:text-stone-600 text-xs">✕ Close</button>
+                  </div>
+                  <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                    {Object.entries(cronResponsePanel.data).map(([key, val]) => (
+                      <details key={key} className="group">
+                        <summary className="flex items-center gap-2 cursor-pointer text-xs text-stone-600 hover:text-stone-800 py-0.5">
+                          <span className="text-[10px] text-stone-400 group-open:rotate-90 transition-transform">▶</span>
+                          <span className="font-medium">{key}</span>
+                          <span className="text-stone-400 truncate max-w-[200px]">{typeof val === "object" ? `{${Object.keys(val as object).length} keys}` : String(val)}</span>
+                        </summary>
+                        <pre className="ml-5 mt-0.5 p-2 bg-stone-100 rounded text-[10px] text-stone-600 overflow-x-auto whitespace-pre-wrap">{JSON.stringify(val, null, 2)}</pre>
+                      </details>
+                    ))}
                   </div>
                 </Card>
               )}

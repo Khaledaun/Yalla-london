@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,6 +173,178 @@ function EnvRow({ check }: { check: EnvCheck }) {
       >
         {check.set ? "SET" : "MISSING"}
       </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Test Connection Button
+// ---------------------------------------------------------------------------
+
+function TestConnectionButton({ channelId }: { channelId: string }) {
+  const [state, setState] = useState<"idle" | "testing" | "success" | "failed">("idle");
+  const [latency, setLatency] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const runTest = useCallback(async () => {
+    setState("testing");
+    setError(null);
+    setLatency(null);
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/admin/env-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: channelId }),
+        cache: "no-store",
+      });
+      const elapsed = Date.now() - start;
+      setLatency(elapsed);
+      if (!res.ok) {
+        setState("failed");
+        setError(`HTTP ${res.status}`);
+        return;
+      }
+      const data = await res.json();
+      if (data?.connected === false) {
+        setState("failed");
+        setError(data.error || "Connection failed");
+      } else {
+        setState("success");
+      }
+    } catch (err) {
+      const elapsed = Date.now() - start;
+      setLatency(elapsed);
+      setState("failed");
+      setError(err instanceof Error ? err.message : "Network error");
+    }
+  }, [channelId]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <button
+        onClick={runTest}
+        disabled={state === "testing"}
+        style={{
+          display: "block",
+          width: "100%",
+          textAlign: "center",
+          padding: "9px 16px",
+          borderRadius: "8px",
+          background: state === "success"
+            ? "rgba(16,185,129,0.15)"
+            : state === "failed"
+              ? "rgba(248,113,113,0.15)"
+              : "rgba(59,126,161,0.15)",
+          border: state === "success"
+            ? "1px solid rgba(16,185,129,0.35)"
+            : state === "failed"
+              ? "1px solid rgba(248,113,113,0.35)"
+              : "1px solid rgba(59,126,161,0.35)",
+          color: state === "success"
+            ? "#34D399"
+            : state === "failed"
+              ? "#F87171"
+              : "#7DD3FC",
+          fontFamily: "monospace",
+          fontSize: "11px",
+          fontWeight: 600,
+          letterSpacing: "0.07em",
+          textTransform: "uppercase" as const,
+          cursor: state === "testing" ? "wait" : "pointer",
+          opacity: state === "testing" ? 0.7 : 1,
+          transition: "all 0.15s",
+        }}
+      >
+        {state === "testing"
+          ? "Testing..."
+          : state === "success"
+            ? `Connected${latency ? ` (${latency}ms)` : ""}`
+            : state === "failed"
+              ? "Failed"
+              : "Test Connection"}
+      </button>
+      {state === "failed" && error && (
+        <p style={{ fontSize: "10px", color: "#F87171", fontFamily: "monospace", margin: 0, padding: "0 4px" }}>
+          {error}{latency ? ` (${latency}ms)` : ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Kaspo Setup Instructions
+// ---------------------------------------------------------------------------
+
+function KaspoSetupInstructions() {
+  const [expanded, setExpanded] = useState(false);
+  const webhookDomain =
+    typeof window !== "undefined" ? window.location.origin : "https://your-domain";
+
+  return (
+    <div
+      style={{
+        background: "rgba(15,23,42,0.6)",
+        borderRadius: "8px",
+        padding: "10px 12px",
+      }}
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          width: "100%",
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "monospace",
+            fontSize: "10px",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "#7DD3FC",
+            fontWeight: 600,
+          }}
+        >
+          Setup Instructions
+        </span>
+        <span style={{ fontSize: "12px", color: "#64748B", transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "rotate(0)" }}>
+          ▼
+        </span>
+      </button>
+      {expanded && (
+        <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+            <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 700, flexShrink: 0, fontFamily: "monospace" }}>1.</span>
+            <p style={{ fontSize: "11px", color: "#94A3B8", lineHeight: 1.5, margin: 0 }}>
+              Add <code style={{ background: "rgba(30,41,59,0.8)", padding: "1px 5px", borderRadius: "3px", color: "#E2E8F0", fontSize: "10px" }}>KASPO_API_KEY</code> and{" "}
+              <code style={{ background: "rgba(30,41,59,0.8)", padding: "1px 5px", borderRadius: "3px", color: "#E2E8F0", fontSize: "10px" }}>KASPO_WORKSPACE_ID</code> in Vercel Environment Variables.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+            <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 700, flexShrink: 0, fontFamily: "monospace" }}>2.</span>
+            <p style={{ fontSize: "11px", color: "#94A3B8", lineHeight: 1.5, margin: 0 }}>
+              Configure webhooks in your Kaspo dashboard pointing to:{" "}
+              <code style={{ background: "rgba(30,41,59,0.8)", padding: "1px 5px", borderRadius: "3px", color: "#7DD3FC", fontSize: "10px", wordBreak: "break-all" }}>
+                {webhookDomain}/api/webhooks/kaspo
+              </code>
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+            <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 700, flexShrink: 0, fontFamily: "monospace" }}>3.</span>
+            <p style={{ fontSize: "11px", color: "#94A3B8", lineHeight: 1.5, margin: 0 }}>
+              Redeploy the app to activate the Kaspo integration.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -393,8 +565,16 @@ export default function MessagingIntegrationsPage() {
                 ))}
               </div>
 
-              {/* Action button */}
-              <div style={{ marginTop: "auto" }}>
+              {/* Kaspo setup instructions */}
+              {channel.id === "kaspo" && <KaspoSetupInstructions />}
+
+              {/* Action buttons */}
+              <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                {/* Test Connection button for wired and partial channels */}
+                {(channel.status === "wired" || channel.status === "partial") && (
+                  <TestConnectionButton channelId={channel.id} />
+                )}
+
                 {channel.actionHref ? (
                   <Link
                     href={channel.actionHref}

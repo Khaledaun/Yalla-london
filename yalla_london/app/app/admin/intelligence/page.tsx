@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { RefreshCw, Search, TrendingUp, BarChart3, ExternalLink, Copy, Wrench } from "lucide-react";
 import {
@@ -41,7 +41,6 @@ export default function IntelligencePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Aggregate from cockpit + indexing APIs
       const [cockpitRes, indexingRes] = await Promise.all([
         fetch("/api/admin/cockpit"),
         fetch("/api/admin/content-indexing"),
@@ -50,8 +49,18 @@ export default function IntelligencePage() {
       const cockpit = cockpitRes.ok ? await cockpitRes.json() : null;
       const indexing = indexingRes.ok ? await indexingRes.json() : null;
 
+      // Cockpit provides pipeline/indexing overview
       const ix = cockpit?.indexing || {};
-      const gsc = cockpit?.indexing || {};
+      // Content-indexing API provides GSC performance + per-article data
+      const gsc = indexing?.gscPerformance || indexing?.gsc || {};
+      const topPages: Array<{ url: string; clicks: number; impressions: number; ctr: number; position: number }> =
+        (gsc.topPages || gsc.pages || []).slice(0, 10).map((p: Record<string, unknown>) => ({
+          url: (p.url || p.page || "") as string,
+          clicks: (p.clicks ?? 0) as number,
+          impressions: (p.impressions ?? 0) as number,
+          ctr: (p.ctr ?? 0) as number,
+          position: (p.position ?? 0) as number,
+        }));
 
       setData({
         indexed: ix.indexed || 0,
@@ -60,13 +69,13 @@ export default function IntelligencePage() {
         neverSubmitted: ix.neverSubmitted || 0,
         errors: ix.errors || 0,
         chronicFailures: ix.chronicFailures || 0,
-        gscClicks7d: gsc.gscTotalClicks7d || 0,
-        gscImpressions7d: gsc.gscTotalImpressions7d || 0,
-        gscClicksTrend: gsc.gscClicksTrend || null,
-        gscImpressionsTrend: gsc.gscImpressionsTrend || null,
-        avgPosition: null,
-        avgCtr: null,
-        topPages: [],
+        gscClicks7d: gsc.totalClicks ?? gsc.gscTotalClicks7d ?? ix.gscTotalClicks7d ?? 0,
+        gscImpressions7d: gsc.totalImpressions ?? gsc.gscTotalImpressions7d ?? ix.gscTotalImpressions7d ?? 0,
+        gscClicksTrend: gsc.clicksTrend ?? gsc.gscClicksTrend ?? ix.gscClicksTrend ?? null,
+        gscImpressionsTrend: gsc.impressionsTrend ?? gsc.gscImpressionsTrend ?? ix.gscImpressionsTrend ?? null,
+        avgPosition: gsc.avgPosition ?? null,
+        avgCtr: gsc.avgCtr ?? null,
+        topPages,
         issues: (ix.blockers || []).map((b: { reason: string; count: number; severity: string }) => ({
           severity: b.severity,
           message: b.reason,
@@ -83,6 +92,16 @@ export default function IntelligencePage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-poll every 30s
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (autoRefresh) {
+      intervalRef.current = setInterval(() => { fetchData(); }, 30_000);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [autoRefresh, fetchData]);
 
   const runPublicAudit = async () => {
     setAuditRunning(true);
@@ -155,9 +174,17 @@ export default function IntelligencePage() {
           title="SEO Intelligence"
           subtitle="Search performance & indexing health"
           action={
-            <AdminButton variant="ghost" size="sm" onClick={fetchData} disabled={loading}>
-              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-            </AdminButton>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`text-[10px] px-2 py-0.5 rounded-full border ${autoRefresh ? "bg-green-50 border-green-300 text-green-700" : "bg-stone-100 border-stone-300 text-stone-500"}`}
+              >
+                {autoRefresh ? "Auto" : "Paused"}
+              </button>
+              <AdminButton variant="ghost" size="sm" onClick={fetchData} disabled={loading}>
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+              </AdminButton>
+            </div>
           }
         />
 
@@ -247,9 +274,27 @@ export default function IntelligencePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <AdminKPICard label="Clicks (7d)" value={d.gscClicks7d} />
               <AdminKPICard label="Impressions (7d)" value={d.gscImpressions7d.toLocaleString()} />
-              <AdminKPICard label="Indexed Pages" value={d.indexed} />
-              <AdminKPICard label="Index Rate" value={`${d.rate}%`} />
+              <AdminKPICard label="Avg Position" value={d.avgPosition !== null ? d.avgPosition.toFixed(1) : "—"} />
+              <AdminKPICard label="Avg CTR" value={d.avgCtr !== null ? `${(d.avgCtr * 100).toFixed(1)}%` : "—"} />
             </div>
+
+            {d.topPages.length > 0 && (
+              <AdminCard>
+                <AdminSectionLabel>Top Pages (7d)</AdminSectionLabel>
+                <div className="space-y-1 mt-2">
+                  {d.topPages.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs">
+                      <span className="text-stone-700 truncate max-w-[55%]">{p.url.replace(/^https?:\/\/[^/]+/, "")}</span>
+                      <div className="flex items-center gap-3 text-stone-500">
+                        <span>{p.clicks} clicks</span>
+                        <span>{p.impressions} imp</span>
+                        <span>pos {p.position.toFixed(1)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AdminCard>
+            )}
 
             <AdminCard>
               <AdminSectionLabel>Deeper Analysis</AdminSectionLabel>

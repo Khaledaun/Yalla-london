@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
-import { getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 export const maxDuration = 30;
 
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
       id: post.id,
       slug: post.slug,
       message: "Greenwich Easter 2026 article created as draft. Publish via cockpit when ready.",
-      url: `https://www.yalla-london.com/blog/${post.slug}`,
+      url: `${getSiteDomain(post.site_id || getDefaultSiteId())}/blog/${post.slug}`,
     });
   } catch (err) {
     console.error("[seed-article] Error:", err instanceof Error ? err.message : err);

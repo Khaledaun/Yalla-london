@@ -1055,7 +1055,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
       {/* Header */}
       <div className="sticky top-0 z-10 bg-stone-50 border-b border-stone-200 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h2 className="text-sm font-bold text-white">🔍 Indexing Status</h2>
+          <h2 className="text-sm font-bold text-stone-800">🔍 Indexing Status</h2>
           <p className="text-xs text-stone-500">{siteId} — published articles only (GSC counts all URLs incl. /ar/ variants &amp; static pages)</p>
         </div>
         <div className="flex items-center gap-2">
@@ -2474,26 +2474,25 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const doBulkAction = async (action: string, label: string) => {
     if (selectedIds.size === 0) return;
     setBulkActionLoading(action);
-    let ok = 0, fail = 0;
-    for (const id of selectedIds) {
-      try {
-        const body: Record<string, string> = { action };
-        const item = data?.articles.find(a => a.id === id);
-        if (action === "re_queue" || action === "delete_draft") body.draftId = id;
-        if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
-        if (action === "publish_selected" && item?.status === "reservoir") {
-          const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: id, locale: item.locale, count: 1, siteId: activeSiteId }) });
-          if (!r.ok) { fail++; continue; }
-          const j = await r.json();
-          if (j.success) ok++; else fail++;
-          continue;
-        }
-        const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        if (!r.ok) { fail++; continue; }
+    const promises = [...selectedIds].map(async (id) => {
+      const body: Record<string, string> = { action };
+      const item = data?.articles.find(a => a.id === id);
+      if (action === "re_queue" || action === "delete_draft") body.draftId = id;
+      if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
+      if (action === "publish_selected" && item?.status === "reservoir") {
+        const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: id, locale: item.locale, count: 1, siteId: activeSiteId }) });
+        if (!r.ok) return false;
         const j = await r.json();
-        if (j.success) ok++; else fail++;
-      } catch { fail++; }
-    }
+        return !!j.success;
+      }
+      const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) return false;
+      const j = await r.json();
+      return !!j.success;
+    });
+    const results = await Promise.allSettled(promises);
+    const ok = results.filter(r => r.status === "fulfilled" && r.value === true).length;
+    const fail = results.length - ok;
     setActionResult(prev => ({ ...prev, __bulk: `✅ ${label}: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ""}` }));
     setSelectedIds(new Set());
     setBulkActionLoading(null);

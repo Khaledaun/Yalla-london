@@ -358,7 +358,7 @@ export default function AffiliateHQPage() {
 function RevenueSparkline({ total30d, total7d, trendPercent }: { total30d: number; total7d: number; trendPercent: number }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  // Build 30 synthetic daily points from the summary values we have
+  // Build 30 estimated daily averages from summary values (no fake variation)
   const recentAvg = total7d / 7;
   const earlyAvg = (total30d - total7d) / 23;
   const points: number[] = [];
@@ -367,9 +367,7 @@ function RevenueSparkline({ total30d, total7d, trendPercent }: { total30d: numbe
   for (let i = 0; i < 30; i++) {
     const blend = i / 29; // 0→1 across 30 days
     const base = earlyAvg * (1 - blend) + recentAvg * blend;
-    // Add slight variation so it looks natural
-    const seed = Math.sin(i * 2.7 + 1.3) * 0.3 + Math.sin(i * 0.9) * 0.2;
-    points.push(Math.max(0, base * (1 + seed)));
+    points.push(Math.max(0, base));
     const d = new Date(now);
     d.setDate(d.getDate() - (29 - i));
     dates.push(`${d.getDate()} ${d.toLocaleString("en", { month: "short" })}`);
@@ -412,7 +410,7 @@ function RevenueSparkline({ total30d, total7d, trendPercent }: { total30d: numbe
   return (
     <div style={{ padding: "0.5rem", background: "#f8fafc", borderRadius: 10, marginBottom: "0.75rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.2rem" }}>
-        <span style={{ fontSize: "0.7rem", color: "#6b7280", fontWeight: 600 }}>30-Day Trend</span>
+        <span style={{ fontSize: "0.7rem", color: "#6b7280", fontWeight: 600 }}>30-Day Trend <span style={{ fontWeight: 400, opacity: 0.7 }}>(est. daily avg)</span></span>
         {hoveredIdx !== null && (
           <span style={{ fontSize: "0.7rem", color: "#374151", fontWeight: 600 }}>
             {dates[hoveredIdx]}: ${points[hoveredIdx].toFixed(2)}
@@ -790,7 +788,7 @@ function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: Af
 
       {/* Action */}
       <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
-        <button onClick={() => onAction("inject_links")} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
+        <button onClick={() => { if (confirm("Inject affiliate links into all uncovered articles?")) onAction("inject_links"); }} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
           {actionLoading === "inject_links" ? "Injecting..." : "Inject Links into Uncovered Pages"}
         </button>
       </div>
@@ -815,6 +813,7 @@ function PageRow({ page, onInjectLinks, allLinks }: {
 
   const handleInject = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!confirm(`Inject affiliate links into "${page.title}"?`)) return;
     setInjecting(true);
     setInjectResult(null);
     try {
@@ -1467,7 +1466,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
             desc="Add affiliate links to uncovered articles"
             color="#16a34a"
             loading={actionLoading === "inject_links"}
-            onClick={() => onAction("inject_links")}
+            onClick={() => { if (confirm("Inject affiliate links into all uncovered articles?")) onAction("inject_links"); }}
           />
           <ActionCard
             label="Sync Commissions"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Activity, AlertTriangle, CheckCircle, ChevronDown, ChevronLeft,
   ChevronRight, Clock, Copy, Filter, Loader2, RefreshCw, RotateCcw, Server, Timer, X, XCircle,
@@ -100,8 +100,19 @@ export default function CronLogsPage() {
     finally { setLoading(false); }
   }, [page, statusFilter, jobFilter, hours]);
 
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
   useEffect(() => { setPage(1); }, [statusFilter, jobFilter, hours]);
+
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (autoRefresh) {
+      intervalRef.current = setInterval(() => { fetchLogs(); }, 30_000);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [autoRefresh, fetchLogs]);
 
   const fmt = (ms: number | null) => {
     if (ms === null) return '\u2014';
@@ -141,9 +152,21 @@ export default function CronLogsPage() {
           subtitle="Scheduled task monitoring"
           backHref="/admin/health-monitoring"
           action={
-            <AdminButton onClick={fetchLogs} loading={loading} variant="secondary" size="sm">
-              <RefreshCw size={14} />
-            </AdminButton>
+            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+              <button
+                onClick={() => setAutoRefresh(v => !v)}
+                style={{
+                  padding: "0.3rem 0.6rem", borderRadius: 6, border: "none", fontSize: "0.65rem", fontWeight: 600,
+                  background: autoRefresh ? "rgba(45,90,61,0.15)" : "rgba(107,114,128,0.12)",
+                  color: autoRefresh ? "#2D5A3D" : "#6b7280", cursor: "pointer",
+                }}
+              >
+                {autoRefresh ? "Auto" : "Paused"}
+              </button>
+              <AdminButton onClick={fetchLogs} loading={loading} variant="secondary" size="sm">
+                <RefreshCw size={14} />
+              </AdminButton>
+            </div>
           }
         />
 

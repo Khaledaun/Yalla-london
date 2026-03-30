@@ -86,6 +86,8 @@ export default function SiteControl() {
   const [isLoading, setIsLoading] = useState(true)
   const [previewMode, setPreviewMode] = useState(false)
   const [selectedBlock, setSelectedBlock] = useState<HomepageBlock | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -98,7 +100,14 @@ export default function SiteControl() {
   const loadSiteData = async () => {
     setIsLoading(true)
     try {
-      // No API for homepage blocks or media yet — start with empty state
+      const res = await fetch('/api/homepage-blocks?version=draft')
+      if (res.ok) {
+        const data = await res.json()
+        setBlocks(Array.isArray(data) ? data : [])
+      } else {
+        setBlocks([])
+      }
+
       const defaultConfig: SiteConfig = {
         id: 'default',
         homepage_json: {},
@@ -112,7 +121,6 @@ export default function SiteControl() {
         }
       }
 
-      setBlocks([])
       setMediaAssets([])
       setSiteConfig(defaultConfig)
     } catch (error) {
@@ -145,13 +153,47 @@ export default function SiteControl() {
     setBlocks(prev => [...prev, newBlock])
   }
 
-  const handleSaveHomepage = async () => {
+  const handleSaveHomepage = async (version: 'draft' | 'published' = 'draft') => {
+    setSaving(true)
+    setSaveMessage(null)
     try {
-      // Implement save logic
-      console.log('Saving homepage configuration...')
-      // API call to save blocks and config
+      const results = await Promise.allSettled(
+        blocks.map(block =>
+          fetch('/api/homepage-blocks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: block.type,
+              titleEn: block.title_en,
+              titleAr: block.title_ar,
+              contentEn: block.content_en,
+              contentAr: block.content_ar,
+              config: block.config,
+              mediaId: block.media_id,
+              position: block.position,
+              enabled: block.enabled,
+              version,
+              language: block.language,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) throw new Error(`Failed: ${res.status}`)
+            return res.json()
+          })
+        )
+      )
+      const failed = results.filter(r => r.status === 'rejected').length
+      if (failed > 0) {
+        setSaveMessage({ type: 'error', text: `${failed} of ${blocks.length} blocks failed to save` })
+      } else {
+        setSaveMessage({ type: 'success', text: version === 'published' ? 'Published!' : 'Draft saved!' })
+        await loadSiteData()
+      }
     } catch (error) {
       console.error('Failed to save homepage:', error)
+      setSaveMessage({ type: 'error', text: 'Failed to save homepage' })
+    } finally {
+      setSaving(false)
+      setTimeout(() => setSaveMessage(null), 4000)
     }
   }
 
@@ -317,21 +359,34 @@ export default function SiteControl() {
             {previewMode ? 'Exit Preview' : 'Preview'}
           </button>
           <button
-            disabled
-            title="Save not yet available"
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-lg opacity-50 cursor-not-allowed"
+            disabled={saving || blocks.length === 0}
+            onClick={() => handleSaveHomepage('draft')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              saving || blocks.length === 0
+                ? 'bg-gray-100 text-gray-400 opacity-50 cursor-not-allowed'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
             <Save className="h-4 w-4" />
-            Save Draft
+            {saving ? 'Saving...' : 'Save Draft'}
           </button>
           <button
-            disabled
-            title="Publish not yet available"
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600/50 text-white/60 rounded-lg opacity-50 cursor-not-allowed"
+            disabled={saving || blocks.length === 0}
+            onClick={() => handleSaveHomepage('published')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              saving || blocks.length === 0
+                ? 'bg-purple-600/50 text-white/60 opacity-50 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
           >
             <Upload className="h-4 w-4" />
-            Publish
+            {saving ? 'Publishing...' : 'Publish'}
           </button>
+          {saveMessage && (
+            <span className={`text-sm ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {saveMessage.text}
+            </span>
+          )}
         </div>
       </div>
 

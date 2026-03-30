@@ -6089,6 +6089,7 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
     if (func) params.set("function", func);
     if (siteId) params.set("siteId", siteId);
     const res = await fetch(`/api/admin/action-logs?${params}`);
+    if (!res.ok) return;
     const json = await res.json();
     navigator.clipboard.writeText(JSON.stringify(json, null, 2));
     setCopied("all");
@@ -6862,6 +6863,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
     setTestResult(null);
     try {
       const res = await fetch(endpoint);
+      if (!res.ok) { setTestResult(`❌ ${label}: HTTP ${res.status}`); return; }
       const json = await res.json();
       setTestResult(`✅ ${label}: ${JSON.stringify(json).slice(0, 100)}`);
     } catch (e) {

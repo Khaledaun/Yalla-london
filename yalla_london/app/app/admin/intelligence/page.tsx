@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { RefreshCw, Search, TrendingUp, BarChart3, ExternalLink, Copy, Wrench } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { RefreshCw, ExternalLink, Copy, Wrench } from "lucide-react";
 import {
   AdminCard, AdminAlertBanner, AdminButton, AdminSectionLabel, AdminStatusBadge,
   AdminKPICard, AdminPageHeader, AdminLoadingState,
@@ -29,15 +30,32 @@ interface SEOData {
 
 type TabId = "overview" | "gsc" | "audit";
 
+const VALID_TABS: TabId[] = ["overview", "gsc", "audit"];
+const AUDIT_SESSION_KEY = "intelligence_auditResult";
+
 export default function IntelligencePage() {
-  const [tab, setTab] = useState<TabId>("overview");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlTab = searchParams.get("tab") as TabId | null;
+  const [tab, setTabState] = useState<TabId>(urlTab && VALID_TABS.includes(urlTab) ? urlTab : "overview");
+  const setTab = (t: TabId) => {
+    setTabState(t);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", t);
+    router.replace(url.pathname + url.search, { scroll: false });
+  };
+
   const [data, setData] = useState<SEOData | null>(null);
   const [loading, setLoading] = useState(true);
   const [auditRunning, setAuditRunning] = useState(false);
-  const [auditResult, setAuditResult] = useState<Record<string, unknown> | null>(null);
+  const [auditResult, setAuditResult] = useState<Record<string, unknown> | null>(() => {
+    if (typeof window === "undefined") return null;
+    try { const s = sessionStorage.getItem(AUDIT_SESSION_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
   const [fixingIssue, setFixingIssue] = useState<number | null>(null);
   const [fixResult, setFixResult] = useState<{ idx: number; ok: boolean; msg: string } | null>(null);
   const [showAllAuditIssues, setShowAllAuditIssues] = useState(false);
+  const fixResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -105,6 +123,15 @@ export default function IntelligencePage() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [autoRefresh, fetchData]);
 
+  // Auto-clear fixResult after 5s so stale ✓/✗ badges don't linger
+  useEffect(() => {
+    if (fixResultTimerRef.current) clearTimeout(fixResultTimerRef.current);
+    if (fixResult) {
+      fixResultTimerRef.current = setTimeout(() => setFixResult(null), 5000);
+    }
+    return () => { if (fixResultTimerRef.current) clearTimeout(fixResultTimerRef.current); };
+  }, [fixResult]);
+
   const runPublicAudit = async () => {
     setAuditRunning(true);
     setAuditResult(null);
@@ -113,6 +140,7 @@ export default function IntelligencePage() {
       if (res.ok) {
         const result = await res.json();
         setAuditResult(result);
+        try { sessionStorage.setItem(AUDIT_SESSION_KEY, JSON.stringify(result)); } catch { /* quota */ }
       }
     } catch (err) {
       console.warn("[intelligence] audit failed:", err instanceof Error ? err.message : err);

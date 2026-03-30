@@ -312,8 +312,15 @@ export async function runContentSelector(
     for (const candidate of candidates) {
       try {
         const score = (candidate.quality_score as number) || 0;
+        // Word count: use assembled_html (the actual content for this draft's locale).
+        // For Arabic-only drafts with a paired EN draft, the pre-pub gate receives
+        // content_ar from the paired draft's assembled_html (see line ~820). For unpaired
+        // Arabic drafts, the gate gets this draft's assembled_html as content_ar.
+        // Either way, assembled_html is the correct source for word count estimation.
+        // Also check word_count DB field (populated by scoring phase) as a faster fallback.
         const html = (candidate.assembled_html as string) || "";
-        const wordCount = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const dbWordCount = candidate.word_count as number | null;
+        const wordCount = dbWordCount ?? html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
         const wouldFailWordCount = wordCount < MIN_WORD_COUNT;
         const attempts = (candidate.phase_attempts as number) || 0;
         const exhaustedEnhancement = attempts >= MAX_ENHANCEMENT_ATTEMPTS;
@@ -423,17 +430,36 @@ export async function runContentSelector(
     // force-publish the best candidate from ALL reservoir candidates anyway.
     // 65 articles stuck in reservoir earning $0 is worse than 1 imperfect article published.
     // The pre-pub gate will still catch truly broken articles.
+    // CRITICAL: Exclude drafts with gate_blocked errors at MAX_ENHANCEMENT_ATTEMPTS — these have
+    // already failed the pre-pub gate multiple times and will just loop forever (Rule #231).
     if (selected.length === 0 && candidates.length > 0) {
-      // Sort all candidates by quality_score desc
-      const sorted = [...candidates].sort((a, b) =>
-        ((b.quality_score as number) || 0) - ((a.quality_score as number) || 0)
-      );
-      const best = sorted[0];
-      selected.push(best);
-      selectedDraftIds.add(best.id as string);
-      const pairedId = best.paired_draft_id as string | null;
-      if (pairedId) selectedDraftIds.add(pairedId);
-      console.warn(`[content-selector] No publishReady candidates (all below quality/word threshold) — force-publishing best of ${candidates.length} reservoir candidates (score: ${best.quality_score}, keyword: "${best.keyword}")`);
+      // Filter out drafts that have been gate-blocked too many times
+      const eligibleForForce = candidates.filter(c => {
+        const attempts = (c.phase_attempts as number) || 0;
+        const lastError = (c.last_error as string) || "";
+        const isGateBlocked = lastError.includes("Pre-pub gate blocked");
+        // If gate-blocked and at/above enhancement limit, skip — will loop forever
+        if (isGateBlocked && attempts >= MAX_ENHANCEMENT_ATTEMPTS) {
+          console.log(`[content-selector] Skipping gate-blocked draft ${c.id} from force-publish (attempts: ${attempts}, keyword: "${c.keyword}")`);
+          return false;
+        }
+        return true;
+      });
+
+      if (eligibleForForce.length > 0) {
+        // Sort eligible candidates by quality_score desc
+        const sorted = [...eligibleForForce].sort((a, b) =>
+          ((b.quality_score as number) || 0) - ((a.quality_score as number) || 0)
+        );
+        const best = sorted[0];
+        selected.push(best);
+        selectedDraftIds.add(best.id as string);
+        const pairedId = best.paired_draft_id as string | null;
+        if (pairedId) selectedDraftIds.add(pairedId);
+        console.warn(`[content-selector] No publishReady candidates — force-publishing best of ${eligibleForForce.length} eligible reservoir candidates (score: ${best.quality_score}, keyword: "${best.keyword}")`);
+      } else {
+        console.warn(`[content-selector] ${candidates.length} reservoir candidates exist but ALL are gate-blocked at max attempts — no force-publish possible. These drafts need content expansion or manual review.`);
+      }
     }
 
     if (selected.length === 0) {
@@ -1246,12 +1272,18 @@ export async function promoteToBlogPost(
             `[content-selector] Pre-pub gate warnings for draft ${draft.id}: ${gateResult.warnings.join("; ")}`,
           );
         }
-        // Mark the draft with the gate failure and revert from "promoting" to "reservoir"
+        // Mark the draft with the gate failure, INCREMENT phase_attempts, and revert to reservoir.
+        // CRITICAL (Rule #231): Without incrementing phase_attempts, the same draft gets
+        // force-published every run via the last-resort fallback, fails the gate again, and
+        // creates an infinite loop. Once attempts >= MAX_ENHANCEMENT_ATTEMPTS, the draft is
+        // excluded from force-publish selection (see candidate filtering below).
+        const currentAttempts = (draft.phase_attempts as number) || 0;
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
             current_phase: "reservoir",
-            last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
+            phase_attempts: currentAttempts + 1,
+            last_error: `Pre-pub gate blocked (attempt ${currentAttempts + 1}): ${gateResult.blockers.join("; ")}`,
             updated_at: new Date(),
           },
         }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));

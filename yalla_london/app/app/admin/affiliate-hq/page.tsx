@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ConfirmModal } from "@/components/admin/admin-ui";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -135,6 +136,10 @@ export default function AffiliateHQPage() {
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [advFilter, setAdvFilter] = useState<"ALL" | "JOINED" | "PENDING">("ALL");
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string; message: string; details?: string;
+    onConfirm: () => void; variant?: "danger" | "warning";
+  } | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -344,10 +349,25 @@ export default function AffiliateHQPage() {
       {activeTab === "Partners" && (
         <PartnersTab data={data} onAction={runAction} actionLoading={actionLoading} filter={advFilter} onFilterChange={setAdvFilter} />
       )}
-      {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} runActionRaw={runActionRaw} />}
+      {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} runActionRaw={runActionRaw} setConfirmModal={setConfirmModal} />}
       {activeTab === "Links" && <LinksTab data={data} onAction={runAction} actionLoading={actionLoading} />}
-      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} />}
+      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} setConfirmModal={setConfirmModal} />}
       {activeTab === "System" && <SystemTab data={data} onAction={runAction} actionLoading={actionLoading} />}
+
+      {/* Shared ConfirmModal for bulk actions */}
+      {confirmModal && (
+        <ConfirmModal
+          open={true}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          details={confirmModal.details}
+          confirmLabel="Proceed"
+          variant={confirmModal.variant || "warning"}
+          loading={!!actionLoading}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -687,7 +707,9 @@ function PartnersTab({
 
 // ─── Tab 3: Coverage & Page Performance ─────────────────────────────────────
 
-function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<void> }) {
+type ConfirmModalState = { title: string; message: string; details?: string; onConfirm: () => void; variant?: "danger" | "warning" } | null;
+
+function CoverageTab({ data, onAction, actionLoading, runActionRaw, setConfirmModal }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<void>; setConfirmModal: (v: ConfirmModalState) => void }) {
   const { coverage } = data;
   const [filter, setFilter] = useState<"all" | "covered" | "uncovered">("all");
   const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "links" | "title">("clicks");
@@ -788,7 +810,12 @@ function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: Af
 
       {/* Action */}
       <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
-        <button onClick={() => { if (confirm("Inject affiliate links into all uncovered articles?")) onAction("inject_links"); }} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
+        <button onClick={() => setConfirmModal({
+          title: "Inject Affiliate Links",
+          message: "This will scan all uncovered articles and inject matching affiliate links from CJ and Travelpayouts.",
+          details: `${sorted.filter(p => !p.hasAffiliateLinks).length} uncovered articles will be processed.`,
+          onConfirm: () => { setConfirmModal(null); onAction("inject_links"); },
+        })} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
           {actionLoading === "inject_links" ? "Injecting..." : "Inject Links into Uncovered Pages"}
         </button>
       </div>
@@ -811,9 +838,15 @@ function PageRow({ page, onInjectLinks, allLinks }: {
     l.pages?.some((p) => p.url.includes(page.slug))
   );
 
+  const [showInjectConfirm, setShowInjectConfirm] = useState(false);
+
   const handleInject = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Inject affiliate links into "${page.title}"?`)) return;
+    setShowInjectConfirm(true);
+  };
+
+  const doInject = async () => {
+    setShowInjectConfirm(false);
     setInjecting(true);
     setInjectResult(null);
     try {
@@ -933,6 +966,15 @@ function PageRow({ page, onInjectLinks, allLinks }: {
           </div>
         </div>
       )}
+      <ConfirmModal
+        open={showInjectConfirm}
+        title="Inject Affiliate Links"
+        message={`Add affiliate links to "${page.title || page.slug}"?`}
+        details="Matching CJ and Travelpayouts links will be injected based on article content."
+        confirmLabel="Inject Links"
+        onConfirm={doInject}
+        onCancel={() => setShowInjectConfirm(false)}
+      />
     </div>
   );
 }
@@ -1347,7 +1389,7 @@ function StatCell({ label, value, highlight }: { label: string; value: string; h
 
 // ─── Tab 5: Actions ──────────────────────────────────────────────────────────
 
-function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null }) {
+function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null; setConfirmModal: (v: ConfirmModalState) => void }) {
   const [diagResult, setDiagResult] = useState<{
     status: string;
     issueCount: number;
@@ -1466,7 +1508,11 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
             desc="Add affiliate links to uncovered articles"
             color="#16a34a"
             loading={actionLoading === "inject_links"}
-            onClick={() => { if (confirm("Inject affiliate links into all uncovered articles?")) onAction("inject_links"); }}
+            onClick={() => setConfirmModal({
+              title: "Inject Affiliate Links",
+              message: "This will scan all uncovered articles and inject matching affiliate links from CJ and Travelpayouts.",
+              onConfirm: () => { setConfirmModal(null); onAction("inject_links"); },
+            })}
           />
           <ActionCard
             label="Sync Commissions"

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { ChevronLeft, X } from 'lucide-react'
+import { ChevronLeft, X, AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════════
    Admin UI — Shared Component Library
@@ -406,6 +406,228 @@ export function AdminTabs({
           )}
         </button>
       ))}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ConfirmModal — Accessible replacement for window.confirm()
+   ═════════════════════════════════════════════════════════════════ */
+
+export function ConfirmModal({
+  open,
+  title,
+  message,
+  details,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  variant = 'warning',
+  loading = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean
+  title: string
+  message: string
+  details?: string
+  confirmLabel?: string
+  cancelLabel?: string
+  variant?: 'danger' | 'warning'
+  loading?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+  [key: string]: unknown
+}) {
+  const confirmRef = React.useRef<HTMLButtonElement>(null)
+
+  React.useEffect(() => {
+    if (open && confirmRef.current) confirmRef.current.focus()
+  }, [open])
+
+  React.useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onCancel])
+
+  if (!open) return null
+
+  const colors = variant === 'danger'
+    ? { icon: '#dc2626', bg: 'rgba(220,38,38,0.06)', btn: '#dc2626', btnHover: '#b91c1c' }
+    : { icon: '#d97706', bg: 'rgba(217,119,6,0.06)', btn: '#d97706', btnHover: '#b45309' }
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+      aria-describedby="confirm-desc"
+    >
+      <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative bg-white rounded-xl shadow-xl border border-[rgba(214,208,196,0.6)] max-w-md w-full p-6 font-[var(--font-system)]">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: colors.bg }}>
+            <AlertTriangle size={18} color={colors.icon} />
+          </div>
+          <div>
+            <h3 id="confirm-title" className="text-[15px] font-semibold text-stone-800">{title}</h3>
+            <p id="confirm-desc" className="text-[13px] text-stone-500 mt-1 leading-relaxed">{message}</p>
+          </div>
+        </div>
+        {details && (
+          <div className="mt-3 p-3 rounded-lg bg-stone-50 border border-stone-200 text-[12px] text-stone-600 leading-relaxed max-h-32 overflow-y-auto">
+            {details}
+          </div>
+        )}
+        <div className="flex justify-end gap-2 mt-5">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg text-[13px] font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            ref={confirmRef}
+            onClick={onConfirm}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg text-[13px] font-medium text-white transition-colors disabled:opacity-50"
+            style={{ background: colors.btn }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = colors.btnHover)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = colors.btn)}
+          >
+            {loading ? 'Processing...' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AdminToast — Auto-dismissing notification
+   ═════════════════════════════════════════════════════════════════ */
+
+const TOAST_ICONS = {
+  success: CheckCircle,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Info,
+}
+const TOAST_COLORS = {
+  success: { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', icon: '#16a34a' },
+  error: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b', icon: '#dc2626' },
+  warning: { bg: '#fffbeb', border: '#fde68a', text: '#92400e', icon: '#d97706' },
+  info: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', icon: '#3b82f6' },
+}
+
+export function AdminToast({
+  message,
+  type = 'info',
+  duration = 4000,
+  onDismiss,
+}: {
+  message: string
+  type?: 'success' | 'error' | 'warning' | 'info'
+  duration?: number
+  onDismiss: () => void
+  [key: string]: unknown
+}) {
+  React.useEffect(() => {
+    if (duration <= 0) return
+    const t = setTimeout(onDismiss, duration)
+    return () => clearTimeout(t)
+  }, [duration, onDismiss])
+
+  const Icon = TOAST_ICONS[type]
+  const c = TOAST_COLORS[type]
+
+  return (
+    <div
+      className="fixed top-4 right-4 z-[9998] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border font-[var(--font-system)] text-[13px] max-w-sm"
+      style={{ background: c.bg, borderColor: c.border, color: c.text }}
+      role="alert"
+    >
+      <Icon size={16} color={c.icon} className="shrink-0" />
+      <span className="flex-1">{message}</span>
+      <button onClick={onDismiss} className="shrink-0 p-0.5 rounded hover:bg-black/5">
+        <X size={14} />
+      </button>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AdminSkeletonLoader — Shimmer placeholder for loading states
+   ═════════════════════════════════════════════════════════════════ */
+
+export function AdminSkeletonLoader({
+  lines = 3,
+  className = '',
+}: {
+  lines?: number
+  className?: string
+  [key: string]: unknown
+}) {
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <div
+          key={i}
+          className="h-4 rounded-md bg-stone-200 animate-pulse"
+          style={{ width: i === lines - 1 ? '60%' : '100%' }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AdminProgressBar — Determinate or indeterminate progress
+   ═════════════════════════════════════════════════════════════════ */
+
+export function AdminProgressBar({
+  value,
+  max = 100,
+  label,
+  color = '#C8322B',
+  size = 'sm',
+}: {
+  value?: number
+  max?: number
+  label?: string
+  color?: string
+  size?: 'sm' | 'md'
+  [key: string]: unknown
+}) {
+  const pct = value !== undefined ? Math.min(100, (value / max) * 100) : undefined
+  const h = size === 'md' ? 'h-2.5' : 'h-1.5'
+
+  return (
+    <div className="font-[var(--font-system)]">
+      {label && (
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-[11px] text-stone-500">{label}</span>
+          {pct !== undefined && <span className="text-[11px] font-medium text-stone-600">{Math.round(pct)}%</span>}
+        </div>
+      )}
+      <div className={`w-full ${h} rounded-full bg-stone-200 overflow-hidden`}>
+        {pct !== undefined ? (
+          <div
+            className={`${h} rounded-full transition-all duration-500`}
+            style={{ width: `${pct}%`, background: color }}
+          />
+        ) : (
+          <div
+            className={`${h} rounded-full w-1/3`}
+            style={{ background: color, animation: 'indeterminate 1.5s ease-in-out infinite' }}
+          />
+        )}
+      </div>
     </div>
   )
 }

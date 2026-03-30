@@ -16,7 +16,7 @@ export const maxDuration = 300;
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sanitizeKeyword } from "@/lib/content-pipeline/constants";
+import { sanitizeKeyword, RESERVOIR_CAP } from "@/lib/content-pipeline/constants";
 const BUDGET_MS = 280_000;
 
 async function handleScheduleExecutor(request: NextRequest) {
@@ -119,18 +119,18 @@ async function handleScheduleExecutor(request: NextRequest) {
     const reservoirCount = await prisma.articleDraft.count({
       where: { current_phase: "reservoir", site_id: { in: activeSiteIds } },
     });
-    if (reservoirCount >= 80) {
+    if (reservoirCount >= RESERVOIR_CAP) {
       const durationMs = Date.now() - cronStart;
       const { logCronExecution: logReservoir } = await import("@/lib/cron-logger");
       await logReservoir("schedule-executor", "completed", {
         durationMs,
         itemsProcessed: 0,
-        resultSummary: { message: `Reservoir full (${reservoirCount}/80) — skipping draft creation`, reservoirCount },
+        resultSummary: { message: `Reservoir full (${reservoirCount}/${RESERVOIR_CAP}) — skipping draft creation`, reservoirCount },
       }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
 
       return NextResponse.json({
         success: true,
-        message: `Reservoir full (${reservoirCount}/80)`,
+        message: `Reservoir full (${reservoirCount}/${RESERVOIR_CAP})`,
         ...results,
         reservoirCount,
         durationMs,

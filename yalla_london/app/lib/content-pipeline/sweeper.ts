@@ -289,7 +289,7 @@ export async function runSweeper(): Promise<SweeperResult> {
             data: {
               current_phase: "reservoir",
               last_error: "Reverted from promoting — content-selector crashed mid-promotion",
-              updated_at: new Date(),
+              // DO NOT set updated_at — inflates active draft count in content-builder-create (Rule #57, Blocker C)
             },
           });
           recovered.push({
@@ -392,7 +392,7 @@ export async function runSweeper(): Promise<SweeperResult> {
             phase_attempts: failAttempts + 1,
             last_error: null,
             phase_started_at: new Date(),
-            updated_at: new Date(),
+            // DO NOT set updated_at — inflates active draft count in content-builder-create (Rule #57, Blocker C)
           },
         });
 

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { AdminButton } from "@/components/admin/admin-ui";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
@@ -131,6 +132,35 @@ export default function PerPageAuditPage() {
   const [rowActionLoading, setRowActionLoading] = useState<Record<string, string>>({});
   const [rowActionResults, setRowActionResults] = useState<Record<string, { success: boolean; data: unknown; action: string }>>({});
   const [rowActionExpanded, setRowActionExpanded] = useState<Record<string, boolean>>({});
+
+  // Per-row inline action state: keyed by `${pageId}_${actionKey}`
+  const [inlineActionLoading, setInlineActionLoading] = useState<string | null>(null);
+  const [inlineToast, setInlineToast] = useState<{ key: string; success: boolean; msg: string } | null>(null);
+
+  const runInlineAction = async (pageId: string, actionKey: string, url: string, body: Record<string, unknown>) => {
+    const compositeKey = `${pageId}_${actionKey}`;
+    setInlineActionLoading(compositeKey);
+    setInlineToast(null);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error((errBody as Record<string, string>).error || `HTTP ${res.status}`);
+      }
+      await res.json().catch(() => ({}));
+      setInlineToast({ key: compositeKey, success: true, msg: actionKey === "submit" ? "Submitted" : actionKey === "seo_fix" ? "Fixed" : "Audited" });
+    } catch (err) {
+      setInlineToast({ key: compositeKey, success: false, msg: err instanceof Error ? err.message : "Failed" });
+    } finally {
+      setInlineActionLoading(null);
+      // Auto-clear toast after 4s
+      setTimeout(() => setInlineToast((prev) => (prev?.key === compositeKey ? null : prev)), 4000);
+    }
+  };
 
   // Phase 4B: Bulk action states
   const [bulkLoading, setBulkLoading] = useState<Record<string, boolean>>({});
@@ -326,44 +356,40 @@ export default function PerPageAuditPage() {
         </div>
       )}
 
-      {/* Phase 4B: Sticky Quick Actions Bar */}
+      {/* Sticky Quick Actions Bar */}
       {!loading && pages.length > 0 && (
-        <div className="mx-4 mb-3 p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 space-y-2">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Quick Actions</p>
+        <div className="sticky top-[110px] z-10 mx-4 mb-3 p-3 rounded-lg bg-zinc-900/80 backdrop-blur border border-zinc-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Bulk Actions</p>
+            {bulkResult && (
+              <button onClick={() => setBulkResult(null)} className="text-zinc-500 hover:text-zinc-300 text-xs">Dismiss</button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
-            <button
+            <AdminButton
+              variant="success"
+              size="sm"
+              loading={!!bulkLoading["submit_all"]}
               onClick={() => runBulkAction("submit_all", "/api/admin/content-indexing", { action: "submit_all", siteId })}
-              disabled={!!bulkLoading["submit_all"]}
-              className="px-3 py-1.5 text-xs font-medium rounded bg-emerald-900/60 text-emerald-300 hover:bg-emerald-800/60 border border-emerald-700/50 disabled:opacity-50"
             >
-              {bulkLoading["submit_all"] ? (
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" /> Submitting…</span>
-              ) : (
-                "Submit All Never-Indexed"
-              )}
-            </button>
-            <button
-              onClick={() => runBulkAction("full_audit", "/api/admin/seo-audit", { action: "full_audit", siteId })}
-              disabled={!!bulkLoading["full_audit"]}
-              className="px-3 py-1.5 text-xs font-medium rounded bg-blue-900/60 text-blue-300 hover:bg-blue-800/60 border border-blue-700/50 disabled:opacity-50"
+              {bulkLoading["submit_all"] ? "Submitting…" : `Submit All Never-Indexed (${pages.filter(p => p.indexingStatus !== "indexed").length})`}
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="sm"
+              loading={!!bulkLoading["full_audit"]}
+              onClick={() => runBulkAction("full_audit", "/api/admin/per-page-audit", { action: "full_audit", siteId })}
             >
-              {bulkLoading["full_audit"] ? (
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> Running…</span>
-              ) : (
-                "Run Full Audit"
-              )}
-            </button>
-            <button
+              {bulkLoading["full_audit"] ? "Running…" : "Run Full Audit"}
+            </AdminButton>
+            <AdminButton
+              variant="secondary"
+              size="sm"
+              loading={!!bulkLoading["refresh_gsc"]}
               onClick={() => runBulkAction("refresh_gsc", "/api/admin/departures", { action: "do_now", path: "/api/cron/gsc-sync" })}
-              disabled={!!bulkLoading["refresh_gsc"]}
-              className="px-3 py-1.5 text-xs font-medium rounded bg-violet-900/60 text-violet-300 hover:bg-violet-800/60 border border-violet-700/50 disabled:opacity-50"
             >
-              {bulkLoading["refresh_gsc"] ? (
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" /> Syncing…</span>
-              ) : (
-                "Refresh GSC Data"
-              )}
-            </button>
+              {bulkLoading["refresh_gsc"] ? "Syncing…" : "Refresh GSC Data"}
+            </AdminButton>
           </div>
 
           {/* Bulk result banner */}
@@ -487,6 +513,45 @@ export default function PerPageAuditPage() {
                 </div>
               </button>
 
+              {/* Per-row action buttons — always visible */}
+              <div className="flex items-center gap-1.5 px-3 pb-2 -mt-1 flex-wrap">
+                {page.indexingStatus !== "indexed" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); runInlineAction(page.id, "submit", "/api/admin/content-indexing", { action: "submit", url: page.url }); }}
+                    disabled={inlineActionLoading === `${page.id}_submit`}
+                    className="px-2 py-0.5 text-[10px] font-medium rounded bg-emerald-900/50 text-emerald-300 hover:bg-emerald-800/50 border border-emerald-700/40 disabled:opacity-50 transition-colors"
+                  >
+                    {inlineActionLoading === `${page.id}_submit` ? (
+                      <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 border border-emerald-400 border-t-transparent rounded-full animate-spin" />Submitting</span>
+                    ) : "Submit to Google"}
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); runInlineAction(page.id, "seo_fix", "/api/admin/seo-intelligence", { action: "fix_page", articleId: page.id }); }}
+                  disabled={inlineActionLoading === `${page.id}_seo_fix`}
+                  className="px-2 py-0.5 text-[10px] font-medium rounded bg-amber-900/50 text-amber-300 hover:bg-amber-800/50 border border-amber-700/40 disabled:opacity-50 transition-colors"
+                >
+                  {inlineActionLoading === `${page.id}_seo_fix` ? (
+                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 border border-amber-400 border-t-transparent rounded-full animate-spin" />Fixing</span>
+                  ) : "Run SEO Fix"}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); runInlineAction(page.id, "audit", "/api/admin/per-page-audit", { action: "audit_url", url: page.url }); }}
+                  disabled={inlineActionLoading === `${page.id}_audit`}
+                  className="px-2 py-0.5 text-[10px] font-medium rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 border border-blue-700/40 disabled:opacity-50 transition-colors"
+                >
+                  {inlineActionLoading === `${page.id}_audit` ? (
+                    <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 border border-blue-400 border-t-transparent rounded-full animate-spin" />Auditing</span>
+                  ) : "Audit"}
+                </button>
+                {/* Inline toast */}
+                {inlineToast && (inlineToast.key === `${page.id}_submit` || inlineToast.key === `${page.id}_seo_fix` || inlineToast.key === `${page.id}_audit`) && (
+                  <span className={`px-1.5 py-0.5 text-[10px] rounded ${inlineToast.success ? "bg-emerald-950/40 text-emerald-400" : "bg-red-950/40 text-red-400"}`}>
+                    {inlineToast.success ? "\u2713" : "\u2717"} {inlineToast.msg}
+                  </span>
+                )}
+              </div>
+
               {/* Expanded details */}
               {isExpanded && (
                 <div className="px-3 pb-3 border-t border-zinc-800/50 pt-2 space-y-3">
@@ -597,13 +662,13 @@ export default function PerPageAuditPage() {
                     </div>
                   )}
 
-                  {/* Phase 4A: Per-row action buttons */}
+                  {/* Per-row action buttons (expanded detail view) */}
                   <div>
                     <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">Actions</p>
                     <div className="flex flex-wrap gap-2">
                       {/* Audit This URL */}
                       <button
-                        onClick={() => runRowAction(page.id, "audit_url", "/api/admin/seo-audit", { action: "audit_url", url: page.url, siteId })}
+                        onClick={() => runRowAction(page.id, "audit_url", "/api/admin/per-page-audit", { action: "audit_url", url: page.url })}
                         disabled={!!rowActionLoading[`${page.id}_audit_url`]}
                         className="px-2.5 py-1 text-xs font-medium rounded bg-blue-900/60 text-blue-300 hover:bg-blue-800/60 border border-blue-700/50 disabled:opacity-50"
                       >
@@ -617,7 +682,7 @@ export default function PerPageAuditPage() {
                       {/* Submit to Google — only when not indexed */}
                       {page.indexingStatus !== "indexed" && (
                         <button
-                          onClick={() => runRowAction(page.id, "submit_google", "/api/admin/content-indexing", { action: "submit", slug: page.slug, siteId })}
+                          onClick={() => runRowAction(page.id, "submit_google", "/api/admin/content-indexing", { action: "submit", url: page.url })}
                           disabled={!!rowActionLoading[`${page.id}_submit_google`]}
                           className="px-2.5 py-1 text-xs font-medium rounded bg-emerald-900/60 text-emerald-300 hover:bg-emerald-800/60 border border-emerald-700/50 disabled:opacity-50"
                         >
@@ -631,7 +696,7 @@ export default function PerPageAuditPage() {
 
                       {/* Run SEO Fix */}
                       <button
-                        onClick={() => runRowAction(page.id, "seo_fix", "/api/admin/seo-intelligence", { action: "fix_article", articleId: page.id, siteId })}
+                        onClick={() => runRowAction(page.id, "seo_fix", "/api/admin/seo-intelligence", { action: "fix_page", articleId: page.id })}
                         disabled={!!rowActionLoading[`${page.id}_seo_fix`]}
                         className="px-2.5 py-1 text-xs font-medium rounded bg-amber-900/60 text-amber-300 hover:bg-amber-800/60 border border-amber-700/50 disabled:opacity-50"
                       >

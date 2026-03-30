@@ -16,6 +16,8 @@ interface AffiliateHQData {
     clicks7d: number;
     topAdvertisers: Array<{ name: string; commission: number }>;
     topArticlesByClicks: Array<{ url: string; clicks: number }>;
+    byNetwork?: Array<{ network: string; clicks30d: number; commissions30d: number; conversionRate: number }>;
+    clicksByDay?: Array<{ date: string; clicks: number }>;
   };
   partners: {
     networks: Array<{
@@ -544,6 +546,67 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
         <KpiCard label="Clicks (7d)" value={String(revenue.clicks7d)} />
         <KpiCard label="Coverage" value={`${data.coverage.coveragePercent}%`} />
       </div>
+
+      {/* Per-Network Attribution Table */}
+      {revenue.byNetwork && revenue.byNetwork.length > 0 && (
+        <div style={{ marginBottom: "1rem", background: "#fff", border: "1px solid rgba(214,208,196,0.6)", borderRadius: 12, overflow: "hidden" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, padding: "0.75rem 1rem 0.5rem", margin: 0, borderBottom: "1px solid #f3f4f6" }}>Revenue by Network</h3>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+            <thead>
+              <tr style={{ background: "#fafaf8" }}>
+                <th style={{ textAlign: "left", padding: "0.5rem 1rem", fontWeight: 600, color: "#57534e" }}>Network</th>
+                <th style={{ textAlign: "right", padding: "0.5rem 0.75rem", fontWeight: 600, color: "#57534e" }}>Clicks</th>
+                <th style={{ textAlign: "right", padding: "0.5rem 0.75rem", fontWeight: 600, color: "#57534e" }}>Revenue</th>
+                <th style={{ textAlign: "right", padding: "0.5rem 1rem", fontWeight: 600, color: "#57534e" }}>Conv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenue.byNetwork.map((n) => (
+                <tr key={n.network} style={{ borderTop: "1px solid #f3f4f6" }}>
+                  <td style={{ padding: "0.5rem 1rem", fontWeight: 500 }}>{n.network}</td>
+                  <td style={{ textAlign: "right", padding: "0.5rem 0.75rem" }}>{n.clicks30d}</td>
+                  <td style={{ textAlign: "right", padding: "0.5rem 0.75rem", color: n.commissions30d > 0 ? "#16a34a" : undefined, fontWeight: n.commissions30d > 0 ? 600 : 400 }}>
+                    {n.commissions30d > 0 ? `$${n.commissions30d.toFixed(2)}` : "—"}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "0.5rem 1rem", color: n.conversionRate > 0 ? "#C49A2A" : "#a8a29e" }}>
+                    {n.conversionRate > 0 ? `${n.conversionRate}%` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 30-Day Click Trend (bar sparkline) */}
+      {revenue.clicksByDay && revenue.clicksByDay.some(d => d.clicks > 0) && (
+        <div style={{ marginBottom: "1rem" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>30-Day Click Trend</h3>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60, background: "#fafaf8", borderRadius: 8, padding: "0.5rem 0.25rem" }}>
+            {(() => {
+              const maxClicks = Math.max(...revenue.clicksByDay!.map(d => d.clicks), 1);
+              return revenue.clicksByDay!.map((d) => (
+                <div
+                  key={d.date}
+                  title={`${d.date}: ${d.clicks} clicks`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    background: d.clicks > 0 ? "#3B7EA1" : "#e7e5e4",
+                    borderRadius: 2,
+                    height: `${Math.max((d.clicks / maxClicks) * 100, d.clicks > 0 ? 8 : 3)}%`,
+                    transition: "height 0.2s ease",
+                  }}
+                />
+              ));
+            })()}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "#a8a29e", marginTop: 4 }}>
+            <span>{revenue.clicksByDay![0]?.date.slice(5)}</span>
+            <span>{revenue.clicksByDay![revenue.clicksByDay!.length - 1]?.date.slice(5)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Top Advertisers — Revenue Bars */}
       {revenue.topAdvertisers.length > 0 && (

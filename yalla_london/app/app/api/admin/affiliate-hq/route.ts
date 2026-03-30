@@ -19,6 +19,8 @@ const EMPTY_REVENUE = {
   total30d: 0, total7d: 0, count30d: 0, trendPercent: 0, clicks7d: 0,
   topAdvertisers: [] as Array<{ name: string; commission: number }>,
   topArticlesByClicks: [] as Array<{ url: string; clicks: number }>,
+  byNetwork: [] as Array<{ network: string; clicks30d: number; commissions30d: number; conversionRate: number }>,
+  clicksByDay: [] as Array<{ date: string; clicks: number }>,
 };
 
 const EMPTY_LINKS = {
@@ -115,6 +117,41 @@ export async function GET(request: NextRequest) {
       take: 10,
     });
 
+    // ── Per-network attribution: CJ clicks + commissions vs Travelpayouts/Stay22 (audit log clicks) ──
+    const [cjClicks30d, auditClicks30d, clicksByDayRaw] = await Promise.all([
+      prisma.cjClickEvent.count({
+        where: { createdAt: { gte: d30 }, ...clickSiteFilter },
+      }),
+      prisma.auditLog.count({
+        where: { action: "affiliate_click", timestamp: { gte: d30 }, ...(siteId ? { details: { path: ["siteId"], equals: siteId } } : {}) },
+      }),
+      prisma.cjClickEvent.groupBy({
+        by: ["createdAt"],
+        where: { createdAt: { gte: d30 }, ...clickSiteFilter },
+        _count: true,
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+    // Bucket clicks by date (CJ only — audit log clicks aggregated separately)
+    const clickDayMap = new Map<string, number>();
+    for (const row of clicksByDayRaw) {
+      const day = new Date(row.createdAt).toISOString().slice(0, 10);
+      clickDayMap.set(day, (clickDayMap.get(day) || 0) + row._count);
+    }
+    const clicksByDay: Array<{ date: string; clicks: number }> = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+      clicksByDay.push({ date: d, clicks: clickDayMap.get(d) || 0 });
+    }
+
+    const cjConvRate = cjClicks30d > 0 ? ((commissions30d._count || 0) / cjClicks30d) * 100 : 0;
+    const byNetwork = [
+      { network: "CJ Affiliate", clicks30d: cjClicks30d, commissions30d: rev30, conversionRate: Math.round(cjConvRate * 10) / 10 },
+      { network: "Travelpayouts", clicks30d: auditClicks30d, commissions30d: 0, conversionRate: 0 },
+      { network: "Stay22", clicks30d: 0, commissions30d: 0, conversionRate: 0 },
+    ].filter(n => n.clicks30d > 0 || n.commissions30d > 0 || n.network === "CJ Affiliate");
+
     revenue = {
       total30d: rev30,
       total7d: commissions7d._sum.commissionAmount || 0,
@@ -129,6 +166,8 @@ export async function GET(request: NextRequest) {
         url: c.pageUrl,
         clicks: c._count,
       })),
+      byNetwork,
+      clicksByDay,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

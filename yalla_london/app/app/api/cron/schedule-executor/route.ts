@@ -17,7 +17,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeKeyword } from "@/lib/content-pipeline/constants";
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 280_000;
 
 async function handleScheduleExecutor(request: NextRequest) {
   const cronStart = Date.now();

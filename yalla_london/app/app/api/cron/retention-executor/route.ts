@@ -70,13 +70,13 @@ async function handler(request: NextRequest) {
       console.warn(`[retention-executor] ${msg} — nothing to do, returning success`);
       try {
         const { logCronExecution } = await import("@/lib/cron-logger");
-        await logCronExecution("retention-executor", "completed", {
+        await logCronExecution("retention-executor", "failed", {
           durationMs: Date.now() - startTime,
           itemsProcessed: 0,
           resultSummary: { message: msg, emailsSent: 0 },
         });
       } catch { /* best effort */ }
-      return NextResponse.json({ success: true, durationMs: Date.now() - startTime, emailsSent: 0, note: msg });
+      return NextResponse.json({ success: false, durationMs: Date.now() - startTime, emailsSent: 0, note: msg });
     }
 
     // -----------------------------------------------------------------------
@@ -195,6 +195,7 @@ async function handler(request: NextRequest) {
     await logCronExecution("retention-executor", overallStatus, {
       durationMs: Date.now() - startTime,
       itemsProcessed: totalSent,
+      errorMessage: errors.length > 0 ? errors.join("; ") : undefined,
       resultSummary: {
         emailsSent: totalSent,
         stepsAdvanced: totalAdvanced,

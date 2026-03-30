@@ -25,7 +25,7 @@ import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
-const MIN_WORD_COUNT = 1000;
+const MIN_WORD_COUNT = CONTENT_QUALITY.minWords; // 500 — aligned with standards.ts
 const MAX_WORD_COUNT_ENHANCES = 1;
 const MAX_LOW_SCORE_ENHANCES = 1;
 
@@ -1488,8 +1488,9 @@ async function handleAutoFix(request: NextRequest) {
     resultSummary: results,
   }).catch((e) => console.warn("[content-auto-fix] Log failed:", e instanceof Error ? e.message : e));
 
+  const isSuccess = !(hasErrors && totalFixed === 0);
   return NextResponse.json({
-    success: true,
+    success: isSuccess,
     durationMs,
     results,
     summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesUnpublished}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}`,

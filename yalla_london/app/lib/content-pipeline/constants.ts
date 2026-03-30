@@ -100,6 +100,11 @@ export const SECOND_DRAFT_MIN_BUDGET_MS = 60_000; // 60 seconds
 // drafting). Ensures enough time for DB writes and cron log finalization.
 export const BUILD_RUNNER_BUDGET_RESERVE_MS = 15_000; // 15 seconds
 
+// ─── Reservoir Cap ──────────────────────────────────────────────────────────
+// Maximum articles in reservoir before content-builder-create and
+// schedule-executor skip new draft creation (saves AI budget).
+export const RESERVOIR_CAP = 80;
+
 // ─── Active Draft Exclusion ─────────────────────────────────────────────────
 // Drafts not updated within this window are considered stuck (not active).
 // Prevents diagnostic-agent-touched drafts from blocking new creation.

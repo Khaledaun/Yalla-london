@@ -1187,7 +1187,10 @@ export async function GET(request: NextRequest) {
 
     // 9. Log cron execution
     const itemsSucceeded = itemsPublished + itemsUpdated;
-    await logCronExecution("london-news", "completed", {
+    // Grok failure with zero published = not a success (Rule #130-132: status must reflect actual outcomes)
+    const isSuccess = itemsPublished > 0 || grokResult.status !== "failed";
+    const cronStatus = isSuccess ? "completed" : "failed";
+    await logCronExecution("london-news", cronStatus, {
       durationMs,
       itemsProcessed: itemsFound,
       itemsSucceeded,
@@ -1207,7 +1210,7 @@ export async function GET(request: NextRequest) {
 
     // 10. Return response with metrics
     return NextResponse.json({
-      success: true,
+      success: isSuccess,
       agent: "london-news-carousel",
       runType,
       timestamp: today.toISOString(),

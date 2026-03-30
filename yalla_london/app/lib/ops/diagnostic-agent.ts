@@ -452,7 +452,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         // Reducing by 2 gives the draft 2 more chances while preserving lifetime history.
         // But if already at permanent cap (5+), reject instead of reducing — prevents
         // infinite loops where diagnostic-agent keeps resurrecting permanently failed drafts.
-        if ((draft.phase_attempts || 0) >= 5) {
+        if ((draft.phase_attempts || 0) >= LIFETIME_RECOVERY_CAP) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {
@@ -527,9 +527,9 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
           };
         }
 
-        // For other stuck phases, mark as needs_manual_review if 5+ attempts
-        // Unified cap: all recovery paths use 5 as the permanent failure threshold.
-        if ((diagnosis.attempts || 0) >= 5) {
+        // For other stuck phases, mark as needs_manual_review if at permanent cap
+        // Unified cap: all recovery paths use LIFETIME_RECOVERY_CAP as the permanent failure threshold.
+        if ((diagnosis.attempts || 0) >= LIFETIME_RECOVERY_CAP) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: {
@@ -569,7 +569,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
         // Check permanent cap FIRST — prevents infinite loops where bad_data keeps
         // resetting attempts to 0 and the draft fails with the same error forever.
         const bdAttempts = draft.phase_attempts || 0;
-        if (bdAttempts >= 5) {
+        if (bdAttempts >= LIFETIME_RECOVERY_CAP) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
@@ -609,7 +609,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
       case "provider_down": {
         // Check permanent cap FIRST — prevents infinite loops when provider stays down
         const pdAttempts = draft.phase_attempts || 0;
-        if (pdAttempts >= 5) {
+        if (pdAttempts >= LIFETIME_RECOVERY_CAP) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
@@ -649,7 +649,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
       default: {
         // Unknown — check permanent cap first, then reduce attempts
         const unkAttempts = draft.phase_attempts || 0;
-        if (unkAttempts >= 5) {
+        if (unkAttempts >= LIFETIME_RECOVERY_CAP) {
           await prisma.articleDraft.update({
             where: { id: draft.id },
             data: { current_phase: "rejected", last_error: "MAX_RECOVERIES_EXCEEDED" },
@@ -840,7 +840,7 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
         current_phase: {
           in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
         },
-        phase_attempts: { gte: 5 },
+        phase_attempts: { gte: LIFETIME_RECOVERY_CAP },
       },
       data: {
         current_phase: "rejected",

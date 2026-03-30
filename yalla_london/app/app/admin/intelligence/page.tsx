@@ -35,6 +35,8 @@ export default function IntelligencePage() {
   const [loading, setLoading] = useState(true);
   const [auditRunning, setAuditRunning] = useState(false);
   const [auditResult, setAuditResult] = useState<Record<string, unknown> | null>(null);
+  const [fixingIssue, setFixingIssue] = useState<number | null>(null);
+  const [fixResult, setFixResult] = useState<{ idx: number; ok: boolean; msg: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -153,8 +155,8 @@ export default function IntelligencePage() {
           title="SEO Intelligence"
           subtitle="Search performance & indexing health"
           action={
-            <AdminButton variant="ghost" size="sm" onClick={fetchData}>
-              <RefreshCw size={13} />
+            <AdminButton variant="ghost" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             </AdminButton>
           }
         />
@@ -208,8 +210,17 @@ export default function IntelligencePage() {
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs text-stone-600">{issue.count}</span>
                         {issue.fixEndpoint && (
-                          <AdminButton variant="secondary" size="sm" onClick={() => fetch(issue.fixEndpoint!, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(issue.fixPayload || {}) })}>
-                            <Wrench size={10} /> Fix
+                          <AdminButton variant="secondary" size="sm" disabled={fixingIssue === i} onClick={async () => {
+                            setFixingIssue(i); setFixResult(null);
+                            try {
+                              const res = await fetch(issue.fixEndpoint!, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(issue.fixPayload || {}) });
+                              if (!res.ok) { setFixResult({ idx: i, ok: false, msg: `HTTP ${res.status}` }); return; }
+                              setFixResult({ idx: i, ok: true, msg: "Fixed" });
+                              fetchData();
+                            } catch (err) { console.warn("[intelligence] fix failed:", err); setFixResult({ idx: i, ok: false, msg: "Failed" }); }
+                            finally { setFixingIssue(null); }
+                          }}>
+                            {fixingIssue === i ? <RefreshCw size={10} className="animate-spin" /> : <Wrench size={10} />} {fixingIssue === i ? "Fixing…" : fixResult?.idx === i ? (fixResult.ok ? "✓" : "✗") : "Fix"}
                           </AdminButton>
                         )}
                       </div>

@@ -25,7 +25,7 @@ import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
-const MIN_WORD_COUNT = 1000;
+const MIN_WORD_COUNT = CONTENT_QUALITY.minWords; // 500 — aligned with standards.ts
 const MAX_WORD_COUNT_ENHANCES = 1;
 const MAX_LOW_SCORE_ENHANCES = 1;
 

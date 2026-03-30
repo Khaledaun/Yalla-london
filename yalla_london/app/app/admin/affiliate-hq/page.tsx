@@ -250,10 +250,12 @@ export default function AffiliateHQPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, ...extra }),
     });
-    if (!res.ok) throw new Error("Request failed");
-    const json = await res.json();
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    let json;
+    try { json = await res.json(); } catch { throw new Error("Invalid response format"); }
     if (!json.success) throw new Error(json.error || "Action failed");
     setTimeout(fetchData, 2000);
+    return json;
   };
 
   if (loading) {
@@ -324,10 +326,12 @@ export default function AffiliateHQPage() {
       )}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", overflowX: "auto" }}>
+      <div role="tablist" aria-label="Affiliate HQ sections" style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", overflowX: "auto" }}>
         {TABS.map((tab) => (
           <button
             key={tab}
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             style={{
               padding: "0.5rem 1rem",
@@ -579,13 +583,14 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
       )}
 
       {/* 30-Day Click Trend (bar sparkline) */}
-      {revenue.clicksByDay && revenue.clicksByDay.some(d => d.clicks > 0) && (
+      {revenue.clicksByDay && revenue.clicksByDay.length > 0 && revenue.clicksByDay.some(d => d.clicks > 0) && (
         <div style={{ marginBottom: "1rem" }}>
           <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>30-Day Click Trend</h3>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60, background: "#fafaf8", borderRadius: 8, padding: "0.5rem 0.25rem" }}>
             {(() => {
-              const maxClicks = Math.max(...revenue.clicksByDay!.map(d => d.clicks), 1);
-              return revenue.clicksByDay!.map((d) => (
+              const days = revenue.clicksByDay ?? [];
+              const maxClicks = Math.max(...days.map(d => d.clicks), 1);
+              return days.map((d) => (
                 <div
                   key={d.date}
                   title={`${d.date}: ${d.clicks} clicks`}
@@ -602,8 +607,8 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
             })()}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "#a8a29e", marginTop: 4 }}>
-            <span>{revenue.clicksByDay![0]?.date.slice(5)}</span>
-            <span>{revenue.clicksByDay![revenue.clicksByDay!.length - 1]?.date.slice(5)}</span>
+            <span>{revenue.clicksByDay?.[0]?.date?.slice(5) ?? ""}</span>
+            <span>{revenue.clicksByDay?.[revenue.clicksByDay.length - 1]?.date?.slice(5) ?? ""}</span>
           </div>
         </div>
       )}
@@ -772,7 +777,7 @@ function PartnersTab({
 
 type ConfirmModalState = { title: string; message: string; details?: string; onConfirm: () => void; variant?: "danger" | "warning" } | null;
 
-function CoverageTab({ data, onAction, actionLoading, runActionRaw, setConfirmModal }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<void>; setConfirmModal: (v: ConfirmModalState) => void }) {
+function CoverageTab({ data, onAction, actionLoading, runActionRaw, setConfirmModal }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<Record<string, unknown>>; setConfirmModal: (v: ConfirmModalState) => void }) {
   const { coverage } = data;
   const [filter, setFilter] = useState<"all" | "covered" | "uncovered">("all");
   const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "links" | "title">("clicks");
@@ -929,7 +934,7 @@ function PageRow({ page, onInjectLinks, allLinks }: {
         border: `1px solid ${page.hasAffiliateLinks ? "#e5e7eb" : "#fecaca"}`,
       }}
     >
-      <div onClick={() => setExpanded(!expanded)} style={{ padding: "0.5rem 0.6rem", cursor: "pointer" }}>
+      <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }} style={{ padding: "0.5rem 0.6rem", cursor: "pointer" }}>
         {/* Title + coverage badge */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.3rem", marginBottom: "0.2rem" }}>
           <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#111827", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1050,10 +1055,14 @@ function LinkDetailModal({ link, onClose }: {
 }) {
   const [copied, setCopied] = useState(false);
 
-  const copyUrl = () => {
-    navigator.clipboard.writeText(link.affiliateUrl || link.destinationUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const copyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(link.affiliateUrl || link.destinationUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      console.warn("[affiliate-hq] Clipboard write failed");
+    }
   };
 
   const fmtDate = (d: string | null) => {
@@ -1702,7 +1711,7 @@ function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a
                 navigator.clipboard.writeText(json).then(() => {
                   setAuditCopied(true);
                   setTimeout(() => setAuditCopied(false), 2000);
-                });
+                }).catch(() => console.warn("[affiliate-hq] Clipboard write failed"));
               }}
               style={{
                 padding: "0.4rem 0.75rem", fontSize: "0.75rem", fontWeight: 600,

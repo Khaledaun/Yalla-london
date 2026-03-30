@@ -1151,12 +1151,17 @@ export async function phaseScoring(
   // Content depth
   const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + (wordCount / 30));
 
-  // Quality gate — threshold from centralized SEO standards (single source of truth).
-  // When standards.ts is updated after algorithm changes, this threshold updates automatically.
-  let qualityGateThreshold = 40; // fallback (matches CONTENT_QUALITY.qualityGateScore)
+  // Quality gate — per-content-type thresholds from centralized SEO standards.
+  // Comparisons (65), reviews (60), guides (50) are held to higher standards than blog (40).
+  let qualityGateThreshold = 40; // fallback (matches CONTENT_QUALITY.qualityGateScore for blog)
   try {
-    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
-    qualityGateThreshold = CONTENT_QUALITY.qualityGateScore;
+    const { getThresholdsForPageType, CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    // Use articleType from SEO phase (stored in seo_meta), or detect from keyword
+    const draftPageType = (seo.articleType as string)
+      || (seo.pageType as string)
+      || "blog";
+    const typeThresholds = getThresholdsForPageType(draftPageType);
+    qualityGateThreshold = typeThresholds?.qualityGateScore ?? CONTENT_QUALITY.qualityGateScore;
   } catch (e) {
     console.warn("[phases] Failed to import standards.ts, using fallback threshold:", e instanceof Error ? e.message : e);
   }

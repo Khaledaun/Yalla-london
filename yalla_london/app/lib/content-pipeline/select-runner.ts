@@ -295,23 +295,27 @@ export async function runContentSelector(
 
     // Separate candidates into publish-ready and needs-enhancement.
     //
-    // An article needs enhancement if EITHER:
-    //   A. Quality score < 70 (quality gate threshold), OR
-    //   B. Word count < 1,000 (pre-pub gate hard block — even a 90-score article
-    //      gets blocked at publication time if it has fewer than 1,000 words, since
-    //      the quality scorer and pre-pub gate use DIFFERENT word count rules)
+    // Uses per-content-type thresholds from standards.ts (e.g., comparison=65, review=60, blog=40).
+    // This ensures comparisons and reviews are held to higher standards than news items.
     //
     // Enhancement: Grok researches fresh angles, expands to 2,000+ words, adds
     // experience signals, headings, internal links, affiliate placeholders, and
     // rewrites the meta description. Re-scored after enhancement.
-    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 55 (lowered from 70 — March 18, 2026)
-    const MIN_WORD_COUNT = CONTENT_QUALITY.minWords || 1000; // pre-pub gate hard block
+    const { getThresholdsForPageType } = await import("@/lib/seo/standards");
     const publishReady: Array<Record<string, unknown>> = [];
     const needsEnhancement: Array<Record<string, unknown>> = [];
 
     for (const candidate of candidates) {
       try {
-        const score = (candidate.quality_score as number) || 0;
+        // Determine per-content-type thresholds (comparison=65, review=60, blog=40, etc.)
+        const candidatePageType = (candidate.seo_meta as Record<string, unknown>)?.pageType as string
+          || (candidate.research_data as Record<string, unknown>)?.suggestedPageType as string
+          || "blog";
+        const typeThresholds = getThresholdsForPageType(candidatePageType);
+        const PUBLISH_THRESHOLD = typeThresholds.qualityGateScore;
+        const MIN_WORD_COUNT = typeThresholds.minWords;
+
+        const score = (candidate.quality_score as number) ?? (candidate.seo_score as number) ?? 50;
         // Word count: use assembled_html (the actual content for this draft's locale).
         // For Arabic-only drafts with a paired EN draft, the pre-pub gate receives
         // content_ar from the paired draft's assembled_html (see line ~820). For unpaired

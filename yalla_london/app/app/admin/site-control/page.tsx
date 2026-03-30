@@ -317,15 +317,17 @@ export default function SiteControl() {
             {previewMode ? 'Exit Preview' : 'Preview'}
           </button>
           <button
-            onClick={handleSaveHomepage}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            disabled
+            title="Save not yet available"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-lg opacity-50 cursor-not-allowed"
           >
             <Save className="h-4 w-4" />
             Save Draft
           </button>
           <button
-            onClick={handlePublishHomepage}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            disabled
+            title="Publish not yet available"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600/50 text-white/60 rounded-lg opacity-50 cursor-not-allowed"
           >
             <Upload className="h-4 w-4" />
             Publish

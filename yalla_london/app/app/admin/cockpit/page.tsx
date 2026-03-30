@@ -865,8 +865,9 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
     setError(null);
     try {
       const res = await fetch(`/api/admin/content-indexing?siteId=${siteId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || `HTTP ${res.status}`);
+      if (!json.success) throw new Error(json.error || `HTTP ${res.status}`);
       setData(json);
       // Push fresh summary numbers back to the cockpit so Mission tab stays in sync
       if (onSummaryUpdate && json.summary) {
@@ -898,6 +899,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "submit", slugs: [slug] }),
       });
+      if (!res.ok) { setSubmitResult(`❌ HTTP ${res.status}`); await fetchData(); return; }
       const json = await res.json();
       setSubmitResult(json.success ? `✅ Submitted "${slug}" for indexing` : `❌ ${json.error || "Submit failed"}`);
       await fetchData();
@@ -917,6 +919,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "submit_all" }),
       });
+      if (!res.ok) { setSubmitResult(`❌ HTTP ${res.status}`); await fetchData(); return; }
       const json = await res.json();
       setSubmitResult(json.success ? `✅ Submitted all articles for indexing` : `❌ ${json.error || "Submit failed"}`);
       await fetchData();
@@ -936,6 +939,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "verify_url", url, siteId }),
       });
+      if (!res.ok) { setSubmitResult(`❌ HTTP ${res.status}`); await fetchData(); return; }
       const json = await res.json();
       if (json.success) {
         setSubmitResult(json.isIndexed
@@ -962,6 +966,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "resubmit_stuck", siteId }),
       });
+      if (!res.ok) { setSubmitResult(`❌ HTTP ${res.status}`); await fetchData(); return; }
       const json = await res.json();
       setSubmitResult(json.success
         ? `✅ Resubmitted ${json.resubmitted} stuck articles`
@@ -1723,6 +1728,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fetchBody),
       });
+      if (!res.ok) { setActionResult(`❌ ${label}: HTTP ${res.status}`); return; }
       const json = await res.json();
       if (json.success === false) {
         setActionResult(`❌ ${label}: ${json.error || "Failed"}`);
@@ -1954,21 +1960,30 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
             {(indexing.discovered ?? 0) > 0 && (
               <button
                 onClick={async () => {
+                  setActionLoading("submit-discovered");
+                  setActionResult(null);
                   try {
                     const res = await fetch("/api/admin/content-indexing", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ action: "submit_discovered", siteId }),
                     });
+                    if (!res.ok) { setActionResult(`HTTP ${res.status} — submit failed`); return; }
                     const json = await res.json();
+                    setActionResult(json.success ? `Submitted ${json.submitted ?? 0} discovered article(s)` : (json.error || "Submit failed"));
                     if (json.success && json.submitted > 0) {
                       onRefresh();
                     }
-                  } catch { /* silently fail — refresh will show current state */ }
+                  } catch (e) {
+                    setActionResult(e instanceof Error ? e.message : "Error submitting");
+                  } finally {
+                    setActionLoading(null);
+                  }
                 }}
-                className="mt-2 w-full text-xs bg-[rgba(196,154,42,0.08)] hover:bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border border-[rgba(196,154,42,0.25)] rounded py-1.5 px-3 transition-colors"
+                disabled={actionLoading === "submit-discovered"}
+                className="mt-2 w-full text-xs bg-[rgba(196,154,42,0.08)] hover:bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border border-[rgba(196,154,42,0.25)] rounded py-1.5 px-3 transition-colors disabled:opacity-50"
               >
-                Submit {indexing.discovered} discovered article{indexing.discovered === 1 ? "" : "s"} to Google
+                {actionLoading === "submit-discovered" ? "Submitting…" : `Submit ${indexing.discovered} discovered article${indexing.discovered === 1 ? "" : "s"} to Google`}
               </button>
             )}
             {indexing.dataSource === "lightweight" && (
@@ -2369,7 +2384,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ action: "re_queue", draftId: d.id }),
-                    }).then((r) => r.json())
+                    }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
                   )
                 );
                 const succeeded = results.filter(
@@ -2468,11 +2483,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
         if (action === "publish_selected" && item?.status === "reservoir") {
           const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: id, locale: item.locale, count: 1, siteId: activeSiteId }) });
+          if (!r.ok) { fail++; continue; }
           const j = await r.json();
           if (j.success) ok++; else fail++;
           continue;
         }
         const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (!r.ok) { fail++; continue; }
         const j = await r.json();
         if (j.success) ok++; else fail++;
       } catch { fail++; }
@@ -2531,8 +2548,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           language: "en",
         }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error || json.detail || `HTTP ${res.status}`);
+      if (json.error) throw new Error(json.error || json.detail || `HTTP ${res.status}`);
       setResearchedTopics(json.topics || []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Research failed";
@@ -2587,6 +2605,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           })),
         }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setBulkResult(json);
       if (json.success) {
@@ -2609,6 +2628,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "gate_check", draftId: item.id }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.checks) setGateResults((prev) => ({ ...prev, [item.id]: json.checks }));
     } catch (e) {
@@ -2634,6 +2654,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (!res.ok) { setActionResult((prev) => ({ ...prev, [id]: `❌ HTTP ${res.status}` })); return; }
       const json = await res.json();
       setActionResult((prev) => ({ ...prev, [id]: json.success ? `✅ ${label} done` : `❌ ${json.error}` }));
       fetchData();
@@ -2978,6 +2999,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     setCronResponsePanel(null);
                     try {
                       const r = await fetch("/api/cron/content-builder", { method: "POST" });
+                      if (!r.ok) throw new Error(`HTTP ${r.status}`);
                       const j = await r.json();
                       setActionResult((prev) => ({ ...prev, __builder: j.success !== false ? "✅ Builder triggered" : `❌ ${j.error ?? "Failed"}` }));
                       setCronResponsePanel({ label: "Run Pipeline", data: j });
@@ -2996,6 +3018,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     setCronResponsePanel(null);
                     try {
                       const r = await fetch("/api/cron/content-selector", { method: "POST" });
+                      if (!r.ok) throw new Error(`HTTP ${r.status}`);
                       const j = await r.json();
                       setActionResult((prev) => ({ ...prev, __selector: j.success !== false ? "✅ Selector ran" : `❌ ${j.error ?? "Failed"}` }));
                       setCronResponsePanel({ label: "Publish Ready", data: j });
@@ -3228,6 +3251,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                             setActionLoading(`publish-${item.id}`);
                                             try {
                                               const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1, siteId: activeSiteId }) });
+                                              if (!r.ok) { setActionResult((prev) => ({ ...prev, [item.id]: `❌ HTTP ${r.status}` })); return; }
                                               const j = await r.json();
                                               setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
                                               fetchData();
@@ -3266,6 +3290,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                           setActionLoading(`index-${item.id}`);
                                           try {
                                             const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
+                                            if (!r.ok) { setActionResult((prev) => ({ ...prev, [item.id]: `❌ HTTP ${r.status}` })); return; }
                                             const j = await r.json();
                                             setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Submitted" : `❌ ${j.error ?? "Failed"}` }));
                                             fetchData();
@@ -3386,6 +3411,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
     setActionResult(null);
     try {
       const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setActionResult(json.success !== false ? `✅ ${label} triggered` : `❌ ${json.error || "Failed"}`);
     } catch (e) {
@@ -3548,6 +3574,7 @@ function CronsTab() {
         opts.body = JSON.stringify(body);
       }
       const res = await fetch(endpoint, opts);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setActionResult((prev) => ({ ...prev, [name]: json.success !== false ? "✅ Triggered" : `❌ ${json.error ?? "Failed"}` }));
       fetchData();
@@ -4169,6 +4196,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save_report", siteId }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setSeoAuditResult((prev) => ({ ...prev, [siteId]: json as SeoAuditResult }));
@@ -4188,6 +4216,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const loadAuditHistory = async (siteId: string) => {
     try {
       const res = await fetch(`/api/admin/seo-audit?siteId=${encodeURIComponent(siteId)}&history=true`);
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success && json.reports) {
         setSeoAuditHistory((prev) => ({ ...prev, [siteId]: json.reports }));
@@ -4201,6 +4230,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
     setSeoAuditLoading(siteId);
     try {
       const res = await fetch(`/api/admin/seo-audit?reportId=${encodeURIComponent(reportId)}`);
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         setSeoAuditResult((prev) => ({ ...prev, [siteId]: json as SeoAuditResult }));
@@ -4303,6 +4333,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ siteId, locale: "both", count: 1 }),
       });
+      if (!r.ok) { setPublishResult((prev) => ({ ...prev, [siteId]: `❌ HTTP ${r.status}` })); return; }
       const j = await r.json();
       setPublishResult((prev) => ({ ...prev, [siteId]: j.success ? `✅ ${j.published?.length ?? 0} article(s) published` : `❌ ${j.error ?? "No articles ready"}` }));
     } catch (e) {
@@ -5833,6 +5864,7 @@ function AIConfigTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ routes }),
       });
+      if (!res.ok) { setSaveResult(`❌ HTTP ${res.status}`); return; }
       const json = await res.json();
       setSaveResult(json.success !== false ? "✅ Routes saved" : `❌ ${json.error}`);
     } catch (e) {
@@ -5851,6 +5883,7 @@ function AIConfigTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "test_all" }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       // API returns array of {provider, success, latencyMs, error} — convert to object keyed by provider
       const results = json.results ?? json;

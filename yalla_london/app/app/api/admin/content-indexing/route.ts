@@ -649,7 +649,7 @@ export async function GET(request: NextRequest) {
     if (posts.length > 0) {
       // Check if any recent posts might be missing from sitemap
       const recentPosts = posts.filter((p) => {
-        const pubDate = p.published_at || p.created_at;
+        const pubDate = p.created_at;
         return pubDate && Date.now() - new Date(pubDate).getTime() < 7 * 24 * 60 * 60 * 1000;
       });
       if (recentPosts.length > 0 && neverSubmitted > 0) {

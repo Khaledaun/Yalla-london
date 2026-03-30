@@ -32,8 +32,8 @@ export default function MembersPage() {
       />
       <AdminEmptyState
         icon={Users}
-        title="No team members"
-        description="Team member management coming soon."
+        title="No team members yet"
+        description="Team member management is planned for a future release. Author profiles used for article bylines are configured in lib/content-pipeline/author-rotation.ts."
       />
     </div>
   )

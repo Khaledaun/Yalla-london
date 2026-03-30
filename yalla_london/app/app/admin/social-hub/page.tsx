@@ -95,6 +95,7 @@ export default function SocialHubPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
+      if (!res.ok) { setActionResult(`✗ ${action} failed (HTTP ${res.status})`); return; }
       const data = await res.json();
       setActionResult(data.success ? `✓ ${action} succeeded` : `✗ ${data.error}`);
       if (data.success) fetchData();
@@ -314,6 +315,7 @@ export default function SocialHubPage() {
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ action: "mark_published", postId: p.id }),
                             });
+                            if (!res.ok) { setActionResult(`✗ HTTP ${res.status}`); return; }
                             const data = await res.json();
                             setActionResult(data.success ? "\u2713 Marked as published" : `\u2717 ${data.error || "Failed"}`);
                             if (data.success) fetchData();

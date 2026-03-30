@@ -473,10 +473,12 @@ export default function PromptsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <AdminButton variant="ghost" size="sm" onClick={() => setShowVersionHistory(true)}>
-                        <History size={12} />
-                        History
-                      </AdminButton>
+                      <span title="No version history available yet">
+                        <AdminButton variant="ghost" size="sm" disabled>
+                          <History size={12} />
+                          History
+                        </AdminButton>
+                      </span>
                       <AdminButton variant="ghost" size="sm" onClick={handleCopyPrompt}>
                         <Copy size={12} />
                         Copy

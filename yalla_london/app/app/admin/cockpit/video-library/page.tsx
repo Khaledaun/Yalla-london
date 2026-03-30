@@ -259,23 +259,32 @@ export default function VideoLibraryPage() {
               <option value="used">Used</option>
               <option value="retired">Retired</option>
             </select>
-            <select
-              value={filter.collection}
-              onChange={e => { setFilter(f => ({ ...f, collection: e.target.value })); setPage(1); }}
-              style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 }}
-            >
-              <option value="">All Collections</option>
-              {stats?.byCollection?.filter(c => c.collection).map(c => (
-                <option key={c.collection} value={c.collection!}>
-                  {c.collection} ({c.count})
-                </option>
+            {/* Collection filter tabs */}
+            <div style={{ display: "flex", gap: 4, overflowX: "auto", flexShrink: 0 }}>
+              {[
+                { value: "", label: "All", count: stats?.total ?? 0 },
+                ...(stats?.byCollection?.filter(c => c.collection).map(c => ({
+                  value: c.collection!, label: c.collection!, count: c.count,
+                })) ?? []),
+                ...(stats?.collections?.filter(c => !stats?.byCollection?.some(b => b.collection === c.slug)).map(col => ({
+                  value: col.slug, label: col.name, count: col.pageCount,
+                })) ?? []),
+              ].map(tab => (
+                <button
+                  key={tab.value}
+                  onClick={() => { setFilter(f => ({ ...f, collection: tab.value })); setPage(1); }}
+                  style={{
+                    padding: "5px 10px", borderRadius: 6, border: "1px solid",
+                    borderColor: filter.collection === tab.value ? "#3B7EA1" : "#ddd",
+                    background: filter.collection === tab.value ? "#3B7EA1" : "#fff",
+                    color: filter.collection === tab.value ? "#fff" : "#333",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  {tab.label} ({tab.count})
+                </button>
               ))}
-              {stats?.collections?.filter(c => !stats.byCollection?.some(b => b.collection === c.slug)).map(col => (
-                <option key={col.slug} value={col.slug}>
-                  {col.name} ({col.pageCount})
-                </option>
-              ))}
-            </select>
+            </div>
             <input
               placeholder="Search tags, text..."
               value={filter.search}

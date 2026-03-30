@@ -1444,6 +1444,7 @@ async function testDbConnection(): Promise<TestSuiteResult> {
 async function testDesignCrud(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
   let createdId = "";
 
   // CREATE
@@ -1452,7 +1453,7 @@ async function testDesignCrud(): Promise<TestSuiteResult> {
       data: {
         title: "__test_design__",
         type: "banner",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         canvasData: { nodes: [], version: 1 },
         width: 1200,
         height: 630,
@@ -1527,13 +1528,14 @@ async function testDesignCrud(): Promise<TestSuiteResult> {
 async function testEmailTemplateCrud(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
   let createdId = "";
 
   try {
     const rec = await prisma.emailTemplate.create({
       data: {
         name: "__test_email_template__",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         type: "newsletter",
         htmlContent: "<h1>Test</h1>",
       },
@@ -1584,13 +1586,14 @@ async function testEmailTemplateCrud(): Promise<TestSuiteResult> {
 async function testEmailCampaignCrud(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
   let createdId = "";
 
   try {
     const rec = await prisma.emailCampaign.create({
       data: {
         name: "__test_campaign__",
-        site: "yalla-london",
+        site: getDefaultSiteId(),
         subject: "Test Subject",
         htmlContent: "<p>Test campaign</p>",
       },

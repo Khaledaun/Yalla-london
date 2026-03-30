@@ -71,6 +71,11 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "affiliate-sync-commissions": "CRON_AFFILIATE_SYNC_COMMISSIONS",
   "affiliate-discover-deals": "CRON_AFFILIATE_DISCOVER_DEALS",
   "affiliate-refresh-links": "CRON_AFFILIATE_REFRESH_LINKS",
+  // Direct directory names (vercel.json uses these paths under /api/affiliate/cron/)
+  "sync-advertisers": "CRON_AFFILIATE_SYNC_ADVERTISERS",
+  "sync-commissions": "CRON_AFFILIATE_SYNC_COMMISSIONS",
+  "discover-deals": "CRON_AFFILIATE_DISCOVER_DEALS",
+  "refresh-links": "CRON_AFFILIATE_REFRESH_LINKS",
   "perplexity-scheduler": "CRON_PERPLEXITY_SCHEDULER",
   "perplexity-executor": "CRON_PERPLEXITY_EXECUTOR",
   "ceo-intelligence": "CRON_CEO_INTELLIGENCE",

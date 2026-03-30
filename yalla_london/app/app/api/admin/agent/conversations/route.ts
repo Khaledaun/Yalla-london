@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
     const channel = searchParams.get("channel");
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit")) || 20));
     const offset = (page - 1) * limit;
@@ -34,6 +36,16 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = { siteId };
     if (channel) where.channel = channel;
     if (status) where.status = status;
+    if (dateFrom || dateTo) {
+      const createdAt: Record<string, Date> = {};
+      if (dateFrom) createdAt.gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        createdAt.lte = end;
+      }
+      where.createdAt = createdAt;
+    }
     if (search) {
       where.OR = [
         { contactName: { contains: search, mode: "insensitive" } },

@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const maxDuration = 30;
 
@@ -25,7 +26,7 @@ const GREENWICH_ARTICLE = {
   meta_description_en: "Discover Greenwich this Easter 2026. Luxury dining, Cutty Sark, Royal Observatory, and family activities with the newly reopened DLR station.",
   meta_description_ar: "اكتشف غرينتش في عيد الفصح 2026. مطاعم فاخرة، كاتي سارك، المرصد الملكي، وأنشطة عائلية مع إعادة افتتاح محطة DLR.",
   category_name: "experiences",
-  siteId: "yalla-london",
+  siteId: getDefaultSiteId(),
 
   content_en: `
 <article>

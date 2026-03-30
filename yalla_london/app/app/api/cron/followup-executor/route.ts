@@ -237,6 +237,8 @@ async function handler(request: NextRequest) {
     await logCronExecution("followup-executor", overallStatus, {
       durationMs: Date.now() - startTime,
       itemsProcessed: totalProcessed,
+      itemsSucceeded: totalSucceeded,
+      errorMessage: errors.length > 0 ? errors.join("; ") : undefined,
       resultSummary: {
         processed: totalProcessed,
         succeeded: totalSucceeded,

@@ -287,6 +287,7 @@ async function handleScheduleExecutor(request: NextRequest) {
     await logCron2("schedule-executor", "completed", {
       durationMs,
       itemsProcessed: results.draftsQueued,
+      itemsSucceeded: results.draftsQueued, // draftsQueued IS the success count — they were created in DB
       resultSummary: results,
     }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
 

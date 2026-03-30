@@ -207,6 +207,7 @@ export default function SkillsManagementPage() {
       params.set('include_inactive', 'true')
 
       const response = await fetch(`/api/admin/skills?${params}`)
+      if (!response.ok) { toast.error(`Failed to load skills (${response.status})`); return }
       const data = await response.json()
 
       if (data.success) {
@@ -233,7 +234,7 @@ export default function SkillsManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
-
+      if (!response.ok) { toast.error(`Failed to create skill (${response.status})`); return }
       const data = await response.json()
 
       if (data.success) {
@@ -259,7 +260,7 @@ export default function SkillsManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
-
+      if (!response.ok) { toast.error(`Failed to update skill (${response.status})`); return }
       const data = await response.json()
 
       if (data.success) {
@@ -285,6 +286,7 @@ export default function SkillsManagementPage() {
         method: 'DELETE',
       })
 
+      if (!response.ok) { toast.error(`Failed to delete skill (${response.status})`); return }
       const data = await response.json()
 
       if (data.success) {
@@ -309,6 +311,7 @@ export default function SkillsManagementPage() {
         body: JSON.stringify({ is_active: !skill.is_active }),
       })
 
+      if (!response.ok) { toast.error(`Failed to update skill (${response.status})`); return }
       const data = await response.json()
 
       if (data.success) {

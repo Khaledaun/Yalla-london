@@ -100,6 +100,7 @@ export default function SEOAuditsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'run_full_audit' }),
       })
+      if (!res.ok) { setAuditMessage(`Audit failed (${res.status})`); return }
       const data = await res.json()
       if (data.success) {
         setAuditMessage(`Audited ${data.audited}/${data.total} articles. Average score: ${data.averageScore}%. Took ${Math.round(data.durationMs / 1000)}s.`)
@@ -122,6 +123,7 @@ export default function SEOAuditsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'run_audit', data: { contentId: articleId } }),
       })
+      if (!res.ok) { console.warn(`[seo-audits] Single audit failed (${res.status})`); return }
       const data = await res.json()
       if (data.success) {
         await loadArticles()
@@ -145,6 +147,7 @@ export default function SEOAuditsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'apply_quick_fix', data: { articleId, fixType } }),
       })
+      if (!res.ok) { console.warn(`[seo-audits] Quick fix failed (${res.status})`); return }
       const data = await res.json()
       if (data.success) {
         // Re-audit after fix

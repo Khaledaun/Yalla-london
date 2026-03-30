@@ -433,6 +433,7 @@ export default function HealthMonitoringPage() {
     setAlertSent(null);
     try {
       const res = await fetch('/api/admin/health-monitor/alerts', { method: 'POST' });
+      if (!res.ok) { setAlertSent(`Health check failed (${res.status})`); return; }
       const data = await res.json();
       if (data.emailSent) {
         setAlertSent(`Alert email sent! ${data.issueCount} issue(s) found.`);

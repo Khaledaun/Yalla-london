@@ -1918,7 +1918,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "AI charter matchmaker refinement",
       description: "Test and refine the /charter-planner AI multi-step flow. Verify it recommends real yachts from DB. Tune preference questions for GCC clientele (halal catering, prayer times, family-friendly).",
       testType: "charter-planner-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-04-20", startDate: "2026-04-12", category: "content",
       dependsOn: ["Z.1.1"],
     },

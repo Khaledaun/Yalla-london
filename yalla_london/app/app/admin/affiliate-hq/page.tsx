@@ -205,8 +205,23 @@ export default function AffiliateHQPage() {
           if (r.result.errors?.length) lines.push(`Errors: ${r.result.errors.slice(0, 3).join(" | ")}`);
         }
 
+        // Affiliate injection summary — show exactly which articles got which partners
+        if (r.postsInjected !== undefined) {
+          lines.push(`Articles checked: ${r.postsChecked ?? "?"}, needing injection: ${r.postsNeedingInjection ?? "?"}, injected: ${r.postsInjected}`);
+          if (Array.isArray(r.results) && r.results.length > 0) {
+            lines.push(`--- What changed ---`);
+            for (const entry of r.results.slice(0, 10)) {
+              const partners = Array.isArray(entry.partners) ? entry.partners.join(", ") : "unknown";
+              lines.push(`  • ${entry.slug} → ${partners}`);
+            }
+            if (r.results.length > 10) lines.push(`  … and ${r.results.length - 10} more`);
+          } else if (r.postsInjected === 0) {
+            lines.push(`No articles needed new affiliate links.`);
+          }
+        }
+
         // Duration
-        if (r.durationMs) lines.push(`Duration: ${(r.durationMs / 1000).toFixed(1)}s`);
+        if (r.durationMs || r.duration) lines.push(`Duration: ${((r.durationMs || r.duration) / 1000).toFixed(1)}s`);
 
         // If skipped
         if (r.skipped) lines.push(`⚠ Skipped: ${r.message || "not configured"}`);

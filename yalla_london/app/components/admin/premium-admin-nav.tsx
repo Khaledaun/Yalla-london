@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { safeLocalGet, safeLocalSet } from '@/lib/safe-storage'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   LayoutDashboard,
@@ -294,6 +295,13 @@ export const adminSections: NavSection[] = [
         href: '/admin/cockpit/finance',
         description: 'Stripe + Mercury + Affiliate revenue',
       },
+      {
+        id: 'kaspo-b2b',
+        label: 'Kaspo B2B',
+        icon: Users,
+        href: '/admin/kaspo',
+        description: 'B2B agent management, content access',
+      },
     ],
   },
 
@@ -360,7 +368,7 @@ export function PremiumAdminNav({
   const activeSiteIds = getActiveSiteIds()
   const [selectedSiteId, setSelectedSiteId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('selectedSiteId')
+      const stored = safeLocalGet('selectedSiteId')
       if (stored && activeSiteIds.includes(stored)) return stored
     }
     return activeSiteIds[0] || getDefaultSiteId()
@@ -372,7 +380,7 @@ export function PremiumAdminNav({
     if (activeSiteIds.length < 2) return
     const idx = activeSiteIds.indexOf(selectedSiteId)
     const nextId = activeSiteIds[(idx + 1) % activeSiteIds.length]
-    localStorage.setItem('selectedSiteId', nextId)
+    safeLocalSet('selectedSiteId', nextId)
     document.cookie = `x-site-id=${nextId};path=/;max-age=31536000`
     window.location.reload()
   }

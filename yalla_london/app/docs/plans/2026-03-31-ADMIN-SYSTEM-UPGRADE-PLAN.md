@@ -21,7 +21,7 @@
 | 1A | CSS Variable Token System | P1 | DONE |
 | 3A | Public SEO Audit Tool (`/tools/seo-audit`) | P1 | DONE |
 | 8 | Notification System (API + bell icon) | P1 | DONE |
-| 5A | Kaspo B2B Admin Section | P2 | TODO |
+| 5A | Kaspo B2B Admin Section | P2 | DONE |
 | 1A+ | CSS variable migration (remaining hardcoded values) | P2 | TODO |
 | 7B | Replace direct sessionStorage calls | P2 | TODO |
 | 2B | Affiliate HQ Revenue Attribution Table | P3 | DONE |
@@ -245,3 +245,20 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
   - Per-article snapshot list with title, slug, partners, expiry countdown
   - All destructive actions go through ConfirmModal
   - Status messages with success/error coloring
+
+### Phase 5A — Kaspo B2B Admin Section (March 31, 2026)
+- Created `app/admin/kaspo/page.tsx` (968 lines) — full B2B agent management page
+  - 3 tabs: Agents, Content Access, Activity
+  - KPI cards: Active Agents, PDF Downloads, Top Guide, New This Month
+  - Agent table with desktop/mobile views, status badges, actions (Activate/Suspend/Reset)
+  - Invite Agent modal with email, name, company fields
+  - Content Access tab: 6 toggles (guides, hotel reviews, restaurant guides, event calendar, exclusive deals, custom itineraries)
+  - Activity feed with per-type icons and timestamps
+  - Uses admin-ui components throughout, CSS variables, `res.ok` guards
+- Created `app/api/admin/kaspo/route.ts` (385 lines) — CRUD API
+  - GET: agents, KPIs, contentAccessSettings, activityFeed
+  - POST: invite_agent, update_status, update_access
+  - Uses Lead model with `lead_source = "kaspo"` as agent proxy
+  - SiteSettings for content access persistence
+  - Protected with `requireAdmin`
+- Added "Kaspo B2B" link to sidebar navigation in `premium-admin-nav.tsx` under Commerce section

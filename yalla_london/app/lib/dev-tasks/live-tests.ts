@@ -234,6 +234,17 @@ const TEST_REGISTRY: Record<string, TestFn> = {
   "seo-adaptation-verify": testSeoAdaptationVerify,
   "error-pattern-verify": testErrorPatternVerify,
   "knowledge-transfer-verify": testKnowledgeTransferVerify,
+  // Zenitha Yachts 90-Day Execution Plan
+  "whatsapp-config-verify": testWhatsappConfigVerify,
+  "social-accounts-verify": testSocialAccountsVerify,
+  "yacht-sync-verify": testYachtSyncVerify,
+  "charter-planner-verify": testCharterPlannerVerify,
+  "google-ads-verify": testGoogleAdsVerify,
+  "broker-partnerships-verify": testBrokerPartnershipsVerify,
+  "events-calendar-verify": testEventsCalendarVerify,
+  "analytics-tracking-verify": testAnalyticsTrackingVerify,
+  "myba-membership-verify": testMybaMembershipVerify,
+  "crm-pipeline-verify": testCrmPipelineVerify,
 };
 
 export function getAvailableTestTypes(): string[] {
@@ -3377,5 +3388,142 @@ async function testKnowledgeTransferVerify(): Promise<LiveTestResult> {
     plainLanguage: `Knowledge transfer: CLAUDE.md=${claudeMd}, AUDIT-LOG.md=${auditLog}, FUNCTIONING-ROADMAP.md=${roadmap}. Manual docs exist. Automated session-to-session knowledge persistence not yet built.`,
     json: { claudeMd, auditLog, roadmap, status: "partial" },
     error: { code: "NOT_IMPLEMENTED", message: "Automated knowledge transfer not built", where: "lib/intelligence/", howToFix: "Build automated knowledge persistence: extract key decisions/fixes from each session → structured DB → context injection for next session." },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZENITHA YACHTS 90-DAY EXECUTION PLAN — Test Functions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── WhatsApp Config Verify ─────────────────────────────────────────────────────
+async function testWhatsappConfigVerify(): Promise<LiveTestResult> {
+  const webhookRoute = fileCheck("app/api/webhooks/whatsapp/route.ts");
+  const channelAdapter = fileCheck("lib/agents/channels/whatsapp.ts");
+  const hasPhoneId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const hasToken = !!process.env.WHATSAPP_ACCESS_TOKEN;
+  const hasVerify = !!process.env.WHATSAPP_VERIFY_TOKEN;
+  const envReady = hasPhoneId && hasToken && hasVerify;
+  return makeResult({
+    success: webhookRoute && channelAdapter && envReady,
+    readiness: (webhookRoute ? 30 : 0) + (channelAdapter ? 30 : 0) + (envReady ? 40 : 0),
+    plainLanguage: `WhatsApp: webhook=${webhookRoute}, adapter=${channelAdapter}, env vars=${envReady} (PHONE_ID=${hasPhoneId}, TOKEN=${hasToken}, VERIFY=${hasVerify}).`,
+    json: { webhookRoute, channelAdapter, hasPhoneId, hasToken, hasVerify },
+    error: !envReady ? { code: "MISSING_ENV", message: "WhatsApp env vars not configured", where: "Vercel env vars", howToFix: "Add WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_VERIFY_TOKEN to Vercel." } : undefined,
+  });
+}
+
+// ── Social Accounts Verify ─────────────────────────────────────────────────────
+async function testSocialAccountsVerify(): Promise<LiveTestResult> {
+  const scheduler = fileCheck("lib/social/scheduler.ts");
+  const socialCron = fileCheck("app/api/cron/social/route.ts");
+  const calendarPage = fileCheck("app/admin/social-calendar/page.tsx");
+  return makeResult({
+    success: false, readiness: scheduler && socialCron && calendarPage ? 30 : 10,
+    plainLanguage: `Social accounts: scheduler=${scheduler}, cron=${socialCron}, calendar page=${calendarPage}. Code ready. Instagram + LinkedIn accounts for Zenitha Yachts need to be created manually.`,
+    json: { scheduler, socialCron, calendarPage, status: "code-ready-needs-accounts" },
+    error: { code: "MANUAL_ACTION", message: "Instagram + LinkedIn accounts not yet created for Zenitha Yachts", where: "External platforms", howToFix: "Create @zenithayachts on Instagram (business account) and LinkedIn company page. Add profile photos, bios, website links." },
+  });
+}
+
+// ── Yacht Sync Verify ──────────────────────────────────────────────────────────
+async function testYachtSyncVerify(): Promise<LiveTestResult> {
+  const syncRoute = fileCheck("app/api/admin/yachts/sync/route.ts");
+  const yachtApi = fileCheck("app/api/admin/yachts/route.ts");
+  const publicApi = fileCheck("app/api/yachts/route.ts");
+  return makeResult({
+    success: syncRoute && yachtApi && publicApi,
+    readiness: (syncRoute ? 40 : 0) + (yachtApi ? 30 : 0) + (publicApi ? 30 : 0),
+    plainLanguage: `Yacht sync: sync route=${syncRoute}, admin API=${yachtApi}, public API=${publicApi}. Manual sync endpoint exists. External API integration (NauSYS/MMK) is future work.`,
+    json: { syncRoute, yachtApi, publicApi },
+  });
+}
+
+// ── Charter Planner Verify ─────────────────────────────────────────────────────
+async function testCharterPlannerVerify(): Promise<LiveTestResult> {
+  const plannerPage = fileCheck("app/charter-planner/page.tsx");
+  const inquiryApi = fileCheck("app/api/inquiry/route.ts");
+  const recommendApi = fileCheck("app/api/yachts/recommend/route.ts");
+  return makeResult({
+    success: plannerPage && inquiryApi,
+    readiness: (plannerPage ? 40 : 0) + (inquiryApi ? 30 : 0) + (recommendApi ? 30 : 0),
+    plainLanguage: `Charter planner: page=${plannerPage}, inquiry API=${inquiryApi}, recommend API=${recommendApi}. AI matchmaker multi-step planner built.`,
+    json: { plannerPage, inquiryApi, recommendApi },
+  });
+}
+
+// ── Google Ads Verify ──────────────────────────────────────────────────────────
+async function testGoogleAdsVerify(): Promise<LiveTestResult> {
+  const hasGadsId = !!process.env.GOOGLE_ADS_CUSTOMER_ID;
+  const hasGadsToken = !!process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  return makeResult({
+    success: false, readiness: hasGadsId && hasGadsToken ? 20 : 0,
+    plainLanguage: `Google Ads: customer ID=${hasGadsId}, developer token=${hasGadsToken}. Google Ads integration is Phase Z.4 (months 4-6). Not yet built.`,
+    json: { hasGadsId, hasGadsToken, status: "future" },
+    error: { code: "NOT_IMPLEMENTED", message: "Google Ads integration not yet built", where: "lib/ads/", howToFix: "Phase Z.4 item. Create Google Ads account, set up campaign for 'yacht charter mediterranean' keywords, add GOOGLE_ADS_CUSTOMER_ID + GOOGLE_ADS_DEVELOPER_TOKEN env vars." },
+  });
+}
+
+// ── Broker Partnerships Verify ─────────────────────────────────────────────────
+async function testBrokerPartnershipsVerify(): Promise<LiveTestResult> {
+  const brokerApi = fileCheck("app/api/admin/yachts/brokers/route.ts");
+  const brokerPage = fileCheck("app/admin/yachts/brokers/page.tsx");
+  return makeResult({
+    success: brokerApi && brokerPage,
+    readiness: (brokerApi ? 50 : 0) + (brokerPage ? 50 : 0),
+    plainLanguage: `Broker partnerships: API=${brokerApi}, admin page=${brokerPage}. CRUD infrastructure built. Need to seed actual broker contacts and begin outreach.`,
+    json: { brokerApi, brokerPage },
+  });
+}
+
+// ── Events Calendar Verify ─────────────────────────────────────────────────────
+async function testEventsCalendarVerify(): Promise<LiveTestResult> {
+  const eventsApi = fileCheck("lib/apis/events.ts");
+  const eventsCron = fileCheck("app/api/cron/events-sync/route.ts");
+  const hasTicketmaster = !!process.env.TICKETMASTER_API_KEY;
+  return makeResult({
+    success: eventsApi && eventsCron && hasTicketmaster,
+    readiness: (eventsApi ? 30 : 0) + (eventsCron ? 30 : 0) + (hasTicketmaster ? 40 : 0),
+    plainLanguage: `Events calendar: API lib=${eventsApi}, sync cron=${eventsCron}, Ticketmaster key=${hasTicketmaster}. Currently serving London events — needs yacht show + boat show events for Zenitha.`,
+    json: { eventsApi, eventsCron, hasTicketmaster },
+  });
+}
+
+// ── Analytics Tracking Verify ──────────────────────────────────────────────────
+async function testAnalyticsTrackingVerify(): Promise<LiveTestResult> {
+  const ga4DataApi = fileCheck("lib/seo/ga4-data-api.ts");
+  const measurementProtocol = fileCheck("lib/analytics/ga4-measurement-protocol.ts");
+  const hasGA4Id = !!process.env.GA4_MEASUREMENT_ID;
+  const hasGA4Secret = !!process.env.GA4_API_SECRET;
+  const hasGA4Property = !!process.env.GA4_PROPERTY_ID;
+  return makeResult({
+    success: ga4DataApi && measurementProtocol && hasGA4Id && hasGA4Secret,
+    readiness: (ga4DataApi ? 20 : 0) + (measurementProtocol ? 20 : 0) + (hasGA4Id ? 20 : 0) + (hasGA4Secret ? 20 : 0) + (hasGA4Property ? 20 : 0),
+    plainLanguage: `Analytics: GA4 Data API=${ga4DataApi}, Measurement Protocol=${measurementProtocol}, GA4_MEASUREMENT_ID=${hasGA4Id}, GA4_API_SECRET=${hasGA4Secret}, GA4_PROPERTY_ID=${hasGA4Property}.`,
+    json: { ga4DataApi, measurementProtocol, hasGA4Id, hasGA4Secret, hasGA4Property },
+    error: !hasGA4Id ? { code: "MISSING_ENV", message: "GA4 env vars not configured for Zenitha", where: "Vercel env vars", howToFix: "Add per-site GA4 env vars: GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED, GA4_API_SECRET_ZENITHA_YACHTS_MED, GA4_PROPERTY_ID_ZENITHA_YACHTS_MED" } : undefined,
+  });
+}
+
+// ── MYBA Membership Verify ─────────────────────────────────────────────────────
+async function testMybaMembershipVerify(): Promise<LiveTestResult> {
+  return makeResult({
+    success: false, readiness: 0,
+    plainLanguage: `MYBA membership: manual application process. Cannot be verified programmatically. Check status at myba-association.com member portal.`,
+    json: { status: "manual-action-required" },
+    error: { code: "MANUAL_ACTION", message: "MYBA membership is a manual application", where: "External — myba-association.com", howToFix: "Submit application at myba-association.com. Provides Central Agency listing database access and industry legitimacy." },
+  });
+}
+
+// ── CRM Pipeline Verify ────────────────────────────────────────────────────────
+async function testCrmPipelineVerify(): Promise<LiveTestResult> {
+  const crmRoute = fileCheck("app/api/admin/agent/crm-pipeline/route.ts");
+  const crmPage = fileCheck("app/admin/agent/page.tsx");
+  const contactResolver = fileCheck("lib/agents/crm/contact-resolver.ts");
+  const leadScoring = fileCheck("lib/agents/crm/lead-scoring.ts");
+  return makeResult({
+    success: crmRoute && crmPage && contactResolver && leadScoring,
+    readiness: (crmRoute ? 25 : 0) + (crmPage ? 25 : 0) + (contactResolver ? 25 : 0) + (leadScoring ? 25 : 0),
+    plainLanguage: `CRM pipeline: API=${crmRoute}, admin page=${crmPage}, contact resolver=${contactResolver}, lead scoring=${leadScoring}. 6-stage pipeline (new→qualifying→proposal→negotiation→won→lost) built.`,
+    json: { crmRoute, crmPage, contactResolver, leadScoring },
   });
 }

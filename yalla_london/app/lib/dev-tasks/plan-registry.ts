@@ -1773,7 +1773,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "GA4 property + GSC verification for zenithayachts.com",
       description: "Create GA4 property, add Measurement ID + API Secret to Vercel. Submit Google site verification HTML (created). Add GSC property, verify ownership, submit sitemap.",
       testType: "yacht-seo-verify",
-      testable: true, status: "in-progress", readiness: 40,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-04-03", startDate: "2026-03-28", category: "seo",
     },
     {
@@ -1803,7 +1803,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Business bank account (Mercury/Wise)",
       description: "Open business bank account under Zenitha.Luxury LLC for charter deposit processing. Connect to Stripe for payouts. Set up Mercury env vars if using Mercury.",
       testType: "mercury-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-04-07", startDate: "2026-04-01", category: "config",
     },
     {
@@ -1823,7 +1823,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Run Prisma migration for yacht models",
       description: "Run npx prisma migrate deploy on Supabase for 8 yacht models (Yacht, YachtDestination, CharterItinerary, CharterInquiry updates, BrokerPartner, YachtAvailability, YachtAmenity, YachtImage) + DEPOSIT_PAID enum + payment fields.",
       testType: "yacht-models-verify",
-      testable: true, status: "done", readiness: 90,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-04-01", startDate: "2026-03-28", category: "config",
     },
     {
@@ -1833,7 +1833,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Point zenithayachts.com DNS to Vercel",
       description: "Update Cloudflare DNS records to point zenithayachts.com to Vercel. Add domain to Vercel project settings. Verify SSL certificate provisioned. Test domain routing through middleware.",
       testType: "deploy-zenitha-yachts-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-04-03", startDate: "2026-04-01", category: "config",
     },
     {

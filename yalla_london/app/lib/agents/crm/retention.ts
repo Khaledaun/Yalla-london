@@ -60,6 +60,37 @@ const DEFAULT_SEQUENCES = [
       },
     ] satisfies RetentionStep[],
   },
+  {
+    name: "charter_inquiry_followup",
+    triggerEvent: "charter_inquiry_created",
+    steps: [
+      {
+        delayHours: 0,
+        templateId: "charter_thankyou",
+        subject: "Your Charter Inquiry — What Happens Next",
+      },
+      {
+        delayHours: 24,
+        templateId: "charter_destination_inspiration",
+        subject: "Mediterranean Destinations You'll Love",
+      },
+      {
+        delayHours: 72,
+        templateId: "charter_planning_guide",
+        subject: "Your Complete Charter Planning Guide",
+      },
+      {
+        delayHours: 240, // 10 days
+        templateId: "charter_featured_yachts",
+        subject: "Handpicked Yachts for Your Trip",
+      },
+      {
+        delayHours: 432, // 18 days
+        templateId: "charter_limited_availability",
+        subject: "Peak Season Availability Alert",
+      },
+    ] satisfies RetentionStep[],
+  },
 ];
 
 // ---------------------------------------------------------------------------

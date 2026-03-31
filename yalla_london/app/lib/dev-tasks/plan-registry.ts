@@ -1964,7 +1964,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Email welcome sequence for inquiry leads",
       description: "Set up 5-email drip sequence via Resend for charter inquiry leads: (1) Thank you + next steps, (2) Destination inspiration, (3) Charter planning guide, (4) Featured yachts, (5) Limited availability alert.",
       testType: "welcome-sequence-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-05-05", startDate: "2026-04-28", category: "config",
     },
     {

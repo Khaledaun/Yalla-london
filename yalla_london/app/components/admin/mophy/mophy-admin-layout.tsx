@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAdminSession } from '@/hooks/use-admin-session'
 import { SiteSelector } from '@/components/admin/site-selector'
+import { NotificationBell } from '@/components/admin/notification-bell'
 import {
   FileText, Search, Brain, Bot, Settings, ChevronDown, Menu, X,
   User, LogOut, Palette, Key, Globe, BarChart3, Wallet,
@@ -514,6 +515,9 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
               <Plus size={11} />
               New Article
             </Link>
+
+            {/* Notifications */}
+            <NotificationBell />
 
             {/* User menu */}
             <div className="relative">

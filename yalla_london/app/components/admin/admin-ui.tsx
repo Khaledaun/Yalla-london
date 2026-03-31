@@ -33,19 +33,19 @@ export function AdminCard({
   [key: string]: unknown
 }) {
   const accentBorders: Record<string, string> = {
-    red: 'border-t-[3px] border-t-[#C8322B]',
-    gold: 'border-t-[3px] border-t-[#C49A2A]',
-    blue: 'border-t-[3px] border-t-[#3B7EA1]',
-    green: 'border-t-[3px] border-t-[#2D5A3D]',
+    red: 'border-t-[3px] border-t-[var(--admin-red)]',
+    gold: 'border-t-[3px] border-t-[var(--admin-gold)]',
+    blue: 'border-t-[3px] border-t-[var(--admin-blue)]',
+    green: 'border-t-[3px] border-t-[var(--admin-green)]',
   }
   return (
     <div
       className={`
         bg-white rounded-xl p-5
-        border border-[rgba(214,208,196,0.6)]
+        border border-[var(--admin-border)]
         ${elevated
-          ? 'shadow-[0_2px_8px_rgba(28,25,23,0.06),0_8px_24px_rgba(28,25,23,0.06)]'
-          : 'shadow-[0_1px_3px_rgba(28,25,23,0.04),0_4px_12px_rgba(28,25,23,0.04)]'
+          ? 'shadow-[var(--admin-shadow-lg)]'
+          : 'shadow-[var(--admin-shadow-sm)]'
         }
         ${accent ? accentBorders[accentColor] : ''}
         ${className}
@@ -110,22 +110,22 @@ export function AdminSectionLabel({ children }: { children?: React.ReactNode }) 
 // ─── AdminStatusBadge ───────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  published: { label: 'Published', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
-  draft: { label: 'Draft', dot: 'bg-[#C49A2A]', bg: 'bg-[rgba(196,154,42,0.08)]', text: 'text-[#6B4F0F]' },
-  reservoir: { label: 'Ready', dot: 'bg-[#3B7EA1]', bg: 'bg-[rgba(59,126,161,0.08)]', text: 'text-[#1B5070]' },
-  stuck: { label: 'Stuck', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
-  running: { label: 'Running', dot: 'bg-[#7C3AED]', bg: 'bg-[rgba(124,58,237,0.08)]', text: 'text-[#5B21B6]' },
-  failed: { label: 'Failed', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
-  success: { label: 'Success', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
-  indexed: { label: 'Indexed', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
-  pending: { label: 'Pending', dot: 'bg-[#C49A2A]', bg: 'bg-[rgba(196,154,42,0.08)]', text: 'text-[#6B4F0F]' },
-  active: { label: 'Active', dot: 'bg-[#2D5A3D]', bg: 'bg-[rgba(45,90,61,0.08)]', text: 'text-[#2D5A3D]' },
+  published: { label: 'Published', dot: 'bg-[var(--admin-green)]', bg: 'bg-[var(--status-green-bg)]', text: 'text-[var(--admin-green)]' },
+  draft: { label: 'Draft', dot: 'bg-[var(--admin-gold)]', bg: 'bg-[var(--status-gold-bg)]', text: 'text-[var(--status-gold-text)]' },
+  reservoir: { label: 'Ready', dot: 'bg-[var(--admin-blue)]', bg: 'bg-[var(--status-blue-bg)]', text: 'text-[var(--status-blue-text)]' },
+  stuck: { label: 'Stuck', dot: 'bg-[var(--admin-red)]', bg: 'bg-[var(--status-red-bg)]', text: 'text-[var(--status-red-text)]' },
+  running: { label: 'Running', dot: 'bg-[var(--status-purple)]', bg: 'bg-[var(--status-purple-bg)]', text: 'text-[var(--status-purple-text)]' },
+  failed: { label: 'Failed', dot: 'bg-[var(--admin-red)]', bg: 'bg-[var(--status-red-bg)]', text: 'text-[var(--status-red-text)]' },
+  success: { label: 'Success', dot: 'bg-[var(--admin-green)]', bg: 'bg-[var(--status-green-bg)]', text: 'text-[var(--admin-green)]' },
+  indexed: { label: 'Indexed', dot: 'bg-[var(--admin-green)]', bg: 'bg-[var(--status-green-bg)]', text: 'text-[var(--admin-green)]' },
+  pending: { label: 'Pending', dot: 'bg-[var(--admin-gold)]', bg: 'bg-[var(--status-gold-bg)]', text: 'text-[var(--status-gold-text)]' },
+  active: { label: 'Active', dot: 'bg-[var(--admin-green)]', bg: 'bg-[var(--status-green-bg)]', text: 'text-[var(--admin-green)]' },
   inactive: { label: 'Inactive', dot: 'bg-stone-400', bg: 'bg-stone-100', text: 'text-stone-600' },
-  error: { label: 'Error', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
-  warning: { label: 'Warning', dot: 'bg-[#C49A2A]', bg: 'bg-[rgba(196,154,42,0.08)]', text: 'text-[#6B4F0F]' },
-  rejected: { label: 'Rejected', dot: 'bg-[#C8322B]', bg: 'bg-[rgba(200,50,43,0.10)]', text: 'text-[#9B2520]' },
-  generating: { label: 'Generating', dot: 'bg-[#7C3AED]', bg: 'bg-[rgba(124,58,237,0.08)]', text: 'text-[#5B21B6]' },
-  promoting: { label: 'Promoting', dot: 'bg-[#3B7EA1]', bg: 'bg-[rgba(59,126,161,0.08)]', text: 'text-[#1B5070]' },
+  error: { label: 'Error', dot: 'bg-[var(--admin-red)]', bg: 'bg-[var(--status-red-bg)]', text: 'text-[var(--status-red-text)]' },
+  warning: { label: 'Warning', dot: 'bg-[var(--admin-gold)]', bg: 'bg-[var(--status-gold-bg)]', text: 'text-[var(--status-gold-text)]' },
+  rejected: { label: 'Rejected', dot: 'bg-[var(--admin-red)]', bg: 'bg-[var(--status-red-bg)]', text: 'text-[var(--status-red-text)]' },
+  generating: { label: 'Generating', dot: 'bg-[var(--status-purple)]', bg: 'bg-[var(--status-purple-bg)]', text: 'text-[var(--status-purple-text)]' },
+  promoting: { label: 'Promoting', dot: 'bg-[var(--admin-blue)]', bg: 'bg-[var(--status-blue-bg)]', text: 'text-[var(--status-blue-text)]' },
 }
 
 export function AdminStatusBadge({
@@ -175,9 +175,9 @@ export function AdminKPICard({
       onClick={onClick}
       className={`
         bg-white rounded-xl p-4 text-center
-        border border-[rgba(214,208,196,0.6)]
-        shadow-[0_1px_3px_rgba(28,25,23,0.04),0_4px_12px_rgba(28,25,23,0.04)]
-        ${onClick ? 'cursor-pointer hover:shadow-[0_2px_8px_rgba(28,25,23,0.08),0_8px_24px_rgba(28,25,23,0.06)] active:scale-[0.98] transition-all' : ''}
+        border border-[var(--admin-border)]
+        shadow-[var(--admin-shadow-sm)]
+        ${onClick ? 'cursor-pointer hover:shadow-[var(--admin-shadow-lg)] active:scale-[0.98] transition-all' : ''}
       `}
     >
       <div
@@ -187,7 +187,7 @@ export function AdminKPICard({
         {value}
       </div>
       {trend && (
-        <div className={`font-[var(--font-system)] text-[11px] font-semibold mt-1 ${trend.positive ? 'text-[#2D5A3D]' : 'text-[#C8322B]'}`}>
+        <div className={`font-[var(--font-system)] text-[11px] font-semibold mt-1 ${trend.positive ? 'text-[var(--admin-green)]' : 'text-[var(--admin-red)]'}`}>
           {trend.positive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%
         </div>
       )}
@@ -203,10 +203,10 @@ export function AdminKPICard({
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'ghost'
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-[#C8322B] text-[#FAF8F4] border-transparent hover:bg-[#B02D26] shadow-sm',
-  secondary: 'bg-white text-stone-800 border-[rgba(214,208,196,0.8)] hover:bg-stone-50 shadow-[0_1px_3px_rgba(28,25,23,0.06)]',
-  danger: 'bg-[#C8322B] text-[#FAF8F4] border-transparent hover:bg-[#B02D26] shadow-sm',
-  success: 'bg-[#2D5A3D] text-[#FAF8F4] border-transparent hover:bg-[#24493A] shadow-sm',
+  primary: 'bg-[var(--admin-red)] text-[var(--admin-bg)] border-transparent hover:bg-[var(--admin-red-hover)] shadow-sm',
+  secondary: 'bg-[var(--admin-card-bg)] text-stone-800 border-[var(--admin-border-hover)] hover:bg-stone-50 shadow-[var(--admin-shadow-sm)]',
+  danger: 'bg-[var(--admin-red)] text-[var(--admin-bg)] border-transparent hover:bg-[var(--admin-red-hover)] shadow-sm',
+  success: 'bg-[var(--admin-green)] text-[var(--admin-bg)] border-transparent hover:bg-[var(--admin-green-hover)] shadow-sm',
   ghost: 'bg-transparent text-stone-600 border-transparent hover:bg-stone-100',
 }
 
@@ -266,7 +266,7 @@ export function AdminLoadingState({ label = 'Loading\u2026' }: { label?: string 
   return (
     <div className="flex items-center justify-center py-16">
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-stone-200 border-t-[#C8322B] rounded-full animate-spin mx-auto mb-3" />
+        <div className="w-8 h-8 border-2 border-stone-200 border-t-[var(--admin-red)] rounded-full animate-spin mx-auto mb-3" />
         <p className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[1.2px]">
           {label}
         </p>
@@ -310,18 +310,18 @@ export function AdminEmptyState({
 
 const ALERT_CONFIG = {
   critical: {
-    wrapper: 'bg-[rgba(200,50,43,0.06)] border-[#C8322B33] border-l-[#C8322B]',
-    title: 'text-[#9B2520]',
+    wrapper: 'bg-[var(--status-red-bg)] border-[var(--admin-red)]/20 border-l-[var(--admin-red)]',
+    title: 'text-[var(--status-red-text)]',
     icon: '\uD83D\uDD34',
   },
   warning: {
-    wrapper: 'bg-[rgba(196,154,42,0.06)] border-[#C49A2A33] border-l-[#C49A2A]',
-    title: 'text-[#6B4F0F]',
+    wrapper: 'bg-[var(--status-gold-bg)] border-[var(--admin-gold)]/20 border-l-[var(--admin-gold)]',
+    title: 'text-[var(--status-gold-text)]',
     icon: '\uD83D\uDFE1',
   },
   info: {
-    wrapper: 'bg-[rgba(59,126,161,0.06)] border-[#3B7EA133] border-l-[#3B7EA1]',
-    title: 'text-[#1B5070]',
+    wrapper: 'bg-[var(--status-blue-bg)] border-[var(--admin-blue)]/20 border-l-[var(--admin-blue)]',
+    title: 'text-[var(--status-blue-text)]',
     icon: '\u2139\uFE0F',
   },
 }
@@ -390,7 +390,7 @@ export function AdminTabs({
             font-[var(--font-system)] text-[11px] font-medium
             whitespace-nowrap transition-all min-h-[36px]
             ${activeTab === tab.id
-              ? 'bg-[rgba(200,50,43,0.06)] text-[#C8322B] font-semibold'
+              ? 'bg-[var(--status-red-bg)] text-[var(--admin-red)] font-semibold'
               : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
             }
           `}
@@ -399,7 +399,7 @@ export function AdminTabs({
           {tab.count !== undefined && (
             <span className={`
               font-[var(--font-system)] text-[10px] tabular-nums
-              ${activeTab === tab.id ? 'text-[#C8322B]/60' : 'text-stone-400'}
+              ${activeTab === tab.id ? 'text-[var(--admin-red)]/60' : 'text-stone-400'}
             `}>
               {tab.count}
             </span>
@@ -468,7 +468,7 @@ export function ConfirmModal({
       aria-describedby="confirm-desc"
     >
       <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl border border-[rgba(214,208,196,0.6)] max-w-md w-full p-6 font-[var(--font-system)]">
+      <div className="relative bg-white rounded-xl shadow-xl border border-[var(--admin-border)] max-w-md w-full p-6 font-[var(--font-system)]">
         <div className="flex items-start gap-3 mb-3">
           <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: colors.bg }}>
             <AlertTriangle size={18} color={colors.icon} />

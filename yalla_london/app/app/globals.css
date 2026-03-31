@@ -77,11 +77,67 @@
   --admin-warning: #d97706;
   --admin-error: #dc2626;
   --admin-info: #3b82f6;
-  --admin-shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.04);
+  --admin-shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.04), 0 4px 12px rgba(28, 25, 23, 0.04);
   --admin-shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
-  --admin-shadow-lg: 0 8px 24px rgba(28, 25, 23, 0.10);
+  --admin-shadow-lg: 0 2px 8px rgba(28, 25, 23, 0.06), 0 8px 24px rgba(28, 25, 23, 0.06);
   --admin-radius: 12px;
   --admin-radius-sm: 8px;
+
+  /* Hover state variants */
+  --admin-red-hover: #B02D26;
+  --admin-green-hover: #24493A;
+  --admin-gold-hover: #A6821F;
+  --admin-blue-hover: #2E6580;
+
+  /* Status badge semantic tokens */
+  --status-green-bg: rgba(45, 90, 61, 0.08);
+  --status-gold-bg: rgba(196, 154, 42, 0.08);
+  --status-gold-text: #6B4F0F;
+  --status-blue-bg: rgba(59, 126, 161, 0.08);
+  --status-blue-text: #1B5070;
+  --status-red-bg: rgba(200, 50, 43, 0.10);
+  --status-red-text: #9B2520;
+  --status-purple: #7C3AED;
+  --status-purple-bg: rgba(124, 58, 237, 0.08);
+  --status-purple-text: #5B21B6;
+}
+
+/* ─── Admin Dark Mode ──────────────────────────────────────── */
+[data-theme="dark"] {
+  --admin-bg: #1C1917;
+  --admin-card-bg: #292524;
+  --admin-border: rgba(120, 113, 108, 0.3);
+  --admin-border-hover: rgba(120, 113, 108, 0.5);
+  --admin-text-primary: #F5F5F4;
+  --admin-text-secondary: #D6D3D1;
+  --admin-text-muted: #78716C;
+  --admin-red: #EF6461;
+  --admin-gold: #E5B94E;
+  --admin-blue: #5BA3C9;
+  --admin-green: #4CAF6E;
+  --admin-success: #4ade80;
+  --admin-warning: #fbbf24;
+  --admin-error: #f87171;
+  --admin-info: #60a5fa;
+  --admin-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.15);
+  --admin-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --admin-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.25);
+
+  --admin-red-hover: #D94B48;
+  --admin-green-hover: #3D965E;
+  --admin-gold-hover: #CCA340;
+  --admin-blue-hover: #4A8FB5;
+
+  --status-green-bg: rgba(76, 175, 110, 0.12);
+  --status-gold-bg: rgba(229, 185, 78, 0.12);
+  --status-gold-text: #E5B94E;
+  --status-blue-bg: rgba(91, 163, 201, 0.12);
+  --status-blue-text: #5BA3C9;
+  --status-red-bg: rgba(239, 100, 97, 0.12);
+  --status-red-text: #EF6461;
+  --status-purple: #A78BFA;
+  --status-purple-bg: rgba(167, 139, 250, 0.12);
+  --status-purple-text: #A78BFA;
 }
 
 /* Platform-specific brand classes */

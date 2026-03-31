@@ -178,7 +178,7 @@ export default function ConversationDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] px-4 py-6 max-w-3xl mx-auto">
+      <div className="min-h-screen bg-[var(--admin-bg)] px-4 py-6 max-w-3xl mx-auto">
         <AdminPageHeader title="Conversation" backHref="/admin/communications" />
         <AdminLoadingState label="Loading conversation..." />
       </div>
@@ -187,7 +187,7 @@ export default function ConversationDetailPage() {
 
   if (error || !conversation) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] px-4 py-6 max-w-3xl mx-auto">
+      <div className="min-h-screen bg-[var(--admin-bg)] px-4 py-6 max-w-3xl mx-auto">
         <AdminPageHeader title="Conversation" backHref="/admin/communications" />
         <AdminCard className="border-l-[3px] border-l-[#C8322B]">
           <p className="font-[var(--font-system)] text-sm text-[#9B2520]">
@@ -212,7 +212,7 @@ export default function ConversationDetailPage() {
   // ─── Render ──────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] flex flex-col max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[var(--admin-bg)] flex flex-col max-w-3xl mx-auto">
       {/* Header */}
       <div className="px-4 pt-6 pb-3 flex-shrink-0">
         <AdminPageHeader
@@ -396,7 +396,7 @@ export default function ConversationDetailPage() {
             className="
               flex-1 px-3 py-2.5 rounded-xl
               border border-[rgba(214,208,196,0.6)]
-              bg-[#FAF8F4] text-stone-800 text-[13px]
+              bg-[var(--admin-bg)] text-stone-800 text-[13px]
               font-[var(--font-body)]
               placeholder:text-stone-400
               focus:outline-none focus:ring-2 focus:ring-[#3B7EA1]/20 focus:border-[#3B7EA1]/40

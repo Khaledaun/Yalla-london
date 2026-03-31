@@ -182,7 +182,7 @@ export default function IntelligencePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
         <AdminLoadingState label="Loading SEO intelligence..." />
       </div>
     );
@@ -195,7 +195,7 @@ export default function IntelligencePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
       <div className="space-y-5 max-w-4xl mx-auto">
         {/* Header */}
         <AdminPageHeader

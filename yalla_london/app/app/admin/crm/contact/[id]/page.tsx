@@ -299,7 +299,7 @@ export default function ContactProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
         <AdminPageHeader title="Contact" backHref="/admin/crm" />
         <AdminLoadingState label="Loading contact..." />
       </div>
@@ -308,7 +308,7 @@ export default function ContactProfilePage() {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
         <AdminPageHeader title="Contact" backHref="/admin/crm" />
         <div className="rounded-xl bg-[rgba(200,50,43,0.06)] border border-[#C8322B33] border-l-[3px] border-l-[#C8322B] px-4 py-3 mb-4">
           <p className="font-[var(--font-system)] text-[12px] font-semibold text-[#9B2520]">
@@ -336,7 +336,7 @@ export default function ContactProfilePage() {
   const hasConsent = profile.lead?.consent ?? false
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6 max-w-4xl mx-auto">
       {/* ─── Header ───────────────────────────────────────────────── */}
       <AdminPageHeader
         title={profile.name || 'Unknown Contact'}

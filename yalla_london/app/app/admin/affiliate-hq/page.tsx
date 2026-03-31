@@ -540,6 +540,44 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
         </div>
       </div>
 
+      {/* Revenue Pipeline Diagnostic — only when revenue is zero */}
+      {revenue.total30d === 0 && (() => {
+        const hasCJ = (revenue.byNetwork ?? []).some(n => n.network.toLowerCase().includes("cj"));
+        const hasApproved = data.partners.advertisers.some(a => a.status === "JOINED" || a.status === "joined");
+        const hasLinks = data.coverage.coveragePercent > 0;
+        const hasClicks = revenue.clicks7d > 0;
+        const hasTraffic = data.coverage.totalArticles > 0;
+        const items: Array<{ ok: boolean; label: string }> = [
+          { ok: hasCJ, label: "CJ API connected" },
+          { ok: hasApproved, label: "At least one advertiser approved (JOINED)" },
+          { ok: hasLinks, label: `Affiliate links injected in articles (${data.coverage.coveragePercent}% coverage)` },
+          { ok: hasTraffic, label: `Published articles with traffic potential (${data.coverage.totalArticles} articles)` },
+          { ok: hasClicks, label: `Affiliate clicks tracked (${revenue.clicks7d} in 7d)` },
+        ];
+        return (
+          <div style={{
+            margin: "0 0 1rem", padding: "1rem 1.25rem",
+            background: "#FFFBEB", border: "1px solid #C49A2A", borderRadius: 12,
+          }}>
+            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#92400e", marginBottom: "0.5rem" }}>
+              Revenue Pipeline Status
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#78716c", marginBottom: "0.75rem" }}>
+              Revenue requires every step to be working. Here is where things stand:
+            </div>
+            {items.map((item) => (
+              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.2rem 0", fontSize: "0.8rem" }}>
+                <span style={{ fontSize: "1rem" }}>{item.ok ? "\u2705" : "\u274C"}</span>
+                <span style={{ color: item.ok ? "#166534" : "#991b1b" }}>{item.label}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", color: "#92400e" }}>
+              Fix the first failing step above. Revenue flows when all five are green.
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 30-Day Revenue Sparkline */}
       <RevenueSparkline total30d={revenue.total30d} total7d={revenue.total7d} trendPercent={revenue.trendPercent} />
 

@@ -72,7 +72,7 @@ export default function IntegrationHealthPage() {
   }, {} as Record<string, Integration[]>) : {};
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-8 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Integration Health</h1>

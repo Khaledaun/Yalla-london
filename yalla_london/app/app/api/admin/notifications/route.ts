@@ -18,7 +18,6 @@ interface AdminNotification {
 
 const NOTIFICATION_SETTINGS_CATEGORY = "notifications";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getReadIds(prisma: any, siteId: string): Promise<Set<string>> {
   try {
     const record = await prisma.siteSettings.findUnique({
@@ -53,7 +52,6 @@ async function saveReadIds(prisma: { siteSettings: { upsert: Function } }, siteI
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getDismissedIds(prisma: any, siteId: string): Promise<Set<string>> {
   try {
     const record = await prisma.siteSettings.findUnique({

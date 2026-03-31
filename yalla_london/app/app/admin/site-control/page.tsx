@@ -929,7 +929,7 @@ export default function SiteControl() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Background Type</label>
                         <select
-                          value={selectedBlock.config?.backgroundType || 'image'}
+                          value={String(selectedBlock.config?.backgroundType || 'image')}
                           onChange={(e) => handleBlockUpdate(selectedBlock.id, { 
                             config: { ...selectedBlock.config, backgroundType: e.target.value }
                           })}

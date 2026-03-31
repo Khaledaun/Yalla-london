@@ -29,7 +29,7 @@
 | 2D | Affiliate HQ Rollback Mechanism | P3 | DONE |
 | 3B | Admin Audit Drill-Down Enhancement | P3 | DONE |
 | 4A | Website Builder Visual Preview | P3 | DONE |
-| 4B | Block Template Library | P3 | TODO |
+| 4B | Block Template Library | P3 | DONE |
 | 4C | SEO Metadata Editor | P3 | TODO |
 | 5B | B2B Content Tagging | P3 | TODO |
 | 5C | Kaspo Intelligence Widget | P3 | TODO |
@@ -310,3 +310,24 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
   - Preview footer showing resolution and device name
   - Flex layout: main content area + sticky preview panel side-by-side when preview mode active
   - All new UI uses CSS variable design system (`--admin-bg`, `--admin-border`, `--admin-text-muted`, `--admin-red`)
+
+### Phase 4B — Block Template Library (March 31, 2026)
+- Enhanced `app/admin/site-control/page.tsx` with full 12-template block library
+  - Defined `BlockType` union type with 12 block types: hero, featured, events, testimonials, blog-grid, cta, destination-grid, newsletter, features, gallery, partners, stats
+  - Created `HomepageBlock` interface with type, title, content, enabled, and type-specific config fields
+  - Created `BlockTemplate` interface with type, label, icon, description, color, defaultConfig
+  - Built `BLOCK_TEMPLATES` constant array with 12 pre-built templates, each with icon, description, color-coded border, and sensible defaults
+  - `getTemplateColorClasses()` utility mapping template type → border/text/bg Tailwind classes
+  - Replaced 3 simple "Add Block" buttons with single "Add Block" toggle button opening collapsible template library
+  - Template library: 3-column responsive grid, each card shows icon + label + description with color-coded left border
+  - `handleAddBlock()` auto-populates new blocks with template defaults (maxItems, layout, columns, style, etc.)
+  - Added template-specific editor fields for all 12 block types:
+    - `cta`: buttonText, buttonUrl, style (gradient/solid/outline)
+    - `destination-grid`: columns (2/3/4), showMap checkbox
+    - `newsletter`: placeholder, submitText, showIncentive checkbox
+    - `features`: layout (grid/list/cards), itemsPerRow (2/3/4), showIcons checkbox
+    - `gallery`: layout (masonry/grid/carousel), maxImages input, lightbox checkbox
+    - `partners`: displayStyle (scroll/grid/carousel), grayscale checkbox
+    - `stats`: columns (2/3/4), animate checkbox, background (dark/light/brand)
+    - `blog-grid`/`testimonials`/`events`/`featured`: shared maxItems input
+  - All UI uses CSS variable design system, no `window.confirm/alert/prompt`

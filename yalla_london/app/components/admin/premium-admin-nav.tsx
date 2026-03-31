@@ -154,6 +154,13 @@ export const adminSections: NavSection[] = [
         description: 'Social accounts, posts, scheduling',
       },
       {
+        id: 'social-calendar',
+        label: 'Social Calendar',
+        icon: Calendar,
+        href: '/admin/social-calendar',
+        description: 'Week/month view, schedule posts',
+      },
+      {
         id: 'email-campaigns',
         label: 'Email Campaigns',
         icon: Mail,
@@ -194,6 +201,20 @@ export const adminSections: NavSection[] = [
         description: 'Per-phase view — advance, retry, delete',
       },
       {
+        id: 'editor',
+        label: 'Editor',
+        icon: Edit,
+        href: '/admin/editor',
+        description: 'Rich content editor with SEO scoring',
+      },
+      {
+        id: 'news',
+        label: 'News',
+        icon: Globe,
+        href: '/admin/news',
+        description: 'London news management',
+      },
+      {
         id: 'content-engine',
         label: 'Content Engine',
         icon: Sparkles,
@@ -227,6 +248,20 @@ export const adminSections: NavSection[] = [
         description: 'Scoring, fixes, preview, history',
       },
       {
+        id: 'intelligence',
+        label: 'Intelligence',
+        icon: TrendingUp,
+        href: '/admin/intelligence',
+        description: 'GSC data, top pages, traffic sources',
+      },
+      {
+        id: 'indexing',
+        label: 'Indexing',
+        icon: Globe,
+        href: '/admin/indexing',
+        description: 'URL indexing status, submissions',
+      },
+      {
         id: 'master-audit',
         label: 'Master Audit',
         icon: Shield,
@@ -251,6 +286,13 @@ export const adminSections: NavSection[] = [
         badgeText: 'Studio',
         badgeVariant: 'outline',
         description: 'Create and manage visual assets',
+      },
+      {
+        id: 'site-control',
+        label: 'Homepage Builder',
+        icon: Home,
+        href: '/admin/site-control',
+        description: 'Homepage sections, hero, layout',
       },
       {
         id: 'asset-library',
@@ -305,6 +347,35 @@ export const adminSections: NavSection[] = [
     ],
   },
 
+  /* ── YACHTS ── */
+  {
+    id: 'yachts',
+    label: 'Yacht Management',
+    items: [
+      {
+        id: 'yacht-fleet',
+        label: 'Fleet',
+        icon: Map,
+        href: '/admin/yachts',
+        description: 'Yacht inventory, specs, pricing',
+      },
+      {
+        id: 'yacht-inquiries',
+        label: 'Inquiries',
+        icon: MessageSquare,
+        href: '/admin/yachts/inquiries',
+        description: 'Charter inquiry CRM',
+      },
+      {
+        id: 'yacht-destinations',
+        label: 'Destinations',
+        icon: Globe,
+        href: '/admin/yachts/destinations',
+        description: 'Charter destinations & seasons',
+      },
+    ],
+  },
+
   /* ── SYSTEM ── */
   {
     id: 'system',
@@ -325,6 +396,34 @@ export const adminSections: NavSection[] = [
         icon: BarChart3,
         href: '/admin/ai-costs',
         description: 'Provider spend, per-task breakdown',
+      },
+      {
+        id: 'operations',
+        label: 'Operations',
+        icon: Monitor,
+        href: '/admin/operations',
+        description: 'System status, env vars, diagnostics',
+      },
+      {
+        id: 'cron-logs',
+        label: 'Cron Logs',
+        icon: Clock,
+        href: '/admin/cron-logs',
+        description: 'Cron execution history, errors',
+      },
+      {
+        id: 'feature-flags',
+        label: 'Feature Flags',
+        icon: Flag,
+        href: '/admin/feature-flags',
+        description: 'Toggle features per site',
+      },
+      {
+        id: 'legal',
+        label: 'Legal Pages',
+        icon: FileCheck,
+        href: '/admin/legal',
+        description: 'Privacy, terms, GDPR management',
       },
       {
         id: 'automation-hub',

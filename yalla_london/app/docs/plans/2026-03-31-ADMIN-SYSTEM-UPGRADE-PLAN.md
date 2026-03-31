@@ -27,7 +27,7 @@
 | 2B | Affiliate HQ Revenue Attribution Table | P3 | DONE |
 | 2C | Affiliate HQ Link Health Monitor | P3 | DONE |
 | 2D | Affiliate HQ Rollback Mechanism | P3 | DONE |
-| 3B | Admin Audit Drill-Down Enhancement | P3 | TODO |
+| 3B | Admin Audit Drill-Down Enhancement | P3 | DONE |
 | 4A | Website Builder Visual Preview | P3 | TODO |
 | 4B | Block Template Library | P3 | TODO |
 | 4C | SEO Metadata Editor | P3 | TODO |
@@ -278,3 +278,21 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
 - 8 consumer files verified using `safeLocal*`/`safeSession*` imports: premium-admin-nav.tsx, theme/page.tsx, global-search.tsx, cookie-consent-banner.tsx, language-provider.tsx, site-provider.tsx, exit-intent-popup.tsx, intelligence/page.tsx
 - Zero bare `localStorage.getItem/setItem/removeItem` or `sessionStorage.*` calls found outside safe-storage.ts
 - Phase was already completed by prior sessions — marked DONE
+
+### Phase 3B — Admin Audit Drill-Down Enhancement (March 31, 2026)
+- Enhanced Intelligence page Audit tab (`app/admin/intelligence/page.tsx`) with full drill-down capabilities:
+  - Overall Score/Grade/Total Issues KPI cards from aggregated report data
+  - 6 sub-score breakdown cards (SEO Audit, Discovery, Indexing, Content Velocity, Operations, Public Website) with progress bars color-coded by threshold (green ≥80, gold ≥50, red <50) and weight percentages
+  - Severity filter dropdown (All/Critical/High/Medium/Low)
+  - Category filter dropdown (dynamically populated from unique issue categories)
+  - Sort controls (by severity/category/title) with active state highlighting
+  - Enhanced issue list with AdminStatusBadge, category tag, title, detail, rootCause, fixAction, and copy-to-clipboard
+  - Show all / Collapse toggle for issue lists exceeding 15 items
+  - Historical comparison section with trend delta display (score change + findings change with TrendingUp/TrendingDown icons)
+  - History table with Date, Score (color-coded), Findings, C/H/M/L breakdown, Trigger columns
+  - Refresh history button with loading state
+- Created `app/api/admin/audit-history/route.ts` — GET endpoint returning historical SeoAuditReport records
+  - Fields: id, healthScore, totalFindings, criticalCount, highCount, mediumCount, lowCount, summary, triggeredBy, createdAt
+  - Protected with `requireAdmin`, uses `getDefaultSiteId()` fallback, configurable limit (max 50)
+- Fixed bug: old code referenced `auditResult.synthesizedIssues` but aggregated-report API returns `issues`
+- Uses CSS variable design system throughout, all API calls have `res.ok` guards, AdminEmptyState for empty data

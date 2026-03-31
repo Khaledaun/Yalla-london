@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { RefreshCw, ExternalLink, Copy, Wrench } from "lucide-react";
+import { RefreshCw, ExternalLink, Copy, Wrench, TrendingUp, TrendingDown, Filter, ArrowUpDown } from "lucide-react";
 import {
   AdminCard, AdminAlertBanner, AdminButton, AdminSectionLabel, AdminStatusBadge,
-  AdminKPICard, AdminPageHeader, AdminLoadingState,
+  AdminKPICard, AdminPageHeader, AdminLoadingState, AdminEmptyState,
 } from "@/components/admin/admin-ui";
+import { safeSessionGetJSON, safeSessionSetJSON } from "@/lib/safe-storage";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -50,12 +51,23 @@ export default function IntelligencePage() {
   const [auditRunning, setAuditRunning] = useState(false);
   const [auditResult, setAuditResult] = useState<Record<string, unknown> | null>(() => {
     if (typeof window === "undefined") return null;
-    try { const s = sessionStorage.getItem(AUDIT_SESSION_KEY); return s ? JSON.parse(s) : null; } catch { return null; }
+    return safeSessionGetJSON<Record<string, unknown>>(AUDIT_SESSION_KEY);
   });
   const [fixingIssue, setFixingIssue] = useState<number | null>(null);
   const [fixResult, setFixResult] = useState<{ idx: number; ok: boolean; msg: string } | null>(null);
   const [showAllAuditIssues, setShowAllAuditIssues] = useState(false);
   const fixResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Phase 3B: Audit drill-down state
+  const [auditSeverityFilter, setAuditSeverityFilter] = useState<string>("all");
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>("all");
+  const [auditSortKey, setAuditSortKey] = useState<"severity" | "category" | "title">("severity");
+  const [auditHistory, setAuditHistory] = useState<Array<{
+    id: string; healthScore: number; totalFindings: number;
+    criticalCount: number; highCount: number; mediumCount: number; lowCount: number;
+    summary: string | null; triggeredBy: string; createdAt: string;
+  }>>([]);
+  const [auditHistoryLoading, setAuditHistoryLoading] = useState(false);
 
   type TopPagesSortKey = "clicks" | "impressions" | "ctr" | "position" | "clicks_asc" | "impressions_asc" | "ctr_asc" | "position_asc";
   const [topPagesSort, setTopPagesSort] = useState<TopPagesSortKey>("clicks");
@@ -143,7 +155,7 @@ export default function IntelligencePage() {
       if (res.ok) {
         const result = await res.json();
         setAuditResult(result);
-        try { sessionStorage.setItem(AUDIT_SESSION_KEY, JSON.stringify(result)); } catch { /* quota */ }
+        safeSessionSetJSON(AUDIT_SESSION_KEY, result);
       }
     } catch (err) {
       console.warn("[intelligence] audit failed:", err instanceof Error ? err.message : err);
@@ -151,6 +163,33 @@ export default function IntelligencePage() {
       setAuditRunning(false);
     }
   };
+
+  // Phase 3B: Fetch audit history for trend comparison
+  const fetchAuditHistory = useCallback(async () => {
+    setAuditHistoryLoading(true);
+    try {
+      const res = await fetch("/api/admin/audit-history?limit=10");
+      if (!res.ok) {
+        console.warn("[intelligence] audit-history fetch failed:", res.status);
+        return;
+      }
+      const json = await res.json();
+      if (json.success && Array.isArray(json.reports)) {
+        setAuditHistory(json.reports);
+      }
+    } catch (err) {
+      console.warn("[intelligence] audit-history error:", err instanceof Error ? err.message : err);
+    } finally {
+      setAuditHistoryLoading(false);
+    }
+  }, []);
+
+  // Load audit history when switching to audit tab
+  useEffect(() => {
+    if (tab === "audit" && auditHistory.length === 0 && !auditHistoryLoading) {
+      fetchAuditHistory();
+    }
+  }, [tab, auditHistory.length, auditHistoryLoading, fetchAuditHistory]);
 
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const copyAsJson = async (obj: unknown) => {
@@ -384,9 +423,10 @@ export default function IntelligencePage() {
         {/* AUDIT TAB */}
         {tab === "audit" && (
           <div className="space-y-4">
+            {/* Run Audit */}
             <AdminCard>
               <AdminSectionLabel>Public SEO Audit</AdminSectionLabel>
-              <p className="text-sm text-stone-500 mb-3">
+              <p className="text-sm text-[var(--admin-text-muted)] mb-3">
                 Run a full aggregated report across SEO, indexing, discovery, content velocity, and public website health.
               </p>
               <div className="flex gap-2">
@@ -401,45 +441,252 @@ export default function IntelligencePage() {
               </div>
             </AdminCard>
 
-            {auditResult && (
-              <AdminCard>
-                <AdminSectionLabel>Audit Results</AdminSectionLabel>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-                  <AdminKPICard label="Overall Score" value={(auditResult as { compositeScore?: number }).compositeScore || 0} />
-                  <AdminKPICard label="Grade" value={(auditResult as { grade?: string }).grade || "?"} />
-                  <AdminKPICard label="Issues" value={((auditResult as { synthesizedIssues?: unknown[] }).synthesizedIssues || []).length} />
-                </div>
+            {auditResult && (() => {
+              const report = auditResult as {
+                compositeScore?: number;
+                grade?: string;
+                scores?: Record<string, { score: number; weight: number }>;
+                issues?: Array<{ severity: string; category: string; title: string; detail?: string; rootCause?: string; fixAction?: string }>;
+              };
+              const allIssues = report.issues || [];
+              const scores = report.scores || {};
 
-                {/* Issues with Fix Now + Copy JSON */}
-                {(() => {
-                  const allIssues = (auditResult as { synthesizedIssues?: Array<{ severity: string; title: string; detail: string }> }).synthesizedIssues || [];
-                  const visible = showAllAuditIssues ? allIssues : allIssues.slice(0, 10);
-                  return (
-                    <>
-                      {visible.map((issue, i) => (
-                        <div key={i} className="flex items-start justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-2 mb-1">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <AdminStatusBadge status={issue.severity === "critical" ? "error" : issue.severity === "high" ? "warning" : "info"} label={issue.severity} />
-                              <span className="text-sm text-stone-800">{issue.title}</span>
+              // Severity ordering for sort
+              const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+
+              // Filter
+              const filteredIssues = allIssues.filter((iss) => {
+                if (auditSeverityFilter !== "all" && iss.severity !== auditSeverityFilter) return false;
+                if (auditCategoryFilter !== "all" && iss.category !== auditCategoryFilter) return false;
+                return true;
+              });
+
+              // Sort
+              const sortedIssues = [...filteredIssues].sort((a, b) => {
+                if (auditSortKey === "severity") return (sevOrder[a.severity] ?? 5) - (sevOrder[b.severity] ?? 5);
+                if (auditSortKey === "category") return (a.category || "").localeCompare(b.category || "");
+                return (a.title || "").localeCompare(b.title || "");
+              });
+
+              const visible = showAllAuditIssues ? sortedIssues : sortedIssues.slice(0, 15);
+              const uniqueCategories = [...new Set<string>(allIssues.map((i) => i.category).filter(Boolean))].sort();
+
+              return (
+                <>
+                  {/* Overall Score + Grade */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <AdminKPICard label="Overall Score" value={report.compositeScore ?? 0} />
+                    <AdminKPICard label="Grade" value={report.grade || "?"} />
+                    <AdminKPICard label="Total Issues" value={allIssues.length} />
+                  </div>
+
+                  {/* Sub-Score Breakdown */}
+                  {Object.keys(scores).length > 0 && (
+                    <AdminCard>
+                      <AdminSectionLabel>Score Breakdown</AdminSectionLabel>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                        {([
+                          { key: "seoAudit", label: "SEO Audit" },
+                          { key: "discovery", label: "Discovery" },
+                          { key: "indexing", label: "Indexing" },
+                          { key: "contentVelocity", label: "Content Velocity" },
+                          { key: "operations", label: "Operations" },
+                          { key: "publicWebsite", label: "Public Website" },
+                        ] as const).map(({ key, label }) => {
+                          const s = scores[key];
+                          if (!s) return null;
+                          const pct = Math.round(s.score);
+                          return (
+                            <div key={key} className="bg-[var(--admin-bg)] border border-[var(--admin-border)] rounded-lg p-3">
+                              <div className="text-[10px] uppercase tracking-wide text-[var(--admin-text-muted)] mb-1">{label}</div>
+                              <div className="flex items-end gap-1.5">
+                                <span className="text-xl font-bold text-[var(--admin-text)]">{pct}</span>
+                                <span className="text-xs text-[var(--admin-text-muted)] mb-0.5">/ 100</span>
+                              </div>
+                              <div className="mt-1.5 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${pct}%`,
+                                    backgroundColor: pct >= 80 ? "var(--admin-green)" : pct >= 50 ? "var(--admin-gold)" : "var(--admin-red)",
+                                  }}
+                                />
+                              </div>
+                              <div className="text-[9px] text-[var(--admin-text-muted)] mt-1">Weight: {Math.round(s.weight * 100)}%</div>
                             </div>
-                            {issue.detail && <p className="font-mono text-xs text-stone-500 mt-1">{issue.detail}</p>}
+                          );
+                        })}
+                      </div>
+                    </AdminCard>
+                  )}
+
+                  {/* Filters & Sort Controls */}
+                  <AdminCard>
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <div className="flex items-center gap-1.5">
+                        <Filter size={12} className="text-[var(--admin-text-muted)]" />
+                        <select
+                          value={auditSeverityFilter}
+                          onChange={(e) => setAuditSeverityFilter(e.target.value)}
+                          className="text-xs border border-[var(--admin-border)] rounded-md px-2 py-1 bg-white text-[var(--admin-text)]"
+                        >
+                          <option value="all">All Severities</option>
+                          <option value="critical">Critical</option>
+                          <option value="high">High</option>
+                          <option value="medium">Medium</option>
+                          <option value="low">Low</option>
+                          <option value="info">Info</option>
+                        </select>
+                        <select
+                          value={auditCategoryFilter}
+                          onChange={(e) => setAuditCategoryFilter(e.target.value)}
+                          className="text-xs border border-[var(--admin-border)] rounded-md px-2 py-1 bg-white text-[var(--admin-text)]"
+                        >
+                          <option value="all">All Categories</option>
+                          {uniqueCategories.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <ArrowUpDown size={12} className="text-[var(--admin-text-muted)]" />
+                        {(["severity", "category", "title"] as const).map((sk) => (
+                          <button
+                            key={sk}
+                            onClick={() => setAuditSortKey(sk)}
+                            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                              auditSortKey === sk
+                                ? "bg-stone-800 text-white border-stone-800"
+                                : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
+                            }`}
+                          >
+                            {sk.charAt(0).toUpperCase() + sk.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-[var(--admin-text-muted)] ml-auto">
+                        {filteredIssues.length} of {allIssues.length} issues
+                      </span>
+                    </div>
+
+                    {/* Issue List */}
+                    <AdminSectionLabel>Issues</AdminSectionLabel>
+                    {visible.length === 0 ? (
+                      <AdminEmptyState title="No issues match" subtitle="Adjust filters or run a new audit." />
+                    ) : (
+                      <div className="space-y-1 mt-2">
+                        {visible.map((issue, i) => (
+                          <div key={i} className="flex items-start justify-between bg-[var(--admin-bg)] border border-[var(--admin-border)] rounded-md px-3 py-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <AdminStatusBadge status={issue.severity === "critical" ? "error" : issue.severity === "high" ? "warning" : "info"} label={issue.severity} />
+                                <span className="text-[10px] uppercase tracking-wide text-[var(--admin-text-muted)] bg-stone-100 px-1.5 py-0.5 rounded">{issue.category}</span>
+                                <span className="text-sm text-[var(--admin-text)]">{issue.title}</span>
+                              </div>
+                              {issue.detail && <p className="text-xs text-[var(--admin-text-muted)] mt-1 truncate">{issue.detail}</p>}
+                              {issue.rootCause && <p className="text-xs text-[var(--admin-text-muted)] mt-0.5"><strong>Root cause:</strong> {issue.rootCause}</p>}
+                              {issue.fixAction && <p className="text-xs text-[var(--admin-gold)] mt-0.5"><strong>Fix:</strong> {issue.fixAction}</p>}
+                            </div>
+                            <AdminButton variant="ghost" size="sm" onClick={() => copyAsJson(issue)}>
+                              <Copy size={10} />
+                            </AdminButton>
                           </div>
-                          <AdminButton variant="ghost" size="sm" onClick={() => copyAsJson({ issue: issue.title, severity: issue.severity, detail: issue.detail })}>
-                            <Copy size={10} />
-                          </AdminButton>
+                        ))}
+                      </div>
+                    )}
+                    {sortedIssues.length > 15 && !showAllAuditIssues && (
+                      <button onClick={() => setShowAllAuditIssues(true)} className="text-xs text-[var(--admin-blue)] hover:underline mt-2">
+                        Show all {sortedIssues.length} issues
+                      </button>
+                    )}
+                    {showAllAuditIssues && sortedIssues.length > 15 && (
+                      <button onClick={() => setShowAllAuditIssues(false)} className="text-xs text-[var(--admin-text-muted)] hover:underline mt-2">
+                        Collapse
+                      </button>
+                    )}
+                  </AdminCard>
+                </>
+              );
+            })()}
+
+            {/* Historical Trend Comparison */}
+            <AdminCard>
+              <div className="flex items-center justify-between mb-3">
+                <AdminSectionLabel>Historical Comparison</AdminSectionLabel>
+                <AdminButton variant="ghost" size="sm" onClick={fetchAuditHistory} disabled={auditHistoryLoading}>
+                  <RefreshCw size={11} className={auditHistoryLoading ? "animate-spin" : ""} />
+                </AdminButton>
+              </div>
+              {auditHistoryLoading ? (
+                <AdminLoadingState label="Loading history..." />
+              ) : auditHistory.length === 0 ? (
+                <AdminEmptyState title="No audit history" subtitle="Run SEO audits to build a trend over time." />
+              ) : (
+                <div className="space-y-2">
+                  {/* Trend sparkline header */}
+                  {auditHistory.length >= 2 && (() => {
+                    const latest = auditHistory[0];
+                    const previous = auditHistory[1];
+                    const scoreDelta = latest.healthScore - previous.healthScore;
+                    const findingsDelta = latest.totalFindings - previous.totalFindings;
+                    return (
+                      <div className="flex flex-wrap gap-3 mb-3">
+                        <div className="flex items-center gap-1 text-sm">
+                          {scoreDelta >= 0 ? <TrendingUp size={14} className="text-[var(--admin-green)]" /> : <TrendingDown size={14} className="text-[var(--admin-red)]" />}
+                          <span className="text-[var(--admin-text)]">Score: {scoreDelta >= 0 ? "+" : ""}{scoreDelta} pts</span>
                         </div>
-                      ))}
-                      {allIssues.length > 10 && !showAllAuditIssues && (
-                        <button onClick={() => setShowAllAuditIssues(true)} className="text-xs text-blue-600 hover:text-blue-800 mt-2">
-                          Show all {allIssues.length} issues
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </AdminCard>
-            )}
+                        <div className="flex items-center gap-1 text-sm">
+                          {findingsDelta <= 0 ? <TrendingUp size={14} className="text-[var(--admin-green)]" /> : <TrendingDown size={14} className="text-[var(--admin-red)]" />}
+                          <span className="text-[var(--admin-text)]">Findings: {findingsDelta > 0 ? "+" : ""}{findingsDelta}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* History table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-left text-[var(--admin-text-muted)] border-b border-[var(--admin-border)]">
+                          <th className="pb-1.5 pr-3">Date</th>
+                          <th className="pb-1.5 pr-3">Score</th>
+                          <th className="pb-1.5 pr-3">Findings</th>
+                          <th className="pb-1.5 pr-1">
+                            <span className="text-[var(--admin-red)]">C</span> /
+                            <span className="text-[var(--admin-gold)]"> H</span> /
+                            <span className="text-[var(--admin-blue)]"> M</span> /
+                            <span className="text-[var(--admin-text-muted)]"> L</span>
+                          </th>
+                          <th className="pb-1.5">Trigger</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditHistory.map((h) => (
+                          <tr key={h.id} className="border-b border-[var(--admin-border)] last:border-0">
+                            <td className="py-1.5 pr-3 text-[var(--admin-text-muted)] whitespace-nowrap">
+                              {new Date(h.createdAt).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              <span className={`font-semibold ${h.healthScore >= 80 ? "text-[var(--admin-green)]" : h.healthScore >= 50 ? "text-[var(--admin-gold)]" : "text-[var(--admin-red)]"}`}>
+                                {h.healthScore}
+                              </span>
+                            </td>
+                            <td className="py-1.5 pr-3 text-[var(--admin-text)]">{h.totalFindings}</td>
+                            <td className="py-1.5 pr-1 font-mono text-[10px]">
+                              <span className="text-[var(--admin-red)]">{h.criticalCount}</span>{" / "}
+                              <span className="text-[var(--admin-gold)]">{h.highCount}</span>{" / "}
+                              <span className="text-[var(--admin-blue)]">{h.mediumCount}</span>{" / "}
+                              <span className="text-[var(--admin-text-muted)]">{h.lowCount}</span>
+                            </td>
+                            <td className="py-1.5 text-[var(--admin-text-muted)]">{h.triggeredBy || "manual"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </AdminCard>
           </div>
         )}
       </div>

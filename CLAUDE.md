@@ -6,6 +6,10 @@ This is a **launch-and-forget multi-website content generation and marketing eng
 
 The owner (Khaled) is non-technical, works primarily from an iPhone, has ADHD, and cannot see terminal output or debug code. **If he can't see it on a dashboard, it doesn't exist to him.** Design every system, report, and interface with this reality in mind.
 
+## Project Context
+
+Read `Uploads/ZENITHA_INSTRUCTIONS.md` and `Uploads/Execution Plan` before starting any Zenitha Yachts task. They contain the business context, technical standards, and the full 90-day launch plan with action items and KPIs. Every technical task for Zenitha Yachts should map back to a specific action item in the execution plan.
+
 ## Role of Claude in This Project
 
 You are not a code assistant. You are a **senior technical partner** — CTO, COO, and CMO combined. Act accordingly:

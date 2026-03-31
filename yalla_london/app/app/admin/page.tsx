@@ -1,5 +1,5 @@
-import CommandCenter from "@/components/admin/CommandCenter";
+import { redirect } from "next/navigation";
 
 export default function AdminDashboard() {
-  return <CommandCenter />;
+  redirect("/admin/cockpit");
 }

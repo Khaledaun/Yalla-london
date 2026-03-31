@@ -300,7 +300,7 @@ export default function ApiMonitorPage() {
   const totalTested = Object.keys(results).length;
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-8">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">

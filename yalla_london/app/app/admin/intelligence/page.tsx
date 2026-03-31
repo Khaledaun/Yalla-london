@@ -57,6 +57,9 @@ export default function IntelligencePage() {
   const [showAllAuditIssues, setShowAllAuditIssues] = useState(false);
   const fixResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  type TopPagesSortKey = "clicks" | "impressions" | "ctr" | "position" | "clicks_asc" | "impressions_asc" | "ctr_asc" | "position_asc";
+  const [topPagesSort, setTopPagesSort] = useState<TopPagesSortKey>("clicks");
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -182,7 +185,7 @@ export default function IntelligencePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
         <AdminLoadingState label="Loading SEO intelligence..." />
       </div>
     );
@@ -194,8 +197,20 @@ export default function IntelligencePage() {
     avgPosition: null, avgCtr: null, topPages: [], issues: [],
   };
 
+  const sortedTopPages = (() => {
+    const pages = [...d.topPages];
+    const baseKey = topPagesSort.replace(/_asc$/, "") as "clicks" | "impressions" | "ctr" | "position";
+    const asc = topPagesSort.endsWith("_asc");
+    pages.sort((a, b) => {
+      const av = a[baseKey] ?? 0;
+      const bv = b[baseKey] ?? 0;
+      return asc ? av - bv : bv - av;
+    });
+    return pages;
+  })();
+
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
       <div className="space-y-5 max-w-4xl mx-auto">
         {/* Header */}
         <AdminPageHeader
@@ -308,9 +323,27 @@ export default function IntelligencePage() {
 
             {d.topPages.length > 0 && (
               <AdminCard>
-                <AdminSectionLabel>Top Pages (7d)</AdminSectionLabel>
+                <div className="flex items-center justify-between">
+                  <AdminSectionLabel>Top Pages (7d)</AdminSectionLabel>
+                  <div className="flex items-center gap-1 text-[10px]">
+                    {(["clicks", "impressions", "ctr", "position"] as const).map((col) => (
+                      <button
+                        key={col}
+                        onClick={() => setTopPagesSort((prev) => prev === col ? `${col}_asc` as typeof prev : col)}
+                        className={`px-2 py-0.5 rounded border transition-colors ${
+                          topPagesSort === col || topPagesSort === `${col}_asc`
+                            ? "bg-stone-800 text-white border-stone-800"
+                            : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
+                        }`}
+                      >
+                        {col === "ctr" ? "CTR" : col === "position" ? "Pos" : col.charAt(0).toUpperCase() + col.slice(1)}
+                        {topPagesSort === col ? " ↓" : topPagesSort === `${col}_asc` ? " ↑" : ""}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="space-y-1 mt-2">
-                  {d.topPages.map((p, i) => (
+                  {sortedTopPages.map((p, i) => (
                     <div key={i} className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs">
                       <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-stone-700 hover:text-blue-700 truncate max-w-[55%] flex items-center gap-1">
                         {p.url.replace(/^https?:\/\/[^/]+/, "")}
@@ -319,6 +352,7 @@ export default function IntelligencePage() {
                       <div className="flex items-center gap-3 text-stone-500">
                         <span>{p.clicks} clicks</span>
                         <span>{p.impressions} imp</span>
+                        <span title={`CTR: ${(p.ctr * 100).toFixed(2)}%`}>{(p.ctr * 100).toFixed(1)}%</span>
                         <span>pos {p.position.toFixed(1)}</span>
                       </div>
                     </div>

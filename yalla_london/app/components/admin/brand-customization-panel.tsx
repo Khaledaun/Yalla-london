@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import NextImage from 'next/image';
+import { useConfirm } from '@/components/admin/admin-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ import { brandConfig, generateCSSVariables } from '@/config/brand-config';
 import { brandTemplates, type BusinessType } from '@/config/brand-templates';
 
 export function BrandCustomizationPanel() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [activeTab, setActiveTab] = useState('identity');
   const [currentConfig, setCurrentConfig] = useState(brandConfig);
   const [previewMode, setPreviewMode] = useState(false);
@@ -174,8 +176,9 @@ export function BrandCustomizationPanel() {
     }
   };
 
-  const resetToDefaults = () => {
-    if (confirm('Are you sure you want to reset to default brand settings?')) {
+  const resetToDefaults = async () => {
+    const ok = await confirm({ title: 'Reset Brand Settings', message: 'Are you sure you want to reset to default brand settings?', variant: 'danger' });
+    if (ok) {
       applyTemplate('luxury-guide');
     }
   };
@@ -646,6 +649,7 @@ export function BrandCustomizationPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+      <ConfirmDialog />
     </div>
   );
 }

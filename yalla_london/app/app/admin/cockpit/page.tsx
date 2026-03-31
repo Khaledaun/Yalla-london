@@ -31,6 +31,7 @@ import {
   AdminEmptyState,
   AdminAlertBanner,
   AdminTabs,
+  useConfirm,
 } from "@/components/admin/admin-ui";
 import { MissionControl } from "./components/mission-control";
 
@@ -2425,6 +2426,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
 // ─── Tab 2: Content Matrix ────────────────────────────────────────────────────
 
 function ContentTab({ activeSiteId }: { activeSiteId: string }) {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [data, setData] = useState<ContentMatrixData | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -3345,7 +3347,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   <ActionButton onClick={() => doBulkAction("publish_selected", "Publish")} loading={bulkActionLoading === "publish_selected"} variant="success">Publish Selected</ActionButton>
                   <ActionButton onClick={() => doBulkAction("unpublish", "Unpublish")} loading={bulkActionLoading === "unpublish"} variant="amber">Unpublish Selected</ActionButton>
                   <ActionButton onClick={() => doBulkAction("re_queue", "Re-queue")} loading={bulkActionLoading === "re_queue"}>Re-queue Selected</ActionButton>
-                  <ActionButton onClick={() => { if (confirm(`Delete ${selectedIds.size} items?`)) doBulkAction("delete_draft", "Delete"); }} loading={bulkActionLoading === "delete_draft"} variant="danger">Delete Selected</ActionButton>
+                  <ActionButton onClick={async () => { const ok = await confirm({ title: 'Delete Items', message: `Delete ${selectedIds.size} items?`, variant: 'danger' }); if (ok) doBulkAction("delete_draft", "Delete"); }} loading={bulkActionLoading === "delete_draft"} variant="danger">Delete Selected</ActionButton>
                   <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-stone-400 hover:text-stone-600">Clear</button>
                 </div>
               )}
@@ -3380,6 +3382,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           )}
         </>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

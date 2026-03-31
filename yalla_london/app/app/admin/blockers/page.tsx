@@ -78,7 +78,7 @@ export default function BlockersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
         <AdminLoadingState />
       </div>
     );
@@ -124,7 +124,7 @@ export default function BlockersPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
       <div className="space-y-5 max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between">

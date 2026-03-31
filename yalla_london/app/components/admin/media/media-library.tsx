@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import NextImage from 'next/image'
+import { useConfirm } from '@/components/admin/admin-ui'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -63,6 +64,7 @@ export default function MediaLibrary({
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const fetchMediaItems = useCallback(async () => {
     try {
@@ -152,7 +154,8 @@ export default function MediaLibrary({
   }
 
   const handleDeleteMedia = async (mediaId: string) => {
-    if (!confirm('Are you sure you want to delete this media item?')) return
+    const ok = await confirm({ title: 'Delete Media Item', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
 
     try {
       const response = await fetch(`/api/admin/media/${mediaId}`, {
@@ -357,6 +360,8 @@ export default function MediaLibrary({
           onSave={(updates) => handleUpdateMedia(editingItem.id, updates)}
         />
       )}
+
+      <ConfirmDialog />
     </div>
   )
 }

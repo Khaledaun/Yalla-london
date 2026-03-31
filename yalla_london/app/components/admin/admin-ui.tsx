@@ -509,6 +509,62 @@ export function ConfirmModal({
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   useConfirm — Promise-based hook replacing window.confirm()
+   Usage:
+     const { confirm, ConfirmDialog } = useConfirm()
+     // in handler: const ok = await confirm({ title, message })
+     // in JSX:     <ConfirmDialog />
+   ═════════════════════════════════════════════════════════════════ */
+
+export function useConfirm() {
+  const [state, setState] = React.useState<{
+    open: boolean
+    title: string
+    message: string
+    details?: string
+    confirmLabel?: string
+    variant?: 'danger' | 'warning'
+    resolve: ((v: boolean) => void) | null
+  }>({ open: false, title: '', message: '', resolve: null })
+
+  const confirm = React.useCallback(
+    (opts: { title: string; message: string; details?: string; confirmLabel?: string; variant?: 'danger' | 'warning' }) =>
+      new Promise<boolean>((resolve) => {
+        setState({ ...opts, open: true, resolve })
+      }),
+    []
+  )
+
+  const handleConfirm = React.useCallback(() => {
+    state.resolve?.(true)
+    setState((s) => ({ ...s, open: false, resolve: null }))
+  }, [state.resolve])
+
+  const handleCancel = React.useCallback(() => {
+    state.resolve?.(false)
+    setState((s) => ({ ...s, open: false, resolve: null }))
+  }, [state.resolve])
+
+  const ConfirmDialog = React.useCallback(
+    () => (
+      <ConfirmModal
+        open={state.open}
+        title={state.title}
+        message={state.message}
+        details={state.details}
+        confirmLabel={state.confirmLabel || 'Confirm'}
+        variant={state.variant || 'danger'}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+    ),
+    [state.open, state.title, state.message, state.details, state.confirmLabel, state.variant, handleConfirm, handleCancel]
+  )
+
+  return { confirm, ConfirmDialog }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    AdminToast — Auto-dismissing notification
    ═════════════════════════════════════════════════════════════════ */
 

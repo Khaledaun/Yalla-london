@@ -147,7 +147,7 @@ export default function CommunicationsPage() {
   // ─── Render ──────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] px-4 py-6 max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[var(--admin-bg)] px-4 py-6 max-w-3xl mx-auto">
       <AdminPageHeader
         title="Communications Hub"
         subtitle="Unified inbox across all channels"

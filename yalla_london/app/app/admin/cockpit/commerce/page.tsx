@@ -21,6 +21,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useConfirm } from "@/components/admin/admin-ui";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -146,6 +147,7 @@ interface EtsyDraft {
 // ─── Component ────────────────────────────────────────────
 
 export default function CommerceHQPage() {
+  const { confirm, ConfirmDialog } = useConfirm()
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "overview";
@@ -416,7 +418,8 @@ export default function CommerceHQPage() {
   };
 
   const disconnectEtsy = async () => {
-    if (!confirm("Disconnect Etsy shop? You can reconnect anytime.")) return;
+    const ok = await confirm({ title: 'Disconnect Etsy Shop', message: 'Disconnect Etsy shop? You can reconnect anytime.', variant: 'warning', confirmLabel: 'Disconnect' })
+    if (!ok) return;
     setActionLoading("etsy-disconnect");
     try {
       const res = await fetch("/api/admin/commerce/etsy", {
@@ -645,6 +648,7 @@ export default function CommerceHQPage() {
         {activeTab === "assets" && <AssetsLinksTab />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
+      <ConfirmDialog />
     </div>
   );
 }

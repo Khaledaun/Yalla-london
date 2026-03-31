@@ -228,14 +228,14 @@ export default function FeatureFlagsHealth() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+      <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
         <AdminLoadingState label="Loading Feature Flags & Health..." />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6 space-y-6">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6 space-y-6">
       {/* Header */}
       <AdminPageHeader
         title="Feature Flags & Health"
@@ -514,7 +514,7 @@ export default function FeatureFlagsHealth() {
                     <p className="text-sm text-stone-400">No feature flags to analyze.</p>
                   )}
                   {featureFlags.map((flag) => (
-                    <div key={flag.id} className="flex items-center justify-between p-3 bg-[#FAF8F4] rounded-lg">
+                    <div key={flag.id} className="flex items-center justify-between p-3 bg-[var(--admin-bg)] rounded-lg">
                       <div>
                         <p className="font-medium text-stone-800 text-sm">{flag.name}</p>
                         <p className="text-xs text-stone-500">

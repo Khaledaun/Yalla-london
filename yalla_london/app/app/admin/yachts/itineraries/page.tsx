@@ -12,6 +12,7 @@ import {
   AdminEmptyState,
   AdminAlertBanner,
   AdminSectionLabel,
+  useConfirm,
 } from '@/components/admin/admin-ui'
 import {
   Route,
@@ -187,6 +188,7 @@ const tableCellStyle: React.CSSProperties = {
 // ---------------------------------------------------------------------------
 
 export default function ItinerariesAdminPage() {
+  const { confirm, ConfirmDialog } = useConfirm()
   const siteId = useSiteId()
 
   // Data
@@ -355,7 +357,8 @@ export default function ItinerariesAdminPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Deactivate this itinerary? It can be reactivated later.')) return
+    const ok = await confirm({ title: 'Deactivate Itinerary', message: 'Deactivate this itinerary? It can be reactivated later.', variant: 'warning', confirmLabel: 'Deactivate' })
+    if (!ok) return
 
     try {
       const res = await fetch(`/api/admin/yachts/itineraries?id=${id}`, { method: 'DELETE' })
@@ -688,6 +691,7 @@ export default function ItinerariesAdminPage() {
           </div>
         )}
       </AdminCard>
+      <ConfirmDialog />
     </div>
   )
 }

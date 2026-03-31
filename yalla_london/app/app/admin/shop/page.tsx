@@ -11,6 +11,7 @@ import {
   AdminLoadingState,
   AdminEmptyState,
   AdminSectionLabel,
+  useConfirm,
 } from '@/components/admin/admin-ui'
 import {
   Package, Plus, Search, Edit, Trash2, Eye, DollarSign,
@@ -51,6 +52,7 @@ interface ShopStats {
 }
 
 export default function AdminShopPage() {
+  const { confirm, ConfirmDialog } = useConfirm()
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<ShopStats>({
@@ -256,7 +258,8 @@ export default function AdminShopPage() {
                                 <div style={{ borderTop: '1px solid rgba(214,208,196,0.5)', margin: '2px 0' }} />
                                 <button
                                   onClick={async () => {
-                                    if (!confirm(`Delete "${product.name}"?`)) return
+                                    const ok = await confirm({ title: 'Delete Product', message: `Delete "${product.name}"? This cannot be undone.`, variant: 'danger', confirmLabel: 'Delete' })
+                                    if (!ok) return
                                     const res = await fetch(`/api/admin/shop?id=${product.id}`, { method: 'DELETE' })
                                     if (res.ok) setProducts(prev => prev.filter(p => p.id !== product.id))
                                     setOpenMenuId(null)
@@ -328,6 +331,7 @@ export default function AdminShopPage() {
           )}
         </>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

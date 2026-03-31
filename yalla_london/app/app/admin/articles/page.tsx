@@ -15,6 +15,7 @@ import {
   AdminEmptyState,
   AdminAlertBanner,
   AdminTabs,
+  useConfirm,
 } from '@/components/admin/admin-ui'
 import {
   FileText,
@@ -77,6 +78,7 @@ interface BlogPostAdmin {
 
 export default function ArticlesPage() {
   const router = useRouter()
+  const { confirm, ConfirmDialog } = useConfirm()
   const [articles, setArticles] = useState<BlogPostAdmin[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -243,9 +245,8 @@ export default function ArticlesPage() {
 
   // Delete article
   const handleDeleteArticle = async (articleId: string) => {
-    if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
-      return
-    }
+    const ok = await confirm({ title: 'Delete Article', message: 'Are you sure you want to delete this article? This action cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
 
     try {
       const response = await fetch(`/api/admin/content?id=${articleId}`, {
@@ -581,6 +582,7 @@ export default function ArticlesPage() {
           </div>
         )}
       </AdminCard>
+      <ConfirmDialog />
     </div>
   )
 }

@@ -21,7 +21,7 @@ import {
   Database,
   Zap
 } from 'lucide-react'
-import { AdminEmptyState } from '@/components/admin/admin-ui'
+import { AdminEmptyState, useConfirm } from '@/components/admin/admin-ui'
 
 interface ApiKey {
   id: string
@@ -72,6 +72,7 @@ export default function ApiKeysSafe() {
   const [isLoading, setIsLoading] = useState(true)
   const [showAddKey, setShowAddKey] = useState(false)
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set())
+  const { confirm, ConfirmDialog } = useConfirm()
 
   useEffect(() => {
     loadApiData()
@@ -119,7 +120,8 @@ export default function ApiKeysSafe() {
   }
 
   const handleDeleteKey = async (keyId: string) => {
-    if (confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
+    const ok = await confirm({ title: 'Delete API Key', message: 'Are you sure you want to delete this API key? This action cannot be undone.', variant: 'danger' })
+    if (ok) {
       setApiKeys(prev => prev.filter(key => key.id !== keyId))
     }
   }
@@ -523,6 +525,7 @@ export default function ApiKeysSafe() {
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

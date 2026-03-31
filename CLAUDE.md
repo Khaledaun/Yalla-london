@@ -5492,6 +5492,61 @@ Subscriber Lifecycle:
 237. **Per-content-type quality gates must be applied in BOTH `select-runner.ts` AND `phases.ts`** — `phases.ts` gates entry to reservoir, `select-runner.ts` gates promotion to BlogPost. If either uses a global threshold, content types with higher requirements (comparison=65, review=60) pass when they shouldn't, and types with lower requirements (news=40) get unnecessarily blocked.
 238. **Design system dead code accumulates without automated cleanup** — `AdminToast`, `AdminSkeletonLoader`, `AdminProgressBar` were created but never integrated. 18/20 CSS variables are defined but unreferenced. Regular audits should flag unused exports.
 
+### Session: March 31, 2026 — User-Lens Audit: Accessibility, UX & Revenue Visibility (6 commits)
+
+**Comprehensive user-experience audit evaluating the platform against 5 user personas (non-technical CEO, VA, developer, SEO specialist, content manager). 30-scenario workflow audit completed, followed by targeted UX hardening.**
+
+**Commit 1: `useConfirm` hook migration (21 files)**
+- Migrated ALL `window.confirm()` calls across the entire codebase to the accessible `useConfirm` hook + `ConfirmModal` component
+- WAI-ARIA `alertdialog` pattern with focus trap, keyboard support (Enter/Escape), and descriptive labels
+- 21 admin pages updated, zero remaining bare `confirm()` calls
+- This was flagged as the #1 critical UX bug in the user-lens review
+
+**Commit 2: Admin landing page redirect**
+- `/admin` now server-redirects to `/admin/cockpit` instead of rendering the stale `CommandCenter` component
+- Fixes "session starts disoriented" finding — Khaled always lands on the mission control dashboard
+
+**Commit 3: CSS variable migration (11 files, 22 occurrences)**
+- Replaced all hardcoded `bg-[#FAF8F4]` with `bg-[var(--admin-bg)]` across 11 admin pages
+- Enables future dark mode by changing a single CSS variable
+- Files: members, integrations, automation, crm/contact, feature-flags, variable-vault, communications (×2), api-monitor, blockers, intelligence
+
+**Commit 4: Revenue diagnostic panel in Affiliate HQ**
+- When revenue is $0, shows a "Revenue Pipeline Status" checklist panel with 5 diagnostic items:
+  1. CJ API connected (checks byNetwork for CJ entry)
+  2. Advertisers approved (checks partners for JOINED status)
+  3. Affiliate links injected (shows coverage %)
+  4. Published articles with traffic potential
+  5. Clicks tracked (shows 7-day click count)
+- Styled with warm amber background and gold border matching design system
+
+**Commit 5: Post-injection summary in Affiliate HQ**
+- After "Inject Links" action completes, the result panel now shows:
+  - Articles checked, needing injection, and actually injected counts
+  - "What changed" section listing each article slug and which affiliate partners were inserted
+  - Up to 10 articles shown with overflow indicator
+  - Clear "No articles needed new affiliate links" message when nothing changed
+
+**Commit 6: Sort controls on Intelligence Top Pages table**
+- Added 4 sort buttons (Clicks, Impressions, CTR, Position) to the Top Pages (7d) section
+- Toggle between descending (↓) and ascending (↑) sort per column
+- Active sort highlighted with dark background
+- CTR column now visible in each row (was hidden — only clicks, impressions, position shown before)
+
+**Files Modified (26 total across 6 commits):**
+- 21 admin pages (confirm migration)
+- `app/admin/page.tsx` (redirect)
+- 11 admin pages (bg variable)
+- `app/admin/affiliate-hq/page.tsx` (revenue diagnostic + injection summary)
+- `app/admin/intelligence/page.tsx` (sort controls)
+
+### Critical Rules Learned (March 31 Session)
+
+239. **`window.confirm()` is a blocking synchronous call that breaks mobile Safari** — always use a Promise-based React modal pattern (`useConfirm` hook). The accessible pattern requires: `role="alertdialog"`, `aria-modal="true"`, `aria-labelledby`, `aria-describedby`, focus trap, and Escape key handler.
+240. **Revenue diagnostic panels should appear ONLY when data is zero** — showing "why your revenue might be zero" when revenue is positive is confusing. Conditionally render the checklist: `{revenue.total30d === 0 && <DiagnosticPanel />}`.
+241. **Post-action result summaries must answer "what changed?"** — generic "completed" messages are useless. After affiliate injection, show: which articles, which partners, how many. After any mutation, show the delta, not just the status.
+242. **Sort controls on data tables must support bidirectional toggle** — first click sorts descending (most interesting first), second click on same column reverses to ascending. Active sort state must be visually distinct (filled button vs outline).
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

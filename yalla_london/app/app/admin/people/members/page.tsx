@@ -116,7 +116,7 @@ export default function MembersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F4] p-4 md:p-6">
+    <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">
       <AdminPageHeader
         title="Author Profiles"
         subtitle="E-E-A-T bylines used on published articles"
@@ -312,7 +312,7 @@ function MemberCard({
       )}
 
       {/* Meta row */}
-      <div className="flex items-center gap-3 px-4 py-3 mt-2 border-t border-[rgba(214,208,196,0.4)] bg-[#FAF8F4]/50">
+      <div className="flex items-center gap-3 px-4 py-3 mt-2 border-t border-[rgba(214,208,196,0.4)] bg-[var(--admin-bg)]/50">
         {/* Site badge */}
         <span className="flex items-center gap-1 text-[11px] text-stone-500">
           <Globe size={12} className="text-stone-400" />

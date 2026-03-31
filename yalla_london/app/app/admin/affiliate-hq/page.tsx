@@ -893,8 +893,8 @@ function CoverageTab({ data, onAction, actionLoading, runActionRaw, setConfirmMo
 
 /** Per-page row in Coverage tab with inject button + link inspector */
 function PageRow({ page, onInjectLinks, allLinks }: {
-  page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[] };
-  onInjectLinks: (action: string, extra?: Record<string, unknown>) => Promise<void>;
+  page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[]; [key: string]: unknown };
+  onInjectLinks: (action: string, extra?: Record<string, unknown>) => Promise<Record<string, unknown>>;
   allLinks: AffiliateHQData["links"]["linksList"];
 }) {
   const [expanded, setExpanded] = useState(false);

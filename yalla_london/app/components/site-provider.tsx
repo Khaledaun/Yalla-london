@@ -8,6 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { Site } from "@/lib/prisma-types";
+import { safeLocalGet, safeLocalSet } from "@/lib/safe-storage";
 
 /**
  * Fallback sites matching config/sites.ts identities.
@@ -69,7 +70,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   // Load saved site preference from localStorage, then refresh from API
   useEffect(() => {
-    const savedSiteId = localStorage.getItem("admin_current_site_id");
+    const savedSiteId = safeLocalGet("admin_current_site_id");
     if (savedSiteId) {
       const savedSite = FALLBACK_SITES.find((s) => s.id === savedSiteId);
       if (savedSite) {
@@ -100,9 +101,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   // Save site preference to localStorage when it changes
   const setCurrentSite = useCallback((site: Site) => {
     setCurrentSiteState(site);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("admin_current_site_id", site.id);
-    }
+    safeLocalSet("admin_current_site_id", site.id);
   }, []);
 
   // Helper to get site by ID

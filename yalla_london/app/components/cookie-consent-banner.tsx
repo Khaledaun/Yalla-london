@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
+import { safeLocalGet, safeLocalSetJSON, safeLocalGetJSON } from '@/lib/safe-storage'
 
 interface CookiePreferences {
   necessary: boolean
@@ -31,18 +32,12 @@ export function CookieConsentBanner() {
 
   useEffect(() => {
     // Check if user has already made a choice
-    const cookieConsent = localStorage.getItem('cookieConsent')
-    if (!cookieConsent) {
+    const savedPrefs = safeLocalGetJSON<CookiePreferences>('cookieConsent')
+    if (!savedPrefs) {
       setIsVisible(true)
     } else {
-      // Load saved preferences
-      try {
-        const savedPrefs = JSON.parse(cookieConsent)
-        setPreferences(savedPrefs)
-        applyCookieSettings(savedPrefs)
-      } catch (error) {
-        setIsVisible(true)
-      }
+      setPreferences(savedPrefs)
+      applyCookieSettings(savedPrefs)
     }
   }, [])
 
@@ -91,13 +86,13 @@ export function CookieConsentBanner() {
       functional: true
     }
     setPreferences(allAccepted)
-    localStorage.setItem('cookieConsent', JSON.stringify(allAccepted))
+    safeLocalSetJSON('cookieConsent', allAccepted)
     applyCookieSettings(allAccepted)
     setIsVisible(false)
   }
 
   const handleAcceptSelected = () => {
-    localStorage.setItem('cookieConsent', JSON.stringify(preferences))
+    safeLocalSetJSON('cookieConsent', preferences)
     applyCookieSettings(preferences)
     setIsVisible(false)
   }
@@ -110,7 +105,7 @@ export function CookieConsentBanner() {
       functional: false
     }
     setPreferences(rejected)
-    localStorage.setItem('cookieConsent', JSON.stringify(rejected))
+    safeLocalSetJSON('cookieConsent', rejected)
     applyCookieSettings(rejected)
     setIsVisible(false)
   }

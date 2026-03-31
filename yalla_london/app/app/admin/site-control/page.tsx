@@ -41,6 +41,8 @@ import {
   Tag,
   ImageIcon,
   Megaphone,
+  Search,
+  Link2,
 } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { AdminEmptyState } from '@/components/admin/admin-ui'
@@ -314,6 +316,8 @@ interface MediaAsset {
 
 interface SiteConfig {
   id: string
+  name?: string
+  description?: string
   homepage_json: any
   hero_video_url?: string
   hero_mobile_video_url?: string
@@ -329,7 +333,7 @@ interface SiteConfig {
 }
 
 export default function SiteControl() {
-  const [activeTab, setActiveTab] = useState<'homepage' | 'media' | 'pages' | 'theme' | 'settings'>('homepage')
+  const [activeTab, setActiveTab] = useState<'homepage' | 'media' | 'pages' | 'theme' | 'seo' | 'settings'>('homepage')
   const [blocks, setBlocks] = useState<HomepageBlock[]>([])
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null)
@@ -346,6 +350,18 @@ export default function SiteControl() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
   const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
+
+  // SEO Metadata state
+  const [seoPages, setSeoPages] = useState<Array<{
+    path: string
+    label: string
+    title: string
+    description: string
+    ogImage: string
+    canonicalUrl: string
+  }>>([])
+  const [selectedSeoPage, setSelectedSeoPage] = useState<string>('/')
+  const [seoSaving, setSeoSaving] = useState(false)
 
   useEffect(() => {
     loadSiteData()
@@ -377,11 +393,97 @@ export default function SiteControl() {
 
       setMediaAssets([])
       setSiteConfig(defaultConfig)
+
+      // Load SEO metadata from SiteSettings
+      const siteId = getDefaultSiteId()
+      let domain = ''
+      try { domain = getSiteDomain(siteId) } catch { domain = 'https://localhost:3000' }
+      const defaultPages = [
+        { path: '/', label: 'Homepage', title: `${_siteCfg?.name || 'Yalla London'} — Luxury Travel Guide`, description: 'Discover the best of London with luxury travel guides', ogImage: `${domain}/api/og?siteId=${siteId}`, canonicalUrl: domain },
+        { path: '/blog', label: 'Blog', title: `Blog — ${_siteCfg?.name || 'Yalla London'}`, description: 'Read our latest luxury travel articles and guides', ogImage: '', canonicalUrl: `${domain}/blog` },
+        { path: '/about', label: 'About', title: `About — ${_siteCfg?.name || 'Yalla London'}`, description: 'Learn about our luxury travel platform', ogImage: '', canonicalUrl: `${domain}/about` },
+        { path: '/contact', label: 'Contact', title: `Contact — ${_siteCfg?.name || 'Yalla London'}`, description: 'Get in touch with our travel experts', ogImage: '', canonicalUrl: `${domain}/contact` },
+        { path: '/hotels', label: 'Hotels', title: `Luxury Hotels — ${_siteCfg?.name || 'Yalla London'}`, description: 'Curated luxury hotel recommendations', ogImage: '', canonicalUrl: `${domain}/hotels` },
+        { path: '/experiences', label: 'Experiences', title: `Experiences — ${_siteCfg?.name || 'Yalla London'}`, description: 'Discover unforgettable London experiences', ogImage: '', canonicalUrl: `${domain}/experiences` },
+        { path: '/events', label: 'Events', title: `Events — ${_siteCfg?.name || 'Yalla London'}`, description: 'Upcoming London events and activities', ogImage: '', canonicalUrl: `${domain}/events` },
+      ]
+
+      try {
+        const seoRes = await fetch(`/api/admin/site-settings?siteId=${encodeURIComponent(siteId)}&category=seo-metadata`)
+        if (seoRes.ok) {
+          const seoData = await seoRes.json()
+          const seoConfig = seoData.settings?.['seo-metadata']?.config
+          if (seoConfig?.pages && Array.isArray(seoConfig.pages)) {
+            const savedPages = seoConfig.pages as typeof defaultPages
+            // Merge saved data with defaults (saved data wins)
+            const merged = defaultPages.map(dp => {
+              const saved = savedPages.find((sp: typeof dp) => sp.path === dp.path)
+              return saved ? { ...dp, ...saved } : dp
+            })
+            setSeoPages(merged)
+          } else {
+            setSeoPages(defaultPages)
+          }
+        } else {
+          setSeoPages(defaultPages)
+        }
+      } catch {
+        setSeoPages(defaultPages)
+      }
     } catch (error) {
       console.error('Failed to load site data:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSeoPageUpdate = (path: string, field: string, value: string) => {
+    setSeoPages(prev => prev.map(p => p.path === path ? { ...p, [field]: value } : p))
+  }
+
+  const currentSeoPage = seoPages.find(p => p.path === selectedSeoPage)
+
+  const handleSaveSeoMetadata = async () => {
+    setSeoSaving(true)
+    try {
+      const siteId = getDefaultSiteId()
+      const res = await fetch('/api/admin/site-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId,
+          category: 'seo-metadata',
+          config: { pages: seoPages },
+        }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        setSaveMessage({ type: 'error', text: (errData as Record<string, string>).error || 'Failed to save SEO metadata' })
+      } else {
+        setSaveMessage({ type: 'success', text: 'SEO metadata saved!' })
+      }
+    } catch {
+      setSaveMessage({ type: 'error', text: 'Network error saving SEO metadata' })
+    } finally {
+      setSeoSaving(false)
+      setTimeout(() => setSaveMessage(null), 3000)
+    }
+  }
+
+  const getSerpTitleLength = (title: string) => {
+    const len = title.length
+    if (len === 0) return { color: 'text-gray-400', label: '0 chars' }
+    if (len < 30) return { color: 'text-amber-600', label: `${len} chars — too short` }
+    if (len <= 60) return { color: 'text-green-600', label: `${len} chars — good` }
+    return { color: 'text-red-600', label: `${len} chars — too long (max 60)` }
+  }
+
+  const getSerpDescLength = (desc: string) => {
+    const len = desc.length
+    if (len === 0) return { color: 'text-gray-400', label: '0 chars' }
+    if (len < 120) return { color: 'text-amber-600', label: `${len} chars — too short` }
+    if (len <= 160) return { color: 'text-green-600', label: `${len} chars — good` }
+    return { color: 'text-red-600', label: `${len} chars — too long (max 160)` }
   }
 
   const handleBlockUpdate = (blockId: string, updates: Partial<HomepageBlock>) => {
@@ -688,6 +790,7 @@ export default function SiteControl() {
             { id: 'media', label: 'Media Library', icon: Image },
             { id: 'pages', label: 'Static Pages', icon: FileText },
             { id: 'theme', label: 'Theme & Branding', icon: Palette },
+            { id: 'seo', label: 'SEO Metadata', icon: Search },
             { id: 'settings', label: 'Site Settings', icon: Settings }
           ].map((tab) => (
             <button
@@ -1282,6 +1385,185 @@ export default function SiteControl() {
                   </select>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'seo' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">SEO Metadata Editor</h3>
+            <button
+              onClick={handleSaveSeoMetadata}
+              disabled={seoSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {seoSaving ? 'Saving...' : 'Save All'}
+            </button>
+          </div>
+
+          {saveMessage && (
+            <div className={`px-4 py-2 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {saveMessage.text}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Page Selector */}
+            <div className="lg:col-span-1 space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Page</label>
+              <div className="space-y-1">
+                {seoPages.map(page => (
+                  <button
+                    key={page.path}
+                    onClick={() => setSelectedSeoPage(page.path)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedSeoPage === page.path
+                        ? 'bg-purple-50 text-purple-700 border border-purple-200 font-medium'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>{page.label}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 ml-5.5">{page.path}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SEO Fields */}
+            <div className="lg:col-span-3 space-y-6">
+              {currentSeoPage && (
+                <>
+                  {/* Page Title */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Page Title</label>
+                      <span className={`text-xs ${getSerpTitleLength(currentSeoPage.title).color}`}>
+                        {getSerpTitleLength(currentSeoPage.title).label}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={currentSeoPage.title}
+                      onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'title', e.target.value)}
+                      placeholder="Page title (30-60 characters)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <div className="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          currentSeoPage.title.length <= 60 ? 'bg-green-400' : 'bg-red-400'
+                        }`}
+                        style={{ width: `${Math.min(100, (currentSeoPage.title.length / 60) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Meta Description */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Meta Description</label>
+                      <span className={`text-xs ${getSerpDescLength(currentSeoPage.description).color}`}>
+                        {getSerpDescLength(currentSeoPage.description).label}
+                      </span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={currentSeoPage.description}
+                      onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'description', e.target.value)}
+                      placeholder="Meta description (120-160 characters)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <div className="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          currentSeoPage.description.length <= 160 ? 'bg-green-400' : 'bg-red-400'
+                        }`}
+                        style={{ width: `${Math.min(100, (currentSeoPage.description.length / 160) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* OG Image */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Open Graph Image</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="text"
+                        value={currentSeoPage.ogImage}
+                        onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'ogImage', e.target.value)}
+                        placeholder="https://example.com/og-image.jpg (1200x630 recommended)"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <div className="flex items-center gap-1">
+                        <ImageIcon className="h-4 w-4 text-gray-400" />
+                        <span className="text-xs text-gray-400">1200x630</span>
+                      </div>
+                    </div>
+                    {currentSeoPage.ogImage && (
+                      <div className="mt-3 relative w-full max-w-md aspect-[1200/630] bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                        <NextImage
+                          src={currentSeoPage.ogImage}
+                          alt="OG preview"
+                          fill
+                          className="object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Canonical URL */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Canonical URL</label>
+                    <div className="flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={currentSeoPage.canonicalUrl}
+                        onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'canonicalUrl', e.target.value)}
+                        placeholder="https://www.yalla-london.com/page"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SERP Preview */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Google SERP Preview
+                    </h4>
+                    <div className="bg-white rounded-lg p-4 border border-gray-100 max-w-2xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-xs text-purple-600 font-bold flex-shrink-0">
+                          {(_siteCfg?.name || 'Y')[0]}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">{_siteCfg?.name || 'Yalla London'}</div>
+                          <div className="text-xs text-gray-400 truncate max-w-md">
+                            {currentSeoPage.canonicalUrl || `https://www.yalla-london.com${currentSeoPage.path}`}
+                          </div>
+                        </div>
+                      </div>
+                      <h3 className="text-xl text-[#1a0dab] hover:underline cursor-pointer leading-tight mb-1 truncate">
+                        {currentSeoPage.title || 'Page Title'}
+                      </h3>
+                      <p className="text-sm text-gray-600 leading-snug line-clamp-2">
+                        {currentSeoPage.description || 'Add a meta description to see how it appears in search results...'}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3">
+                      This is an approximation of how this page may appear in Google search results. Actual display may vary.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'yachts') {
-      return NextResponse.json({ error: 'Yacht seeding not yet implemented — coming in Batch 2' }, { status: 400 })
+      return await seedYachts()
     }
 
     if (action === 'itineraries') {
@@ -228,9 +228,11 @@ export async function POST(request: NextRequest) {
     if (action === 'all') {
       const destResult = await seedDestinations()
       const destData = await destResult.json()
+      const yachtResult = await seedYachts()
+      const yachtData = await yachtResult.json()
       return NextResponse.json({
         destinations: destData,
-        yachts: { message: 'Not yet implemented' },
+        yachts: yachtData,
         itineraries: { message: 'Not yet implemented' },
       })
     }
@@ -283,6 +285,210 @@ async function seedDestinations() {
     created,
     skipped,
     total: DESTINATIONS.length,
+    results,
+  })
+}
+
+// ═══════════════════════════════════════════════════════════
+// YACHT SEED DATA — 50 Mediterranean charter yachts
+// ═══════════════════════════════════════════════════════════
+
+// Helper: each yacht references a destination by slug
+interface YachtSeed {
+  name: string
+  slug: string
+  type: string
+  length: number
+  beam: number
+  draft: number
+  yearBuilt: number
+  builder: string
+  model: string
+  cabins: number
+  berths: number
+  bathrooms: number
+  crewSize: number
+  pricePerWeekLow: number
+  pricePerWeekHigh: number
+  currency: string
+  description_en: string
+  description_ar: string
+  features: Record<string, unknown>
+  images: unknown[]
+  waterSports: string[]
+  halalCateringAvailable: boolean
+  familyFriendly: boolean
+  crewIncluded: boolean
+  homePort: string
+  cruisingArea: string
+  rating: number
+  reviewCount: number
+  featured: boolean
+  destinationSlug: string
+}
+
+function makeYacht(
+  name: string, slug: string, type: string, length: number, cabins: number, berths: number,
+  builder: string, model: string, yearBuilt: number, pricePerWeekLow: number, pricePerWeekHigh: number,
+  homePort: string, cruisingArea: string, destinationSlug: string,
+  opts: Partial<YachtSeed> = {}
+): YachtSeed {
+  return {
+    name, slug, type, length,
+    beam: opts.beam ?? Math.round(length * 0.22 * 10) / 10,
+    draft: opts.draft ?? Math.round(length * 0.07 * 10) / 10,
+    yearBuilt, builder, model,
+    cabins, berths, bathrooms: opts.bathrooms ?? cabins,
+    crewSize: opts.crewSize ?? Math.max(2, Math.ceil(cabins * 0.8)),
+    pricePerWeekLow, pricePerWeekHigh,
+    currency: 'EUR',
+    description_en: opts.description_en ?? `${name} is a ${length}m ${builder} ${model} (${yearBuilt}), offering ${cabins} cabins for up to ${berths} guests. Based in ${homePort}, she cruises the ${cruisingArea} with a professional crew.`,
+    description_ar: opts.description_ar ?? `${name} هو يخت ${builder} ${model} بطول ${length} متر (${yearBuilt})، يوفر ${cabins} كبائن لما يصل إلى ${berths} ضيفاً. مقره في ${homePort}، يبحر في ${cruisingArea} مع طاقم محترف.`,
+    features: opts.features ?? { airConditioning: true, wifi: true, generator: true, watermaker: true, dinghy: true, bbq: true, soundSystem: true },
+    images: opts.images ?? [],
+    waterSports: opts.waterSports ?? ['paddleboard', 'snorkeling', 'kayak'],
+    halalCateringAvailable: opts.halalCateringAvailable ?? true,
+    familyFriendly: opts.familyFriendly ?? true,
+    crewIncluded: opts.crewIncluded ?? true,
+    homePort, cruisingArea,
+    rating: opts.rating ?? 4.7,
+    reviewCount: opts.reviewCount ?? Math.floor(Math.random() * 40) + 5,
+    featured: opts.featured ?? false,
+    destinationSlug,
+  }
+}
+
+const YACHTS: YachtSeed[] = [
+  // ── Greek Islands (10 yachts) ──
+  makeYacht('Aegean Dream', 'aegean-dream', 'MOTOR_YACHT', 32, 5, 10, 'Azimut', 'Grande 32M', 2022, 28000, 38000, 'Athens', 'Greek Islands', 'greek-islands', { featured: true, waterSports: ['jetski', 'paddleboard', 'snorkeling', 'seabob', 'kayak'] }),
+  makeYacht('Cyclades Spirit', 'cyclades-spirit', 'CATAMARAN', 18, 4, 8, 'Lagoon', '620', 2021, 14000, 20000, 'Athens', 'Cyclades', 'greek-islands', { waterSports: ['paddleboard', 'snorkeling', 'kayak', 'fishing'] }),
+  makeYacht('Mykonos Blue', 'mykonos-blue', 'SAILBOAT', 22, 4, 8, 'Jeanneau', '64', 2020, 12000, 18000, 'Mykonos', 'Cyclades', 'greek-islands'),
+  makeYacht('Poseidon\'s Grace', 'poseidons-grace', 'SUPERYACHT', 45, 6, 12, 'Benetti', 'Delfino 95', 2023, 65000, 85000, 'Athens', 'Greek Islands', 'greek-islands', { featured: true, crewSize: 9, waterSports: ['jetski', 'seabob', 'paddleboard', 'snorkeling', 'wakeboard', 'diving'] }),
+  makeYacht('Ionian Breeze', 'ionian-breeze', 'SAILBOAT', 16, 3, 6, 'Beneteau', 'Oceanis 51.1', 2021, 8000, 12000, 'Lefkada', 'Ionian Islands', 'greek-islands'),
+  makeYacht('Olympia Star', 'olympia-star', 'MOTOR_YACHT', 24, 4, 8, 'Princess', 'Y85', 2022, 22000, 30000, 'Corfu', 'Ionian Islands', 'greek-islands', { waterSports: ['jetski', 'paddleboard', 'snorkeling', 'wakeboard'] }),
+  makeYacht('Athena Seas', 'athena-seas', 'CATAMARAN', 14, 4, 8, 'Fountaine Pajot', 'Elba 45', 2023, 10000, 15000, 'Lavrion', 'Saronic Gulf', 'greek-islands'),
+  makeYacht('Santorini Sunset', 'santorini-sunset', 'MOTOR_YACHT', 28, 4, 8, 'Ferretti', '780', 2021, 25000, 35000, 'Santorini', 'Cyclades', 'greek-islands', { featured: true }),
+  makeYacht('Dodecanese Explorer', 'dodecanese-explorer', 'GULET', 30, 6, 12, 'Turkish Custom', 'Gulet 30m', 2019, 16000, 24000, 'Rhodes', 'Dodecanese', 'greek-islands', { crewSize: 5 }),
+  makeYacht('Crete Voyager', 'crete-voyager', 'POWER_CATAMARAN', 20, 4, 8, 'Sunreef', '60 Power', 2023, 18000, 26000, 'Heraklion', 'Crete & Cyclades', 'greek-islands', { waterSports: ['jetski', 'seabob', 'paddleboard', 'snorkeling'] }),
+
+  // ── Croatian Coast (8 yachts) ──
+  makeYacht('Adriatic Pearl', 'adriatic-pearl', 'MOTOR_YACHT', 26, 4, 8, 'Sunseeker', 'Predator 80', 2022, 20000, 28000, 'Split', 'Dalmatian Coast', 'croatian-coast', { featured: true, waterSports: ['jetski', 'paddleboard', 'snorkeling', 'wakeboard'] }),
+  makeYacht('Dalmatia Dream', 'dalmatia-dream', 'CATAMARAN', 16, 4, 8, 'Lagoon', '52', 2022, 11000, 16000, 'Dubrovnik', 'Southern Dalmatia', 'croatian-coast'),
+  makeYacht('Kornati Wind', 'kornati-wind', 'SAILBOAT', 18, 3, 6, 'Hanse', '588', 2021, 8000, 12000, 'Zadar', 'Kornati Islands', 'croatian-coast'),
+  makeYacht('Split Horizon', 'split-horizon', 'MOTOR_YACHT', 22, 4, 8, 'Princess', 'V65', 2023, 18000, 24000, 'Split', 'Central Dalmatia', 'croatian-coast'),
+  makeYacht('Hvar Elegance', 'hvar-elegance', 'CATAMARAN', 14, 4, 8, 'Bali', '4.6', 2023, 9000, 14000, 'Split', 'Hvar & Vis', 'croatian-coast'),
+  makeYacht('Dubrovnik Star', 'dubrovnik-star', 'SUPERYACHT', 38, 5, 10, 'Riva', '110 Dolcevita', 2022, 45000, 60000, 'Dubrovnik', 'South Adriatic', 'croatian-coast', { featured: true, crewSize: 7 }),
+  makeYacht('Island Hopper', 'island-hopper-croatia', 'SAILBOAT', 15, 3, 6, 'Bavaria', 'C50', 2022, 7000, 10000, 'Trogir', 'Central Islands', 'croatian-coast'),
+  makeYacht('Vis Serenity', 'vis-serenity', 'GULET', 24, 5, 10, 'Croatian Custom', 'Gulet 24m', 2020, 14000, 20000, 'Split', 'Vis & Korcula', 'croatian-coast'),
+
+  // ── French Riviera (6 yachts) ──
+  makeYacht('Côte d\'Azur', 'cote-dazur', 'SUPERYACHT', 50, 6, 12, 'Lurssen', 'Custom 50m', 2021, 90000, 120000, 'Antibes', 'French Riviera', 'french-riviera', { featured: true, crewSize: 11, waterSports: ['jetski', 'seabob', 'paddleboard', 'diving', 'wakeboard', 'waterski'] }),
+  makeYacht('Monaco Prestige', 'monaco-prestige', 'MOTOR_YACHT', 35, 5, 10, 'Mangusta', '108', 2023, 40000, 55000, 'Monaco', 'French Riviera', 'french-riviera', { waterSports: ['jetski', 'seabob', 'paddleboard', 'snorkeling'] }),
+  makeYacht('Saint-Tropez Sun', 'saint-tropez-sun', 'MOTOR_YACHT', 28, 4, 8, 'Ferretti', '850', 2022, 30000, 42000, 'Saint-Tropez', 'French Riviera', 'french-riviera'),
+  makeYacht('Riviera Bliss', 'riviera-bliss', 'CATAMARAN', 20, 4, 10, 'Sunreef', '80', 2023, 22000, 32000, 'Cannes', 'French Riviera', 'french-riviera', { waterSports: ['jetski', 'paddleboard', 'snorkeling', 'kayak', 'seabob'] }),
+  makeYacht('Cannes Jewel', 'cannes-jewel', 'MOTOR_YACHT', 24, 4, 8, 'Sanlorenzo', 'SL78', 2022, 25000, 35000, 'Cannes', 'Lérins Islands', 'french-riviera'),
+  makeYacht('Antibes Classic', 'antibes-classic', 'SAILBOAT', 22, 4, 8, 'Oyster', '745', 2020, 15000, 22000, 'Antibes', 'French Riviera', 'french-riviera'),
+
+  // ── Amalfi Coast (5 yachts) ──
+  makeYacht('Amalfi Goddess', 'amalfi-goddess', 'MOTOR_YACHT', 30, 4, 8, 'Azimut', 'Grande 30M', 2023, 28000, 38000, 'Naples', 'Amalfi & Capri', 'amalfi-coast', { featured: true }),
+  makeYacht('Capri Breeze', 'capri-breeze', 'MOTOR_YACHT', 22, 3, 6, 'Itama', '75', 2021, 18000, 25000, 'Sorrento', 'Bay of Naples', 'amalfi-coast'),
+  makeYacht('Positano Jewel', 'positano-jewel', 'SAILBOAT', 18, 3, 6, 'Grand Soleil', '58', 2022, 10000, 15000, 'Salerno', 'Amalfi Coast', 'amalfi-coast'),
+  makeYacht('Vesuvio Star', 'vesuvio-star', 'CATAMARAN', 16, 4, 8, 'Lagoon', '55', 2023, 14000, 20000, 'Naples', 'Bay of Naples & Capri', 'amalfi-coast'),
+  makeYacht('Sorrento Dreams', 'sorrento-dreams', 'MOTOR_YACHT', 24, 4, 8, 'Ferretti', '670', 2020, 20000, 28000, 'Sorrento', 'Amalfi & Ischia', 'amalfi-coast'),
+
+  // ── Balearic Islands (5 yachts) ──
+  makeYacht('Ibiza Sunset', 'ibiza-sunset', 'MOTOR_YACHT', 30, 5, 10, 'Sunseeker', '95', 2022, 30000, 42000, 'Ibiza', 'Balearic Islands', 'balearic-islands', { featured: true, waterSports: ['jetski', 'seabob', 'paddleboard', 'wakeboard'] }),
+  makeYacht('Mallorca Spirit', 'mallorca-spirit', 'CATAMARAN', 18, 4, 8, 'Fountaine Pajot', 'Alegria 67', 2023, 14000, 20000, 'Palma', 'Mallorca & Menorca', 'balearic-islands'),
+  makeYacht('Formentera Blue', 'formentera-blue', 'SAILBOAT', 16, 3, 6, 'Dufour', '530', 2022, 8000, 12000, 'Ibiza', 'Ibiza & Formentera', 'balearic-islands'),
+  makeYacht('Tramuntana', 'tramuntana', 'MOTOR_YACHT', 24, 4, 8, 'Princess', 'S78', 2021, 22000, 30000, 'Palma', 'Northern Mallorca', 'balearic-islands'),
+  makeYacht('Menorca Haven', 'menorca-haven', 'POWER_CATAMARAN', 15, 3, 6, 'Leopard', '53 PC', 2023, 12000, 17000, 'Mahón', 'Menorca', 'balearic-islands'),
+
+  // ── Sardinia (4 yachts) ──
+  makeYacht('Emerald Coast', 'emerald-coast', 'SUPERYACHT', 42, 5, 10, 'Codecasa', '42m', 2022, 55000, 75000, 'Porto Cervo', 'Costa Smeralda', 'sardinia', { featured: true, crewSize: 8 }),
+  makeYacht('Maddalena Wind', 'maddalena-wind', 'SAILBOAT', 20, 4, 8, 'Swan', '65', 2021, 14000, 20000, 'Olbia', 'La Maddalena', 'sardinia'),
+  makeYacht('Costa Paradiso', 'costa-paradiso', 'CATAMARAN', 16, 4, 8, 'Lagoon', '52', 2023, 12000, 18000, 'Alghero', 'Northwest Sardinia', 'sardinia'),
+  makeYacht('Sardinia Lux', 'sardinia-lux', 'MOTOR_YACHT', 28, 4, 8, 'Pershing', '82', 2022, 26000, 36000, 'Porto Cervo', 'Costa Smeralda', 'sardinia'),
+
+  // ── Turkish Riviera (5 yachts) ──
+  makeYacht('Blue Voyage', 'blue-voyage', 'GULET', 35, 6, 12, 'Bodrum Shipyard', 'Custom Gulet 35m', 2020, 12000, 18000, 'Bodrum', 'Turquoise Coast', 'turkish-riviera', { featured: true, crewSize: 6 }),
+  makeYacht('Bodrum Belle', 'bodrum-belle', 'MOTOR_YACHT', 24, 4, 8, 'Numarine', '78HT', 2023, 16000, 22000, 'Bodrum', 'Bodrum Peninsula', 'turkish-riviera'),
+  makeYacht('Turquoise Dream', 'turquoise-dream', 'GULET', 28, 5, 10, 'Fethiye Shipyard', 'Custom Gulet 28m', 2019, 10000, 16000, 'Fethiye', 'Lycian Coast', 'turkish-riviera'),
+  makeYacht('Antalya Sun', 'antalya-sun', 'CATAMARAN', 14, 4, 8, 'Nautitech', '46 Open', 2022, 8000, 12000, 'Antalya', 'Turkish Riviera', 'turkish-riviera'),
+  makeYacht('Kekova Explorer', 'kekova-explorer', 'SAILBOAT', 18, 3, 6, 'Jeanneau', '54', 2021, 7000, 10000, 'Kaş', 'Kekova & Kaş', 'turkish-riviera'),
+
+  // ── Montenegro (3 yachts) ──
+  makeYacht('Kotor Bay', 'kotor-bay', 'MOTOR_YACHT', 26, 4, 8, 'Prestige', '680', 2023, 18000, 25000, 'Tivat', 'Bay of Kotor', 'montenegro'),
+  makeYacht('Adriatic Crown', 'adriatic-crown', 'CATAMARAN', 15, 4, 8, 'Bali', '4.8', 2022, 9000, 13000, 'Tivat', 'Montenegro Coast', 'montenegro'),
+  makeYacht('Sveti Stefan', 'sveti-stefan-yacht', 'SAILBOAT', 16, 3, 6, 'Elan', 'Impression 50.1', 2021, 6000, 9000, 'Budva', 'South Montenegro', 'montenegro'),
+
+  // ── Sicily (2 yachts) ──
+  makeYacht('Etna Voyager', 'etna-voyager', 'MOTOR_YACHT', 28, 4, 8, 'Custom Line', '97', 2022, 24000, 34000, 'Catania', 'Sicily & Aeolians', 'sicily', { featured: true }),
+  makeYacht('Aeolian Wind', 'aeolian-wind', 'SAILBOAT', 18, 3, 6, 'X-Yachts', 'X56', 2021, 10000, 15000, 'Milazzo', 'Aeolian Islands', 'sicily'),
+
+  // ── Malta (2 yachts) ──
+  makeYacht('Valletta Star', 'valletta-star', 'MOTOR_YACHT', 22, 3, 6, 'Azimut', '72', 2023, 16000, 22000, 'Valletta', 'Malta & Gozo', 'malta'),
+  makeYacht('Gozo Blue', 'gozo-blue', 'CATAMARAN', 14, 4, 8, 'Fountaine Pajot', 'Tanna 47', 2023, 8000, 12000, 'Valletta', 'Malta, Gozo & Comino', 'malta'),
+]
+
+// ─── Seed Yachts ────────────────────────────────────────────
+
+async function seedYachts() {
+  const { prisma } = await import('@/lib/db')
+
+  // Build destination slug → id lookup
+  const destinations = await prisma.yachtDestination.findMany({
+    where: { siteId: SITE_ID },
+    select: { id: true, slug: true },
+  })
+  const destMap = new Map<string, string>(destinations.map(d => [d.slug, d.id]))
+
+  let created = 0
+  let skipped = 0
+  let noDestination = 0
+  const results: string[] = []
+
+  for (const yacht of YACHTS) {
+    const destId = destMap.get(yacht.destinationSlug)
+    if (!destId) {
+      noDestination++
+      results.push(`⚠️ ${yacht.name} — destination "${yacht.destinationSlug}" not found (seed destinations first)`)
+      continue
+    }
+
+    // Idempotent: skip if slug+siteId already exists
+    const existing = await prisma.yacht.findFirst({
+      where: { slug: yacht.slug, siteId: SITE_ID },
+    })
+
+    if (existing) {
+      skipped++
+      results.push(`⏭ ${yacht.name} (already exists)`)
+      continue
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { destinationSlug, ...yachtData } = yacht
+    await prisma.yacht.create({
+      data: {
+        ...yachtData,
+        siteId: SITE_ID,
+        destinationId: destId,
+        source: 'MANUAL',
+        status: 'active',
+      },
+    })
+
+    created++
+    results.push(`✅ ${yacht.name} (${yacht.type}, ${yacht.length}m)`)
+  }
+
+  return NextResponse.json({
+    success: true,
+    action: 'yachts',
+    created,
+    skipped,
+    noDestination,
+    total: YACHTS.length,
     results,
   })
 }

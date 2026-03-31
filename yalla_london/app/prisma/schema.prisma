@@ -3261,6 +3261,7 @@ enum InquiryStatus {
   CONTACTED
   QUALIFIED
   SENT_TO_BROKER
+  DEPOSIT_PAID
   BOOKED
   LOST
 }
@@ -3449,6 +3450,9 @@ model CharterInquiry {
   message               String?             @db.Text
 
   status                InquiryStatus       @default(NEW)
+  depositPaymentId      String?             // Stripe payment_intent ID
+  depositAmount         Decimal?            @db.Decimal(10,2)
+  depositPaidAt         DateTime?
   brokerAssigned        String?
   brokerNotes           String?             @db.Text
 

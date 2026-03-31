@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       getStripe,
       handleStripeWebhook,
       handleDigitalProductPurchase,
+      handleCharterDepositPayment,
     } = await import("@/lib/billing/stripe");
 
     if (!isStripeConfigured()) {
@@ -61,7 +62,16 @@ export async function POST(request: NextRequest) {
         subscription?: string;
       };
 
-      if (session.metadata?.purchase_type === "digital_product") {
+      if (session.metadata?.purchase_type === "charter_deposit") {
+        // Yacht charter deposit payment [0.4]
+        result = await handleCharterDepositPayment(session as unknown as {
+          id: string;
+          payment_intent?: string | null;
+          metadata?: Record<string, string> | null;
+          amount_total?: number | null;
+          currency?: string | null;
+        });
+      } else if (session.metadata?.purchase_type === "digital_product") {
         // Digital product one-time purchase
         result = await handleDigitalProductPurchase(session);
       } else {

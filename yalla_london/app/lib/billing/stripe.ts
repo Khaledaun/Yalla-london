@@ -416,6 +416,123 @@ export async function handleStripeWebhook(
   }
 }
 
+// ─── Charter Deposit Payment Handling ─────────────────────
+
+/**
+ * Handle a completed checkout for a yacht charter deposit.
+ * Called from the webhook route when metadata indicates purchase_type === "charter_deposit".
+ *
+ * Maps to Execution Plan action [0.4]: Payment integration (Stripe).
+ *
+ * 1. Updates CharterInquiry status to DEPOSIT_PAID
+ * 2. Records payment details on the inquiry
+ * 3. Sends confirmation email via Resend
+ */
+export async function handleCharterDepositPayment(
+  session: {
+    id: string;
+    payment_intent?: string | null;
+    metadata?: Record<string, string> | null;
+    amount_total?: number | null;
+    currency?: string | null;
+  },
+): Promise<{ action: string; details: Record<string, unknown> }> {
+  const { prisma } = await import("@/lib/db");
+
+  const inquiryId = session.metadata?.inquiry_id;
+  const referenceNumber = session.metadata?.reference_number;
+  const customerName = session.metadata?.customer_name;
+  const customerEmail = session.metadata?.customer_email;
+
+  if (!inquiryId) {
+    return {
+      action: "charter_deposit_skipped",
+      details: { reason: "no inquiry_id in metadata" },
+    };
+  }
+
+  // Update inquiry with deposit payment info
+  const amountInCurrency = (session.amount_total || 0) / 100;
+  const inquiry = await prisma.charterInquiry.update({
+    where: { id: inquiryId },
+    data: {
+      status: "DEPOSIT_PAID",
+      depositPaymentId:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.id,
+      depositAmount: amountInCurrency,
+      depositPaidAt: new Date(),
+    },
+  });
+
+  // Send confirmation email (best-effort)
+  if (customerEmail || inquiry.email) {
+    try {
+      const { sendEmail } = await import("@/lib/email/sender");
+      const { getSiteDomain } = await import("@/config/sites");
+      const domain = getSiteDomain("zenitha-yachts-med");
+
+      await sendEmail({
+        to: customerEmail || inquiry.email,
+        subject: `Charter Deposit Confirmed — ${referenceNumber || inquiry.referenceNumber || "Zenitha Yachts"}`,
+        html: `<div style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #0A1628; padding: 32px; text-align: center;">
+            <h1 style="color: #C8A951; margin: 0; font-size: 28px;">Deposit Confirmed</h1>
+          </div>
+          <div style="padding: 32px; background: #ffffff;">
+            <p>Dear ${customerName || inquiry.firstName},</p>
+            <p>Thank you for your charter deposit. Your payment has been confirmed.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+              <tr><td style="padding: 8px 0; color: #666;">Reference</td><td style="padding: 8px 0; font-weight: bold;">${referenceNumber || inquiry.referenceNumber}</td></tr>
+              <tr><td style="padding: 8px 0; color: #666;">Deposit Amount</td><td style="padding: 8px 0; font-weight: bold;">€${amountInCurrency.toLocaleString()}</td></tr>
+              <tr><td style="padding: 8px 0; color: #666;">Destination</td><td style="padding: 8px 0;">${inquiry.destination || "Mediterranean"}</td></tr>
+            </table>
+            <p>Our charter team will be in touch within 24 hours to finalize your itinerary.</p>
+            <p style="margin-top: 24px;">
+              <a href="${domain}/inquiry/confirmation?ref=${referenceNumber || inquiry.referenceNumber}" style="background: #C8A951; color: #0A1628; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Confirmation</a>
+            </p>
+          </div>
+          <div style="background: #f5f5f5; padding: 16px; text-align: center; font-size: 12px; color: #999;">
+            Zenitha Yachts — Mediterranean Charter Specialists
+          </div>
+        </div>`,
+      });
+    } catch (emailError) {
+      console.error("[charter-deposit] Failed to send confirmation email:", emailError);
+    }
+  }
+
+  // Log as audit event (best-effort)
+  try {
+    await prisma.auditLog.create({
+      data: {
+        action: "CHARTER_DEPOSIT_PAID",
+        details: {
+          inquiryId,
+          referenceNumber: referenceNumber || inquiry.referenceNumber,
+          amount: amountInCurrency,
+          currency: session.currency || "eur",
+          stripeSessionId: session.id,
+          paymentIntentId: session.payment_intent,
+        },
+      },
+    });
+  } catch (auditErr) {
+    console.warn("[charter-deposit] Audit log failed:", auditErr instanceof Error ? auditErr.message : String(auditErr));
+  }
+
+  return {
+    action: "charter_deposit_paid",
+    details: {
+      inquiryId: inquiry.id,
+      referenceNumber: referenceNumber || inquiry.referenceNumber,
+      amount: amountInCurrency,
+      currency: session.currency || "eur",
+    },
+  };
+}
+
 // ─── Digital Product Purchase Handling ─────────────────────
 
 /**

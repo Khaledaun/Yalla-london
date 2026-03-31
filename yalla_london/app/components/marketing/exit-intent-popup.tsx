@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Gift, FileText, Mail, Loader2, CheckCircle, Clock, Sparkles } from 'lucide-react';
+import { safeLocalGet, safeLocalSet, safeSessionGet, safeSessionSet } from '@/lib/safe-storage';
 
 interface ExitIntentPopupProps {
   variant?: 'guide' | 'discount' | 'newsletter' | 'custom';
@@ -118,14 +119,14 @@ export function ExitIntentPopup({
   const shouldShow = useCallback(() => {
     if (typeof window === 'undefined') return false;
 
-    const dismissed = localStorage.getItem('exit_popup_dismissed');
+    const dismissed = safeLocalGet('exit_popup_dismissed');
     if (dismissed) {
       const dismissedDate = new Date(dismissed);
       const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceDismissed < cookieDays) return false;
     }
 
-    if (showOnce && sessionStorage.getItem('exit_popup_shown')) {
+    if (showOnce && safeSessionGet('exit_popup_shown')) {
       return false;
     }
 
@@ -138,7 +139,7 @@ export function ExitIntentPopup({
 
     hasTriggered.current = true;
     setIsVisible(true);
-    sessionStorage.setItem('exit_popup_shown', 'true');
+    safeSessionSet('exit_popup_shown', 'true');
     onShow?.();
 
     // Track event
@@ -209,7 +210,7 @@ export function ExitIntentPopup({
   // Handle close
   const handleClose = () => {
     setIsVisible(false);
-    localStorage.setItem('exit_popup_dismissed', new Date().toISOString());
+    safeLocalSet('exit_popup_dismissed', new Date().toISOString());
     onClose?.();
   };
 

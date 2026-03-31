@@ -23,6 +23,7 @@ import {
   Tablet,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { safeLocalGetJSON, safeLocalSetJSON } from '@/lib/safe-storage'
 
 interface ThemeConfig {
   primaryColor: string
@@ -97,13 +98,9 @@ export default function ThemeSettingsPage() {
 
   useEffect(() => {
     // Load saved theme from localStorage or API
-    const savedTheme = localStorage.getItem('yalla-theme')
+    const savedTheme = safeLocalGetJSON<ThemeConfig>('yalla-theme')
     if (savedTheme) {
-      try {
-        setTheme(JSON.parse(savedTheme))
-      } catch (error) {
-        console.error('Error loading saved theme:', error)
-      }
+      setTheme(savedTheme)
     }
   }, [])
 
@@ -111,7 +108,7 @@ export default function ThemeSettingsPage() {
     setIsLoading(true)
     try {
       // Save to localStorage
-      localStorage.setItem('yalla-theme', JSON.stringify(theme))
+      safeLocalSetJSON('yalla-theme', theme)
 
       // Apply theme to document
       const root = document.documentElement

@@ -9,6 +9,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { safeLocalGetJSON, safeLocalSetJSON } from '@/lib/safe-storage';
 import {
   Search,
   FileText,
@@ -151,9 +152,9 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
 
   // Load recent searches from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('admin-recent-searches');
+    const saved = safeLocalGetJSON<string[]>('admin-recent-searches');
     if (saved) {
-      setRecentSearches(JSON.parse(saved));
+      setRecentSearches(saved);
     }
   }, []);
 
@@ -264,7 +265,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
     // Save to recent searches
     const newRecent = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
     setRecentSearches(newRecent);
-    localStorage.setItem('admin-recent-searches', JSON.stringify(newRecent));
+    safeLocalSetJSON('admin-recent-searches', newRecent);
 
     if (result.action) {
       result.action();

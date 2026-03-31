@@ -126,7 +126,7 @@ interface AffiliateHQData {
 
 // ─── Page Component ─────────────────────────────────────────────────────────
 
-const TABS = ["Revenue", "Partners", "Coverage", "Links", "Actions", "System"] as const;
+const TABS = ["Revenue", "Partners", "Coverage", "Performance", "Links", "Link Health", "Actions", "System"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function AffiliateHQPage() {
@@ -371,8 +371,10 @@ export default function AffiliateHQPage() {
         <PartnersTab data={data} onAction={runAction} actionLoading={actionLoading} filter={advFilter} onFilterChange={setAdvFilter} />
       )}
       {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} runActionRaw={runActionRaw} setConfirmModal={setConfirmModal} />}
+      {activeTab === "Performance" && <PerformanceTab data={data} onAction={runAction} actionLoading={actionLoading} />}
       {activeTab === "Links" && <LinksTab data={data} onAction={runAction} actionLoading={actionLoading} />}
-      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} setConfirmModal={setConfirmModal} />}
+      {activeTab === "Link Health" && <LinkHealthTab data={data} runActionRaw={runActionRaw} actionLoading={actionLoading} />}
+      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} setConfirmModal={setConfirmModal} runActionRaw={runActionRaw} />}
       {activeTab === "System" && <SystemTab data={data} onAction={runAction} actionLoading={actionLoading} />}
 
       {/* Shared ConfirmModal for bulk actions */}
@@ -1279,7 +1281,471 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ─── Tab 4: Links — Per-Link List ───────────────────────────────────────────
+// ─── Tab 4: Performance — Revenue Attribution per Program ────────────────────
+
+function PerformanceTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
+  const [sortCol, setSortCol] = useState<"name" | "clicks" | "revenue" | "sales" | "ctr" | "coverage">("revenue");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [timeRange, setTimeRange] = useState<"7d" | "30d">("30d");
+
+  // Build per-program rows from coverage pages + partner data
+  const programMap = new Map<string, { name: string; clicks: number; revenue: number; sales: number; articles: number; impressions: number }>();
+
+  // Aggregate from coverage pages
+  for (const page of data.coverage.pages) {
+    for (const adv of page.advertisers) {
+      const key = adv || "Unknown";
+      const existing = programMap.get(key) || { name: key, clicks: 0, revenue: 0, sales: 0, articles: 0, impressions: 0 };
+      existing.clicks += page.affiliateClicks;
+      existing.revenue += page.revenue;
+      existing.sales += page.sales;
+      existing.articles += 1;
+      programMap.set(key, existing);
+    }
+  }
+
+  // Also merge advertiser data from partners tab
+  for (const adv of data.partners.advertisers) {
+    if (adv.status !== "JOINED") continue;
+    if (!programMap.has(adv.name)) {
+      programMap.set(adv.name, { name: adv.name, clicks: 0, revenue: 0, sales: 0, articles: 0, impressions: 0 });
+    }
+  }
+
+  const programs = Array.from(programMap.values()).map(p => ({
+    ...p,
+    ctr: p.impressions > 0 ? (p.clicks / p.impressions) * 100 : 0,
+    coverage: data.coverage.totalArticles > 0 ? (p.articles / data.coverage.totalArticles) * 100 : 0,
+  }));
+
+  programs.sort((a, b) => {
+    const dir = sortDir === "desc" ? -1 : 1;
+    const av = a[sortCol] ?? 0;
+    const bv = b[sortCol] ?? 0;
+    if (typeof av === "string" && typeof bv === "string") return dir * av.localeCompare(bv);
+    return dir * ((av as number) - (bv as number));
+  });
+
+  const totalClicks = programs.reduce((s, p) => s + p.clicks, 0);
+  const totalRevenue = programs.reduce((s, p) => s + p.revenue, 0);
+  const totalSales = programs.reduce((s, p) => s + p.sales, 0);
+
+  function toggleSort(col: typeof sortCol) {
+    if (sortCol === col) setSortDir(d => d === "desc" ? "asc" : "desc");
+    else { setSortCol(col); setSortDir("desc"); }
+  }
+
+  const arrow = (col: typeof sortCol) => sortCol === col ? (sortDir === "desc" ? " \u2193" : " \u2191") : "";
+
+  return (
+    <div>
+      {/* Summary KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
+        <KpiCard label="Total Clicks" value={String(totalClicks)} />
+        <KpiCard label="Total Revenue" value={`$${totalRevenue.toFixed(2)}`} />
+        <KpiCard label="Total Sales" value={String(totalSales)} />
+        <KpiCard label="Active Programs" value={String(programs.filter(p => p.clicks > 0 || p.articles > 0).length)} />
+      </div>
+
+      {/* Time range toggle */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+        {(["7d", "30d"] as const).map(r => (
+          <button key={r} onClick={() => setTimeRange(r)} style={{
+            padding: "0.35rem 0.75rem", borderRadius: 6, border: "none", cursor: "pointer",
+            fontWeight: timeRange === r ? 700 : 400,
+            background: timeRange === r ? "#1e3a5f" : "#f3f4f6",
+            color: timeRange === r ? "#fff" : "#374151",
+            fontSize: "0.8rem",
+          }}>{r === "7d" ? "Last 7 Days" : "Last 30 Days"}</button>
+        ))}
+      </div>
+
+      {/* Revenue Attribution Table */}
+      {programs.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "2rem", color: "#6b7280", fontSize: "0.85rem" }}>
+          No program data yet. Affiliate links need to be injected and clicked to generate attribution data.
+        </div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid rgba(214,208,196,0.6)", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", minWidth: 500 }}>
+              <thead>
+                <tr style={{ background: "#fafaf8" }}>
+                  {([
+                    ["name", "Program"],
+                    ["clicks", "Clicks"],
+                    ["revenue", "Revenue"],
+                    ["sales", "Sales"],
+                    ["ctr", "CTR"],
+                    ["coverage", "Coverage"],
+                  ] as [typeof sortCol, string][]).map(([col, label]) => (
+                    <th
+                      key={col}
+                      onClick={() => toggleSort(col)}
+                      style={{
+                        padding: "0.5rem 0.75rem",
+                        fontWeight: 600,
+                        color: sortCol === col ? "#1e3a5f" : "#57534e",
+                        cursor: "pointer",
+                        textAlign: col === "name" ? "left" : "right",
+                        whiteSpace: "nowrap",
+                        userSelect: "none",
+                        background: sortCol === col ? "#f0f0ee" : undefined,
+                      }}
+                    >
+                      {label}{arrow(col)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {programs.map((p) => (
+                  <tr key={p.name} style={{ borderTop: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "0.5rem 0.75rem", fontWeight: 500 }}>{p.name}</td>
+                    <td style={{ textAlign: "right", padding: "0.5rem 0.75rem" }}>{p.clicks}</td>
+                    <td style={{ textAlign: "right", padding: "0.5rem 0.75rem", color: p.revenue > 0 ? "#16a34a" : undefined, fontWeight: p.revenue > 0 ? 600 : 400 }}>
+                      {p.revenue > 0 ? `$${p.revenue.toFixed(2)}` : "\u2014"}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "0.5rem 0.75rem" }}>{p.sales || "\u2014"}</td>
+                    <td style={{ textAlign: "right", padding: "0.5rem 0.75rem", color: p.ctr > 0 ? "#C49A2A" : "#a8a29e" }}>
+                      {p.ctr > 0 ? `${p.ctr.toFixed(1)}%` : "\u2014"}
+                    </td>
+                    <td style={{ textAlign: "right", padding: "0.5rem 0.75rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                        <div style={{ width: 40, height: 6, borderRadius: 3, background: "#e5e7eb", overflow: "hidden" }}>
+                          <div style={{ width: `${Math.min(p.coverage, 100)}%`, height: "100%", background: p.coverage > 30 ? "#2D5A3D" : p.coverage > 10 ? "#C49A2A" : "#C8322B", borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: "0.75rem" }}>{p.coverage.toFixed(0)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Revenue Share Chart (horizontal bars) */}
+      {totalRevenue > 0 && (
+        <div style={{ marginTop: "1rem" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>Revenue Share by Program</h3>
+          {programs.filter(p => p.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 8).map(p => (
+            <div key={p.name} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.35rem" }}>
+              <span style={{ width: 100, fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+              <div style={{ flex: 1, height: 16, borderRadius: 4, background: "#f3f4f6", overflow: "hidden" }}>
+                <div style={{
+                  width: `${(p.revenue / totalRevenue) * 100}%`,
+                  height: "100%",
+                  background: "linear-gradient(90deg, #3B7EA1, #1e3a5f)",
+                  borderRadius: 4,
+                  minWidth: 2,
+                }} />
+              </div>
+              <span style={{ fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" }}>${p.revenue.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: "1rem" }}>
+        <button onClick={() => onAction("sync_commissions")} disabled={actionLoading === "sync_commissions"} style={btnStyle("#C49A2A")}>
+          {actionLoading === "sync_commissions" ? "Syncing..." : "Refresh Attribution Data"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab 5: Link Health — URL Status Monitor ────────────────────────────────
+
+function LinkHealthTab({ data, runActionRaw, actionLoading }: { data: AffiliateHQData; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<Record<string, unknown>>; actionLoading: string | null }) {
+  const [auditResult, setAuditResult] = useState<{
+    scannedArticles: number;
+    totalLinks: number;
+    healthScore: number;
+    summary: { live: number; dead: number; tracked: number; untracked: number; relevant: number; irrelevant: number; fresh: number; stale: number; wellPlaced: number; poorlyPlaced: number };
+    issues: Array<{ severity: string; issue: string; fix: string; articleSlug: string; linkUrl: string }>;
+    checks: Array<{
+      link: { url: string; trackingUrl: string | null; partner: string; anchorText: string; positionInArticle: string; nearestHeading: string; articleSlug: string; articleTitle: string };
+      liveness: { ok: boolean; statusCode: number | null; finalUrl: string | null; error: string | null };
+      tracked: { ok: boolean; reason: string };
+      relevance: { ok: boolean; score: number; reason: string };
+      freshness: { ok: boolean; reason: string };
+      placement: { ok: boolean; score: number; reason: string };
+      visual: { ok: boolean; reason: string };
+      overallScore: number;
+    }>;
+  } | null>(null);
+  const [running, setRunning] = useState(false);
+  const [fixLoading, setFixLoading] = useState(false);
+  const [fixResult, setFixResult] = useState<{ deadRemoved: number; staleRemoved: number; linksWrapped: number } | null>(null);
+  const [filterSev, setFilterSev] = useState<"all" | "critical" | "warning" | "info">("all");
+  const [sortBy, setSortBy] = useState<"score" | "article" | "partner">("score");
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  const runAudit = async () => {
+    setRunning(true);
+    setAuditResult(null);
+    setFixResult(null);
+    try {
+      const json = await runActionRaw("link_health_audit");
+      if (json.result) setAuditResult(json.result as typeof auditResult);
+    } catch (err) {
+      console.warn("[link-health] audit failed:", err);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const runFix = async () => {
+    setFixLoading(true);
+    setFixResult(null);
+    try {
+      const json = await runActionRaw("fix_affiliate_issues");
+      if (json.result) setFixResult(json.result as typeof fixResult);
+    } catch (err) {
+      console.warn("[link-health] fix failed:", err);
+    } finally {
+      setFixLoading(false);
+    }
+  };
+
+  const sevColor = (s: string) =>
+    s === "critical" ? "#dc2626" : s === "high" || s === "warning" ? "#f59e0b" : s === "medium" ? "#3b82f6" : "#6b7280";
+
+  // Derive link-level health from data.links if no audit yet
+  const linksList = data.links.linksList || [];
+  const activeCount = linksList.filter(l => l.isActive).length;
+  const inactiveCount = linksList.filter(l => !l.isActive).length;
+  const deadCount = auditResult?.summary.dead ?? inactiveCount;
+  const untrackedCount = auditResult?.summary.untracked ?? 0;
+
+  // Filter & sort checks
+  const checks = auditResult?.checks || [];
+  const filteredChecks = filterSev === "all" ? checks : checks.filter(c => {
+    const score = c.overallScore;
+    if (filterSev === "critical") return score < 40;
+    if (filterSev === "warning") return score >= 40 && score < 70;
+    return score >= 70;
+  });
+  const sortedChecks = [...filteredChecks].sort((a, b) => {
+    if (sortBy === "score") return a.overallScore - b.overallScore;
+    if (sortBy === "article") return a.link.articleSlug.localeCompare(b.link.articleSlug);
+    return a.link.partner.localeCompare(b.link.partner);
+  });
+
+  return (
+    <div>
+      {/* Quick Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", marginBottom: "1.25rem" }}>
+        <KpiCard label="Total Links" value={String(linksList.length)} />
+        <KpiCard label="Active" value={String(activeCount)} />
+        <KpiCard label="Dead" value={String(deadCount)} />
+        <KpiCard label="Untracked" value={String(untrackedCount)} />
+      </div>
+
+      {/* Health Score Banner */}
+      {auditResult && (
+        <div style={{
+          padding: "1rem", marginBottom: "1.25rem", borderRadius: 12,
+          background: auditResult.healthScore >= 70 ? "#f0fdf4" : auditResult.healthScore >= 40 ? "#fffbeb" : "#fef2f2",
+          border: `1px solid ${auditResult.healthScore >= 70 ? "#bbf7d0" : auditResult.healthScore >= 40 ? "#fde68a" : "#fecaca"}`,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ fontSize: "1.5rem", fontWeight: 800, color: auditResult.healthScore >= 70 ? "#16a34a" : auditResult.healthScore >= 40 ? "#d97706" : "#dc2626" }}>
+                {auditResult.healthScore}/100
+              </span>
+              <span style={{ fontSize: "0.8rem", color: "#6b7280", marginLeft: "0.5rem" }}>
+                Link Health Score
+              </span>
+            </div>
+            <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+              {auditResult.scannedArticles} articles · {auditResult.totalLinks} links scanned
+            </span>
+          </div>
+          {/* Summary pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.75rem" }}>
+            {[
+              { label: "Live", count: auditResult.summary.live, color: "#16a34a" },
+              { label: "Dead", count: auditResult.summary.dead, color: "#dc2626" },
+              { label: "Tracked", count: auditResult.summary.tracked, color: "#16a34a" },
+              { label: "Untracked", count: auditResult.summary.untracked, color: "#f59e0b" },
+              { label: "Relevant", count: auditResult.summary.relevant, color: "#16a34a" },
+              { label: "Stale", count: auditResult.summary.stale, color: "#dc2626" },
+            ].map((s, i) => (
+              <span key={i} style={{
+                padding: "0.2rem 0.5rem", borderRadius: 6, fontSize: "0.7rem", fontWeight: 600,
+                background: s.count > 0 ? `${s.color}15` : "#f3f4f6", color: s.count > 0 ? s.color : "#9ca3af",
+              }}>
+                {s.count} {s.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions Bar */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
+        <button
+          onClick={runAudit}
+          disabled={running || actionLoading === "link_health_audit"}
+          style={btnStyle("#C8322B")}
+        >
+          {running ? "Scanning…" : "Run Link Health Audit"}
+        </button>
+        {auditResult && (auditResult.summary.dead > 0 || auditResult.summary.untracked > 0 || auditResult.summary.stale > 0) && (
+          <button
+            onClick={runFix}
+            disabled={fixLoading}
+            style={btnStyle("#2D5A3D")}
+          >
+            {fixLoading ? "Fixing…" : `Fix ${auditResult.summary.dead + auditResult.summary.untracked + auditResult.summary.stale} Issues`}
+          </button>
+        )}
+      </div>
+
+      {/* Fix Results */}
+      {fixResult && (
+        <div style={{ padding: "0.75rem", marginBottom: "1rem", background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0", fontSize: "0.8rem" }}>
+          <strong>Fix Complete:</strong> {fixResult.deadRemoved} dead removed · {fixResult.staleRemoved} stale removed · {fixResult.linksWrapped} links wrapped with tracking
+        </div>
+      )}
+
+      {/* Issues Table */}
+      {auditResult && auditResult.issues.length > 0 && (
+        <div style={{ marginBottom: "1.25rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, margin: 0 }}>Issues ({auditResult.issues.length})</h3>
+            <div style={{ display: "flex", gap: "0.3rem" }}>
+              {(["all", "critical", "warning", "info"] as const).map(sev => (
+                <button key={sev} onClick={() => setFilterSev(sev)} style={{
+                  padding: "0.2rem 0.5rem", fontSize: "0.65rem", fontWeight: 600, borderRadius: 6, cursor: "pointer",
+                  background: filterSev === sev ? "#1e3a5f" : "#f3f4f6", color: filterSev === sev ? "#fff" : "#6b7280",
+                  border: "none",
+                }}>
+                  {sev.charAt(0).toUpperCase() + sev.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ maxHeight: 300, overflowY: "auto", borderRadius: 10, border: "1px solid #e5e7eb" }}>
+            {(filterSev === "all" ? auditResult.issues : auditResult.issues.filter(i => {
+              if (filterSev === "critical") return i.severity === "critical";
+              if (filterSev === "warning") return i.severity === "warning" || i.severity === "high";
+              return i.severity === "info" || i.severity === "medium" || i.severity === "low";
+            })).map((issue, i) => (
+              <div key={i} style={{ display: "flex", gap: "0.5rem", padding: "0.5rem 0.75rem", borderBottom: "1px solid #f3f4f6", fontSize: "0.75rem" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: sevColor(issue.severity), flexShrink: 0, marginTop: 4 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, color: "#111827" }}>{issue.issue}</div>
+                  <div style={{ color: "#6b7280", marginTop: 2 }}>{issue.fix}</div>
+                  <div style={{ color: "#9ca3af", marginTop: 2, fontSize: "0.65rem" }}>
+                    {issue.articleSlug} · {issue.linkUrl?.slice(0, 60)}…
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Per-Link Check Details */}
+      {auditResult && sortedChecks.length > 0 && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, margin: 0 }}>Per-Link Details ({sortedChecks.length})</h3>
+            <div style={{ display: "flex", gap: "0.3rem" }}>
+              {(["score", "article", "partner"] as const).map(s => (
+                <button key={s} onClick={() => setSortBy(s)} style={{
+                  padding: "0.2rem 0.5rem", fontSize: "0.65rem", fontWeight: 600, borderRadius: 6, cursor: "pointer",
+                  background: sortBy === s ? "#1e3a5f" : "#f3f4f6", color: sortBy === s ? "#fff" : "#6b7280",
+                  border: "none",
+                }}>
+                  {s === "score" ? "Score" : s === "article" ? "Article" : "Partner"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ maxHeight: 400, overflowY: "auto", borderRadius: 10, border: "1px solid #e5e7eb" }}>
+            {sortedChecks.map((check, idx) => {
+              const expanded = expandedIdx === idx;
+              const scoreColor = check.overallScore >= 70 ? "#16a34a" : check.overallScore >= 40 ? "#d97706" : "#dc2626";
+              return (
+                <div key={idx} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={expanded}
+                    onClick={() => setExpandedIdx(expanded ? null : idx)}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setExpandedIdx(expanded ? null : idx)}
+                    style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 0.75rem", cursor: "pointer", fontSize: "0.75rem" }}
+                  >
+                    <span style={{ fontWeight: 800, color: scoreColor, minWidth: 30, textAlign: "center" }}>{check.overallScore}</span>
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {check.link.partner || "Unknown"} — {check.link.articleSlug}
+                      </div>
+                      <div style={{ color: "#9ca3af", fontSize: "0.65rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {check.link.url.slice(0, 70)}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                      {[check.liveness, check.tracked, check.relevance, check.freshness, check.placement].map((c, ci) => (
+                        <span key={ci} style={{ width: 8, height: 8, borderRadius: "50%", background: c.ok ? "#16a34a" : "#dc2626" }} />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: "0.65rem", color: "#9ca3af" }}>{expanded ? "▲" : "▼"}</span>
+                  </div>
+                  {expanded && (
+                    <div style={{ padding: "0.5rem 0.75rem 0.75rem 2.5rem", background: "#fafafa", fontSize: "0.7rem" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem" }}>
+                        <CheckRow label="Liveness" ok={check.liveness.ok} detail={check.liveness.ok ? `${check.liveness.statusCode} OK` : (check.liveness.error || `HTTP ${check.liveness.statusCode}`)} />
+                        <CheckRow label="Tracked" ok={check.tracked.ok} detail={check.tracked.reason} />
+                        <CheckRow label="Relevance" ok={check.relevance.ok} detail={`${check.relevance.score}% — ${check.relevance.reason}`} />
+                        <CheckRow label="Freshness" ok={check.freshness.ok} detail={check.freshness.reason} />
+                        <CheckRow label="Placement" ok={check.placement.ok} detail={`${check.placement.score}% — ${check.placement.reason}`} />
+                        <CheckRow label="Visual" ok={check.visual.ok} detail={check.visual.reason} />
+                      </div>
+                      {check.link.anchorText && (
+                        <div style={{ marginTop: "0.35rem", color: "#6b7280" }}>
+                          Anchor: &quot;{check.link.anchorText}&quot; · Near: &quot;{check.link.nearestHeading}&quot;
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* No Audit Yet Prompt */}
+      {!auditResult && !running && (
+        <div style={{ padding: "2rem", textAlign: "center", color: "#9ca3af", fontSize: "0.85rem" }}>
+          <p style={{ margin: 0 }}>Run a link health audit to check all affiliate links for liveness, tracking, relevance, and freshness.</p>
+          <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem" }}>This scans published articles and tests each affiliate URL.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckRow({ label, ok, detail }: { label: string; ok: boolean; detail: string }) {
+  return (
+    <div style={{ display: "flex", gap: "0.35rem", alignItems: "flex-start" }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: ok ? "#16a34a" : "#dc2626", marginTop: 4, flexShrink: 0 }} />
+      <div>
+        <span style={{ fontWeight: 600 }}>{label}:</span>{" "}
+        <span style={{ color: ok ? "#374151" : "#dc2626" }}>{detail}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab 6: Links — Per-Link List ───────────────────────────────────────────
 
 function LinksTab({ data, onAction, actionLoading }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null }) {
   const { links } = data;
@@ -1514,7 +1980,7 @@ function StatCell({ label, value, highlight }: { label: string; value: string; h
 
 // ─── Tab 5: Actions ──────────────────────────────────────────────────────────
 
-function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null; setConfirmModal: (v: ConfirmModalState) => void }) {
+function ActionsTab({ onAction, actionLoading, setConfirmModal, runActionRaw }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null; setConfirmModal: (v: ConfirmModalState) => void; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<Record<string, unknown>> }) {
   const [diagResult, setDiagResult] = useState<{
     status: string;
     issueCount: number;
@@ -1546,6 +2012,13 @@ function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a
   const [auditCopied, setAuditCopied] = useState(false);
   const [fixResult, setFixResult] = useState<{ deadRemoved: number; staleRemoved: number; linksWrapped: number } | null>(null);
   const [fixLoading, setFixLoading] = useState(false);
+  const [snapshots, setSnapshots] = useState<Array<{
+    id: string; postId: string; slug: string; titleEn: string;
+    partnersInjected: string[]; cronRunId?: string; createdAt: string; expiresAt: string; expired: boolean;
+  }> | null>(null);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState<string | null>(null);
+  const [rollbackMsg, setRollbackMsg] = useState<string | null>(null);
 
   const runDiagnose = async () => {
     onAction("diagnose");
@@ -1607,6 +2080,56 @@ function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a
 
   const sevColor = (s: string) =>
     s === "critical" ? "#dc2626" : s === "high" ? "#f59e0b" : s === "medium" ? "#3b82f6" : "#6b7280";
+
+  const loadSnapshots = async () => {
+    setSnapshotsLoading(true);
+    setRollbackMsg(null);
+    try {
+      const json = await runActionRaw("list_snapshots");
+      const result = json.result as Record<string, unknown> | undefined;
+      setSnapshots((result?.snapshots as typeof snapshots) || []);
+    } catch (err) {
+      setRollbackMsg(`Failed to load snapshots: ${err instanceof Error ? err.message : "error"}`);
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  };
+
+  const restoreSingle = async (snapshotId: string, slug: string) => {
+    setRestoreLoading(snapshotId);
+    setRollbackMsg(null);
+    try {
+      const json = await runActionRaw("restore_snapshot", { snapshotId });
+      const result = json.result as Record<string, unknown> | undefined;
+      if (result?.success) {
+        setRollbackMsg(`Restored "${slug}" to pre-injection state`);
+        loadSnapshots();
+      } else {
+        setRollbackMsg(`Restore failed: ${result?.error || "unknown error"}`);
+      }
+    } catch (err) {
+      setRollbackMsg(`Restore failed: ${err instanceof Error ? err.message : "error"}`);
+    } finally {
+      setRestoreLoading(null);
+    }
+  };
+
+  const restoreBatch = async (cronRunId: string) => {
+    setRestoreLoading(cronRunId);
+    setRollbackMsg(null);
+    try {
+      const json = await runActionRaw("restore_cron_run", { cronRunId });
+      const result = json.result as Record<string, unknown> | undefined;
+      const restored = (result?.restored as number) || 0;
+      const failed = (result?.failed as number) || 0;
+      setRollbackMsg(`Batch rollback: ${restored} restored, ${failed} failed`);
+      loadSnapshots();
+    } catch (err) {
+      setRollbackMsg(`Batch rollback failed: ${err instanceof Error ? err.message : "error"}`);
+    } finally {
+      setRestoreLoading(null);
+    }
+  };
 
   return (
     <div>
@@ -1922,6 +2445,160 @@ function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a
               ))}
             </div>
           )
+        )}
+      </div>
+
+      {/* Affiliate Injection Rollback */}
+      <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#fefce8", borderRadius: 12, border: "1px solid #fde68a" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 700, margin: 0, color: "#92400e" }}>Injection Rollback</h3>
+          <button
+            onClick={loadSnapshots}
+            disabled={snapshotsLoading}
+            style={{
+              padding: "0.4rem 0.75rem", fontSize: "0.75rem", fontWeight: 600,
+              background: snapshotsLoading ? "#d1d5db" : "#C49A2A", color: "#fff",
+              border: "none", borderRadius: 6, cursor: snapshotsLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {snapshotsLoading ? "Loading..." : "Load Snapshots"}
+          </button>
+        </div>
+        <p style={{ fontSize: "0.75rem", color: "#78716c", margin: "0 0 0.75rem 0" }}>
+          Undo affiliate link injections within 24 hours. Snapshots are created automatically before each injection run.
+        </p>
+
+        {rollbackMsg && (
+          <div style={{
+            padding: "0.5rem 0.75rem", marginBottom: "0.75rem", borderRadius: 6, fontSize: "0.8rem",
+            background: rollbackMsg.includes("Restored") || rollbackMsg.includes("restored") ? "#f0fdf4" : "#fef2f2",
+            border: `1px solid ${rollbackMsg.includes("Restored") || rollbackMsg.includes("restored") ? "#bbf7d0" : "#fecaca"}`,
+            color: rollbackMsg.includes("Restored") || rollbackMsg.includes("restored") ? "#166534" : "#991b1b",
+          }}>
+            {rollbackMsg}
+          </div>
+        )}
+
+        {snapshots === null ? (
+          <p style={{ fontSize: "0.8rem", color: "#a8a29e", fontStyle: "italic", margin: 0 }}>
+            Tap &quot;Load Snapshots&quot; to see available rollback points
+          </p>
+        ) : snapshots.length === 0 ? (
+          <p style={{ fontSize: "0.8rem", color: "#a8a29e", margin: 0 }}>
+            No snapshots available. Snapshots are created when the affiliate injection cron runs and expire after 24 hours.
+          </p>
+        ) : (
+          <div>
+            {/* Batch rollback by cronRunId */}
+            {(() => {
+              const cronRuns = new Map<string, { count: number; time: string }>();
+              for (const s of snapshots) {
+                if (!s.cronRunId) continue;
+                if (!cronRuns.has(s.cronRunId)) {
+                  cronRuns.set(s.cronRunId, { count: 0, time: s.createdAt });
+                }
+                cronRuns.get(s.cronRunId)!.count++;
+              }
+              if (cronRuns.size > 0) {
+                return (
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <h4 style={{ fontSize: "0.8rem", fontWeight: 600, margin: "0 0 0.5rem 0", color: "#92400e" }}>
+                      Batch Rollback (by injection run)
+                    </h4>
+                    {[...cronRuns.entries()].map(([runId, info]) => (
+                      <div key={runId} style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        padding: "0.4rem 0.5rem", marginBottom: "0.25rem",
+                        background: "#fff", borderRadius: 6, border: "1px solid #fde68a",
+                      }}>
+                        <div>
+                          <span style={{ fontSize: "0.8rem", fontWeight: 500 }}>{info.count} article{info.count !== 1 ? "s" : ""}</span>
+                          <span style={{ fontSize: "0.7rem", color: "#78716c", marginLeft: "0.5rem" }}>
+                            {new Date(info.time).toLocaleString()}
+                          </span>
+                        </div>
+                        <button
+                          disabled={restoreLoading === runId}
+                          onClick={() => setConfirmModal({
+                            title: "Batch Rollback",
+                            message: `Restore ${info.count} article${info.count !== 1 ? "s" : ""} to their pre-injection state? This undoes all affiliate links from this injection run.`,
+                            onConfirm: () => { setConfirmModal(null); restoreBatch(runId); },
+                          })}
+                          style={{
+                            padding: "0.3rem 0.6rem", fontSize: "0.7rem", fontWeight: 600,
+                            background: restoreLoading === runId ? "#d1d5db" : "#dc2626", color: "#fff",
+                            border: "none", borderRadius: 4, cursor: restoreLoading === runId ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {restoreLoading === runId ? "Restoring..." : "Undo All"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Per-article snapshots */}
+            <h4 style={{ fontSize: "0.8rem", fontWeight: 600, margin: "0 0 0.5rem 0", color: "#92400e" }}>
+              Individual Snapshots ({snapshots.length})
+            </h4>
+            <div style={{ maxHeight: 300, overflowY: "auto" }}>
+              {snapshots.map((snap) => {
+                const expiresIn = Math.max(0, Math.floor((new Date(snap.expiresAt).getTime() - Date.now()) / 60000));
+                const hoursLeft = Math.floor(expiresIn / 60);
+                const minsLeft = expiresIn % 60;
+                return (
+                  <div key={snap.id} style={{
+                    padding: "0.5rem 0.5rem", marginBottom: "0.35rem",
+                    background: snap.expired ? "#f3f4f6" : "#fff",
+                    borderRadius: 6, border: `1px solid ${snap.expired ? "#d1d5db" : "#fde68a"}`,
+                    opacity: snap.expired ? 0.6 : 1,
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.8rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {snap.titleEn || snap.slug}
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "#78716c", marginTop: "0.1rem" }}>
+                          /{snap.slug}
+                        </div>
+                        <div style={{ fontSize: "0.65rem", color: "#a8a29e", marginTop: "0.15rem" }}>
+                          {snap.partnersInjected.length > 0 && (
+                            <span>Partners: {snap.partnersInjected.join(", ")} · </span>
+                          )}
+                          {snap.expired ? (
+                            <span style={{ color: "#dc2626" }}>Expired</span>
+                          ) : (
+                            <span style={{ color: "#C49A2A" }}>{hoursLeft}h {minsLeft}m left</span>
+                          )}
+                        </div>
+                      </div>
+                      {!snap.expired && (
+                        <button
+                          disabled={restoreLoading === snap.id}
+                          onClick={() => setConfirmModal({
+                            title: "Restore Snapshot",
+                            message: `Restore "${snap.titleEn || snap.slug}" to its pre-injection content? This removes injected affiliate links.`,
+                            onConfirm: () => { setConfirmModal(null); restoreSingle(snap.id, snap.slug); },
+                          })}
+                          style={{
+                            padding: "0.25rem 0.5rem", fontSize: "0.7rem", fontWeight: 600,
+                            background: restoreLoading === snap.id ? "#d1d5db" : "#C49A2A", color: "#fff",
+                            border: "none", borderRadius: 4, cursor: restoreLoading === snap.id ? "not-allowed" : "pointer",
+                            flexShrink: 0, marginLeft: "0.5rem",
+                          }}
+                        >
+                          {restoreLoading === snap.id ? "..." : "Restore"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
     </div>

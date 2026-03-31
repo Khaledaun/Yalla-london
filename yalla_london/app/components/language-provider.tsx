@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Language } from '@/lib/types'
+import { safeLocalGet, safeLocalSet } from '@/lib/safe-storage'
 
 interface LanguageContextType {
   language: Language
@@ -32,7 +33,7 @@ export function LanguageProvider({ children, initialLocale }: LanguageProviderPr
     // If the URL says English (/blog/foo), respect it — don't let a stale
     // localStorage preference flip the page to Arabic.
     if (!initialLocale) {
-      const saved = localStorage.getItem('language') as Language
+      const saved = safeLocalGet('language') as Language
       if (saved && (saved === 'en' || saved === 'ar')) {
         setLanguage(saved)
       }
@@ -40,14 +41,14 @@ export function LanguageProvider({ children, initialLocale }: LanguageProviderPr
       // URL locale provided — force it and sync localStorage so the
       // preference stays consistent with the URL the user is on.
       setLanguage(initialLocale)
-      try { localStorage.setItem('language', initialLocale) } catch { /* SSR */ }
+      safeLocalSet('language', initialLocale)
     }
     setMounted(true)
   }, [initialLocale])
 
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem('language', language)
+      safeLocalSet('language', language)
       document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
       document.documentElement.lang = language
     }

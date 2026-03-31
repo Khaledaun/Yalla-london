@@ -62,36 +62,36 @@ interface IndexingData {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  published:  { label: 'Published',   color: '#2D5A3D', bg: 'rgba(45,90,61,0.1)' },
-  scheduled:  { label: 'Scheduled',   color: '#4A7BA8', bg: 'rgba(74,123,168,0.1)' },
-  draft:      { label: 'Draft',       color: '#C49A2A', bg: 'rgba(196,154,42,0.1)' },
+  published:  { label: 'Published',   color: 'var(--admin-green)', bg: 'rgba(45,90,61,0.1)' },
+  scheduled:  { label: 'Scheduled',   color: 'var(--admin-info)', bg: 'rgba(74,123,168,0.1)' },
+  draft:      { label: 'Draft',       color: 'var(--admin-gold)', bg: 'rgba(196,154,42,0.1)' },
   reservoir:  { label: 'Reservoir',   color: '#7C3AED', bg: 'rgba(124,58,237,0.1)' },
   pending:    { label: 'Pending',     color: '#78716C', bg: 'rgba(120,113,108,0.1)' },
-  generating: { label: 'Generating',  color: '#C8322B', bg: 'rgba(200,50,43,0.1)' },
-  research:   { label: 'Research',    color: '#C49A2A', bg: 'rgba(196,154,42,0.08)' },
-  outline:    { label: 'Outline',     color: '#C49A2A', bg: 'rgba(196,154,42,0.08)' },
+  generating: { label: 'Generating',  color: 'var(--admin-red)', bg: 'rgba(200,50,43,0.1)' },
+  research:   { label: 'Research',    color: 'var(--admin-gold)', bg: 'rgba(196,154,42,0.08)' },
+  outline:    { label: 'Outline',     color: 'var(--admin-gold)', bg: 'rgba(196,154,42,0.08)' },
   drafting:   { label: 'Drafting',    color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
   assembly:   { label: 'Assembly',    color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
-  seo:        { label: 'SEO',         color: '#4A7BA8', bg: 'rgba(74,123,168,0.08)' },
-  scoring:    { label: 'Scoring',     color: '#4A7BA8', bg: 'rgba(74,123,168,0.08)' },
-  failed:     { label: 'Failed',      color: '#C8322B', bg: 'rgba(200,50,43,0.1)' },
+  seo:        { label: 'SEO',         color: 'var(--admin-info)', bg: 'rgba(74,123,168,0.08)' },
+  scoring:    { label: 'Scoring',     color: 'var(--admin-info)', bg: 'rgba(74,123,168,0.08)' },
+  failed:     { label: 'Failed',      color: 'var(--admin-red)', bg: 'rgba(200,50,43,0.1)' },
 };
 
 const INDEXING_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
-  indexed:        { label: 'Indexed',       color: '#2D5A3D', icon: CheckCircle },
-  submitted:      { label: 'Submitted',     color: '#4A7BA8', icon: Clock },
-  pending:        { label: 'Pending',       color: '#C49A2A', icon: Clock },
+  indexed:        { label: 'Indexed',       color: 'var(--admin-green)', icon: CheckCircle },
+  submitted:      { label: 'Submitted',     color: 'var(--admin-info)', icon: Clock },
+  pending:        { label: 'Pending',       color: 'var(--admin-gold)', icon: Clock },
   not_submitted:  { label: 'Not Submitted', color: '#78716C', icon: AlertCircle },
-  error:          { label: 'Error',         color: '#C8322B', icon: XCircle },
-  failed:         { label: 'Failed',        color: '#C8322B', icon: XCircle },
+  error:          { label: 'Error',         color: 'var(--admin-red)', icon: XCircle },
+  failed:         { label: 'Failed',        color: 'var(--admin-red)', icon: XCircle },
   not_applicable: { label: '—',             color: '#A8A29E', icon: FileText },
 };
 
 function seoScoreColor(score: number | null): string {
   if (!score) return '#A8A29E';
-  if (score >= 70) return '#2D5A3D';
-  if (score >= 50) return '#C49A2A';
-  return '#C8322B';
+  if (score >= 70) return 'var(--admin-green)';
+  if (score >= 50) return 'var(--admin-gold)';
+  return 'var(--admin-red)';
 }
 
 function timeAgo(iso: string): string {
@@ -214,11 +214,11 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
             <div className="flex gap-2">
               <Link href="/admin/articles/new"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ backgroundColor: '#C8322B', color: '#FAF8F4', fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700 }}>
+                    style={{ backgroundColor: 'var(--admin-red)', color: 'var(--admin-bg)', fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 700 }}>
                 + New Article
               </Link>
               <button onClick={load} className="p-2 rounded-lg transition-all"
-                      style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
+                      style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)', color: '#78716C' }}>
                 <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
               </button>
             </div>
@@ -228,13 +228,13 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
           {indexing && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Indexed',       val: indexing.indexed,      color: '#2D5A3D' },
-                { label: 'Submitted',     val: indexing.submitted,    color: '#4A7BA8' },
+                { label: 'Indexed',       val: indexing.indexed,      color: 'var(--admin-green)' },
+                { label: 'Submitted',     val: indexing.submitted,    color: 'var(--admin-info)' },
                 { label: 'Not Submitted', val: indexing.notSubmitted, color: '#78716C' },
-                { label: 'Index Errors',  val: indexing.error,        color: '#C8322B' },
+                { label: 'Index Errors',  val: indexing.error,        color: 'var(--admin-red)' },
               ].map(({ label, val, color }) => (
                 <div key={label} className="text-center py-3 rounded-xl"
-                     style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
+                     style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)' }}>
                   <div style={{ fontFamily: "var(--font-display,'Anybody',sans-serif)", fontWeight: 800, fontSize: 22, color }}>{val}</div>
                   <div style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
                 </div>
@@ -255,7 +255,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search articles..."
             className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
-            style={{ backgroundColor: '#FAF8F4', boxShadow: 'none', fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", border: '1px solid rgba(214,208,196,0.4)', color: '#1C1917' }}
+            style={{ backgroundColor: 'var(--admin-bg)', boxShadow: 'none', fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", border: '1px solid var(--admin-border)', color: '#1C1917' }}
           />
         </div>
 
@@ -265,7 +265,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
             {(['all', 'published', 'drafts'] as const).map((s) => (
               <button key={s} onClick={() => setSourceFilter(s)}
                       className="px-3 py-1.5 rounded-lg text-xs transition-all"
-                      style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, backgroundColor: sourceFilter === s ? '#1C1917' : '#FAF8F4', color: sourceFilter === s ? '#FAF8F4' : '#78716C', boxShadow: sourceFilter === s ? 'none' : '0 1px 2px rgba(28,25,23,0.04)', border: sourceFilter === s ? 'none' : '1px solid rgba(214,208,196,0.4)' }}>
+                      style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, backgroundColor: sourceFilter === s ? '#1C1917' : 'var(--admin-bg)', color: sourceFilter === s ? 'var(--admin-bg)' : '#78716C', boxShadow: sourceFilter === s ? 'none' : '0 1px 2px rgba(28,25,23,0.04)', border: sourceFilter === s ? 'none' : '1px solid var(--admin-border)' }}>
                 {s}
               </button>
             ))}
@@ -275,7 +275,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
         {/* Status filter */}
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-1.5 rounded-lg text-xs outline-none border-none"
-                style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
+                style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)', color: '#78716C' }}>
           <option value="all">All statuses</option>
           <option value="published">Published</option>
           <option value="draft">Draft</option>
@@ -289,9 +289,9 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
              style={{ backgroundColor: 'rgba(200,50,43,0.08)', border: '1px solid rgba(200,50,43,0.15)' }}>
-          <AlertTriangle size={14} style={{ color: '#C8322B', flexShrink: 0 }} />
-          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: '#C8322B', flex: 1 }}>{error}</span>
-          <button onClick={load} style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#C8322B', textDecoration: 'underline' }}>Retry</button>
+          <AlertTriangle size={14} style={{ color: 'var(--admin-red)', flexShrink: 0 }} />
+          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 11, color: 'var(--admin-red)', flex: 1 }}>{error}</span>
+          <button onClick={load} style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: 'var(--admin-red)', textDecoration: 'underline' }}>Retry</button>
         </div>
       )}
 
@@ -299,7 +299,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
       {submitError && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl"
              style={{ backgroundColor: 'rgba(200,50,43,0.06)', border: '1px solid rgba(200,50,43,0.12)' }}>
-          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#C8322B' }}>{submitError}</span>
+          <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: 'var(--admin-red)' }}>{submitError}</span>
           <button onClick={() => setSubmitError(null)} style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#78716C' }}>dismiss</button>
         </div>
       )}
@@ -328,13 +328,13 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
             return (
               <div key={article.id} className="rounded-xl overflow-hidden"
-                   style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)' }}>
+                   style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)' }}>
                 {/* Main row */}
                 <div className="flex items-start gap-3 p-3 sm:p-4">
                   {/* Type indicator */}
                   <div className="flex-shrink-0 mt-0.5">
                     {article.type === 'published' ? (
-                      <Globe size={14} style={{ color: '#2D5A3D' }} />
+                      <Globe size={14} style={{ color: 'var(--admin-green)' }} />
                     ) : (
                       <FileText size={14} style={{ color: '#78716C' }} />
                     )}
@@ -368,7 +368,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
                       {/* Word count */}
                       {article.wordCountEn > 0 && (
-                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: article.wordCountEn >= 1000 ? '#2D5A3D' : '#C49A2A' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: article.wordCountEn >= 1000 ? 'var(--admin-green)' : 'var(--admin-gold)' }}>
                           <BookOpen size={9} className="inline mr-0.5" />
                           {article.wordCountEn.toLocaleString()} words
                         </span>
@@ -376,7 +376,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
                       {/* Bilingual */}
                       {article.isBilingual && (
-                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: '#4A7BA8' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 10, color: 'var(--admin-info)' }}>
                           <Languages size={9} className="inline mr-0.5" />
                           Bilingual
                         </span>
@@ -399,7 +399,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
 
                       {/* Error flag */}
                       {article.hasError && (
-                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#C8322B' }}>
+                        <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: 'var(--admin-red)' }}>
                           <AlertTriangle size={9} className="inline mr-0.5" />
                           Error
                         </span>
@@ -413,7 +413,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                           <div className="flex-1 h-1 rounded-full overflow-hidden"
                                style={{ backgroundColor: 'rgba(120,113,108,0.15)' }}>
                             <div className="h-full rounded-full transition-all"
-                                 style={{ width: `${article.phaseProgress}%`, backgroundColor: article.phaseProgress >= 100 ? '#2D5A3D' : '#C49A2A' }} />
+                                 style={{ width: `${article.phaseProgress}%`, backgroundColor: article.phaseProgress >= 100 ? 'var(--admin-green)' : 'var(--admin-gold)' }} />
                           </div>
                           <span style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", fontSize: 9, color: '#A8A29E', flexShrink: 0 }}>
                             {article.phaseProgress}%
@@ -425,7 +425,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                             {PHASE_STEPS.map((step, i) => (
                               <div key={step} title={step}
                                    className="flex-1 h-1 rounded-full"
-                                   style={{ backgroundColor: i <= (article.phaseIndex ?? -1) ? '#C8322B' : 'rgba(120,113,108,0.15)' }} />
+                                   style={{ backgroundColor: i <= (article.phaseIndex ?? -1) ? 'var(--admin-red)' : 'rgba(120,113,108,0.15)' }} />
                             ))}
                           </div>
                         )}
@@ -438,26 +438,26 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                     {article.type === 'published' && article.publicUrl && (
                       <a href={article.publicUrl} target="_blank" rel="noreferrer"
                          className="p-1.5 rounded-lg transition-all" title="View public"
-                         style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
+                         style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)', color: '#78716C' }}>
                         <Eye size={12} />
                       </a>
                     )}
                     <Link href={`/admin/editor?id=${article.id}&type=${article.type}`}
                           className="p-1.5 rounded-lg transition-all" title="Edit"
-                          style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
+                          style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)', color: '#78716C' }}>
                       <Edit3 size={12} />
                     </Link>
                     {article.type === 'published' && article.indexingStatus !== 'indexed' && (
                       <button onClick={() => submitToIndexNow(article.id)}
                               disabled={submitting === article.id}
                               className="p-1.5 rounded-lg transition-all" title="Submit to IndexNow"
-                              style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#4A7BA8' }}>
+                              style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)', color: 'var(--admin-info)' }}>
                         {submitting === article.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                       </button>
                     )}
                     <button onClick={() => toggleExpanded(article.id)}
                             className="p-1.5 rounded-lg transition-all"
-                            style={{ backgroundColor: '#FAF8F4', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid rgba(214,208,196,0.4)', color: '#78716C' }}>
+                            style={{ backgroundColor: 'var(--admin-bg)', boxShadow: '0 1px 2px rgba(28,25,23,0.04)', border: '1px solid var(--admin-border)', color: '#78716C' }}>
                       {isExp ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </button>
                   </div>
@@ -488,7 +488,7 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                     </div>
                     {article.error && (
                       <div className="px-3 py-2 rounded-lg text-xs"
-                           style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", backgroundColor: 'rgba(200,50,43,0.08)', color: '#C8322B' }}>
+                           style={{ fontFamily: "var(--font-system,'IBM Plex Mono',monospace)", backgroundColor: 'rgba(200,50,43,0.08)', color: 'var(--admin-red)' }}>
                         Error: {article.error}
                       </div>
                     )}

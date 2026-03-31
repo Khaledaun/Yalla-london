@@ -62,9 +62,9 @@ function timeAgo(dateStr: string): string {
 }
 
 const HC: Record<Health, { dot: string; text: string; bg: string }> = {
-  green:  { dot: "#2D5A3D", text: "#2D5A3D", bg: "rgba(45,90,61,0.08)" },
-  yellow: { dot: "#C49A2A", text: "#C49A2A", bg: "rgba(196,154,42,0.08)" },
-  red:    { dot: "#C8322B", text: "#C8322B", bg: "rgba(200,50,43,0.08)" },
+  green:  { dot: "var(--admin-green)", text: "var(--admin-green)", bg: "rgba(45,90,61,0.08)" },
+  yellow: { dot: "var(--admin-gold)", text: "var(--admin-gold)", bg: "rgba(196,154,42,0.08)" },
+  red:    { dot: "var(--admin-red)", text: "var(--admin-red)", bg: "rgba(200,50,43,0.08)" },
   gray:   { dot: "#78716C", text: "#78716C", bg: "rgba(120,113,108,0.08)" },
 };
 
@@ -80,9 +80,9 @@ function KPICard({ label, labelAr, value, sub, variant, icon: Icon }: {
   label: string; labelAr: string; value: number | string;
   sub?: string; variant: "red"|"gold"|"stamp"|"forest"; icon: React.ElementType;
 }) {
-  const col = { red:"#C8322B", gold:"#C49A2A", stamp:"#4A7BA8", forest:"#2D5A3D" }[variant];
+  const col = { red:"var(--admin-red)", gold:"var(--admin-gold)", stamp:"var(--admin-blue)", forest:"var(--admin-green)" }[variant];
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)', transition:"box-shadow 200ms" }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)', transition:"box-shadow 200ms" }}>
       <div className="flex items-start justify-between mb-4">
         <div style={{ width:50, height:50, borderRadius:"50%", backgroundColor:"rgba(200,50,43,0.04)",
           border:"1px solid rgba(200,50,43,0.12)", display:"flex", alignItems:"center",
@@ -106,7 +106,7 @@ function PipelineFlow({ pipeline }: { pipeline: Record<string, PipelineStage> })
     { key:"indexed",   label:"Indexed",   icon:Search,    href:"/admin/seo" },
   ];
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Content Pipeline</div>
@@ -114,7 +114,7 @@ function PipelineFlow({ pipeline }: { pipeline: Record<string, PipelineStage> })
         </div>
         <Link href="/admin/content?tab=generation" className="flex items-center gap-1 px-3 py-1.5 rounded-lg"
               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase",
-                letterSpacing:1, color:"#4A7BA8", backgroundColor:"rgba(74,123,168,0.08)" }}>
+                letterSpacing:1, color:"var(--admin-blue)", backgroundColor:"rgba(74,123,168,0.08)" }}>
           <Eye size={11} /> Monitor
         </Link>
       </div>
@@ -125,7 +125,7 @@ function PipelineFlow({ pipeline }: { pipeline: Record<string, PipelineStage> })
             <div key={s.key} className="flex items-center gap-2 flex-1 min-w-0">
               <Link href={s.href} className="flex-1 min-w-0">
                 <div className="rounded-xl p-3 text-center transition-all"
-                     style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)", cursor:"pointer" }}>
+                     style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)", cursor:"pointer" }}>
                   <div className="flex items-center justify-center mb-1.5"><Icon size={14} style={{ color: HC[h].dot }} /></div>
                   <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:18, color:"#1C1917" }}>{d?.total ?? 0}</div>
                   <div className="mt-0.5 truncate" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, color:"#78716C" }}>{s.label}</div>
@@ -142,7 +142,7 @@ function PipelineFlow({ pipeline }: { pipeline: Record<string, PipelineStage> })
           <div className="mb-2" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, color:"#78716C" }}>Draft Phases</div>
           <div className="flex flex-wrap gap-1.5">
             {Object.entries(pipeline.drafts.byPhase).map(([p, c]) => (
-              <span key={p} className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(74,123,168,0.1)", color:"#4A7BA8" }}>{p}: {c}</span>
+              <span key={p} className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(74,123,168,0.1)", color:"var(--admin-blue)" }}>{p}: {c}</span>
             ))}
           </div>
         </div>
@@ -152,16 +152,16 @@ function PipelineFlow({ pipeline }: { pipeline: Record<string, PipelineStage> })
 }
 
 const ACTIONS = [
-  { label:"Generate",    url:"/api/admin/full-pipeline-run",  icon:Zap,       col:"#C49A2A", sh:"rgba(196,154,42,0.25)" },
-  { label:"Publish",     url:"/api/admin/publish-all-ready",  icon:Send,      col:"#2D5A3D", sh:"rgba(45,90,61,0.25)" },
-  { label:"Run Crons",   url:"/api/admin/run-all-crons",      icon:Play,      col:"#4A7BA8", sh:"rgba(74,123,168,0.25)" },
-  { label:"Seed Topics", url:"/api/admin/seed-topics",        icon:Lightbulb, col:"#C8322B", sh:"rgba(200,50,43,0.25)" },
-  { label:"Seed Walks",  url:"/api/admin/seed-walks",         icon:MapPin,    col:"#4A7BA8", sh:"rgba(74,123,168,0.25)" },
+  { label:"Generate",    url:"/api/admin/full-pipeline-run",  icon:Zap,       col:"var(--admin-gold)", sh:"rgba(196,154,42,0.25)" },
+  { label:"Publish",     url:"/api/admin/publish-all-ready",  icon:Send,      col:"var(--admin-green)", sh:"rgba(45,90,61,0.25)" },
+  { label:"Run Crons",   url:"/api/admin/run-all-crons",      icon:Play,      col:"var(--admin-blue)", sh:"rgba(74,123,168,0.25)" },
+  { label:"Seed Topics", url:"/api/admin/seed-topics",        icon:Lightbulb, col:"var(--admin-red)", sh:"rgba(200,50,43,0.25)" },
+  { label:"Seed Walks",  url:"/api/admin/seed-walks",         icon:MapPin,    col:"var(--admin-blue)", sh:"rgba(74,123,168,0.25)" },
 ];
 
 function QuickActions({ onAction, running }: { onAction:(l:string,u:string)=>void; running:string|null }) {
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">Quick Actions</div>
       <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }} className="mb-4">إجراءات سريعة</div>
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -170,11 +170,11 @@ function QuickActions({ onAction, running }: { onAction:(l:string,u:string)=>voi
           return (
             <button key={a.label} onClick={() => onAction(a.label, a.url)} disabled={!!running}
                     className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
-                    style={{ backgroundColor: isRun ? "rgba(200,50,43,0.04)" : "#FAF8F4", boxShadow: isRun ? "none" : "0 1px 3px rgba(28,25,23,0.06)", border: isRun ? "1px solid rgba(200,50,43,0.12)" : "1px solid rgba(214,208,196,0.4)",
+                    style={{ backgroundColor: isRun ? "rgba(200,50,43,0.04)" : "var(--admin-bg)", boxShadow: isRun ? "none" : "0 1px 3px rgba(28,25,23,0.06)", border: isRun ? "1px solid rgba(200,50,43,0.12)" : "1px solid rgba(214,208,196,0.4)",
                       opacity: running && !isRun ? 0.5 : 1, cursor: running ? "not-allowed" : "pointer" }}>
               <div style={{ width:36, height:36, borderRadius:"50%", backgroundColor: a.col,
                 boxShadow:`2px 2px 6px ${a.sh}`, display:"flex", alignItems:"center",
-                justifyContent:"center", color:"#FAF8F4" }}>
+                justifyContent:"center", color:"var(--admin-bg)" }}>
                 {isRun ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
               </div>
               <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600,
@@ -191,7 +191,7 @@ function QuickActions({ onAction, running }: { onAction:(l:string,u:string)=>voi
 
 function SiteHealthGrid({ sites }: { sites: SiteData[] }) {
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Sites Overview</div>
@@ -199,7 +199,7 @@ function SiteHealthGrid({ sites }: { sites: SiteData[] }) {
         </div>
         <Link href="/admin/command-center/sites" className="flex items-center gap-1 px-3 py-1.5 rounded-lg"
               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase",
-                letterSpacing:1, color:"#4A7BA8", backgroundColor:"rgba(74,123,168,0.08)" }}>
+                letterSpacing:1, color:"var(--admin-blue)", backgroundColor:"rgba(74,123,168,0.08)" }}>
           All Sites <ChevronRight size={11} />
         </Link>
       </div>
@@ -212,13 +212,13 @@ function SiteHealthGrid({ sites }: { sites: SiteData[] }) {
         )}
         {sites.map((site) => (
           <div key={site.siteId} className="flex items-center gap-3 px-3 py-3 rounded-xl"
-               style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+               style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
             <HDot h={site.health} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:12, color:"#1C1917" }}>{site.name}</span>
                 <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor: site.active?"rgba(45,90,61,0.1)":"rgba(120,113,108,0.1)",
-                  color: site.active?"#2D5A3D":"#78716C", border:"none", fontSize:7 }}>
+                  color: site.active?"var(--admin-green)":"#78716C", border:"none", fontSize:7 }}>
                   {site.active ? "LIVE" : "OFF"}
                 </span>
               </div>
@@ -243,33 +243,33 @@ function AlertsPanel({ alerts }: { alerts: Alert[] }) {
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? alerts : alerts.slice(0, 3);
   const criticals = alerts.filter(a => a.severity==="critical").length;
-  const sev = { critical:{ bg:"rgba(200,50,43,0.1)", color:"#C8322B", dot:"#C8322B" }, warning:{ bg:"rgba(196,154,42,0.1)", color:"#C49A2A", dot:"#C49A2A" }, info:{ bg:"rgba(74,123,168,0.1)", color:"#4A7BA8", dot:"#4A7BA8" } };
+  const sev = { critical:{ bg:"rgba(200,50,43,0.1)", color:"var(--admin-red)", dot:"var(--admin-red)" }, warning:{ bg:"rgba(196,154,42,0.1)", color:"var(--admin-gold)", dot:"var(--admin-gold)" }, info:{ bg:"rgba(74,123,168,0.1)", color:"var(--admin-blue)", dot:"var(--admin-blue)" } };
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div>
             <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Alerts</div>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }}>التنبيهات</div>
           </div>
-          {criticals>0 && <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B" }}>{criticals} critical</span>}
+          {criticals>0 && <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(200,50,43,0.1)", color:"var(--admin-red)" }}>{criticals} critical</span>}
         </div>
         <Link href="/admin/cron-logs" className="flex items-center gap-1 px-3 py-1.5 rounded-lg"
               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase",
-                letterSpacing:1, color:"#4A7BA8", backgroundColor:"rgba(74,123,168,0.08)" }}>
+                letterSpacing:1, color:"var(--admin-blue)", backgroundColor:"rgba(74,123,168,0.08)" }}>
           All Logs <ChevronRight size={11} />
         </Link>
       </div>
       {alerts.length===0 ? (
         <div className="flex items-center gap-3 px-3 py-4 rounded-xl" style={{ backgroundColor:"rgba(45,90,61,0.06)" }}>
-          <CheckCircle size={18} style={{ color:"#2D5A3D", flexShrink:0 }} />
-          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#2D5A3D", textTransform:"uppercase", letterSpacing:1 }}>All systems healthy</span>
+          <CheckCircle size={18} style={{ color:"var(--admin-green)", flexShrink:0 }} />
+          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"var(--admin-green)", textTransform:"uppercase", letterSpacing:1 }}>All systems healthy</span>
         </div>
       ) : (
         <div className="space-y-2">
           {shown.map((a) => (
             <div key={a.id} className="flex items-start gap-3 px-3 py-3 rounded-xl"
-                 style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                 style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
               <div style={{ width:6, height:6, borderRadius:"50%", backgroundColor: sev[a.severity].dot, marginTop:5, flexShrink:0 }} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -286,7 +286,7 @@ function AlertsPanel({ alerts }: { alerts: Alert[] }) {
           {alerts.length>3 && (
             <button onClick={() => setExpanded(!expanded)} className="w-full py-2 rounded-xl flex items-center justify-center gap-1"
                     style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, textTransform:"uppercase", letterSpacing:1,
-                      color:"#78716C", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", backgroundColor:"#FAF8F4", border:"1px solid rgba(214,208,196,0.4)" }}>
+                      color:"#78716C", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", backgroundColor:"var(--admin-bg)", border:"1px solid rgba(214,208,196,0.4)" }}>
               <ChevronDown size={12} style={{ transform: expanded?"rotate(180deg)":undefined, transition:"transform 200ms" }} />
               {expanded ? "Collapse" : `Show ${alerts.length-3} more`}
             </button>
@@ -299,9 +299,9 @@ function AlertsPanel({ alerts }: { alerts: Alert[] }) {
 
 function IndexingSummary({ data }: { data: OverviewData["indexing"] }) {
   const pct = data.totalUrls>0 ? Math.round((data.indexed/data.totalUrls)*100) : 0;
-  const barColor = pct>=70 ? "#2D5A3D" : pct>=30 ? "#C49A2A" : "#C8322B";
+  const barColor = pct>=70 ? "var(--admin-green)" : pct>=30 ? "var(--admin-gold)" : "var(--admin-red)";
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Indexing Status</div>
@@ -309,7 +309,7 @@ function IndexingSummary({ data }: { data: OverviewData["indexing"] }) {
         </div>
         <Link href="/admin/seo" className="flex items-center gap-1 px-3 py-1.5 rounded-lg"
               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase",
-                letterSpacing:1, color:"#4A7BA8", backgroundColor:"rgba(74,123,168,0.08)" }}>
+                letterSpacing:1, color:"var(--admin-blue)", backgroundColor:"rgba(74,123,168,0.08)" }}>
           Full Center <ChevronRight size={11} />
         </Link>
       </div>
@@ -319,9 +319,9 @@ function IndexingSummary({ data }: { data: OverviewData["indexing"] }) {
              style={{ width:`${pct}%`, backgroundColor: barColor }} />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[["Total",data.totalUrls,"#1C1917"],["Indexed",data.indexed,"#2D5A3D"],["Submitted",data.submitted,"#C49A2A"],["Errors",data.errors,"#C8322B"]].map(([l,v,c]) => (
+        {[["Total",data.totalUrls,"#1C1917"],["Indexed",data.indexed,"var(--admin-green)"],["Submitted",data.submitted,"var(--admin-gold)"],["Errors",data.errors,"var(--admin-red)"]].map(([l,v,c]) => (
           <div key={String(l)} className="text-center p-3 rounded-xl"
-               style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+               style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
             <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:20, color: String(c) }}>{v}</div>
             <div className="mt-0.5" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, color:"#78716C" }}>{l}</div>
           </div>
@@ -340,31 +340,31 @@ function CronHealth({ crons }: { crons: CronJob[] }) {
   const shown = showAll ? crons : crons.slice(0, 5);
   const failing = crons.filter(c => c.health==="red").length;
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div>
             <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Cron Health</div>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }}>صحة المهام المجدولة</div>
           </div>
-          {failing>0 && <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B" }}>{failing} failing</span>}
+          {failing>0 && <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(200,50,43,0.1)", color:"var(--admin-red)" }}>{failing} failing</span>}
         </div>
         <Link href="/admin/cron-logs" className="flex items-center gap-1 px-3 py-1.5 rounded-lg"
               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase",
-                letterSpacing:1, color:"#4A7BA8", backgroundColor:"rgba(74,123,168,0.08)" }}>
+                letterSpacing:1, color:"var(--admin-blue)", backgroundColor:"rgba(74,123,168,0.08)" }}>
           Logs <ChevronRight size={11} />
         </Link>
       </div>
       <div className="space-y-1.5">
         {shown.map((c) => (
           <div key={c.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-               style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+               style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
             <HDot h={c.health} />
             <div className="flex-1 min-w-0">
               <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:0.5 }} className="truncate">
                 {c.name}
               </div>
-              {c.lastError && <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#C8322B", marginTop:1 }} className="truncate">{c.lastError}</div>}
+              {c.lastError && <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"var(--admin-red)", marginTop:1 }} className="truncate">{c.lastError}</div>}
             </div>
             <div className="text-right flex-shrink-0">
               <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>{c.runs24h}r / {c.failures24h}f</div>
@@ -375,7 +375,7 @@ function CronHealth({ crons }: { crons: CronJob[] }) {
         {crons.length>5 && (
           <button onClick={() => setShowAll(!showAll)} className="w-full py-2 rounded-xl flex items-center justify-center gap-1"
                   style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, textTransform:"uppercase", letterSpacing:1,
-                    color:"#78716C", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", backgroundColor:"#FAF8F4", border:"1px solid rgba(214,208,196,0.4)" }}>
+                    color:"#78716C", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", backgroundColor:"var(--admin-bg)", border:"1px solid rgba(214,208,196,0.4)" }}>
             <ChevronDown size={12} style={{ transform: showAll?"rotate(180deg)":undefined, transition:"transform 200ms" }} />
             {showAll ? "Collapse" : `${crons.length-5} more`}
           </button>
@@ -387,7 +387,7 @@ function CronHealth({ crons }: { crons: CronJob[] }) {
 
 function RecentLog({ logs }: { logs: LogEntry[] }) {
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Recent Activity</div>
@@ -395,7 +395,7 @@ function RecentLog({ logs }: { logs: LogEntry[] }) {
         </div>
         <Link href="/admin/cron-logs" className="flex items-center gap-1 px-3 py-1.5 rounded-lg"
               style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase",
-                letterSpacing:1, color:"#4A7BA8", backgroundColor:"rgba(74,123,168,0.08)" }}>
+                letterSpacing:1, color:"var(--admin-blue)", backgroundColor:"rgba(74,123,168,0.08)" }}>
           Full Log <ChevronRight size={11} />
         </Link>
       </div>
@@ -404,15 +404,15 @@ function RecentLog({ logs }: { logs: LogEntry[] }) {
           const ok = l.status==="success";
           return (
             <div key={l.id} className="flex items-center gap-3 px-3 py-2 rounded-xl"
-                 style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
-              <div style={{ width:6, height:6, borderRadius:"50%", backgroundColor: ok?"#2D5A3D":"#C8322B", flexShrink:0 }} />
+                 style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+              <div style={{ width:6, height:6, borderRadius:"50%", backgroundColor: ok?"var(--admin-green)":"var(--admin-red)", flexShrink:0 }} />
               <div className="flex-1 min-w-0">
                 <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:0.5 }} className="truncate block">
                   {l.jobName}
                 </span>
               </div>
               <div className="text-right flex-shrink-0">
-                <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color: ok?"#2D5A3D":"#C8322B" }}>{l.succeeded}/{l.items}</div>
+                <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color: ok?"var(--admin-green)":"var(--admin-red)" }}>{l.succeeded}/{l.items}</div>
                 <div style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, color:"#78716C" }}>{timeAgo(l.startedAt)}</div>
               </div>
             </div>
@@ -476,19 +476,19 @@ function YachtPlatformCard({ sites }: { sites: SiteData[] }) {
   ];
 
   return (
-    <div className="rounded-xl p-4" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+    <div className="rounded-xl p-4" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div style={{ width:36, height:36, borderRadius:"50%", backgroundColor:"rgba(74,123,168,0.12)",
             display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <Anchor size={18} style={{ color:"#4A7BA8" }} />
+            <Anchor size={18} style={{ color:"var(--admin-blue)" }} />
           </div>
           <div>
             <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:700, fontSize:16, color:"#1C1917" }}>Yacht Platform</div>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }}>منصة اليخوت</div>
           </div>
         </div>
-        <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(74,123,168,0.1)", color:"#4A7BA8", border:"none", fontSize:7 }}>
+        <span className="px-2 py-0.5 rounded-full" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontWeight:600, textTransform:"uppercase", letterSpacing:0.5, backgroundColor:"rgba(74,123,168,0.1)", color:"var(--admin-blue)", border:"none", fontSize:7 }}>
           ZENITHA YACHTS
         </span>
       </div>
@@ -499,8 +499,8 @@ function YachtPlatformCard({ sites }: { sites: SiteData[] }) {
         </div>
       ) : yachtError ? (
         <div className="flex items-center gap-3 px-3 py-4 rounded-xl" style={{ backgroundColor:"rgba(200,50,43,0.06)" }}>
-          <XCircle size={16} style={{ color:"#C8322B", flexShrink:0 }} />
-          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#C8322B", textTransform:"uppercase", letterSpacing:1 }}>
+          <XCircle size={16} style={{ color:"var(--admin-red)", flexShrink:0 }} />
+          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"var(--admin-red)", textTransform:"uppercase", letterSpacing:1 }}>
             Could not load yacht data — tables may not be migrated yet
           </span>
         </div>
@@ -509,13 +509,13 @@ function YachtPlatformCard({ sites }: { sites: SiteData[] }) {
           {/* KPI Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             {[
-              ["Fleet Size", yachtData?.fleet.total ?? 0, "#4A7BA8"],
-              ["Active Inquiries", activeInquiries, activeInquiries > 0 ? "#C49A2A" : "#78716C"],
-              ["This Month", yachtData?.inquiries.thisMonth ?? 0, "#2D5A3D"],
-              ["Conversion", (yachtData?.inquiries.conversionRate ?? 0) + "%", "#C8322B"],
+              ["Fleet Size", yachtData?.fleet.total ?? 0, "var(--admin-blue)"],
+              ["Active Inquiries", activeInquiries, activeInquiries > 0 ? "var(--admin-gold)" : "#78716C"],
+              ["This Month", yachtData?.inquiries.thisMonth ?? 0, "var(--admin-green)"],
+              ["Conversion", (yachtData?.inquiries.conversionRate ?? 0) + "%", "var(--admin-red)"],
             ].map(([label, value, color]) => (
               <div key={String(label)} className="text-center p-3 rounded-xl"
-                   style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                   style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
                 <div style={{ fontFamily:"var(--font-display,'Anybody',sans-serif)", fontWeight:800, fontSize:20, color: String(color) }}>{value}</div>
                 <div className="mt-0.5" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, color:"#78716C" }}>{label}</div>
               </div>
@@ -528,8 +528,8 @@ function YachtPlatformCard({ sites }: { sites: SiteData[] }) {
               const Icon = link.icon;
               return (
                 <Link key={link.href} href={link.href} className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all"
-                      style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
-                  <Icon size={14} style={{ color:"#4A7BA8", flexShrink:0 }} />
+                      style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>
+                  <Icon size={14} style={{ color:"var(--admin-blue)", flexShrink:0 }} />
                   <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:8, fontWeight:600, textTransform:"uppercase",
                     letterSpacing:0.5, color:"#1C1917" }}>
                     {link.label}
@@ -588,8 +588,8 @@ export default function CommandCenter() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center">
         <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-             style={{ backgroundColor:"#FAF8F4", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
-          <Loader2 size={24} className="animate-spin" style={{ color:"#C8322B" }} />
+             style={{ backgroundColor:"var(--admin-bg)", boxShadow:"0 1px 3px rgba(28,25,23,0.06)", border:"1px solid rgba(214,208,196,0.4)" }}>
+          <Loader2 size={24} className="animate-spin" style={{ color:"var(--admin-red)" }} />
         </div>
         <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:2 }}>
           Loading HQ Dashboard
@@ -600,10 +600,10 @@ export default function CommandCenter() {
 
   if (error && !data) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="rounded-xl p-4 text-center max-w-sm mx-auto" style={{ backgroundColor:'#FAF8F4', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
-        <XCircle size={28} className="mx-auto mb-3" style={{ color:"#C8322B" }} />
-        <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:11, color:"#C8322B", textTransform:"uppercase", letterSpacing:1 }}>{error}</p>
-        <button onClick={fetchData} className="mt-4 px-4 py-2 text-xs rounded-xl transition-all" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontWeight:600, textTransform:"uppercase", letterSpacing:1, backgroundColor:"#FAF8F4", color:"#1C1917", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>Retry</button>
+      <div className="rounded-xl p-4 text-center max-w-sm mx-auto" style={{ backgroundColor:'var(--admin-bg)', boxShadow:'0 1px 3px rgba(28,25,23,0.06)', border:'1px solid rgba(214,208,196,0.4)' }}>
+        <XCircle size={28} className="mx-auto mb-3" style={{ color:"var(--admin-red)" }} />
+        <p style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:11, color:"var(--admin-red)", textTransform:"uppercase", letterSpacing:1 }}>{error}</p>
+        <button onClick={fetchData} className="mt-4 px-4 py-2 text-xs rounded-xl transition-all" style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontWeight:600, textTransform:"uppercase", letterSpacing:1, backgroundColor:"var(--admin-bg)", color:"#1C1917", boxShadow:"0 1px 2px rgba(28,25,23,0.04)", border:"1px solid rgba(214,208,196,0.4)" }}>Retry</button>
       </div>
     </div>
   );
@@ -626,7 +626,7 @@ export default function CommandCenter() {
           </div>
         </div>
         <button onClick={fetchData} className="p-2.5 rounded-xl transition-all"
-                style={{ backgroundColor: loading?"rgba(200,50,43,0.04)":"#FAF8F4", boxShadow: loading?"none":"0 1px 2px rgba(28,25,23,0.04)", border: loading?"1px solid rgba(200,50,43,0.12)":"1px solid rgba(214,208,196,0.4)" }}>
+                style={{ backgroundColor: loading?"rgba(200,50,43,0.04)":"var(--admin-bg)", boxShadow: loading?"none":"0 1px 2px rgba(28,25,23,0.04)", border: loading?"1px solid rgba(200,50,43,0.12)":"1px solid rgba(214,208,196,0.4)" }}>
           <RefreshCw size={16} className={loading?"animate-spin":""} style={{ color:"#78716C" }} />
         </button>
       </div>
@@ -635,11 +635,11 @@ export default function CommandCenter() {
       {criticalCount>0 && (
         <Link href="/admin/cron-logs" className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
               style={{ backgroundColor:"rgba(200,50,43,0.06)", border:"1px solid rgba(200,50,43,0.2)" }}>
-          <AlertTriangle size={18} style={{ color:"#C8322B", flexShrink:0 }} />
-          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"#C8322B", textTransform:"uppercase", letterSpacing:1 }}>
+          <AlertTriangle size={18} style={{ color:"var(--admin-red)", flexShrink:0 }} />
+          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, fontWeight:600, color:"var(--admin-red)", textTransform:"uppercase", letterSpacing:1 }}>
             {criticalCount} critical alert{criticalCount!==1?"s":""} in the last 24h
           </span>
-          <ArrowRight size={14} style={{ color:"#C8322B", marginLeft:"auto", flexShrink:0 }} />
+          <ArrowRight size={14} style={{ color:"var(--admin-red)", marginLeft:"auto", flexShrink:0 }} />
         </Link>
       )}
 
@@ -648,7 +648,7 @@ export default function CommandCenter() {
         <div className="flex items-center justify-between px-4 py-3 rounded-xl"
              style={{ backgroundColor: actionMsg.ok?"rgba(45,90,61,0.06)":"rgba(200,50,43,0.06)",
                border:`1px solid ${actionMsg.ok?"rgba(45,90,61,0.2)":"rgba(200,50,43,0.2)"}` }}>
-          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color: actionMsg.ok?"#2D5A3D":"#C8322B", textTransform:"uppercase", letterSpacing:1 }}>
+          <span style={{ fontFamily:"var(--font-system,'IBM Plex Mono',monospace)", fontSize:10, color: actionMsg.ok?"var(--admin-green)":"var(--admin-red)", textTransform:"uppercase", letterSpacing:1 }}>
             {actionMsg.text}
           </span>
           <button onClick={() => setActionMsg(null)} style={{ color:"#78716C", fontSize:16, lineHeight:1, cursor:"pointer" }}>×</button>

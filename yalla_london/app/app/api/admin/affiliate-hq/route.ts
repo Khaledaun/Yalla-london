@@ -850,6 +850,49 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      case "list_snapshots": {
+        try {
+          const { listSnapshots } = await import("@/lib/affiliate/snapshot");
+          const { getDefaultSiteId } = await import("@/config/sites");
+          const reqSiteId = request.nextUrl.searchParams.get("siteId") || body.siteId || getDefaultSiteId();
+          const snapshots = await listSnapshots(reqSiteId || undefined, 50);
+          return NextResponse.json({ success: true, action, result: { snapshots } });
+        } catch (err) {
+          console.error("[affiliate-hq] list_snapshots failed:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json({ success: false, action, result: { error: "Failed to list snapshots" } });
+        }
+      }
+
+      case "restore_snapshot": {
+        try {
+          const snapshotId = body.snapshotId as string;
+          if (!snapshotId) {
+            return NextResponse.json({ success: false, action, result: { error: "snapshotId required" } }, { status: 400 });
+          }
+          const { restoreSnapshot } = await import("@/lib/affiliate/snapshot");
+          const result = await restoreSnapshot(snapshotId);
+          return NextResponse.json({ success: result.success, action, result });
+        } catch (err) {
+          console.error("[affiliate-hq] restore_snapshot failed:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json({ success: false, action, result: { error: "Restore failed" } });
+        }
+      }
+
+      case "restore_cron_run": {
+        try {
+          const cronRunId = body.cronRunId as string;
+          if (!cronRunId) {
+            return NextResponse.json({ success: false, action, result: { error: "cronRunId required" } }, { status: 400 });
+          }
+          const { restoreCronRunSnapshots } = await import("@/lib/affiliate/snapshot");
+          const result = await restoreCronRunSnapshots(cronRunId);
+          return NextResponse.json({ success: true, action, result });
+        } catch (err) {
+          console.error("[affiliate-hq] restore_cron_run failed:", err instanceof Error ? err.message : String(err));
+          return NextResponse.json({ success: false, action, result: { error: "Bulk restore failed" } });
+        }
+      }
+
       default:
         return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
     }

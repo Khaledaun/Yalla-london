@@ -8,6 +8,7 @@ import {
   Image,
   Settings,
   Eye,
+  EyeOff,
   Save,
   Upload,
   Play,
@@ -22,16 +23,49 @@ import {
   Shield,
   FileText,
   Mail,
-  Phone
+  Phone,
+  Monitor,
+  Smartphone,
+  Tablet,
+  RefreshCw,
+  ExternalLink,
+  Plus,
+  X,
+  Star,
+  MapPin,
+  MessageSquare,
+  Newspaper,
+  Users,
+  BarChart3,
+  HelpCircle,
+  Tag,
+  ImageIcon,
+  Megaphone,
+  Search,
+  Link2,
 } from 'lucide-react'
-import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { AdminEmptyState } from '@/components/admin/admin-ui'
 
 const _siteCfg = getSiteConfig(getDefaultSiteId())
 
+type BlockType =
+  | 'hero'
+  | 'featured'
+  | 'events'
+  | 'testimonials'
+  | 'blog-grid'
+  | 'cta'
+  | 'destination-grid'
+  | 'newsletter'
+  | 'features'
+  | 'gallery'
+  | 'partners'
+  | 'stats'
+
 interface HomepageBlock {
   id: string
-  type: 'hero' | 'featured' | 'events' | 'testimonials' | 'blog-grid' | 'cta'
+  type: BlockType
   title_en: string
   title_ar: string
   content_en: string
@@ -41,13 +75,231 @@ interface HomepageBlock {
   enabled: boolean
   version: 'draft' | 'published'
   language: 'en' | 'ar' | 'both'
-  config: any
+  config: Record<string, unknown>
   // Video hero specific fields
   heroVideoId?: string
   heroVideoPoster?: string
   heroVideoAutoplay?: boolean
   heroVideoMuted?: boolean
   heroVideoLoop?: boolean
+}
+
+interface BlockTemplate {
+  type: BlockType
+  label: string
+  description: string
+  icon: React.ElementType
+  color: string
+  defaults: {
+    title_en: string
+    title_ar: string
+    content_en: string
+    content_ar: string
+    config: Record<string, unknown>
+  }
+}
+
+const BLOCK_TEMPLATES: BlockTemplate[] = [
+  {
+    type: 'hero',
+    label: 'Hero Banner',
+    description: 'Full-width hero with headline, subtitle, CTA, and video/image background',
+    icon: Megaphone,
+    color: 'purple',
+    defaults: {
+      title_en: 'Welcome to London',
+      title_ar: 'مرحباً بكم في لندن',
+      content_en: 'Discover the finest luxury experiences in London',
+      content_ar: 'اكتشف أفخم التجارب الفاخرة في لندن',
+      config: { backgroundType: 'image', ctaLabel: 'Explore Now', ctaHref: '/blog' },
+    },
+  },
+  {
+    type: 'featured',
+    label: 'Featured Articles',
+    description: 'Highlight top articles in a 3-column card grid',
+    icon: Star,
+    color: 'amber',
+    defaults: {
+      title_en: 'Editor\'s Picks',
+      title_ar: 'اختيارات المحرر',
+      content_en: 'Hand-picked articles by our editorial team',
+      content_ar: 'مقالات مختارة من فريق التحرير',
+      config: { columns: 3, maxItems: 6, showExcerpt: true },
+    },
+  },
+  {
+    type: 'events',
+    label: 'Events Calendar',
+    description: 'Upcoming events with dates, venues and ticket links',
+    icon: Newspaper,
+    color: 'green',
+    defaults: {
+      title_en: 'Upcoming Events',
+      title_ar: 'الفعاليات القادمة',
+      content_en: 'Don\'t miss these exciting events',
+      content_ar: 'لا تفوتوا هذه الفعاليات المميزة',
+      config: { maxItems: 6, showTicketLink: true, layout: 'grid' },
+    },
+  },
+  {
+    type: 'testimonials',
+    label: 'Testimonials',
+    description: 'Rotating visitor reviews with name, avatar and rating',
+    icon: MessageSquare,
+    color: 'pink',
+    defaults: {
+      title_en: 'What Travellers Say',
+      title_ar: 'ماذا يقول المسافرون',
+      content_en: 'Real experiences from our community',
+      content_ar: 'تجارب حقيقية من مجتمعنا',
+      config: { autoRotate: true, intervalMs: 5000, showRating: true },
+    },
+  },
+  {
+    type: 'blog-grid',
+    label: 'Blog Grid',
+    description: 'Latest articles in a responsive masonry-style grid',
+    icon: Layout,
+    color: 'blue',
+    defaults: {
+      title_en: 'Latest Articles',
+      title_ar: 'أحدث المقالات',
+      content_en: 'Fresh guides and recommendations',
+      content_ar: 'أدلة وتوصيات جديدة',
+      config: { columns: 3, maxItems: 9, showCategory: true, showDate: true },
+    },
+  },
+  {
+    type: 'cta',
+    label: 'Call to Action',
+    description: 'Eye-catching banner with heading, text and action button',
+    icon: Megaphone,
+    color: 'red',
+    defaults: {
+      title_en: 'Start Your Journey',
+      title_ar: 'ابدأ رحلتك',
+      content_en: 'Subscribe to get exclusive travel tips and deals',
+      content_ar: 'اشترك للحصول على نصائح سفر حصرية',
+      config: { buttonLabel: 'Subscribe Now', buttonHref: '#subscribe', style: 'gradient' },
+    },
+  },
+  {
+    type: 'destination-grid',
+    label: 'Destination Grid',
+    description: 'Neighbourhood or area cards with images, names and article counts',
+    icon: MapPin,
+    color: 'teal',
+    defaults: {
+      title_en: 'Explore London',
+      title_ar: 'استكشف لندن',
+      content_en: 'Browse guides by neighbourhood',
+      content_ar: 'تصفح الأدلة حسب الحي',
+      config: { columns: 4, showArticleCount: true, destinations: [] },
+    },
+  },
+  {
+    type: 'newsletter',
+    label: 'Newsletter Signup',
+    description: 'Email capture form with headline, description and input field',
+    icon: Mail,
+    color: 'indigo',
+    defaults: {
+      title_en: 'Stay in the Loop',
+      title_ar: 'ابقَ على اطلاع',
+      content_en: 'Weekly luxury travel tips delivered to your inbox',
+      content_ar: 'نصائح سفر فاخرة أسبوعية في بريدك',
+      config: { placeholder: 'Enter your email', buttonLabel: 'Join', style: 'inline' },
+    },
+  },
+  {
+    type: 'features',
+    label: 'Features / USPs',
+    description: 'Icon grid showcasing site unique selling points (3-4 columns)',
+    icon: Shield,
+    color: 'emerald',
+    defaults: {
+      title_en: 'Why Choose Us',
+      title_ar: 'لماذا تختارنا',
+      content_en: '',
+      content_ar: '',
+      config: {
+        columns: 3,
+        items: [
+          { icon: 'star', titleEn: 'Expert Guides', titleAr: 'أدلة خبراء', descEn: 'Written by London insiders', descAr: 'بقلم خبراء لندن' },
+          { icon: 'shield', titleEn: 'Trusted Reviews', titleAr: 'تقييمات موثوقة', descEn: 'First-hand experiences only', descAr: 'تجارب مباشرة فقط' },
+          { icon: 'globe', titleEn: 'Bilingual Content', titleAr: 'محتوى ثنائي اللغة', descEn: 'Full Arabic & English', descAr: 'عربي وإنجليزي كامل' },
+        ],
+      },
+    },
+  },
+  {
+    type: 'gallery',
+    label: 'Photo Gallery',
+    description: 'Masonry or carousel image gallery with lightbox preview',
+    icon: ImageIcon,
+    color: 'violet',
+    defaults: {
+      title_en: 'Gallery',
+      title_ar: 'معرض الصور',
+      content_en: 'Visual highlights from London',
+      content_ar: 'أبرز المشاهد من لندن',
+      config: { layout: 'masonry', columns: 3, images: [] },
+    },
+  },
+  {
+    type: 'partners',
+    label: 'Partners / Logos',
+    description: 'Scrolling logo strip of affiliate and trust partners',
+    icon: Users,
+    color: 'slate',
+    defaults: {
+      title_en: 'Our Partners',
+      title_ar: 'شركاؤنا',
+      content_en: 'Trusted by leading travel brands',
+      content_ar: 'موثوق من قبل أبرز العلامات التجارية',
+      config: { scroll: true, speed: 'normal', logos: [] },
+    },
+  },
+  {
+    type: 'stats',
+    label: 'Stats Counter',
+    description: 'Animated counters showing key numbers (articles, destinations, readers)',
+    icon: BarChart3,
+    color: 'orange',
+    defaults: {
+      title_en: 'By the Numbers',
+      title_ar: 'بالأرقام',
+      content_en: '',
+      content_ar: '',
+      config: {
+        items: [
+          { value: 200, suffix: '+', labelEn: 'Articles', labelAr: 'مقال' },
+          { value: 50, suffix: '+', labelEn: 'Destinations', labelAr: 'وجهة' },
+          { value: 10, suffix: 'K+', labelEn: 'Monthly Readers', labelAr: 'قارئ شهري' },
+          { value: 4.8, suffix: '/5', labelEn: 'Rating', labelAr: 'تقييم' },
+        ],
+      },
+    },
+  },
+]
+
+function getTemplateColorClasses(color: string): { bg: string; text: string; border: string; hoverBg: string } {
+  const map: Record<string, { bg: string; text: string; border: string; hoverBg: string }> = {
+    purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', hoverBg: 'hover:bg-purple-100' },
+    amber: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', hoverBg: 'hover:bg-amber-100' },
+    green: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', hoverBg: 'hover:bg-green-100' },
+    pink: { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200', hoverBg: 'hover:bg-pink-100' },
+    blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', hoverBg: 'hover:bg-blue-100' },
+    red: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', hoverBg: 'hover:bg-red-100' },
+    teal: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', hoverBg: 'hover:bg-teal-100' },
+    indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', hoverBg: 'hover:bg-indigo-100' },
+    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', hoverBg: 'hover:bg-emerald-100' },
+    violet: { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', hoverBg: 'hover:bg-violet-100' },
+    slate: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', hoverBg: 'hover:bg-slate-100' },
+    orange: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', hoverBg: 'hover:bg-orange-100' },
+  }
+  return map[color] || map.purple
 }
 
 interface MediaAsset {
@@ -64,6 +316,8 @@ interface MediaAsset {
 
 interface SiteConfig {
   id: string
+  name?: string
+  description?: string
   homepage_json: any
   hero_video_url?: string
   hero_mobile_video_url?: string
@@ -79,12 +333,15 @@ interface SiteConfig {
 }
 
 export default function SiteControl() {
-  const [activeTab, setActiveTab] = useState<'homepage' | 'media' | 'pages' | 'theme' | 'settings'>('homepage')
+  const [activeTab, setActiveTab] = useState<'homepage' | 'media' | 'pages' | 'theme' | 'seo' | 'settings'>('homepage')
   const [blocks, setBlocks] = useState<HomepageBlock[]>([])
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [previewMode, setPreviewMode] = useState(false)
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+  const [previewPath, setPreviewPath] = useState('/')
+  const [previewKey, setPreviewKey] = useState(0)
   const [selectedBlock, setSelectedBlock] = useState<HomepageBlock | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -92,6 +349,19 @@ export default function SiteControl() {
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false)
+
+  // SEO Metadata state
+  const [seoPages, setSeoPages] = useState<Array<{
+    path: string
+    label: string
+    title: string
+    description: string
+    ogImage: string
+    canonicalUrl: string
+  }>>([])
+  const [selectedSeoPage, setSelectedSeoPage] = useState<string>('/')
+  const [seoSaving, setSeoSaving] = useState(false)
 
   useEffect(() => {
     loadSiteData()
@@ -123,11 +393,97 @@ export default function SiteControl() {
 
       setMediaAssets([])
       setSiteConfig(defaultConfig)
+
+      // Load SEO metadata from SiteSettings
+      const siteId = getDefaultSiteId()
+      let domain = ''
+      try { domain = getSiteDomain(siteId) } catch { domain = 'https://localhost:3000' }
+      const defaultPages = [
+        { path: '/', label: 'Homepage', title: `${_siteCfg?.name || 'Yalla London'} — Luxury Travel Guide`, description: 'Discover the best of London with luxury travel guides', ogImage: `${domain}/api/og?siteId=${siteId}`, canonicalUrl: domain },
+        { path: '/blog', label: 'Blog', title: `Blog — ${_siteCfg?.name || 'Yalla London'}`, description: 'Read our latest luxury travel articles and guides', ogImage: '', canonicalUrl: `${domain}/blog` },
+        { path: '/about', label: 'About', title: `About — ${_siteCfg?.name || 'Yalla London'}`, description: 'Learn about our luxury travel platform', ogImage: '', canonicalUrl: `${domain}/about` },
+        { path: '/contact', label: 'Contact', title: `Contact — ${_siteCfg?.name || 'Yalla London'}`, description: 'Get in touch with our travel experts', ogImage: '', canonicalUrl: `${domain}/contact` },
+        { path: '/hotels', label: 'Hotels', title: `Luxury Hotels — ${_siteCfg?.name || 'Yalla London'}`, description: 'Curated luxury hotel recommendations', ogImage: '', canonicalUrl: `${domain}/hotels` },
+        { path: '/experiences', label: 'Experiences', title: `Experiences — ${_siteCfg?.name || 'Yalla London'}`, description: 'Discover unforgettable London experiences', ogImage: '', canonicalUrl: `${domain}/experiences` },
+        { path: '/events', label: 'Events', title: `Events — ${_siteCfg?.name || 'Yalla London'}`, description: 'Upcoming London events and activities', ogImage: '', canonicalUrl: `${domain}/events` },
+      ]
+
+      try {
+        const seoRes = await fetch(`/api/admin/site-settings?siteId=${encodeURIComponent(siteId)}&category=seo-metadata`)
+        if (seoRes.ok) {
+          const seoData = await seoRes.json()
+          const seoConfig = seoData.settings?.['seo-metadata']?.config
+          if (seoConfig?.pages && Array.isArray(seoConfig.pages)) {
+            const savedPages = seoConfig.pages as typeof defaultPages
+            // Merge saved data with defaults (saved data wins)
+            const merged = defaultPages.map(dp => {
+              const saved = savedPages.find((sp: typeof dp) => sp.path === dp.path)
+              return saved ? { ...dp, ...saved } : dp
+            })
+            setSeoPages(merged)
+          } else {
+            setSeoPages(defaultPages)
+          }
+        } else {
+          setSeoPages(defaultPages)
+        }
+      } catch {
+        setSeoPages(defaultPages)
+      }
     } catch (error) {
       console.error('Failed to load site data:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSeoPageUpdate = (path: string, field: string, value: string) => {
+    setSeoPages(prev => prev.map(p => p.path === path ? { ...p, [field]: value } : p))
+  }
+
+  const currentSeoPage = seoPages.find(p => p.path === selectedSeoPage)
+
+  const handleSaveSeoMetadata = async () => {
+    setSeoSaving(true)
+    try {
+      const siteId = getDefaultSiteId()
+      const res = await fetch('/api/admin/site-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId,
+          category: 'seo-metadata',
+          config: { pages: seoPages },
+        }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        setSaveMessage({ type: 'error', text: (errData as Record<string, string>).error || 'Failed to save SEO metadata' })
+      } else {
+        setSaveMessage({ type: 'success', text: 'SEO metadata saved!' })
+      }
+    } catch {
+      setSaveMessage({ type: 'error', text: 'Network error saving SEO metadata' })
+    } finally {
+      setSeoSaving(false)
+      setTimeout(() => setSaveMessage(null), 3000)
+    }
+  }
+
+  const getSerpTitleLength = (title: string) => {
+    const len = title.length
+    if (len === 0) return { color: 'text-gray-400', label: '0 chars' }
+    if (len < 30) return { color: 'text-amber-600', label: `${len} chars — too short` }
+    if (len <= 60) return { color: 'text-green-600', label: `${len} chars — good` }
+    return { color: 'text-red-600', label: `${len} chars — too long (max 60)` }
+  }
+
+  const getSerpDescLength = (desc: string) => {
+    const len = desc.length
+    if (len === 0) return { color: 'text-gray-400', label: '0 chars' }
+    if (len < 120) return { color: 'text-amber-600', label: `${len} chars — too short` }
+    if (len <= 160) return { color: 'text-green-600', label: `${len} chars — good` }
+    return { color: 'text-red-600', label: `${len} chars — too long (max 160)` }
   }
 
   const handleBlockUpdate = (blockId: string, updates: Partial<HomepageBlock>) => {
@@ -136,21 +492,25 @@ export default function SiteControl() {
     ))
   }
 
-  const handleAddBlock = (type: HomepageBlock['type']) => {
+  const handleAddBlock = (type: BlockType) => {
+    const template = BLOCK_TEMPLATES.find(t => t.type === type)
+    const defaults = template?.defaults
     const newBlock: HomepageBlock = {
       id: `block_${Date.now()}`,
       type,
-      title_en: `New ${type} Block`,
-      title_ar: `كتلة ${type} جديدة`,
-      content_en: '',
-      content_ar: '',
+      title_en: defaults?.title_en || `New ${type} Block`,
+      title_ar: defaults?.title_ar || `كتلة ${type} جديدة`,
+      content_en: defaults?.content_en || '',
+      content_ar: defaults?.content_ar || '',
       position: blocks.length + 1,
       enabled: true,
       version: 'draft',
       language: 'both',
-      config: {}
+      config: defaults?.config || {},
     }
     setBlocks(prev => [...prev, newBlock])
+    setSelectedBlock(newBlock)
+    setShowTemplateLibrary(false)
   }
 
   const handleSaveHomepage = async (version: 'draft' | 'published' = 'draft') => {
@@ -347,17 +707,49 @@ export default function SiteControl() {
           <p className="text-gray-600 mt-1">Manage your homepage, media, and site settings</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setPreviewMode(!previewMode)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-              previewMode 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <Eye className="h-4 w-4" />
-            {previewMode ? 'Exit Preview' : 'Preview'}
-          </button>
+          {/* Preview Controls */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPreviewMode(!previewMode)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                previewMode
+                  ? 'bg-[var(--admin-red)] text-white'
+                  : 'bg-[var(--admin-bg)] text-[var(--admin-text)] border border-[var(--admin-border)] hover:bg-white'
+              }`}
+            >
+              {previewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {previewMode ? 'Exit Preview' : 'Preview'}
+            </button>
+            {previewMode && (
+              <div className="flex items-center gap-1 ml-1 bg-[var(--admin-bg)] rounded-lg p-1 border border-[var(--admin-border)]">
+                {([
+                  { id: 'desktop' as const, icon: Monitor, label: 'Desktop' },
+                  { id: 'tablet' as const, icon: Tablet, label: 'Tablet' },
+                  { id: 'mobile' as const, icon: Smartphone, label: 'Mobile' },
+                ] as const).map((device) => (
+                  <button
+                    key={device.id}
+                    onClick={() => setPreviewDevice(device.id)}
+                    title={device.label}
+                    className={`p-1.5 rounded transition-colors ${
+                      previewDevice === device.id
+                        ? 'bg-white text-[var(--admin-red)] shadow-sm'
+                        : 'text-[var(--admin-text-muted)] hover:text-[var(--admin-text)]'
+                    }`}
+                  >
+                    <device.icon className="h-4 w-4" />
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPreviewKey(k => k + 1)}
+                  title="Refresh preview"
+                  className="p-1.5 rounded text-[var(--admin-text-muted)] hover:text-[var(--admin-text)] transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
           <button
             disabled={saving || blocks.length === 0}
             onClick={() => handleSaveHomepage('draft')}
@@ -398,6 +790,7 @@ export default function SiteControl() {
             { id: 'media', label: 'Media Library', icon: Image },
             { id: 'pages', label: 'Static Pages', icon: FileText },
             { id: 'theme', label: 'Theme & Branding', icon: Palette },
+            { id: 'seo', label: 'SEO Metadata', icon: Search },
             { id: 'settings', label: 'Site Settings', icon: Settings }
           ].map((tab) => (
             <button
@@ -416,38 +809,57 @@ export default function SiteControl() {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content + Preview Panel */}
+      <div className={`flex gap-6 ${previewMode ? 'items-start' : ''}`}>
+        {/* Main Content Area */}
+        <div className={previewMode ? 'flex-1 min-w-0' : 'w-full'}>
+
       {activeTab === 'homepage' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Blocks List */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Homepage Blocks</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleAddBlock('hero')}
-                  className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200"
-                >
-                  + Hero
-                </button>
-                <button
-                  onClick={() => handleAddBlock('featured')}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200"
-                >
-                  + Featured
-                </button>
-                <button
-                  onClick={() => handleAddBlock('events')}
-                  className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200"
-                >
-                  + Events
-                </button>
-              </div>
+              <button
+                onClick={() => setShowTemplateLibrary(!showTemplateLibrary)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add Block
+              </button>
             </div>
+
+            {showTemplateLibrary && (
+              <div className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-900">Block Template Library</h4>
+                  <button onClick={() => setShowTemplateLibrary(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {BLOCK_TEMPLATES.map((template) => {
+                    const colors = getTemplateColorClasses(template.color)
+                    const Icon = template.icon
+                    return (
+                      <button
+                        key={template.type}
+                        onClick={() => handleAddBlock(template.type)}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-lg border ${colors.border} ${colors.bg} ${colors.hoverBg} transition-colors text-left`}
+                      >
+                        <Icon className={`h-6 w-6 ${colors.text}`} />
+                        <span className={`text-sm font-medium ${colors.text}`}>{template.label}</span>
+                        <span className="text-xs text-gray-500 text-center leading-tight">{template.description}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               {blocks.length === 0 ? (
-                <AdminEmptyState icon={Layout} title="No homepage blocks" description="Configure homepage blocks in the Homepage Builder." />
+                <AdminEmptyState icon={Layout} title="No homepage blocks" description="Click &quot;Add Block&quot; to get started with a template." />
               ) : (
                 blocks.map((block) => (
                   <div
@@ -517,7 +929,7 @@ export default function SiteControl() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Background Type</label>
                         <select
-                          value={selectedBlock.config?.backgroundType || 'image'}
+                          value={String(selectedBlock.config?.backgroundType || 'image')}
                           onChange={(e) => handleBlockUpdate(selectedBlock.id, { 
                             config: { ...selectedBlock.config, backgroundType: e.target.value }
                           })}
@@ -590,6 +1002,166 @@ export default function SiteControl() {
                           />
                           <span className="text-sm text-gray-700">Loop</span>
                         </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'cta' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">CTA Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Button Text</label>
+                        <input type="text" value={(selectedBlock.config?.buttonText as string) || ''} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, buttonText: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Button URL</label>
+                        <input type="text" value={(selectedBlock.config?.buttonUrl as string) || ''} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, buttonUrl: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Style</label>
+                        <select value={(selectedBlock.config?.style as string) || 'gradient'} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, style: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value="gradient">Gradient</option>
+                          <option value="solid">Solid</option>
+                          <option value="outline">Outline</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'destination-grid' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Destination Grid Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Columns</label>
+                        <select value={(selectedBlock.config?.columns as number) || 3} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, columns: parseInt(e.target.value) } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value={2}>2 Columns</option>
+                          <option value={3}>3 Columns</option>
+                          <option value={4}>4 Columns</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={(selectedBlock.config?.showMap as boolean) || false} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, showMap: e.target.checked } })} className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                        <span className="text-sm text-gray-700">Show map overlay</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'newsletter' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Newsletter Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Placeholder Text</label>
+                        <input type="text" value={(selectedBlock.config?.placeholder as string) || ''} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, placeholder: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Submit Button Text</label>
+                        <input type="text" value={(selectedBlock.config?.submitText as string) || ''} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, submitText: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={(selectedBlock.config?.showIncentive as boolean) || false} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, showIncentive: e.target.checked } })} className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                        <span className="text-sm text-gray-700">Show incentive text</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'features' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Features Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Layout</label>
+                        <select value={(selectedBlock.config?.layout as string) || 'grid'} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, layout: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value="grid">Grid</option>
+                          <option value="list">List</option>
+                          <option value="cards">Cards</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Items per Row</label>
+                        <select value={(selectedBlock.config?.itemsPerRow as number) || 3} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, itemsPerRow: parseInt(e.target.value) } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={(selectedBlock.config?.showIcons as boolean) ?? true} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, showIcons: e.target.checked } })} className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                        <span className="text-sm text-gray-700">Show icons</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'gallery' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Gallery Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Layout</label>
+                        <select value={(selectedBlock.config?.layout as string) || 'masonry'} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, layout: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value="masonry">Masonry</option>
+                          <option value="grid">Grid</option>
+                          <option value="carousel">Carousel</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Max Images</label>
+                        <input type="number" min={4} max={24} value={(selectedBlock.config?.maxImages as number) || 12} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, maxImages: parseInt(e.target.value) } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={(selectedBlock.config?.lightbox as boolean) ?? true} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, lightbox: e.target.checked } })} className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                        <span className="text-sm text-gray-700">Enable lightbox</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'partners' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Partner Logos Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Display Style</label>
+                        <select value={(selectedBlock.config?.displayStyle as string) || 'scroll'} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, displayStyle: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value="scroll">Auto-scroll</option>
+                          <option value="grid">Static grid</option>
+                          <option value="carousel">Carousel</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={(selectedBlock.config?.grayscale as boolean) ?? true} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, grayscale: e.target.checked } })} className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                        <span className="text-sm text-gray-700">Grayscale logos</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {selectedBlock.type === 'stats' && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">Stats Counter Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Columns</label>
+                        <select value={(selectedBlock.config?.columns as number) || 4} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, columns: parseInt(e.target.value) } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={(selectedBlock.config?.animate as boolean) ?? true} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, animate: e.target.checked } })} className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                        <span className="text-sm text-gray-700">Animate count-up on scroll</span>
+                      </label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Background</label>
+                        <select value={(selectedBlock.config?.background as string) || 'dark'} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, background: e.target.value } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                          <option value="dark">Dark</option>
+                          <option value="light">Light</option>
+                          <option value="brand">Brand colors</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedBlock.type === 'blog-grid' || selectedBlock.type === 'testimonials' || selectedBlock.type === 'events' || selectedBlock.type === 'featured') && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-900">{BLOCK_TEMPLATES.find(t => t.type === selectedBlock.type)?.label} Settings</h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Max Items</label>
+                        <input type="number" min={1} max={20} value={(selectedBlock.config?.maxItems as number) || (selectedBlock.config?.count as number) || 6} onChange={(e) => handleBlockUpdate(selectedBlock.id, { config: { ...selectedBlock.config, maxItems: parseInt(e.target.value) } })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
                       </div>
                     </div>
                   )}
@@ -818,6 +1390,185 @@ export default function SiteControl() {
         </div>
       )}
 
+      {activeTab === 'seo' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">SEO Metadata Editor</h3>
+            <button
+              onClick={handleSaveSeoMetadata}
+              disabled={seoSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {seoSaving ? 'Saving...' : 'Save All'}
+            </button>
+          </div>
+
+          {saveMessage && (
+            <div className={`px-4 py-2 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {saveMessage.text}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Page Selector */}
+            <div className="lg:col-span-1 space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Page</label>
+              <div className="space-y-1">
+                {seoPages.map(page => (
+                  <button
+                    key={page.path}
+                    onClick={() => setSelectedSeoPage(page.path)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      selectedSeoPage === page.path
+                        ? 'bg-purple-50 text-purple-700 border border-purple-200 font-medium'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>{page.label}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 ml-5.5">{page.path}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SEO Fields */}
+            <div className="lg:col-span-3 space-y-6">
+              {currentSeoPage && (
+                <>
+                  {/* Page Title */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Page Title</label>
+                      <span className={`text-xs ${getSerpTitleLength(currentSeoPage.title).color}`}>
+                        {getSerpTitleLength(currentSeoPage.title).label}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={currentSeoPage.title}
+                      onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'title', e.target.value)}
+                      placeholder="Page title (30-60 characters)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <div className="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          currentSeoPage.title.length <= 60 ? 'bg-green-400' : 'bg-red-400'
+                        }`}
+                        style={{ width: `${Math.min(100, (currentSeoPage.title.length / 60) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Meta Description */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Meta Description</label>
+                      <span className={`text-xs ${getSerpDescLength(currentSeoPage.description).color}`}>
+                        {getSerpDescLength(currentSeoPage.description).label}
+                      </span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={currentSeoPage.description}
+                      onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'description', e.target.value)}
+                      placeholder="Meta description (120-160 characters)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                    <div className="mt-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          currentSeoPage.description.length <= 160 ? 'bg-green-400' : 'bg-red-400'
+                        }`}
+                        style={{ width: `${Math.min(100, (currentSeoPage.description.length / 160) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* OG Image */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Open Graph Image</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="text"
+                        value={currentSeoPage.ogImage}
+                        onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'ogImage', e.target.value)}
+                        placeholder="https://example.com/og-image.jpg (1200x630 recommended)"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <div className="flex items-center gap-1">
+                        <ImageIcon className="h-4 w-4 text-gray-400" />
+                        <span className="text-xs text-gray-400">1200x630</span>
+                      </div>
+                    </div>
+                    {currentSeoPage.ogImage && (
+                      <div className="mt-3 relative w-full max-w-md aspect-[1200/630] bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                        <NextImage
+                          src={currentSeoPage.ogImage}
+                          alt="OG preview"
+                          fill
+                          className="object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Canonical URL */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Canonical URL</label>
+                    <div className="flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={currentSeoPage.canonicalUrl}
+                        onChange={(e) => handleSeoPageUpdate(currentSeoPage.path, 'canonicalUrl', e.target.value)}
+                        placeholder="https://www.yalla-london.com/page"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SERP Preview */}
+                  <div className="bg-white p-6 rounded-lg border border-gray-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Google SERP Preview
+                    </h4>
+                    <div className="bg-white rounded-lg p-4 border border-gray-100 max-w-2xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-xs text-purple-600 font-bold flex-shrink-0">
+                          {(_siteCfg?.name || 'Y')[0]}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">{_siteCfg?.name || 'Yalla London'}</div>
+                          <div className="text-xs text-gray-400 truncate max-w-md">
+                            {currentSeoPage.canonicalUrl || `https://www.yalla-london.com${currentSeoPage.path}`}
+                          </div>
+                        </div>
+                      </div>
+                      <h3 className="text-xl text-[#1a0dab] hover:underline cursor-pointer leading-tight mb-1 truncate">
+                        {currentSeoPage.title || 'Page Title'}
+                      </h3>
+                      <p className="text-sm text-gray-600 leading-snug line-clamp-2">
+                        {currentSeoPage.description || 'Add a meta description to see how it appears in search results...'}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3">
+                      This is an approximation of how this page may appear in Google search results. Actual display may vary.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'settings' && (
         <div className="space-y-6">
           <h3 className="text-lg font-semibold text-gray-900">Site Settings</h3>
@@ -871,6 +1622,73 @@ export default function SiteControl() {
           </div>
         </div>
       )}
+
+        </div>{/* End Main Content Area */}
+
+        {/* Preview Panel */}
+        {previewMode && (
+          <div className="sticky top-4" style={{ width: previewDevice === 'desktop' ? '50%' : previewDevice === 'tablet' ? '768px' : '375px', flexShrink: 0 }}>
+            <div className="bg-white rounded-xl border border-[var(--admin-border)] shadow-sm overflow-hidden">
+              {/* Preview Header */}
+              <div className="flex items-center justify-between px-4 py-2 bg-[var(--admin-bg)] border-b border-[var(--admin-border)]">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-400" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                  </div>
+                  <span className="text-xs text-[var(--admin-text-muted)] ml-2 font-mono truncate max-w-[200px]">
+                    {(() => { try { return getSiteDomain(getDefaultSiteId()); } catch { return 'localhost:3000'; } })()}{previewPath}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={previewPath}
+                    onChange={(e) => setPreviewPath(e.target.value)}
+                    className="text-xs border border-[var(--admin-border)] rounded px-2 py-1 bg-white text-[var(--admin-text)]"
+                  >
+                    <option value="/">Homepage</option>
+                    <option value="/blog">Blog</option>
+                    <option value="/about">About</option>
+                    <option value="/contact">Contact</option>
+                    <option value="/hotels">Hotels</option>
+                    <option value="/experiences">Experiences</option>
+                    <option value="/recommendations">Recommendations</option>
+                    <option value="/events">Events</option>
+                  </select>
+                  <a
+                    href={`${(() => { try { return getSiteDomain(getDefaultSiteId()); } catch { return ''; } })()}${previewPath}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded text-[var(--admin-text-muted)] hover:text-[var(--admin-text)] transition-colors"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+              {/* Iframe */}
+              <div className="relative bg-gray-100" style={{ height: previewDevice === 'mobile' ? '667px' : previewDevice === 'tablet' ? '1024px' : '600px' }}>
+                <iframe
+                  key={previewKey}
+                  src={`${(() => { try { return getSiteDomain(getDefaultSiteId()); } catch { return 'http://localhost:3000'; } })()}${previewPath}`}
+                  className="w-full h-full border-0"
+                  title="Site Preview"
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                />
+              </div>
+              {/* Preview Footer */}
+              <div className="px-4 py-2 bg-[var(--admin-bg)] border-t border-[var(--admin-border)] flex items-center justify-between">
+                <span className="text-xs text-[var(--admin-text-muted)]">
+                  {previewDevice === 'desktop' ? '1440×900' : previewDevice === 'tablet' ? '768×1024' : '375×667'}
+                </span>
+                <span className="text-xs text-[var(--admin-text-muted)] capitalize">{previewDevice}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>{/* End Flex Container */}
     </div>
   )
 }

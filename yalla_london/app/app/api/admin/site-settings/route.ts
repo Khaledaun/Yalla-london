@@ -11,9 +11,9 @@ import { withAdminAuth } from "@/lib/admin-middleware";
  * POST { siteId, category, config, enabled }     → Upsert settings
  */
 
-type SettingsCategory = "affiliates" | "email" | "social" | "workflow" | "general";
+type SettingsCategory = "affiliates" | "email" | "social" | "workflow" | "general" | "seo-metadata";
 
-const VALID_CATEGORIES: SettingsCategory[] = ["affiliates", "email", "social", "workflow", "general"];
+const VALID_CATEGORIES: SettingsCategory[] = ["affiliates", "email", "social", "workflow", "general", "seo-metadata"];
 
 // Default configs seeded when a site has no settings yet
 function getDefaultConfig(siteId: string, category: SettingsCategory): Record<string, unknown> {
@@ -71,6 +71,10 @@ function getDefaultConfig(siteId: string, category: SettingsCategory): Record<st
         customDomain: "",
         googleVerification: "",
         analyticsId: "",
+      };
+    case "seo-metadata":
+      return {
+        pages: [],
       };
   }
 }

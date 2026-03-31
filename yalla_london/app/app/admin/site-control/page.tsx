@@ -8,6 +8,7 @@ import {
   Image,
   Settings,
   Eye,
+  EyeOff,
   Save,
   Upload,
   Play,
@@ -22,9 +23,14 @@ import {
   Shield,
   FileText,
   Mail,
-  Phone
+  Phone,
+  Monitor,
+  Smartphone,
+  Tablet,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react'
-import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { AdminEmptyState } from '@/components/admin/admin-ui'
 
 const _siteCfg = getSiteConfig(getDefaultSiteId())
@@ -85,6 +91,9 @@ export default function SiteControl() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [previewMode, setPreviewMode] = useState(false)
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+  const [previewPath, setPreviewPath] = useState('/')
+  const [previewKey, setPreviewKey] = useState(0)
   const [selectedBlock, setSelectedBlock] = useState<HomepageBlock | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -347,17 +356,49 @@ export default function SiteControl() {
           <p className="text-gray-600 mt-1">Manage your homepage, media, and site settings</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setPreviewMode(!previewMode)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-              previewMode 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <Eye className="h-4 w-4" />
-            {previewMode ? 'Exit Preview' : 'Preview'}
-          </button>
+          {/* Preview Controls */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPreviewMode(!previewMode)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                previewMode
+                  ? 'bg-[var(--admin-red)] text-white'
+                  : 'bg-[var(--admin-bg)] text-[var(--admin-text)] border border-[var(--admin-border)] hover:bg-white'
+              }`}
+            >
+              {previewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {previewMode ? 'Exit Preview' : 'Preview'}
+            </button>
+            {previewMode && (
+              <div className="flex items-center gap-1 ml-1 bg-[var(--admin-bg)] rounded-lg p-1 border border-[var(--admin-border)]">
+                {([
+                  { id: 'desktop' as const, icon: Monitor, label: 'Desktop' },
+                  { id: 'tablet' as const, icon: Tablet, label: 'Tablet' },
+                  { id: 'mobile' as const, icon: Smartphone, label: 'Mobile' },
+                ] as const).map((device) => (
+                  <button
+                    key={device.id}
+                    onClick={() => setPreviewDevice(device.id)}
+                    title={device.label}
+                    className={`p-1.5 rounded transition-colors ${
+                      previewDevice === device.id
+                        ? 'bg-white text-[var(--admin-red)] shadow-sm'
+                        : 'text-[var(--admin-text-muted)] hover:text-[var(--admin-text)]'
+                    }`}
+                  >
+                    <device.icon className="h-4 w-4" />
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPreviewKey(k => k + 1)}
+                  title="Refresh preview"
+                  className="p-1.5 rounded text-[var(--admin-text-muted)] hover:text-[var(--admin-text)] transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
           <button
             disabled={saving || blocks.length === 0}
             onClick={() => handleSaveHomepage('draft')}
@@ -416,7 +457,11 @@ export default function SiteControl() {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content + Preview Panel */}
+      <div className={`flex gap-6 ${previewMode ? 'items-start' : ''}`}>
+        {/* Main Content Area */}
+        <div className={previewMode ? 'flex-1 min-w-0' : 'w-full'}>
+
       {activeTab === 'homepage' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Blocks List */}
@@ -871,6 +916,73 @@ export default function SiteControl() {
           </div>
         </div>
       )}
+
+        </div>{/* End Main Content Area */}
+
+        {/* Preview Panel */}
+        {previewMode && (
+          <div className="sticky top-4" style={{ width: previewDevice === 'desktop' ? '50%' : previewDevice === 'tablet' ? '768px' : '375px', flexShrink: 0 }}>
+            <div className="bg-white rounded-xl border border-[var(--admin-border)] shadow-sm overflow-hidden">
+              {/* Preview Header */}
+              <div className="flex items-center justify-between px-4 py-2 bg-[var(--admin-bg)] border-b border-[var(--admin-border)]">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-400" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                  </div>
+                  <span className="text-xs text-[var(--admin-text-muted)] ml-2 font-mono truncate max-w-[200px]">
+                    {(() => { try { return getSiteDomain(getDefaultSiteId()); } catch { return 'localhost:3000'; } })()}{previewPath}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={previewPath}
+                    onChange={(e) => setPreviewPath(e.target.value)}
+                    className="text-xs border border-[var(--admin-border)] rounded px-2 py-1 bg-white text-[var(--admin-text)]"
+                  >
+                    <option value="/">Homepage</option>
+                    <option value="/blog">Blog</option>
+                    <option value="/about">About</option>
+                    <option value="/contact">Contact</option>
+                    <option value="/hotels">Hotels</option>
+                    <option value="/experiences">Experiences</option>
+                    <option value="/recommendations">Recommendations</option>
+                    <option value="/events">Events</option>
+                  </select>
+                  <a
+                    href={`${(() => { try { return getSiteDomain(getDefaultSiteId()); } catch { return ''; } })()}${previewPath}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded text-[var(--admin-text-muted)] hover:text-[var(--admin-text)] transition-colors"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+              {/* Iframe */}
+              <div className="relative bg-gray-100" style={{ height: previewDevice === 'mobile' ? '667px' : previewDevice === 'tablet' ? '1024px' : '600px' }}>
+                <iframe
+                  key={previewKey}
+                  src={`${(() => { try { return getSiteDomain(getDefaultSiteId()); } catch { return 'http://localhost:3000'; } })()}${previewPath}`}
+                  className="w-full h-full border-0"
+                  title="Site Preview"
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                />
+              </div>
+              {/* Preview Footer */}
+              <div className="px-4 py-2 bg-[var(--admin-bg)] border-t border-[var(--admin-border)] flex items-center justify-between">
+                <span className="text-xs text-[var(--admin-text-muted)]">
+                  {previewDevice === 'desktop' ? '1440×900' : previewDevice === 'tablet' ? '768×1024' : '375×667'}
+                </span>
+                <span className="text-xs text-[var(--admin-text-muted)] capitalize">{previewDevice}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>{/* End Flex Container */}
     </div>
   )
 }

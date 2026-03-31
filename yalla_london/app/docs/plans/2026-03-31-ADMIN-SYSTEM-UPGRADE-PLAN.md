@@ -28,7 +28,7 @@
 | 2C | Affiliate HQ Link Health Monitor | P3 | DONE |
 | 2D | Affiliate HQ Rollback Mechanism | P3 | DONE |
 | 3B | Admin Audit Drill-Down Enhancement | P3 | DONE |
-| 4A | Website Builder Visual Preview | P3 | TODO |
+| 4A | Website Builder Visual Preview | P3 | DONE |
 | 4B | Block Template Library | P3 | TODO |
 | 4C | SEO Metadata Editor | P3 | TODO |
 | 5B | B2B Content Tagging | P3 | TODO |
@@ -296,3 +296,17 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
   - Protected with `requireAdmin`, uses `getDefaultSiteId()` fallback, configurable limit (max 50)
 - Fixed bug: old code referenced `auditResult.synthesizedIssues` but aggregated-report API returns `issues`
 - Uses CSS variable design system throughout, all API calls have `res.ok` guards, AdminEmptyState for empty data
+
+### Phase 4A — Website Builder Visual Preview (March 31, 2026)
+- Enhanced `app/admin/site-control/page.tsx` with right-side iframe preview panel
+  - Preview toggle button with CSS variable styling (`var(--admin-red)` when active)
+  - Device selector: Desktop (50% width), Tablet (768px), Mobile (375px) with Monitor/Tablet/Smartphone icons
+  - Refresh button increments `previewKey` to force iframe remount
+  - Browser chrome header with traffic light dots, URL display (from `getSiteDomain()`), page selector dropdown
+  - 8 preview paths: Homepage, Blog, About, Contact, Hotels, Experiences, Recommendations, Events
+  - "Open in new tab" button with ExternalLink icon
+  - Iframe uses `sandbox="allow-scripts allow-same-origin allow-popups"` for security
+  - Device-appropriate viewport heights: Desktop 600px, Tablet 1024px, Mobile 667px
+  - Preview footer showing resolution and device name
+  - Flex layout: main content area + sticky preview panel side-by-side when preview mode active
+  - All new UI uses CSS variable design system (`--admin-bg`, `--admin-border`, `--admin-text-muted`, `--admin-red`)

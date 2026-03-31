@@ -60,6 +60,28 @@
   --radius-soft: 8px;
   --radius-card: 4px;
   --radius-button: 4px;
+
+  /* ─── Admin Design Tokens ──────────────────────────────────── */
+  --admin-bg: #FAF8F4;
+  --admin-card-bg: #FFFFFF;
+  --admin-border: rgba(214, 208, 196, 0.6);
+  --admin-border-hover: rgba(214, 208, 196, 0.9);
+  --admin-text-primary: #1C1917;
+  --admin-text-secondary: #57534e;
+  --admin-text-muted: #a8a29e;
+  --admin-red: #C8322B;
+  --admin-gold: #C49A2A;
+  --admin-blue: #3B7EA1;
+  --admin-green: #2D5A3D;
+  --admin-success: #16a34a;
+  --admin-warning: #d97706;
+  --admin-error: #dc2626;
+  --admin-info: #3b82f6;
+  --admin-shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.04);
+  --admin-shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
+  --admin-shadow-lg: 0 8px 24px rgba(28, 25, 23, 0.10);
+  --admin-radius: 12px;
+  --admin-radius-sm: 8px;
 }
 
 /* Platform-specific brand classes */

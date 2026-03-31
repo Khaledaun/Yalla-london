@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ConfirmModal } from "@/components/admin/admin-ui";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,8 @@ interface AffiliateHQData {
     clicks7d: number;
     topAdvertisers: Array<{ name: string; commission: number }>;
     topArticlesByClicks: Array<{ url: string; clicks: number }>;
+    byNetwork?: Array<{ network: string; clicks30d: number; commissions30d: number; conversionRate: number }>;
+    clicksByDay?: Array<{ date: string; clicks: number }>;
   };
   partners: {
     networks: Array<{
@@ -135,6 +138,10 @@ export default function AffiliateHQPage() {
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [advFilter, setAdvFilter] = useState<"ALL" | "JOINED" | "PENDING">("ALL");
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string; message: string; details?: string;
+    onConfirm: () => void; variant?: "danger" | "warning";
+  } | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -243,10 +250,12 @@ export default function AffiliateHQPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, ...extra }),
     });
-    if (!res.ok) throw new Error("Request failed");
-    const json = await res.json();
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    let json;
+    try { json = await res.json(); } catch { throw new Error("Invalid response format"); }
     if (!json.success) throw new Error(json.error || "Action failed");
     setTimeout(fetchData, 2000);
+    return json;
   };
 
   if (loading) {
@@ -317,10 +326,12 @@ export default function AffiliateHQPage() {
       )}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", overflowX: "auto" }}>
+      <div role="tablist" aria-label="Affiliate HQ sections" style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", overflowX: "auto" }}>
         {TABS.map((tab) => (
           <button
             key={tab}
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
             style={{
               padding: "0.5rem 1rem",
@@ -344,10 +355,25 @@ export default function AffiliateHQPage() {
       {activeTab === "Partners" && (
         <PartnersTab data={data} onAction={runAction} actionLoading={actionLoading} filter={advFilter} onFilterChange={setAdvFilter} />
       )}
-      {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} runActionRaw={runActionRaw} />}
+      {activeTab === "Coverage" && <CoverageTab data={data} onAction={runAction} actionLoading={actionLoading} runActionRaw={runActionRaw} setConfirmModal={setConfirmModal} />}
       {activeTab === "Links" && <LinksTab data={data} onAction={runAction} actionLoading={actionLoading} />}
-      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} />}
+      {activeTab === "Actions" && <ActionsTab onAction={runAction} actionLoading={actionLoading} setConfirmModal={setConfirmModal} />}
       {activeTab === "System" && <SystemTab data={data} onAction={runAction} actionLoading={actionLoading} />}
+
+      {/* Shared ConfirmModal for bulk actions */}
+      {confirmModal && (
+        <ConfirmModal
+          open={true}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          details={confirmModal.details}
+          confirmLabel="Proceed"
+          variant={confirmModal.variant || "warning"}
+          loading={!!actionLoading}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -525,6 +551,68 @@ function RevenueTab({ data, onAction, actionLoading }: { data: AffiliateHQData; 
         <KpiCard label="Coverage" value={`${data.coverage.coveragePercent}%`} />
       </div>
 
+      {/* Per-Network Attribution Table */}
+      {revenue.byNetwork && revenue.byNetwork.length > 0 && (
+        <div style={{ marginBottom: "1rem", background: "#fff", border: "1px solid rgba(214,208,196,0.6)", borderRadius: 12, overflow: "hidden" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, padding: "0.75rem 1rem 0.5rem", margin: 0, borderBottom: "1px solid #f3f4f6" }}>Revenue by Network</h3>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+            <thead>
+              <tr style={{ background: "#fafaf8" }}>
+                <th style={{ textAlign: "left", padding: "0.5rem 1rem", fontWeight: 600, color: "#57534e" }}>Network</th>
+                <th style={{ textAlign: "right", padding: "0.5rem 0.75rem", fontWeight: 600, color: "#57534e" }}>Clicks</th>
+                <th style={{ textAlign: "right", padding: "0.5rem 0.75rem", fontWeight: 600, color: "#57534e" }}>Revenue</th>
+                <th style={{ textAlign: "right", padding: "0.5rem 1rem", fontWeight: 600, color: "#57534e" }}>Conv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenue.byNetwork.map((n) => (
+                <tr key={n.network} style={{ borderTop: "1px solid #f3f4f6" }}>
+                  <td style={{ padding: "0.5rem 1rem", fontWeight: 500 }}>{n.network}</td>
+                  <td style={{ textAlign: "right", padding: "0.5rem 0.75rem" }}>{n.clicks30d}</td>
+                  <td style={{ textAlign: "right", padding: "0.5rem 0.75rem", color: n.commissions30d > 0 ? "#16a34a" : undefined, fontWeight: n.commissions30d > 0 ? 600 : 400 }}>
+                    {n.commissions30d > 0 ? `$${n.commissions30d.toFixed(2)}` : "—"}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "0.5rem 1rem", color: n.conversionRate > 0 ? "#C49A2A" : "#a8a29e" }}>
+                    {n.conversionRate > 0 ? `${n.conversionRate}%` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 30-Day Click Trend (bar sparkline) */}
+      {revenue.clicksByDay && revenue.clicksByDay.length > 0 && revenue.clicksByDay.some(d => d.clicks > 0) && (
+        <div style={{ marginBottom: "1rem" }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "0.5rem" }}>30-Day Click Trend</h3>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60, background: "#fafaf8", borderRadius: 8, padding: "0.5rem 0.25rem" }}>
+            {(() => {
+              const days = revenue.clicksByDay ?? [];
+              const maxClicks = Math.max(...days.map(d => d.clicks), 1);
+              return days.map((d) => (
+                <div
+                  key={d.date}
+                  title={`${d.date}: ${d.clicks} clicks`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    background: d.clicks > 0 ? "#3B7EA1" : "#e7e5e4",
+                    borderRadius: 2,
+                    height: `${Math.max((d.clicks / maxClicks) * 100, d.clicks > 0 ? 8 : 3)}%`,
+                    transition: "height 0.2s ease",
+                  }}
+                />
+              ));
+            })()}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "#a8a29e", marginTop: 4 }}>
+            <span>{revenue.clicksByDay?.[0]?.date?.slice(5) ?? ""}</span>
+            <span>{revenue.clicksByDay?.[revenue.clicksByDay.length - 1]?.date?.slice(5) ?? ""}</span>
+          </div>
+        </div>
+      )}
+
       {/* Top Advertisers — Revenue Bars */}
       {revenue.topAdvertisers.length > 0 && (
         <div style={{ marginBottom: "1rem" }}>
@@ -687,7 +775,9 @@ function PartnersTab({
 
 // ─── Tab 3: Coverage & Page Performance ─────────────────────────────────────
 
-function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<void> }) {
+type ConfirmModalState = { title: string; message: string; details?: string; onConfirm: () => void; variant?: "danger" | "warning" } | null;
+
+function CoverageTab({ data, onAction, actionLoading, runActionRaw, setConfirmModal }: { data: AffiliateHQData; onAction: (a: string) => void; actionLoading: string | null; runActionRaw: (action: string, extra?: Record<string, unknown>) => Promise<Record<string, unknown>>; setConfirmModal: (v: ConfirmModalState) => void }) {
   const { coverage } = data;
   const [filter, setFilter] = useState<"all" | "covered" | "uncovered">("all");
   const [sortBy, setSortBy] = useState<"clicks" | "revenue" | "links" | "title">("clicks");
@@ -788,7 +878,12 @@ function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: Af
 
       {/* Action */}
       <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
-        <button onClick={() => { if (confirm("Inject affiliate links into all uncovered articles?")) onAction("inject_links"); }} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
+        <button onClick={() => setConfirmModal({
+          title: "Inject Affiliate Links",
+          message: "This will scan all uncovered articles and inject matching affiliate links from CJ and Travelpayouts.",
+          details: `${sorted.filter(p => !p.hasAffiliateLinks).length} uncovered articles will be processed.`,
+          onConfirm: () => { setConfirmModal(null); onAction("inject_links"); },
+        })} disabled={actionLoading === "inject_links"} style={btnStyle("#C49A2A")}>
           {actionLoading === "inject_links" ? "Injecting..." : "Inject Links into Uncovered Pages"}
         </button>
       </div>
@@ -798,8 +893,8 @@ function CoverageTab({ data, onAction, actionLoading, runActionRaw }: { data: Af
 
 /** Per-page row in Coverage tab with inject button + link inspector */
 function PageRow({ page, onInjectLinks, allLinks }: {
-  page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[] };
-  onInjectLinks: (action: string, extra?: Record<string, unknown>) => Promise<void>;
+  page: { id: string; title: string; slug: string; publishedAt: string | null; hasAffiliateLinks: boolean; linkCount: number; affiliateClicks: number; revenue: number; sales: number; advertisers: string[]; [key: string]: unknown };
+  onInjectLinks: (action: string, extra?: Record<string, unknown>) => Promise<Record<string, unknown>>;
   allLinks: AffiliateHQData["links"]["linksList"];
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -811,9 +906,15 @@ function PageRow({ page, onInjectLinks, allLinks }: {
     l.pages?.some((p) => p.url.includes(page.slug))
   );
 
+  const [showInjectConfirm, setShowInjectConfirm] = useState(false);
+
   const handleInject = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Inject affiliate links into "${page.title}"?`)) return;
+    setShowInjectConfirm(true);
+  };
+
+  const doInject = async () => {
+    setShowInjectConfirm(false);
     setInjecting(true);
     setInjectResult(null);
     try {
@@ -833,7 +934,7 @@ function PageRow({ page, onInjectLinks, allLinks }: {
         border: `1px solid ${page.hasAffiliateLinks ? "#e5e7eb" : "#fecaca"}`,
       }}
     >
-      <div onClick={() => setExpanded(!expanded)} style={{ padding: "0.5rem 0.6rem", cursor: "pointer" }}>
+      <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }} style={{ padding: "0.5rem 0.6rem", cursor: "pointer" }}>
         {/* Title + coverage badge */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.3rem", marginBottom: "0.2rem" }}>
           <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#111827", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -933,6 +1034,15 @@ function PageRow({ page, onInjectLinks, allLinks }: {
           </div>
         </div>
       )}
+      <ConfirmModal
+        open={showInjectConfirm}
+        title="Inject Affiliate Links"
+        message={`Add affiliate links to "${page.title || page.slug}"?`}
+        details="Matching CJ and Travelpayouts links will be injected based on article content."
+        confirmLabel="Inject Links"
+        onConfirm={doInject}
+        onCancel={() => setShowInjectConfirm(false)}
+      />
     </div>
   );
 }
@@ -945,10 +1055,14 @@ function LinkDetailModal({ link, onClose }: {
 }) {
   const [copied, setCopied] = useState(false);
 
-  const copyUrl = () => {
-    navigator.clipboard.writeText(link.affiliateUrl || link.destinationUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const copyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(link.affiliateUrl || link.destinationUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      console.warn("[affiliate-hq] Clipboard write failed");
+    }
   };
 
   const fmtDate = (d: string | null) => {
@@ -1347,7 +1461,7 @@ function StatCell({ label, value, highlight }: { label: string; value: string; h
 
 // ─── Tab 5: Actions ──────────────────────────────────────────────────────────
 
-function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null }) {
+function ActionsTab({ onAction, actionLoading, setConfirmModal }: { onAction: (a: string, extra?: Record<string, unknown>) => void; actionLoading: string | null; setConfirmModal: (v: ConfirmModalState) => void }) {
   const [diagResult, setDiagResult] = useState<{
     status: string;
     issueCount: number;
@@ -1466,7 +1580,11 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
             desc="Add affiliate links to uncovered articles"
             color="#16a34a"
             loading={actionLoading === "inject_links"}
-            onClick={() => { if (confirm("Inject affiliate links into all uncovered articles?")) onAction("inject_links"); }}
+            onClick={() => setConfirmModal({
+              title: "Inject Affiliate Links",
+              message: "This will scan all uncovered articles and inject matching affiliate links from CJ and Travelpayouts.",
+              onConfirm: () => { setConfirmModal(null); onAction("inject_links"); },
+            })}
           />
           <ActionCard
             label="Sync Commissions"
@@ -1593,7 +1711,7 @@ function ActionsTab({ onAction, actionLoading }: { onAction: (a: string, extra?:
                 navigator.clipboard.writeText(json).then(() => {
                   setAuditCopied(true);
                   setTimeout(() => setAuditCopied(false), 2000);
-                });
+                }).catch(() => console.warn("[affiliate-hq] Clipboard write failed"));
               }}
               style={{
                 padding: "0.4rem 0.75rem", fontSize: "0.75rem", fontWeight: 600,

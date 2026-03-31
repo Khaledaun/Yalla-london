@@ -5438,6 +5438,60 @@ Subscriber Lifecycle:
 232. **`CjClickEvent` requires `linkId` FK — cannot track direct URL clicks** — direct affiliate URLs (e.g., `?url=https://booking.com/...`) have no `CjLink` record in the DB. Use `AuditLog` (flexible `details Json?`) for direct URL click tracking instead.
 233. **Affiliate coverage detection must match ALL injection patterns** — `affiliate-injection` cron uses `data-affiliate-id`, `data-affiliate-partner`, and `/api/affiliate/click` URL patterns. Coverage queries that only check for `rel="sponsored"` or `affiliate-cta-block` will under-count by 50%+.
 
+### Session: March 30, 2026 — 30-Scenario Workflow Audit: Affiliate HQ, Design System & SEO Standards
+
+**Full 30-scenario end-to-end workflow audit across 3 domains. All 30 pass. 11 fixes applied (6 this session + 5 prior).**
+
+**Audit Scope:**
+- Domain A: Affiliate Marketing Page (Affiliate HQ) — 10 scenarios
+- Domain B: Design System — 10 scenarios
+- Domain C: SEO Auditing Standards — 10 scenarios
+
+**Fixes Applied This Session (6):**
+
+1. **Clipboard error handling** — `copyUrl()` in `LinkDetailModal` wrapped in async try/catch (`affiliate-hq/page.tsx` line 1058)
+2. **Clipboard error handling** — Audit JSON copy `.catch()` handler added (`affiliate-hq/page.tsx` line 1714)
+3. **Type safety** — CoverageTab `runActionRaw` return type `Promise<void>` → `Promise<Record<string, unknown>>` (line 780)
+4. **Accessibility** — Tab bar `role="tablist"` + `aria-label="Affiliate HQ sections"` (line 329)
+5. **Accessibility** — Tab buttons `role="tab"` + `aria-selected` (line 333)
+6. **Accessibility** — PageRow expandable div: `role="button"` + `tabIndex={0}` + `aria-expanded` + `onKeyDown` for Enter/Space keys (line 937)
+
+**Fixes Applied in Prior Session (5):**
+
+7. **SEO threshold alignment** — `select-runner.ts` per-content-type quality gates using `getThresholdsForPageType()` (lines 296-314)
+8. **SEO threshold alignment** — `phases.ts` per-content-type scoring gate in `phaseScoring()` function
+9. **Null safety** — `runActionRaw` try/catch around `res.json()` (affiliate-hq line 255)
+10. **Null safety** — `clicksByDay` `.length > 0` guard + `??` operators (affiliate-hq lines 586-614)
+11. **Header accuracy** — Pre-publication gate comment updated from "16 checks" to "20+ checks"
+
+**Design System Findings (no code fix needed — dead code):**
+- `AdminToast`, `AdminSkeletonLoader`, `AdminProgressBar` — 0 consumers across entire codebase
+- 18 of 20 `--admin-*` CSS variables unused (only `--admin-muted` and `--admin-text` referenced)
+- 2 custom inline modals remain (affiliate-hq LinkDetailModal, cron-logs JSON viewer) — both are content viewers, not confirmation dialogs, so `ConfirmModal` is not appropriate
+
+**Content Type Threshold Matrix (Verified):**
+
+| Type | qualityGateScore | minWords | seoScoreBlocker | requireAffiliates |
+|------|-----------------|----------|-----------------|-------------------|
+| blog | 40 | 500 | 30 | Yes |
+| news | 40 | 150 | 15 | No |
+| information | 50 | 300 | 20 | No |
+| guide | 50 | 400 | 25 | Yes |
+| comparison | 65 | 600 | 35 | Yes |
+| review | 60 | 800 | 30 | Yes |
+| events | 50 | 200 | 20 | No |
+| sales | 45 | 500 | 25 | Yes |
+
+**Full test log:** `docs/audit-logs/2026-03-30-workflow-scenario-tests.md`
+
+### Critical Rules Learned (March 30 Session)
+
+234. **`navigator.clipboard.writeText()` can fail silently** — throws when document is not focused, not served over HTTPS, or in sandboxed iframes. Always wrap in try/catch with fallback logging. This affects all admin dashboard clipboard operations.
+235. **Interactive `<div>` elements need 3 accessibility attributes** — `role="button"`, `tabIndex={0}`, and `onKeyDown` handler for Enter/Space keys. Plus `aria-expanded` if the div toggles content visibility. Without these, screen reader users and keyboard-only users cannot interact with expandable rows.
+236. **Tab bars need `role="tablist"` on container and `role="tab"` + `aria-selected` on each button** — standard WAI-ARIA tab pattern. Without these, screen readers announce tabs as generic buttons instead of navigation controls.
+237. **Per-content-type quality gates must be applied in BOTH `select-runner.ts` AND `phases.ts`** — `phases.ts` gates entry to reservoir, `select-runner.ts` gates promotion to BlogPost. If either uses a global threshold, content types with higher requirements (comparison=65, review=60) pass when they shouldn't, and types with lower requirements (news=40) get unnecessarily blocked.
+238. **Design system dead code accumulates without automated cleanup** — `AdminToast`, `AdminSkeletonLoader`, `AdminProgressBar` were created but never integrated. 18/20 CSS variables are defined but unreferenced. Regular audits should flag unused exports.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

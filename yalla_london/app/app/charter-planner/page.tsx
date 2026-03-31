@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -163,6 +163,41 @@ const STEP_ICONS = [Calendar, MapPin, Users, Ship, Sparkles, Check];
 
 const TOTAL_STEPS = STEP_LABELS.length;
 
+/** Map planner yacht type IDs to Prisma YachtType enum values */
+const YACHT_TYPE_TO_ENUM: Record<string, string> = {
+  sailing: "SAILBOAT",
+  catamaran: "CATAMARAN",
+  motor: "MOTOR_YACHT",
+  gulet: "GULET",
+  superyacht: "SUPERYACHT",
+};
+
+interface RecommendedYacht {
+  yacht: {
+    id: string;
+    name: string;
+    slug: string;
+    type: string;
+    length: number | null;
+    cabins: number | null;
+    berths: number;
+    crewSize: number | null;
+    pricePerWeekLow: number | null;
+    pricePerWeekHigh: number | null;
+    currency: string;
+    description_en: string | null;
+    images: unknown;
+    halalCateringAvailable: boolean;
+    familyFriendly: boolean;
+    crewIncluded: boolean;
+    homePort: string | null;
+    rating: number | null;
+    destination: { name: string; slug: string } | null;
+  };
+  matchScore: number;
+  scoreBreakdown: Record<string, number>;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    Utility — build inquiry URL with pre-filled params
    ═══════════════════════════════════════════════════════════════════ */
@@ -233,6 +268,41 @@ export default function CharterPlannerPage() {
         : [...prev.preferences, prefId],
     }));
   }, []);
+
+  /* ── Yacht Recommendations ── */
+  const [recommendations, setRecommendations] = useState<RecommendedYacht[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+
+  useEffect(() => {
+    if (step !== 5) return;
+    let cancelled = false;
+    setLoadingRecs(true);
+
+    fetch("/api/yachts/recommend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destination: state.destination || null,
+        budget: state.budgetMax || null,
+        guests: (state.guests || 0) + (state.children || 0),
+        halal: state.preferences.includes("halal-catering"),
+        family: state.preferences.includes("family-friendly"),
+        crew: true,
+        type: YACHT_TYPE_TO_ENUM[state.yachtType] || null,
+        limit: 5,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null)
+      .then((data) => {
+        if (!cancelled && data?.recommendations) {
+          setRecommendations(data.recommendations);
+        }
+        if (!cancelled) setLoadingRecs(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [step, state.destination, state.budgetMax, state.guests, state.children, state.preferences, state.yachtType]);
 
   /* ── Shared styles ── */
   const sectionStyle: React.CSSProperties = {
@@ -992,6 +1062,163 @@ export default function CharterPlannerPage() {
                 )}
               </div>
 
+              {/* ── Recommended Yachts ── */}
+              <div style={{ marginTop: "var(--z-space-8)" }}>
+                <h3
+                  className="z-text-h4"
+                  style={{
+                    color: "var(--z-navy)",
+                    marginBottom: "var(--z-space-4)",
+                    textAlign: "center",
+                  }}
+                >
+                  Recommended Yachts for You
+                </h3>
+
+                {loadingRecs && (
+                  <p
+                    className="z-text-body"
+                    style={{ textAlign: "center", color: "var(--z-muted)" }}
+                  >
+                    Finding your perfect match…
+                  </p>
+                )}
+
+                {!loadingRecs && recommendations.length === 0 && (
+                  <p
+                    className="z-text-body"
+                    style={{ textAlign: "center", color: "var(--z-muted)" }}
+                  >
+                    No exact matches found — submit an inquiry and our team will find the perfect yacht for you.
+                  </p>
+                )}
+
+                {!loadingRecs && recommendations.length > 0 && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                      gap: "var(--z-space-4)",
+                    }}
+                  >
+                    {recommendations.map((rec) => (
+                      <div
+                        key={rec.yacht.id}
+                        style={{
+                          background: "var(--z-card-bg, #fff)",
+                          borderRadius: "var(--z-radius-lg)",
+                          border: "1px solid var(--z-border)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {/* Score badge */}
+                        <div
+                          style={{
+                            background: "var(--z-gradient-hero)",
+                            color: "var(--z-pearl)",
+                            padding: "var(--z-space-3) var(--z-space-4)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <span className="z-text-label" style={{ fontWeight: 600 }}>
+                            {rec.yacht.name}
+                          </span>
+                          <span
+                            style={{
+                              background: "var(--z-gold)",
+                              color: "var(--z-navy)",
+                              borderRadius: "var(--z-radius-full, 99px)",
+                              padding: "2px 10px",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {rec.matchScore}% match
+                          </span>
+                        </div>
+
+                        <div style={{ padding: "var(--z-space-4)" }}>
+                          {/* Key specs */}
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: "var(--z-space-2)",
+                              marginBottom: "var(--z-space-3)",
+                              fontSize: "0.85rem",
+                              color: "var(--z-muted)",
+                            }}
+                          >
+                            <span>🛥 {rec.yacht.type?.replace(/_/g, " ") ?? "Yacht"}</span>
+                            <span>👥 {rec.yacht.berths} guests</span>
+                            {rec.yacht.cabins && <span>🚪 {rec.yacht.cabins} cabins</span>}
+                            {rec.yacht.length && <span>📏 {rec.yacht.length}m</span>}
+                          </div>
+
+                          {/* Price */}
+                          {rec.yacht.pricePerWeekLow != null && (
+                            <p
+                              className="z-text-body"
+                              style={{ margin: "0 0 var(--z-space-3)", fontWeight: 600 }}
+                            >
+                              From €{Number(rec.yacht.pricePerWeekLow).toLocaleString()}/week
+                            </p>
+                          )}
+
+                          {/* Feature pills */}
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            {rec.yacht.halalCateringAvailable && (
+                              <span style={{ background: "#e8f5e9", color: "#2e7d32", borderRadius: "99px", padding: "2px 10px", fontSize: "0.75rem" }}>
+                                Halal
+                              </span>
+                            )}
+                            {rec.yacht.familyFriendly && (
+                              <span style={{ background: "#e3f2fd", color: "#1565c0", borderRadius: "99px", padding: "2px 10px", fontSize: "0.75rem" }}>
+                                Family
+                              </span>
+                            )}
+                            {rec.yacht.crewIncluded && (
+                              <span style={{ background: "#fff3e0", color: "#e65100", borderRadius: "99px", padding: "2px 10px", fontSize: "0.75rem" }}>
+                                Crew Included
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Destination + score breakdown */}
+                          {rec.yacht.destination && (
+                            <p
+                              style={{
+                                margin: "var(--z-space-3) 0 0",
+                                fontSize: "0.8rem",
+                                color: "var(--z-muted)",
+                              }}
+                            >
+                              📍 {rec.yacht.destination.name}
+                            </p>
+                          )}
+
+                          {/* View button */}
+                          <Link
+                            href={`/yachts/${rec.yacht.slug}`}
+                            className="z-btn z-btn-secondary"
+                            style={{
+                              width: "100%",
+                              marginTop: "var(--z-space-3)",
+                              textAlign: "center",
+                              display: "block",
+                            }}
+                          >
+                            View Details
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* CTA Buttons */}
               <div
                 style={{
@@ -999,6 +1226,7 @@ export default function CharterPlannerPage() {
                   gap: "var(--z-space-4)",
                   justifyContent: "center",
                   flexWrap: "wrap",
+                  marginTop: "var(--z-space-6)",
                 }}
               >
                 <Link
@@ -1011,6 +1239,7 @@ export default function CharterPlannerPage() {
                   onClick={() => {
                     setState(INITIAL_STATE);
                     setStep(0);
+                    setRecommendations([]);
                   }}
                   className="z-btn z-btn-secondary z-btn-lg"
                 >

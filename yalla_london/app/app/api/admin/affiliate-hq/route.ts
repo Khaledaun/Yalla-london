@@ -853,7 +853,9 @@ export async function POST(request: NextRequest) {
       case "list_snapshots": {
         try {
           const { listSnapshots } = await import("@/lib/affiliate/snapshot");
-          const snapshots = await listSnapshots(siteId || undefined, 50);
+          const { getDefaultSiteId } = await import("@/config/sites");
+          const reqSiteId = request.nextUrl.searchParams.get("siteId") || body.siteId || getDefaultSiteId();
+          const snapshots = await listSnapshots(reqSiteId || undefined, 50);
           return NextResponse.json({ success: true, action, result: { snapshots } });
         } catch (err) {
           console.error("[affiliate-hq] list_snapshots failed:", err instanceof Error ? err.message : String(err));

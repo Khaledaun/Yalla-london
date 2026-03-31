@@ -18,7 +18,8 @@ interface AdminNotification {
 
 const NOTIFICATION_SETTINGS_CATEGORY = "notifications";
 
-async function getReadIds(prisma: { siteSettings: { findUnique: Function } }, siteId: string): Promise<Set<string>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getReadIds(prisma: any, siteId: string): Promise<Set<string>> {
   try {
     const record = await prisma.siteSettings.findUnique({
       where: { siteId_category: { siteId, category: NOTIFICATION_SETTINGS_CATEGORY } },
@@ -52,7 +53,8 @@ async function saveReadIds(prisma: { siteSettings: { upsert: Function } }, siteI
   });
 }
 
-async function getDismissedIds(prisma: { siteSettings: { findUnique: Function } }, siteId: string): Promise<Set<string>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getDismissedIds(prisma: any, siteId: string): Promise<Set<string>> {
   try {
     const record = await prisma.siteSettings.findUnique({
       where: { siteId_category: { siteId, category: NOTIFICATION_SETTINGS_CATEGORY } },

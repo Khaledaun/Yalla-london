@@ -40,7 +40,7 @@ export function WhatsAppButton({
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 transition-all duration-300"
+      className="fixed bottom-24 right-6 lg:bottom-6 z-50 flex items-center gap-2 transition-all duration-300"
       style={{
         background: "#25D366",
         color: "#fff",

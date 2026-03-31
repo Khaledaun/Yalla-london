@@ -840,10 +840,8 @@ export default async function YachtDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* WhatsApp Floating Button — positioned above mobile bar */}
-        <div className="hidden lg:block">
-          <WhatsAppButton yachtName={yacht.name} />
-        </div>
+        {/* WhatsApp Floating Button — visible on all screens, positioned above mobile sticky bar */}
+        <WhatsAppButton yachtName={yacht.name} />
       </main>
     </>
   );

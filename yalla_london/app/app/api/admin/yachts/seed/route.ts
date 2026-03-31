@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'itineraries') {
-      return NextResponse.json({ error: 'Itinerary seeding not yet implemented — coming in Batch 3' }, { status: 400 })
+      return await seedItineraries()
     }
 
     if (action === 'all') {
@@ -230,10 +230,12 @@ export async function POST(request: NextRequest) {
       const destData = await destResult.json()
       const yachtResult = await seedYachts()
       const yachtData = await yachtResult.json()
+      const itinResult = await seedItineraries()
+      const itinData = await itinResult.json()
       return NextResponse.json({
         destinations: destData,
         yachts: yachtData,
-        itineraries: { message: 'Not yet implemented' },
+        itineraries: itinData,
       })
     }
 
@@ -489,6 +491,220 @@ async function seedYachts() {
     skipped,
     noDestination,
     total: YACHTS.length,
+    results,
+  })
+}
+
+// ═══════════════════════════════════════════════════════════
+// ITINERARY SEED DATA — 5 Mediterranean charter itineraries
+// ═══════════════════════════════════════════════════════════
+
+interface ItinerarySeed {
+  title_en: string
+  title_ar: string
+  slug: string
+  destinationSlug: string
+  duration: number
+  difficulty: string
+  description_en: string
+  description_ar: string
+  stops: Array<{ day: number; port: string; lat: number; lng: number; activities: string[]; restaurants: string[]; notes: string }>
+  recommendedYachtTypes: string[]
+  estimatedCost: number
+  currency: string
+  bestSeason: string
+  heroImage: string
+  status: string
+}
+
+const ITINERARIES: ItinerarySeed[] = [
+  {
+    title_en: 'Greek Island Hopping: Athens to Santorini',
+    title_ar: 'التنقل بين الجزر اليونانية: من أثينا إلى سانتوريني',
+    slug: 'greek-island-hopping-athens-santorini',
+    destinationSlug: 'greek-islands',
+    duration: 7,
+    difficulty: 'EASY',
+    description_en: 'The classic Cyclades route — sail from Athens through the heart of the Greek Islands. Visit the sacred island of Delos, party in Mykonos, swim in the volcanic caldera of Milos, and finish with Santorini\'s legendary sunset. Perfect for first-time charterers and families.',
+    description_ar: 'الطريق الكلاسيكي في كيكلاديس — أبحر من أثينا عبر قلب الجزر اليونانية. قم بزيارة جزيرة ديلوس المقدسة، واستمتع في ميكونوس، واسبح في فوهة ميلوس البركانية، وانتهِ مع غروب الشمس الأسطوري في سانتوريني. مثالي للمستأجرين لأول مرة والعائلات.',
+    stops: [
+      { day: 1, port: 'Athens (Alimos Marina)', lat: 37.9082, lng: 23.7227, activities: ['Board yacht', 'Acropolis visit', 'Welcome dinner'], restaurants: ['Varoulko Seaside', 'Spondi'], notes: 'Provisioning and crew briefing. Optional Acropolis tour.' },
+      { day: 2, port: 'Kea', lat: 37.6306, lng: 24.3340, activities: ['Swim at Koundouros beach', 'Hike to Lion of Kea', 'Snorkeling'], restaurants: ['Rolando\'s', 'Magazes'], notes: 'Short 2h sail from Athens. Quiet island away from crowds.' },
+      { day: 3, port: 'Mykonos', lat: 37.4467, lng: 25.3289, activities: ['Little Venice', 'Windmills', 'Beach clubs', 'Shopping'], restaurants: ['Nammos', 'Scorpios', 'Interni'], notes: 'Full day exploring. Reserve Nammos beach club in advance.' },
+      { day: 4, port: 'Delos & Paros', lat: 37.0833, lng: 25.1500, activities: ['Delos archaeological site', 'Parikia old town', 'Golden Beach'], restaurants: ['Mario', 'Levantis'], notes: 'Morning at Delos (UNESCO site). Afternoon sail to Paros.' },
+      { day: 5, port: 'Milos', lat: 36.7488, lng: 24.4262, activities: ['Sarakiniko lunar beach', 'Kleftiko sea caves', 'Plaka sunset'], restaurants: ['O! Hamos!', 'Medusa'], notes: 'Volcanic island with 70+ beaches. Kleftiko accessible only by sea.' },
+      { day: 6, port: 'Santorini (Fira)', lat: 36.4166, lng: 25.4324, activities: ['Caldera cruise', 'Oia sunset', 'Wine tasting', 'Hot springs'], restaurants: ['Selene', 'Ambrosia'], notes: 'Anchor in caldera. Tender to Fira. Book Oia sunset restaurant early.' },
+      { day: 7, port: 'Santorini (Departure)', lat: 36.3932, lng: 25.4615, activities: ['Final swim', 'Breakfast on deck', 'Disembark'], restaurants: [], notes: 'Disembark by 10am. Transfer to Santorini airport or ferry.' },
+    ],
+    recommendedYachtTypes: ['CATAMARAN', 'MOTOR_YACHT', 'SAILBOAT'],
+    estimatedCost: 15000,
+    currency: 'EUR',
+    bestSeason: 'June to September',
+    heroImage: '/images/itineraries/greek-island-hopping-hero.jpg',
+    status: 'active',
+  },
+  {
+    title_en: 'Croatian Coastal Discovery: Split to Dubrovnik',
+    title_ar: 'اكتشاف الساحل الكرواتي: من سبليت إلى دوبروفنيك',
+    slug: 'croatian-coastal-split-dubrovnik',
+    destinationSlug: 'croatian-coast',
+    duration: 10,
+    difficulty: 'EASY',
+    description_en: 'Sail the stunning Dalmatian Coast from Split to Dubrovnik, exploring medieval walled cities, crystal-clear island bays, and Croatia\'s finest vineyards. This route covers the highlights: Hvar\'s lavender fields, Vis\'s hidden beaches, Korčula\'s old town (Marco Polo\'s birthplace), and Dubrovnik\'s iconic walls.',
+    description_ar: 'أبحر عبر ساحل دالماتيا المذهل من سبليت إلى دوبروفنيك، مستكشفاً المدن المسورة من القرون الوسطى وخلجان الجزر الصافية وأرقى مزارع العنب في كرواتيا. يغطي هذا الطريق أبرز المعالم: حقول اللافندر في هفار وشواطئ فيس المخفية والمدينة القديمة في كورتشولا (مسقط رأس ماركو بولو) وأسوار دوبروفنيك الأيقونية.',
+    stops: [
+      { day: 1, port: 'Split', lat: 43.5081, lng: 16.4402, activities: ['Board yacht', 'Diocletian\'s Palace', 'Riva promenade'], restaurants: ['Zoi', 'Dvor'], notes: 'Embark at ACI Marina. Explore the palace in the evening.' },
+      { day: 2, port: 'Brač (Bol)', lat: 43.2615, lng: 16.6551, activities: ['Zlatni Rat beach', 'Windsurfing', 'Olive oil tasting'], restaurants: ['Restaurant Palute', 'Konoba Kopačina'], notes: 'Famous horn-shaped beach. Best snorkeling on the island.' },
+      { day: 3, port: 'Hvar', lat: 43.1729, lng: 16.4414, activities: ['Hvar Fortress', 'Lavender shopping', 'Pakleni Islands swim'], restaurants: ['Giaxa', 'Gariful'], notes: 'Most popular island. Pakleni Islands for secluded swimming.' },
+      { day: 4, port: 'Vis', lat: 43.0610, lng: 16.1831, activities: ['Blue Cave (Biševo)', 'Stiniva beach', 'Wine tasting'], restaurants: ['Konoba Roki\'s', 'Villa Kaliopa'], notes: 'Former military island. Book Blue Cave morning tour.' },
+      { day: 5, port: 'Vis (Komiža)', lat: 43.0439, lng: 16.0926, activities: ['Fishing village walk', 'Monastery visit', 'Sunset swim'], restaurants: ['Konoba Bako', 'Jastozera'], notes: 'Relaxed fishing town. Famous lobster restaurant in a fort.' },
+      { day: 6, port: 'Korčula', lat: 42.9597, lng: 17.1356, activities: ['Old town walk', 'Marco Polo house', 'Moreška sword dance'], restaurants: ['LD Restaurant', 'Konoba Mate'], notes: 'Mini-Dubrovnik. Check Moreška dance performance schedule.' },
+      { day: 7, port: 'Lastovo', lat: 42.7702, lng: 16.8989, activities: ['Stargazing', 'Diving', 'Nature park hiking'], restaurants: ['Konoba Augusta Insula', 'Triton'], notes: 'Croatia\'s most remote inhabited island. Darkest skies in Europe.' },
+      { day: 8, port: 'Mljet', lat: 42.7441, lng: 17.5444, activities: ['National Park lakes', 'Monastery island', 'Cycling'], restaurants: ['Konoba Ankora', 'Mali Raj'], notes: 'Two saltwater lakes inside the national park. Rent bikes.' },
+      { day: 9, port: 'Elafiti Islands', lat: 42.6833, lng: 17.9500, activities: ['Lopud beach', 'Šipan olive groves', 'Koločep swim'], restaurants: ['Obala', 'Restaurant Šipan'], notes: 'Car-free islands. Šunj beach on Lopud is stunning.' },
+      { day: 10, port: 'Dubrovnik', lat: 42.6507, lng: 18.0944, activities: ['City walls walk', 'Cable car', 'Game of Thrones tour', 'Disembark'], restaurants: ['Restaurant 360', 'Nautika'], notes: 'Arrive early. Walk the walls. Disembark by evening.' },
+    ],
+    recommendedYachtTypes: ['CATAMARAN', 'SAILBOAT', 'GULET'],
+    estimatedCost: 12000,
+    currency: 'EUR',
+    bestSeason: 'June to September',
+    heroImage: '/images/itineraries/croatian-coastal-hero.jpg',
+    status: 'active',
+  },
+  {
+    title_en: 'Amalfi & Capri: Bay of Naples Luxury',
+    title_ar: 'أمالفي وكابري: فخامة خليج نابولي',
+    slug: 'amalfi-capri-bay-of-naples',
+    destinationSlug: 'amalfi-coast',
+    duration: 5,
+    difficulty: 'EASY',
+    description_en: 'A compact luxury itinerary exploring the Bay of Naples\' greatest hits. Sail past Vesuvius to the legendary isle of Capri, cruise the dramatic Amalfi cliffside, and discover the lesser-known beauty of Ischia\'s thermal springs. Five days of Italian dolce vita at its finest.',
+    description_ar: 'رحلة فاخرة مدمجة تستكشف أبرز معالم خليج نابولي. أبحر أمام فيزوف إلى جزيرة كابري الأسطورية، وتجول عبر منحدرات أمالفي الدراماتيكية، واكتشف جمال ينابيع إيسكيا الحرارية الأقل شهرة. خمسة أيام من الحياة الإيطالية الحلوة في أبهى صورها.',
+    stops: [
+      { day: 1, port: 'Naples', lat: 40.8518, lng: 14.2681, activities: ['Board yacht', 'Naples historic centre', 'Pizza pilgrimage'], restaurants: ['Da Michele', 'Palazzo Petrucci'], notes: 'Board at Marina di Stabia or Naples port. Pizza is mandatory.' },
+      { day: 2, port: 'Capri', lat: 40.5531, lng: 14.2222, activities: ['Blue Grotto', 'Faraglioni rocks', 'Augustus Gardens', 'Shopping'], restaurants: ['Da Paolino (lemon grove)', 'Il Riccio'], notes: 'Arrive early for Blue Grotto. Afternoon in Anacapri.' },
+      { day: 3, port: 'Positano', lat: 40.6280, lng: 14.4852, activities: ['Beach day', 'Boutique shopping', 'Path of the Gods info'], restaurants: ['La Sponda', 'Da Adolfo'], notes: 'Anchor off Positano. Tender to beach. La Sponda dinner with 400 candles.' },
+      { day: 4, port: 'Amalfi & Ravello', lat: 40.6340, lng: 14.6027, activities: ['Amalfi Cathedral', 'Ravello gardens', 'Limoncello tasting', 'Paper museum'], restaurants: ['Rossellinis', 'La Caravella'], notes: 'Morning in Amalfi town. Taxi up to Ravello for Villa Rufolo.' },
+      { day: 5, port: 'Ischia / Naples', lat: 40.7303, lng: 13.8992, activities: ['Thermal spa', 'Aragonese Castle', 'Disembark'], restaurants: ['Il Mosaico', 'Indaco'], notes: 'Optional morning at Ischia thermal gardens. Return to Naples by midday.' },
+    ],
+    recommendedYachtTypes: ['MOTOR_YACHT', 'CATAMARAN'],
+    estimatedCost: 20000,
+    currency: 'EUR',
+    bestSeason: 'May to October',
+    heroImage: '/images/itineraries/amalfi-capri-hero.jpg',
+    status: 'active',
+  },
+  {
+    title_en: 'French Riviera Grand Tour: Cannes to Monaco',
+    title_ar: 'جولة الريفييرا الفرنسية الكبرى: من كان إلى موناكو',
+    slug: 'french-riviera-cannes-monaco',
+    destinationSlug: 'french-riviera',
+    duration: 7,
+    difficulty: 'EASY',
+    description_en: 'The ultimate Côte d\'Azur experience — sail from Cannes to Monaco along the world\'s most glamorous coastline. Beach clubs in Saint-Tropez, art museums in Nice, the medieval village of Èze, and Monaco\'s legendary Casino Square. This is superyacht territory — expect champagne, Michelin stars, and spectacular sunsets.',
+    description_ar: 'تجربة الكوت دازور المطلقة — أبحر من كان إلى موناكو على طول أكثر السواحل سحراً في العالم. نوادي الشاطئ في سان تروبيه، ومتاحف الفن في نيس، وقرية إيز القروسطية، وساحة كازينو موناكو الأسطورية. هذه منطقة اليخوت الفائقة — توقع الشمبانيا ونجوم ميشلان وغروب الشمس المذهل.',
+    stops: [
+      { day: 1, port: 'Cannes', lat: 43.5528, lng: 7.0174, activities: ['Board yacht', 'La Croisette promenade', 'Île Sainte-Marguerite'], restaurants: ['La Palme d\'Or', 'Le Park 45'], notes: 'Board at Port Pierre Canto. Evening walk along La Croisette.' },
+      { day: 2, port: 'Îles de Lérins', lat: 43.5125, lng: 7.0464, activities: ['Monastery visit', 'Snorkeling', 'Eucalyptus forest walk'], restaurants: ['La Tonelle', 'Picnic on deck'], notes: 'Anchor between Sainte-Marguerite and Saint-Honorat islands.' },
+      { day: 3, port: 'Saint-Tropez', lat: 43.2727, lng: 6.6407, activities: ['Beach club day', 'Old port', 'Citadel views', 'Pampelonne beach'], restaurants: ['Club 55', 'L\'Opéra'], notes: 'Reserve Club 55 or Nikki Beach in advance. Market on Tuesday/Saturday.' },
+      { day: 4, port: 'Saint-Raphaël', lat: 43.4253, lng: 6.7688, activities: ['Massif de l\'Estérel hike', 'Red rock calanques', 'Diving'], restaurants: ['Les Voiles', 'L\'Épuisette'], notes: 'Dramatic red porphyry cliffs. Best diving on the Riviera.' },
+      { day: 5, port: 'Antibes', lat: 43.5808, lng: 7.1239, activities: ['Picasso Museum', 'Cap d\'Antibes walk', 'Port Vauban megayachts'], restaurants: ['Le Figuier de Saint-Esprit', 'Les Pêcheurs'], notes: 'World\'s largest marina. Picasso Museum in Château Grimaldi.' },
+      { day: 6, port: 'Nice & Villefranche', lat: 43.6961, lng: 7.3088, activities: ['Nice old town', 'Matisse Museum', 'Villefranche bay swim'], restaurants: ['Jan', 'Le Chantecler'], notes: 'Anchor in Villefranche — one of the deepest natural harbours in the Med.' },
+      { day: 7, port: 'Monaco', lat: 43.7384, lng: 7.4246, activities: ['Casino Monte-Carlo', 'Prince\'s Palace', 'Oceanographic Museum', 'Disembark'], restaurants: ['Le Louis XV', 'Blue Bay'], notes: 'Disembark at Port Hercules. Alain Ducasse\'s Le Louis XV for final dinner.' },
+    ],
+    recommendedYachtTypes: ['MOTOR_YACHT', 'SUPERYACHT'],
+    estimatedCost: 30000,
+    currency: 'EUR',
+    bestSeason: 'May to September',
+    heroImage: '/images/itineraries/french-riviera-hero.jpg',
+    status: 'active',
+  },
+  {
+    title_en: 'Turkish Turquoise Coast: Bodrum to Fethiye Blue Voyage',
+    title_ar: 'الساحل الفيروزي التركي: رحلة زرقاء من بودروم إلى فتحية',
+    slug: 'turkish-turquoise-coast-blue-voyage',
+    destinationSlug: 'turkish-riviera',
+    duration: 10,
+    difficulty: 'EASY',
+    description_en: 'The original Blue Voyage route — Turkey\'s most celebrated sailing itinerary. Cruise from Bodrum\'s vibrant harbour to Fethiye\'s sheltered lagoon aboard a traditional gulet. Discover sunken cities, pine-scented coves, and ancient Lycian rock tombs. Exceptional value with world-class halal cuisine and legendary Turkish hospitality.',
+    description_ar: 'طريق الرحلة الزرقاء الأصلي — أشهر مسار إبحار في تركيا. أبحر من ميناء بودروم النابض بالحياة إلى بحيرة فتحية المحمية على متن قارب جوليت تقليدي. اكتشف المدن الغارقة والخلجان المعطرة بالصنوبر ومقابر صخور ليسيا القديمة. قيمة استثنائية مع مأكولات حلال عالمية المستوى والضيافة التركية الأسطورية.',
+    stops: [
+      { day: 1, port: 'Bodrum', lat: 37.0344, lng: 27.4305, activities: ['Board gulet', 'Castle of St. Peter', 'Underwater Archaeology Museum'], restaurants: ['Ottomann', 'Avlu Bistro'], notes: 'Board at Milta Marina. Visit the castle before sunset.' },
+      { day: 2, port: 'Orak Island', lat: 37.0500, lng: 27.5833, activities: ['Swimming', 'Snorkeling', 'Kayaking', 'Fishing'], restaurants: ['Lunch on board'], notes: 'Uninhabited island with crystal waters. First overnight anchorage.' },
+      { day: 3, port: 'Knidos', lat: 36.6881, lng: 27.3761, activities: ['Ancient city ruins', 'Amphitheatre', 'Lighthouse swim'], restaurants: ['Lunch on board'], notes: 'Ancient Greek harbour city at the tip of Datça peninsula.' },
+      { day: 4, port: 'Datça', lat: 36.7297, lng: 27.6856, activities: ['Old town walk', 'Almond orchards', 'Local market'], restaurants: ['Culinarium', 'Datça Sofrası'], notes: 'Charming town. Buy local almonds and honey.' },
+      { day: 5, port: 'Hisarönü Bay', lat: 36.7500, lng: 28.0833, activities: ['Swim in hidden coves', 'Paddleboard', 'Sunset BBQ'], restaurants: ['BBQ dinner on deck'], notes: 'Sheltered bay perfect for water sports and overnight anchor.' },
+      { day: 6, port: 'Dalyan', lat: 36.8375, lng: 28.6428, activities: ['Lycian rock tombs', 'Turtle beach (Iztuzu)', 'Mud baths'], restaurants: ['Riverside restaurant'], notes: 'River boat to mud baths. Loggerhead turtle nesting site.' },
+      { day: 7, port: 'Göcek', lat: 36.7559, lng: 28.9375, activities: ['12 Islands cruise', 'Sheltered bay swimming', 'Town walk'], restaurants: ['Can Restaurant', 'Xtanbal'], notes: 'Gateway to the 12 Islands. Sheltered from meltemi winds.' },
+      { day: 8, port: 'Butterfly Valley & Ölüdeniz', lat: 36.5317, lng: 29.1150, activities: ['Butterfly Valley hike', 'Ölüdeniz Blue Lagoon', 'Paragliding (optional)'], restaurants: ['Buzz Bar', 'Ölüdeniz Beach Club'], notes: 'Paragliding from Babadağ mountain — bucket list experience.' },
+      { day: 9, port: 'Kaş', lat: 36.2027, lng: 29.6388, activities: ['Kekova sunken city', 'Sea kayaking', 'Amphitheatre sunset'], restaurants: ['Bahçe', 'Bi Lokma'], notes: 'Half-day to Kekova (sunken Lycian city visible through water).' },
+      { day: 10, port: 'Fethiye', lat: 36.6570, lng: 29.1223, activities: ['Fethiye market', 'Lycian sarcophagi', 'Disembark'], restaurants: ['Mozaik Bahçe', 'Hilmi'], notes: 'Disembark at Ece Marina. Tuesday is market day.' },
+    ],
+    recommendedYachtTypes: ['GULET', 'CATAMARAN', 'SAILBOAT'],
+    estimatedCost: 10000,
+    currency: 'EUR',
+    bestSeason: 'May to October',
+    heroImage: '/images/itineraries/turkish-blue-voyage-hero.jpg',
+    status: 'active',
+  },
+]
+
+// ─── Seed Itineraries ───────────────────────────────────────
+
+async function seedItineraries() {
+  const { prisma } = await import('@/lib/db')
+
+  // Build destination slug → id lookup
+  const destinations = await prisma.yachtDestination.findMany({
+    where: { siteId: SITE_ID },
+    select: { id: true, slug: true },
+  })
+  const destMap = new Map<string, string>(destinations.map(d => [d.slug, d.id]))
+
+  let created = 0
+  let skipped = 0
+  let noDestination = 0
+  const results: string[] = []
+
+  for (const itin of ITINERARIES) {
+    const destId = destMap.get(itin.destinationSlug)
+    if (!destId) {
+      noDestination++
+      results.push(`⚠️ ${itin.title_en} — destination "${itin.destinationSlug}" not found`)
+      continue
+    }
+
+    const existing = await prisma.charterItinerary.findFirst({
+      where: { slug: itin.slug, siteId: SITE_ID },
+    })
+
+    if (existing) {
+      skipped++
+      results.push(`⏭ ${itin.title_en} (already exists)`)
+      continue
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { destinationSlug, ...itinData } = itin
+    await prisma.charterItinerary.create({
+      data: {
+        ...itinData,
+        siteId: SITE_ID,
+        destinationId: destId,
+      },
+    })
+
+    created++
+    results.push(`✅ ${itin.title_en} (${itin.duration}d, ${itin.difficulty})`)
+  }
+
+  return NextResponse.json({
+    success: true,
+    action: 'itineraries',
+    created,
+    skipped,
+    noDestination,
+    total: ITINERARIES.length,
     results,
   })
 }

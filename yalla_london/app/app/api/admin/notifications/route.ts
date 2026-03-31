@@ -35,7 +35,7 @@ async function getReadIds(prisma: any, siteId: string): Promise<Set<string>> {
   return new Set<string>();
 }
 
-async function saveReadIds(prisma: { siteSettings: { upsert: Function } }, siteId: string, readIds: Set<string>): Promise<void> {
+async function saveReadIds(prisma: any, siteId: string, readIds: Set<string>): Promise<void> {
   // Keep last 500 IDs to prevent unbounded growth
   const idsArray = [...readIds].slice(-500);
   await prisma.siteSettings.upsert({
@@ -69,7 +69,7 @@ async function getDismissedIds(prisma: any, siteId: string): Promise<Set<string>
   return new Set<string>();
 }
 
-async function saveDismissedIds(prisma: { siteSettings: { upsert: Function } }, siteId: string, readIds: Set<string>, dismissedIds: Set<string>): Promise<void> {
+async function saveDismissedIds(prisma: any, siteId: string, readIds: Set<string>, dismissedIds: Set<string>): Promise<void> {
   const readArray = [...readIds].slice(-500);
   const dismissedArray = [...dismissedIds].slice(-500);
   await prisma.siteSettings.upsert({

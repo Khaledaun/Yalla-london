@@ -197,19 +197,17 @@ export default function IntelligencePage() {
     avgPosition: null, avgCtr: null, topPages: [], issues: [],
   };
 
-  const sortedTopPages = React.useMemo(() => {
+  const sortedTopPages = (() => {
     const pages = [...d.topPages];
     const baseKey = topPagesSort.replace(/_asc$/, "") as "clicks" | "impressions" | "ctr" | "position";
     const asc = topPagesSort.endsWith("_asc");
     pages.sort((a, b) => {
       const av = a[baseKey] ?? 0;
       const bv = b[baseKey] ?? 0;
-      // Position: lower is better, so default sort (desc by value) means worst position first
-      // For clicks/impressions/ctr: default desc means highest first
       return asc ? av - bv : bv - av;
     });
     return pages;
-  }, [d.topPages, topPagesSort]);
+  })();
 
   return (
     <div className="min-h-screen bg-[var(--admin-bg)] p-4 md:p-6">

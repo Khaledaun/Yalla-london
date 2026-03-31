@@ -648,6 +648,7 @@ export default function CommerceHQPage() {
         {activeTab === "assets" && <AssetsLinksTab />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
+      <ConfirmDialog />
     </div>
   );
 }
@@ -2308,7 +2309,6 @@ function SettingsTab() {
           </div>
         </div>
       </div>
-      <ConfirmDialog />
     </div>
   );
 }

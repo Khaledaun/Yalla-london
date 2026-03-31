@@ -1,0 +1,275 @@
+# Zenitha Yachts — 90-Day Execution Plan
+
+> **From Zero to First Revenue — Revised Launch Playbook**
+> Launch Target: Q2 2026 | First Revenue Target: 90 Days
+> Prepared: March 31, 2026 | CONFIDENTIAL
+
+-----
+
+## Executive Summary
+
+This plan replaces the broad strategy document with a sequenced, day-by-day execution roadmap. Every action is ordered by dependency — what must happen before what — not by topic. The plan is structured around one principle: **the only actions that generate first revenue are personal relationships and phone calls. Everything else is infrastructure to support those conversations.**
+
+- **Target:** First closed charter booking within 90 days. First €10,000+ in commission within 6 months. $500K annual run rate by Month 18–24.
+- **Operating assumption:** Solo founder. No employees until Month 6+ revenue validates hiring. Every hour must be allocated to the highest-leverage activity available that day.
+
+-----
+
+## Phase 0: Foundation Sprint (Days 1–10)
+
+**Goal:** Complete every blocking prerequisite so that when outreach starts on Day 11, nothing is missing. No marketing, no content, no social media — just the legal, financial, and technical plumbing.
+
+### Action Items
+
+|#   |Action                                                                                                                                                      |Owner / Tool                      |Deadline|Done Criteria                   |
+|----|------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|--------|--------------------------------|
+|0.1 |Deploy platform to production on Vercel (DNS, SSL, custom domain zenithayachts.com)                                                                         |Founder / Vercel CLI              |Day 1   |Site live, loads < 2s           |
+|0.2 |Set up Google Analytics 4 + Google Search Console; submit sitemap                                                                                           |Founder / GA4                     |Day 1   |Events tracking live            |
+|0.3 |Open dedicated client funds bank account (separate from operating account — non-negotiable for HNWI trust)                                                  |Founder / Mercury or Wise Business|Day 3   |Account open, IBAN/routing ready|
+|0.4 |Set up Stripe payment flow for deposits (€5K–15K range); configure webhook for payment confirmation emails                                                  |Founder / Stripe Dashboard        |Day 4   |Test payment succeeds           |
+|0.5 |Download MYBA charter agreement template; adapt to bilingual English/Arabic version (hire freelance maritime lawyer for review, budget €500–1,000)          |Founder + Legal freelancer        |Day 7   |Signed-ready PDF template       |
+|0.6 |Apply for MYBA membership (€500/year) — signals legitimacy to every Med yacht owner                                                                         |Founder / MYBA website            |Day 5   |Application submitted           |
+|0.7 |Set up WhatsApp Business account with professional profile, automated welcome message, and catalog                                                          |Founder / WhatsApp Business       |Day 2   |Business profile live           |
+|0.8 |Create Instagram Business account (@ZenithaYachts); prepare 9-post grid (3 yacht hero shots, 3 destination teases, 3 brand story posts) — do NOT publish yet|Founder / Canva                   |Day 7   |9 posts drafted and scheduled   |
+|0.9 |Set up CRM (HubSpot free tier or Pipedrive): create pipeline stages — Inquiry → Qualified → Yacht Matched → Quote Sent → Deposit Paid → Charter Completed   |Founder / HubSpot                 |Day 3   |Pipeline stages configured      |
+|0.10|Create LinkedIn company page for B2B outreach (hotel concierge, travel agency targeting)                                                                    |Founder                           |Day 5   |Page live with description      |
+
+### Phase 0 KPIs
+
+|Metric                |Target                                           |Measurement         |
+|----------------------|-------------------------------------------------|--------------------|
+|Platform uptime       |99.9% from Day 1                                 |Vercel dashboard    |
+|Legal docs ready      |Charter agreement + cancellation policy finalized|Signed-off PDF      |
+|Payment infrastructure|Stripe test payment processed                    |Test transaction log|
+|CRM pipeline          |6 stages configured, ready for first lead        |HubSpot dashboard   |
+
+-----
+
+## Phase 1: Listing Acquisition Blitz (Days 11–30)
+
+**Goal:** Get 5 verified yacht listings live on the platform before any public marketing begins. Without inventory, marketing is pointless. This is the #1 priority and the #1 risk.
+
+### Action Items
+
+|#  |Action                                                                                                                                                                                                   |Owner / Tool                 |Deadline |Done Criteria                         |
+|---|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|---------|--------------------------------------|
+|1.1|Sign up for Charter Index GraphQL API and Booking Manager access — pull yacht data for Turkey (Bodrum, Marmaris) and Greece (Lefkas, Corfu, Athens)                                                      |Founder / Charter Index API  |Day 11   |API key active, data pulled           |
+|1.2|Identify 20 charter operators in Turkey and Greece who list on Click&Boat (proven digital adopters). Build spreadsheet: company name, fleet size, contact email, WhatsApp                                |Founder / manual research    |Day 13   |20 operators listed in CRM            |
+|1.3|Send personalized outreach to all 20 operators. Offer: free featured listing + zero commission on first Zenitha booking. Subject: “New Arabic-language platform bringing Gulf HNWI clients to your fleet”|Founder / Email + WhatsApp   |Day 15   |20 outreach messages sent             |
+|1.4|Follow up by WhatsApp 48 hours after email. Provide link to live platform in Arabic to demonstrate credibility                                                                                           |Founder                      |Day 17   |10+ operators engaged in conversation |
+|1.5|For each confirmed listing: collect 10+ professional photos, specs, pricing, availability, crew details, insurance docs. Upload to platform with verified badge                                          |Founder + Operator           |Day 20–30|5 listings live with full photos/specs|
+|1.6|Reach out to 5 Dubai Marina yacht owners/charter management companies (target Arabic-speaking owners who understand digital channels)                                                                    |Founder / LinkedIn + WhatsApp|Day 25   |3+ conversations with UAE operators   |
+|1.7|Negotiate co-brokerage agreements with 3–5 operators: they provide vessels, Zenitha brings MENA clients, 50/50 split of 15% commission                                                                   |Founder                      |Day 30   |2+ co-brokerage agreements signed     |
+
+### Phase 1 KPIs
+
+|Metric                    |Target             |Measurement       |
+|--------------------------|-------------------|------------------|
+|Operators contacted       |20+                |CRM outreach log  |
+|Response rate             |>30% (6+ responses)|CRM               |
+|Verified listings live    |5 minimum          |Platform dashboard|
+|Co-brokerage deals signed |2+                 |Signed agreements |
+|UAE operator conversations|3+                 |CRM               |
+
+-----
+
+## Phase 2: Warm Outreach + Community Activation (Days 31–50)
+
+**Goal:** Generate the first 10 qualified HNWI inquiries from warm channels. No cold ads. No SEO. Only trust-based, relationship-driven outreach to people who already know you or your community.
+
+### Action Items
+
+|#   |Action                                                                                                                                                                                                                                                    |Owner / Tool      |Deadline |Done Criteria                  |
+|----|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|---------|-------------------------------|
+|2.1 |Write and send 20 personalized WhatsApp messages to HNWI contacts in your personal network (Israeli and Gulf Arab). Not a broadcast — individual, thoughtful notes. Ask: “I’m launching a yacht charter platform — what would it need to earn your trust?”|Founder / WhatsApp|Day 31–33|20 messages sent, 5+ replies   |
+|2.2 |Post “founder story” in the 288K Arab travel Facebook community. Not promotional — a personal narrative about building the first Arabic-language yacht platform. Include 3 high-quality yacht photos                                                      |Founder           |Day 34   |Post published, 50+ engagements|
+|2.3 |Follow founder story with a value-first post: “Best 7-day Greek island yacht itinerary for a family of 6” — purely educational, platform link in bio only                                                                                                 |Founder           |Day 38   |Post published                 |
+|2.4 |Create a dedicated Facebook Group: “Arab Yachting Enthusiasts” — smaller, more curated, higher-intent than the 288K group. Invite top engagers from the main community                                                                                    |Founder           |Day 36   |Group created, 50+ members     |
+|2.5 |Launch Instagram: publish the prepared 9-post grid. Begin daily Stories (yacht lifestyle, behind-the-scenes, destination teasers in Arabic)                                                                                                               |Founder           |Day 35   |Profile live, 9 posts up       |
+|2.6 |LinkedIn outreach to 50 Israeli tech founders, VCs, and real estate developers in Tel Aviv/Herzliya. Personalized connection requests referencing their companies, not a broadcast                                                                        |Founder / LinkedIn|Day 35–45|50 requests sent, 10+ accepted |
+|2.7 |Contact Herzliya Marina sailing club (900+ members) and Caesarea Yacht Club about a partnership announcement or sponsored event                                                                                                                           |Founder           |Day 40   |1+ club conversation active    |
+|2.8 |Soft offer in Facebook community: “DM us for a free consultation and exclusive launch pricing — first 10 clients receive 5% launch discount”                                                                                                              |Founder           |Day 42   |10+ DMs received               |
+|2.9 |Respond to every inquiry within 4 hours (Gulf Standard Time + Israel Standard Time business hours). Log every conversation in CRM with source tracking                                                                                                    |Founder / CRM     |Ongoing  |< 4hr avg response time        |
+|2.10|Qualify top 10 inquiries: budget range, desired dates, group size, destination preference. Match to available listings. Send personalized yacht recommendations with pricing                                                                              |Founder           |Day 45–50|10 qualified leads in pipeline |
+
+### Phase 2 KPIs
+
+|Metric                             |Target                     |Measurement       |
+|-----------------------------------|---------------------------|------------------|
+|WhatsApp personal outreach sent    |20                         |Message log       |
+|Facebook community post engagement |50+ reactions, 10+ comments|Facebook Insights |
+|Total inbound inquiries            |15+                        |CRM               |
+|Qualified leads (budget confirmed) |10+                        |CRM pipeline      |
+|LinkedIn connections (Israeli HNWI)|10+ accepted               |LinkedIn          |
+|Instagram followers                |300+                       |Instagram Insights|
+|Average inquiry response time      |< 4 hours                  |CRM timestamps    |
+
+-----
+
+## Phase 3: First Revenue (Days 51–90)
+
+**Goal:** Close 1–3 charter bookings. Collect first commission revenue. Begin building the referral flywheel and content engine simultaneously.
+
+### Revenue Actions
+
+|#  |Action                                                                                                                                                                                               |Owner / Tool               |Deadline                     |Done Criteria                               |
+|---|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|-----------------------------|--------------------------------------------|
+|3.1|Push hardest on Red Sea/Gulf charter window (Oct–Apr) and Turkish Riviera summer bookings (2–4 month lead time). These close fastest for a new broker. Med summer 2027 bookings can begin in parallel|Founder                    |Ongoing                      |Quotes sent on Red Sea/Turkey               |
+|3.2|For each qualified lead: send a personalized yacht proposal (PDF or branded email) with 2–3 yacht options, transparent pricing breakdown (base + APA), crew profiles, and proposed itinerary         |Founder                    |Within 48hrs of qualification|Proposals sent for all qualified leads      |
+|3.3|Follow up every open proposal within 72 hours. For high-value leads (€30K+), offer a 15-minute video call walkthrough of the yacht and itinerary                                                     |Founder / WhatsApp + Zoom  |Ongoing                      |Zero proposals go cold without 2+ follow-ups|
+|3.4|Close first booking: collect 50% deposit via Stripe or wire to client funds account. Send charter agreement for signature. Coordinate with operator on logistics                                     |Founder                    |Day 75 target                |First deposit collected                     |
+|3.5|Execute co-broker deals: for every warm lead that matches a co-brokerage partner’s fleet, send the client intro, handle Arabic-language communication, and split the 15% commission 50/50            |Founder + Co-broker partner|Ongoing                      |1+ co-brokered deal in pipeline             |
+|3.6|After first 2–3 completed charters: request detailed testimonials from clients. Convert to Arabic-language case study content with permission                                                        |Founder                    |Post-charter                 |2+ genuine testimonials collected           |
+
+### Content & SEO Sprint (Parallel Track)
+
+|#   |Action                                                                                                                                                                                                                             |Owner / Tool                                        |Deadline|Done Criteria                |
+|----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|--------|-----------------------------|
+|3.7 |Publish 10 Arabic-language pillar articles on the Zenitha blog targeting zero-competition keywords (e.g., yacht rental Greece in Arabic, luxury yacht charter Red Sea, halal yacht charter Mediterranean). Minimum 1,500 words each|Founder or freelance Arabic writer (€50–100/article)|Day 60  |10 articles indexed in Google|
+|3.8 |Publish 3 Hebrew-language articles targeting Israeli HNWI searches (yacht rental Greece, private luxury yacht, Med yacht charter)                                                                                                  |Founder or freelancer                               |Day 70  |3 articles indexed           |
+|3.9 |Launch Arabic Yachting Glossary page: educational content explaining yacht types, charter terms (APA, MYBA, bareboat vs. crewed), pricing. Positions Zenitha as the authority for Arabic-speaking first-time charterers            |Founder                                             |Day 65  |Glossary page live           |
+|3.10|Request marina partnership links from Bodrum Yacht Club, Corfu Marina, Lefkas Marina, and Sindalah Marina (“broker partner” or “recommended services” page listings)                                                               |Founder                                             |Day 75  |2+ marina backlinks secured  |
+
+### Influencer + PR Track (Parallel)
+
+|#   |Action                                                                                                                                                                                                         |Owner / Tool        |Deadline|Done Criteria                         |
+|----|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------|--------|--------------------------------------|
+|3.11|Identify 5 Arabic luxury travel micro-influencers (100K–500K followers, Saudi/UAE/Egypt/Lebanon). Offer: gifted charter experience (€2K–4K cost) in exchange for 1 Reel + 3 Stories tagging @ZenithaYachts     |Founder             |Day 55  |5 influencers contacted, 2+ interested|
+|3.12|Pitch press story to Arab News business section, Boat International (ME section), Calcalist/Globes (Israeli press): “First Arabic-language luxury yacht charter platform launched by Arab-Israeli entrepreneur”|Founder             |Day 60  |3+ pitches sent                       |
+|3.13|Begin Google Ads test campaign in Arabic (Google.ae + Google.sa): 3–5 high-intent keywords, €500/month budget. Track cost per qualified inquiry                                                                |Founder / Google Ads|Day 65  |Campaign live, first clicks tracked   |
+
+### Phase 3 KPIs
+
+|Metric                             |Target                     |Measurement                 |
+|-----------------------------------|---------------------------|----------------------------|
+|Charter proposals sent             |10+                        |CRM                         |
+|Completed charter bookings         |1–3                        |Signed agreements + deposits|
+|Gross commission earned            |€3,750–18,000              |Bank account                |
+|Arabic articles published          |10+                        |Blog / Google Search Console|
+|Instagram followers                |500–1,000                  |Instagram Insights          |
+|Google organic impressions (Arabic)|First impressions appearing|Search Console              |
+|Verified listings on platform      |10+                        |Platform dashboard          |
+|Client testimonials collected      |2+                         |CRM / website               |
+
+-----
+
+## Phase 4: Scale & Compound (Months 4–6)
+
+**Goal:** Reach 20+ verified listings, 3–5 deals/month pipeline, activate first hotel partnership, and begin building the referral flywheel.
+
+### Action Items
+
+|#   |Action                                                                                                                                                                                                               |Deadline                     |Done Criteria                          |
+|----|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|---------------------------------------|
+|4.1 |Hotel concierge outreach: contact Four Seasons DIFC, Kempinski, Anantara Abu Dhabi. Pitch: “We handle yacht charter logistics for your HNWI guests, you receive 20% co-brokerage commission, zero operational burden”|Month 4                      |1+ hotel in active discussion          |
+|4.2 |Contact Quintessentially UAE/Gulf office: propose becoming their preferred Arabic-speaking yacht charter broker. Model: Quintessentially refers, Zenitha executes, 20% referral fee                                  |Month 4                      |Intro meeting scheduled                |
+|4.3 |Launch referral program: existing clients who refer a booking receive 5% rebate on their next charter or a concierge gift (provisioning credit, restaurant reservation)                                              |Month 4                      |Program live on website                |
+|4.4 |Travel to Sindalah Marina (NEOM): physically meet marina management, introduce Zenitha as the first Arabic-speaking digital broker, pitch for “recommended broker” status                                            |Month 5                      |Visit completed, follow-up sent        |
+|4.5 |Scale listings to 20+ by approaching Click&Boat and Boatsetter listed boats in the Med — these owners already understand digital platforms                                                                           |Month 5                      |20+ verified listings live             |
+|4.6 |Launch halal-certified charter vertical: partner with 2–3 operators who can deliver alcohol-free, privacy-guaranteed, halal-provisioned charters. Create dedicated landing page                                      |Month 5                      |Landing page live, 2+ operators onboard|
+|4.7 |Begin corporate charter outreach: contact 10 Gulf PR/events agencies about yacht venue bookings for product launches, client entertainment, incentive travel                                                         |Month 6                      |3+ conversations, 1+ quote sent        |
+|4.8 |Hire part-time charter coordinator (remote, Arabic-speaking) for inquiry management and client follow-up. Budget: €1,500–2,000/month                                                                                 |Month 6 (if revenue supports)|Hire made, SOPs documented             |
+|4.9 |A/B test inquiry flow: (A) “Request a Quote” form vs. (B) “Chat with Our Team on WhatsApp” CTA. For MENA HNWIs, WhatsApp CTA expected to convert at 2–3x                                                             |Month 4                      |Test running, data collected           |
+|4.10|Publish 20 more Arabic articles (total 30+), begin YouTube channel with virtual yacht tour content                                                                                                                   |Month 6                      |30+ articles, 3+ YouTube videos        |
+
+### Phase 4 KPIs (6-Month Milestones)
+
+|Metric                                    |Target                  |Measurement        |
+|------------------------------------------|------------------------|-------------------|
+|Verified listings live                    |20+                     |Platform           |
+|Total qualified inquiries received        |30+                     |CRM                |
+|Completed charter bookings (cumulative)   |5–8                     |Signed agreements  |
+|Gross commission (cumulative)             |€15,000–25,000          |Bank account       |
+|Hotel/concierge partnerships in discussion|1–2                     |CRM                |
+|Arabic SEO articles published             |30+                     |Blog               |
+|Instagram followers                       |2,000–5,000             |Instagram          |
+|Google organic traffic (Arabic)           |500+ monthly impressions|Search Console     |
+|Referral bookings                         |1+                      |CRM source tracking|
+
+-----
+
+## Master KPI Dashboard
+
+Track these weekly. If any metric is red for two consecutive weeks, it requires immediate attention and strategy adjustment.
+
+|KPI                         |Day 30|Day 60|Day 90       |Month 6   |Month 12  |
+|----------------------------|------|------|-------------|----------|----------|
+|Verified listings           |5     |8     |12           |20+       |40+       |
+|Qualified inquiries (cumul.)|0     |10    |25           |50+       |150+      |
+|Completed bookings (cumul.) |0     |0–1   |1–3          |5–8       |15–25     |
+|Gross commission (cumul.)   |€0    |€0–4K |€4K–18K      |€15K–25K  |€60K–120K |
+|Avg response time           |< 4hrs|< 4hrs|< 2hrs       |< 2hrs    |< 1hr     |
+|Inquiry → Booking rate      |—     |10%+  |12%+         |15%+      |20%+      |
+|Arabic articles published   |0     |5     |10           |30+       |60+       |
+|Instagram followers         |0     |300   |500–1K       |2K–5K     |10K+      |
+|Co-brokerage partners       |2+    |3+    |5+           |8+        |15+       |
+|Hotel/concierge partners    |0     |0     |Conversations|1–2 active|3–5 active|
+
+-----
+
+## Weekly Operating Rhythm
+
+As a solo founder, discipline in time allocation is the difference between momentum and chaos. This is the weekly cadence from Day 11 onward.
+
+|Day      |Morning Block (3hrs)                               |Afternoon Block (3hrs)                  |Evening Block (1–2hrs)                       |
+|---------|---------------------------------------------------|----------------------------------------|---------------------------------------------|
+|Monday   |Review KPI dashboard + pipeline. Prioritize week   |Operator outreach (new listings)        |Content creation (1 Arabic article draft)    |
+|Tuesday  |Client follow-ups (proposals, quotes, deposits)    |HNWI outreach (WhatsApp, LinkedIn)      |Instagram content (2 posts + Stories)        |
+|Wednesday|Client consultations (calls, yacht matching)       |Co-broker partner calls                 |Facebook community posting                   |
+|Thursday |B2B outreach (hotels, agencies, corporate)         |Platform improvements (UX, new listings)|Content creation (article editing/publishing)|
+|Friday   |Client follow-ups + pipeline cleanup               |SEO review + Arabic keyword tracking    |Instagram + Stories                          |
+|Weekend  |Respond to inquiries only (< 4hr SLA still applies)|Light content batching for next week    |Rest. Sustainability matters                 |
+
+### Time Allocation Rule (60/30/10)
+
+|Allocation            |% of Time|Activities                                                                           |
+|----------------------|---------|-------------------------------------------------------------------------------------|
+|**Revenue-generating**|**60%**  |Client outreach, follow-ups, proposals, closing deals, operator relationship building|
+|Marketing             |30%      |Content, social media, SEO, influencer outreach, Facebook community, Instagram       |
+|Platform/Admin        |10%      |Technical improvements, CRM maintenance, legal, admin, accounting                    |
+
+-----
+
+## 90-Day Budget
+
+|Line Item                         |90-Day Cost      |Notes                                        |
+|----------------------------------|-----------------|---------------------------------------------|
+|Vercel hosting (Pro)              |€60              |$20/month                                    |
+|Domain + DNS                      |€30              |Annual domain registration                   |
+|CRM (HubSpot free or Pipedrive)   |€0–150           |Free tier should suffice initially           |
+|MYBA membership                   |€500             |Annual, pay upfront                          |
+|Legal review (charter agreement)  |€500–1,000       |Freelance maritime lawyer                    |
+|Google Ads (Arabic test)          |€500–1,000       |Start Month 3, €500/month                    |
+|Arabic content writer (freelance) |€500–1,000       |10 articles at €50–100 each                  |
+|Influencer gifted experience      |€2,000–4,000     |1–2 influencer activations                   |
+|WhatsApp Business                 |€0               |Free tier                                    |
+|Miscellaneous (travel, networking)|€1,000–2,000     |Marina visits, yacht shows, networking events|
+|**TOTAL 90-DAY BUDGET**           |**€5,090–10,240**|**Lean and manageable for a solo founder**   |
+
+-----
+
+## Risk Mitigation Matrix
+
+|Risk                    |Severity    |Mitigation                                                                                                         |Trigger to Escalate                                  |
+|------------------------|------------|-------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+|Zero listings by Day 30 |**CRITICAL**|Expand outreach beyond Turkey/Greece to Croatia, Montenegro. Offer guaranteed booking fee to first 3 operators     |< 3 operator responses by Day 20                     |
+|Zero inquiries by Day 50|**HIGH**    |Accelerate Facebook community activation, increase WhatsApp outreach volume to 50 contacts, launch Google Ads early|< 5 inquiries by Day 45                              |
+|Zero bookings by Day 90 |**HIGH**    |Pivot to co-brokerage only model (zero listing overhead). Focus 100% on bringing MENA clients to existing operators|Zero deposits collected by Day 80                    |
+|Founder burnout         |MEDIUM      |Strict weekly rhythm. Hire freelance content writer by Month 2. Accept that 80% execution beats 100% planning      |Working > 60hrs/week for 3+ weeks                    |
+|Med season timing miss  |MEDIUM      |Focus Red Sea/Gulf Oct–Apr season first (2–4 month lead time). Med summer 2027 bookings begin Month 6              |Calendar reaches July with zero Med bookings for 2027|
+
+-----
+
+## The First Monday
+
+When you sit down on Day 1, here is exactly what to do in order:
+
+1. Deploy the platform to production. Confirm it loads, Arabic RTL works, and the inquiry form submits.
+1. Set up Google Analytics and Search Console. Submit sitemap.
+1. Set up WhatsApp Business with your professional photo, company description, and an automated welcome message.
+1. Open the client funds bank account application. This takes 1–3 business days.
+1. Send 3 WhatsApp messages to the 3 highest-value HNWI contacts you personally know. Not a pitch — a question: “What would a yacht charter platform need to earn your trust?”
+
+*That is a 4-hour morning. By lunch on Day 1, the platform is live, the payment infrastructure is in motion, and the first three human conversations that could lead to revenue have started.*
+
+**Everything after that is execution discipline. The plan is here. The platform is built. The community is waiting. Go.**

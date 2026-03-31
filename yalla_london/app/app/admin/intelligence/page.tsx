@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { RefreshCw, ExternalLink, Copy, Wrench, TrendingUp, TrendingDown, Filter, ArrowUpDown } from "lucide-react";
+import { RefreshCw, ExternalLink, Copy, Wrench, TrendingUp, TrendingDown, Filter, ArrowUpDown, Search } from "lucide-react";
 import {
   AdminCard, AdminAlertBanner, AdminButton, AdminSectionLabel, AdminStatusBadge,
   AdminKPICard, AdminPageHeader, AdminLoadingState, AdminEmptyState,
@@ -572,7 +572,7 @@ export default function IntelligencePage() {
                     {/* Issue List */}
                     <AdminSectionLabel>Issues</AdminSectionLabel>
                     {visible.length === 0 ? (
-                      <AdminEmptyState title="No issues match" subtitle="Adjust filters or run a new audit." />
+                      <AdminEmptyState icon={Search} title="No issues match" description="Adjust filters or run a new audit." />
                     ) : (
                       <div className="space-y-1 mt-2">
                         {visible.map((issue, i) => (
@@ -620,7 +620,7 @@ export default function IntelligencePage() {
               {auditHistoryLoading ? (
                 <AdminLoadingState label="Loading history..." />
               ) : auditHistory.length === 0 ? (
-                <AdminEmptyState title="No audit history" subtitle="Run SEO audits to build a trend over time." />
+                <AdminEmptyState icon={Search} title="No audit history" description="Run SEO audits to build a trend over time." />
               ) : (
                 <div className="space-y-2">
                   {/* Trend sparkline header */}

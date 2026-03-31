@@ -15,6 +15,7 @@ import {
   AdminAlertBanner,
   AdminTabs,
   AdminKPICard,
+  useConfirm,
 } from "@/components/admin/admin-ui";
 import {
   Palette,
@@ -870,6 +871,7 @@ function MediaPoolTab({ siteId }: { siteId: string }) {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const loadAssets = useCallback(async () => {
     setLoading(true);
@@ -961,7 +963,8 @@ function MediaPoolTab({ siteId }: { siteId: string }) {
   };
 
   const handleDelete = async (assetId: string) => {
-    if (!confirm("Delete this asset?")) return;
+    const ok = await confirm({ title: "Delete Asset", message: "Delete this asset?", variant: "danger" });
+    if (!ok) return;
     try {
       const res = await fetch("/api/admin/design-studio/media-pool", {
         method: "DELETE",
@@ -1241,6 +1244,7 @@ function MediaPoolTab({ siteId }: { siteId: string }) {
           </AdminButton>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

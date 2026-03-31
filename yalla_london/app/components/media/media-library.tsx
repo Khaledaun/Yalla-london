@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import NextImage from 'next/image';
+import { useConfirm } from '@/components/admin/admin-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -72,12 +73,13 @@ interface MediaLibraryProps {
   maxSelection?: number;
 }
 
-export function MediaLibrary({ 
+export function MediaLibrary({
   onSelect,
   selectionMode = 'single',
   allowedTypes = ['image', 'video', 'document'],
   maxSelection = 1
 }: MediaLibraryProps) {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -171,7 +173,8 @@ export function MediaLibrary({
   };
 
   const deleteMediaItem = async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this media item?')) return;
+    const ok = await confirm({ title: 'Delete Media Item', message: 'Are you sure you want to delete this media item?', variant: 'danger' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/media/library/${itemId}`, {
@@ -600,6 +603,7 @@ export function MediaLibrary({
           </Card>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

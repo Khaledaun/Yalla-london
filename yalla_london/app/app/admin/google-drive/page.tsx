@@ -13,6 +13,7 @@ import {
   AdminLoadingState,
   AdminEmptyState,
   AdminAlertBanner,
+  useConfirm,
 } from "@/components/admin/admin-ui";
 
 interface DriveAccount {
@@ -45,6 +46,7 @@ const SITES = [
 ];
 
 export default function GoogleDrivePage() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(false);
   const [accounts, setAccounts] = useState<DriveAccount[]>([]);
@@ -422,8 +424,9 @@ export default function GoogleDrivePage() {
                   <AdminButton size="sm" onClick={() => doAction("sync_folder", { accountId: acc.id, driveFolderId: acc.rootFolderId })}>
                     Sync Root Folder
                   </AdminButton>
-                  <AdminButton size="sm" variant="danger" onClick={() => {
-                    if (confirm(`Disconnect ${acc.email}?`)) doAction("disconnect", { accountId: acc.id });
+                  <AdminButton size="sm" variant="danger" onClick={async () => {
+                    const ok = await confirm({ title: 'Disconnect Account', message: `Disconnect ${acc.email}?`, variant: 'danger' });
+                    if (ok) doAction("disconnect", { accountId: acc.id });
                   }}>
                     Disconnect
                   </AdminButton>
@@ -500,6 +503,7 @@ export default function GoogleDrivePage() {
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

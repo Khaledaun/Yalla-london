@@ -5,6 +5,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useConfirm } from '@/components/admin/admin-ui';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +67,7 @@ interface TopicStats {
 }
 
 export function TopicManager() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [topics, setTopics] = useState<TopicProposal[]>([]);
   const [stats, setStats] = useState<TopicStats>({ proposed: 0, approved: 0, rejected: 0, used: 0, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -193,7 +195,8 @@ export function TopicManager() {
   };
 
   const deleteTopic = async (topicId: string) => {
-    if (!confirm('Are you sure you want to delete this topic?')) return;
+    const ok = await confirm({ title: 'Delete Topic', message: 'Are you sure you want to delete this topic?', variant: 'danger' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/phase4b/topics/manage?id=${topicId}`, {
@@ -521,6 +524,7 @@ export function TopicManager() {
           </DialogContent>
         </Dialog>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

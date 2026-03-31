@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/admin/admin-ui'
 import Link from 'next/link'
 
 interface PdfGuide {
@@ -35,6 +36,7 @@ const STYLE_OPTIONS = [
 ]
 
 export function PDFGenerator() {
+  const { confirm, ConfirmDialog } = useConfirm()
   const [guides, setGuides] = useState<PdfGuide[]>([])
   const [articles, setArticles] = useState<ArticleOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -187,7 +189,8 @@ export function PDFGenerator() {
   }
 
   const handleDelete = async (guideId: string) => {
-    if (!confirm('Delete this PDF guide?')) return
+    const ok = await confirm({ title: 'Delete PDF Guide', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
     try {
       await fetch('/api/admin/pdf-guides', {
         method: 'POST',
@@ -525,6 +528,7 @@ export function PDFGenerator() {
           and export a high-resolution PNG to use as the guide&apos;s cover image.
         </p>
       </div>
+      <ConfirmDialog />
     </div>
   )
 }

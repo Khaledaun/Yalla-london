@@ -10,7 +10,7 @@ import { ResponsiveTable, Column } from '@/components/admin/responsive-table'
 import { BottomSheet } from '@/components/admin/bottom-sheet'
 import {
   AdminCard, AdminPageHeader, AdminButton, AdminSectionLabel,
-  AdminAlertBanner,
+  AdminAlertBanner, useConfirm,
 } from '@/components/admin/admin-ui'
 
 interface LegalPage {
@@ -49,6 +49,7 @@ export default function LegalPagesManager() {
   const [createType, setCreateType] = useState('')
   const [createLocale, setCreateLocale] = useState('en')
   const [createSiteId, setCreateSiteId] = useState('')
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const fetchPages = useCallback(async () => {
     setLoading(true)
@@ -117,7 +118,8 @@ export default function LegalPagesManager() {
   }
 
   const handleDelete = async (pageId: string) => {
-    if (!confirm('Delete this legal page?')) return
+    const ok = await confirm({ title: 'Delete Legal Page', message: 'Delete this legal page?', variant: 'danger' })
+    if (!ok) return
     try {
       const res = await fetch('/api/admin/legal', {
         method: 'DELETE',
@@ -383,6 +385,7 @@ export default function LegalPagesManager() {
           <SafePreview html={selectedPage.content} />
         )}
       </BottomSheet>
+      <ConfirmDialog />
     </div>
   )
 }

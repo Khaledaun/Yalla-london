@@ -11,6 +11,7 @@ import {
   AdminKPICard,
   AdminSectionLabel,
   AdminAlertBanner,
+  useConfirm,
 } from "@/components/admin/admin-ui";
 import { Inbox } from "lucide-react";
 
@@ -76,6 +77,7 @@ export default function PipelinePhasesPage() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set<string>());
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
@@ -138,7 +140,8 @@ export default function PipelinePhasesPage() {
   const deleteSelected = async () => {
     const ids: string[] = Array.from(selectedDrafts);
     if (!ids.length) return;
-    if (!confirm(`Delete ${ids.length} selected draft(s)?`)) return;
+    const ok = await confirm({ title: 'Delete Drafts', message: `Delete ${ids.length} selected draft(s)?`, variant: 'danger' });
+    if (!ok) return;
     for (const id of ids) {
       await runAction("delete", { draftId: id });
     }
@@ -364,9 +367,9 @@ export default function PipelinePhasesPage() {
                           variant="primary"
                           size="sm"
                           loading={actionLoading[`bulk_advance-${group.phase}`]}
-                          onClick={() => {
-                            if (confirm(`Advance ALL ${group.count} drafts from ${group.label} to ${nextPhase}?`))
-                              runAction("bulk_advance", { phase: group.phase });
+                          onClick={async () => {
+                            const ok = await confirm({ title: 'Advance Drafts', message: `Advance ALL ${group.count} drafts from ${group.label} to ${nextPhase}?`, variant: 'warning' });
+                            if (ok) runAction("bulk_advance", { phase: group.phase });
                           }}
                         >
                           Advance All to {nextPhase}
@@ -376,9 +379,9 @@ export default function PipelinePhasesPage() {
                         variant="danger"
                         size="sm"
                         loading={actionLoading[`bulk_delete-${group.phase}`]}
-                        onClick={() => {
-                          if (confirm(`Delete ALL stuck drafts (2h+) from ${group.label}?`))
-                            runAction("bulk_delete", { phase: group.phase });
+                        onClick={async () => {
+                          const ok = await confirm({ title: 'Delete Stuck Drafts', message: `Delete ALL stuck drafts (2h+) from ${group.label}?`, variant: 'danger' });
+                          if (ok) runAction("bulk_delete", { phase: group.phase });
                         }}
                       >
                         Delete Stuck
@@ -472,6 +475,7 @@ export default function PipelinePhasesPage() {
 
       {/* Bottom spacer for mobile */}
       <div className="h-20" />
+      <ConfirmDialog />
     </div>
   );
 }
@@ -492,6 +496,7 @@ function DraftCard({
   onAction: (action: string, params: Record<string, string>) => Promise<void>;
   actionLoading: Record<string, boolean>;
 }) {
+  const { confirm, ConfirmDialog: DraftConfirmDialog } = useConfirm();
   const [showDetails, setShowDetails] = useState(false);
 
   const stuckBadge = draft.isStuck ? (
@@ -650,9 +655,9 @@ function DraftCard({
               variant="danger"
               size="sm"
               loading={!!actionLoading[`delete-${draft.id}`]}
-              onClick={() => {
-                if (confirm(`Delete "${draft.keyword}"?`))
-                  onAction("delete", { draftId: draft.id });
+              onClick={async () => {
+                const ok = await confirm({ title: 'Delete Draft', message: `Delete "${draft.keyword}"?`, variant: 'danger' });
+                if (ok) onAction("delete", { draftId: draft.id });
               }}
             >
               Delete
@@ -660,6 +665,7 @@ function DraftCard({
           </div>
         </div>
       )}
+      <DraftConfirmDialog />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   AdminSectionLabel,
   AdminTabs,
   AdminAlertBanner,
+  useConfirm,
 } from '@/components/admin/admin-ui';
 import {
   FileText,
@@ -109,6 +110,7 @@ function FormLabel({ children }: { children: React.ReactNode }) {
 // ─── Component ───────────────────────────────────────────────────────
 
 export default function InformationHubAdmin() {
+  const { confirm, ConfirmDialog } = useConfirm()
   // State: Sections tab
   const [sections, setSections] = useState<SectionData[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
@@ -252,9 +254,8 @@ export default function InformationHubAdmin() {
   };
 
   const handleDeleteArticle = async (slug: string) => {
-    if (!confirm('Are you sure you want to unpublish this article? It will be soft-deleted (set to unpublished).')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Unpublish Article', message: 'Are you sure you want to unpublish this article? It will be removed from the public site.', variant: 'warning', confirmLabel: 'Unpublish' })
+    if (!ok) return
     try {
       const response = await fetch(`/api/information/${slug}`, {
         method: 'DELETE',
@@ -752,6 +753,7 @@ export default function InformationHubAdmin() {
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

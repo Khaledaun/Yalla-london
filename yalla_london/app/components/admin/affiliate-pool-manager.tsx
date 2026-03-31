@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/admin/admin-ui'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,6 +67,7 @@ interface PartnerStats {
 export function AffiliatePoolManager() {
   // Get current site context
   const { currentSite } = useSite()
+  const { confirm, ConfirmDialog } = useConfirm()
 
   const [affiliates, setAffiliates] = useState<AffiliateLink[]>([])
   const [loading, setLoading] = useState(true)
@@ -152,7 +154,8 @@ export function AffiliatePoolManager() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this affiliate link?')) return
+    const ok = await confirm({ title: 'Delete Affiliate Link', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
     setAffiliates(prev => prev.filter(a => a.id !== id))
   }
 
@@ -615,6 +618,7 @@ export function AffiliatePoolManager() {
           </CardContent>
         </Card>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

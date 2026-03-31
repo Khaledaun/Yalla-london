@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/admin/admin-ui'
 import Link from 'next/link'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ const btnPrimary = (disabled: boolean) => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PDFWorkshop() {
+  const { confirm, ConfirmDialog } = useConfirm()
   // Data
   const [templates, setTemplates] = useState<GuideTemplate[]>([])
   const [guides, setGuides] = useState<PdfGuide[]>([])
@@ -281,7 +283,8 @@ export function PDFWorkshop() {
   }
 
   const handleDelete = async (guideId: string) => {
-    if (!confirm('Delete this guide?')) return
+    const ok = await confirm({ title: 'Delete Guide', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
     try {
       await api({ action: 'delete', guideId })
       setGuides(g => g.filter(x => x.id !== guideId))
@@ -736,6 +739,7 @@ export function PDFWorkshop() {
           </div>
         </div>
       )}
+      <ConfirmDialog />
     </div>
   )
 }

@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
+import { createSnapshot } from "@/lib/affiliate/snapshot";
 
 const BUDGET_MS = 280_000;
 
@@ -728,6 +729,9 @@ async function handleAffiliateInjection(request: NextRequest) {
   const flagResponse = await checkCronEnabled("affiliate-injection");
   if (flagResponse) return flagResponse;
 
+  // Generate a unique run ID for snapshot grouping (enables bulk rollback)
+  const cronRunId = `aff-inj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   try {
     const { prisma } = await import("@/lib/db");
 
@@ -847,6 +851,18 @@ async function handleAffiliateInjection(request: NextRequest) {
 
       if (enResult.count > 0 || arResult.count > 0) {
         const allPartners = [...new Set([...enResult.partners, ...arResult.partners])];
+
+        // Snapshot content BEFORE injection for 24h rollback capability
+        await createSnapshot(
+          post.id,
+          post.slug,
+          post.title_en || post.slug,
+          post.content_en || "",
+          post.content_ar || "",
+          allPartners,
+          cronRunId
+        );
+
         await optimisticBlogPostUpdate(post.id, (current) => ({
           content_en: enResult.content,
           content_ar: arResult.content,
@@ -879,7 +895,7 @@ async function handleAffiliateInjection(request: NextRequest) {
       durationMs: duration,
       itemsProcessed: injected,
       itemsSucceeded: injected,
-      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length, postsInjected: injected, cjRulesLoaded: cjLinkRules.length, skippedSuppressed, skippedNoMatch, diagnosticSamples },
+      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length, postsInjected: injected, cjRulesLoaded: cjLinkRules.length, skippedSuppressed, skippedNoMatch, diagnosticSamples, cronRunId },
     }).catch((logErr) => console.warn("[affiliate-injection] Failed to log execution:", logErr instanceof Error ? logErr.message : logErr));
 
     return NextResponse.json({
@@ -888,6 +904,7 @@ async function handleAffiliateInjection(request: NextRequest) {
       postsNeedingInjection: needsInjection.length,
       postsInjected: injected,
       results,
+      cronRunId,
       duration,
     });
   } catch (error) {

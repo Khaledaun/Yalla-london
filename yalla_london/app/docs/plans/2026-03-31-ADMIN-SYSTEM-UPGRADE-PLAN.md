@@ -24,9 +24,9 @@
 | 5A | Kaspo B2B Admin Section | P2 | TODO |
 | 1A+ | CSS variable migration (remaining hardcoded values) | P2 | TODO |
 | 7B | Replace direct sessionStorage calls | P2 | TODO |
-| 2B | Affiliate HQ Revenue Attribution Table | P3 | TODO |
-| 2C | Affiliate HQ Link Health Monitor | P3 | TODO |
-| 2D | Affiliate HQ Rollback Mechanism | P3 | TODO |
+| 2B | Affiliate HQ Revenue Attribution Table | P3 | DONE |
+| 2C | Affiliate HQ Link Health Monitor | P3 | DONE |
+| 2D | Affiliate HQ Rollback Mechanism | P3 | DONE |
 | 3B | Admin Audit Drill-Down Enhancement | P3 | TODO |
 | 4A | Website Builder Visual Preview | P3 | TODO |
 | 4B | Block Template Library | P3 | TODO |
@@ -215,3 +215,33 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
   - Mark as read, dismiss, click-to-navigate actions
   - Auto-refresh via polling
   - Integrated into `MophyAdminLayout` header
+
+### Phase 2B — Revenue Attribution Table (March 31, 2026)
+- Added "Performance" tab to Affiliate HQ with sortable revenue data per program
+- Revenue KPI cards: total commission, clicks, EPC, conversion rate (30-day window)
+- Per-advertiser table with commission, clicks, CTR, average order value
+- Top articles by affiliate clicks with revenue attribution
+- 30-day sparkline chart for revenue trend visualization
+
+### Phase 2C — Link Health Monitor (March 31, 2026)
+- Added "Link Health" tab to Affiliate HQ showing URL status per affiliate link
+- Per-link rows: URL, partner, status (active/redirect/dead), last checked, clicks
+- "Run Health Audit" button in Actions tab — 6-check audit per link (liveness, tracking, relevance, freshness, SID attribution, partner detection)
+- Audit results panel with per-link issue list and severity badges (critical/warning/info)
+- Copy Full JSON + Show Full Report buttons for diagnostics
+
+### Phase 2D — Rollback Mechanism (March 31, 2026)
+- Created `lib/affiliate/snapshot.ts` — auto-snapshot service using AuditLog table
+  - `createSnapshot()` saves content_en/content_ar before affiliate injection
+  - `listSnapshots()` returns non-expired snapshots (24h TTL) with cronRunId grouping
+  - `restoreSnapshot()` restores single article content from snapshot
+  - `restoreCronRunSnapshots()` bulk-restores all articles from a specific injection run
+  - `cleanExpiredSnapshots()` removes expired snapshots
+- Modified `affiliate-injection/route.ts` to call `createSnapshot()` before each injection with cronRunId
+- Added 3 API actions to `affiliate-hq/route.ts`: `list_snapshots`, `restore_snapshot`, `restore_cron_run`
+- Added Rollback UI panel in Affiliate HQ Actions tab:
+  - "Load Snapshots" button fetches available rollback points
+  - Batch rollback grouped by cronRunId (undo entire injection run)
+  - Per-article snapshot list with title, slug, partners, expiry countdown
+  - All destructive actions go through ConfirmModal
+  - Status messages with success/error coloring

@@ -50,11 +50,11 @@ interface EditMessage {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<string, { label: string; color: string }> = {
-  destination: { label: 'Destination', color: '#3B7EA1' },
-  planning: { label: 'Planning', color: '#2D5A3D' },
+  destination: { label: 'Destination', color: 'var(--admin-blue)' },
+  planning: { label: 'Planning', color: 'var(--admin-green)' },
   niche: { label: 'Niche', color: '#7C3AED' },
-  food: { label: 'Food & Dining', color: '#C49A2A' },
-  experience: { label: 'Experience', color: '#C8322B' },
+  food: { label: 'Food & Dining', color: 'var(--admin-gold)' },
+  experience: { label: 'Experience', color: 'var(--admin-red)' },
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
@@ -70,7 +70,7 @@ const card = { background: '#fff', border: '1px solid rgba(214,208,196,0.5)', bo
 const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontFamily: 'var(--font-system)' } as const
 const labelStyle = { fontWeight: 600, fontSize: 14, display: 'block', marginBottom: 6 } as const
 const btnPrimary = (disabled: boolean) => ({
-  padding: '12px 20px', borderRadius: 10, background: disabled ? '#9ca3af' : '#C8322B', color: '#fff',
+  padding: '12px 20px', borderRadius: 10, background: disabled ? '#9ca3af' : 'var(--admin-red)', color: '#fff',
   fontWeight: 700, fontSize: 15, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
 } as const)
 
@@ -363,8 +363,8 @@ export function PDFWorkshop() {
         ]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-            border: tab === t.id ? '2px solid #C8322B' : '1px solid rgba(214,208,196,0.5)',
-            background: tab === t.id ? '#C8322B' : '#fff', color: tab === t.id ? '#fff' : '#374151',
+            border: tab === t.id ? '2px solid var(--admin-red)' : '1px solid rgba(214,208,196,0.5)',
+            background: tab === t.id ? 'var(--admin-red)' : '#fff', color: tab === t.id ? '#fff' : '#374151',
           }}>
             {t.icon} {t.label}
           </button>
@@ -378,7 +378,7 @@ export function PDFWorkshop() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
             <button onClick={() => setCategoryFilter(null)} style={{
               padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              background: !categoryFilter ? '#C8322B' : '#fff', color: !categoryFilter ? '#fff' : '#374151',
+              background: !categoryFilter ? 'var(--admin-red)' : '#fff', color: !categoryFilter ? '#fff' : '#374151',
               border: !categoryFilter ? 'none' : '1px solid rgba(214,208,196,0.5)',
             }}>All</button>
             {Object.entries(CATEGORY_META).map(([key, meta]) => (
@@ -407,7 +407,7 @@ export function PDFWorkshop() {
                   <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5, flex: 1 }}>{t.description}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                     <span style={{ fontSize: 12, color: '#9ca3af' }}>{t.pageEstimate[0]}-{t.pageEstimate[1]} pages</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#C8322B' }}>${t.suggestedPrice}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--admin-red)' }}>${t.suggestedPrice}</span>
                   </div>
                 </button>
               )
@@ -427,13 +427,13 @@ export function PDFWorkshop() {
               <h3 style={{ fontSize: 20, fontWeight: 700 }}>{selectedTemplate.icon} {selectedTemplate.name}</h3>
               <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{selectedTemplate.description}</p>
             </div>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#C8322B' }}>${selectedTemplate.suggestedPrice}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--admin-red)' }}>${selectedTemplate.suggestedPrice}</span>
           </div>
 
           {/* Dynamic inputs */}
           {selectedTemplate.inputs.map(input => (
             <div key={input.key} style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>{input.label} {input.required && <span style={{ color: '#C8322B' }}>*</span>}</label>
+              <label style={labelStyle}>{input.label} {input.required && <span style={{ color: 'var(--admin-red)' }}>*</span>}</label>
               {input.type === 'select' && input.options ? (
                 <select
                   value={userInputs[input.key] || ''}
@@ -481,7 +481,7 @@ export function PDFWorkshop() {
           </div>
 
           {/* ─── Cover Design (Canva) ────────────────────────────────────── */}
-          <div style={{ marginBottom: 16, padding: 16, background: '#FAF8F4', borderRadius: 8, border: '1px solid #D6D0C4' }}>
+          <div style={{ marginBottom: 16, padding: 16, background: 'var(--admin-bg)', borderRadius: 8, border: '1px solid var(--admin-border)' }}>
             <label style={{ ...labelStyle, fontSize: 15, marginBottom: 12 }}>Cover Design</label>
 
             {/* Current cover preview */}
@@ -492,8 +492,8 @@ export function PDFWorkshop() {
                   <img src={coverUrl} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#2D5A3D' }}>Cover set</div>
-                  <button onClick={() => setCoverUrl('')} style={{ fontSize: 11, color: '#C8322B', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 2 }}>Remove</button>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--admin-green)' }}>Cover set</div>
+                  <button onClick={() => setCoverUrl('')} style={{ fontSize: 11, color: 'var(--admin-red)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 2 }}>Remove</button>
                 </div>
               </div>
             )}
@@ -502,7 +502,7 @@ export function PDFWorkshop() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
               <label style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                padding: '10px 12px', background: '#C8322B', color: '#fff', borderRadius: 6,
+                padding: '10px 12px', background: 'var(--admin-red)', color: '#fff', borderRadius: 6,
                 cursor: 'pointer', fontSize: 13, fontWeight: 600,
               }}>
                 {uploadingCover ? 'Uploading...' : '📱 Upload from Canva'}
@@ -558,7 +558,7 @@ export function PDFWorkshop() {
                       onClick={() => { setCoverUrl(sc.url); setSuccess('Cover selected!') }}
                       style={{
                         width: 56, height: 75, borderRadius: 4, overflow: 'hidden', cursor: 'pointer',
-                        border: coverUrl === sc.url ? '2px solid #C8322B' : '1px solid #ddd',
+                        border: coverUrl === sc.url ? '2px solid var(--admin-red)' : '1px solid #ddd',
                         background: '#fff', padding: 0, flexShrink: 0,
                       }}
                     >
@@ -599,8 +599,8 @@ export function PDFWorkshop() {
             {['luxury', 'budget', 'family', 'adventure', 'honeymoon'].map(s => (
               <button key={s} onClick={() => setArticleStyle(s)} style={{
                 padding: '10px 16px', borderRadius: 10, fontSize: 14, cursor: 'pointer',
-                border: articleStyle === s ? '2px solid #C8322B' : '1px solid #e5e7eb',
-                background: articleStyle === s ? '#C8322B10' : '#fff', fontWeight: articleStyle === s ? 700 : 400,
+                border: articleStyle === s ? '2px solid var(--admin-red)' : '1px solid #e5e7eb',
+                background: articleStyle === s ? 'color-mix(in srgb, var(--admin-red) 6%, transparent)' : '#fff', fontWeight: articleStyle === s ? 700 : 400,
               }}>
                 {s === 'luxury' ? '✦' : s === 'budget' ? '💰' : s === 'family' ? '👨‍👩‍👧‍👦' : s === 'adventure' ? '🏔️' : '💕'} {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
@@ -643,17 +643,17 @@ export function PDFWorkshop() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
                         <button onClick={() => handlePreview(guide.id)} title="Preview" style={{ padding: '7px 10px', borderRadius: 8, background: '#f3f4f6', border: '1px solid #e5e7eb', cursor: 'pointer', fontSize: 13 }}>👁</button>
-                        <button onClick={() => { setActiveGuideId(isEditing ? null : guide.id); setEditMessages(isEditing ? [] : [{ role: 'assistant', text: 'Ready for edits. Describe what you want to change.', ts: Date.now() }]) }} title="Edit with AI" style={{ padding: '7px 10px', borderRadius: 8, background: isEditing ? '#C8322B' : '#f3f4f6', color: isEditing ? '#fff' : '#374151', border: isEditing ? 'none' : '1px solid #e5e7eb', cursor: 'pointer', fontSize: 13 }}>✏️</button>
-                        <button onClick={() => handleDownload(guide.id)} disabled={downloading === guide.id} title="Download" style={{ padding: '7px 12px', borderRadius: 8, background: '#C8322B', color: '#fff', border: 'none', cursor: downloading === guide.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                        <button onClick={() => { setActiveGuideId(isEditing ? null : guide.id); setEditMessages(isEditing ? [] : [{ role: 'assistant', text: 'Ready for edits. Describe what you want to change.', ts: Date.now() }]) }} title="Edit with AI" style={{ padding: '7px 10px', borderRadius: 8, background: isEditing ? 'var(--admin-red)' : '#f3f4f6', color: isEditing ? '#fff' : '#374151', border: isEditing ? 'none' : '1px solid #e5e7eb', cursor: 'pointer', fontSize: 13 }}>✏️</button>
+                        <button onClick={() => handleDownload(guide.id)} disabled={downloading === guide.id} title="Download" style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--admin-red)', color: '#fff', border: 'none', cursor: downloading === guide.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
                           {downloading === guide.id ? '...' : '⬇'}
                         </button>
                         {guide.status === 'generated' && (
-                          <button onClick={() => handleRegenerate(guide.id)} disabled={regenerating === guide.id} title="Regenerate content with AI" style={{ padding: '7px 12px', borderRadius: 8, background: regenerating === guide.id ? '#9ca3af' : '#C49A2A', color: '#fff', border: 'none', cursor: regenerating === guide.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                          <button onClick={() => handleRegenerate(guide.id)} disabled={regenerating === guide.id} title="Regenerate content with AI" style={{ padding: '7px 12px', borderRadius: 8, background: regenerating === guide.id ? '#9ca3af' : 'var(--admin-gold)', color: '#fff', border: 'none', cursor: regenerating === guide.id ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
                             {regenerating === guide.id ? 'Regenerating...' : 'Regenerate'}
                           </button>
                         )}
                         {guide.status !== 'published' && (
-                          <button onClick={() => { setPublishGuideId(guide.id); setPublishPrice(String(guide.price || '')) }} title="Publish" style={{ padding: '7px 12px', borderRadius: 8, background: '#2D5A3D', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Publish</button>
+                          <button onClick={() => { setPublishGuideId(guide.id); setPublishPrice(String(guide.price || '')) }} title="Publish" style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--admin-green)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Publish</button>
                         )}
                         <button onClick={() => handleDelete(guide.id)} title="Delete" style={{ padding: '7px 10px', borderRadius: 8, background: '#fff', color: '#dc2626', border: '1px solid #fecaca', cursor: 'pointer', fontSize: 13 }}>🗑</button>
                       </div>
@@ -669,7 +669,7 @@ export function PDFWorkshop() {
                           {editMessages.map((msg, i) => (
                             <div key={i} style={{
                               marginBottom: 8, padding: '8px 12px', borderRadius: 10, fontSize: 13, lineHeight: 1.5,
-                              background: msg.role === 'user' ? '#C8322B10' : '#f3f4f6',
+                              background: msg.role === 'user' ? 'color-mix(in srgb, var(--admin-red) 6%, transparent)' : '#f3f4f6',
                               marginLeft: msg.role === 'user' ? 40 : 0, marginRight: msg.role === 'assistant' ? 40 : 0,
                             }}>
                               {msg.text}

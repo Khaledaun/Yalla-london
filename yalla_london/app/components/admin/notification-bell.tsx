@@ -54,22 +54,22 @@ function severityStyles(severity: AdminNotification['severity']): {
   switch (severity) {
     case 'critical':
       return {
-        border: 'border-l-[#C8322B]',
-        icon: <AlertCircle size={14} className="text-[#C8322B] flex-shrink-0" />,
-        badge: 'bg-[#C8322B]/10 text-[#C8322B]',
+        border: 'border-l-[var(--admin-red)]',
+        icon: <AlertCircle size={14} className="text-[var(--admin-red)] flex-shrink-0" />,
+        badge: 'bg-[var(--admin-red)]/10 text-[var(--admin-red)]',
       }
     case 'warning':
       return {
-        border: 'border-l-[#C49A2A]',
-        icon: <AlertTriangle size={14} className="text-[#C49A2A] flex-shrink-0" />,
-        badge: 'bg-[#C49A2A]/10 text-[#C49A2A]',
+        border: 'border-l-[var(--admin-gold)]',
+        icon: <AlertTriangle size={14} className="text-[var(--admin-gold)] flex-shrink-0" />,
+        badge: 'bg-[var(--admin-gold)]/10 text-[var(--admin-gold)]',
       }
     case 'info':
     default:
       return {
-        border: 'border-l-[#3B7EA1]',
-        icon: <Info size={14} className="text-[#3B7EA1] flex-shrink-0" />,
-        badge: 'bg-[#3B7EA1]/10 text-[#3B7EA1]',
+        border: 'border-l-[var(--admin-blue)]',
+        icon: <Info size={14} className="text-[var(--admin-blue)] flex-shrink-0" />,
+        badge: 'bg-[var(--admin-blue)]/10 text-[var(--admin-blue)]',
       }
   }
 }
@@ -204,7 +204,7 @@ export function NotificationBell() {
       >
         <Bell size={16} className="text-zh-cream-muted" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-[#C8322B] text-white text-[10px] font-bold px-1 shadow-sm">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-[var(--admin-red)] text-white text-[10px] font-bold px-1 shadow-sm">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -229,7 +229,7 @@ export function NotificationBell() {
                   Notifications
                 </h2>
                 {unreadCount > 0 && (
-                  <span className="flex items-center justify-center min-w-[20px] h-[20px] rounded-full bg-[#C8322B] text-white text-[10px] font-bold px-1.5">
+                  <span className="flex items-center justify-center min-w-[20px] h-[20px] rounded-full bg-[var(--admin-red)] text-white text-[10px] font-bold px-1.5">
                     {unreadCount}
                   </span>
                 )}
@@ -407,7 +407,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     >
       {/* Unread dot */}
       {!notification.read && (
-        <div className="absolute top-3 left-1 w-1.5 h-1.5 rounded-full bg-[#C8322B]" />
+        <div className="absolute top-3 left-1 w-1.5 h-1.5 rounded-full bg-[var(--admin-red)]" />
       )}
 
       {/* Type icon */}

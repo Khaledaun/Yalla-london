@@ -22,7 +22,7 @@
 | 3A | Public SEO Audit Tool (`/tools/seo-audit`) | P1 | DONE |
 | 8 | Notification System (API + bell icon) | P1 | DONE |
 | 5A | Kaspo B2B Admin Section | P2 | DONE |
-| 1A+ | CSS variable migration (remaining hardcoded values) | P2 | TODO |
+| 1A+ | CSS variable migration (remaining hardcoded values) | P2 | PARTIAL (core components done) |
 | 7B | Replace direct sessionStorage calls | P2 | TODO |
 | 2B | Affiliate HQ Revenue Attribution Table | P3 | DONE |
 | 2C | Affiliate HQ Link Health Monitor | P3 | DONE |
@@ -262,3 +262,13 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
   - SiteSettings for content access persistence
   - Protected with `requireAdmin`
 - Added "Kaspo B2B" link to sidebar navigation in `premium-admin-nav.tsx` under Commerce section
+
+### Phase 1A+ — CSS Variable Migration: Core Components (March 31, 2026)
+- Migrated 5 highest-leverage shared component files (propagate CSS vars to all admin consumers):
+  - `admin-ui.tsx` — 22 stone-class replacements + AdminProgressBar default color `#C8322B` → `var(--admin-red)`
+  - `CommandCenter.tsx` — all hardcoded hex/stone classes → CSS variables
+  - `RichArticleList.tsx` — all hardcoded hex/stone classes → CSS variables
+  - `notification-bell.tsx` — all hardcoded hex/stone classes → CSS variables
+  - `pdf-workshop.tsx` — 18 replacements + Cover Design section `#FAF8F4`/`#D6D0C4` → `var(--admin-bg)`/`var(--admin-border)`
+- Mapping applied: `#C8322B` → `var(--admin-red)`, `#2D5A3D` → `var(--admin-green)`, `#C49A2A` → `var(--admin-gold)`, `#3B7EA1` → `var(--admin-blue)`, `#FAF8F4` → `var(--admin-bg)`, `#D6D0C4` → `var(--admin-border)`, `text-stone-700` → `text-[var(--admin-text)]`, `text-stone-500/600` → `text-[var(--admin-text-muted)]`, `border-stone-200` → `border-[var(--admin-border)]`
+- Remaining: ~1,526 occurrences across 91 admin page files — tracked for incremental migration

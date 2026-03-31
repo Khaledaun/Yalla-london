@@ -75,18 +75,18 @@ export function AdminPageHeader({
         {backHref && (
           <Link
             href={backHref}
-            className="mt-0.5 p-2 -ml-2 rounded-lg hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-700 flex-shrink-0"
+            className="mt-0.5 p-2 -ml-2 rounded-lg hover:bg-[var(--admin-bg)] transition-colors text-stone-400 hover:text-[var(--admin-text)] flex-shrink-0"
             aria-label="Go back"
           >
             <ChevronLeft size={18} />
           </Link>
         )}
         <div className="min-w-0">
-          <h1 className="font-[var(--font-display)] font-extrabold text-xl text-stone-900 tracking-tight leading-tight truncate">
+          <h1 className="font-[var(--font-display)] font-extrabold text-xl text-[var(--admin-text)] tracking-tight leading-tight truncate">
             {title}
           </h1>
           {subtitle && (
-            <p className="font-[var(--font-system)] text-[11px] text-stone-500 mt-1 uppercase tracking-[0.8px]">
+            <p className="font-[var(--font-system)] text-[11px] text-[var(--admin-text-muted)] mt-1 uppercase tracking-[0.8px]">
               {subtitle}
             </p>
           )}
@@ -101,7 +101,7 @@ export function AdminPageHeader({
 
 export function AdminSectionLabel({ children }: { children?: React.ReactNode }) {
   return (
-    <p className="font-[var(--font-system)] text-[11px] font-semibold uppercase tracking-[1.2px] text-stone-500 mb-3">
+    <p className="font-[var(--font-system)] text-[11px] font-semibold uppercase tracking-[1.2px] text-[var(--admin-text-muted)] mb-3">
       {children}
     </p>
   )
@@ -120,7 +120,7 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; bg: string; te
   indexed: { label: 'Indexed', dot: 'bg-[var(--admin-green)]', bg: 'bg-[var(--status-green-bg)]', text: 'text-[var(--admin-green)]' },
   pending: { label: 'Pending', dot: 'bg-[var(--admin-gold)]', bg: 'bg-[var(--status-gold-bg)]', text: 'text-[var(--status-gold-text)]' },
   active: { label: 'Active', dot: 'bg-[var(--admin-green)]', bg: 'bg-[var(--status-green-bg)]', text: 'text-[var(--admin-green)]' },
-  inactive: { label: 'Inactive', dot: 'bg-stone-400', bg: 'bg-stone-100', text: 'text-stone-600' },
+  inactive: { label: 'Inactive', dot: 'bg-stone-400', bg: 'bg-[var(--admin-bg)]', text: 'text-[var(--admin-text-muted)]' },
   error: { label: 'Error', dot: 'bg-[var(--admin-red)]', bg: 'bg-[var(--status-red-bg)]', text: 'text-[var(--status-red-text)]' },
   warning: { label: 'Warning', dot: 'bg-[var(--admin-gold)]', bg: 'bg-[var(--status-gold-bg)]', text: 'text-[var(--status-gold-text)]' },
   rejected: { label: 'Rejected', dot: 'bg-[var(--admin-red)]', bg: 'bg-[var(--status-red-bg)]', text: 'text-[var(--status-red-text)]' },
@@ -138,8 +138,8 @@ export function AdminStatusBadge({
   const s = STATUS_CONFIG[status] ?? {
     label: status,
     dot: 'bg-stone-400',
-    bg: 'bg-stone-100',
-    text: 'text-stone-600',
+    bg: 'bg-[var(--admin-bg)]',
+    text: 'text-[var(--admin-text-muted)]',
   }
   return (
     <span
@@ -191,7 +191,7 @@ export function AdminKPICard({
           {trend.positive ? '\u2191' : '\u2193'} {Math.abs(trend.value)}%
         </div>
       )}
-      <div className="font-[var(--font-system)] text-[11px] font-semibold text-stone-500 uppercase tracking-[0.8px] mt-2">
+      <div className="font-[var(--font-system)] text-[11px] font-semibold text-[var(--admin-text-muted)] uppercase tracking-[0.8px] mt-2">
         {label}
       </div>
     </div>
@@ -204,10 +204,10 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'ghost'
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--admin-red)] text-[var(--admin-bg)] border-transparent hover:bg-[var(--admin-red-hover)] shadow-sm',
-  secondary: 'bg-[var(--admin-card-bg)] text-stone-800 border-[var(--admin-border-hover)] hover:bg-stone-50 shadow-[var(--admin-shadow-sm)]',
+  secondary: 'bg-[var(--admin-card-bg)] text-[var(--admin-text)] border-[var(--admin-border-hover)] hover:bg-[var(--admin-bg)] shadow-[var(--admin-shadow-sm)]',
   danger: 'bg-[var(--admin-red)] text-[var(--admin-bg)] border-transparent hover:bg-[var(--admin-red-hover)] shadow-sm',
   success: 'bg-[var(--admin-green)] text-[var(--admin-bg)] border-transparent hover:bg-[var(--admin-green-hover)] shadow-sm',
-  ghost: 'bg-transparent text-stone-600 border-transparent hover:bg-stone-100',
+  ghost: 'bg-transparent text-[var(--admin-text-muted)] border-transparent hover:bg-[var(--admin-bg)]',
 }
 
 const SIZE_CLASSES: Record<string, string> = {
@@ -266,8 +266,8 @@ export function AdminLoadingState({ label = 'Loading\u2026' }: { label?: string 
   return (
     <div className="flex items-center justify-center py-16">
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-stone-200 border-t-[var(--admin-red)] rounded-full animate-spin mx-auto mb-3" />
-        <p className="font-[var(--font-system)] text-[11px] text-stone-500 uppercase tracking-[1.2px]">
+        <div className="w-8 h-8 border-2 border-[var(--admin-border)] border-t-[var(--admin-red)] rounded-full animate-spin mx-auto mb-3" />
+        <p className="font-[var(--font-system)] text-[11px] text-[var(--admin-text-muted)] uppercase tracking-[1.2px]">
           {label}
         </p>
       </div>
@@ -290,14 +290,14 @@ export function AdminEmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-stone-100 border border-stone-200">
+      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-[var(--admin-bg)] border border-[var(--admin-border)]">
         <Icon size={24} color="#78716C" />
       </div>
-      <p className="font-[var(--font-display)] font-bold text-base text-stone-700">
+      <p className="font-[var(--font-display)] font-bold text-base text-[var(--admin-text)]">
         {title}
       </p>
       {description && (
-        <p className="font-[var(--font-system)] text-[12px] text-stone-500 mt-2 max-w-[300px] leading-relaxed">
+        <p className="font-[var(--font-system)] text-[12px] text-[var(--admin-text-muted)] mt-2 max-w-[300px] leading-relaxed">
           {description}
         </p>
       )}
@@ -348,7 +348,7 @@ export function AdminAlertBanner({
           {message}
         </p>
         {detail && (
-          <p className="font-[var(--font-system)] text-[11px] text-stone-500 mt-1 leading-relaxed">
+          <p className="font-[var(--font-system)] text-[11px] text-[var(--admin-text-muted)] mt-1 leading-relaxed">
             {detail}
           </p>
         )}
@@ -357,7 +357,7 @@ export function AdminAlertBanner({
       {onDismiss && (
         <button
           onClick={onDismiss}
-          className="p-1.5 -mr-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors flex-shrink-0"
+          className="p-1.5 -mr-1 rounded-lg text-stone-400 hover:text-[var(--admin-text-muted)] hover:bg-[var(--admin-bg)] transition-colors flex-shrink-0"
           aria-label="Dismiss"
         >
           <X size={16} />
@@ -391,7 +391,7 @@ export function AdminTabs({
             whitespace-nowrap transition-all min-h-[36px]
             ${activeTab === tab.id
               ? 'bg-[var(--status-red-bg)] text-[var(--admin-red)] font-semibold'
-              : 'text-stone-500 hover:text-stone-700 hover:bg-stone-100'
+              : 'text-[var(--admin-text-muted)] hover:text-[var(--admin-text)] hover:bg-[var(--admin-bg)]'
             }
           `}
         >
@@ -474,12 +474,12 @@ export function ConfirmModal({
             <AlertTriangle size={18} color={colors.icon} />
           </div>
           <div>
-            <h3 id="confirm-title" className="text-[15px] font-semibold text-stone-800">{title}</h3>
-            <p id="confirm-desc" className="text-[13px] text-stone-500 mt-1 leading-relaxed">{message}</p>
+            <h3 id="confirm-title" className="text-[15px] font-semibold text-[var(--admin-text)]">{title}</h3>
+            <p id="confirm-desc" className="text-[13px] text-[var(--admin-text-muted)] mt-1 leading-relaxed">{message}</p>
           </div>
         </div>
         {details && (
-          <div className="mt-3 p-3 rounded-lg bg-stone-50 border border-stone-200 text-[12px] text-stone-600 leading-relaxed max-h-32 overflow-y-auto">
+          <div className="mt-3 p-3 rounded-lg bg-[var(--admin-bg)] border border-[var(--admin-border)] text-[12px] text-[var(--admin-text-muted)] leading-relaxed max-h-32 overflow-y-auto">
             {details}
           </div>
         )}
@@ -487,7 +487,7 @@ export function ConfirmModal({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 rounded-lg text-[13px] font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+            className="px-4 py-2 rounded-lg text-[13px] font-medium text-[var(--admin-text-muted)] bg-[var(--admin-bg)] hover:bg-[var(--admin-border)] transition-colors"
           >
             {cancelLabel}
           </button>
@@ -634,7 +634,7 @@ export function AdminSkeletonLoader({
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-4 rounded-md bg-stone-200 animate-pulse"
+          className="h-4 rounded-md bg-[var(--admin-border)] animate-pulse"
           style={{ width: i === lines - 1 ? '60%' : '100%' }}
         />
       ))}
@@ -650,7 +650,7 @@ export function AdminProgressBar({
   value,
   max = 100,
   label,
-  color = '#C8322B',
+  color = 'var(--admin-red)',
   size = 'sm',
 }: {
   value?: number
@@ -667,11 +667,11 @@ export function AdminProgressBar({
     <div className="font-[var(--font-system)]">
       {label && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-[11px] text-stone-500">{label}</span>
-          {pct !== undefined && <span className="text-[11px] font-medium text-stone-600">{Math.round(pct)}%</span>}
+          <span className="text-[11px] text-[var(--admin-text-muted)]">{label}</span>
+          {pct !== undefined && <span className="text-[11px] font-medium text-[var(--admin-text-muted)]">{Math.round(pct)}%</span>}
         </div>
       )}
-      <div className={`w-full ${h} rounded-full bg-stone-200 overflow-hidden`}>
+      <div className={`w-full ${h} rounded-full bg-[var(--admin-border)] overflow-hidden`}>
         {pct !== undefined ? (
           <div
             className={`${h} rounded-full transition-all duration-500`}

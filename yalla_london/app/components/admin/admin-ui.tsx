@@ -445,7 +445,7 @@ export function ConfirmModal({
   }, [open])
 
   React.useEffect(() => {
-    if (!open) return
+    if (!open) return () => {}
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
     }
@@ -538,7 +538,7 @@ export function AdminToast({
   [key: string]: unknown
 }) {
   React.useEffect(() => {
-    if (duration <= 0) return
+    if (duration <= 0) return () => {}
     const t = setTimeout(onDismiss, duration)
     return () => clearTimeout(t)
   }, [duration, onDismiss])

@@ -23,7 +23,7 @@
 | 8 | Notification System (API + bell icon) | P1 | DONE |
 | 5A | Kaspo B2B Admin Section | P2 | DONE |
 | 1A+ | CSS variable migration (remaining hardcoded values) | P2 | PARTIAL (core components done) |
-| 7B | Replace direct sessionStorage calls | P2 | TODO |
+| 7B | Replace direct sessionStorage calls | P2 | DONE (already migrated) |
 | 2B | Affiliate HQ Revenue Attribution Table | P3 | DONE |
 | 2C | Affiliate HQ Link Health Monitor | P3 | DONE |
 | 2D | Affiliate HQ Rollback Mechanism | P3 | DONE |
@@ -272,3 +272,9 @@ Types: cron failure, bulk op error, GSC alert, Kaspo signup, affiliate health.
   - `pdf-workshop.tsx` — 18 replacements + Cover Design section `#FAF8F4`/`#D6D0C4` → `var(--admin-bg)`/`var(--admin-border)`
 - Mapping applied: `#C8322B` → `var(--admin-red)`, `#2D5A3D` → `var(--admin-green)`, `#C49A2A` → `var(--admin-gold)`, `#3B7EA1` → `var(--admin-blue)`, `#FAF8F4` → `var(--admin-bg)`, `#D6D0C4` → `var(--admin-border)`, `text-stone-700` → `text-[var(--admin-text)]`, `text-stone-500/600` → `text-[var(--admin-text-muted)]`, `border-stone-200` → `border-[var(--admin-border)]`
 - Remaining: ~1,526 occurrences across 91 admin page files — tracked for incremental migration
+
+### Phase 7B — Replace Direct sessionStorage/localStorage Calls (March 31, 2026)
+- Audit confirmed: ALL direct `sessionStorage`/`localStorage` calls already routed through `lib/safe-storage.ts`
+- 8 consumer files verified using `safeLocal*`/`safeSession*` imports: premium-admin-nav.tsx, theme/page.tsx, global-search.tsx, cookie-consent-banner.tsx, language-provider.tsx, site-provider.tsx, exit-intent-popup.tsx, intelligence/page.tsx
+- Zero bare `localStorage.getItem/setItem/removeItem` or `sessionStorage.*` calls found outside safe-storage.ts
+- Phase was already completed by prior sessions — marked DONE

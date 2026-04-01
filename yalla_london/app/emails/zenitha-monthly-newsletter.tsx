@@ -58,7 +58,7 @@ interface Destination {
   name: string;
   url: string;
   imageUrl?: string;
-  excerpt: string;
+  excerpt?: string;
 }
 
 interface Deal {

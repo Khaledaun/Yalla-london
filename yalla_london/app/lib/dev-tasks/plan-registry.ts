@@ -1843,7 +1843,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "CRM pipeline setup in admin dashboard",
       description: "Verify CrmOpportunity 6-stage pipeline (new→qualifying→proposal→negotiation→won→lost) accessible via /admin/agent/crm-pipeline. Seed initial pipeline stages. Verify InteractionLog timeline works.",
       testType: "crm-pipeline-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-04-05", startDate: "2026-04-01", category: "config",
     },
     {

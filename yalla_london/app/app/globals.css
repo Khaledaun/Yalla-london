@@ -15,6 +15,37 @@
 
 /* Yalla London — Brand Kit v2 Theming System */
 :root {
+  /* ─── Zenitha Yachts Fallbacks ────────────────────────────────
+     These are overridden by the .zenitha-site class in zenitha-tokens.css.
+     Defined here under :root so components render correctly even before
+     the site-shell applies the scoped class (avoids invisible text / white-on-white). */
+  --z-navy:          #0A1628;
+  --z-midnight:      #1B2A4A;
+  --z-aegean:        #2E5A88;
+  --z-ocean:         #4A90B8;
+  --z-shallow:       #7CB8D4;
+  --z-gold:          #C9A96E;
+  --z-gold-dark:     #8B6914;
+  --z-champagne:     #E8D5B5;
+  --z-sand:          #F5EDE0;
+  --z-pearl:         #FAFAF7;
+  --z-white:         #FFFFFF;
+  --z-mediterranean: #0EA5A2;
+  --z-coral:         #E07A5F;
+  --z-storm:         #DC2626;
+  --z-seafoam:       #A7D8D0;
+  --z-bg:            #FAFAF7;
+  --z-fg:            #0A1628;
+  --z-border:        #E8D5B5;
+  --z-muted:         #6B7280;
+  --z-accent:        #C9A96E;
+  --z-surface:       #FFFFFF;
+  --z-surface-raised: #FAFAF7;
+  --z-surface-sunken: #F0EBE3;
+  --z-surface-overlay: rgba(10, 22, 40, 0.6);
+  --z-font-display:  'Playfair Display', Georgia, 'Times New Roman', serif;
+  --z-font-heading:  'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --z-font-body:     'Source Sans 3', 'Segoe UI', Tahoma, sans-serif;
   /* Primary palette — London Red & Gold */
   --color-primary: #C8322B;
   --color-secondary: #C49A2A;

@@ -175,6 +175,10 @@ interface ContentItem {
   metaDescriptionEn: string | null;
   tags: string[];
   topicTitle: string | null;
+  photoOrderQuery: string | null;
+  photoOrderStatus: string | null; // "pending" | "fulfilled" | "failed" | null
+  sourcePipeline?: string | null;
+  traceId?: string | null;
 }
 
 interface ContentMatrixData {
@@ -2457,6 +2461,12 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const [bulkActionLoading, setBulkActionLoading] = useState<string | null>(null);
   const [cronResponsePanel, setCronResponsePanel] = useState<{ label: string; data: Record<string, unknown> } | null>(null);
 
+  // ─── Photo Order state ────────────────────────────────────────────────────
+  const [photoOrderOpen, setPhotoOrderOpen] = useState<Record<string, boolean>>({});
+  const [photoOrderInput, setPhotoOrderInput] = useState<Record<string, string>>({});
+  const [photoOrderLoading, setPhotoOrderLoading] = useState<string | null>(null);
+  const [photoOrderResult, setPhotoOrderResult] = useState<Record<string, string>>({});
+
   const toggleSort = (col: typeof sortCol) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortCol(col); setSortDir("desc"); }
@@ -3327,6 +3337,90 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                       >
                                         Review & Fix
                                       </ActionButton>
+
+                                      {/* Photo Order */}
+                                      <div className="relative">
+                                        <button
+                                          onClick={() => setPhotoOrderOpen((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                                          className="px-2 py-1 text-xs rounded border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                                          title={item.photoOrderStatus === "pending" ? "Photo requested — awaiting fulfillment" : item.photoOrderStatus === "fulfilled" ? "Photo fulfilled" : "Order a specific photo from Unsplash"}
+                                        >
+                                          {item.photoOrderStatus === "pending" ? "📸 Pending" : item.photoOrderStatus === "fulfilled" ? "✅ Photo" : "📷 Photo"}
+                                        </button>
+                                        {photoOrderOpen[item.id] && (
+                                          <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-72">
+                                            <p className="text-xs font-medium text-gray-700 mb-1">Order a specific photo</p>
+                                            <p className="text-xs text-gray-500 mb-2">Describe the image (e.g. "luxury hotel london rooftop"). Auto-fix cron will fetch it.</p>
+                                            <input
+                                              type="text"
+                                              className="w-full text-xs border border-gray-300 rounded px-2 py-1 mb-2 focus:outline-none focus:border-blue-400"
+                                              placeholder="e.g. luxury hotel lobby london"
+                                              value={photoOrderInput[item.id] ?? item.photoOrderQuery ?? ""}
+                                              onChange={(e) => setPhotoOrderInput((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                              onKeyDown={(e) => e.stopPropagation()}
+                                            />
+                                            {photoOrderResult[item.id] && (
+                                              <p className="text-xs mb-2 text-gray-600">{photoOrderResult[item.id]}</p>
+                                            )}
+                                            <div className="flex gap-1">
+                                              <button
+                                                disabled={photoOrderLoading === `order-${item.id}` || !(photoOrderInput[item.id] ?? item.photoOrderQuery)}
+                                                onClick={async () => {
+                                                  const query = photoOrderInput[item.id]?.trim() || item.photoOrderQuery?.trim();
+                                                  if (!query) return;
+                                                  setPhotoOrderLoading(`order-${item.id}`);
+                                                  try {
+                                                    const r = await fetch("/api/admin/content-matrix", {
+                                                      method: "POST",
+                                                      headers: { "Content-Type": "application/json" },
+                                                      body: JSON.stringify({ action: "order_photo", blogPostId: item.id, query }),
+                                                    });
+                                                    const j = r.ok ? await r.json() : {};
+                                                    setPhotoOrderResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Queued — cron will fetch soon" : `❌ ${j.error ?? "Failed"}` }));
+                                                    fetchData();
+                                                  } catch { setPhotoOrderResult((prev) => ({ ...prev, [item.id]: "❌ Error" })); }
+                                                  finally { setPhotoOrderLoading(null); }
+                                                }}
+                                                className="flex-1 text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                              >
+                                                {photoOrderLoading === `order-${item.id}` ? "…" : "Queue Order"}
+                                              </button>
+                                              <button
+                                                disabled={photoOrderLoading === `seed-${item.id}` || !(photoOrderInput[item.id] ?? item.photoOrderQuery)}
+                                                onClick={async () => {
+                                                  const query = photoOrderInput[item.id]?.trim() || item.photoOrderQuery?.trim();
+                                                  if (!query) return;
+                                                  // First save the query, then seed immediately
+                                                  setPhotoOrderLoading(`seed-${item.id}`);
+                                                  try {
+                                                    await fetch("/api/admin/content-matrix", {
+                                                      method: "POST",
+                                                      headers: { "Content-Type": "application/json" },
+                                                      body: JSON.stringify({ action: "order_photo", blogPostId: item.id, query }),
+                                                    });
+                                                    const r = await fetch("/api/admin/photo-orders", {
+                                                      method: "PATCH",
+                                                      headers: { "Content-Type": "application/json" },
+                                                      body: JSON.stringify({ blogPostId: item.id }),
+                                                    });
+                                                    const j = r.ok ? await r.json() : {};
+                                                    setPhotoOrderResult((prev) => ({ ...prev, [item.id]: j.success ? `✅ Seeded by ${j.photographer ?? "Unsplash"}` : `❌ ${j.error ?? "Failed"}` }));
+                                                    fetchData();
+                                                  } catch { setPhotoOrderResult((prev) => ({ ...prev, [item.id]: "❌ Error" })); }
+                                                  finally { setPhotoOrderLoading(null); }
+                                                }}
+                                                className="flex-1 text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                              >
+                                                {photoOrderLoading === `seed-${item.id}` ? "…" : "Seed Now"}
+                                              </button>
+                                              <button
+                                                onClick={() => setPhotoOrderOpen((prev) => ({ ...prev, [item.id]: false }))}
+                                                className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                                              >✕</button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
                                     </>
                                   )}
                                 </div>

@@ -174,6 +174,21 @@ export async function GET(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // Graceful degradation when agent tables haven't been migrated yet
+    if (
+      message.includes("does not exist") ||
+      message.includes("P2010") ||
+      message.includes("P2021")
+    ) {
+      console.warn("[admin/agent] Agent platform tables missing — run Fix Database in admin. Returning empty status.");
+      return NextResponse.json({
+        ceo: { status: "pending", lastActivity: null, conversationsToday: 0, messagesHandled: 0, toolsUsed: [] },
+        cto: { status: "pending", lastRun: null, findings: 0, lastTaskType: null },
+        recentConversations: [],
+        pipeline: { totalOpportunities: 0, activeOpportunities: 0, totalPipelineValue: 0, stageBreakdown: {} },
+        _note: "SCHEMA_MIGRATION_REQUIRED",
+      });
+    }
     console.warn("[admin/agent] GET failed:", message);
     return NextResponse.json(
       { success: false, error: "Failed to get agent status" },

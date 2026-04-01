@@ -185,6 +185,9 @@ async function fireGA4ClickEvent(opts: {
   }
 }
 
+// Some partners POST to the click endpoint — delegate to GET handler
+export const POST = GET;
+
 function detectPartner(url: string): string {
   if (!url) return "unknown";
   const lower = url.toLowerCase();

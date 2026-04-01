@@ -26,6 +26,7 @@ interface Opportunity {
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
+  stage: string;
 }
 
 interface StageColumn {

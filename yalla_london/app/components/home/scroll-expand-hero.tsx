@@ -142,7 +142,7 @@ const ScrollExpandHero = ({
 
   const mediaWidth = 300 + scrollProgress * (isMobileState ? 650 : 1250);
   const mediaHeight = 400 + scrollProgress * (isMobileState ? 200 : 400);
-  const textTranslateX = scrollProgress * (isMobileState ? 180 : 150);
+  const textTranslateX = scrollProgress * (isMobileState ? 55 : 150);
 
   // Split title into words for animation
   const titleWords = title.split(' ');
@@ -289,7 +289,7 @@ const ScrollExpandHero = ({
               {/* Animated Title - Splits and moves apart */}
               <div className="flex items-center justify-center text-center gap-4 w-full relative z-10 flex-col mix-blend-normal">
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-yl-cream drop-shadow-lg"
+                  className="text-3xl sm:text-4xl md:text-6xl lg:text-8xl font-serif font-bold text-yl-cream drop-shadow-lg"
                   style={{
                     transform: `translateX(-${textTranslateX}vw)`,
                     textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
@@ -298,7 +298,7 @@ const ScrollExpandHero = ({
                   {firstHalf}
                 </motion.h1>
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-yl-cream drop-shadow-lg"
+                  className="text-3xl sm:text-4xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-yl-cream drop-shadow-lg"
                   style={{
                     transform: `translateX(${textTranslateX}vw)`,
                     textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'

@@ -29,7 +29,31 @@ export function Stay22Map({
   className = "",
 }: Stay22MapProps) {
   const aid = process.env.NEXT_PUBLIC_STAY22_AID;
-  if (!aid) return null;
+  if (!aid) {
+    // Show a fallback card instead of rendering nothing — env var not yet configured
+    const dest = SITE_DESTINATIONS[siteId];
+    const mapLat = lat ?? dest?.lat;
+    const mapLng = lng ?? dest?.lng;
+    const searchUrl = mapLat && mapLng
+      ? `https://www.booking.com/searchresults.html?latitude=${mapLat}&longitude=${mapLng}&radius=2&radiusunit=km`
+      : `https://www.booking.com`;
+    return (
+      <div className={`rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-3 p-6 text-center ${className}`} style={{ minHeight: height }}>
+        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+        <p className="text-sm font-medium text-gray-600">Hotels near this location</p>
+        <a
+          href={searchUrl}
+          target="_blank"
+          rel="noopener sponsored"
+          className="text-sm text-blue-600 underline hover:text-blue-800"
+        >
+          Search available hotels →
+        </a>
+      </div>
+    );
+  }
 
   // Use article coordinates or fall back to site destination
   const dest = SITE_DESTINATIONS[siteId];

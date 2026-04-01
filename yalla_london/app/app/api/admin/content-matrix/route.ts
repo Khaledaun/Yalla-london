@@ -75,6 +75,8 @@ interface ContentItem {
   topicTitle: string | null;
   sourcePipeline: string | null;
   traceId: string | null;
+  photoOrderQuery: string | null;
+  photoOrderStatus: string | null;
 }
 
 interface ContentMatrixSummary {
@@ -404,6 +406,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             topicTitle: draft.topic_title ?? null,
             sourcePipeline: null,
             traceId: (draft as Record<string, unknown>).trace_id as string ?? null,
+            photoOrderQuery: null,
+            photoOrderStatus: null,
           });
         }
       } catch (err) {

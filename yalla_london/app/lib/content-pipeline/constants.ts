@@ -55,7 +55,11 @@ export const MIN_SECTION_BUDGET_MS = 12_000;
 // Max budget is 53s + overhead ≈ 90s.
 export const SELECTOR_STALE_MARKER_MS = 90_000; // 90 seconds
 // Dedup: skip if another content-selector started within this window.
-export const SELECTOR_DEDUP_WINDOW_MS = 60_000; // 60 seconds
+// INVARIANT: SELECTOR_DEDUP_WINDOW_MS must be GREATER than SELECTOR_STALE_MARKER_MS (90s).
+// If equal, the stale cleanup fires at the exact same boundary as the dedup guard,
+// meaning it can remove a still-valid running marker — causing the dedup to be skipped
+// on the very next invocation. Keep at least 30s gap.
+export const SELECTOR_DEDUP_WINDOW_MS = 120_000; // 120 seconds
 
 // ─── AI Provider Budget ─────────────────────────────────────────────────────
 // First provider gets this share of total budget. Remaining split among fallbacks.

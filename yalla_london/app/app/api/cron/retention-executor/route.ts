@@ -101,7 +101,31 @@ async function handler(request: NextRequest) {
     const { sendEmail } = await import("@/lib/email/sender");
     const { getSiteConfig: getSiteConf } = await import("@/config/sites");
 
-    const dueEmails = await getDueEmails(50);
+    let dueEmails: Awaited<ReturnType<typeof getDueEmails>>;
+    try {
+      dueEmails = await getDueEmails(50);
+    } catch (schemaErr: unknown) {
+      const msg = schemaErr instanceof Error ? schemaErr.message : String(schemaErr);
+      // Detect missing table (relation does not exist) — migration not yet applied
+      if (msg.includes("does not exist") || msg.includes("P2010") || msg.includes("P2021")) {
+        console.warn("[retention-executor] retention_progress table missing — run Fix Database in admin. Skipping.");
+        try {
+          const { logCronExecution } = await import("@/lib/cron-logger");
+          await logCronExecution("retention-executor", "completed", {
+            durationMs: Date.now() - startTime,
+            itemsProcessed: 0,
+            resultSummary: { message: "SCHEMA_MIGRATION_REQUIRED: retention_progress table missing" },
+          });
+        } catch (_logErr) { /* ignore */ }
+        return NextResponse.json({
+          success: true,
+          durationMs: Date.now() - startTime,
+          emailsSent: 0,
+          note: "SCHEMA_MIGRATION_REQUIRED",
+        });
+      }
+      throw schemaErr; // Re-throw unexpected errors
+    }
 
     for (const due of dueEmails) {
       if (Date.now() - startTime > BUDGET_MS - 30_000) break;

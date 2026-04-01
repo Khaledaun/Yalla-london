@@ -3466,6 +3466,186 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`,
   },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CEO + CTO AGENT PLATFORM MODELS (migration: 20260327_add_agent_platform_models)
+  // ════════════════════════════════════════════════════════════════════════
+
+  {
+    table: "conversations",
+    model: "Conversation",
+    sql: `CREATE TABLE IF NOT EXISTS "conversations" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "channel" TEXT NOT NULL,
+  "externalId" TEXT,
+  "contactName" TEXT,
+  "contactEmail" TEXT,
+  "contactPhone" TEXT,
+  "leadId" TEXT,
+  "subscriberId" TEXT,
+  "inquiryId" TEXT,
+  "opportunityId" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'open',
+  "summary" TEXT,
+  "sentiment" TEXT,
+  "tags" TEXT[] DEFAULT '{}',
+  "metadata" JSONB,
+  "lastMessageAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "conversations_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "messages",
+    model: "Message",
+    sql: `CREATE TABLE IF NOT EXISTS "messages" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "conversationId" TEXT NOT NULL,
+  "direction" TEXT NOT NULL,
+  "channel" TEXT NOT NULL,
+  "content" TEXT NOT NULL,
+  "contentType" TEXT NOT NULL DEFAULT 'text',
+  "mediaUrls" TEXT[] DEFAULT '{}',
+  "senderName" TEXT,
+  "agentId" TEXT,
+  "toolsUsed" TEXT[] DEFAULT '{}',
+  "confidence" DOUBLE PRECISION,
+  "approved" BOOLEAN NOT NULL DEFAULT true,
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "agent_tasks",
+    model: "AgentTask",
+    sql: `CREATE TABLE IF NOT EXISTS "agent_tasks" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "agentType" TEXT NOT NULL,
+  "taskType" TEXT NOT NULL,
+  "priority" TEXT NOT NULL DEFAULT 'medium',
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "description" TEXT NOT NULL,
+  "input" JSONB,
+  "output" JSONB,
+  "changes" TEXT[] DEFAULT '{}',
+  "testsRun" TEXT[] DEFAULT '{}',
+  "findings" TEXT[] DEFAULT '{}',
+  "followUps" TEXT[] DEFAULT '{}',
+  "errorMessage" TEXT,
+  "durationMs" INTEGER,
+  "siteId" TEXT,
+  "assignedTo" TEXT,
+  "dueAt" TIMESTAMP(3),
+  "conversationId" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "completedAt" TIMESTAMP(3),
+  CONSTRAINT "agent_tasks_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "crm_opportunities",
+    model: "CrmOpportunity",
+    sql: `CREATE TABLE IF NOT EXISTS "crm_opportunities" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "leadId" TEXT,
+  "inquiryId" TEXT,
+  "subscriberId" TEXT,
+  "contactName" TEXT NOT NULL,
+  "contactEmail" TEXT,
+  "contactPhone" TEXT,
+  "stage" TEXT NOT NULL DEFAULT 'new',
+  "value" DOUBLE PRECISION,
+  "currency" TEXT NOT NULL DEFAULT 'USD',
+  "source" TEXT,
+  "lostReason" TEXT,
+  "nextAction" TEXT,
+  "nextActionAt" TIMESTAMP(3),
+  "assignedTo" TEXT,
+  "tags" TEXT[] DEFAULT '{}',
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "closedAt" TIMESTAMP(3),
+  CONSTRAINT "crm_opportunities_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "interaction_logs",
+    model: "InteractionLog",
+    sql: `CREATE TABLE IF NOT EXISTS "interaction_logs" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "opportunityId" TEXT,
+  "conversationId" TEXT,
+  "leadId" TEXT,
+  "channel" TEXT NOT NULL,
+  "direction" TEXT NOT NULL,
+  "interactionType" TEXT NOT NULL,
+  "summary" TEXT NOT NULL,
+  "sentiment" TEXT,
+  "agentId" TEXT,
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "interaction_logs_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "retention_sequences",
+    model: "RetentionSequence",
+    sql: `CREATE TABLE IF NOT EXISTS "retention_sequences" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "triggerEvent" TEXT NOT NULL,
+  "steps" JSONB NOT NULL,
+  "active" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "retention_sequences_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "retention_progress",
+    model: "RetentionProgress",
+    sql: `CREATE TABLE IF NOT EXISTS "retention_progress" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "sequenceId" TEXT NOT NULL,
+  "subscriberId" TEXT NOT NULL,
+  "currentStep" INTEGER NOT NULL DEFAULT 0,
+  "status" TEXT NOT NULL DEFAULT 'active',
+  "lastSentAt" TIMESTAMP(3),
+  "nextSendAt" TIMESTAMP(3),
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "retention_progress_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  {
+    table: "finance_events",
+    model: "FinanceEvent",
+    sql: `CREATE TABLE IF NOT EXISTS "finance_events" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "source" TEXT NOT NULL,
+  "eventType" TEXT NOT NULL,
+  "externalId" TEXT,
+  "amount" DOUBLE PRECISION,
+  "currency" TEXT NOT NULL DEFAULT 'USD',
+  "contactEmail" TEXT,
+  "opportunityId" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "agentAction" TEXT,
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "processedAt" TIMESTAMP(3),
+  CONSTRAINT "finance_events_pkey" PRIMARY KEY ("id")
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -4099,6 +4279,41 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
   perplexity_schedules: [
     'CREATE INDEX IF NOT EXISTS "perplexity_schedules_enabled_idx" ON "perplexity_schedules"("enabled")',
     'CREATE INDEX IF NOT EXISTS "perplexity_schedules_nextRunAt_idx" ON "perplexity_schedules"("nextRunAt")',
+  ],
+  // CEO + CTO Agent Platform indexes (migration: 20260327_add_agent_platform_models)
+  conversations: [
+    'CREATE INDEX IF NOT EXISTS "conversations_siteId_status_idx" ON "conversations"("siteId", "status")',
+    'CREATE INDEX IF NOT EXISTS "conversations_externalId_channel_idx" ON "conversations"("externalId", "channel")',
+    'CREATE INDEX IF NOT EXISTS "conversations_leadId_idx" ON "conversations"("leadId")',
+    'CREATE INDEX IF NOT EXISTS "conversations_opportunityId_idx" ON "conversations"("opportunityId")',
+  ],
+  messages: [
+    'CREATE INDEX IF NOT EXISTS "messages_conversationId_createdAt_idx" ON "messages"("conversationId", "createdAt")',
+  ],
+  agent_tasks: [
+    'CREATE INDEX IF NOT EXISTS "agent_tasks_agentType_status_idx" ON "agent_tasks"("agentType", "status")',
+    'CREATE INDEX IF NOT EXISTS "agent_tasks_siteId_idx" ON "agent_tasks"("siteId")',
+    'CREATE INDEX IF NOT EXISTS "agent_tasks_dueAt_status_idx" ON "agent_tasks"("dueAt", "status")',
+  ],
+  crm_opportunities: [
+    'CREATE INDEX IF NOT EXISTS "crm_opportunities_siteId_stage_idx" ON "crm_opportunities"("siteId", "stage")',
+    'CREATE INDEX IF NOT EXISTS "crm_opportunities_nextActionAt_idx" ON "crm_opportunities"("nextActionAt")',
+    'CREATE INDEX IF NOT EXISTS "crm_opportunities_leadId_idx" ON "crm_opportunities"("leadId")',
+  ],
+  interaction_logs: [
+    'CREATE INDEX IF NOT EXISTS "interaction_logs_siteId_createdAt_idx" ON "interaction_logs"("siteId", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "interaction_logs_opportunityId_idx" ON "interaction_logs"("opportunityId")',
+    'CREATE INDEX IF NOT EXISTS "interaction_logs_leadId_idx" ON "interaction_logs"("leadId")',
+  ],
+  retention_sequences: [
+    'CREATE INDEX IF NOT EXISTS "retention_sequences_siteId_active_idx" ON "retention_sequences"("siteId", "active")',
+  ],
+  retention_progress: [
+    'CREATE INDEX IF NOT EXISTS "retention_progress_nextSendAt_status_idx" ON "retention_progress"("nextSendAt", "status")',
+  ],
+  finance_events: [
+    'CREATE INDEX IF NOT EXISTS "finance_events_siteId_eventType_idx" ON "finance_events"("siteId", "eventType")',
+    'CREATE INDEX IF NOT EXISTS "finance_events_externalId_idx" ON "finance_events"("externalId")',
   ],
 };
 

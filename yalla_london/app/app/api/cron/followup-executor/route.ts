@@ -65,16 +65,42 @@ async function handler(request: NextRequest) {
     // -----------------------------------------------------------------------
     // Step 1: Find due follow-up tasks
     // -----------------------------------------------------------------------
-    const dueTasks = await prisma.agentTask.findMany({
-      where: {
-        agentType: "ceo",
-        taskType: "follow_up",
-        status: "pending",
-        dueAt: { lte: new Date() },
-      },
-      orderBy: { dueAt: "asc" },
-      take: 10, // Reduced from 20 — each task can take 30s+, budget is 280s
-    });
+    let dueTasks: Awaited<ReturnType<typeof prisma.agentTask.findMany>>;
+    try {
+      dueTasks = await prisma.agentTask.findMany({
+        where: {
+          agentType: "ceo",
+          taskType: "follow_up",
+          status: "pending",
+          dueAt: { lte: new Date() },
+        },
+        orderBy: { dueAt: "asc" },
+        take: 10, // Reduced from 20 — each task can take 30s+, budget is 280s
+      });
+    } catch (schemaErr: unknown) {
+      const msg = schemaErr instanceof Error ? schemaErr.message : String(schemaErr);
+      // Detect missing table (relation does not exist) — migration not yet applied
+      if (msg.includes("does not exist") || msg.includes("P2010") || msg.includes("P2021")) {
+        console.warn("[followup-executor] agent_tasks table missing — run Fix Database in admin. Skipping.");
+        try {
+          const { logCronExecution } = await import("@/lib/cron-logger");
+          await logCronExecution("followup-executor", "completed", {
+            durationMs: Date.now() - startTime,
+            itemsProcessed: 0,
+            resultSummary: { message: "SCHEMA_MIGRATION_REQUIRED: agent_tasks table missing" },
+          });
+        } catch (_logErr) { /* ignore */ }
+        return NextResponse.json({
+          success: true,
+          durationMs: Date.now() - startTime,
+          processed: 0,
+          succeeded: 0,
+          failed: 0,
+          note: "SCHEMA_MIGRATION_REQUIRED",
+        });
+      }
+      throw schemaErr; // Re-throw unexpected errors
+    }
 
     if (dueTasks.length === 0) {
       // Log and return — no work to do

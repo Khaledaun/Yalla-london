@@ -22,7 +22,7 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
-import { validatePhaseTransition, SELECTOR_STALE_MARKER_MS, PROMOTING_REVERT_MS } from "@/lib/content-pipeline/constants";
+import { validatePhaseTransition, SELECTOR_STALE_MARKER_MS, SELECTOR_DEDUP_WINDOW_MS, PROMOTING_REVERT_MS } from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
@@ -99,18 +99,20 @@ export async function runContentSelector(
     // Write a "started" marker FIRST so concurrent runs can see it immediately.
     // Previous approach only checked for completed logs (written at END), allowing
     // two concurrent Vercel invocations to both pass the check.
+    // INVARIANT: dedup window (SELECTOR_DEDUP_WINDOW_MS = 120s) must be GREATER than
+    // stale cleanup threshold (SELECTOR_STALE_MARKER_MS = 90s). If they are equal,
+    // the cleanup can remove a still-valid running marker at the exact boundary,
+    // causing the dedup guard to miss a concurrent run.
     const recentRun = await prisma.cronJobLog.findFirst({
       where: {
         job_name: "content-selector",
         status: "started",
-        // Aligned with stale marker cleanup (90s) — previously 120s created a 30s
-        // gap where a stale marker was cleaned but a new run was still blocked.
-        started_at: { gte: new Date(Date.now() - SELECTOR_STALE_MARKER_MS) },
+        started_at: { gte: new Date(Date.now() - SELECTOR_DEDUP_WINDOW_MS) },
       },
       orderBy: { started_at: "desc" },
     });
     if (recentRun) {
-      console.log(`[content-selector] Another run started within 120s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
+      console.log(`[content-selector] Another run started within ${SELECTOR_DEDUP_WINDOW_MS / 1000}s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       await logCronExecution("content-selector", "completed", {
         durationMs: Date.now() - cronStart,

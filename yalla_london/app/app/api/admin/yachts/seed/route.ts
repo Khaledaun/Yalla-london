@@ -468,8 +468,7 @@ async function seedYachts() {
       continue
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { destinationSlug, ...yachtData } = yacht
+    const { destinationSlug: _destSlug, ...yachtData } = yacht
     await prisma.yacht.create({
       data: {
         ...yachtData,
@@ -684,8 +683,7 @@ async function seedItineraries() {
       continue
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { destinationSlug, ...itinData } = itin
+    const { destinationSlug: _destSlug2, ...itinData } = itin
     await prisma.charterItinerary.create({
       data: {
         ...itinData,

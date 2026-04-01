@@ -2156,7 +2156,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Build charter comparison tool",
       description: "Interactive comparison feature: select 2-3 yachts side-by-side (specs, pricing, availability, crew, amenities). Helps undecided clients self-serve before inquiry. Boosts session duration + conversion.",
       testType: "yacht-pages-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-06-10", startDate: "2026-05-25", category: "content",
       dependsOn: ["Z.1.1"],
     },

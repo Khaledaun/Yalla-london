@@ -274,7 +274,7 @@ export default function CharterPlannerPage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
 
   useEffect(() => {
-    if (step !== 5) return;
+    if (step !== 5) return undefined;
     let cancelled = false;
     setLoadingRecs(true);
 

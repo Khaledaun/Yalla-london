@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDescription } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import {
   Navigation,
@@ -303,12 +303,17 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
   const recommendedYachtTypes = parseJson<string[]>(itinerary.recommendedYachtTypes) || [];
 
   /* ── JSON-LD ── */
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Zenitha Yachts";
+  const itineraryUrl = `${baseUrl}/itineraries/${slug}`;
+
   const tripJsonLd = {
     "@context": "https://schema.org",
     "@type": "Trip",
     name: itinerary.title_en,
     description: itinerary.description_en || "",
-    url: `${baseUrl}/itineraries/${slug}`,
+    url: itineraryUrl,
+    mainEntityOfPage: { "@type": "WebPage", "@id": itineraryUrl },
     itinerary: {
       "@type": "ItemList",
       numberOfItems: stops.length,
@@ -319,6 +324,13 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
         description: stop.description || "",
       })),
     },
+    ...(itinerary.destination && {
+      touristDestination: {
+        "@type": "Place",
+        name: itinerary.destination.name,
+        url: `${baseUrl}/destinations/${itinerary.destination.slug}`,
+      },
+    }),
     ...(itinerary.heroImage && { image: itinerary.heroImage }),
     ...(itinerary.estimatedCost && {
       offers: {
@@ -327,6 +339,20 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
         priceCurrency: itinerary.currency,
       },
     }),
+    provider: {
+      "@type": "TravelAgency",
+      name: siteName,
+      url: baseUrl,
+    },
+  };
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "TravelAgency",
+    name: siteName,
+    url: baseUrl,
+    logo: `${baseUrl}/branding/zenitha-yachts/logo.svg`,
+    description: getSiteDescription(siteId),
   };
 
   return (
@@ -346,6 +372,10 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(tripJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
 
       <div className="min-h-screen" style={{ background: "var(--z-bg)" }}>

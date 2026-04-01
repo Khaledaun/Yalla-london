@@ -327,6 +327,35 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Fire-and-forget: enroll in charter inquiry drip sequence
+    import("@/lib/agents/crm/retention")
+      .then(async ({ startSequence }) => {
+        // Find or create subscriber for this email
+        const subscriberEmail = (email as string).toLowerCase().trim();
+        const subscriberName = `${(firstName as string).trim()} ${(lastName as string).trim()}`;
+
+        let subscriber = await prisma.subscriber.findFirst({
+          where: { email: subscriberEmail, siteId },
+        });
+
+        if (!subscriber) {
+          subscriber = await prisma.subscriber.create({
+            data: {
+              email: subscriberEmail,
+              name: subscriberName,
+              siteId,
+              status: "CONFIRMED",
+              source: "charter_inquiry",
+            },
+          });
+        }
+
+        await startSequence(siteId, subscriber.id, "charter_inquiry_created");
+      })
+      .catch((err) =>
+        console.warn("[Inquiry API] Retention sequence trigger failed:", err instanceof Error ? err.message : err),
+      );
+
     return NextResponse.json(
       {
         success: true,

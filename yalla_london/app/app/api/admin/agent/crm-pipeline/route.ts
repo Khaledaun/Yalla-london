@@ -26,6 +26,18 @@ export async function GET(request: NextRequest) {
     const stage = searchParams.get("stage");
     const assignedTo = searchParams.get("assignedTo");
 
+    // Timeline mode: return interactions for a specific opportunity
+    const opportunityId = searchParams.get("opportunityId");
+    const timeline = searchParams.get("timeline");
+    if (opportunityId && timeline === "true") {
+      const interactions = await prisma.interactionLog.findMany({
+        where: { opportunityId },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+      return NextResponse.json({ success: true, interactions });
+    }
+
     const where: Record<string, unknown> = { siteId };
     if (stage) where.stage = stage;
     if (assignedTo) where.assignedTo = assignedTo;
@@ -201,6 +213,115 @@ export async function POST(request: NextRequest) {
           data: { tags: (body.tags as string[]) || [] },
         });
         return NextResponse.json({ success: true, action: "tags_updated" });
+      }
+
+      case "seed_pipeline": {
+        const siteId = (body.siteId as string) || getDefaultSiteId();
+        // Check if already seeded
+        const existing = await prisma.crmOpportunity.count({ where: { siteId } });
+        if (existing > 0) {
+          return NextResponse.json({ success: true, created: 0, message: "Pipeline already has data" });
+        }
+
+        const SEED_OPPORTUNITIES = [
+          {
+            contactName: "Ahmed Al Rashid",
+            contactEmail: "ahmed.alrashid@example.com",
+            contactPhone: "+971501234567",
+            stage: "new",
+            value: 45000,
+            source: "web",
+            nextAction: "Send fleet brochure",
+            nextActionAt: new Date(Date.now() + 86400000),
+            tags: ["family", "summer"],
+          },
+          {
+            contactName: "Sarah Khalil",
+            contactEmail: "sarah.k@example.com",
+            contactPhone: "+966551234567",
+            stage: "qualifying",
+            value: 72000,
+            source: "whatsapp",
+            assignedTo: "ceo-agent",
+            nextAction: "Confirm dates and guest count",
+            nextActionAt: new Date(Date.now() + 172800000),
+            tags: ["luxury", "honeymoon"],
+          },
+          {
+            contactName: "James Mitchell",
+            contactEmail: "j.mitchell@corporate.com",
+            stage: "proposal",
+            value: 120000,
+            source: "email",
+            assignedTo: "khaled",
+            nextAction: "Follow up on proposal",
+            nextActionAt: new Date(Date.now() + 259200000),
+            tags: ["corporate", "large-group"],
+          },
+          {
+            contactName: "Fatima Al Maktoum",
+            contactEmail: "fatima.m@example.com",
+            contactPhone: "+971551234567",
+            stage: "negotiation",
+            value: 85000,
+            source: "referral",
+            assignedTo: "khaled",
+            nextAction: "Finalize itinerary and pricing",
+            tags: ["repeat-client", "mediterranean"],
+          },
+          {
+            contactName: "Oliver Chen",
+            contactEmail: "oliver.chen@example.com",
+            stage: "won",
+            value: 55000,
+            source: "web",
+            closedAt: new Date(Date.now() - 604800000),
+            tags: ["sailing"],
+          },
+          {
+            contactName: "Maria Santos",
+            contactEmail: "maria.s@example.com",
+            stage: "lost",
+            value: 38000,
+            source: "organic",
+            lostReason: "Chose competitor with lower price",
+            closedAt: new Date(Date.now() - 1209600000),
+            tags: ["budget-sensitive"],
+          },
+        ];
+
+        const created = await prisma.$transaction(
+          SEED_OPPORTUNITIES.map((opp) =>
+            prisma.crmOpportunity.create({
+              data: { siteId, currency: "USD", ...opp },
+            })
+          )
+        );
+
+        // Seed sample interactions for qualifying and proposal stage opps
+        const qualifyingOpp = created.find((o) => o.stage === "qualifying");
+        const proposalOpp = created.find((o) => o.stage === "proposal");
+
+        const interactionSeeds = [];
+        if (qualifyingOpp) {
+          interactionSeeds.push(
+            { siteId, opportunityId: qualifyingOpp.id, channel: "whatsapp", direction: "inbound", interactionType: "inquiry", summary: "Interested in a 7-day Mediterranean cruise for honeymoon in July. Budget around $70-80K. Prefers motor yacht with jacuzzi.", sentiment: "positive" },
+            { siteId, opportunityId: qualifyingOpp.id, channel: "whatsapp", direction: "outbound", interactionType: "follow_up", summary: "Sent 3 yacht options matching preferences: Azimut 80, Sunseeker 76, Princess V78. Awaiting response.", sentiment: "neutral", agentId: "ceo" },
+          );
+        }
+        if (proposalOpp) {
+          interactionSeeds.push(
+            { siteId, opportunityId: proposalOpp.id, channel: "email", direction: "inbound", interactionType: "inquiry", summary: "Corporate retreat for 15 executives. Need 2 yachts for 4-day Amalfi Coast trip in September.", sentiment: "neutral" },
+            { siteId, opportunityId: proposalOpp.id, channel: "email", direction: "outbound", interactionType: "follow_up", summary: "Sent detailed proposal with dual-yacht package: Ferretti 850 + Azimut 72. Includes catering, water sports, and port fees. Total: $120K.", sentiment: "positive", agentId: "ceo" },
+            { siteId, opportunityId: proposalOpp.id, channel: "email", direction: "inbound", interactionType: "feedback", summary: "Client reviewing proposal. Asked about cancellation policy and insurance options.", sentiment: "neutral" },
+          );
+        }
+
+        if (interactionSeeds.length > 0) {
+          await prisma.interactionLog.createMany({ data: interactionSeeds });
+        }
+
+        return NextResponse.json({ success: true, created: created.length });
       }
 
       default:

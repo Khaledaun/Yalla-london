@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       sendBookingConfirmation,
       sendContactConfirmation,
       sendNewsletterDigest,
+      sendZenithaMonthlyNewsletter,
       sendResendEmail,
       isResendConfigured,
     } = await import("@/lib/email/resend-service");
@@ -86,6 +87,22 @@ export async function POST(request: NextRequest) {
         );
         break;
 
+      case "zenitha-monthly":
+        result = await sendZenithaMonthlyNewsletter(
+          Array.isArray(to) ? to : [to],
+          {
+            featuredYachts: params.featuredYachts,
+            destinations: params.destinations,
+            deals: params.deals,
+            tips: params.tips,
+            monthLabel: params.monthLabel,
+            recipientName: params.recipientName,
+          },
+          params.locale || "en",
+          params.siteId || "zenitha-yachts-med"
+        );
+        break;
+
       case "raw":
         // Raw HTML send with optional idempotency key
         if (!params.subject || !params.html) {
@@ -108,7 +125,7 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json(
-          { success: false, error: `Unknown type: ${type}. Use: welcome, booking, contact, digest, raw` },
+          { success: false, error: `Unknown type: ${type}. Use: welcome, booking, contact, digest, zenitha-monthly, raw` },
           { status: 400 }
         );
     }

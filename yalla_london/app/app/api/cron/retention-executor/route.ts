@@ -288,6 +288,113 @@ function buildRetentionEmail(
         </p>
         <p style="color:#888;font-size:14px;margin-top:32px;">— The ${ctx.siteName} Team</p>
       </div>`,
+
+    // ── Charter Inquiry Drip Sequence (5 emails) ──────────────────
+    charter_thankyou: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h1 style="color:#0a1628;font-size:24px;">${greeting},</h1>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Thank you for your charter inquiry with ${ctx.siteName}. We've received your request and our charter specialists are reviewing it now.
+        </p>
+        <h2 style="color:#0a1628;font-size:18px;margin-top:24px;">What happens next:</h2>
+        <ol style="color:#333;font-size:16px;line-height:1.8;">
+          <li><strong>Within 24 hours</strong> — A dedicated charter advisor will reach out to discuss your preferences.</li>
+          <li><strong>Yacht shortlist</strong> — We'll prepare a curated selection of yachts matching your requirements.</li>
+          <li><strong>Tailored proposal</strong> — You'll receive a detailed itinerary and pricing for your chosen yacht.</li>
+        </ol>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          In the meantime, feel free to browse our <a href="https://zenithayachts.com/destinations" style="color:#c49a2a;">destination guides</a> for inspiration.
+        </p>
+        <p style="color:#888;font-size:14px;margin-top:32px;">— The ${ctx.siteName} Charter Team</p>
+      </div>`,
+
+    charter_destination_inspiration: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h1 style="color:#0a1628;font-size:24px;">${greeting},</h1>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          While we prepare your personalised yacht selection, here's some inspiration for your Mediterranean charter:
+        </p>
+        <div style="margin:20px 0;padding:16px;background:#f8f6f2;border-radius:8px;">
+          <h3 style="color:#0a1628;margin:0 0 8px;">🇬🇷 Greek Islands</h3>
+          <p style="color:#555;font-size:14px;margin:0;">Crystal-clear waters, ancient ruins, and world-class cuisine. The Cyclades and Ionian islands offer something for everyone.</p>
+        </div>
+        <div style="margin:20px 0;padding:16px;background:#f8f6f2;border-radius:8px;">
+          <h3 style="color:#0a1628;margin:0 0 8px;">🇭🇷 Croatian Coast</h3>
+          <p style="color:#555;font-size:14px;margin:0;">Historic Dubrovnik, stunning Hvar, and over 1,000 islands to explore at your own pace.</p>
+        </div>
+        <div style="margin:20px 0;padding:16px;background:#f8f6f2;border-radius:8px;">
+          <h3 style="color:#0a1628;margin:0 0 8px;">🇹🇷 Turkish Riviera</h3>
+          <p style="color:#555;font-size:14px;margin:0;">Where East meets West — turquoise bays, gulet sailing, and halal-friendly hospitality throughout.</p>
+        </div>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Explore all destinations at <a href="https://zenithayachts.com/destinations" style="color:#c49a2a;">zenithayachts.com/destinations</a>.
+        </p>
+        <p style="color:#888;font-size:14px;margin-top:32px;">— The ${ctx.siteName} Charter Team</p>
+      </div>`,
+
+    charter_planning_guide: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h1 style="color:#0a1628;font-size:24px;">${greeting},</h1>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Planning your first (or next) yacht charter? Here's everything you need to know:
+        </p>
+        <h2 style="color:#0a1628;font-size:18px;margin-top:24px;">Charter Essentials</h2>
+        <ul style="color:#333;font-size:16px;line-height:1.8;">
+          <li><strong>Best time to book:</strong> 3–6 months ahead for peak season (June–September). Last-minute deals available in shoulder season.</li>
+          <li><strong>What's included:</strong> Professional crew, fuel, water toys, and gourmet meals prepared by an onboard chef.</li>
+          <li><strong>Halal catering:</strong> Available on most yachts — just let your advisor know your dietary preferences.</li>
+          <li><strong>Family-friendly:</strong> Many yachts carry water toys, snorkelling gear, and have child-safe layouts.</li>
+          <li><strong>Typical charter:</strong> 7 days, but we arrange 3-day weekend getaways to 14-day grand voyages.</li>
+        </ul>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Have questions? Reply to this email or use our <a href="https://zenithayachts.com/charter-planner" style="color:#c49a2a;">Charter Planner</a> to refine your preferences.
+        </p>
+        <p style="color:#888;font-size:14px;margin-top:32px;">— The ${ctx.siteName} Charter Team</p>
+      </div>`,
+
+    charter_featured_yachts: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h1 style="color:#0a1628;font-size:24px;">${greeting},</h1>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Based on your inquiry, we've handpicked some exceptional yachts that could be perfect for your charter:
+        </p>
+        <div style="margin:20px 0;padding:16px;border:1px solid #e8e4dd;border-radius:8px;">
+          <h3 style="color:#0a1628;margin:0 0 4px;">Motor Yachts from €15,000/week</h3>
+          <p style="color:#555;font-size:14px;margin:0;">Speed, luxury, and spacious decks. Ideal for island-hopping with style.</p>
+        </div>
+        <div style="margin:20px 0;padding:16px;border:1px solid #e8e4dd;border-radius:8px;">
+          <h3 style="color:#0a1628;margin:0 0 4px;">Gulets from €8,000/week</h3>
+          <p style="color:#555;font-size:14px;margin:0;">Traditional wooden sailing yachts with modern comforts. The authentic Mediterranean experience.</p>
+        </div>
+        <div style="margin:20px 0;padding:16px;border:1px solid #e8e4dd;border-radius:8px;">
+          <h3 style="color:#0a1628;margin:0 0 4px;">Catamarans from €10,000/week</h3>
+          <p style="color:#555;font-size:14px;margin:0;">Stability, space, and shallow draft — perfect for families and first-time charterers.</p>
+        </div>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Browse our full fleet at <a href="https://zenithayachts.com/yachts" style="color:#c49a2a;">zenithayachts.com/yachts</a> or reply to discuss availability.
+        </p>
+        <p style="color:#888;font-size:14px;margin-top:32px;">— The ${ctx.siteName} Charter Team</p>
+      </div>`,
+
+    charter_limited_availability: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h1 style="color:#0a1628;font-size:24px;">${greeting},</h1>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          Just a quick update — peak Mediterranean charter season fills up fast, and availability for the most sought-after yachts is limited.
+        </p>
+        <div style="margin:20px 0;padding:16px;background:#fdf6e3;border-left:4px solid #c49a2a;border-radius:4px;">
+          <p style="color:#333;font-size:16px;line-height:1.6;margin:0;">
+            <strong>Did you know?</strong> Over 60% of premium charter yachts are booked 4+ months in advance for July and August. Early booking also means better pricing and first pick of itineraries.
+          </p>
+        </div>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          If you're still considering your charter, now's the ideal time to lock in your dates. We can hold a yacht for 48 hours while you decide — no commitment.
+        </p>
+        <p style="color:#333;font-size:16px;line-height:1.6;">
+          <a href="https://zenithayachts.com/charter-planner" style="color:#c49a2a;font-weight:bold;">Start planning your charter →</a>
+        </p>
+        <p style="color:#888;font-size:14px;margin-top:32px;">— The ${ctx.siteName} Charter Team</p>
+      </div>`,
   };
 
   return templates[templateId] || templates.welcome;

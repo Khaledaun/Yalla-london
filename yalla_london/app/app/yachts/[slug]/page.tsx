@@ -6,6 +6,7 @@ import { getBaseUrl } from "@/lib/url-utils";
 import {
   getDefaultSiteId,
   getSiteConfig,
+  getSiteDescription,
   getSiteDomain,
 } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
@@ -357,13 +358,15 @@ export default async function YachtDetailPage({ params }: PageProps) {
   const yachtType = formatYachtType(yacht.type);
   const canonicalUrl = `${baseUrl}/yachts/${slug}`;
 
-  // Structured Data: Product + BreadcrumbList
+  // Structured Data: Product + BreadcrumbList + Organization
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: yacht.name,
     description: yacht.description_en || "",
     image: yacht.images?.[0] || undefined,
+    url: canonicalUrl,
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
     brand: {
       "@type": "Brand",
       name: yacht.builder || siteName,
@@ -385,8 +388,35 @@ export default async function YachtDetailPage({ params }: PageProps) {
           worstRating: 1,
         }
       : undefined,
+    ...(yacht.reviews && yacht.reviews.length > 0 && {
+      review: yacht.reviews.map((r) => ({
+        "@type": "Review",
+        author: { "@type": "Person", name: r.authorName },
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: r.rating,
+          bestRating: 5,
+          worstRating: 1,
+        },
+        reviewBody: r.review_en || "",
+        ...(r.charterDate && { datePublished: r.charterDate }),
+      })),
+    }),
     category: yachtType,
-    url: canonicalUrl,
+  };
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "TravelAgency",
+    name: siteName,
+    url: baseUrl,
+    logo: `${baseUrl}/branding/zenitha-yachts/logo.svg`,
+    description: getSiteDescription(siteId),
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      availableLanguage: ["English", "Arabic"],
+    },
   };
 
   const breadcrumbItems = [
@@ -407,6 +437,10 @@ export default async function YachtDetailPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
       <StructuredData
         type="breadcrumb"

@@ -2103,7 +2103,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Schema markup audit for yacht pages",
       description: "Verify all yacht detail pages have Product JSON-LD, destination pages have Place JSON-LD, itinerary pages have Trip JSON-LD. Run master-audit against zenithayachts.com.",
       testType: "yacht-seo-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-05-25", startDate: "2026-05-15", category: "seo",
     },
     {

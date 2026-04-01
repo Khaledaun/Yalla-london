@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDescription } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import {
   Anchor,
@@ -266,16 +266,29 @@ export default async function DestinationDetailPage({ params }: PageProps) {
   const galleryImages = parseJson<string[]>(destination.galleryImages) || [];
 
   /* ── JSON-LD Place structured data ── */
+  const destinationUrl = `${baseUrl}/destinations/${slug}`;
+
+  // Extract geo coordinates from first marina if available
+  const firstMarina = marinas[0] as MarinaItem & { lat?: number; lng?: number } | undefined;
+
   const placeJsonLd = {
     "@context": "https://schema.org",
     "@type": "Place",
     name: destination.name,
     description: destination.description_en || "",
-    url: `${baseUrl}/destinations/${slug}`,
+    url: destinationUrl,
+    mainEntityOfPage: { "@type": "WebPage", "@id": destinationUrl },
     ...(destination.country && {
       address: {
         "@type": "PostalAddress",
         addressCountry: destination.country,
+      },
+    }),
+    ...(firstMarina?.lat && firstMarina?.lng && {
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: firstMarina.lat,
+        longitude: firstMarina.lng,
       },
     }),
     containedInPlace: {
@@ -283,6 +296,25 @@ export default async function DestinationDetailPage({ params }: PageProps) {
       name: formatRegion(destination.region),
     },
     ...(destination.heroImage && { image: destination.heroImage }),
+    ...(marinas.length > 0 && {
+      amenityFeature: marinas.map((m) => ({
+        "@type": "LocationFeatureSpecification",
+        name: m.name,
+        value: m.description || "Marina",
+      })),
+    }),
+  };
+
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Zenitha Yachts";
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "TravelAgency",
+    name: siteName,
+    url: baseUrl,
+    logo: `${baseUrl}/branding/zenitha-yachts/logo.svg`,
+    description: getSiteDescription(siteId),
   };
 
   return (
@@ -302,6 +334,10 @@ export default async function DestinationDetailPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(placeJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
 
       <div className="min-h-screen" style={{ background: "var(--z-bg)" }}>

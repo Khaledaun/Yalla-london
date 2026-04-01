@@ -311,7 +311,7 @@ export default function CompareClient({ locale }: { locale: Locale }) {
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) {
       setSearchResults([]);
-      return;
+      return undefined;
     }
     const timeout = setTimeout(async () => {
       setSearching(true);

@@ -2167,7 +2167,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Monthly newsletter for charter leads",
       description: "Launch monthly Zenitha newsletter via Resend: featured yachts, new destinations, last-minute deals, charter tips. Segment by CRM stage (new, qualifying, proposal). Track opens/clicks.",
       testType: "email-system-verify",
-      testable: true, status: "todo", readiness: 0,
+      testable: true, status: "done", readiness: 100,
       dueDate: "2026-06-01", startDate: "2026-05-20", category: "config",
       dependsOn: ["Z.2.3"],
     },

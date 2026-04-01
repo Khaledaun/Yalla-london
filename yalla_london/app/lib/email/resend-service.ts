@@ -285,6 +285,52 @@ export async function sendContactConfirmation(
   });
 }
 
+/**
+ * Send Zenitha Yachts monthly newsletter to charter leads.
+ */
+export async function sendZenithaMonthlyNewsletter(
+  to: string[],
+  content: {
+    featuredYachts?: Array<{ name: string; imageUrl?: string; url: string; length?: string; cabins?: number; guests?: number; priceFrom?: string; currency?: string; builder?: string }>;
+    destinations?: Array<{ name: string; url: string; imageUrl?: string; excerpt?: string }>;
+    deals?: Array<{ yachtName: string; url: string; originalPrice: string; dealPrice: string; currency?: string; dates?: string; savings?: string }>;
+    tips?: Array<{ title: string; body: string; url?: string }>;
+    monthLabel?: string;
+    recipientName?: string;
+  },
+  locale: "en" | "ar" = "en",
+  siteId?: string
+): Promise<ResendSendResult> {
+  const ZenithaNewsletter = (await import("@/emails/zenitha-monthly-newsletter")).default;
+  const siteUrl = getSiteUrl(siteId || "zenitha-yachts-med");
+  const now = new Date();
+  const monthLabel = content.monthLabel || now.toLocaleDateString(locale === "ar" ? "ar-SA" : "en-GB", { month: "long", year: "numeric" });
+
+  return sendResendEmail({
+    to,
+    subject: locale === "ar"
+      ? `${monthLabel} — نشرة زينيثا يخوت الشهرية`
+      : `${monthLabel} — Zenitha Yachts Monthly`,
+    react: React.createElement(ZenithaNewsletter, {
+      locale,
+      siteUrl,
+      unsubscribeUrl: `${siteUrl}/api/email/unsubscribe?email={{email}}`,
+      monthLabel,
+      recipientName: content.recipientName,
+      featuredYachts: content.featuredYachts || [],
+      destinations: content.destinations || [],
+      deals: content.deals || [],
+      tips: content.tips || [],
+    }),
+    replyTo: getDefaultReplyTo(),
+    idempotencyKey: `zenitha-monthly-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${locale}`,
+    tags: [
+      { name: "type", value: "zenitha-monthly" },
+      { name: "locale", value: locale },
+    ],
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Webhook Verification
 // ---------------------------------------------------------------------------

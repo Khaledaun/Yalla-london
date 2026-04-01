@@ -233,6 +233,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             content_en: true,
             source_pipeline: true,
             trace_id: true,
+            photo_order_query: true,
+            photo_order_status: true,
           },
         });
 
@@ -277,6 +279,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             metaDescriptionEn: post.meta_description_en ?? null,
             tags: post.tags ?? [],
             topicTitle: null,
+            photoOrderQuery: (post as Record<string, unknown>).photo_order_query as string ?? null,
+            photoOrderStatus: (post as Record<string, unknown>).photo_order_status as string ?? null,
           });
         }
       } catch (err) {
@@ -888,7 +892,23 @@ Return JSON: { "html": "<article>...full expanded HTML...</article>", "wordCount
       }
     }
 
-    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance, review_fix` }, { status: 400 });
+    if (action === "order_photo") {
+      const { blogPostId, query } = body;
+      if (!blogPostId || typeof blogPostId !== "string") {
+        return NextResponse.json({ error: "blogPostId required" }, { status: 400 });
+      }
+      if (!query || typeof query !== "string" || query.trim().length < 2) {
+        return NextResponse.json({ error: "query must be at least 2 characters" }, { status: 400 });
+      }
+      await prisma.blogPost.update({
+        where: { id: blogPostId },
+        data: { photo_order_query: query.trim(), photo_order_status: "pending" },
+      });
+      logManualAction(req, { action: "order_photo", resource: "blogpost", resourceId: blogPostId, success: true, summary: `Photo order set: "${query.trim()}"` }).catch(() => {});
+      return NextResponse.json({ success: true, status: "pending", query: query.trim() });
+    }
+
+    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance, review_fix, order_photo` }, { status: 400 });
   } catch (err) {
     console.warn("[content-matrix] POST handler error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });

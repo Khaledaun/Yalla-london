@@ -144,6 +144,10 @@ model BlogPost {
   trace_id           String?  // Links to ArticleDraft.trace_id for full lifecycle tracing
   enhancement_log    Json?    @db.JsonB  // Array of { type, cron, timestamp, summary } entries
 
+  // Photo order system (April 2026) — requested Unsplash photos per article
+  photo_order_query  String?  // Unsplash search query for the requested photo
+  photo_order_status String?  // "pending" | "fulfilled" | "failed"
+
   // Multi-tenant and soft delete
   siteId       String?
   deletedAt    DateTime? // Soft delete support
@@ -164,6 +168,7 @@ model BlogPost {
   @@index([author_id])
   @@index([created_at])
   @@index([trace_id])
+  @@index([photo_order_status])
 }
 
 // ─────────────────────────────────────────────────────────

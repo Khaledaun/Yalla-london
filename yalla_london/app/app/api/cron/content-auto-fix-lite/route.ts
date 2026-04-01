@@ -591,9 +591,65 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   } catch (e) { console.warn("[content-auto-fix-lite] Rejected draft cleanup failed:", e instanceof Error ? e.message : e); }
 
+  // ── Section 13: Photo Order Fulfillment ────────────────────────────────
+  let photoOrdersFulfilled = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 15_000) {
+    try {
+      const pendingOrders = await prisma.blogPost.findMany({
+        where: { photo_order_status: "pending", photo_order_query: { not: null } },
+        select: { id: true, photo_order_query: true, enhancement_log: true },
+        take: 10,
+      });
+      if (pendingOrders.length > 0) {
+        const { getRandomPhoto, trackDownload, buildImageUrl } = await import("@/lib/apis/unsplash");
+        for (const post of pendingOrders) {
+          if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+          try {
+            const photo = await getRandomPhoto(post.photo_order_query!, "landscape");
+            if (!photo) {
+              await prisma.blogPost.update({
+                where: { id: post.id },
+                data: { photo_order_status: "failed" },
+              });
+              continue;
+            }
+            const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, height: 675, quality: 80, format: "webp" });
+            const existingLog = Array.isArray(post.enhancement_log) ? post.enhancement_log as unknown[] : [];
+            const logEntry = {
+              type: "photo_order",
+              cron: "content-auto-fix-lite",
+              timestamp: new Date().toISOString(),
+              summary: `Photo ordered: "${post.photo_order_query}" → ${photo.id}`,
+            };
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: {
+                featured_image: imageUrl,
+                photo_order_status: "fulfilled",
+                enhancement_log: [...existingLog, logEntry] as never,
+              },
+            });
+            // Required by Unsplash ToS
+            await trackDownload(photo.downloadUrl).catch((e: unknown) =>
+              console.warn("[auto-fix-lite] trackDownload failed:", e instanceof Error ? e.message : String(e))
+            );
+            photoOrdersFulfilled++;
+          } catch (e) {
+            console.warn("[auto-fix-lite] photo order fulfillment failed for", post.id, ":", e instanceof Error ? e.message : String(e));
+          }
+        }
+        if (photoOrdersFulfilled > 0) {
+          console.log(`[content-auto-fix-lite] Fulfilled ${photoOrdersFulfilled} photo orders`);
+        }
+      }
+    } catch (e) {
+      results.errors.push(`photo-orders: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed;
+  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed + photoOrdersFulfilled;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {
@@ -608,7 +664,7 @@ async function handleAutoFixLite(request: NextRequest) {
     resultSummary: results,
   }).catch(err => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
 
-  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, cronLogsDeleted, ...results });
+  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, cronLogsDeleted, photoOrdersFulfilled, ...results });
 }
 
 export async function GET(request: NextRequest) {

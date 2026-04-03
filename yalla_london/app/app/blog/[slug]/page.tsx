@@ -597,8 +597,29 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
   // For DB content, it's already HTML from the content pipeline.
   // NOTE: We no longer do markdown conversion here — static posts are rare
   // and this avoids an async import during the critical render path.
-  const contentEn = post.content_en;
-  const contentAr = post.content_ar;
+
+  // Replace AI image placeholder tokens: [IMAGE: query] → <figure> with fallback image.
+  // The pipeline should replace these before publishing, but some articles slip through.
+  // We use the article's featured_image as the inline image source (same topic, already loaded).
+  const replacePlaceholderImages = (html: string, fallbackImg: string, title: string): string => {
+    if (!html) return html;
+    return html.replace(/\[IMAGE:([^\]]*)\]/gi, (_match, query) => {
+      const alt = query.trim() || title || 'Travel photo';
+      const src = fallbackImg || '/images/placeholder-travel.jpg';
+      return `<figure class="article-inline-image my-6"><img src="${src}" alt="${alt}" loading="lazy" style="width:100%;height:auto;border-radius:0.5rem;" /><figcaption class="text-sm text-center text-gray-500 mt-2">${alt}</figcaption></figure>`;
+    });
+  };
+
+  const contentEn = replacePlaceholderImages(
+    post.content_en,
+    post.featured_image || '',
+    post.title_en || '',
+  );
+  const contentAr = replacePlaceholderImages(
+    post.content_ar,
+    post.featured_image || '',
+    post.title_ar || post.title_en || '',
+  );
   const readingTime =
     source === "static"
       ? post.reading_time

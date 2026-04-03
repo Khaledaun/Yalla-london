@@ -173,8 +173,8 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
   const rawContent = rawContentMd
     .replace(/<h1(\s[^>]*)?>|<h1>/gi, '<h2$1>')
     .replace(/<\/h1>/gi, '</h2>')
-    // Strip AI image placeholder tokens — AI sometimes emits [IMAGE: query] or [IMAGE:query]
-    // instead of real <img> tags. Remove them so they don't appear as raw text in articles.
+    // [IMAGE: query] tokens are replaced server-side in page.tsx transformForClient()
+    // with <figure> elements. This strip is kept as a safety net for any that slip through.
     .replace(/\[IMAGE:[^\]]*\]/gi, '')
   const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
   useEffect(() => {

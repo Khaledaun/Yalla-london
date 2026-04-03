@@ -2092,7 +2092,7 @@ export const ZENITHA_EXECUTION_PLAN: DevPlan = {
       title: "Publish 10 yacht review articles",
       description: "Detailed reviews of 10 specific charter yachts (from DB). Include specs, photos, pricing, crew info, best destinations, booking tips. Target high-intent keywords like '[yacht name] charter review'.",
       testType: "content-pipeline-verify",
-      testable: true, status: "in-progress", readiness: 30,
+      testable: true, status: "in-progress", readiness: 60,
       dueDate: "2026-06-01", startDate: "2026-05-20", category: "content",
       dependsOn: ["Z.1.1"],
     },

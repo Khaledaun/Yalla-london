@@ -842,7 +842,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, slugs, siteId: reqSiteId, url: actionUrl } = body as {
-      action: "submit" | "submit_all" | "submit_discovered" | "resubmit" | "compliance_audit" | "verify_url" | "resubmit_stuck";
+      action: "submit" | "submit_all" | "submit_discovered" | "resubmit" | "compliance_audit" | "verify_url" | "resubmit_stuck" | "fix_page";
       slugs?: string[];
       siteId?: string;
       url?: string;
@@ -1234,6 +1234,68 @@ export async function POST(request: NextRequest) {
           totalAutoFixes: totalFixed,
         },
         posts: results,
+      });
+    }
+
+    // ── Fix Page: Force resubmit + SEO score reset for a specific URL ────────────
+    if (action === "fix_page") {
+      if (!actionUrl) {
+        return NextResponse.json({ error: "URL required for fix_page action" }, { status: 400 });
+      }
+      // Extract slug from URL (e.g. https://www.yalla-london.com/blog/my-article → my-article)
+      const slugMatch = actionUrl.replace(/\?.*$/, "").match(/\/([^/]+)\/?$/);
+      const slug = slugMatch ? slugMatch[1] : null;
+
+      let postUpdated = false;
+      if (slug) {
+        const post = await prisma.blogPost.findFirst({ where: { slug, siteId } });
+        if (post) {
+          // Reset SEO score so seo-agent regenerates it on next run
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: { seo_score: null },
+          });
+          postUpdated = true;
+        }
+      }
+
+      // Resubmit the URL to all IndexNow engines
+      const { submitToIndexNow: indexNowSubmit } = await import("@/lib/seo/indexing-service");
+      let submitted = false;
+      try {
+        await indexNowSubmit([actionUrl], siteId);
+        submitted = true;
+        // Update URLIndexingStatus record
+        await prisma.uRLIndexingStatus.upsert({
+          where: { url: actionUrl },
+          update: {
+            status: "submitted",
+            submitted_indexnow: true,
+            last_submitted_at: new Date(),
+            submission_attempts: { increment: 1 },
+            last_error: null,
+          },
+          create: {
+            url: actionUrl,
+            siteId,
+            status: "submitted",
+            submitted_indexnow: true,
+            last_submitted_at: new Date(),
+            submission_attempts: 1,
+          },
+        });
+      } catch (err) {
+        console.warn("[content-indexing] fix_page IndexNow submit failed:", err instanceof Error ? err.message : String(err));
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "fix_page",
+        url: actionUrl,
+        slug,
+        postUpdated,
+        submitted,
+        message: `Page fix initiated: SEO score reset${postUpdated ? "" : " (no matching BlogPost)"}, IndexNow submitted: ${submitted}`,
       });
     }
 

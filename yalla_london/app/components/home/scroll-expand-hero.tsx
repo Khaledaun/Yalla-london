@@ -85,7 +85,7 @@ const ScrollExpandHero = ({
         e.preventDefault();
       } else if (!mediaFullyExpanded) {
         e.preventDefault();
-        const scrollFactor = deltaY < 0 ? 0.008 : 0.005;
+        const scrollFactor = deltaY < 0 ? 0.003 : 0.002;
         const scrollDelta = deltaY * scrollFactor;
         const newProgress = Math.min(
           Math.max(scrollProgress + scrollDelta, 0),
@@ -142,7 +142,7 @@ const ScrollExpandHero = ({
 
   const mediaWidth = 300 + scrollProgress * (isMobileState ? 650 : 1250);
   const mediaHeight = 400 + scrollProgress * (isMobileState ? 200 : 400);
-  const textTranslateX = scrollProgress * (isMobileState ? 20 : 150);
+  const textTranslateX = Math.min(scrollProgress * (isMobileState ? 80 : 150), isMobileState ? 80 : 150);
 
   // Split title into words for animation
   const titleWords = title.split(' ');
@@ -153,6 +153,7 @@ const ScrollExpandHero = ({
     <div
       ref={sectionRef}
       className="transition-colors duration-700 ease-in-out overflow-x-hidden bg-yl-cream"
+      style={!mediaFullyExpanded ? { overscrollBehavior: 'none' } : undefined}
     >
       <section className="relative flex flex-col items-center justify-start min-h-[100dvh]">
         <div className="relative w-full flex flex-col items-center min-h-[100dvh]">

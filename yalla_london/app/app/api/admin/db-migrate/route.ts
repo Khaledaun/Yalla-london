@@ -240,6 +240,27 @@ const EXPECTED_TABLES: TableDef[] = [
     ],
     indexes: [],
   },
+  // ── pdf_guides — add slug when table pre-existed without it ──────────────────
+  // UNIQUE_CONSTRAINTS references pdf_guides("slug") — must exist before Step 3
+  // PdfGuide was initially created via early db-migrate run; slug was added later
+  {
+    table: '"pdf_guides"',
+    model: "PdfGuide",
+    columns: [
+      { name: "slug", type: "TEXT", nullable: true },
+    ],
+    indexes: [],
+  },
+  // ── PromptTemplate — add version when table pre-existed without it ────────────
+  // UNIQUE_CONSTRAINTS references PromptTemplate("name","version") — must exist before Step 3
+  {
+    table: '"PromptTemplate"',
+    model: "PromptTemplate",
+    columns: [
+      { name: "version", type: "TEXT", nullable: true, defaultValue: "'1.0'" },
+    ],
+    indexes: [],
+  },
 ];
 
 // ─── Enum Definitions ──────────────────────────────────────────────────────

@@ -71,16 +71,16 @@
   --color-brand-secondary: var(--color-secondary);
   --color-brand-accent: var(--color-accent);
 
-  /* Font families — Brand Kit v2 */
-  --font-display: 'Anybody', sans-serif;
-  --font-editorial: 'Source Serif 4', Georgia, serif;
-  --font-body: 'Source Serif 4', Georgia, serif;
-  --font-system: 'IBM Plex Mono', 'Courier New', monospace;
-  --font-arabic: 'Noto Sans Arabic', 'IBM Plex Sans Arabic', sans-serif;
+  /* Font families — fallbacks only (actual fonts loaded by next/font/google via CSS variables on <html>) */
+  --font-display: sans-serif;
+  --font-editorial: Georgia, serif;
+  --font-body: Georgia, serif;
+  --font-system: 'Courier New', monospace;
+  --font-arabic: sans-serif;
   /* Legacy aliases */
-  --font-inter: 'Source Serif 4', Georgia, serif;
-  --font-serif: 'Source Serif 4', Georgia, serif;
-  --font-cairo: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  --font-inter: Georgia, serif;
+  --font-serif: Georgia, serif;
+  --font-cairo: sans-serif;
 
   /* Shadows and effects */
   --shadow-luxury: 0 4px 20px rgba(28, 25, 23, 0.08);

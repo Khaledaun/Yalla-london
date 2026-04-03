@@ -102,6 +102,11 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       } : {})
     }
 
+    // SearchAction enables Google Sitelinks Searchbox for all sites
+    const searchTarget = isZenitha
+      ? `${baseUrl}/yachts?q={search_term_string}`
+      : `${baseUrl}/blog?q={search_term_string}`;
+
     const websiteData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
@@ -114,17 +119,14 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "name": siteName,
         "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
       },
-      // Zenitha Yachts: SearchAction enables Google Sitelinks Searchbox
-      ...(isZenitha ? {
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": {
-            "@type": "EntryPoint",
-            "urlTemplate": `${baseUrl}/yachts?q={search_term_string}`
-          },
-          "query-input": "required name=search_term_string"
-        }
-      } : {})
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": searchTarget
+        },
+        "query-input": "required name=search_term_string"
+      }
     }
 
     return { organizationData, websiteData }

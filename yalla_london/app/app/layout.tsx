@@ -2,6 +2,17 @@ import type { Metadata } from "next";
 import React, { Suspense } from "react";
 import { headers } from "next/headers";
 import Script from "next/script";
+import {
+  Anybody,
+  Source_Serif_4,
+  IBM_Plex_Mono,
+  Noto_Sans_Arabic,
+  Playfair_Display,
+  DM_Sans,
+  Source_Sans_3,
+  IBM_Plex_Sans_Arabic,
+  JetBrains_Mono,
+} from "next/font/google";
 import "./globals.css";
 import "./yalla-tokens.css";
 import "./zenitha-tokens.css";
@@ -15,12 +26,72 @@ import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { NextAuthSessionProvider } from "@/components/session-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { MonetizationScripts } from "@/components/integrations/monetization-scripts";
+import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
 import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDescription, getSiteTagline, getSiteNameAr, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
+
+// ─── Yalla London Fonts (next/font — self-hosted, no render-blocking CSS) ───
+const anybody = Anybody({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-display",
+});
+const sourceSerif4 = Source_Serif_4({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-editorial",
+});
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  display: "swap",
+  variable: "--font-system",
+});
+const notoSansArabic = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-arabic",
+});
+
+// ─── Zenitha Yachts Fonts ───
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  variable: "--z-font-display",
+});
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--z-font-heading",
+});
+const sourceSans3 = Source_Sans_3({
+  subsets: ["latin"],
+  weight: ["300", "400", "600"],
+  display: "swap",
+  variable: "--z-font-body",
+});
+const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic"],
+  weight: ["300", "400", "500", "700"],
+  display: "swap",
+  variable: "--z-font-arabic",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+  variable: "--z-font-mono",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -120,20 +191,17 @@ export default async function RootLayout({
   const geo = geoData[currentSiteConfig?.destination || "London"] || geoData["London"];
   const isYachtSite = checkIsYachtSite(siteId);
 
+  // Build font CSS variable classes — next/font self-hosts woff2 files, eliminating render-blocking Google Fonts CSS
+  const yallaFontVars = `${anybody.variable} ${sourceSerif4.variable} ${ibmPlexMono.variable} ${notoSansArabic.variable}`;
+  const zenithFontVars = `${playfairDisplay.variable} ${dmSans.variable} ${sourceSans3.variable} ${ibmPlexSansArabic.variable} ${jetbrainsMono.variable}`;
+  const fontVarClasses = isYachtSite ? zenithFontVars : yallaFontVars;
+
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html lang={locale} dir={dir} className={fontVarClasses} suppressHydrationWarning>
       <head>
         <StructuredData siteId={siteId} />
         {/* Hreflang handled by generateMetadata().alternates.languages per page — no component needed */}
-        {/* DNS prefetch + preconnect for Google Fonts — dns-prefetch is a fallback for older browsers */}
-        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin=""
-        />
+        {/* Fonts loaded via next/font/google — self-hosted woff2, no render-blocking CSS, no external requests */}
 
         {/* DNS prefetch + preconnect for Google Analytics domains — reduces connection latency */}
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
@@ -143,40 +211,6 @@ export default async function RootLayout({
 
         {/* DNS prefetch for common image CDNs used in content */}
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
-
-        {/* Yalla London fonts — Brand Kit v2: Anybody (headings), Source Serif 4 (body), IBM Plex Mono (data/nav), Noto Sans Arabic (Arabic) */}
-        {!isYachtSite && (
-          <>
-            <link
-              rel="preload"
-              as="style"
-              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
-              crossOrigin=""
-            />
-            {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only */}
-            <link
-              href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap"
-              rel="stylesheet"
-            />
-          </>
-        )}
-
-        {/* Zenitha Yachts fonts — preload hint starts download early, stylesheet applies on load */}
-        {isYachtSite && (
-          <>
-            <link
-              rel="preload"
-              as="style"
-              href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
-              crossOrigin=""
-            />
-            {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router layout.tsx applies to all pages; this rule is Pages Router only */}
-            <link
-              href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
-              rel="stylesheet"
-            />
-          </>
-        )}
 
         {/* PWA Meta Tags — Brand Kit v2 */}
         <link rel="manifest" href="/manifest.json" />
@@ -229,6 +263,7 @@ export default async function RootLayout({
               <LanguageProvider initialLocale={locale}>
                 <Suspense fallback={null}>
                   <AnalyticsTracker />
+                  <WebVitalsReporter />
                 </Suspense>
                 <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
                   Skip to content
@@ -274,57 +309,19 @@ export default async function RootLayout({
           ) : null;
         })()}
 
-        {/* Performance monitoring */}
+        {/* Scroll depth tracking — CWV now handled by WebVitalsReporter component using web-vitals library */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Core Web Vitals tracking
-              function sendToAnalytics({name, value, id}) {
-                if (typeof gtag !== 'undefined') {
-                  gtag('event', name, {
-                    value: Math.round(name === 'CLS' ? value * 1000 : value),
-                    event_category: 'Web Vitals',
-                    event_label: id,
-                    non_interaction: true,
-                  });
-                }
-              }
-              
-              // Track page performance
-              window.addEventListener('load', function() {
-                setTimeout(function() {
-                  const perfData = performance.getEntriesByType('navigation')[0];
-                  console.log('Page load time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
-                  
-                  // Track page load time in GA
-                  if (typeof gtag !== 'undefined') {
-                    gtag('event', 'page_load_time', {
-                      event_category: 'Performance',
-                      value: Math.round(perfData.loadEventEnd - perfData.loadEventStart),
-                    });
-                  }
-                }, 0);
-              });
-
-              // Track scroll depth — debounced with rAF to reduce INP impact
-              let maxScroll = 0;
-              let scrollRafId = null;
-              window.addEventListener('scroll', function() {
-                if (scrollRafId !== null) return;
-                scrollRafId = requestAnimationFrame(function() {
-                  scrollRafId = null;
-                  const scrollPercent = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
-                  if (scrollPercent > maxScroll && scrollPercent % 25 === 0) {
-                    maxScroll = scrollPercent;
-                    if (typeof gtag !== 'undefined') {
-                      gtag('event', 'scroll_depth', {
-                        event_category: 'Engagement',
-                        value: scrollPercent,
-                      });
-                    }
-                  }
-                });
-              }, { passive: true });
+              var maxScroll=0,scrollRafId=null;
+              window.addEventListener('scroll',function(){
+                if(scrollRafId!==null)return;
+                scrollRafId=requestAnimationFrame(function(){
+                  scrollRafId=null;
+                  var p=Math.round((window.scrollY/(document.body.scrollHeight-window.innerHeight))*100);
+                  if(p>maxScroll&&p%25===0){maxScroll=p;typeof gtag!=='undefined'&&gtag('event','scroll_depth',{event_category:'Engagement',value:p})}
+                })
+              },{passive:true});
             `,
           }}
         />

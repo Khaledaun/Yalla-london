@@ -108,24 +108,24 @@ const ScrollExpandHero = ({
       setTouchStartY(0);
     };
 
-    const handleScroll = (): void => {
-      if (!mediaFullyExpanded) {
-        window.scrollTo(0, 0);
-      }
-    };
-
     window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('scroll', handleScroll);
     window.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd);
 
+    // Auto-expand after 3s if user hasn't scrolled through the hero manually
+    const autoExpandTimer = setTimeout(() => {
+      setScrollProgress(1);
+      setMediaFullyExpanded(true);
+      setShowContent(true);
+    }, 3000);
+
     return () => {
       window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      clearTimeout(autoExpandTimer);
     };
   }, [scrollProgress, mediaFullyExpanded, touchStartY]);
 
@@ -142,7 +142,7 @@ const ScrollExpandHero = ({
 
   const mediaWidth = 300 + scrollProgress * (isMobileState ? 650 : 1250);
   const mediaHeight = 400 + scrollProgress * (isMobileState ? 200 : 400);
-  const textTranslateX = scrollProgress * (isMobileState ? 55 : 150);
+  const textTranslateX = scrollProgress * (isMobileState ? 20 : 150);
 
   // Split title into words for animation
   const titleWords = title.split(' ');
@@ -168,7 +168,7 @@ const ScrollExpandHero = ({
               alt="London skyline"
               width={1920}
               height={1080}
-              className="w-screen h-screen"
+              className="w-full h-full"
               style={{
                 objectFit: 'cover',
                 objectPosition: 'center',

@@ -180,8 +180,12 @@ const EXPECTED_TABLES: TableDef[] = [
       { name: "trace_id", type: "TEXT", nullable: true },
       { name: "source_pipeline", type: "TEXT", nullable: true },
       { name: "enhancement_log", type: "JSONB", nullable: true },
+      { name: "photo_order_query", type: "TEXT", nullable: true },
+      { name: "photo_order_status", type: "TEXT", nullable: true },
     ],
-    indexes: [],
+    indexes: [
+      'CREATE INDEX IF NOT EXISTS "BlogPost_photo_order_status_idx" ON "BlogPost"("photo_order_status")',
+    ],
   },
   // ── MediaAsset — missing columns from schema ───────────────────────
   {

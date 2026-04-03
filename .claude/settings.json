@@ -1,0 +1,86 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill",
+      "Read",
+      "Glob",
+      "Grep",
+      "Agent",
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push -u origin *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git stash*)",
+      "Bash(git merge*)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(wc *)",
+      "Bash(cd *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(which *)",
+      "Bash(echo *)",
+      "Bash(pwd)",
+      "Bash(date *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -r /)",
+      "Bash(npm publish*)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(npx prisma db push --force-reset*)",
+      "Edit:.env*",
+      "Edit:**/credentials*",
+      "Edit:**/secrets*",
+      "Write:.env*",
+      "Write:**/credentials*",
+      "Write:**/secrets*"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/Yalla-london/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/Yalla-london/.claude/hooks/post-edit-format.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/Yalla-london/.claude/hooks/session-stop.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

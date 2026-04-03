@@ -5608,6 +5608,55 @@ Run `npx ecc-agentshield scan` periodically to audit `.claude/` configuration:
 - 0 critical findings, 1 HIGH (false positive), 8 MEDIUM (agent size warnings — expected for comprehensive agents)
 - All MCP servers, hooks, and permissions scored 100
 
+## Claude Code Automation Infrastructure
+
+### Hooks (`.claude/settings.json` → `.claude/hooks/`)
+
+| Hook Event | Script | What It Does | Target |
+|------------|--------|-------------|--------|
+| `SessionStart` | `session-start.sh` | Shows git branch, uncommitted count, last commit, PROJECT_STATUS.md summary | <2s |
+| `PostToolUse` (Write\|Edit) | `post-edit-format.sh` | Auto-formats .ts/.tsx/.css/.json files in `yalla_london/app/` with prettier | <1s |
+| `Stop` | `session-stop.sh` | Logs session summary to `.claude/logs/sessions/`, updates PROJECT_STATUS.md, warns about uncommitted changes | <3s |
+
+### Permissions (`.claude/settings.json`)
+
+**31 allow rules** covering: Skill, Read/Write/Edit/Glob/Grep/Agent, safe Bash commands (npm/npx/node, git operations, filesystem navigation, curl/wget).
+
+**13 deny rules** blocking: `git push --force`, `git reset --hard`, `rm -rf`, `npm publish`, `prisma migrate reset`, `prisma db push --force-reset`, editing/writing `.env*` files, `DROP TABLE`/`drop database`.
+
+### Custom Agents (`.claude/agents/` — 11 total)
+
+| Agent | Model | Tools | Purpose |
+|-------|-------|-------|---------|
+| `session-auditor` | haiku | Read, Glob, Grep | Post-session review against 7 CLAUDE.md engineering standards (read-only) |
+| `deploy-checker` | haiku | Read, Bash, Glob, Grep | Pre-deployment validation: TypeScript, lint, console.log audit, .env staging, env docs (read-only) |
+| `brand-guardian` | sonnet | Read, Glob, Grep | Design system compliance checking (read-only, enhanced with proper tool scoping) |
+| `seo-growth-agent` | sonnet | Read, Glob, Grep, Bash | SEO analysis and recommendations (enhanced with proper frontmatter) |
+| + 7 existing agents | various | various | Content pipeline, analytics, frontend, conversion, research, growth, workflow |
+
+### Loop Patterns (`.claude/loops/README.md`)
+
+3 documented dev-only loop patterns (NOT auto-started — Vercel crons handle production):
+- **Build Health** (15m): `npx tsc --noEmit` monitoring during refactoring
+- **Pipeline Watch** (30m): Queue health via `/api/admin/queue-monitor`
+- **Deploy Watch** (5m): Git commit monitoring post-push
+
+### Project Status (`PROJECT_STATUS.md`)
+
+Auto-updated by Stop hook on every session end. Contains: last session info, active branches, health checks, quick links, external services status, Claude Code automation counts.
+
+### Operations Dashboard (`/admin/ops/claude-dashboard`)
+
+Dev-only admin page showing:
+- KPI cards (agents, commands, skills, permissions, session logs)
+- Active hooks status panel
+- Agent registry with descriptions and models
+- Expandable session log viewer (last 20 sessions)
+
+### Session Logs (`.claude/logs/sessions/`)
+
+Markdown files created by Stop hook: `YYYY-MM-DD_HH-MM.md` with session ID, branch, uncommitted changes count, and `git diff --stat` output.
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

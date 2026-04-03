@@ -1262,6 +1262,32 @@
   border-radius: 8px;
   margin: 2rem 0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  /* Reserve 16/9 space before image loads to prevent CLS */
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+}
+
+/* Inline images inserted by pipeline ([IMAGE: query] tokens) */
+.article-inline-image {
+  margin: 1.5rem 0;
+}
+.article-inline-image img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  display: block;
+  /* Override the box-shadow from .yalla-article-content img above */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin: 0;
+}
+.article-inline-image figcaption {
+  font-size: 0.8rem;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 
 /* ─── Horizontal Rules (section dividers) ─── */

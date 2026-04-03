@@ -606,7 +606,7 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
     return html.replace(/\[IMAGE:([^\]]*)\]/gi, (_match, query) => {
       const alt = query.trim() || title || 'Travel photo';
       const src = fallbackImg || '/images/placeholder-travel.jpg';
-      return `<figure class="article-inline-image my-6"><img src="${src}" alt="${alt}" loading="lazy" style="width:100%;height:auto;border-radius:0.5rem;" /><figcaption class="text-sm text-center text-gray-500 mt-2">${alt}</figcaption></figure>`;
+      return `<figure class="article-inline-image"><img src="${src}" alt="${alt}" loading="lazy" width="1200" height="675" /><figcaption>${alt}</figcaption></figure>`;
     });
   };
 

@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrCron } from "@/lib/admin-middleware";
@@ -209,11 +209,34 @@ const EXPECTED_TABLES: TableDef[] = [
   },
   // ── Subscriber Name Fields (migration: 20260317_add_subscriber_name_fields) ──
   {
-    table: "Subscriber",
+    table: '"Subscriber"',
     model: "Subscriber",
     columns: [
       { name: "first_name", type: "TEXT", nullable: true },
       { name: "last_name", type: "TEXT", nullable: true },
+    ],
+    indexes: [],
+  },
+  // ── FeatureFlag — add siteId when table pre-existed without it ──────────────
+  // UNIQUE_CONSTRAINTS references feature_flags("siteId") — must exist before Step 3
+  {
+    table: '"feature_flags"',
+    model: "FeatureFlag",
+    columns: [
+      { name: "siteId", type: "TEXT", nullable: true },
+    ],
+    indexes: [
+      'CREATE INDEX IF NOT EXISTS "feature_flags_siteId_idx" ON "feature_flags"("siteId")',
+    ],
+  },
+  // ── SiteSettings — add siteId/category when table pre-existed without them ──
+  // UNIQUE_CONSTRAINTS references site_settings("siteId","category") — must exist before Step 3
+  {
+    table: '"site_settings"',
+    model: "SiteSettings",
+    columns: [
+      { name: "siteId", type: "TEXT", nullable: true },
+      { name: "category", type: "TEXT", nullable: true },
     ],
     indexes: [],
   },

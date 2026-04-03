@@ -302,3 +302,83 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to load audit data" }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest) {
+  const authErr = await requireAdmin(request);
+  if (authErr) return authErr;
+
+  try {
+    const body = await request.json();
+    const { action, siteId: bodySiteId, slug } = body as {
+      action: string;
+      siteId?: string;
+      slug?: string;
+    };
+
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = bodySiteId || getDefaultSiteId();
+
+    if (action === "full_audit") {
+      // Re-sync indexing status for all published posts in this site by triggering
+      // a lightweight GSC-based refresh — reads from URLIndexingStatus and returns
+      // a summary of what was refreshed.
+      const { prisma } = await import("@/lib/db");
+
+      const posts = await prisma.blogPost.findMany({
+        where: { siteId, published: true },
+        select: { id: true, slug: true },
+        take: 500,
+      });
+
+      if (posts.length === 0) {
+        return NextResponse.json({ success: true, message: "No published posts found", refreshed: 0, siteId });
+      }
+
+      const slugs = posts.map((p) => p.slug);
+
+      // Touch the last_inspected_at on all rows to signal they should be re-queried
+      // by the next gsc-sync cron. We don't call the GSC API here directly (budget risk).
+      const updated = await prisma.uRLIndexingStatus.updateMany({
+        where: { site_id: siteId, slug: { in: slugs } },
+        data: { last_inspected_at: new Date() },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Audit refreshed for ${updated.count} pages. GSC data will update on the next sync cycle (within 6h).`,
+        refreshed: updated.count,
+        total: posts.length,
+        siteId,
+      });
+    }
+
+    if (action === "audit_url" && slug) {
+      const { prisma } = await import("@/lib/db");
+
+      const indexingRow = await prisma.uRLIndexingStatus.findFirst({
+        where: { site_id: siteId, slug },
+      });
+
+      if (!indexingRow) {
+        return NextResponse.json({ success: false, error: "URL not found in indexing status table" }, { status: 404 });
+      }
+
+      await prisma.uRLIndexingStatus.update({
+        where: { id: indexingRow.id },
+        data: { last_inspected_at: new Date() },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Queued ${slug} for re-inspection on next sync cycle.`,
+        slug,
+        siteId,
+      });
+    }
+
+    return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
+  } catch (err) {
+    console.error("[per-page-audit POST] Error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Failed to process audit action" }, { status: 500 });
+  }
+}

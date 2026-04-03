@@ -6,7 +6,8 @@
  * defined in DESIGN.md for quick reference and validation.
  */
 
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Design System — Yalla London",
@@ -144,7 +145,7 @@ const RADII = [
 
 /* ── Page Component ── */
 
-function SectionTitle({ children, id }: { children: React.ReactNode; id: string }) {
+function SectionTitle({ children, id }: { children: ReactNode; id: string }) {
   return (
     <h2 id={id} className="text-2xl font-bold font-display mt-16 mb-6 text-[var(--yl-charcoal)] border-b border-[var(--yl-gray-300)] pb-3">
       {children}
@@ -152,7 +153,7 @@ function SectionTitle({ children, id }: { children: React.ReactNode; id: string 
   );
 }
 
-function SubTitle({ children }: { children: React.ReactNode }) {
+function SubTitle({ children }: { children: ReactNode }) {
   return <h3 className="text-lg font-semibold font-display mt-8 mb-4 text-[var(--yl-charcoal)]">{children}</h3>;
 }
 

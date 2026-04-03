@@ -133,7 +133,10 @@ const config: Config = {
         forest: {
           DEFAULT: '#2D5A3D',  // Success states
         },
-        // Legacy aliases — maps old Brand Kit v1 class names to Brand Kit v2 values
+        // DEPRECATED Legacy aliases — Brand Kit v1 → v2 migration
+        // burgundy-* → london-*  |  warm-charcoal → yl-charcoal  |  warm-gray → stone
+        // gold-* → yalla-gold-*  (87 usages remain — migrate incrementally)
+        // See DESIGN.md Section 9.5 for full mapping. Run: npx tsx scripts/brand-check.ts
         burgundy: {
           50: '#fef2f2',
           100: '#fde3e3',

@@ -597,8 +597,29 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
   // For DB content, it's already HTML from the content pipeline.
   // NOTE: We no longer do markdown conversion here — static posts are rare
   // and this avoids an async import during the critical render path.
-  const contentEn = post.content_en;
-  const contentAr = post.content_ar;
+
+  // Replace AI image placeholder tokens: [IMAGE: query] → <figure> with fallback image.
+  // The pipeline should replace these before publishing, but some articles slip through.
+  // We use the article's featured_image as the inline image source (same topic, already loaded).
+  const replacePlaceholderImages = (html: string, fallbackImg: string, title: string): string => {
+    if (!html) return html;
+    return html.replace(/\[IMAGE:([^\]]*)\]/gi, (_match, query) => {
+      const alt = query.trim() || title || 'Travel photo';
+      const src = fallbackImg || '/images/placeholder-travel.jpg';
+      return `<figure class="article-inline-image"><img src="${src}" alt="${alt}" loading="lazy" width="1200" height="675" /><figcaption>${alt}</figcaption></figure>`;
+    });
+  };
+
+  const contentEn = replacePlaceholderImages(
+    post.content_en,
+    post.featured_image || '',
+    post.title_en || '',
+  );
+  const contentAr = replacePlaceholderImages(
+    post.content_ar,
+    post.featured_image || '',
+    post.title_ar || post.title_en || '',
+  );
   const readingTime =
     source === "static"
       ? post.reading_time
@@ -722,6 +743,24 @@ export default async function BlogPostPage({ params }: Props) {
   );
   const clientPost = transformForClient(result.post, result.source, categoriesCache, author);
 
+  // Fetch Unsplash attribution for hero image (required by Unsplash ToS)
+  let unsplashAttribution: string | undefined;
+  const featuredImage = (result.post as any).featured_image || "";
+  if (featuredImage.includes("images.unsplash.com")) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const mediaAsset = await prisma.mediaAsset.findFirst({
+        where: { url: featuredImage },
+        select: { description: true },
+      });
+      if (mediaAsset?.description && mediaAsset.description.includes("Unsplash")) {
+        unsplashAttribution = mediaAsset.description;
+      }
+    } catch {
+      // Attribution fetch is non-blocking — skip if DB unavailable
+    }
+  }
+
   return (
     <>
       <script
@@ -736,7 +775,7 @@ export default async function BlogPostPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      <BlogPostClient post={clientPost} serverLocale={locale as 'en' | 'ar'} />
+      <BlogPostClient post={clientPost} serverLocale={locale as 'en' | 'ar'} unsplashAttribution={unsplashAttribution} />
       {/* Related articles stream in after the main content via Suspense.
           This eliminates a DB query from the critical render path —
           the page HTML arrives immediately, related articles load async. */}

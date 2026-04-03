@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
   let imagesAdded = 0;
   let articlesUpdated = 0;
   let libraryStocked = 0;
+  let ordersProcessed = 0;
   let errors = 0;
 
   try {
@@ -83,6 +84,66 @@ export async function GET(request: NextRequest) {
         } catch (articleErr) {
           errors++;
           console.warn(`[image-pipeline] Failed for article ${article.slug}:`, articleErr instanceof Error ? articleErr.message : String(articleErr));
+        }
+      }
+    }
+
+    // ── Step 1.5: Process pending photo orders (queued by fix_images action) ──
+    for (const siteId of activeSites) {
+      if (Date.now() - startTime > BUDGET_MS) break;
+
+      const pendingOrders = await prisma.blogPost.findMany({
+        where: {
+          siteId,
+          photo_order_status: "pending",
+          photo_order_query: { not: null },
+        },
+        select: { id: true, slug: true, photo_order_query: true },
+        take: 5,
+        orderBy: { updated_at: "desc" },
+      });
+
+      for (const post of pendingOrders) {
+        if (Date.now() - startTime > BUDGET_MS) break;
+
+        try {
+          const query = (post.photo_order_query || "london travel").substring(0, 60);
+          const photos = await searchPhotos(query, { perPage: 3, orientation: "landscape" });
+          if (photos.length === 0) {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { photo_order_status: "no_results" },
+            });
+            continue;
+          }
+
+          const photo = photos[0];
+          const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 80, format: "webp" });
+          const attribution = buildAttribution(photo);
+
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: {
+              featured_image: imageUrl,
+              photo_order_status: "fulfilled",
+            },
+          });
+          articlesUpdated++;
+
+          await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, query, siteId);
+          imagesAdded++;
+          ordersProcessed++;
+
+          if (photo.downloadUrl) {
+            trackDownload(photo.downloadUrl).catch(() => {});
+          }
+        } catch (orderErr) {
+          errors++;
+          console.warn(`[image-pipeline] Photo order failed for ${post.slug}:`, orderErr instanceof Error ? orderErr.message : String(orderErr));
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: { photo_order_status: "error" },
+          }).catch(() => {});
         }
       }
     }
@@ -147,6 +208,7 @@ export async function GET(request: NextRequest) {
     success: true,
     articlesUpdated,
     imagesAdded,
+    ordersProcessed,
     libraryStocked,
     errors,
     durationMs: Date.now() - startTime,

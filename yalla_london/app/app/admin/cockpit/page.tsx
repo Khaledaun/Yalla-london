@@ -2292,6 +2292,12 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           <ActionButton onClick={() => triggerAction("/api/admin/content-cleanup", { action: "fix_all" }, "Cleanup")} loading={actionLoading === "Cleanup"} variant="amber">
             Clean + Dedup
           </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/admin/content-matrix", { action: "fix_images", siteId: siteId }, "Fix Images")} loading={actionLoading === "Fix Images"} variant="amber">
+            Fix Wrong Images
+          </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/admin/media", { action: "bulk_stock_library", siteId: siteId }, "Seed Photos")} loading={actionLoading === "Seed Photos"}>
+            Seed Photos
+          </ActionButton>
           <Link href="/admin/cockpit/validator" className="rounded-xl text-center block py-2.5 transition-all active:scale-[0.97]"
                 style={{ fontFamily: "var(--font-system)", fontSize: 11, fontWeight: 600, letterSpacing: '0.5px', color: '#78716C', backgroundColor: '#FFFFFF', border: '1px solid rgba(214,208,196,0.8)', borderRadius: 10, boxShadow: '0 1px 3px rgba(28,25,23,0.06)' }}>
             System Validator

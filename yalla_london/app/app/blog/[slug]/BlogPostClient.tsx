@@ -50,12 +50,15 @@ interface BlogPostData {
   } | null;
   author: AuthorData | null;
   siteId?: string;
+  unsplash_attribution?: string;
 }
 
 interface BlogPostClientProps {
   post: BlogPostData | null;
   /** Server-determined locale from x-locale header — ensures correct content in initial SSR HTML for Google */
   serverLocale?: 'en' | 'ar';
+  /** Unsplash photographer attribution — required by Unsplash ToS when displaying their photos */
+  unsplashAttribution?: string;
 }
 
 /**
@@ -70,7 +73,7 @@ function fastStripScripts(html: string): string {
     .replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
 }
 
-export default function BlogPostClient({ post, serverLocale }: BlogPostClientProps) {
+export default function BlogPostClient({ post, serverLocale, unsplashAttribution }: BlogPostClientProps) {
   const { language, isRTL } = useLanguage()
   // For SSR: use serverLocale to ensure correct language in initial HTML that Google indexes.
   // After hydration, the client-side language context takes over (allows user toggle).
@@ -173,8 +176,8 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
   const rawContent = rawContentMd
     .replace(/<h1(\s[^>]*)?>|<h1>/gi, '<h2$1>')
     .replace(/<\/h1>/gi, '</h2>')
-    // Strip AI image placeholder tokens — AI sometimes emits [IMAGE: query] or [IMAGE:query]
-    // instead of real <img> tags. Remove them so they don't appear as raw text in articles.
+    // [IMAGE: query] tokens are replaced server-side in page.tsx transformForClient()
+    // with <figure> elements. This strip is kept as a safety net for any that slip through.
     .replace(/\[IMAGE:[^\]]*\]/gi, '')
   const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
   useEffect(() => {
@@ -391,6 +394,12 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
           )}
           {/* Cinematic gradient overlay — stronger at top for header readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/35" />
+          {/* Unsplash attribution — required by Unsplash ToS */}
+          {unsplashAttribution && (
+            <div className="absolute bottom-2 right-3 z-20">
+              <span className="text-white/50 text-[9px] font-body">{unsplashAttribution}</span>
+            </div>
+          )}
         </div>
 
         {/* Hero content — aligned bottom-left, editorial style */}

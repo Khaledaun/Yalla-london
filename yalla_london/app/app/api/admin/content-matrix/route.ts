@@ -912,7 +912,52 @@ Return JSON: { "html": "<article>...full expanded HTML...</article>", "wordCount
       return NextResponse.json({ success: true, status: "pending", query: query.trim() });
     }
 
-    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance, review_fix, order_photo` }, { status: 400 });
+    // ── fix_images: Scan for off-topic/wrong images and replace via Unsplash ──
+    if (action === "fix_images") {
+      const siteIdParam = body.siteId || getDefaultSiteId();
+      // Known patterns for off-topic images — Statue of Liberty, NYC skylines, etc.
+      const OFF_TOPIC_PATTERNS = [
+        "statue-of-liberty", "statueliberty", "new-york", "newyork", "nyc",
+        "eiffel-tower", "paris", "sydney-opera", "colosseum", "rome",
+        "unsplash.com/photos/1yxpXmBzUPU", // known Statue of Liberty Unsplash ID
+      ];
+
+      const publishedPosts = await prisma.blogPost.findMany({
+        where: { published: true, siteId: siteIdParam, deletedAt: null },
+        select: { id: true, title_en: true, slug: true, featured_image: true },
+        take: 200,
+      });
+
+      const wrongImagePosts = publishedPosts.filter((p) => {
+        if (!p.featured_image) return true; // Missing image
+        const img = p.featured_image.toLowerCase();
+        return OFF_TOPIC_PATTERNS.some((pattern) => img.includes(pattern));
+      });
+
+      // For each wrong-image post, set photo_order_query so image-pipeline cron picks it up
+      let queued = 0;
+      for (const post of wrongImagePosts) {
+        const query = `${post.title_en?.replace(/[^\w\s]/g, '').slice(0, 60) || 'london travel'}`;
+        await prisma.blogPost.update({
+          where: { id: post.id },
+          data: { photo_order_query: query, photo_order_status: "pending" },
+        });
+        queued++;
+      }
+
+      logManualAction(req, { action: "fix_images", resource: "blogpost", resourceId: "batch", success: true, summary: `Queued ${queued} articles for image refresh` }).catch(() => {});
+      return NextResponse.json({
+        success: true,
+        action: "fix_images",
+        scanned: publishedPosts.length,
+        wrongImages: wrongImagePosts.length,
+        queued,
+        articles: wrongImagePosts.map((p) => ({ id: p.id, slug: p.slug, currentImage: p.featured_image })),
+        message: `Found ${wrongImagePosts.length} articles with wrong/missing images. Queued ${queued} for image-pipeline refresh.`,
+      });
+    }
+
+    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance, review_fix, order_photo, fix_images` }, { status: 400 });
   } catch (err) {
     console.warn("[content-matrix] POST handler error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });

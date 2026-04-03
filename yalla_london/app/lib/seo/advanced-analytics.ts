@@ -1,9 +1,9 @@
 
 // Advanced Analytics & Tracking for SEO/AEO
+// Window.gtag type declared in types/global.d.ts
 declare global {
   interface Window {
-    gtag: (command: string, targetId: string, config?: any) => void;
-    dataLayer: any[];
+    dataLayer: unknown[];
   }
 }
 

@@ -102,6 +102,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       } : {})
     }
 
+    // SearchAction enables Google Sitelinks Searchbox — only for sites with actual search endpoints
     const websiteData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
@@ -114,7 +115,8 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "name": siteName,
         "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
       },
-      // Zenitha Yachts: SearchAction enables Google Sitelinks Searchbox
+      // Only add SearchAction when the site has a working search endpoint
+      // Yachts has /yachts?q=, blog sites need /blog?q= or /search?q= to be implemented first
       ...(isZenitha ? {
         "potentialAction": {
           "@type": "SearchAction",

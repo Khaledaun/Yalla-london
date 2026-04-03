@@ -17,7 +17,7 @@ body {
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
 }
 
 /* ── TOUCH TARGETS (min 44×44px per Apple HIG) ── */

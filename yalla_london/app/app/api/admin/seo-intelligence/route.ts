@@ -793,6 +793,118 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ── Action: fix_page — submit a single article for indexing ──
+    if (action === "fix_page") {
+      const articleId = body.articleId as string | undefined;
+      if (!articleId) {
+        return NextResponse.json({ success: false, error: "articleId is required for fix_page" }, { status: 400 });
+      }
+
+      const post = await prisma.blogPost.findFirst({
+        where: { id: articleId, siteId },
+        select: { id: true, slug: true, title_en: true, published: true },
+      });
+
+      if (!post) {
+        return NextResponse.json({ success: false, error: "Article not found" }, { status: 404 });
+      }
+
+      if (!post.published) {
+        return NextResponse.json({ success: false, error: "Article is not published — cannot submit for indexing" }, { status: 400 });
+      }
+
+      const articleUrl = `${domain}/blog/${post.slug}`;
+
+      // Ensure the URL is tracked in URLIndexingStatus
+      const existing = await prisma.uRLIndexingStatus.findFirst({
+        where: { site_id: siteId, slug: post.slug },
+      });
+
+      let indexingId: string;
+      if (existing) {
+        await prisma.uRLIndexingStatus.update({
+          where: { id: existing.id },
+          data: {
+            status: "pending",
+            submitted_indexnow: false,
+            last_submitted_at: null,
+            last_error: null,
+            submission_attempts: 0,
+          },
+        });
+        indexingId = existing.id;
+      } else {
+        const created = await prisma.uRLIndexingStatus.create({
+          data: {
+            url: articleUrl,
+            slug: post.slug,
+            site_id: siteId,
+            status: "pending",
+            submitted_indexnow: false,
+            submitted_sitemap: false,
+            submission_attempts: 0,
+          },
+        });
+        indexingId = created.id;
+      }
+
+      // Submit to IndexNow immediately
+      let indexNowResult: string = "skipped";
+      const indexNowKey = process.env.INDEXNOW_KEY;
+      if (indexNowKey) {
+        try {
+          const engines = [
+            `https://api.indexnow.org/indexnow`,
+            `https://www.bing.com/indexnow`,
+            `https://yandex.com/indexnow`,
+          ];
+          const siteDomain = domain.replace(/^https?:\/\//, "");
+          const results: string[] = [];
+          for (const engine of engines) {
+            try {
+              const r = await fetch(engine, {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                  host: siteDomain,
+                  key: indexNowKey,
+                  keyLocation: `${domain}/${indexNowKey}.txt`,
+                  urlList: [articleUrl],
+                }),
+              });
+              results.push(`${engine.includes("bing") ? "bing" : engine.includes("yandex") ? "yandex" : "indexnow"}: ${r.status}`);
+            } catch {
+              // per-engine failure non-fatal
+            }
+          }
+          await prisma.uRLIndexingStatus.update({
+            where: { id: indexingId },
+            data: {
+              submitted_indexnow: true,
+              last_submitted_at: new Date(),
+              status: "submitted",
+              submission_attempts: { increment: 1 },
+            },
+          });
+          indexNowResult = results.join(", ");
+        } catch (err) {
+          console.warn("[seo-intelligence fix_page] IndexNow submission failed:", err instanceof Error ? err.message : err);
+          indexNowResult = "failed";
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "fix_page",
+        articleId,
+        slug: post.slug,
+        url: articleUrl,
+        indexNow: indexNowResult,
+        message: `Article queued for indexing. IndexNow: ${indexNowResult}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
   } catch (e) {
     return NextResponse.json(

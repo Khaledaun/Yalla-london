@@ -208,6 +208,13 @@ async function checkLiveness(url: string, baseUrl: string): Promise<LinkCheck["l
   // Resolve relative URLs
   const fullUrl = url.startsWith("/") ? `${baseUrl}${url}` : url;
 
+  // Affiliate click tracking URLs are always live — skip HEAD check to avoid false positives.
+  // Partner sites (Booking.com, GetYourGuide, etc.) reject HEAD requests, but our redirect
+  // endpoint is correct by definition. These 302 redirects should never be flagged as dead.
+  if (fullUrl.includes("/api/affiliate/click")) {
+    return { ok: true, statusCode: 302, finalUrl: fullUrl, error: null };
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);

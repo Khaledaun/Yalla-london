@@ -177,7 +177,7 @@ const ScrollExpandHero = ({
               priority
             />
             {/* Elegant overlay with brand gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b from-burgundy-900/40 via-burgundy-900/20 to-burgundy-900/60" />
+            <div className="absolute inset-0 bg-gradient-to-b from-london-900/40 via-london-900/20 to-london-900/60" />
             {/* Subtle pattern overlay */}
             <div className="absolute inset-0 bg-pattern-arabesque opacity-30" />
           </motion.div>
@@ -217,7 +217,7 @@ const ScrollExpandHero = ({
                       />
                       <div className="absolute inset-0 z-10 pointer-events-none" />
                       <motion.div
-                        className="absolute inset-0 bg-burgundy-900/30 rounded-card"
+                        className="absolute inset-0 bg-london-900/30 rounded-card"
                         initial={{ opacity: 0.7 }}
                         animate={{ opacity: 0.4 - scrollProgress * 0.3 }}
                         transition={{ duration: 0.2 }}
@@ -240,7 +240,7 @@ const ScrollExpandHero = ({
                       />
                       <div className="absolute inset-0 z-10 pointer-events-none" />
                       <motion.div
-                        className="absolute inset-0 bg-burgundy-900/30 rounded-card"
+                        className="absolute inset-0 bg-london-900/30 rounded-card"
                         initial={{ opacity: 0.7 }}
                         animate={{ opacity: 0.4 - scrollProgress * 0.3 }}
                         transition={{ duration: 0.2 }}
@@ -258,7 +258,7 @@ const ScrollExpandHero = ({
                       priority
                     />
                     <motion.div
-                      className="absolute inset-0 bg-burgundy-900/40 rounded-card"
+                      className="absolute inset-0 bg-london-900/40 rounded-card"
                       initial={{ opacity: 0.7 }}
                       animate={{ opacity: 0.5 - scrollProgress * 0.3 }}
                       transition={{ duration: 0.2 }}

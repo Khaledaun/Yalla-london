@@ -166,7 +166,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
     <aside className="space-y-8" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* About Widget */}
       <div className="card-elegant p-6">
-        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
+        <h3 className="text-lg font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
           {t.aboutTitle}
           <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
@@ -180,12 +180,12 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
               className="w-full h-full object-cover"
             />
           </div>
-          <p className="text-warm-gray dark:text-yl-gray-300 text-sm leading-relaxed mb-4">
+          <p className="text-stone dark:text-yl-gray-300 text-sm leading-relaxed mb-4">
             {t.aboutText}
           </p>
           <Link
             href={`/${locale === 'ar' ? 'ar/' : ''}about`}
-            className="inline-flex items-center gap-2 text-sm text-burgundy-800 hover:text-burgundy-600 font-semibold transition-colors group"
+            className="inline-flex items-center gap-2 text-sm text-london-800 hover:text-london-600 font-semibold transition-colors group"
           >
             {t.moreAbout}
             <ArrowRight size={14} className={`${isRTL ? 'rotate-180' : ''} group-hover:translate-x-1 transition-transform`} />
@@ -197,7 +197,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
       <div className="bg-gradient-to-br from-yl-gray-100 to-yl-gray-200 dark:from-yl-charcoal dark:to-yl-dark-navy rounded-card p-6 border border-yl-gold/20">
         {/* Follow Us */}
         <div className="text-center mb-6">
-          <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 mb-4">
+          <h3 className="text-lg font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 mb-4">
             {t.followUs}
           </h3>
           <div className="flex items-center justify-center gap-3">
@@ -238,10 +238,10 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
 
         {/* Newsletter */}
         <div className="pt-6 border-t border-gold-300/30">
-          <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 mb-2 text-center">
+          <h3 className="text-lg font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 mb-2 text-center">
             {t.newsletter}
           </h3>
-          <p className="text-sm text-warm-gray dark:text-yl-gray-400 text-center mb-4">
+          <p className="text-sm text-stone dark:text-yl-gray-400 text-center mb-4">
             {t.newsletterText}
           </p>
           {subscribed ? (
@@ -254,11 +254,11 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
                 required
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gold-300/30 bg-white dark:bg-yl-charcoal text-warm-charcoal dark:text-yl-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-transparent transition-all"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gold-300/30 bg-white dark:bg-yl-charcoal text-yl-charcoal dark:text-yl-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-transparent transition-all"
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-lg bg-burgundy-800 text-white hover:bg-burgundy-700 transition-all duration-300 hover:shadow-lg"
+                className="px-4 py-2.5 rounded-lg bg-london-800 text-white hover:bg-london-700 transition-all duration-300 hover:shadow-lg"
               >
                 <Send size={18} />
               </button>
@@ -269,7 +269,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
 
       {/* Popular Posts */}
       <div className="card-elegant p-6">
-        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
+        <h3 className="text-lg font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
           {t.popularPosts}
           <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
@@ -287,7 +287,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
 
       {/* Categories */}
       <div className="card-elegant p-6">
-        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
+        <h3 className="text-lg font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
           {t.categories}
           <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
@@ -310,11 +310,11 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
                     />
                   </div>
                 )}
-                <span className="text-warm-charcoal dark:text-yl-gray-200 group-hover:text-burgundy-800 font-medium transition-colors">
+                <span className="text-yl-charcoal dark:text-yl-gray-200 group-hover:text-london-800 font-medium transition-colors">
                   {category.name}
                 </span>
               </div>
-              <span className="text-sm text-warm-gray bg-yl-gray-200 dark:bg-yl-charcoal px-2 py-0.5 rounded-full">{category.count}</span>
+              <span className="text-sm text-stone bg-yl-gray-200 dark:bg-yl-charcoal px-2 py-0.5 rounded-full">{category.count}</span>
             </Link>
           ))}
         </div>
@@ -322,7 +322,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
 
       {/* Tags */}
       <div className="card-elegant p-6">
-        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
+        <h3 className="text-lg font-serif font-bold text-yl-charcoal dark:text-yl-gray-100 mb-4 pb-3 border-b border-yl-gold/30">
           {t.tags}
           <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
@@ -331,7 +331,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
             <Link
               key={tag}
               href={`/${locale === 'ar' ? 'ar/' : ''}blog?tag=${encodeURIComponent(tag)}`}
-              className="px-3 py-1.5 text-sm bg-yl-gray-100 dark:bg-yl-charcoal text-warm-charcoal dark:text-yl-gray-200 rounded-lg hover:bg-burgundy-800 hover:text-white border border-yl-gold/20 transition-all duration-300"
+              className="px-3 py-1.5 text-sm bg-yl-gray-100 dark:bg-yl-charcoal text-yl-charcoal dark:text-yl-gray-200 rounded-lg hover:bg-london-800 hover:text-white border border-yl-gold/20 transition-all duration-300"
             >
               {tag}
             </Link>

@@ -207,6 +207,16 @@ const EXPECTED_TABLES: TableDef[] = [
       'CREATE INDEX IF NOT EXISTS "MediaAsset_category_idx" ON "MediaAsset"("category")',
     ],
   },
+  // ── Subscriber Name Fields (migration: 20260317_add_subscriber_name_fields) ──
+  {
+    table: "Subscriber",
+    model: "Subscriber",
+    columns: [
+      { name: "first_name", type: "TEXT", nullable: true },
+      { name: "last_name", type: "TEXT", nullable: true },
+    ],
+    indexes: [],
+  },
 ];
 
 // ─── Enum Definitions ──────────────────────────────────────────────────────
@@ -3650,6 +3660,73 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   CONSTRAINT "finance_events_pkey" PRIMARY KEY ("id")
 )`,
   },
+  // ── Unsplash Cache (migration: 20260324_unsplash_cache) ─────────────────
+  {
+    table: "unsplash_cache",
+    model: "UnsplashCache",
+    sql: `CREATE TABLE IF NOT EXISTS "unsplash_cache" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+  "cache_key" TEXT NOT NULL,
+  "response_data" JSONB NOT NULL,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "expires_at" TIMESTAMPTZ NOT NULL,
+  CONSTRAINT "unsplash_cache_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Google Drive Accounts (migration: 20260328_add_google_drive_account) ─
+  {
+    table: "google_drive_accounts",
+    model: "GoogleDriveAccount",
+    sql: `CREATE TABLE IF NOT EXISTS "google_drive_accounts" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+  "email" TEXT NOT NULL,
+  "displayName" TEXT NOT NULL DEFAULT '',
+  "photoUrl" TEXT,
+  "accessToken" TEXT NOT NULL,
+  "refreshToken" TEXT NOT NULL,
+  "tokenExpiresAt" TIMESTAMPTZ NOT NULL,
+  "rootFolderId" TEXT DEFAULT 'root',
+  "siteId" TEXT,
+  "label" TEXT,
+  "folderMappings" JSONB DEFAULT '{}',
+  "lastSyncAt" TIMESTAMPTZ,
+  "syncEnabled" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT "google_drive_accounts_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Video Assets (migration: 20260318_add_video_asset_model) ────────────
+  {
+    table: "video_assets",
+    model: "VideoAsset",
+    sql: `CREATE TABLE IF NOT EXISTS "video_assets" (
+  "id" TEXT NOT NULL,
+  "assetCode" TEXT NOT NULL,
+  "siteId" TEXT,
+  "source" TEXT NOT NULL,
+  "title" TEXT,
+  "description" TEXT,
+  "duration" DOUBLE PRECISION,
+  "width" INTEGER,
+  "height" INTEGER,
+  "thumbnailUrl" TEXT,
+  "previewUrl" TEXT,
+  "downloadUrl" TEXT,
+  "fileSize" BIGINT,
+  "mimeType" TEXT,
+  "locationTags" TEXT[] DEFAULT '{}',
+  "sceneTags" TEXT[] DEFAULT '{}',
+  "moodTags" TEXT[] DEFAULT '{}',
+  "status" TEXT NOT NULL DEFAULT 'untagged',
+  "usageCount" INTEGER NOT NULL DEFAULT 0,
+  "lastUsedAt" TIMESTAMPTZ,
+  "metadata" JSONB,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT "video_assets_pkey" PRIMARY KEY ("id")
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -3880,6 +3957,25 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "audit_issues_siteId_severity_idx" ON "audit_issues"("siteId", "severity")',
   ],
 
+  // ── Unsplash Cache Indexes ─────────────────────────────────
+  unsplash_cache: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "unsplash_cache_cache_key_key" ON "unsplash_cache"("cache_key")',
+    'CREATE INDEX IF NOT EXISTS "unsplash_cache_cache_key_idx" ON "unsplash_cache"("cache_key")',
+    'CREATE INDEX IF NOT EXISTS "unsplash_cache_expires_at_idx" ON "unsplash_cache"("expires_at")',
+  ],
+  // ── Google Drive Account Indexes ───────────────────────────
+  google_drive_accounts: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "google_drive_accounts_email_key" ON "google_drive_accounts"("email")',
+    'CREATE INDEX IF NOT EXISTS "google_drive_accounts_siteId_idx" ON "google_drive_accounts"("siteId")',
+  ],
+  // ── Video Asset Indexes ────────────────────────────────────
+  video_assets: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "video_assets_assetCode_key" ON "video_assets"("assetCode")',
+    'CREATE INDEX IF NOT EXISTS "video_assets_siteId_idx" ON "video_assets"("siteId")',
+    'CREATE INDEX IF NOT EXISTS "video_assets_status_idx" ON "video_assets"("status")',
+    'CREATE INDEX IF NOT EXISTS "video_assets_source_idx" ON "video_assets"("source")',
+  ],
+
   // ── Content Pipeline Core Indexes ──────────────────────────
   article_drafts: [
     'CREATE INDEX IF NOT EXISTS "article_drafts_current_phase_site_id_idx" ON "article_drafts"("current_phase", "site_id")',
@@ -3888,6 +3984,9 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "article_drafts_site_id_current_phase_idx" ON "article_drafts"("site_id", "current_phase")',
     'CREATE INDEX IF NOT EXISTS "article_drafts_created_at_idx" ON "article_drafts"("created_at")',
     'CREATE INDEX IF NOT EXISTS "article_drafts_paired_draft_id_idx" ON "article_drafts"("paired_draft_id")',
+    // Compound indexes for build-runner (migration: 20260321_add_performance_indexes)
+    'CREATE INDEX IF NOT EXISTS "article_drafts_site_id_current_phase_updated_at_idx" ON "article_drafts"("site_id", "current_phase", "updated_at")',
+    'CREATE INDEX IF NOT EXISTS "article_drafts_site_id_current_phase_phase_attempts_idx" ON "article_drafts"("site_id", "current_phase", "phase_attempts")',
   ],
   topic_proposals: [
     'CREATE INDEX IF NOT EXISTS "topic_proposals_site_id_idx" ON "topic_proposals"("site_id")',
@@ -3904,12 +4003,18 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_slug_idx" ON "url_indexing_status"("site_id", "slug")',
     'CREATE INDEX IF NOT EXISTS "url_indexing_status_status_idx" ON "url_indexing_status"("status")',
     'CREATE INDEX IF NOT EXISTS "url_indexing_status_last_submitted_at_idx" ON "url_indexing_status"("last_submitted_at")',
+    // Compound indexes for process-indexing-queue (migration: 20260321_add_performance_indexes)
+    'CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_status_last_submitted_at_idx" ON "url_indexing_status"("site_id", "status", "last_submitted_at" DESC)',
+    'CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_submitted_indexnow_idx" ON "url_indexing_status"("site_id", "submitted_indexnow")',
   ],
   cron_job_logs: [
     'CREATE INDEX IF NOT EXISTS "cron_job_logs_job_name_started_at_idx" ON "cron_job_logs"("job_name", "started_at")',
     'CREATE INDEX IF NOT EXISTS "cron_job_logs_site_id_job_name_idx" ON "cron_job_logs"("site_id", "job_name")',
     'CREATE INDEX IF NOT EXISTS "cron_job_logs_status_idx" ON "cron_job_logs"("status")',
     'CREATE INDEX IF NOT EXISTS "cron_job_logs_started_at_idx" ON "cron_job_logs"("started_at")',
+    // Compound indexes for CEO Inbox + cycle-health (migration: 20260321_add_performance_indexes)
+    'CREATE INDEX IF NOT EXISTS "cron_job_logs_job_name_status_started_at_idx" ON "cron_job_logs"("job_name", "status", "started_at" DESC)',
+    'CREATE INDEX IF NOT EXISTS "cron_job_logs_status_started_at_idx" ON "cron_job_logs"("status", "started_at" DESC)',
   ],
   site_health_checks: [
     'CREATE INDEX IF NOT EXISTS "site_health_checks_site_id_checked_at_idx" ON "site_health_checks"("site_id", "checked_at")',

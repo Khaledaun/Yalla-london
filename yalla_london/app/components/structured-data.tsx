@@ -102,11 +102,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       } : {})
     }
 
-    // SearchAction enables Google Sitelinks Searchbox for all sites
-    const searchTarget = isZenitha
-      ? `${baseUrl}/yachts?q={search_term_string}`
-      : `${baseUrl}/blog?q={search_term_string}`;
-
+    // SearchAction enables Google Sitelinks Searchbox — only for sites with actual search endpoints
     const websiteData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
@@ -119,14 +115,18 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "name": siteName,
         "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
       },
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": {
-          "@type": "EntryPoint",
-          "urlTemplate": searchTarget
-        },
-        "query-input": "required name=search_term_string"
-      }
+      // Only add SearchAction when the site has a working search endpoint
+      // Yachts has /yachts?q=, blog sites need /blog?q= or /search?q= to be implemented first
+      ...(isZenitha ? {
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": `${baseUrl}/yachts?q={search_term_string}`
+          },
+          "query-input": "required name=search_term_string"
+        }
+      } : {})
     }
 
     return { organizationData, websiteData }

@@ -743,6 +743,24 @@ export default async function BlogPostPage({ params }: Props) {
   );
   const clientPost = transformForClient(result.post, result.source, categoriesCache, author);
 
+  // Fetch Unsplash attribution for hero image (required by Unsplash ToS)
+  let unsplashAttribution: string | undefined;
+  const featuredImage = (result.post as any).featured_image || "";
+  if (featuredImage.includes("images.unsplash.com")) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const mediaAsset = await prisma.mediaAsset.findFirst({
+        where: { url: featuredImage },
+        select: { description: true },
+      });
+      if (mediaAsset?.description && mediaAsset.description.includes("Unsplash")) {
+        unsplashAttribution = mediaAsset.description;
+      }
+    } catch {
+      // Attribution fetch is non-blocking — skip if DB unavailable
+    }
+  }
+
   return (
     <>
       <script
@@ -757,7 +775,7 @@ export default async function BlogPostPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      <BlogPostClient post={clientPost} serverLocale={locale as 'en' | 'ar'} />
+      <BlogPostClient post={clientPost} serverLocale={locale as 'en' | 'ar'} unsplashAttribution={unsplashAttribution} />
       {/* Related articles stream in after the main content via Suspense.
           This eliminates a DB query from the critical render path —
           the page HTML arrives immediately, related articles load async. */}

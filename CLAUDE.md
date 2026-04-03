@@ -5551,6 +5551,63 @@ Subscriber Lifecycle:
 241. **Post-action result summaries must answer "what changed?"** — generic "completed" messages are useless. After affiliate injection, show: which articles, which partners, how many. After any mutation, show the delta, not just the status.
 242. **Sort controls on data tables must support bidirectional toggle** — first click sorts descending (most interesting first), second click on same column reverses to ascending. Active sort state must be visually distinct (filled button vs outline).
 
+## Workflow Infrastructure & Developer Tools
+
+### Available Command Categories
+
+| Category | Commands | When to Use |
+|----------|----------|-------------|
+| **Quality Gates** | `/code-review`, `/security-scan`, `/tdd` | Before every commit, before deploys, when building new features |
+| **Deployment** | `/ship`, `/qa` | Ready to deploy, need live site verification |
+| **Planning** | `/plan-review`, `/gsd:new-project`, `/gsd:map-codebase` | Before starting features, scoping new work |
+| **Operations** | `/ceo`, `/retro`, `/site-health`, `/analytics-review` | Morning briefings, weekly reviews, health checks |
+| **Content** | `/content-pipeline`, `/full-seo-audit`, `/performance-audit` | Content lifecycle, SEO compliance, Core Web Vitals |
+| **Business** | `/conversion-audit`, `/competitive-research` | CRO analysis, market intelligence |
+| **GSD Workflow** | `/gsd:quick`, `/gsd:autonomous`, `/gsd:verify-work`, `/gsd:debug` | Spec-driven development, autonomous execution, verification, debugging |
+
+### Development Phase Mapping
+
+| Phase | Primary Commands | What Happens |
+|-------|-----------------|-------------|
+| **Scope** | `/plan-review` → `/gsd:new-project` | Challenge assumptions, create spec, map codebase |
+| **Build** | `/tdd` → `/gsd:execute-phase` | Test-first development with GSD guardrails |
+| **Review** | `/code-review` → `/security-scan` | Schema validation, auth checks, engineering standards |
+| **Ship** | `/ship` → `/qa` | Automated deploy pipeline, live site QA |
+| **Monitor** | `/site-health` → `/analytics-review` | Post-deploy health, traffic, revenue tracking |
+
+### GSD Integration (get-shit-done-cc)
+
+GSD provides spec-driven multi-phase project management. All GSD commands are namespaced under `gsd/` — no conflicts with project commands.
+
+**Key GSD commands for this project:**
+- `/gsd:quick "task"` — Execute a small task with GSD guardrails (context monitoring, prompt guard)
+- `/gsd:new-project` — Initialize a new feature with deep planning (creates `.planning/` specs)
+- `/gsd:map-codebase` — Parallel codebase analysis for understanding before changes
+- `/gsd:verify-work N` — Validate built features through comprehensive testing
+- `/gsd:autonomous` — Run all remaining phases autonomously (use with caution)
+- `/gsd:debug` — Systematic debugging with persistent investigation state
+- `/gsd:forensics` — Post-mortem investigation for failed deploys or production issues
+- `/gsd:progress` — Check project progress and context health
+
+**GSD hooks (active in `~/.claude/settings.json`):**
+- `PostToolUse` → context monitor (tracks context window usage)
+- `PreToolUse` → prompt guard (validates write/edit operations)
+- `Stop` → git check (verifies git state on session end)
+- `SessionStart` → update check (checks for GSD updates)
+
+### Activity Logging
+
+Session activity is tracked in `.planning/activity-log.md`. Every session should:
+1. **Start**: Read recent entries for context
+2. **End**: Append entry with actions, decisions, outcomes, and next steps
+
+### Security Scanning
+
+Run `npx ecc-agentshield scan` periodically to audit `.claude/` configuration:
+- Baseline score: B (86/100) — established April 3, 2026
+- 0 critical findings, 1 HIGH (false positive), 8 MEDIUM (agent size warnings — expected for comprehensive agents)
+- All MCP servers, hooks, and permissions scored 100
+
 ## Weekly Manual Checks
 
 - [ ] Every Monday: check https://www.remotion.dev/docs/vercel — activate Remotion when experimental warning is removed

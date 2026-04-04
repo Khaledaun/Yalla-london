@@ -19,13 +19,13 @@ This plan replaces the broad strategy document with a sequenced, day-by-day exec
 
 ## Technical Readiness Summary (April 4, 2026)
 
-The platform is **95% feature complete**. The entire yacht charter platform was built in a single session (February 21, 2026) and has been hardened across 40+ audit rounds since. Current status: `paused` in `config/sites.ts` — activation requires changing one line of code plus external service setup.
+The platform is **95% feature complete**. The entire yacht charter platform was built in a single session (February 21, 2026) and has been hardened across 40+ audit rounds since. Current status: `active` in `config/sites.ts` — site activated April 2026. Remaining: external service setup (DNS, GA4, GSC).
 
 ### What's Already Built
 
 | Component | Status | Files | Notes |
 |-----------|--------|-------|-------|
-| **8 Prisma Models** | ✅ BUILT | `prisma/schema.prisma` (line 3242+) | Yacht, YachtDestination, CharterInquiry, YachtAvailability, YachtAmenity, YachtImage, BrokerPartner, CharterItinerary + 8 enums |
+| **6 Prisma Models** | ✅ BUILT | `prisma/schema.prisma` (line 3242+) | Yacht, YachtDestination, CharterInquiry, YachtAvailability, BrokerPartner, CharterItinerary + 5 enums (YachtAmenity, YachtImage removed as orphans; InquiryPriority, BrokerTier, AmenityCategory enums removed) |
 | **6 Public API Routes** | ✅ BUILT | `app/api/yachts/` | Search, detail, destinations, itineraries, compare, recommend |
 | **8 Admin API Routes** | ✅ BUILT | `app/api/admin/yachts/` | CRUD, sync, seed, inquiries, destinations, itineraries, brokers, analytics |
 | **Public Inquiry API** | ✅ BUILT | `app/api/inquiry/route.ts` | Rate-limited, multi-step form submission → CharterInquiry table |
@@ -56,7 +56,7 @@ The platform is **95% feature complete**. The entire yacht charter platform was 
 | **IndexNow Integration** | ✅ BUILT | `lib/seo/indexing-service.ts` | Multi-engine (Bing, Yandex, api.indexnow.org) |
 | **Admin Sidebar** | ✅ BUILT | `premium-admin-nav.tsx` | "Yacht Management" section with 8 items |
 | **WhatsApp Button** | ✅ BUILT | `components/zenitha/whatsapp-button.tsx` | Floating CTA for inquiries |
-| **Site Config** | ✅ BUILT | `config/sites.ts` (line 1564-1822) | Full config, bilingual EN/AR, status: "paused" |
+| **Site Config** | ✅ BUILT | `config/sites.ts` (line 1564-1822) | Full config, bilingual EN/AR, status: "active" (activated April 2026) |
 
 ### What's Built by the Platform (Yacht Gets Automatically)
 
@@ -99,8 +99,8 @@ These platform-wide systems activate the moment the yacht site status changes to
 
 | # | Action | Who | Time | Notes |
 |---|--------|-----|------|-------|
-| 1 | Change `status: "paused"` → `"active"` in `config/sites.ts` line 1571 | Claude Code | 2 min | Single line change |
-| 2 | Run `npx prisma migrate deploy` on Supabase | Claude Code | 5 min | Creates 8 yacht tables + agent tables |
+| 1 | ~~Change `status: "paused"` → `"active"` in `config/sites.ts` line 1571~~ | Claude Code | ✅ DONE | Already active (April 2026) |
+| 2 | Run `npx prisma migrate deploy` on Supabase | Claude Code | 5 min | Creates 6 yacht tables + agent tables |
 | 3 | DNS: Point `zenithayachts.com` CNAME to `cname.vercel-dns.com` (proxy OFF) | Khaled / Cloudflare | 10 min | Domain already purchased |
 | 4 | Add domain to Vercel project settings | Claude Code | 2 min | `zenithayachts.com` + `www.zenithayachts.com` |
 | 5 | Create GA4 property for Zenitha Yachts | Khaled / analytics.google.com | 5 min | Get Measurement ID (G-xxx) + Property ID |
@@ -394,12 +394,10 @@ When you sit down on Day 1, here is exactly what to do in order:
 
 ## Appendix A: Technical Architecture for Zenitha Yachts
 
-### Database Models (8 models, ready in `prisma/schema.prisma`)
+### Database Models (6 models, ready in `prisma/schema.prisma`)
 
 ```
-Yacht ──────────── YachtImage (1:N)
-  │                YachtAmenity (1:N)
-  │                YachtAvailability (1:N)
+Yacht ──────────── YachtAvailability (1:N)
   │
   ├── YachtDestination (N:M via destination field)
   ├── CharterItinerary (via destination)
@@ -407,6 +405,8 @@ Yacht ──────────── YachtImage (1:N)
 
 CharterInquiry ──── standalone (links to Yacht via yachtId?)
 ```
+
+> **Note:** YachtAmenity and YachtImage models (+ InquiryPriority, BrokerTier, AmenityCategory enums) were removed as orphan schema items during the April 2026 gap-fill audit. Yacht images are stored in the `images` JSON field on the Yacht model. Amenities are stored as comma-separated strings in `amenities`.
 
 ### API Route Map
 

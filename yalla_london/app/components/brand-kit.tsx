@@ -40,8 +40,8 @@ const buttonVariantClasses: Record<ButtonVariant, string> = {
 };
 
 const buttonSizeClasses: Record<ButtonSize, string> = {
-  sm: 'py-2 px-4 text-[9px]',
-  md: 'py-3 px-5 text-[11px]',
+  sm: 'py-2 px-4 text-xs',
+  md: 'py-3 px-5 text-xs',
   lg: 'py-4 px-8 text-[13px]',
 };
 
@@ -90,7 +90,7 @@ export function BrandTag({
   className?: string;
 }) {
   return (
-    <span className={`inline-flex items-center font-mono text-[9px] tracking-wider uppercase rounded-full px-3 py-1 ${tagColorClasses[color]} ${className}`}>
+    <span className={`inline-flex items-center font-mono text-xs tracking-wider uppercase rounded-full px-3 py-1 ${tagColorClasses[color]} ${className}`}>
       {children}
     </span>
   );
@@ -116,7 +116,7 @@ export function BrandToast({
 }) {
   const config = toastClasses[type];
   return (
-    <div className={`flex items-center gap-3 ${config.bg} ${config.border} border rounded-xl px-4 py-3 font-mono text-[11px] shadow-md`}>
+    <div className={`flex items-center gap-3 ${config.bg} ${config.border} border rounded-xl px-4 py-3 font-mono text-xs shadow-md`}>
       <span className="font-bold text-sm">{config.icon}</span>
       <span className="flex-1">{message}</span>
       {onDismiss && (
@@ -195,7 +195,7 @@ export function SectionLabel({
   className?: string;
 }) {
   return (
-    <span className={`font-mono text-[10px] tracking-widest uppercase text-yl-gold block mb-2 ${className}`}>
+    <span className={`font-mono text-xs tracking-widest uppercase text-yl-gold block mb-2 ${className}`}>
       {children}
     </span>
   );
@@ -240,7 +240,7 @@ export function Breadcrumbs({
   className?: string;
 }) {
   return (
-    <nav className={`font-mono text-[10px] text-yl-gray-500 ${className}`} aria-label="Breadcrumb">
+    <nav className={`font-mono text-xs text-yl-gray-500 ${className}`} aria-label="Breadcrumb">
       <ol className="flex items-center gap-1.5">
         {items.map((item, i) => (
           <li key={i} className="flex items-center gap-1.5">

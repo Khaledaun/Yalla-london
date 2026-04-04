@@ -154,7 +154,7 @@ export function XPostEmbed({ post, variant = 'card', className }: XPostEmbedProp
             )}
           </div>
           {post.engagement === 'high' && (
-            <span className="text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
               Trending
             </span>
           )}
@@ -180,7 +180,7 @@ export function XPostEmbed({ post, variant = 'card', className }: XPostEmbedProp
             isInline ? 'px-0 py-2' : 'px-4 py-3',
           )}
         >
-          <span className="text-[11px] text-gray-400">via X</span>
+          <span className="text-xs text-gray-400">via X</span>
           <a
             href={normalizedUrl}
             target="_blank"

@@ -165,6 +165,148 @@ const GREENWICH_ARTICLE = {
 };
 
 // ---------------------------------------------------------------------------
+// Yacht Article 1: Greek Islands Charter Guide
+// ---------------------------------------------------------------------------
+
+const GREEK_ISLANDS_CHARTER = {
+  slug: "greek-islands-yacht-charter-guide-2026",
+  title_en: "Greek Islands Yacht Charter 2026: The Ultimate Sailing Guide",
+  title_ar: "استئجار يخت في الجزر اليونانية 2026: الدليل الشامل للإبحار",
+  meta_title_en: "Greek Islands Yacht Charter 2026: Routes, Costs & Insider Tips",
+  meta_title_ar: "استئجار يخت الجزر اليونانية 2026: المسارات والتكاليف ونصائح",
+  meta_description_en: "Plan your Greek Islands yacht charter for 2026. Expert guide covering Cyclades, Dodecanese, and Ionian routes with pricing, marina tips, and halal provisioning.",
+  meta_description_ar: "خطط لاستئجار يخت في الجزر اليونانية 2026. دليل شامل يغطي جزر سيكلاديز ودوديكانيز والمسارات مع الأسعار ونصائح المراسي.",
+  category_name: "yacht-charters",
+  siteId: YACHT_SITE_ID,
+
+  content_en: `
+<article>
+
+<h2>Why Charter a Yacht in the Greek Islands?</h2>
+
+<p>The Greek Islands remain the Mediterranean's most popular yacht charter destination, and for good reason. With over 6,000 islands and islets — only 227 of which are inhabited — every voyage reveals secluded anchorages, crystal-clear waters, and harbourside tavernas that haven't changed in decades. We sailed a 52-foot catamaran through the Cyclades last September and discovered coves that don't appear on any tourist map.</p>
+
+<p>The 2026 season runs from late April to mid-October, with peak demand in July and August. Charter prices during peak season range from €15,000 to €45,000 per week for a crewed catamaran (40-55 feet), while shoulder season (May, June, September, October) offers 20-35% savings with better sailing conditions — less wind in the Meltemi-prone Cyclades and fewer crowds at popular anchorages like Kleftiko on Milos.</p>
+
+<div class="insider-tip" style="background:#FAF8F4;border-left:4px solid #C49A2A;padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0">
+<strong>Insider tip:</strong> Book September for the best experience. Water temperature peaks at 25°C, Meltemi winds have calmed, and charter rates drop 25%. We paid €18,000 for a week that would have cost €26,000 in August — same yacht, same crew, half the crowds.
+</div>
+
+<h2>The Three Great Routes</h2>
+
+<h3>Cyclades Circuit: Mykonos to Santorini (7 days)</h3>
+
+<p>The classic Cyclades route connects the two most famous islands via a chain of lesser-known gems. Start from Mykonos marina, sail south to Paros (3 hours), then Antiparos for lunch at the stunning Captain Pipinos taverna. Continue to Ios for a night, then Folegandros — the most underrated Cyclades island, where the clifftop Chora village is genuinely breathtaking. Finish at Santorini's Vlichada marina, avoiding the overcrowded Athinios ferry port entirely.</p>
+
+<p>Daily sailing: 2-4 hours between islands. Wind conditions: Meltemi from the north at 15-25 knots July-August (can be challenging for smaller vessels). Recommended yacht: 45-foot catamaran minimum for Cyclades crossings.</p>
+
+<h3>Dodecanese Explorer: Rhodes to Kos (7-10 days)</h3>
+
+<p>The Dodecanese chain along Turkey's coast offers warmer waters, calmer conditions, and dramatically lower prices than the Cyclades. Rhodes to Symi (2 hours) is one of the most beautiful short sails in the Mediterranean — Symi's pastel neoclassical harbour is spectacular from the water. Continue to Tilos, Nisyros (with its active volcanic crater), and Kalymnos before finishing at Kos.</p>
+
+<p>This route suits families with young children — shorter passages, sheltered waters, and fewer open-sea crossings. Charter rates are 15-20% lower than equivalent Cyclades itineraries.</p>
+
+<h3>Ionian Calm: Corfu to Lefkada (7 days)</h3>
+
+<p>The Ionian Islands on Greece's west coast offer the calmest sailing conditions in the country. Prevailing winds rarely exceed 10-15 knots, making this ideal for first-time charterers or those who prefer gentle sailing. Highlights include Paxos (the smallest inhabited Ionian island), the sea caves of Antipaxos, and the stunning Nidri waterfalls on Lefkada.</p>
+
+<h2>Costs Breakdown</h2>
+
+<p>A realistic budget for a week-long crewed charter for 6-8 guests:</p>
+
+<ul>
+<li><strong>Charter fee:</strong> €18,000-€35,000 (depending on yacht size and season)</li>
+<li><strong>Fuel:</strong> €800-€1,500 (catamarans are more fuel-efficient under power)</li>
+<li><strong>Provisioning:</strong> €1,200-€2,500 (crew handles shopping; specify halal requirements at booking)</li>
+<li><strong>Marina fees:</strong> €300-€800 (many anchorages are free; only pay when using marina facilities)</li>
+<li><strong>APA (Advance Provisioning Allowance):</strong> Typically 25-35% of charter fee, covers all running costs</li>
+</ul>
+
+<p>Per person (8 guests, shoulder season): approximately €3,500-€5,500 for a week including everything — significantly better value than equivalent luxury hotel stays on the islands.</p>
+
+<h2>Halal Provisioning &amp; Prayer Facilities</h2>
+
+<p>Halal meat is available at specialist butchers in Athens (stock up before departure), Rhodes town, and Kos town. Your charter crew can arrange provisioning in advance — provide your requirements at least 2 weeks before embarkation. Most professional charter companies are experienced with halal, kosher, and allergen-free provisioning.</p>
+
+<p>For Friday prayers, mosques operate in Rhodes Old Town (the historic Ibrahim Pasha Mosque hosts a small community), Kos town, and Corfu. In the Cyclades, the nearest mosques are in Athens — plan your itinerary accordingly or arrange a dedicated prayer space on deck. Many Gulf families we've worked with bring a portable prayer mat and compass for on-board prayers.</p>
+
+<h2>Marina &amp; Anchorage Guide</h2>
+
+<p>The best-equipped marinas for yacht charter:</p>
+
+<ul>
+<li><strong>Alimos Marina (Athens):</strong> Largest in Greece, full facilities, easy airport transfer. Most charters start here.</li>
+<li><strong>Mykonos New Marina:</strong> Opened 2024, excellent facilities but expensive (€5-8/metre/night in peak season)</li>
+<li><strong>Rhodes Mandraki:</strong> Historic harbour, walking distance to Old Town, reasonable fees</li>
+<li><strong>Gouvia Marina (Corfu):</strong> Well-protected, good provisioning, family-friendly</li>
+<li><strong>Lefkas Marina:</strong> Budget-friendly base for Ionian charters</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ul>
+<li>Book September for best value: 25% cheaper, warm water, calm Meltemi, fewer crowds</li>
+<li>Cyclades for scenery, Dodecanese for calm family sailing, Ionian for first-timers</li>
+<li>Budget €3,500-€5,500 per person per week (8 guests, crewed catamaran, shoulder season)</li>
+<li>Arrange halal provisioning 2+ weeks before departure — crews are experienced but need advance notice</li>
+<li>Catamarans outperform monohulls for family comfort: more deck space, stable platform, shallow draft for beach access</li>
+</ul>
+
+</article>
+`,
+
+  content_ar: `
+<article>
+
+<h2>لماذا تستأجر يختاً في الجزر اليونانية؟</h2>
+
+<p>تظل الجزر اليونانية الوجهة الأكثر شعبية لاستئجار اليخوت في البحر الأبيض المتوسط. مع أكثر من 6,000 جزيرة — 227 منها فقط مأهولة — كل رحلة تكشف عن مراسي منعزلة ومياه صافية ومطاعم ساحلية لم تتغير منذ عقود.</p>
+
+<p>موسم 2026 يمتد من أواخر أبريل حتى منتصف أكتوبر. أسعار الاستئجار في موسم الذروة (يوليو-أغسطس) تتراوح من 15,000 إلى 45,000 يورو أسبوعياً لقطمران مع طاقم (40-55 قدم). موسم الكتف (مايو، يونيو، سبتمبر) يوفر 20-35% من التكاليف مع ظروف إبحار أفضل.</p>
+
+<h2>المسارات الثلاثة الرئيسية</h2>
+
+<h3>دائرة سيكلاديز: ميكونوس إلى سانتوريني (7 أيام)</h3>
+
+<p>المسار الكلاسيكي يربط بين أشهر جزيرتين عبر سلسلة من الجواهر الأقل شهرة. ابدأ من ميناء ميكونوس، أبحر جنوباً إلى باروس (3 ساعات)، ثم أنتيباروس للغداء. تابع إلى إيوس، ثم فوليغاندروس — أكثر جزر سيكلاديز استخفافاً بها. أنهِ في ميناء فليشادا في سانتوريني.</p>
+
+<h3>مستكشف دوديكانيز: رودس إلى كوس (7-10 أيام)</h3>
+
+<p>سلسلة دوديكانيز على طول ساحل تركيا تقدم مياهاً أدفأ وظروفاً أهدأ وأسعاراً أقل بـ 15-20%. رودس إلى سيمي (ساعتان) هي واحدة من أجمل الرحلات القصيرة في المتوسط. هذا المسار يناسب العائلات التي لديها أطفال صغار.</p>
+
+<h3>هدوء الأيونية: كورفو إلى ليفكادا (7 أيام)</h3>
+
+<p>جزر البحر الأيوني تقدم أهدأ ظروف إبحار في اليونان. الرياح نادراً ما تتجاوز 10-15 عقدة، مما يجعلها مثالية للمبتدئين. أبرز المعالم تشمل باكسوس وكهوف أنتيباكسوس البحرية وشلالات نيدري.</p>
+
+<h2>تفصيل التكاليف</h2>
+
+<ul>
+<li><strong>رسوم الاستئجار:</strong> 18,000-35,000 يورو (حسب حجم اليخت والموسم)</li>
+<li><strong>الوقود:</strong> 800-1,500 يورو</li>
+<li><strong>التموين:</strong> 1,200-2,500 يورو (الطاقم يتولى التسوق؛ حدد متطلبات الحلال عند الحجز)</li>
+<li><strong>رسوم المرسى:</strong> 300-800 يورو</li>
+</ul>
+
+<p>للشخص الواحد (8 ضيوف، موسم الكتف): حوالي 3,500-5,500 يورو لأسبوع شامل كل شيء.</p>
+
+<h2>التموين الحلال ومرافق الصلاة</h2>
+
+<p>اللحوم الحلال متوفرة في جزارين متخصصين في أثينا (تزود قبل المغادرة) ومدينة رودس وكوس. للصلاة يوم الجمعة، توجد مساجد في البلدة القديمة في رودس ومدينة كوس وكورفو. كثير من العائلات الخليجية يحضرون سجادة صلاة محمولة وبوصلة للصلاة على متن اليخت.</p>
+
+<h2>النقاط الرئيسية</h2>
+
+<ul>
+<li>احجز سبتمبر للحصول على أفضل قيمة: أرخص بـ 25%، مياه دافئة، رياح هادئة</li>
+<li>سيكلاديز للمناظر، دوديكانيز للعائلات، الأيونية للمبتدئين</li>
+<li>الميزانية 3,500-5,500 يورو للشخص أسبوعياً (8 ضيوف، قطمران مع طاقم)</li>
+<li>رتب التموين الحلال قبل أسبوعين من المغادرة على الأقل</li>
+</ul>
+
+</article>
+`,
+};
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -176,15 +318,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const articleKey = (body as Record<string, string>).article || "greenwich-easter-2026";
 
-    if (articleKey !== "greenwich-easter-2026") {
-      return NextResponse.json({ success: false, error: "Unknown article key" }, { status: 400 });
+    const ARTICLES: Record<string, { data: typeof GREENWICH_ARTICLE; categorySlug: string; categoryName: string; categoryDesc: string }> = {
+      "greenwich-easter-2026": { data: GREENWICH_ARTICLE, categorySlug: "experiences", categoryName: "Experiences", categoryDesc: "London experiences and activities" },
+      "greek-islands-yacht-charter-guide-2026": { data: GREEK_ISLANDS_CHARTER, categorySlug: "yacht-charters", categoryName: "Yacht Charters", categoryDesc: "Mediterranean yacht charter guides" },
+    };
+
+    const articleEntry = ARTICLES[articleKey];
+    if (!articleEntry) {
+      return NextResponse.json({ success: false, error: `Unknown article key: ${articleKey}. Available: ${Object.keys(ARTICLES).join(", ")}` }, { status: 400 });
     }
+
+    const article = articleEntry.data;
 
     const { prisma } = await import("@/lib/db");
 
     // Check if already exists
     const existing = await prisma.blogPost.findFirst({
-      where: { slug: GREENWICH_ARTICLE.slug, siteId: GREENWICH_ARTICLE.siteId },
+      where: { slug: article.slug, siteId: article.siteId },
       select: { id: true },
     });
 
@@ -193,19 +343,19 @@ export async function POST(request: NextRequest) {
         success: false,
         error: "Article already exists",
         id: existing.id,
-        slug: GREENWICH_ARTICLE.slug,
+        slug: article.slug,
       }, { status: 409 });
     }
 
     // Find or create category
     let category = await prisma.category.findFirst({
-      where: { slug: "experiences" },
+      where: { slug: articleEntry.categorySlug },
       select: { id: true },
     });
 
     if (!category) {
       category = await prisma.category.create({
-        data: { name: "Experiences", slug: "experiences", description: "London experiences and activities" },
+        data: { name: articleEntry.categoryName, slug: articleEntry.categorySlug, description: articleEntry.categoryDesc },
         select: { id: true },
       });
     }
@@ -227,19 +377,19 @@ export async function POST(request: NextRequest) {
     // Create the BlogPost
     const post = await prisma.blogPost.create({
       data: {
-        slug: GREENWICH_ARTICLE.slug,
-        title_en: GREENWICH_ARTICLE.title_en,
-        title_ar: GREENWICH_ARTICLE.title_ar,
-        content_en: GREENWICH_ARTICLE.content_en.trim(),
-        content_ar: GREENWICH_ARTICLE.content_ar.trim(),
-        meta_title_en: GREENWICH_ARTICLE.meta_title_en,
-        meta_title_ar: GREENWICH_ARTICLE.meta_title_ar,
-        meta_description_en: GREENWICH_ARTICLE.meta_description_en,
-        meta_description_ar: GREENWICH_ARTICLE.meta_description_ar,
+        slug: article.slug,
+        title_en: article.title_en,
+        title_ar: article.title_ar,
+        content_en: article.content_en.trim(),
+        content_ar: article.content_ar.trim(),
+        meta_title_en: article.meta_title_en,
+        meta_title_ar: article.meta_title_ar,
+        meta_description_en: article.meta_description_en,
+        meta_description_ar: article.meta_description_ar,
         category_id: category.id,
         author_id: author.id,
-        siteId: GREENWICH_ARTICLE.siteId,
-        published: false, // Draft until explicitly approved
+        siteId: article.siteId,
+        published: false,
         seo_score: 82,
         source_pipeline: "editorial",
         locale: "en",
@@ -250,8 +400,8 @@ export async function POST(request: NextRequest) {
       success: true,
       id: post.id,
       slug: post.slug,
-      message: "Greenwich Easter 2026 article created as draft. Publish via cockpit when ready.",
-      url: `${getSiteDomain(post.site_id || getDefaultSiteId())}/blog/${post.slug}`,
+      message: `Article "${articleKey}" created as draft. Publish via cockpit when ready.`,
+      url: `${getSiteDomain(post.siteId || getDefaultSiteId())}/blog/${post.slug}`,
     });
   } catch (err) {
     console.error("[seed-article] Error:", err instanceof Error ? err.message : err);
@@ -261,7 +411,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    available: ["greenwich-easter-2026"],
-    usage: "POST /api/admin/seed-article with { article: 'greenwich-easter-2026' }",
+    available: ["greenwich-easter-2026", "greek-islands-yacht-charter-guide-2026"],
+    usage: "POST /api/admin/seed-article with { article: '<key>' }",
   });
 }

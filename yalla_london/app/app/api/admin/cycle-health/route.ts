@@ -200,7 +200,10 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
   ] = await Promise.allSettled([
     // 1. Cron logs in period
     prisma.cronJobLog.findMany({
-      where: { started_at: { gte: periodStart } },
+      where: {
+        started_at: { gte: periodStart },
+        ...(siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {}),
+      },
       select: {
         job_name: true, status: true, error_message: true,
         started_at: true, duration_ms: true, items_processed: true,
@@ -991,6 +994,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         job_name: { in: ["sweeper-agent", "failure-hook", "diagnostic-sweep"] },
         started_at: { gte: last4h },
         status: "completed",
+        ...(siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {}),
       },
       select: { job_name: true, result_summary: true },
       take: 200,
@@ -1027,6 +1031,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
       where: {
         job_name: "content-builder-create",
         started_at: { gte: last12h },
+        ...(siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {}),
         status: "completed",
       },
       select: { result_summary: true },
@@ -1071,6 +1076,7 @@ async function generateCycleReport(siteId: string, periodHours: number): Promise
         job_name: "content-builder",
         started_at: { gte: windowStart },
         status: { not: "skipped" },
+        ...(siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {}),
       },
       select: { status: true, result_summary: true },
       take: 20,

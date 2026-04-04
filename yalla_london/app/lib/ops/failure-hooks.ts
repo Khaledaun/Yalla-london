@@ -304,7 +304,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
 
       // CEO Inbox — fire-and-forget
       import("@/lib/ops/ceo-inbox")
-        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId))
         .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
@@ -328,7 +328,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
 
       // CEO Inbox — fire-and-forget
       import("@/lib/ops/ceo-inbox")
-        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId))
         .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
@@ -339,7 +339,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
 
       // CEO Inbox — fire-and-forget
       import("@/lib/ops/ceo-inbox")
-        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId))
         .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
@@ -363,7 +363,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
     // Fire-and-forget — never blocks the caller, never crashes on failure.
     import("@/lib/ops/ceo-inbox")
       .then(({ handleCronFailureNotice }) =>
-        handleCronFailureNotice(ctx.jobName, errorMsg),
+        handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId),
       )
       .catch((err) =>
         console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err),

@@ -280,8 +280,11 @@ export async function GET(req: NextRequest) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   // Fetch 7 days of logs for success rate + last run info
+  const cronSiteFilter = siteId && siteId !== "all"
+    ? { OR: [{ site_id: siteId }, { site_id: null }] }
+    : {};
   const recentLogs = await prisma.cronJobLog.findMany({
-    where: { started_at: { gte: sevenDaysAgo } },
+    where: { started_at: { gte: sevenDaysAgo }, ...cronSiteFilter },
     orderBy: { started_at: 'desc' },
     select: { job_name: true, status: true, started_at: true, duration_ms: true, error_message: true },
     take: 1000,

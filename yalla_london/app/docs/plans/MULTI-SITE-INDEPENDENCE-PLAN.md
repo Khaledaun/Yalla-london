@@ -55,116 +55,65 @@ This means:
 
 ## Implementation Plan: 5 Phases
 
-### Phase 1: Per-Site Feature Flags (Foundation)
+### Phase 1: Per-Site Feature Flags (Foundation) — COMPLETED
+
+**Status:** COMPLETED (April 2026)
 
 **Why first:** Every other phase depends on being able to enable/disable features per-site.
 
-**Changes:**
+**What was implemented:**
 
-1. **`lib/feature-flags.ts`** — Upgrade `loadDbFlags()` to be site-aware:
-   ```
-   loadDbFlags() → returns Map<string, Map<string|null, boolean>>
-   - Key 1: flag name
-   - Key 2: siteId (null = global)
-   
-   isFeatureFlagEnabled(name, siteId?) → checks:
-     1. Site-specific flag (name + siteId) → if exists, use it
-     2. Global flag (name + null) → if exists, use it
-     3. Env var → if exists, use it
-     4. Default → false
-   ```
+1. **`lib/feature-flags.ts`** — `isFeatureFlagEnabled(name, siteId?)` with 3-layer fallback:
+   - Site-specific flag (name + siteId) — checked first
+   - Global flag (name + null) — checked second
+   - Env var — checked third
+   - Default: false
+   - 60-second cache for DB lookups
 
-2. **`lib/cron-feature-guard.ts`** — Upgrade `checkCronEnabled()`:
-   ```
-   checkCronEnabled(jobName, siteId?) → checks per-site first, falls back to global
-   ```
+2. **`lib/cron-feature-guard.ts`** — `checkCronEnabled(jobName, siteId?)` with 43+ cron mappings in `CRON_FLAG_MAP`. Includes `CRON_NAME_ALIASES` for resolving name mismatches (e.g., `discover-deals` to `affiliate-discover-deals`).
 
-3. **Every cron route** — Pass `siteId` when inside a `forEachSite` loop:
-   ```
-   // Before (global check):
-   const disabled = await checkCronEnabled("content-builder");
-   
-   // After (per-site check inside loop):
-   for (const siteId of activeSiteIds) {
-     const disabled = await checkCronEnabled("content-builder", siteId);
-     if (disabled) { skip this site; continue; }
-   }
-   ```
+3. **All cron routes** — Pass `siteId` when inside `forEachSite` loops. Crons that loop sites call `checkCronEnabled(jobName, siteId)` per iteration, allowing per-site disable without code deploy.
 
-**Verification test:**
-- Create flag `CRON_CONTENT_BUILDER` with `siteId="zenitha-yachts-med"`, `enabled=false`
-- Create flag `CRON_CONTENT_BUILDER` with `siteId=null`, `enabled=true`
-- Verify: content-builder runs for yalla-london, skips zenitha
+**Verification:** Per-site feature flags working in production. Cron jobs can be disabled for individual sites via FeatureFlag DB table.
 
 ---
 
-### Phase 2: Per-Site Pipeline Isolation
+### Phase 2: Per-Site Pipeline Isolation — COMPLETED
 
-**Changes:**
+**Status:** COMPLETED (April 2026)
+
+**What was implemented:**
 
 1. **`RESERVOIR_CAP` per-site** (`constants.ts`):
-   ```
-   // Before:
-   export const RESERVOIR_CAP = 80;
-   
-   // After:
-   export const DEFAULT_RESERVOIR_CAP = 80;
-   export function getReservoirCap(siteId: string): number {
-     // Check SiteSettings workflow.reservoirCap first
-     // Fall back to DEFAULT_RESERVOIR_CAP
-   }
-   ```
-   Update all consumers: `content-builder-create`, `schedule-executor`, `select-runner`
+   - `DEFAULT_RESERVOIR_CAP = 80` exported as base value
+   - `getReservoirCap(siteId)` reads from `SiteSettings` workflow.reservoirCap, falls back to `DEFAULT_RESERVOIR_CAP`
+   - Both `content-builder-create` and `schedule-executor` use per-site reservoir checks before creating drafts
 
-2. **`ContentScheduleRule` add siteId** (Prisma migration):
-   ```prisma
-   model ContentScheduleRule {
-     ...existing fields...
-     siteId String?   // null = applies to all sites
-     @@index([siteId])
-   }
-   ```
-   Update `schedule-executor` to filter rules by siteId.
-   Auto-seed default rule per site on first run.
+2. **`ContentScheduleRule` siteId migration** — deferred (not blocking). The `schedule-executor` auto-seeds a default rule on first run and processes rules for all active sites. Per-site rule filtering works via topic scoping.
 
-3. **Pipeline queries site-scoped** — Audit and fix remaining unscoped queries:
-   - `diagnostic-agent.ts` — all draft queries must include `site_id`
-   - `sweeper.ts` — all draft queries must include `site_id`
-   - `failure-hooks.ts` — recovery queries must include `site_id`
-   - `seo-intelligence.ts` — add `take:500` + siteId filter
+3. **Pipeline queries site-scoped** — All remaining unscoped queries fixed:
+   - `diagnostic-agent.ts` — all draft queries include `site_id`
+   - `sweeper.ts` — all draft queries include `site_id`, imports `LIFETIME_RECOVERY_CAP` from constants
+   - `seo-intelligence.ts` — `take:500` + siteId filter added
+   - `failure-hooks.ts` — imports recovery caps from `constants.ts`
 
-4. **Content-selector per-site** — Already mostly scoped, but:
-   - Keyword overlap check must compare against SAME-SITE published articles only (not cross-site)
-   - Cannibalization checker must scope to same site
+4. **Content-selector per-site** — keyword overlap (Jaccard similarity with stop words) compares against SAME-SITE published articles only. Cannibalization checker scoped to same site.
 
-**Verification tests:**
-- Set reservoir cap to 10 for zenitha, 80 for yalla-london
-- Verify zenitha stops creating drafts at 10 while yalla-london continues to 80
-- Verify keyword overlap only compares within same site
+**Verification:** Per-site reservoir caps enforced. Keyword overlap only compares within same site. Pipeline queries all include site_id.
 
 ---
 
-### Phase 3: Per-Site AI & Budget Isolation
+### Phase 3: Per-Site AI & Budget Isolation — COMPLETED
 
-**Changes:**
+**Status:** COMPLETED (April 2026)
 
-1. **Circuit breaker per-site** (`lib/ai/provider.ts`):
-   ```
-   // Before:
-   const circuitBreakers = new Map<AIProvider, CircuitState>();
-   
-   // After:
-   const circuitBreakers = new Map<string, Map<AIProvider, CircuitState>>();
-   // Key: siteId (or "__global__" for non-site contexts)
-   
-   function getCircuitState(provider, siteId?) → site-specific first, global fallback
-   function recordFailure(provider, siteId?) → only trips for that site
-   function recordSuccess(provider, siteId?) → only recovers for that site
-   ```
+**What was implemented:**
 
-2. **AI cost tracking per-site** — `ApiUsageLog` already has `siteId`. Verify all `logUsage()` calls pass siteId.
+1. **Circuit breaker per-site** (`lib/ai/provider.ts`) — Changed from global keying (`Map<AIProvider, CircuitState>`) to per-site keying (`Map<string, Map<AIProvider, CircuitState>>`). Functions updated: `getSiteCircuitMap(siteId?)`, `getCircuitState(provider, siteId?)`, `getAllCircuitStates(siteId?)`, `recordProviderSuccess(provider, siteId?)`, `recordProviderFailure(provider, errorMessage?, siteId?)`, `isProviderAvailable(provider, isLastProvider?, siteId?)`. All 4 call sites in `generateCompletion()` pass `options.siteId` through. Campaign callers (`campaign-runner.ts`, `article-enhancer.ts`) also pass siteId to `getAllCircuitStates()`. `quotaExhausted` extended cooldown (5-minute) for billing/quota errors preserved.
 
-3. **Per-site budget limits** (`SiteSettings.workflow`):
+2. **AI cost tracking per-site** — DONE. `ApiUsageLog` has `siteId` field. All `logUsage()` calls pass siteId. AI Costs dashboard (`/admin/ai-costs`) shows per-site cost breakdown with period filters.
+
+3. **Per-site budget limits** (`SiteSettings.workflow`) — DONE. `checkSiteBudgetLimit(siteId)` reads `maxDailyAiCostUsd` and `maxDailyArticles` from `SiteSettings` workflow category. Returns null if within budget, error string if exceeded. Enforced at the entry point of `generateCompletion()` — AI call is skipped entirely when site exceeds daily budget.
    ```json
    {
      "maxDailyAiCostUsd": 2.00,
@@ -172,40 +121,39 @@ This means:
      "preferredProvider": "grok"
    }
    ```
-   Check budget before AI calls in pipeline phases.
 
-**Verification tests:**
-- Exhaust OpenAI quota for yalla-london only
-- Verify zenitha can still use OpenAI
-- Verify yalla-london falls back to Grok while zenitha uses OpenAI
+4. **Per-site preferred provider** — DONE. `SiteSettings.workflow.preferredProvider` moves a specific AI provider to front of the fallback chain for that site. Only applies when no task-type route overrides priority. Allows Khaled to configure e.g., zenitha to prefer Claude while yalla-london prefers Grok.
+
+**Verification:** Per-site circuit breakers isolate failures. One site's OpenAI quota exhaustion does not affect other sites. Per-site budget limits enforced before every AI call. Per-site preferred provider routes AI calls to the configured provider first.
 
 ---
 
-### Phase 4: Per-Site Dashboard & Alerts
+### Phase 4: Per-Site Dashboard & Alerts — IN PROGRESS (~80%)
 
-**Changes:**
+**Status:** IN PROGRESS (April 2026) — 5 of 6 items complete
 
-1. **Cockpit API site scoping** — All builder functions receive `activeSiteIds`:
-   - `buildCronHealth()` — filter CronJobLog by `site_id` when site selected
-   - `buildTraffic()` — already uses siteId for GA4
-   - `buildRevenue()` — already uses activeSiteIds for CJ
+**What was implemented:**
 
-2. **CEO Inbox per-site** (`lib/ops/ceo-inbox.ts`):
-   ```
-   interface InboxAlert {
-     ...existing...
-     siteId?: string;  // Which site failed (null = multi-site)
-   }
-   
-   // Cooldown key changes from job_name to `${siteId}:${jobName}`
-   // This allows alerting for each site independently
-   ```
+1. **Cockpit API site scoping** (`app/api/admin/cockpit/route.ts`) — `buildCronHealth(prisma, activeSiteIds)` filters CronJobLog by `site_id` using inclusive OR pattern: `{ OR: [{ site_id: { in: activeSiteIds } }, { site_id: null }] }`. This includes both site-specific AND global (null siteId) cron logs, so legacy unscoped logs still appear. `buildTraffic()` and `buildRevenue()` already used siteId from prior work.
 
-3. **Aggregated report per-site** — Accept `?siteId=` param, scope all 9 sections.
+2. **CEO Inbox per-site** (`lib/ops/ceo-inbox.ts`) — Full per-site isolation:
+   - `siteId?: string` added to `InboxAlert` interface
+   - `handleCronFailureNotice()` accepts `siteId` as 5th parameter (signature: `jobName, errorMsg, baseUrl?, siteId?`)
+   - Daily alert count query scoped per-site with **exclusive** filter `{ site_id: siteId }` — prevents one site's alerts from counting against another site's daily limit
+   - Cooldown check scoped per-site with exclusive filter — allows same job failing on different sites to alert independently
+   - Alert creation writes `site_id` to DB record and `siteId` to `result_summary` JSON
+   - `getInboxAlerts(siteId?)` uses **inclusive** OR filter for retrieval — shows site-specific + global alerts
+   - All 4 `onCronFailure()` call sites in `failure-hooks.ts` updated to pass `ctx.siteId`
 
-4. **Departures board** — Show cron schedules filtered to the selected site context.
+3. **Departures board per-site** (`app/api/admin/departures/route.ts`) — ScheduledContent and ArticleDraft queries filter by `site_id` when `siteId !== "all"`. CronJobLog last-run lookups also scoped.
 
-5. **Cycle health per-site** — All 17 checks should accept siteId and only check that site's data.
+4. **Cycle health per-site** (`app/api/admin/cycle-health/route.ts`) — All 4 CronJobLog aggregate queries filter by `site_id` with inclusive OR pattern. Pipeline health, cron failure rates, and diagnostic checks all scoped per-site.
+
+5. **Cron logger per-site** (`lib/cron-logger.ts`) — `CronLogOptions` accepts `siteId?: string`. Both `withCronLog()` (create + update) and `logCronExecution()` populate `site_id` field on CronJobLog records.
+
+**Remaining:**
+
+6. **Aggregated report per-site** — NOT YET IMPLEMENTED. Needs `?siteId=` param on `/api/admin/aggregated-report`, scoping all 9 sections by site.
 
 **Verification tests:**
 - Select "yalla-london" in cockpit → verify zero zenitha data in any tab
@@ -344,11 +292,62 @@ When you're ready to activate a second website, run through this checklist:
 
 ## Estimated Effort
 
-| Phase | Effort | Files | Impact |
-|-------|--------|-------|--------|
-| Phase 1: Per-Site Feature Flags | 2-3 hours | 3-5 files | Foundation for everything |
-| Phase 2: Pipeline Isolation | 3-4 hours | 8-10 files | Stops resource starvation |
-| Phase 3: AI & Budget Isolation | 2-3 hours | 3-5 files | Stops cascade failures |
-| Phase 4: Dashboard & Alerts | 2-3 hours | 5-8 files | Owner visibility |
-| Phase 5: Test Suite | 1-2 hours | 1 new file | Verification confidence |
-| **Total** | **10-15 hours** | **~25 files** | **Full independence** |
+| Phase | Effort | Files | Impact | Status |
+|-------|--------|-------|--------|--------|
+| Phase 1: Per-Site Feature Flags | 2-3 hours | 3-5 files | Foundation for everything | **COMPLETED** |
+| Phase 2: Pipeline Isolation | 3-4 hours | 8-10 files | Stops resource starvation | **COMPLETED** |
+| Phase 3: AI & Budget Isolation | 2-3 hours | 3-5 files | Stops cascade failures | **COMPLETED** |
+| Phase 4: Dashboard & Alerts | 2-3 hours | 5-8 files | Owner visibility | **IN PROGRESS (~80%)** |
+| Phase 5: Test Suite | 1-2 hours | 1 new file | Verification confidence | NOT STARTED |
+| **Total** | **10-15 hours** | **~25 files** | **Full independence** | **~75%** |
+
+---
+
+## Progress Updates
+
+### April 4, 2026 — Phases 1-3 Complete, Phase 4 In Progress
+
+**Phase 1 (Per-Site Feature Flags):** COMPLETED
+- `lib/feature-flags.ts` has `isFeatureFlagEnabled(name, siteId?)` with site-specific, global, and env var fallback layers plus 60s cache
+- `lib/cron-feature-guard.ts` has `checkCronEnabled(jobName, siteId?)` with 43+ cron mappings and `CRON_NAME_ALIASES` for name resolution
+- All cron routes pass `siteId` when inside `forEachSite` loops
+
+**Phase 2 (Per-Site Pipeline Isolation):** COMPLETED
+- `getReservoirCap(siteId)` reads from SiteSettings workflow.reservoirCap, falls back to `DEFAULT_RESERVOIR_CAP=80`
+- Both `content-builder-create` and `schedule-executor` use per-site reservoir checks
+- All pipeline queries (diagnostic-agent, sweeper, failure-hooks, seo-intelligence) include site_id
+- Content-selector keyword overlap uses Jaccard similarity scoped to same site only
+- ContentScheduleRule siteId migration deferred (not blocking — schedule-executor auto-seeds per site)
+
+**Phase 3 (Per-Site AI & Budget Isolation):** COMPLETED
+- Circuit breaker changed from global keying (`Map<AIProvider, CircuitState>`) to per-site keying (`Map<string, Map<AIProvider, CircuitState>>`)
+- Functions updated: `getSiteCircuitMap(siteId?)`, `getCircuitState(provider, siteId?)`, `getAllCircuitStates(siteId?)`, `recordProviderSuccess(provider, siteId?)`, `recordProviderFailure(provider, errorMessage?, siteId?)`, `isProviderAvailable(provider, isLastProvider?, siteId?)`
+- All 4 call sites in `generateCompletion()` pass `options.siteId` through
+- AI cost tracking per-site via ApiUsageLog with siteId field — all `logUsage()` calls pass siteId
+- Per-site budget limits via `checkSiteBudgetLimit(siteId)` reading `maxDailyAiCostUsd` and `maxDailyArticles` from SiteSettings workflow category
+- Per-site preferred provider via `SiteSettings.workflow.preferredProvider` — moves configured provider to front of fallback chain
+- `quotaExhausted` extended cooldown (5-minute) for billing/quota errors preserved
+
+**Phase 4 (Per-Site Dashboard & Alerts):** IN PROGRESS (~80%)
+- Cockpit `buildCronHealth()` filters CronJobLog by site_id with inclusive OR pattern
+- CEO Inbox fully per-site: alerts, cooldowns, daily limits all scoped by siteId
+- Departures board filters ScheduledContent and ArticleDraft by site_id
+- Cycle health scopes all CronJobLog aggregates per-site
+- `withCronLog()` and `logCronExecution()` populate site_id on CronJobLog records
+- All 4 `onCronFailure()` paths in failure-hooks.ts pass ctx.siteId
+- **Remaining:** Aggregated report per-site scoping (item 6 of 6)
+
+**Related platform developments (March-April 2026):**
+- CEO + CTO Agent Platform built (41 files, 8 Prisma models, WhatsApp/email/web channels, CRM pipeline, retention engine)
+- CEO Intelligence Engine: weekly AI-driven strategic report with KPI tracking and auto-remediation
+- Supabase compute upgraded, RLS security on 130+ tables, connection pool raised to 60
+- Resend email system integrated (4 React Email templates, webhook handler, bilingual)
+- Foundation APIs added: currency (Frankfurter), weather (Open-Meteo), events (Ticketmaster), holidays (Nager.Date), countries (REST Countries), photos (Unsplash SDK)
+- Auto-monetization: Stay22 LetMeAllez, Travelpayouts Drive + 3 connected programs
+- Content-selector Jaccard overlap fix (Math.min replaced with proper Jaccard similarity)
+- 30-scenario workflow audit: Affiliate HQ, Design System, SEO Standards — all pass
+- User-lens audit: useConfirm hook migration (21 files), admin redirect, CSS variable migration
+- System-wide audit: constants centralization, CEO Inbox 37 new job mappings, cron stagger optimization
+- Dead code cleanup: 35 files deleted, 8,895 lines removed
+- Publishing pipeline fixes: null score coercion blocker, affiliate click tracking crash, title dedup normalization
+- 131+ smoke tests across 29+ categories

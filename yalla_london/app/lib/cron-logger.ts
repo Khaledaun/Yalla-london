@@ -35,6 +35,8 @@ interface CronLogOptions {
   marginMs?: number;
   /** Max execution time in ms (default: 60000) */
   maxDurationMs?: number;
+  /** Site ID for per-site cron log scoping */
+  siteId?: string;
 }
 
 /**
@@ -56,6 +58,7 @@ export async function logCronExecution(
     sitesProcessed?: string[];
     errorMessage?: string;
     resultSummary?: Record<string, unknown>;
+    siteId?: string;
   },
 ): Promise<void> {
   try {
@@ -75,6 +78,7 @@ export async function logCronExecution(
         error_message: details.errorMessage ?? null,
         result_summary: details.resultSummary as Record<string, unknown> | undefined,
         timed_out: status === "timed_out",
+        site_id: details.siteId ?? null,
       },
     });
   } catch (logError) {
@@ -144,6 +148,7 @@ export function withCronLog(
           job_type: jobType,
           status: "running",
           started_at: new Date(startTime),
+          site_id: options.siteId ?? null,
         },
       });
       logId = logEntry.id;
@@ -193,6 +198,7 @@ export function withCronLog(
             sites_processed: sitesProcessed,
             sites_skipped: sitesSkipped,
             timed_out: timedOut,
+            site_id: options.siteId ?? null,
           },
         });
       } catch (dbErr) {

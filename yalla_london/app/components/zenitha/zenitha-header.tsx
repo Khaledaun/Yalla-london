@@ -115,7 +115,7 @@ export function ZenithaHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const dropdownTimeout = useRef<NodeJS.Timeout | null>(null);
+  const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { language, setLanguage, isRTL } = useLanguage();
   const pathname = usePathname();
 

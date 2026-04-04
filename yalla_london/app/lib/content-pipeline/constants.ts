@@ -107,7 +107,33 @@ export const BUILD_RUNNER_BUDGET_RESERVE_MS = 15_000; // 15 seconds
 // ─── Reservoir Cap ──────────────────────────────────────────────────────────
 // Maximum articles in reservoir before content-builder-create and
 // schedule-executor skip new draft creation (saves AI budget).
-export const RESERVOIR_CAP = 80;
+// Use getReservoirCap(siteId) for per-site caps via SiteSettings.
+export const DEFAULT_RESERVOIR_CAP = 80;
+/** @deprecated Use getReservoirCap(siteId) for per-site support */
+export const RESERVOIR_CAP = DEFAULT_RESERVOIR_CAP;
+
+/**
+ * Per-site reservoir cap. Checks SiteSettings workflow.reservoirCap first,
+ * falls back to DEFAULT_RESERVOIR_CAP. Async because it reads from DB.
+ */
+export async function getReservoirCap(siteId: string): Promise<number> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const settings = await prisma.siteSettings.findUnique({
+      where: { siteId_category: { siteId, category: "workflow" } },
+      select: { settings: true },
+    });
+    if (settings?.settings && typeof settings.settings === "object") {
+      const s = settings.settings as Record<string, unknown>;
+      if (typeof s.reservoirCap === "number" && s.reservoirCap > 0) {
+        return s.reservoirCap;
+      }
+    }
+  } catch {
+    // DB unavailable — use default
+  }
+  return DEFAULT_RESERVOIR_CAP;
+}
 
 // ─── Active Draft Exclusion ─────────────────────────────────────────────────
 // Drafts not updated within this window are considered stuck (not active).

@@ -16,7 +16,7 @@ export const maxDuration = 300;
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sanitizeKeyword, RESERVOIR_CAP } from "@/lib/content-pipeline/constants";
+import { sanitizeKeyword, RESERVOIR_CAP, getReservoirCap } from "@/lib/content-pipeline/constants";
 const BUDGET_MS = 280_000;
 
 async function handleScheduleExecutor(request: NextRequest) {
@@ -116,23 +116,35 @@ async function handleScheduleExecutor(request: NextRequest) {
     // Check reservoir cap BEFORE processing rules — if reservoir is full,
     // creating more drafts wastes AI budget on articles that will sit idle.
     // (Bug found March 22, 2026: schedule-executor was creating drafts even with 65 in reservoir)
-    const reservoirCount = await prisma.articleDraft.count({
-      where: { current_phase: "reservoir", site_id: { in: activeSiteIds } },
-    });
-    if (reservoirCount >= RESERVOIR_CAP) {
+    // Per-site reservoir cap from SiteSettings workflow.reservoirCap, falls back to global DEFAULT_RESERVOIR_CAP.
+    // Check ALL active sites — if every site's reservoir is full, skip entirely.
+    let allSitesFull = true;
+    const perSiteReservoir: Record<string, { count: number; cap: number }> = {};
+    for (const sid of activeSiteIds) {
+      const siteReservoirCap = await getReservoirCap(sid);
+      const siteReservoirCount = await prisma.articleDraft.count({
+        where: { current_phase: "reservoir", site_id: sid },
+      });
+      perSiteReservoir[sid] = { count: siteReservoirCount, cap: siteReservoirCap };
+      if (siteReservoirCount < siteReservoirCap) {
+        allSitesFull = false;
+      }
+    }
+    if (allSitesFull) {
       const durationMs = Date.now() - cronStart;
+      const summary = Object.entries(perSiteReservoir).map(([s, r]) => `${s}(${r.count}/${r.cap})`).join(", ");
       const { logCronExecution: logReservoir } = await import("@/lib/cron-logger");
       await logReservoir("schedule-executor", "completed", {
         durationMs,
         itemsProcessed: 0,
-        resultSummary: { message: `Reservoir full (${reservoirCount}/${RESERVOIR_CAP}) — skipping draft creation`, reservoirCount },
+        resultSummary: { message: `All reservoirs full: ${summary}`, perSiteReservoir },
       }).catch((err: Error) => console.warn("[schedule-executor] log failed:", err.message));
 
       return NextResponse.json({
         success: true,
-        message: `Reservoir full (${reservoirCount}/${RESERVOIR_CAP})`,
+        message: `All reservoirs full: ${summary}`,
         ...results,
-        reservoirCount,
+        perSiteReservoir,
         durationMs,
       });
     }

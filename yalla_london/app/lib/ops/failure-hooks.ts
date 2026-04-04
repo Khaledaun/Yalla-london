@@ -638,8 +638,19 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
 async function handleTopicGenerationFailure(errorMsg: string, detectedAt: string, category: SweeperLogEntry["errorCategory"]): Promise<void> {
   try {
     const { prisma } = await import("@/lib/db");
+    // Per-site topic backlog: count only topics for active sites.
+    // Prevents cross-site contamination where site B's topic surplus
+    // masks site A's starvation.
+    const { getActiveSiteIds: getFailureActiveSiteIds } = await import("@/config/sites");
+    const failureActiveSiteIds = getFailureActiveSiteIds();
     const pendingCount = await prisma.topicProposal.count({
-      where: { status: { in: ["ready", "queued", "planned", "proposed"] } },
+      where: {
+        status: { in: ["ready", "queued", "planned", "proposed"] },
+        OR: [
+          { site_id: { in: failureActiveSiteIds } },
+          { site_id: null }, // Legacy topics without site_id
+        ],
+      },
     });
 
     const isCritical = pendingCount < 5;

@@ -38,7 +38,6 @@ interface YachtsByType {
 interface InquiriesByStatus {
   status: string
   count: number
-  color: string
 }
 
 interface TopDestination {
@@ -135,16 +134,8 @@ export default function YachtAnalyticsPage() {
         ...t,
         percentage: totalTypeCount > 0 ? Math.round((t.count / totalTypeCount) * 100) : 0,
       }))
-      const statusColors: Record<string, string> = {
-        NEW: 'bg-blue-500',
-        CONTACTED: 'bg-yellow-500',
-        QUALIFIED: 'bg-purple-500',
-        SENT_TO_BROKER: 'bg-orange-500',
-        BOOKED: 'bg-green-500',
-        LOST: 'bg-red-400',
-      }
       const byStatus = (inq.byStatus ?? []).map((s: { status: string; _count: { id: number } }) => ({
-        status: s.status, count: s._count?.id ?? 0, color: statusColors[s.status] ?? 'bg-gray-400',
+        status: s.status, count: s._count?.id ?? 0,
       }))
       const topDests = (dest.list ?? []).map((d: { name: string; yachtCount: number; inquiryCount?: number }) => ({
         name: d.name, yachtCount: d.yachtCount ?? 0, inquiryCount: d.inquiryCount ?? 0,

@@ -620,13 +620,23 @@
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .z-container,
   .z-container-wide,
   .z-container-full,
   .z-container-text,
   .z-container-prose {
     padding-inline: var(--z-space-8);
+  }
+}
+
+@media (min-width: 1024px) {
+  .z-container,
+  .z-container-wide,
+  .z-container-full,
+  .z-container-text,
+  .z-container-prose {
+    padding-inline: var(--z-space-10);
   }
 }
 

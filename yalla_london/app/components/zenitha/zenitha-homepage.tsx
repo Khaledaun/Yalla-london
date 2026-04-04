@@ -228,9 +228,9 @@ function DestinationsSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list" aria-label="Charter destinations">
           {DESTINATIONS.map((dest, i) => (
-            <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger">
+            <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger" role="listitem">
               <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[var(--z-midnight)]">
                 {/* Destination photo */}
                 <Image
@@ -283,9 +283,9 @@ function HowItWorksSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        <div ref={stepsRef} className="grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div ref={stepsRef} className="grid grid-cols-1 md:grid-cols-3 gap-10" role="list" aria-label="How it works steps">
           {STEPS.map((step, i) => (
-            <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger group cursor-default">
+            <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger group cursor-default" role="listitem">
               {/* Step number + Icon */}
               <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--z-sand)] mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-lg">
                 <step.icon size={32} className="text-[var(--z-aegean)]" />

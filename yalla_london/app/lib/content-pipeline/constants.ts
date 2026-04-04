@@ -82,6 +82,11 @@ export const GENERAL_STUCK_REJECT_HOURS = 24;
 // Reject drafts stuck >12h with 2+ failed attempts.
 export const STUCK_WITH_ATTEMPTS_REJECT_HOURS = 12;
 
+// ─── SEO Deep Review ───────────────────────────────────────────────────────
+// Per-article time budget for seo-deep-review cron. Non-AI fixes take 10-12s,
+// AI content_expansion takes 10-12s. ~11 articles per run at 280s total.
+export const SEO_DEEP_REVIEW_PER_ARTICLE_MS = 25_000;
+
 // ─── Indexing ───────────────────────────────────────────────────────────────
 // Never-submitted pages batch size per content-auto-fix-lite run.
 export const NEVER_SUBMITTED_BATCH_SIZE = 200;

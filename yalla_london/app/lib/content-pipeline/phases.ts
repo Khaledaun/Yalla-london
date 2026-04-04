@@ -403,6 +403,7 @@ export async function phaseDrafting(
     const prompt = useMinimalPrompt
       ? `Write a ${writeLang} section about "${section.heading}" for an article on "${draft.keyword}".
 ${minWordsPerSection}+ words. Use HTML tags (p, ul, li, strong). ${isArabic(draft.locale) ? "Use Arabic punctuation." : ""} Do NOT include "(X words)" in the content.
+Include at least 1 specific fact or statistic with attribution (e.g., "According to Visit London..."). Use first-hand language like "we visited" or "insider tip:". Add 1 concrete detail (price, address, or opening time).
 Return JSON: {"heading":"${section.heading}","content":"<p>...</p>","wordCount":${minWordsPerSection},"keywords_used":[]}`
       : `You are a luxury travel content writer for "${site.name}" (${site.destination}).
 

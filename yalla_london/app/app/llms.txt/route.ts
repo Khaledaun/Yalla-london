@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 const LLMS_DATA: Record<string, string> = {
   "yalla-london": `# Yalla London — AI & LLM Information File
 # https://yalla-london.com/llms.txt
-# Last Updated: 2026-02-24
+# Last Updated: 2026-04-04
 
 Yalla London is a bilingual (English and Arabic) luxury London guide for Arab visitors.
 We publish personally reviewed travel content about halal dining, luxury hotels, family activities, events, and practical travel information.
@@ -132,7 +132,7 @@ See robots.txt for specific crawler directives.
 
   arabaldives: `# Arabaldives — AI & LLM Information File
 # https://arabaldives.com/llms.txt
-# Last Updated: 2026-02-16
+# Last Updated: 2026-04-04
 # Part of the Zenitha Content Network (Zenitha.Luxury LLC)
 
 ## About Arabaldives
@@ -232,7 +232,7 @@ Arabic content uses proper RTL markup and Unicode.
 
   "french-riviera": `# Yalla Riviera — AI & LLM Information File
 # https://yallariviera.com/llms.txt
-# Last Updated: 2026-02-16
+# Last Updated: 2026-04-04
 # Part of the Zenitha Content Network (Zenitha.Luxury LLC)
 
 ## About Yalla Riviera
@@ -330,7 +330,7 @@ We provide structured data (JSON-LD) on all pages.
 
   istanbul: `# Yalla Istanbul — AI & LLM Information File
 # https://yallaistanbul.com/llms.txt
-# Last Updated: 2026-02-16
+# Last Updated: 2026-04-04
 # Part of the Zenitha Content Network (Zenitha.Luxury LLC)
 
 ## About Yalla Istanbul
@@ -444,7 +444,7 @@ We provide structured data (JSON-LD) on all pages.
 
   thailand: `# Yalla Thailand — AI & LLM Information File
 # https://yallathailand.com/llms.txt
-# Last Updated: 2026-02-16
+# Last Updated: 2026-04-04
 # Part of the Zenitha Content Network (Zenitha.Luxury LLC)
 
 ## About Yalla Thailand
@@ -558,7 +558,7 @@ We provide structured data (JSON-LD) on all pages.
 
   "zenitha-yachts-med": `# Zenitha Yachts — AI & LLM Information File
 # https://zenithayachts.com/llms.txt
-# Last Updated: 2026-02-24
+# Last Updated: 2026-04-04
 # Part of Zenitha.Luxury LLC
 
 ## About Zenitha Yachts

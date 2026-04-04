@@ -1301,6 +1301,12 @@ MULTI-ENGINE DISCOVERY REQUIREMENTS (articles that fail these are blocked from p
 - STRUCTURED LISTS: Use at least 1 numbered list OR comparison table. AI engines strongly prefer structured, scannable content they can extract and display.
 - NO PREAMBLE: Never start with "Are you looking for...", "If you've ever wondered...", "Planning a trip to...". These waste the critical first-80-word window.
 
+GEO CITABILITY (Generative Engine Optimization — AI search engines cite articles with these features):
+- Include 2+ statistics with source attribution (e.g., "According to Visit London, over 3 million Arab tourists visited the UK in 2025")
+- Write 3+ self-contained paragraphs (40-80 words each) that fully answer a question without context — AI engines extract these as citation blocks
+- Add source citations: "Based on [source]...", "According to [authority]...", "Data from [organization] shows..."
+- Use comparison tables or ordered lists — AI engines prefer structured data they can display directly
+
 Humanization & Anti-AI-Detection (CRITICAL):
 - Vary sentence length dramatically: 5-word sentences mixed with 25-word sentences
 - Use occasional colloquial expressions naturally (e.g., "trust me on this one", "here's the thing", "honestly")

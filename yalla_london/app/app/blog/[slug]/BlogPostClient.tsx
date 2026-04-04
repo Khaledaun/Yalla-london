@@ -397,7 +397,7 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
           {/* Unsplash attribution — required by Unsplash ToS */}
           {unsplashAttribution && (
             <div className="absolute bottom-2 right-3 z-20">
-              <span className="text-white/50 text-[9px] font-body">{unsplashAttribution}</span>
+              <span className="text-white/50 text-[11px] font-body">{unsplashAttribution}</span>
             </div>
           )}
         </div>

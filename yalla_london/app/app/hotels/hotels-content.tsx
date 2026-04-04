@@ -441,6 +441,15 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
 
       <TriBar />
 
+      {/* FTC Affiliate Disclosure */}
+      <div className="bg-yl-cream/60 border-b border-yl-gray-200">
+        <p className="max-w-7xl mx-auto px-7 py-2.5 text-[11px] text-yl-gray-500 leading-relaxed">
+          {locale === 'ar'
+            ? 'تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة عند الحجز من خلال روابطنا، دون أي تكلفة إضافية عليك.'
+            : 'This page contains affiliate links. We may earn a commission when you book through our links, at no extra cost to you.'}
+        </p>
+      </div>
+
       {/* Editorial Intro Section */}
       <section className="py-12 bg-white">
         <div className="max-w-4xl mx-auto px-7">
@@ -487,7 +496,7 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
               <button
                 key={area}
                 onClick={() => setSelectedArea(area)}
-                className={`px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-all duration-300 ease-yl ${
+                className={`px-4 py-2 rounded-full font-mono text-[11px] tracking-wider uppercase whitespace-nowrap transition-all duration-300 ease-yl ${
                   selectedArea === area
                     ? 'bg-yl-dark-navy text-yl-parchment'
                     : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200 hover:text-yl-charcoal'
@@ -517,7 +526,7 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 text-yl-gold fill-yl-gold" />
                   ))}
-                  <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider ml-2">{hotel.rating} ({hotel.reviews.toLocaleString()} {t.reviews})</span>
+                  <span className="font-mono text-[11px] text-yl-gray-500 tracking-wider ml-2">{hotel.rating} ({hotel.reviews.toLocaleString()} {t.reviews})</span>
                 </div>
 
                 {/* Name & Location */}
@@ -539,9 +548,9 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                 {/* Price & CTA */}
                 <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
                   <div>
-                    <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase">{locale === 'en' ? 'From' : 'من'} </span>
+                    <span className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase">{locale === 'en' ? 'From' : 'من'} </span>
                     <span className="text-2xl font-heading font-bold text-yl-charcoal">£{hotel.price}</span>
-                    <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider">{t.perNight}</span>
+                    <span className="font-mono text-[11px] text-yl-gray-500 tracking-wider">{t.perNight}</span>
                   </div>
                   {(() => {
                     const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'hotels-page');
@@ -568,7 +577,7 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
         </div>
 
         {/* Price disclaimer */}
-        <p className="font-mono text-[10px] text-yl-gray-500 text-center mt-10 tracking-wider uppercase">{t.metaNote}</p>
+        <p className="font-mono text-[11px] text-yl-gray-500 text-center mt-10 tracking-wider uppercase">{t.metaNote}</p>
       </div>
 
       {/* Tips for Arab Travellers Section */}

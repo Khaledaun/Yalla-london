@@ -347,6 +347,15 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
 
       <TriBar />
 
+      {/* FTC Affiliate Disclosure */}
+      <div className="bg-yl-cream/60 border-b border-yl-gray-200">
+        <p className="max-w-7xl mx-auto px-7 py-2.5 text-[11px] text-yl-gray-500 leading-relaxed">
+          {locale === 'en'
+            ? 'This page contains affiliate links. We may earn a commission when you book through our links, at no extra cost to you.'
+            : 'تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة عند الحجز من خلال روابطنا، دون أي تكلفة إضافية عليك.'}
+        </p>
+      </div>
+
       {/* Editorial Intro */}
       <section className="py-12 bg-white">
         <div className="max-w-4xl mx-auto px-7">
@@ -391,7 +400,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
               <button
                 key={type}
                 onClick={() => setSelectedType(type)}
-                className={`px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-colors ${
+                className={`px-4 py-2 rounded-full font-mono text-[11px] tracking-wider uppercase whitespace-nowrap transition-colors ${
                   selectedType === type
                     ? 'bg-yl-dark-navy text-yl-parchment'
                     : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200'
@@ -400,7 +409,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                 {labels[type]}
               </button>
             ))}
-            <span className="font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 ml-auto">
+            <span className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 ml-auto">
               {filtered.length} {locale === 'en' ? 'results' : 'نتيجة'}
             </span>
           </div>
@@ -441,7 +450,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                           />
                         ))}
                       </div>
-                      <span className="font-mono text-[10px] tracking-wider text-yl-gray-500">{item.rating}</span>
+                      <span className="font-mono text-[11px] tracking-wider text-yl-gray-500">{item.rating}</span>
                     </div>
                   </div>
                   <div className={`${isRTL ? 'text-left' : 'text-right'}`}>
@@ -460,7 +469,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(locale === 'en' ? item.features_en : item.features_ar).map((feature) => (
-                    <span key={feature} className="px-2 py-1 bg-yl-cream font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 rounded-full border border-yl-gray-200/50">
+                    <span key={feature} className="px-2 py-1 bg-yl-cream font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 rounded-full border border-yl-gray-200/50">
                       {feature}
                     </span>
                   ))}
@@ -469,7 +478,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                 {/* GCC Features */}
                 {'gccFeatures' in item && (item as Record<string, unknown>).gccFeatures && (
                   <div className="mb-4 p-3 bg-yl-cream/60 rounded-xl border border-yl-gold/20">
-                    <p className="font-mono text-[10px] tracking-wider uppercase text-yl-gold mb-2 font-semibold">
+                    <p className="font-mono text-[11px] tracking-wider uppercase text-yl-gold mb-2 font-semibold">
                       {locale === 'en' ? '✦ Gulf Traveller Features' : '✦ مميزات للمسافر الخليجي'}
                     </p>
                     <ul className="space-y-1">
@@ -487,7 +496,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                 {'bestFor' in item && (item as Record<string, unknown>).bestFor && (
                   <div className="flex flex-wrap gap-1.5 mb-4">
                     {((item as Record<string, unknown>).bestFor as string[]).map((b) => (
-                      <span key={b} className="px-2.5 py-1 bg-yl-red/5 text-yl-red font-mono text-[10px] tracking-wider rounded-full border border-yl-red/15">
+                      <span key={b} className="px-2.5 py-1 bg-yl-red/5 text-yl-red font-mono text-[11px] tracking-wider rounded-full border border-yl-red/15">
                         {b}
                       </span>
                     ))}
@@ -497,7 +506,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                 {/* Insider Tip */}
                 {'insiderTip' in item && (item as Record<string, unknown>).insiderTip && (
                   <div className="mb-4 p-3 bg-gradient-to-r from-yl-gold/5 to-transparent rounded-xl border-l-2 border-yl-gold">
-                    <p className="font-mono text-[10px] tracking-wider uppercase text-yl-gold mb-1 font-semibold">
+                    <p className="font-mono text-[11px] tracking-wider uppercase text-yl-gold mb-1 font-semibold">
                       {locale === 'en' ? 'Insider Tip' : 'نصيحة من الداخل'}
                     </p>
                     <p className="text-xs text-yl-gray-500 font-body leading-relaxed">

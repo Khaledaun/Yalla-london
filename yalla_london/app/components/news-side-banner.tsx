@@ -95,7 +95,7 @@ export function NewsSideBanner() {
           aria-label={isAr ? 'فتح الأخبار' : 'Open News'}
         >
           <Newspaper className="w-4 h-4 mb-1 rotate-90" />
-          <span className="font-mono text-[10px] font-bold tracking-widest uppercase">
+          <span className="font-mono text-[11px] font-bold tracking-widest uppercase">
             {isAr ? 'أخبار' : 'NEWS'}
           </span>
           <span className="relative flex h-2 w-2 mt-1">
@@ -127,7 +127,7 @@ export function NewsSideBanner() {
               <h3 className="font-heading font-bold text-yl-parchment text-sm">
                 {isAr ? 'أخبار لندن' : 'London News'}
               </h3>
-              <p className="font-mono text-[9px] text-yl-gray-500 tracking-widest uppercase">
+              <p className="font-mono text-[11px] text-yl-gray-500 tracking-widest uppercase">
                 {isAr ? 'عاجل ومباشر' : 'LIVE UPDATES'}
               </p>
             </div>
@@ -177,7 +177,7 @@ export function NewsSideBanner() {
                     <Icon className="w-3.5 h-3.5 text-white/40" />
                     {(isBreaking || isUrgent) && (
                       <span className={cn(
-                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider',
+                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider',
                         isBreaking ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'
                       )}>
                         <Zap className="w-2.5 h-2.5" />
@@ -185,13 +185,13 @@ export function NewsSideBanner() {
                       </span>
                     )}
                     {item.is_major && !isBreaking && !isUrgent && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-yl-gold/20 text-yl-gold">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-yl-gold/20 text-yl-gold">
                         <Sparkles className="w-2.5 h-2.5" />
                         {isAr ? 'مميز' : 'FEATURED'}
                       </span>
                     )}
                   </div>
-                  <span className="font-mono text-[9px] text-white/50 tracking-wider">
+                  <span className="font-mono text-[11px] text-white/50 tracking-wider">
                     {timeAgo}
                   </span>
                 </div>
@@ -207,7 +207,7 @@ export function NewsSideBanner() {
 
                 {/* Source */}
                 <div className="flex items-center justify-between mt-2">
-                  <span className="font-mono text-[9px] text-white/50 tracking-wider">
+                  <span className="font-mono text-[11px] text-white/50 tracking-wider">
                     {item.source_name}
                   </span>
                   <ExpandIcon className="w-3 h-3 text-white/40 group-hover:text-yl-gold transition-colors" />

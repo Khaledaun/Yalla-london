@@ -22,7 +22,6 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/hotels`,
         "x-default": canonicalUrl,
       },
     },

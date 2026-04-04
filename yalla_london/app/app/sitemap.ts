@@ -108,7 +108,7 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
       where: { published: true, deletedAt: null, siteId },
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
-      take: 500,
+      take: 5000,
     });
     for (const post of posts) {
       entries.push({

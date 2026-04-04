@@ -472,8 +472,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   return (
     <div className={`bg-yl-cream ${isRTL ? 'font-arabic' : 'font-body'}`} dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* ═══ NEWS SIDE BANNER — floats on right edge ═══ */}
-      <NewsSideBanner />
+      {/* ═══ NEWS SIDE BANNER — floats on right edge, hidden on mobile ═══ */}
+      <div className="hidden lg:block">
+        <NewsSideBanner />
+      </div>
 
       {/* ═══ HERO — Scroll-to-expand immersive ═══ */}
       <ScrollExpandHero
@@ -544,15 +546,15 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       {/* ═══ TRENDING BAR ═══ */}
       <div className="bg-yl-cream border-b border-yl-gray-200 py-3 px-7">
         <div className="max-w-7xl mx-auto flex items-center gap-6 overflow-x-auto">
-          <div className="flex items-center gap-2 font-mono text-[10px] font-bold text-yl-red uppercase tracking-widest whitespace-nowrap">
+          <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-yl-red uppercase tracking-widest whitespace-nowrap">
             <TrendingUp className="w-4 h-4" />
             {t.trending}
           </div>
           <div className="w-px h-4 bg-yl-gray-300" />
           {t.trendingItems.map((item, i) => (
-            <span key={i} className="font-body text-sm text-yl-gray-500 whitespace-nowrap hover:text-yl-charcoal transition-colors duration-300 ease-yl cursor-pointer">
+            <Link key={i} href={`/blog?q=${encodeURIComponent(item)}`} className="font-body text-sm text-yl-gray-500 whitespace-nowrap hover:text-yl-charcoal transition-colors duration-300 ease-yl cursor-pointer">
               {item}
-            </span>
+            </Link>
           ))}
         </div>
       </div>
@@ -560,9 +562,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       {/* ═══ FEATURED + ARTICLES (moved above news per redesign) ═══ */}
       <section className="relative max-w-7xl mx-auto px-7 py-16">
         {/* Subtle watermark */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute -right-20 top-10 w-[250px] h-[250px] opacity-[0.03] object-contain rotate-[8deg]" />
-        </div>
+        <div className="absolute -right-20 top-10 w-[250px] h-[250px] opacity-[0.03] rotate-[8deg] pointer-events-none bg-[url('/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png')] bg-contain bg-no-repeat bg-center" aria-hidden="true" />
         <SectionHeader title={t.latestStories} href="/blog" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -579,7 +579,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   {effectiveFeatured.title}
                 </h3>
                 <p className="font-body text-sm text-yl-gray-400 mb-4 max-w-lg line-clamp-2">{effectiveFeatured.excerpt}</p>
-                <div className="flex items-center gap-4 font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
+                <div className="flex items-center gap-4 font-mono text-[11px] tracking-wider uppercase text-yl-gray-500">
                   <span>{effectiveFeatured.author}</span>
                   <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
                   <span>{effectiveFeatured.date}</span>
@@ -600,11 +600,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                       <Image src={article.image} alt={article.title} fill className="object-cover" />
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
-                      <span className="font-mono text-[9px] font-semibold text-yl-red uppercase tracking-wider mb-1">{article.category}</span>
+                      <span className="font-mono text-[11px] font-semibold text-yl-red uppercase tracking-wider mb-1">{article.category}</span>
                       <h4 className={`text-sm font-heading font-bold text-yl-charcoal group-hover:text-yl-red transition-colors duration-300 ease-yl line-clamp-2 mb-1.5 ${isRTL ? 'font-arabic' : ''}`}>
                         {article.title}
                       </h4>
-                      <div className="flex items-center gap-2 font-mono text-[10px] text-yl-gray-500 tracking-wider">
+                      <div className="flex items-center gap-2 font-mono text-[11px] text-yl-gray-500 tracking-wider">
                         <span>{article.date}</span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {article.readTime}</span>
                       </div>
@@ -629,7 +629,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-yl-parchment placeholder-yl-gray-500 focus:outline-none focus:ring-2 focus:ring-yl-gold/20 focus:border-yl-gold transition-all duration-300 ease-yl"
                 />
-                <button className="px-4 py-2 bg-yl-red text-white font-mono text-[10px] font-bold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl whitespace-nowrap">
+                <button className="px-4 py-2 bg-yl-red text-white font-mono text-[11px] font-bold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl whitespace-nowrap">
                   {t.subscribeBtn}
                 </button>
               </div>
@@ -656,11 +656,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/50 to-transparent" />
                   <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-md`}>
                     <div className="text-2xl font-heading font-bold text-yl-charcoal leading-none">{event.day}</div>
-                    <div className="font-mono text-[9px] font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
+                    <div className="font-mono text-[11px] font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
                   </div>
                   {liveEvents.length > 0 && (
                     <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-                      <span className="bg-green-500 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
+                      <span className="bg-green-500 text-white text-[11px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
                     </div>
                   )}
                 </div>
@@ -671,7 +671,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </p>
                   <span className="block font-mono text-sm font-bold text-yl-charcoal tracking-wider mb-3">{event.price}</span>
                   {event.url ? (
-                    <a href={event.url} target="_blank" rel="noopener sponsored" className="inline-flex items-center justify-center font-mono tracking-wider uppercase rounded-lg transition-all duration-300 ease-yl bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg py-2 px-4 text-[9px] w-full justify-center">
+                    <a href={event.url} target="_blank" rel="noopener sponsored" className="inline-flex items-center justify-center font-mono tracking-wider uppercase rounded-lg transition-all duration-300 ease-yl bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg py-2 px-4 text-[11px] w-full justify-center">
                       {t.getTickets}
                     </a>
                   ) : (
@@ -695,7 +695,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           <SectionHeader title={t.informationHub} href="/information" linkText={t.viewAll} icon={BookOpen} isArabic={isRTL} />
           <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.informationHubSubtitle}</p>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {t.infoSections.map((section, i) => {
               const iconMap: Record<string, React.ElementType> = {
                 Compass, Map, Train, Utensils, Users, Gem,
@@ -729,9 +729,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ GUIDES ═══ */}
       <section className="relative bg-white py-16 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute right-[-40px] top-[20%] w-[180px] h-[180px] opacity-[0.03] object-contain rotate-[20deg]" />
-        </div>
+        <div className="absolute right-[-40px] top-[20%] w-[180px] h-[180px] opacity-[0.03] rotate-[20deg] pointer-events-none bg-[url('/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png')] bg-contain bg-no-repeat bg-center" aria-hidden="true" />
         <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.pdfGuides} href="/shop" linkText={t.viewAll} icon={Download} isArabic={isRTL} />
           <p className="font-body text-yl-gray-500 text-sm -mt-4 mb-8">{t.guidesSubtitle}</p>
@@ -754,7 +752,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <span className="font-heading text-xl font-bold text-yl-charcoal">{guide.price}</span>
-                    <span className="flex items-center gap-2 px-4 py-2.5 bg-yl-gray-100 text-yl-gray-500 font-mono text-[10px] tracking-wider uppercase rounded-lg cursor-default">
+                    <span className="flex items-center gap-2 px-4 py-2.5 bg-yl-gray-100 text-yl-gray-500 font-mono text-[11px] tracking-wider uppercase rounded-lg cursor-default">
                       <Clock className="w-4 h-4" /> {t.downloadNow}
                     </span>
                   </div>
@@ -769,9 +767,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ EXPERIENCES ═══ */}
       <section className="relative bg-white py-16 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <img src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png" alt="" className="absolute -left-16 bottom-10 w-[220px] h-[220px] opacity-[0.04] object-contain rotate-[-10deg]" />
-        </div>
+        <div className="absolute -left-16 bottom-10 w-[220px] h-[220px] opacity-[0.04] rotate-[-10deg] pointer-events-none bg-[url('/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png')] bg-contain bg-no-repeat bg-center" aria-hidden="true" />
         <div className="relative z-10 max-w-7xl mx-auto px-7">
           <SectionHeader title={t.topExperiences} href="/experiences" linkText={t.viewAll} icon={Star} isArabic={isRTL} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -789,7 +785,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </div>
                   <div className="flex items-center justify-between px-1">
                     <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{exp.price}</span>
-                    <span className="font-mono text-[10px] font-semibold text-yl-red tracking-wider uppercase group-hover:underline">{t.bookNow}</span>
+                    <span className="font-mono text-[11px] font-semibold text-yl-red tracking-wider uppercase group-hover:underline">{t.bookNow}</span>
                   </div>
                 </Link>
                 {expAffLink && (
@@ -797,7 +793,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     href={expAffLink.url}
                     target="_blank"
                     rel="noopener sponsored"
-                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-yl-red text-white font-mono text-[10px] font-semibold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl`}
+                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-yl-red text-white font-mono text-[11px] font-semibold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl`}
                     data-affiliate-partner={expAffLink.partner}
                   >
                     {expAffLink.label}
@@ -837,10 +833,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-1">
                       <MapPin className="w-3.5 h-3.5" /> {hotel.location}
                     </p>
-                    <p className="font-mono text-[9px] font-medium text-yl-gold tracking-wider uppercase mb-4">{hotel.category}</p>
+                    <p className="font-mono text-[11px] font-medium text-yl-gold tracking-wider uppercase mb-4">{hotel.category}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
                       <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{hotel.price}</span>
-                      <span className="px-4 py-2 border border-yl-charcoal text-yl-charcoal font-mono text-[10px] font-semibold tracking-wider uppercase rounded-lg group-hover:bg-yl-charcoal group-hover:text-white transition-all duration-300 ease-yl">
+                      <span className="px-4 py-2 border border-yl-charcoal text-yl-charcoal font-mono text-[11px] font-semibold tracking-wider uppercase rounded-lg group-hover:bg-yl-charcoal group-hover:text-white transition-all duration-300 ease-yl">
                         {t.viewDeals}
                       </span>
                     </div>
@@ -873,7 +869,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       </section>
 
       {/* ═══ LONDON WEATHER FORECAST STRIP ═══ */}
-      <WeatherStrip locale={locale} />
+      <div className="min-h-[48px]">
+        <WeatherStrip locale={locale} />
+      </div>
 
       {/* ═══ TRAVELER TESTIMONIALS ═══ */}
       <section className="bg-yl-cream py-16">
@@ -901,12 +899,12 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 </div>
                 <p className="font-body text-yl-charcoal text-sm leading-relaxed mb-4 italic">&ldquo;{locale === 'ar' ? item.textAr : item.textEn}&rdquo;</p>
                 <div className="flex items-center gap-3 pt-3 border-t border-yl-gray-200">
-                  <div className="w-9 h-9 rounded-full bg-yl-red text-white flex items-center justify-center font-mono text-[10px] font-bold tracking-wider">
+                  <div className="w-9 h-9 rounded-full bg-yl-red text-white flex items-center justify-center font-mono text-[11px] font-bold tracking-wider">
                     {item.initials}
                   </div>
                   <div>
                     <p className="text-sm font-heading font-semibold text-yl-charcoal">{item.name}</p>
-                    <p className="font-mono text-[10px] text-yl-gray-500 tracking-wider">{locale === 'ar' ? item.locationAr : item.location}</p>
+                    <p className="font-mono text-[11px] text-yl-gray-500 tracking-wider">{locale === 'ar' ? item.locationAr : item.location}</p>
                   </div>
                 </div>
               </BrandCardLight>

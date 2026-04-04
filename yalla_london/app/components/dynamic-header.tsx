@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { ChevronDown, ShoppingBag, Ticket } from 'lucide-react';
+import { ChevronDown, ShoppingBag, Ticket, Home, Compass, Calendar } from 'lucide-react';
 import { useBrandConfig, useNavigationTranslations } from '@/hooks/use-brand-config';
 import { useLanguage } from '@/components/language-provider';
 import { TriBar } from '@/components/brand-kit';
@@ -65,7 +65,7 @@ export function DynamicHeader() {
                 <Link
                   key={item.key}
                   href={item.href}
-                  className={`relative px-4 py-2.5 font-mono text-[11px] font-medium uppercase text-yl-gray-400 transition-all duration-300 ease-yl hover:text-yl-parchment group whitespace-nowrap ${
+                  className={`relative px-4 py-2.5 font-mono text-xs font-medium uppercase text-yl-gray-400 transition-all duration-300 ease-yl hover:text-yl-parchment group whitespace-nowrap ${
                     isRTL ? 'font-arabic tracking-normal text-[14px] normal-case' : 'tracking-[1.5px]'
                   }`}
                 >
@@ -86,7 +86,7 @@ export function DynamicHeader() {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-300 ease-yl hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yl-gold ${
                   language === 'en'
                     ? 'font-arabic text-[14px] font-medium text-yl-gray-400 hover:text-yl-parchment'
-                    : 'font-mono text-[11px] font-medium tracking-[1.5px] uppercase text-yl-gray-400 hover:text-yl-parchment'
+                    : 'font-mono text-xs font-medium tracking-[1.5px] uppercase text-yl-gray-400 hover:text-yl-parchment'
                 }`}
               >
                 {language === 'en' ? 'عربي' : 'EN'}
@@ -95,7 +95,7 @@ export function DynamicHeader() {
               {/* Shop Button — outline style */}
               <Link
                 href="/shop"
-                className={`hidden lg:flex items-center gap-2 px-4 py-2.5 border border-white/20 text-yl-parchment rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 hover:text-yl-gold ${
+                className={`hidden lg:flex items-center gap-2 px-4 py-2.5 border border-white/20 text-yl-parchment rounded-lg font-mono text-xs font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 hover:text-yl-gold ${
                   isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-wider'
                 }`}
               >
@@ -106,7 +106,7 @@ export function DynamicHeader() {
               {/* Book Now Button — Red bg, prominent CTA */}
               <Link
                 href="/experiences"
-                className={`hidden lg:flex items-center gap-2 px-5 py-2.5 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg ${
+                className={`hidden lg:flex items-center gap-2 px-5 py-2.5 bg-yl-red text-white rounded-lg font-mono text-xs font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg ${
                   isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-wider'
                 }`}
               >
@@ -173,7 +173,7 @@ export function DynamicHeader() {
               <div className="pt-3 px-4 flex gap-3">
                 <Link
                   href="/shop"
-                  className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 border border-white/20 text-yl-parchment rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 ${
+                  className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 border border-white/20 text-yl-parchment rounded-lg font-mono text-xs font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 ${
                     isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
@@ -183,7 +183,7 @@ export function DynamicHeader() {
                 </Link>
                 <Link
                   href="/experiences"
-                  className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] ${
+                  className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 bg-yl-red text-white rounded-lg font-mono text-xs font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] ${
                     isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
@@ -204,29 +204,35 @@ export function DynamicHeader() {
       </div>
     </header>
 
-      {/* Mobile bottom CTA bar — persistent Shop + Book Now visible on mobile */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-yl-dark-navy/95 backdrop-blur-xl border-t border-white/10 safe-area-bottom">
-        <div className="flex items-center gap-2 px-4 py-2.5">
-          <Link
-            href="/shop"
-            className={`flex items-center justify-center gap-2 flex-1 px-3 py-2.5 border border-white/20 text-yl-parchment rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 ${
-              isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            {language === 'en' ? 'Shop' : 'متجر'}
-          </Link>
-          <Link
-            href="/experiences"
-            className={`flex items-center justify-center gap-2 flex-1 px-3 py-2.5 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] ${
-              isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
-            }`}
-          >
-            <Ticket className="w-4 h-4" />
-            {language === 'en' ? 'Book Now' : 'احجز الآن'}
-          </Link>
+      {/* Mobile bottom tab bar — 5-item app-style navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-yl-dark-navy/95 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" role="navigation" aria-label={language === 'en' ? 'Mobile navigation' : 'التنقل عبر الهاتف'}>
+        <div className="grid grid-cols-5 items-stretch">
+          {[
+            { href: '/', icon: Home, labelEn: 'Home', labelAr: 'الرئيسية' },
+            { href: '/blog', icon: Compass, labelEn: 'Explore', labelAr: 'استكشف' },
+            { href: '/events', icon: Calendar, labelEn: 'Events', labelAr: 'فعاليات' },
+            { href: '/shop', icon: ShoppingBag, labelEn: 'Shop', labelAr: 'متجر' },
+            { href: '/experiences', icon: Ticket, labelEn: 'Book', labelAr: 'احجز', highlight: true },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors duration-200 ${
+                item.highlight
+                  ? 'text-yl-red'
+                  : 'text-yl-gray-400 hover:text-yl-parchment active:text-yl-gold'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${item.highlight ? 'text-yl-red' : ''}`} />
+              <span className={`text-[10px] font-semibold leading-tight ${
+                isRTL ? 'font-arabic' : 'font-mono tracking-wide uppercase'
+              }`}>
+                {language === 'en' ? item.labelEn : item.labelAr}
+              </span>
+            </Link>
+          ))}
         </div>
-      </div>
+      </nav>
     </>
   );
 }

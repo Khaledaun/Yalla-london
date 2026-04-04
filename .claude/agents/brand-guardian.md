@@ -2,6 +2,9 @@
 name: brand-guardian
 description: Validates UI changes against DESIGN.md brand specification
 model: sonnet
+tools: [Read, Glob, Grep]
+disallowedTools: [Edit, Write, Bash, Agent]
+maxTurns: 15
 ---
 
 # Brand Guardian Agent

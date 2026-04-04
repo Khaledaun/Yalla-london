@@ -3,9 +3,9 @@
 
 ---
 
-## Overall Platform Score: 78/100 (B+)
+## Overall Platform Score: 77/100 (B+) *(Revised from 78 after mobile UX deep-dive)*
 
-The Yalla London / Zenitha.Luxury platform is a technically ambitious, production-grade content engine with strong infrastructure fundamentals. The automated content pipeline, admin dashboard, and affiliate system are all genuinely impressive. The platform's weaknesses are concentrated in design system enforcement, RTL implementation, and frontend polish — areas that don't prevent revenue generation but limit growth velocity and user experience quality.
+The Yalla London / Zenitha.Luxury platform is a technically ambitious, production-grade content engine with strong infrastructure fundamentals. The automated content pipeline, admin dashboard, and affiliate system are all genuinely impressive. However, a validated mobile UI/UX audit revealed **critical public-facing issues**: a scroll-locking hero that blocks all touch interaction for 3 seconds, both primary CTAs completely hidden on mobile, and 25+ instances of illegible sub-10px typography. The platform's weaknesses span design system enforcement, RTL implementation, mobile UX, and frontend polish.
 
 ---
 
@@ -21,16 +21,18 @@ The Yalla London / Zenitha.Luxury platform is a technically ambitious, productio
 | 6 | Social Media Readiness | 75 | B | 6% | 4.5 |
 | 7 | Content Generation Resilience | 87 | A- | 14% | 12.2 |
 | 8 | Dashboard & Admin Design | 92 | A | 10% | 9.2 |
-| 9 | Public Website UX | 82 | A- | 8% | 6.6 |
+| 9 | Public Website UX | **68** | **C+** | 8% | **5.4** |
 | 10 | MCP & API Health | 78 | B+ | 8% | 6.2 |
-| | | | | **100%** | **78.4** |
+| | | | | **100%** | **77.2** |
 
 **Weighting rationale:** Content generation and indexing weighted highest (revenue-critical). Design weighted lower (doesn't block revenue). Social weighted lowest (manual workflow acceptable at current scale).
 
+**Phase 9 revision note:** Score reduced from 82 to 68 after a validated external Mobile UI/UX Evaluation revealed critical issues (scroll-lock hero, hidden CTAs, sub-10px typography, raw `<img>` CLS) confirmed against source code with line numbers.
+
 ### Grade Distribution
 - **A range (85+):** Content Generation (87), Dashboard (92)
-- **B range (70-84):** Public UX (82), Affiliate (78), Content Diversity (78), MCP/API (78), Social (75), Multi-Language (72), Content Health (72)
-- **C range (60-69):** Design (66)
+- **B range (70-84):** Affiliate (78), Content Diversity (78), MCP/API (78), Social (75), Multi-Language (72), Content Health (72)
+- **C range (60-69):** Public UX (68), Design (66)
 - **D/F range (<60):** None
 
 ---
@@ -39,16 +41,16 @@ The Yalla London / Zenitha.Luxury platform is a technically ambitious, productio
 
 | # | Issue | Phase | Severity | Revenue Impact | Fix Effort |
 |---|-------|-------|----------|---------------|------------|
-| 1 | **Sitemap `take:500` will truncate at ~250 articles per site** | 2 | HIGH | Newly published articles invisible to Google after Q3 2026 | LOW (2h) |
-| 2 | **FTC affiliate disclosure missing on category pages** | 3 | HIGH | Legal/compliance risk, potential FTC enforcement action | LOW (2h) |
-| 3 | **1,098+ RTL CSS violations** (679 directional classes, 372 text-align, 47 hardcoded) | 1 | HIGH | Arabic users bounce, 50% of target audience underserved | HIGH (40h) |
-| 4 | **591 hardcoded hex colors bypass design system** | 4 | MEDIUM | Visual inconsistency, slower development velocity | HIGH (20h) |
-| 5 | **Seasonal content at 11% (optimal: 40%)** — missing Ramadan, Wimbledon, Christmas | 5 | HIGH | Misses seasonal traffic spikes worth 3-10x normal volume | MEDIUM (8h) |
-| 6 | **WCAG contrast failures (48/100)** — email builder, admin panels | 4 | MEDIUM | Accessibility violations, excludes users with vision impairments | MEDIUM (8h) |
-| 7 | **Image lazy loading at 4% coverage, no `priority` on hero images** | 4 | HIGH | LCP degradation, lower Core Web Vitals scores | LOW (4h) |
-| 8 | **Rate limiting is per-Vercel-instance (resets on cold start)** | 10 | MEDIUM | No real abuse protection at current scale | MEDIUM (8h) |
-| 9 | **No global error boundary** — unhandled errors show raw Next.js page | 9 | MEDIUM | Poor UX on production errors, trust damage | LOW (2h) |
-| 10 | **Language toggle nearly invisible** — small text, no flag/icon | 9 | MEDIUM | Arabic visitors may never discover AR content | LOW (2h) |
+| 1 | **Scroll-lock hero blocks ALL touch for 3s** — `passive:false` + `preventDefault()` on touchmove | 9 | **CRITICAL** | INP violation, users can't scroll, immediate bounce | LOW (2h) |
+| 2 | **Both CTAs hidden on mobile** — "Shop" + "Book Now" use `hidden lg:flex`, no bottom nav | 9 | **CRITICAL** | Zero conversion path on mobile (>60% of traffic) | MEDIUM (4h) |
+| 3 | **Sitemap `take:500` will truncate at ~250 articles per site** | 2 | HIGH | Newly published articles invisible to Google after Q3 2026 | LOW (2h) |
+| 4 | **FTC affiliate disclosure missing on category pages** | 3 | HIGH | Legal/compliance risk, potential FTC enforcement action | LOW (2h) |
+| 5 | **25+ sub-10px typography instances** — `text-[9px]` to `text-[11px]` across homepage | 9 | HIGH | Illegible on mobile, WCAG violation | MEDIUM (4h) |
+| 6 | **1,098+ RTL CSS violations** (679 directional classes, 372 text-align, 47 hardcoded) | 1 | HIGH | Arabic users bounce, 50% of target audience underserved | HIGH (40h) |
+| 7 | **Raw watermark `<img>` tags cause CLS** — 3 instances, no width/height, invisible (opacity 0.03) | 9 | HIGH | CLS penalty, wasted HTTP requests | LOW (1h) |
+| 8 | **Seasonal content at 11% (optimal: 40%)** — missing Ramadan, Wimbledon, Christmas | 5 | HIGH | Misses seasonal traffic spikes worth 3-10x normal volume | MEDIUM (8h) |
+| 9 | **591 hardcoded hex colors bypass design system** | 4 | MEDIUM | Visual inconsistency, slower development velocity | HIGH (20h) |
+| 10 | **NewsSideBanner renders unconditionally on mobile** — no `hidden lg:block` guard | 9 | HIGH | Mobile layout overlap/waste | LOW (30min) |
 
 ---
 
@@ -56,31 +58,34 @@ The Yalla London / Zenitha.Luxury platform is a technically ambitious, productio
 
 | # | Action | Phase | Impact | Effort |
 |---|--------|-------|--------|--------|
-| 1 | **Remove false hreflang from 4 static-only pages** (/hotels, /experiences, /recommendations, /events) | 1 | Eliminates Google hreflang errors | 1h |
-| 2 | **Add `priority={true}` to hero images** on homepage + article pages | 4 | Immediate LCP improvement | 1h |
-| 3 | **Add FTC disclosure component** to category pages with affiliate links | 3 | Compliance risk elimination | 2h |
-| 4 | **Create `app/error.tsx` and `app/loading.tsx`** at root level | 8, 9 | Global error/loading UX | 1h |
+| 1 | **Remove scroll-lock on mobile** — skip hero animation, auto-expand immediately on touch devices | 9 | Fixes INP violation, stops mobile bounce | 1h |
+| 2 | **Add bottom tab bar on mobile** — 5 items (Guides, Dining, Events, Shop, Book) + `pb-16` on body | 9 | Persistent conversion CTA for 60%+ of traffic | 3h |
+| 3 | **Guard NewsSideBanner on mobile** — wrap in `<div className="hidden lg:block">` | 9 | Eliminates mobile layout overlap | 30min |
+| 4 | **Fix 3 raw watermark `<img>` tags** — replace with `<Image loading="lazy" aria-hidden>` | 9 | Eliminates CLS, removes 3 unnecessary HTTP requests | 1h |
 | 5 | **Raise sitemap `take:500` to `take:5000`** with pagination | 2 | Prevents future truncation | 1h |
-| 6 | **Make language toggle visually prominent** — flag icons, larger hit target | 9 | Arabic discovery for 50% of audience | 2h |
-| 7 | **Add breadcrumbs to inner pages** using existing BreadcrumbList schema | 9 | Navigation + SEO structured data | 3h |
-| 8 | **Add `dir="ltr"` to price/phone/code elements** in RTL context | 1 | Correct display of numbers in Arabic pages | 2h |
-| 9 | **Wire CJ circuit breaker state to CEO Inbox** | 3 | Khaled alerted when affiliate revenue stops | 2h |
-| 10 | **Add seasonal content calendar seeds** — Ramadan, Wimbledon, Christmas topics | 5 | Captures upcoming seasonal traffic | 3h |
+| 6 | **Add FTC disclosure component** to category pages with affiliate links | 3 | Compliance risk elimination | 2h |
+| 7 | **Create `app/error.tsx` and `app/loading.tsx`** at root level | 8, 9 | Global error/loading UX | 1h |
+| 8 | **Remove false hreflang from 4 static-only pages** | 1 | Eliminates Google hreflang errors | 1h |
+| 9 | **Add links to trending bar items** — replace dead `<span>` with `<Link>` | 9 | Removes frustrating dead tap zones | 1h |
+| 10 | **Wire CJ circuit breaker state to CEO Inbox** | 3 | Khaled alerted when affiliate revenue stops | 2h |
 
 ---
 
 ## 30-Day Action Plan
 
-### Week 1: Compliance & Critical Path (Days 1-7)
-**Theme: Eliminate legal risk and unblock revenue**
+### Week 1: Mobile UX Emergency + Compliance (Days 1-7)
+**Theme: Fix critical mobile UX blockers and eliminate legal risk**
 
-- [ ] **Day 1-2:** FTC disclosure on all affiliate pages (Quick Win #3)
-- [ ] **Day 1:** Root error.tsx + loading.tsx (Quick Win #4)
-- [ ] **Day 1:** Sitemap take:500 → take:5000 (Quick Win #5)
-- [ ] **Day 2:** Hero image `priority` props (Quick Win #2)
-- [ ] **Day 2:** Remove false hreflang from 4 static pages (Quick Win #1)
-- [ ] **Day 3-4:** Wire CJ circuit breaker to CEO Inbox (Quick Win #9)
-- [ ] **Day 5-7:** Language toggle redesign with flags (Quick Win #6)
+- [ ] **Day 1:** Remove scroll-lock on mobile — auto-expand hero (Quick Win #1)
+- [ ] **Day 1:** Guard NewsSideBanner on mobile (Quick Win #3)
+- [ ] **Day 1:** Fix 3 raw watermark `<img>` tags (Quick Win #4)
+- [ ] **Day 1:** Root error.tsx + loading.tsx (Quick Win #7)
+- [ ] **Day 2:** Sitemap take:500 → take:5000 (Quick Win #5)
+- [ ] **Day 2:** Remove false hreflang from 4 static pages (Quick Win #8)
+- [ ] **Day 2-3:** Add links to trending bar items (Quick Win #9)
+- [ ] **Day 3-4:** Add bottom tab bar on mobile (Quick Win #2)
+- [ ] **Day 5-6:** FTC disclosure on all affiliate pages (Quick Win #6)
+- [ ] **Day 6-7:** Wire CJ circuit breaker to CEO Inbox (Quick Win #10)
 
 ### Week 2: Content Strategy & SEO (Days 8-14)
 **Theme: Capture seasonal traffic and improve indexing**
@@ -129,6 +134,8 @@ These are the platform's competitive advantages — protect them:
 
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
+| **Mobile bounce from scroll-lock hero** | **HIGH** | **HIGH — users can't scroll, immediate exit** | **P0: Skip animation on mobile (Day 1)** |
+| **Zero mobile conversion path** | **HIGH** | **HIGH — both CTAs hidden on >60% of traffic** | **P0: Bottom tab bar (Day 3-4)** |
 | Sitemap truncation at 500 articles | HIGH (Q3 2026) | HIGH — new articles invisible to Google | Raise to 5000 + add pagination |
 | FTC enforcement for undisclosed affiliates | LOW | HIGH — fines, program termination | Add disclosure component this week |
 | RTL bounce rate with Arabic audience | MEDIUM | HIGH — 50% of target audience lost | Systematic RTL fix sprint (Week 3-4) |

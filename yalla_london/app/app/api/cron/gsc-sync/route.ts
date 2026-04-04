@@ -272,17 +272,23 @@ async function handleGscSync(request: NextRequest) {
               const pathParts = urlPath.split("/").filter(Boolean);
               const slug = pathParts.length > 0 ? pathParts[pathParts.length - 1] : urlPath;
 
-              await prisma.uRLIndexingStatus.create({
-                data: {
+              await prisma.uRLIndexingStatus.upsert({
+                where: { site_id_url: { site_id: siteId, url } },
+                create: {
                   site_id: siteId,
                   url,
                   slug,
-                  status: "indexed", // GSC has impressions → it's indexed
+                  status: "indexed",
                   indexing_state: "INDEXED",
                   last_inspected_at: new Date(),
                   submitted_indexnow: false,
                   submitted_sitemap: false,
                   submitted_google_api: false,
+                },
+                update: {
+                  status: "indexed",
+                  indexing_state: "INDEXED",
+                  last_inspected_at: new Date(),
                 },
               });
               siteNewTracking++;

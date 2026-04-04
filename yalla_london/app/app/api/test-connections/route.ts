@@ -3410,13 +3410,17 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
         for (const post of untracked) {
           const url = `${siteUrl}/blog/${post.slug}`;
           try {
-            await prisma.uRLIndexingStatus.create({
-              data: {
+            await prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: siteId, url } },
+              create: {
                 url,
                 slug: post.slug,
                 site_id: siteId,
                 status: "pending",
                 page_type: "blog",
+              },
+              update: {
+                status: "pending",
               },
             });
             autoTracked++;

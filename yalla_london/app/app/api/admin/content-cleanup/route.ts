@@ -341,8 +341,10 @@ async function handlePost(request: NextRequest) {
         const fullUrl = `${siteFullDomain}${url}`;
         if (!trackedSet.has(url) && !trackedSet.has(fullUrl)) {
           try {
-            await prisma.uRLIndexingStatus.create({
-              data: { url, site_id: effectiveSiteId, status: "discovered", submitted_indexnow: false },
+            await prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: effectiveSiteId, url } },
+              create: { url, site_id: effectiveSiteId, status: "discovered", submitted_indexnow: false },
+              update: { status: "discovered" },
             });
             newlyTracked++;
           } catch (err) {

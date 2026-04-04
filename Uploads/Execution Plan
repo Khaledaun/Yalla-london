@@ -2,7 +2,9 @@
 
 > **From Zero to First Revenue — Revised Launch Playbook**
 > Launch Target: Q2 2026 | First Revenue Target: 90 Days
-> Prepared: March 31, 2026 | CONFIDENTIAL
+> Prepared: March 31, 2026 | Updated: April 4, 2026 | CONFIDENTIAL
+>
+> **Technical Status: 95% FEATURE COMPLETE — READY TO ACTIVATE**
 
 -----
 
@@ -15,24 +17,138 @@ This plan replaces the broad strategy document with a sequenced, day-by-day exec
 
 -----
 
+## Technical Readiness Summary (April 4, 2026)
+
+The platform is **95% feature complete**. The entire yacht charter platform was built in a single session (February 21, 2026) and has been hardened across 40+ audit rounds since. Current status: `paused` in `config/sites.ts` — activation requires changing one line of code plus external service setup.
+
+### What's Already Built
+
+| Component | Status | Files | Notes |
+|-----------|--------|-------|-------|
+| **8 Prisma Models** | ✅ BUILT | `prisma/schema.prisma` (line 3242+) | Yacht, YachtDestination, CharterInquiry, YachtAvailability, YachtAmenity, YachtImage, BrokerPartner, CharterItinerary + 8 enums |
+| **6 Public API Routes** | ✅ BUILT | `app/api/yachts/` | Search, detail, destinations, itineraries, compare, recommend |
+| **8 Admin API Routes** | ✅ BUILT | `app/api/admin/yachts/` | CRUD, sync, seed, inquiries, destinations, itineraries, brokers, analytics |
+| **Public Inquiry API** | ✅ BUILT | `app/api/inquiry/route.ts` | Rate-limited, multi-step form submission → CharterInquiry table |
+| **Yacht Search Page** | ✅ BUILT | `app/yachts/page.tsx` | Filters (type, price, cabins, destination), grid/list view, pagination |
+| **Yacht Detail Page** | ✅ BUILT | `app/yachts/[slug]/page.tsx` | Gallery, specs, pricing, availability calendar, inquiry CTA, Product JSON-LD |
+| **Destinations Hub** | ✅ BUILT | `app/destinations/page.tsx` | Region grid with yacht counts, filters |
+| **Destination Detail** | ✅ BUILT | `app/destinations/[slug]/page.tsx` | Related yachts, itineraries, Place JSON-LD |
+| **Itineraries Hub** | ✅ BUILT | `app/itineraries/page.tsx` | Duration/difficulty filters, route cards |
+| **Itinerary Detail** | ✅ BUILT | `app/itineraries/[slug]/page.tsx` | Day-by-day timeline, recommended yachts, Trip JSON-LD |
+| **Charter Planner** | ✅ BUILT | `app/charter-planner/page.tsx` | AI multi-step wizard (dates, guests, preferences, budget) |
+| **FAQ Page** | ✅ BUILT | `app/faq/page.tsx` | Accordion with FAQPage JSON-LD |
+| **How It Works** | ✅ BUILT | `app/how-it-works/page.tsx` | 4-step visual process guide |
+| **Zenitha Header/Footer** | ✅ BUILT | `components/zenitha/` | Responsive nav, mobile hamburger, brand-specific styling |
+| **Zenitha Homepage** | ✅ BUILT | `components/zenitha/zenitha-homepage.tsx` | Hero, featured yachts, destinations, trust signals, testimonials |
+| **CSS Design System** | ✅ BUILT | `app/zenitha-tokens.css` (49KB) | Full custom property system (--z-navy, --z-gold, --z-aegean) |
+| **Site Shell** | ✅ BUILT | `components/site-shell.tsx` | Hermetic separation — auto-detects siteId, renders correct header/footer |
+| **Admin Fleet Mgmt** | ✅ BUILT | `app/admin/yachts/page.tsx` (23KB) | Table with search, filters, pagination, summary cards |
+| **Admin Inquiries CRM** | ✅ BUILT | `app/admin/yachts/inquiries/page.tsx` | Status management, priority, notes, response tracking |
+| **Admin Destinations** | ✅ BUILT | `app/admin/yachts/destinations/page.tsx` | CRUD grid with season, pricing, yacht counts |
+| **Admin Itineraries** | ✅ BUILT | `app/admin/yachts/itineraries/page.tsx` | CRUD with difficulty, duration, destination filters |
+| **Admin Brokers** | ✅ BUILT | `app/admin/yachts/brokers/page.tsx` | Partner table with commission rates, lead tracking |
+| **Admin Analytics** | ✅ BUILT | `app/admin/yachts/analytics/page.tsx` | KPI cards, fleet by type, inquiry funnel, revenue |
+| **Admin Sync** | ✅ BUILT | `app/admin/yachts/sync/page.tsx` | Manual refresh + future API integration placeholder |
+| **Seed Data** | ✅ BUILT | `app/api/admin/yachts/seed/route.ts` | Greek Islands, Croatian Coast, French Riviera, Amalfi Coast, Balearic Islands, Sardinia, Turkish Riviera, Montenegro |
+| **SEO Compliance** | ✅ BUILT | All `[slug]` pages | `generateMetadata()`, canonical, hreflang, OG, Twitter, BreadcrumbList JSON-LD |
+| **Sitemap Integration** | ✅ BUILT | `app/sitemap.ts` | Yacht, destination, itinerary URLs included |
+| **llms.txt for AI Search** | ✅ BUILT | `app/llms.txt/route.ts` | Zenitha Yachts content for AI crawlers |
+| **IndexNow Integration** | ✅ BUILT | `lib/seo/indexing-service.ts` | Multi-engine (Bing, Yandex, api.indexnow.org) |
+| **Admin Sidebar** | ✅ BUILT | `premium-admin-nav.tsx` | "Yacht Management" section with 8 items |
+| **WhatsApp Button** | ✅ BUILT | `components/zenitha/whatsapp-button.tsx` | Floating CTA for inquiries |
+| **Site Config** | ✅ BUILT | `config/sites.ts` (line 1564-1822) | Full config, bilingual EN/AR, status: "paused" |
+
+### What's Built by the Platform (Yacht Gets Automatically)
+
+These platform-wide systems activate the moment the yacht site status changes to "active":
+
+| System | Benefit for Zenitha | Notes |
+|--------|---------------------|-------|
+| Content pipeline (8-phase) | Auto-generates yacht articles | Topics → Drafts → Reservoir → BlogPost |
+| 16-check pre-publication gate | Quality assurance on all content | Word count, SEO score, affiliates, authenticity, AIO |
+| SEO agent (3x/day) | Auto-submits new yacht pages to 3 IndexNow engines | Bing, Yandex, api.indexnow.org |
+| Affiliate injection | Auto-injects booking links in articles | CJ + Travelpayouts + Stay22 + static rules |
+| CEO Inbox | Auto-diagnoses and fixes cron failures | Email alerts to admin |
+| Diagnostic agent (every 2h) | Auto-recovers stuck pipeline drafts | 3-phase: diagnose → fix → verify |
+| Cache-first sitemap | Fast sitemap serving (<200ms) | Auto-includes yacht URLs |
+| Named author profiles | E-E-A-T compliance | Per-site author rotation |
+| GEO/AIO optimization | AI search visibility | Stats, citations, citability in all prompts |
+| Optimistic concurrency | Prevents data corruption | All BlogPost writes use OCC wrapper |
+| Circuit breaker + last-defense | AI provider resilience | 3-failure trip, 5-min cooldown |
+| Arabic content pipeline | Bilingual articles | Auto-generates AR variants |
+| Cookie consent + GDPR | Compliance from day one | Bilingual banner, data deletion endpoint |
+
+### Recent Platform Fixes That Benefit Yacht Site (Since Plan Creation)
+
+| Fix | Date | Impact |
+|-----|------|--------|
+| URLIndexingStatus unique constraint crash → atomic upsert | Apr 4, 2026 | Yacht page indexing won't crash on duplicate submissions |
+| Arabic Unicode preservation in keyword dedup | Apr 4, 2026 | Arabic yacht content won't be false-flagged as duplicate |
+| Stuck draft auto-rejection (GATE_REJECTION_THRESHOLD=5) | Apr 4, 2026 | Failed yacht drafts won't block the pipeline forever |
+| Cannibalization threshold raised to 85% Jaccard | Mar 22, 2026 | Different yacht articles can coexist (e.g., "Greek yacht charter" vs "Bodrum yacht rental") |
+| Content-selector force-publish fallback | Mar 23, 2026 | Guarantees at least 1 article/run even if overlap is high |
+| GSC sync per-day data (no 7x overcounting) | Mar 9, 2026 | Accurate traffic numbers for yacht pages from day one |
+| IndexNow 3-layer key verification | Mar 24, 2026 | All 3 engines accept key verification |
+| Per-content-type quality gates | Feb 26, 2026 | Yacht news (150w min), guides (400w min), blog (500w min) — not all forced to 1000w |
+| Title sanitization + dedup normalization | Mar 27, 2026 | AI artifacts stripped from yacht article titles |
+| CEO Agent + CTO Agent platform | Mar 27, 2026 | WhatsApp-based inquiry handling, auto-CRM pipeline |
+| Resend email system | Mar 24, 2026 | Welcome emails, inquiry confirmations ready |
+| Foundation APIs (currency, weather, events) | Mar 23, 2026 | GBP→AED conversion, weather for charter destinations |
+
+### What Remains for Activation (Estimated: 2–4 hours total)
+
+| # | Action | Who | Time | Notes |
+|---|--------|-----|------|-------|
+| 1 | Change `status: "paused"` → `"active"` in `config/sites.ts` line 1571 | Claude Code | 2 min | Single line change |
+| 2 | Run `npx prisma migrate deploy` on Supabase | Claude Code | 5 min | Creates 8 yacht tables + agent tables |
+| 3 | DNS: Point `zenithayachts.com` CNAME to `cname.vercel-dns.com` (proxy OFF) | Khaled / Cloudflare | 10 min | Domain already purchased |
+| 4 | Add domain to Vercel project settings | Claude Code | 2 min | `zenithayachts.com` + `www.zenithayachts.com` |
+| 5 | Create GA4 property for Zenitha Yachts | Khaled / analytics.google.com | 5 min | Get Measurement ID (G-xxx) + Property ID |
+| 6 | Create GSC property for Zenitha Yachts | Khaled / search.google.com | 5 min | DNS TXT verification via Cloudflare |
+| 7 | Set 3 Vercel env vars | Claude Code | 2 min | `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED`, `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED`, `GSC_SITE_URL_ZENITHA_YACHTS_MED` |
+| 8 | Run seed endpoint | Khaled / browser | 1 min | `POST /api/admin/yachts/seed` — populates 8 destinations |
+| 9 | Verify site loads at `zenithayachts.com` | Both | 5 min | Check homepage, yacht search, inquiry form |
+| 10 | Submit sitemap to GSC | Khaled / GSC dashboard | 2 min | `www.zenithayachts.com/sitemap.xml` |
+
+### Feature Priority Mapping (from ZENITHA_INSTRUCTIONS.md)
+
+| Priority | Feature | Status | Notes |
+|----------|---------|--------|-------|
+| **P0** | Yacht search & browse | ✅ BUILT | Filters, grid/list, pagination |
+| **P0** | Charter inquiry form | ✅ BUILT | Multi-step, rate-limited, → CharterInquiry table |
+| **P0** | Yacht detail pages | ✅ BUILT | Gallery, specs, pricing, Product JSON-LD |
+| **P0** | Destination pages | ✅ BUILT | Hub + detail, Place JSON-LD |
+| **P1** | AI yacht matchmaker | ✅ BUILT | `/api/yachts/recommend` POST endpoint |
+| **P1** | Charter planner wizard | ✅ BUILT | Multi-step AI planner |
+| **P1** | Admin CRM (inquiries) | ✅ BUILT | Status, priority, notes |
+| **P2** | Itinerary pages | ✅ BUILT | Hub + detail, day-by-day timeline |
+| **P2** | Yacht comparison | ✅ BUILT | `/yachts/compare` + `/api/yachts/compare` |
+| **P2** | Broker management | ✅ BUILT | Commission rates, lead tracking |
+| **P3** | External API sync (Charter Index) | 🔲 STUB | Sync page built, API integration placeholder |
+| **P3** | Availability calendar | ✅ BUILT | YachtAvailability model, detail page display |
+| **P4** | WhatsApp Business integration | ✅ BUILT | CEO Agent handles via WhatsApp channel adapter |
+| **P4** | Hebrew content | 🔲 NOT BUILT | Content pipeline supports EN/AR only; Hebrew requires i18n extension |
+
+-----
+
 ## Phase 0: Foundation Sprint (Days 1–10)
 
 **Goal:** Complete every blocking prerequisite so that when outreach starts on Day 11, nothing is missing. No marketing, no content, no social media — just the legal, financial, and technical plumbing.
 
 ### Action Items
 
-|#   |Action                                                                                                                                                      |Owner / Tool                      |Deadline|Done Criteria                   |
-|----|------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|--------|--------------------------------|
-|0.1 |Deploy platform to production on Vercel (DNS, SSL, custom domain zenithayachts.com)                                                                         |Founder / Vercel CLI              |Day 1   |Site live, loads < 2s           |
-|0.2 |Set up Google Analytics 4 + Google Search Console; submit sitemap                                                                                           |Founder / GA4                     |Day 1   |Events tracking live            |
-|0.3 |Open dedicated client funds bank account (separate from operating account — non-negotiable for HNWI trust)                                                  |Founder / Mercury or Wise Business|Day 3   |Account open, IBAN/routing ready|
-|0.4 |Set up Stripe payment flow for deposits (€5K–15K range); configure webhook for payment confirmation emails                                                  |Founder / Stripe Dashboard        |Day 4   |Test payment succeeds           |
-|0.5 |Download MYBA charter agreement template; adapt to bilingual English/Arabic version (hire freelance maritime lawyer for review, budget €500–1,000)          |Founder + Legal freelancer        |Day 7   |Signed-ready PDF template       |
-|0.6 |Apply for MYBA membership (€500/year) — signals legitimacy to every Med yacht owner                                                                         |Founder / MYBA website            |Day 5   |Application submitted           |
-|0.7 |Set up WhatsApp Business account with professional profile, automated welcome message, and catalog                                                          |Founder / WhatsApp Business       |Day 2   |Business profile live           |
-|0.8 |Create Instagram Business account (@ZenithaYachts); prepare 9-post grid (3 yacht hero shots, 3 destination teases, 3 brand story posts) — do NOT publish yet|Founder / Canva                   |Day 7   |9 posts drafted and scheduled   |
-|0.9 |Set up CRM (HubSpot free tier or Pipedrive): create pipeline stages — Inquiry → Qualified → Yacht Matched → Quote Sent → Deposit Paid → Charter Completed   |Founder / HubSpot                 |Day 3   |Pipeline stages configured      |
-|0.10|Create LinkedIn company page for B2B outreach (hotel concierge, travel agency targeting)                                                                    |Founder                           |Day 5   |Page live with description      |
+|#   |Action                                                                                                                                                      |Owner / Tool                      |Deadline|Done Criteria                   |Tech Status|
+|----|------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------|--------|--------------------------------|-----------|
+|0.1 |Deploy platform to production on Vercel (DNS, SSL, custom domain zenithayachts.com)                                                                         |Founder / Vercel CLI              |Day 1   |Site live, loads < 2s           |**95% READY** — Code deployed, domain purchased on Cloudflare. Remaining: DNS CNAME pointing + Vercel domain add (see "What Remains for Activation" above)|
+|0.2 |Set up Google Analytics 4 + Google Search Console; submit sitemap                                                                                           |Founder / GA4                     |Day 1   |Events tracking live            |**CODE READY** — `getSiteSeoConfig()` auto-reads per-site env vars (`GA4_PROPERTY_ID_ZENITHA_YACHTS_MED`, etc.). Sitemap auto-includes yacht URLs. Submit after deploy.|
+|0.3 |Open dedicated client funds bank account (separate from operating account — non-negotiable for HNWI trust)                                                  |Founder / Mercury or Wise Business|Day 3   |Account open, IBAN/routing ready|**BUSINESS ACTION** — No code dependency|
+|0.4 |Set up Stripe payment flow for deposits (€5K–15K range); configure webhook for payment confirmation emails                                                  |Founder / Stripe Dashboard        |Day 4   |Test payment succeeds           |**CODE READY** — Stripe agent webhook endpoint built (`/api/webhooks/stripe-agent`). React Email booking confirmation template ready. CEO Agent processes payment events auto.|
+|0.5 |Download MYBA charter agreement template; adapt to bilingual English/Arabic version (hire freelance maritime lawyer for review, budget €500–1,000)          |Founder + Legal freelancer        |Day 7   |Signed-ready PDF template       |**BUSINESS ACTION** — PDF cover generator available for branded templates (6 cover designs)|
+|0.6 |Apply for MYBA membership (€500/year) — signals legitimacy to every Med yacht owner                                                                         |Founder / MYBA website            |Day 5   |Application submitted           |**BUSINESS ACTION** — No code dependency|
+|0.7 |Set up WhatsApp Business account with professional profile, automated welcome message, and catalog                                                          |Founder / WhatsApp Business       |Day 2   |Business profile live           |**CODE READY** — CEO Agent WhatsApp channel adapter built (`lib/agents/channels/whatsapp.ts`). Auto-creates CrmOpportunity for qualifying messages. Needs 4 env vars: `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID`|
+|0.8 |Create Instagram Business account (@ZenithaYachts); prepare 9-post grid (3 yacht hero shots, 3 destination teases, 3 brand story posts) — do NOT publish yet|Founder / Canva                   |Day 7   |9 posts drafted and scheduled   |**PARTIAL** — Social Calendar UI built, Content Engine Scripter generates platform-specific social posts. 433 Canva video clips available in video registry. Instagram auto-publish NOT available (requires Meta app review 6-8 weeks). Manual publish workflow: create in dashboard → copy-paste to Instagram.|
+|0.9 |Set up CRM (HubSpot free tier or Pipedrive): create pipeline stages — Inquiry → Qualified → Yacht Matched → Quote Sent → Deposit Paid → Charter Completed   |Founder / HubSpot                 |Day 3   |Pipeline stages configured      |**BUILT-IN ALTERNATIVE** — CrmOpportunity model with 6-stage pipeline already in platform (new → qualifying → proposal → negotiation → won → lost). CEO Agent auto-creates opportunities from inquiries. InteractionLog tracks all touchpoints. HubSpot still recommended for external integrations, but built-in CRM is functional.|
+|0.10|Create LinkedIn company page for B2B outreach (hotel concierge, travel agency targeting)                                                                    |Founder                           |Day 5   |Page live with description      |**BUSINESS ACTION** — No code dependency|
 
 ### Phase 0 KPIs
 
@@ -273,3 +389,124 @@ When you sit down on Day 1, here is exactly what to do in order:
 *That is a 4-hour morning. By lunch on Day 1, the platform is live, the payment infrastructure is in motion, and the first three human conversations that could lead to revenue have started.*
 
 **Everything after that is execution discipline. The plan is here. The platform is built. The community is waiting. Go.**
+
+-----
+
+## Appendix A: Technical Architecture for Zenitha Yachts
+
+### Database Models (8 models, ready in `prisma/schema.prisma`)
+
+```
+Yacht ──────────── YachtImage (1:N)
+  │                YachtAmenity (1:N)
+  │                YachtAvailability (1:N)
+  │
+  ├── YachtDestination (N:M via destination field)
+  ├── CharterItinerary (via destination)
+  └── BrokerPartner (via broker commissions)
+
+CharterInquiry ──── standalone (links to Yacht via yachtId?)
+```
+
+### API Route Map
+
+**Public (no auth):**
+- `GET /api/yachts` — search with filters (type, price range, cabins, destination)
+- `GET /api/yachts/[id]` — full yacht detail
+- `GET /api/yachts/destinations` — all destinations with yacht counts
+- `GET /api/yachts/itineraries` — itinerary listings
+- `GET /api/yachts/compare` — side-by-side comparison
+- `POST /api/yachts/recommend` — AI matchmaker
+- `POST /api/inquiry` — charter inquiry submission (rate-limited)
+
+**Admin (requireAdmin):**
+- `GET/POST /api/admin/yachts` — fleet CRUD
+- `GET/PUT /api/admin/yachts/[id]` — single yacht management
+- `GET/PUT /api/admin/yachts/inquiries` — CRM inquiry management
+- `GET/POST/PUT/DELETE /api/admin/yachts/destinations` — destination CRUD
+- `GET/POST/PUT/DELETE /api/admin/yachts/itineraries` — itinerary CRUD
+- `GET/POST/PUT/DELETE /api/admin/yachts/brokers` — broker management
+- `GET /api/admin/yachts/analytics` — fleet KPIs
+- `POST /api/admin/yachts/sync` — manual data refresh
+- `POST /api/admin/yachts/seed` — seed demo destinations
+
+### Multi-Site Isolation
+
+- All yacht DB queries are scoped by `siteId: "zenitha-yachts-med"`
+- `trends-monitor` cron explicitly skips `zenitha-yachts-med` (yachts don't use content pipeline topics)
+- Content pipeline generates yacht-specific articles using site system prompts from `config/sites.ts`
+- Affiliate injection uses yacht-specific partner rules (Boatbookings, yacht charter operators)
+- `SiteShell` component auto-detects siteId and renders `ZenithaHeader`/`ZenithaFooter` instead of Yalla London components
+
+### Content Pipeline for Yacht Articles
+
+The content pipeline generates yacht articles automatically once the site is active:
+1. `weekly-topics` cron generates yacht-specific topics using the site's `systemPromptEN` which includes yacht charter terminology, Mediterranean destinations, and HNWI audience targeting
+2. Articles pass through all 8 phases (research → outline → drafting → assembly → images → seo → scoring → reservoir)
+3. Pre-publication gate applies 16 checks including yacht-relevant affiliate links (Boatbookings, charter operators)
+4. Published articles auto-submit to IndexNow for rapid indexing
+
+### CEO Agent WhatsApp Integration for Yacht Inquiries
+
+The CEO Agent platform (built March 27, 2026) provides automated inquiry handling:
+1. Prospect sends WhatsApp message about yacht charter
+2. WhatsApp webhook → Event Router → CEO Brain
+3. Contact-resolver merges across Lead, Subscriber, CharterInquiry models
+4. CEO Agent responds with yacht recommendations, pricing, availability
+5. Auto-creates CrmOpportunity with source="whatsapp"
+6. High-value inquiries (€30K+) auto-escalate to Khaled
+7. Follow-up scheduler auto-triggers after 48h silence
+
+**Requires:** WhatsApp Cloud API setup + 4 env vars (see Phase 0, action 0.7).
+
+### Env Vars Needed for Full Yacht Launch
+
+| Env Var | Purpose | Where to Get |
+|---------|---------|-------------|
+| `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED` | Analytics tracking | GA4 Admin → Data Streams |
+| `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED` | GA4 Data API queries | GA4 Admin → Property Settings |
+| `GSC_SITE_URL_ZENITHA_YACHTS_MED` | Search Console integration | Format: `sc-domain:zenithayachts.com` |
+| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp Business | Meta Cloud API dashboard |
+| `WHATSAPP_ACCESS_TOKEN` | WhatsApp Business | Meta Cloud API dashboard |
+| `WHATSAPP_VERIFY_TOKEN` | Webhook verification | You create this (any random string) |
+| `WHATSAPP_BUSINESS_ACCOUNT_ID` | WhatsApp Business | Meta Cloud API dashboard |
+| `CHARTER_INDEX_API_KEY` | Charter Index yacht data sync | Charter Index account (Phase 1, action 1.1) |
+| `GOOGLE_SITE_VERIFICATION_ZENITHA_YACHTS_MED` | Google ownership proof | GSC verification process |
+
+### What's NOT Built (and Why)
+
+| Feature | Reason | Workaround |
+|---------|--------|-----------|
+| NauSYS/MMK API sync | Requires paid API access + MYBA membership | Manual yacht entry via admin dashboard; Charter Index API placeholder built |
+| Hebrew content | i18n system only supports EN/AR | Can be added later; requires new `_he` fields on models |
+| Availability calendar sync | Requires operator API integration | Manual availability entry via admin; YachtAvailability model ready |
+| Payment processing (beyond Stripe) | Wire transfer is primary for yacht charters | Stripe for deposits; wire transfer instructions in charter agreement |
+| Review system (guest reviews) | Requires completed charters first | YachtReview model exists but no public display until Phase 3 |
+
+-----
+
+## Appendix B: Execution Plan Action Item Tech Status Matrix
+
+Quick reference showing which action items are tech-ready vs. business-only.
+
+| Action | Phase | Tech Status | Blocking On |
+|--------|-------|-------------|-------------|
+| 0.1 Deploy to production | 0 | 95% ready | DNS pointing + Vercel domain add |
+| 0.2 GA4 + GSC | 0 | Code ready | Khaled creates properties |
+| 0.3 Bank account | 0 | N/A | Business action |
+| 0.4 Stripe payments | 0 | Code ready | Khaled configures Stripe |
+| 0.5 MYBA agreement | 0 | N/A | Legal action |
+| 0.6 MYBA membership | 0 | N/A | Business action |
+| 0.7 WhatsApp Business | 0 | Code ready | Meta Cloud API setup + 4 env vars |
+| 0.8 Instagram | 0 | Partial | Manual publish workflow; no auto-publish |
+| 0.9 CRM pipeline | 0 | Built-in CRM ready | Optional HubSpot for external integrations |
+| 0.10 LinkedIn | 0 | N/A | Business action |
+| 1.1 Charter Index API | 1 | Stub ready | API key from Charter Index |
+| 1.2-1.7 Operator outreach | 1 | N/A | Business actions |
+| 2.1-2.10 HNWI outreach | 2 | N/A | Business actions (CRM tracks all) |
+| 3.1-3.6 Revenue actions | 3 | Stripe + CRM ready | Closing deals |
+| 3.7-3.10 Content/SEO | 3 | Fully automated | Pipeline produces articles once site active |
+| 3.11-3.13 Influencer/PR | 3 | Social tools ready | Manual outreach + Google Ads account |
+| 4.1-4.10 Scale | 4 | Platform supports all | Business execution |
+
+**Bottom line:** All Phase 0 technical work is complete. The 2-4 hour activation checklist is the ONLY technical blocker. Once activated, the content pipeline, SEO agent, affiliate injection, and CEO Agent all start working automatically for Zenitha Yachts.

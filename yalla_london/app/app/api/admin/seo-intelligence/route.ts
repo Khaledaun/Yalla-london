@@ -816,37 +816,26 @@ export async function POST(request: NextRequest) {
       const articleUrl = `${domain}/blog/${post.slug}`;
 
       // Ensure the URL is tracked in URLIndexingStatus
-      const existing = await prisma.uRLIndexingStatus.findFirst({
-        where: { site_id: siteId, slug: post.slug },
+      const upserted = await prisma.uRLIndexingStatus.upsert({
+        where: { site_id_url: { site_id: siteId, url: articleUrl } },
+        create: {
+          url: articleUrl,
+          slug: post.slug,
+          site_id: siteId,
+          status: "pending",
+          submitted_indexnow: false,
+          submitted_sitemap: false,
+          submission_attempts: 0,
+        },
+        update: {
+          status: "pending",
+          submitted_indexnow: false,
+          last_submitted_at: null,
+          last_error: null,
+          submission_attempts: 0,
+        },
       });
-
-      let indexingId: string;
-      if (existing) {
-        await prisma.uRLIndexingStatus.update({
-          where: { id: existing.id },
-          data: {
-            status: "pending",
-            submitted_indexnow: false,
-            last_submitted_at: null,
-            last_error: null,
-            submission_attempts: 0,
-          },
-        });
-        indexingId = existing.id;
-      } else {
-        const created = await prisma.uRLIndexingStatus.create({
-          data: {
-            url: articleUrl,
-            slug: post.slug,
-            site_id: siteId,
-            status: "pending",
-            submitted_indexnow: false,
-            submitted_sitemap: false,
-            submission_attempts: 0,
-          },
-        });
-        indexingId = created.id;
-      }
+      const indexingId = upserted.id;
 
       // Submit to IndexNow immediately
       let indexNowResult: string = "skipped";

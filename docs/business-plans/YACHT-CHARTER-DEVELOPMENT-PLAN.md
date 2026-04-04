@@ -124,26 +124,63 @@ Once active: cron jobs generate content, SEO agent submits to IndexNow, affiliat
 
 ## 0.5 PLATFORM UPDATES SINCE PLAN CREATION (Feb 21, 2026)
 
-### Critical Production Bugs Fixed
+> **Last updated: April 4, 2026** — 40+ audit rounds completed since initial build.
+
+### Critical Production Bugs Fixed (Feb–Mar 2026)
 
 These fixes on the main platform directly benefit the yacht site from day one:
 
-| Bug | Impact on Yacht Site | Fix |
-|-----|---------------------|-----|
-| **Blog pages timing out** (11+ seconds) | Yacht articles would timeout too | `React.cache()` dedup, `withTimeout()` fallback, Prisma `select` optimization, Suspense for related articles |
-| **robots.txt blocking ALL AI crawlers** | Zero AI Overview citations for yacht content | Explicit `disallow: []` for AI bots (ClaudeBot, ChatGPT-User, etc.) |
-| **Duplicate slugs creating ghost 404s** | Yacht articles could collide with travel articles | `startsWith` slug dedup, per-site scoping, compound `@@index([siteId, slug])` on BlogPost |
-| **Cross-site IndexNow contamination** | Istanbul URLs submitted under yalla-london.com key | SEO cron now loops per-site with correct domain |
-| **Indexing pipeline dead ends** | Submitted yacht URLs never advancing from "discovered" | `trackSubmittedUrls()` writes results to DB, GSC format fixed to `sc-domain:` |
+| Bug | Impact on Yacht Site | Fix | Date |
+|-----|---------------------|-----|------|
+| **Blog pages timing out** (11+ seconds) | Yacht articles would timeout too | `React.cache()` dedup, `withTimeout()` fallback, Prisma `select` optimization, Suspense for related articles | Feb 2026 |
+| **robots.txt blocking ALL AI crawlers** | Zero AI Overview citations for yacht content | Explicit `disallow: []` for AI bots (ClaudeBot, ChatGPT-User, etc.) | Feb 2026 |
+| **Duplicate slugs creating ghost 404s** | Yacht articles could collide with travel articles | `startsWith` slug dedup, per-site scoping, compound `@@index([siteId, slug])` on BlogPost | Feb 2026 |
+| **Cross-site IndexNow contamination** | Istanbul URLs submitted under yalla-london.com key | SEO cron now loops per-site with correct domain | Feb 2026 |
+| **Indexing pipeline dead ends** | Submitted yacht URLs never advancing from "discovered" | `trackSubmittedUrls()` writes results to DB, GSC format fixed to `sc-domain:` | Feb 2026 |
+| **URLIndexingStatus unique constraint crash** | Yacht page indexing would crash on duplicate submissions | All 4 `.create()` calls converted to atomic `.upsert()` with compound key `site_id_url` | Apr 4, 2026 |
+| **Arabic Unicode keyword dedup** | Arabic yacht content false-flagged as duplicate | Unicode ranges `\u0600-\u06FF`, `\u0750-\u077F`, `\uFB50-\uFDFF`, `\uFE70-\uFEFF` preserved in normalization | Apr 4, 2026 |
+| **Stuck drafts blocking pipeline forever** | Failed yacht drafts would block all content production | `GATE_REJECTION_THRESHOLD=5` permanently rejects stuck drafts after 5 gate failures | Apr 4, 2026 |
+| **Cannibalization threshold too aggressive** | Different yacht articles blocked ("Greek charter" vs "Bodrum rental") | Jaccard threshold raised from 60% to 85%, site-common stop words stripped | Mar 22, 2026 |
+| **Content-selector frozen pipeline** | Zero articles published for days when all overlap | Force-publish fallback: best candidate published regardless of overlap | Mar 23, 2026 |
+| **GSC sync 7x overcounting** | Inaccurate traffic numbers | Per-day storage with `dimensions: ["page", "date"]` instead of aggregated | Mar 9, 2026 |
+| **IndexNow key rejected by all engines** | Yacht pages never submitted for indexing | 3-layer fix: dedicated API route + Vercel rewrite + middleware bypass | Mar 24, 2026 |
+| **Assembly phase infinite loop** | Drafts cycling timeout → fallback → reset forever | Raw fallback preserves attempt count, sweeper skips assembly timeout drafts | Mar 16, 2026 |
+| **Quality gate scoring post-publish features** | All articles rejected at 70 threshold | Gate lowered to 40, post-publish features (affiliates, internal links) scored separately | Mar 18, 2026 |
+| **Title dedup too strict** | Near-identical titles with different years blocked | Normalized dedup strips years, filler words, punctuation before comparing | Mar 27, 2026 |
 
-### Analytics Multi-Site Gap (Known, Needs Fix Before Yacht Launch)
+### Major Platform Additions Since Feb 21 (Benefit Yacht Site)
 
-The analytics cron (`/api/cron/analytics`) currently syncs GA4/GSC data for the **default site only**. Before the yacht site launches, this cron must be updated to loop through all active sites using `getActiveSiteIds()` — same pattern every other cron already follows. The infrastructure (`getSiteSeoConfig()`, `setSiteUrl()`) is ready; the cron just needs the loop.
+| Feature | Impact on Yacht Site | Date |
+|---------|---------------------|------|
+| **CEO Agent + CTO Agent** | WhatsApp inquiry auto-handling, CRM auto-creation, AI yacht recommendations | Mar 27, 2026 |
+| **Resend Email System** | Welcome emails, inquiry confirmations, booking confirmations ready | Mar 24, 2026 |
+| **Foundation APIs** | Currency conversion (GBP→AED/SAR), weather for charter destinations, Ticketmaster events | Mar 23, 2026 |
+| **CJ + Travelpayouts Affiliates** | Auto-injected affiliate links in yacht articles (Boatbookings, charter operators) | Mar 10-23, 2026 |
+| **GEO/AIO Optimization** | Stats, citations, citability in all generated content for AI search visibility | Mar 10, 2026 |
+| **Per-content-type Quality Gates** | Yacht news (150w min), guides (400w min), blog (500w min) — not all forced to 1000w | Feb 26, 2026 |
+| **Optimistic Concurrency** | Prevents data corruption on concurrent BlogPost writes (24 crons use OCC wrapper) | Mar 18, 2026 |
+| **Formal State Machine** | VALID_TRANSITIONS prevents illegal pipeline phase changes | Mar 18, 2026 |
+| **Queue Monitor** | 6-rule pipeline health with auto-fix | Mar 17, 2026 |
+| **CEO Inbox** | Automated cron failure detection → diagnosis → auto-fix → retest → email alert | Mar 15, 2026 |
+| **Centralized Constants** | Single source of truth for all retry caps, budget values, thresholds | Mar 17, 2026 |
+| **Circuit Breaker + Last-Defense** | AI provider resilience: 3-failure trip, 5-min cooldown, fallback probe | Mar 5, 2026 |
+| **Named Author Profiles** | E-E-A-T compliance with per-site author rotation | Mar 5, 2026 |
+| **Admin Clean Light Design System** | Unified responsive admin UI across 50+ pages | Mar 15, 2026 |
+| **Unsplash SDK** | Legal travel photos with caching and bilingual attribution | Mar 24, 2026 |
+| **PDF Cover Generator** | 6 branded templates for charter proposals and marketing materials | Mar 20, 2026 |
 
-### Pre-Publication Gate (13 Checks — All Apply to Yacht Content)
+### Analytics Multi-Site Gap — STATUS UPDATE
 
-Every yacht article passes through the same 13-check quality gate before publishing:
-1. Route existence, 2. Arabic route, 3. SEO minimums, 4. SEO score (blocks <50), 5. Heading hierarchy, 6. Word count (1,000 blocker), 7. Internal links (3+), 8. Readability (Flesch-Kincaid ≤12), 9. Image alt text, 10. Author attribution (E-E-A-T), 11. Structured data, 12. Authenticity signals (Jan 2026 Google update), 13. Affiliate links (2+)
+The analytics cron (`/api/cron/analytics`) has been updated to loop through all active sites using `getActiveSiteIds()`. The infrastructure (`getSiteSeoConfig()`, per-site env vars) is fully ready. **This is no longer a blocker.** Just set the 3 per-site env vars (`GA4_PROPERTY_ID_ZENITHA_YACHTS_MED`, `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED`, `GSC_SITE_URL_ZENITHA_YACHTS_MED`) after creating the GA4/GSC properties.
+
+### Pre-Publication Gate (16 Checks — All Apply to Yacht Content)
+
+Every yacht article passes through the same 16-check quality gate before publishing:
+1. Route existence, 2. Arabic route, 3. SEO minimums, 4. SEO score (blocks <30), 5. Heading hierarchy, 6. Word count (500 blocker), 7. Internal links (3+), 8. Readability (Flesch-Kincaid ≤12), 9. Image alt text, 10. Author attribution (E-E-A-T), 11. Structured data, 12. Authenticity signals (Jan 2026 Google update), 13. Affiliate links, 14. AIO readiness (AI Overview citation signals), 15. Internal link ratio, 16. Citability / GEO (stats, attributions, self-contained paragraphs)
+
+### Current Platform Status: PAUSED — Ready to Activate
+
+Site config at `config/sites.ts` line 1571: `status: "paused"`. Change to `"active"` to enable all automated systems. See the full activation checklist in the updated Execution Plan (`Uploads/Execution Plan`).
 
 ---
 

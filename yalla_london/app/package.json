@@ -17,6 +17,7 @@
     "test:flags": "vitest test/flags/",
     "test:e2e": "playwright test",
     "test:coverage": "vitest --coverage",
+    "test:multi-site-isolation": "npx tsx scripts/multi-site-isolation-test.ts",
     "test:load": "k6 run perf/k6/save-and-list.js",
     "test:canary": "./scripts/canary.sh",
     "test:backup-restore": "./scripts/backup-restore-drill.sh",

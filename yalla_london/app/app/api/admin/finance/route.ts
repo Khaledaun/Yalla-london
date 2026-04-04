@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        const { getSiteDomain } = await import("@/config/sites");
+        const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
         const url = await createCheckoutSession(
           entity.id,
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "No billing entity found" }, { status: 404 });
         }
 
-        const { getSiteDomain } = await import("@/config/sites");
+        const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
         const url = await createBillingPortalSession(entity.id, `${baseUrl}/admin/cockpit/finance`);
         return NextResponse.json({ success: true, url });

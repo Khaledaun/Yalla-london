@@ -391,7 +391,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     withErrorTracking(buildRevenue(prisma, activeSiteIds), emptyRevenue(), "buildRevenue"),
   ]);
   const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), emptyIndexing(), "buildIndexing");
-  const sites = await withErrorTracking(buildSites(prisma, allSiteIds), [], "buildSites");
+  const sites = await withErrorTracking(buildSites(prisma, activeSiteIds), [], "buildSites");
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({
@@ -583,7 +583,11 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
   const indexing = emptyIndexing();
 
-  const targetSiteId = activeSiteIds[0];
+  // When multiple sites are active, prefer yalla-london for indexing panel;
+  // otherwise take the first (or only) requested site
+  const targetSiteId = activeSiteIds.includes("yalla-london")
+    ? "yalla-london"
+    : activeSiteIds[0];
   if (!targetSiteId) return indexing;
 
   try {

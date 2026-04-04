@@ -8602,7 +8602,9 @@ function CockpitPage() {
       setCockpitData(json);
       setLastRefresh(new Date());
       if (!activeSiteId && json.sites?.length > 0) {
-        setActiveSiteId(json.sites[0].id);
+        // Default to yalla-london if available, otherwise first site
+        const defaultSite = json.sites.find((s: { id: string }) => s.id === "yalla-london");
+        setActiveSiteId(defaultSite?.id || json.sites[0].id);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";

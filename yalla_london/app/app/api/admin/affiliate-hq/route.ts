@@ -521,6 +521,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const postSiteId = request.nextUrl.searchParams.get("siteId") || (body.siteId as string) || getDefaultSiteId();
 
     switch (action) {
       case "sync_advertisers": {
@@ -537,7 +539,7 @@ export async function POST(request: NextRequest) {
 
           const BUDGET_MS = 50_000;
           const { checkPendingAdvertisers } = await import("@/lib/affiliate/cj-sync");
-          const result = await checkPendingAdvertisers(BUDGET_MS);
+          const result = await checkPendingAdvertisers(BUDGET_MS, postSiteId);
 
           const { logCronExecution } = await import("@/lib/cron-logger");
           await logCronExecution("affiliate-sync-advertisers", "completed", {

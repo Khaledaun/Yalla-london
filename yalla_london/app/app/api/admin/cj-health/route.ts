@@ -16,7 +16,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { requireAdmin } = await import("@/lib/admin-middleware");
-  await requireAdmin(request);
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
 
   try {
     const { prisma } = await import("@/lib/db");

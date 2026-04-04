@@ -191,7 +191,7 @@ async function handleGet(request: NextRequest) {
   for (const p of posts) {
     if (!p.meta_description_en || assignedIds.has(p.id)) continue;
     const norm = p.meta_description_en.trim().toLowerCase();
-    if (norm.length < 30) continue;
+    if (norm.length < 80) continue; // 80 chars: filters out short generic boilerplate; real unique descriptions are 120-160 chars
     if (!metaGroups.has(norm)) metaGroups.set(norm, []);
     metaGroups.get(norm)!.push(p);
   }

@@ -135,7 +135,7 @@ export async function syncAdvertisers(budgetMs = 50_000): Promise<{
     if (Date.now() - syncStart < budgetMs * 0.45) {
       try {
         const keywordResponse = await lookupAdvertisers({
-          keywords: "travel hotel vacation",
+          keywords: "luxury travel hotel resort vacation",
           recordsPerPage: 100,
           pageNumber: 1,
         });
@@ -373,7 +373,8 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
  */
 export async function syncProducts(
   advertiserId: string,
-  keywords: string[]
+  keywords: string[],
+  siteId?: string
 ): Promise<SyncResult> {
   if (!isCjConfigured()) {
     return { processed: 0, created: 0, updated: 0, errors: ["CJ_API_TOKEN not configured"] };
@@ -456,6 +457,7 @@ export async function syncProducts(
                   tags: [keyword],
                   isNewArrival: true,
                   isActive: true,
+                  siteId: siteId || null,
                 },
               });
               result.created++;
@@ -614,7 +616,7 @@ export async function syncCommissions(
 /**
  * Check pending advertisers — if any became JOINED, auto-fetch their links.
  */
-export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
+export async function checkPendingAdvertisers(budgetMs = 50_000, siteId?: string): Promise<{
   checked: number;
   newlyApproved: string[];
   linksSynced: number;
@@ -648,8 +650,8 @@ export async function checkPendingAdvertisers(budgetMs = 50_000): Promise<{
     // Search for site-relevant products — skip if budget tight
     if (remaining() > 10_000) {
       const { getKeywordsForSite } = await import("./site-keywords");
-      const keywords = getKeywordsForSite();
-      await syncProducts(advId, keywords);
+      const keywords = getKeywordsForSite(siteId);
+      await syncProducts(advId, keywords, siteId);
     }
   }
 

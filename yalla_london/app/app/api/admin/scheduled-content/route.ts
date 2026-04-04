@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
     const contentType = searchParams.get('contentType');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    const whereClause: any = {};
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = request.headers.get("x-site-id") || searchParams.get("siteId") || getDefaultSiteId();
+    const whereClause: any = { site_id: siteId };
     if (status && status !== 'all') whereClause.status = status;
     if (contentType && contentType !== 'all') whereClause.content_type = contentType;
 

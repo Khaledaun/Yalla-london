@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveSiteIds } from "@/config/sites";
+import { checkCronEnabled } from "@/lib/cron-feature-guard";
 
 export const maxDuration = 300;
 
@@ -20,6 +21,9 @@ export async function GET(request: NextRequest) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const flagBlock = await checkCronEnabled("image-pipeline");
+  if (flagBlock) return flagBlock;
 
   if (!process.env.UNSPLASH_ACCESS_KEY) {
     return NextResponse.json({ success: true, skipped: "UNSPLASH_ACCESS_KEY not configured" });

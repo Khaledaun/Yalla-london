@@ -800,6 +800,10 @@ async function handleAffiliateInjection(request: NextRequest) {
 
       const postSiteId = post.siteId || getDefaultSiteId();
 
+      // Per-site feature flag check — allows disabling affiliate injection for a single site
+      const siteFlag = await checkCronEnabled("affiliate-injection", postSiteId);
+      if (siteFlag) continue;
+
       // Load DB-configured affiliate rules (cached per site)
       if (!dbRulesCache.has(postSiteId)) {
         dbRulesCache.set(postSiteId, await getAffiliateRulesFromDB(postSiteId));

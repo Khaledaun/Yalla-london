@@ -73,6 +73,13 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // Per-site feature flag — allows disabling topic generation for a single site
+      const siteFlag = await checkCronEnabled("weekly-topics", targetSiteId);
+      if (siteFlag) {
+        console.log(`[weekly-topics] Skipping ${targetSiteId} — disabled by per-site flag`);
+        continue;
+      }
+
       // Skip yacht sites — they use a different content model (Yacht, YachtDestination, CharterItinerary)
       // and don't need TopicProposals generated through the blog topic pipeline
       const { isYachtSite } = await import('@/config/sites');

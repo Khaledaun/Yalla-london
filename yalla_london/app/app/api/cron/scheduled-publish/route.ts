@@ -76,6 +76,10 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       const siteId = item.site_id || getDefaultSiteId();
       log.addSite(siteId);
 
+      // Per-site feature flag check — allows disabling publishing for a single site
+      const siteFlag = await checkCronEnabled("scheduled-publish", siteId);
+      if (siteFlag) continue;
+
       try {
         // Pre-publication gate: verify the target URL will work before publishing
         const postData = await prisma.blogPost.findUnique({
@@ -289,6 +293,11 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         if (log.isExpired()) break;
 
         try {
+          // Per-site feature flag check for orphan auto-publish
+          const orphanSiteId = (orphan as Record<string, unknown>).siteId as string || activeSites[0];
+          const orphanFlag = await checkCronEnabled("scheduled-publish", orphanSiteId);
+          if (orphanFlag) continue;
+
           // Title dedup: skip orphans whose normalized title matches an already-published article.
           // This prevents the "4 copies of Best Halal Fine Dining" problem (Rule #17).
           const normTitle = normalizeTitle(orphan.title_en || "");

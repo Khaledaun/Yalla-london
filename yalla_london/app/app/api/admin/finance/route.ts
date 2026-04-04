@@ -256,7 +256,8 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+        const { getSiteDomain } = await import("@/config/sites");
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
         const url = await createCheckoutSession(
           entity.id,
           planId || "pro",
@@ -278,7 +279,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "No billing entity found" }, { status: 404 });
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+        const { getSiteDomain } = await import("@/config/sites");
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
         const url = await createBillingPortalSession(entity.id, `${baseUrl}/admin/cockpit/finance`);
         return NextResponse.json({ success: true, url });
       }

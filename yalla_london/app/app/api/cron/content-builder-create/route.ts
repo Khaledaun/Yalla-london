@@ -53,6 +53,10 @@ async function handleCreate(request: NextRequest) {
         break;
       }
 
+      // Per-site feature flag check — allows disabling content creation for a single site
+      const siteFlag = await checkCronEnabled("content-builder-create", siteId);
+      if (siteFlag) { skippedSites.push(`${siteId}(disabled)`); continue; }
+
       const site = SITES[siteId];
       if (!site) { skippedSites.push(siteId); continue; }
 

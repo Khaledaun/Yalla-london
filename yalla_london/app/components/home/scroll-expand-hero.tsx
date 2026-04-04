@@ -52,7 +52,7 @@ const ScrollExpandHero = ({
       setScrollProgress(1);
       setMediaFullyExpanded(true);
       setShowContent(true);
-      return;
+      return undefined;
     }
 
     // Desktop-only: scroll-expand animation via wheel events (no touch listeners needed)

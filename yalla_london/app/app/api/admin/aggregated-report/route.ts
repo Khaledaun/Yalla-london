@@ -268,10 +268,11 @@ export async function GET(request: NextRequest) {
         const d24h = new Date(Date.now() - 86400000);
         const d7 = new Date(Date.now() - 7 * 86400000);
 
+        const cronSiteFilter = siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {};
         const [cronFail, cronOk, failedNames, aiAgg, autoFixCount] = await Promise.all([
-          prisma.cronJobLog.count({ where: { status: "failed", started_at: { gte: d24h } } }),
-          prisma.cronJobLog.count({ where: { status: "completed", started_at: { gte: d24h } } }),
-          prisma.cronJobLog.findMany({ where: { status: "failed", started_at: { gte: d24h } }, select: { job_name: true }, distinct: ["job_name"] }),
+          prisma.cronJobLog.count({ where: { status: "failed", started_at: { gte: d24h }, ...cronSiteFilter } }),
+          prisma.cronJobLog.count({ where: { status: "completed", started_at: { gte: d24h }, ...cronSiteFilter } }),
+          prisma.cronJobLog.findMany({ where: { status: "failed", started_at: { gte: d24h }, ...cronSiteFilter }, select: { job_name: true }, distinct: ["job_name"] }),
           prisma.apiUsageLog.aggregate({ _sum: { estimatedCostUsd: true, totalTokens: true }, _count: { id: true }, where: { siteId, createdAt: { gte: d7 } } }).catch(() => ({ _sum: { estimatedCostUsd: null, totalTokens: null }, _count: { id: 0 } })),
           prisma.autoFixLog.count({ where: { createdAt: { gte: d7 } } }).catch(() => 0),
         ]);

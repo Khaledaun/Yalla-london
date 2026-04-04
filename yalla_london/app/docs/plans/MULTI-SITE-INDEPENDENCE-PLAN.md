@@ -128,9 +128,9 @@ This means:
 
 ---
 
-### Phase 4: Per-Site Dashboard & Alerts — IN PROGRESS (~80%)
+### Phase 4: Per-Site Dashboard & Alerts — COMPLETED
 
-**Status:** IN PROGRESS (April 2026) — 5 of 6 items complete
+**Status:** COMPLETED (April 4, 2026) — 6 of 6 items done
 
 **What was implemented:**
 
@@ -151,9 +151,7 @@ This means:
 
 5. **Cron logger per-site** (`lib/cron-logger.ts`) — `CronLogOptions` accepts `siteId?: string`. Both `withCronLog()` (create + update) and `logCronExecution()` populate `site_id` field on CronJobLog records.
 
-**Remaining:**
-
-6. **Aggregated report per-site** — NOT YET IMPLEMENTED. Needs `?siteId=` param on `/api/admin/aggregated-report`, scoping all 9 sections by site.
+6. **Aggregated report per-site** (`app/api/admin/aggregated-report/route.ts`) — Already accepted `?siteId=` param and scoped ~40+ queries. Final 3 CronJobLog queries in the Operations section (cronFail, cronOk, failedNames) now include inclusive OR site filter: `{ OR: [{ site_id: siteId }, { site_id: null }] }`.
 
 **Verification tests:**
 - Select "yalla-london" in cockpit → verify zero zenitha data in any tab
@@ -297,9 +295,9 @@ When you're ready to activate a second website, run through this checklist:
 | Phase 1: Per-Site Feature Flags | 2-3 hours | 3-5 files | Foundation for everything | **COMPLETED** |
 | Phase 2: Pipeline Isolation | 3-4 hours | 8-10 files | Stops resource starvation | **COMPLETED** |
 | Phase 3: AI & Budget Isolation | 2-3 hours | 3-5 files | Stops cascade failures | **COMPLETED** |
-| Phase 4: Dashboard & Alerts | 2-3 hours | 5-8 files | Owner visibility | **IN PROGRESS (~80%)** |
+| Phase 4: Dashboard & Alerts | 2-3 hours | 5-8 files | Owner visibility | **COMPLETED** |
 | Phase 5: Test Suite | 1-2 hours | 1 new file | Verification confidence | NOT STARTED |
-| **Total** | **10-15 hours** | **~25 files** | **Full independence** | **~75%** |
+| **Total** | **10-15 hours** | **~25 files** | **Full independence** | **~80%** |
 
 ---
 
@@ -328,14 +326,14 @@ When you're ready to activate a second website, run through this checklist:
 - Per-site preferred provider via `SiteSettings.workflow.preferredProvider` — moves configured provider to front of fallback chain
 - `quotaExhausted` extended cooldown (5-minute) for billing/quota errors preserved
 
-**Phase 4 (Per-Site Dashboard & Alerts):** IN PROGRESS (~80%)
+**Phase 4 (Per-Site Dashboard & Alerts):** COMPLETED (April 4, 2026)
 - Cockpit `buildCronHealth()` filters CronJobLog by site_id with inclusive OR pattern
 - CEO Inbox fully per-site: alerts, cooldowns, daily limits all scoped by siteId
 - Departures board filters ScheduledContent and ArticleDraft by site_id
 - Cycle health scopes all CronJobLog aggregates per-site
 - `withCronLog()` and `logCronExecution()` populate site_id on CronJobLog records
 - All 4 `onCronFailure()` paths in failure-hooks.ts pass ctx.siteId
-- **Remaining:** Aggregated report per-site scoping (item 6 of 6)
+- Aggregated report: 3 final CronJobLog queries (cronFail, cronOk, failedNames) scoped with inclusive OR site filter
 
 **Related platform developments (March-April 2026):**
 - CEO + CTO Agent Platform built (41 files, 8 Prisma models, WhatsApp/email/web channels, CRM pipeline, retention engine)

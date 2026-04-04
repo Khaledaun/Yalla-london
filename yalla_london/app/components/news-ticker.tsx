@@ -131,7 +131,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
         className
       )}
       dir={isRTL ? 'rtl' : 'ltr'}
-      role="marquee"
+      role="region" aria-label="News headlines"
       aria-label={isAr ? 'شريط الأخبار' : 'News ticker'}
     >
       {/* Left label */}

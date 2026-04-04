@@ -429,6 +429,15 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
 
       <TriBar />
 
+      {/* FTC Affiliate Disclosure */}
+      <div className="bg-yl-cream/60 border-b border-yl-gray-200">
+        <p className="max-w-7xl mx-auto px-7 py-2.5 text-[11px] text-yl-gray-500 leading-relaxed">
+          {locale === 'ar'
+            ? 'تحتوي هذه الصفحة على روابط تابعة. قد نحصل على عمولة عند الحجز من خلال روابطنا، دون أي تكلفة إضافية عليك.'
+            : 'This page contains affiliate links. We may earn a commission when you book through our links, at no extra cost to you.'}
+        </p>
+      </div>
+
       {/* Editorial Intro Section */}
       <section className="py-12 bg-white">
         <div className="max-w-4xl mx-auto px-7">

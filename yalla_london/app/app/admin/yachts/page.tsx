@@ -213,23 +213,47 @@ export default function YachtsFleetPage() {
     setSeeding(true)
     setSeedResult(null)
     try {
-      const res = await fetch('/api/admin/yachts/seed', {
+      const parts: string[] = []
+
+      // 1. Seed fleet data (destinations, yachts, itineraries, brokers)
+      const fleetRes = await fetch('/api/admin/yachts/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'all' }),
       })
-      if (!res.ok) {
-        const txt = await res.text().catch(() => 'Unknown error')
-        setSeedResult(`Error: ${txt}`)
-        return
+      if (fleetRes.ok) {
+        const data = await fleetRes.json().catch(() => ({}))
+        if (data.destinations?.created) parts.push(`${data.destinations.created} destinations`)
+        if (data.yachts?.created) parts.push(`${data.yachts.created} yachts`)
+        if (data.itineraries?.created) parts.push(`${data.itineraries.created} itineraries`)
+        if (data.brokers?.created) parts.push(`${data.brokers.created} brokers`)
+      } else {
+        parts.push('Fleet seed error')
       }
-      const data = await res.json().catch(() => ({}))
-      const parts: string[] = []
-      if (data.destinations?.created) parts.push(`${data.destinations.created} destinations`)
-      if (data.yachts?.created) parts.push(`${data.yachts.created} yachts`)
-      if (data.itineraries?.created) parts.push(`${data.itineraries.created} itineraries`)
-      if (data.brokers?.created) parts.push(`${data.brokers.created} brokers`)
-      setSeedResult(parts.length ? `Seeded: ${parts.join(', ')}` : 'Fleet data already seeded — no new records created.')
+
+      // 2. Seed journal articles (3 yacht charter guides)
+      const articleSlugs = [
+        'greek-islands-yacht-charter-guide-2026',
+        'turkish-riviera-gulet-charter-guide-2026',
+        'croatian-dalmatian-coast-yacht-charter-guide-2026',
+      ]
+      let articlesSeeded = 0
+      for (const slug of articleSlugs) {
+        try {
+          const artRes = await fetch('/api/admin/seed-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ article: slug }),
+          })
+          if (artRes.ok) {
+            const artData = await artRes.json().catch(() => ({}))
+            if (artData.created) articlesSeeded++
+          }
+        } catch { /* skip individual article errors */ }
+      }
+      if (articlesSeeded > 0) parts.push(`${articlesSeeded} journal articles`)
+
+      setSeedResult(parts.length ? `Seeded: ${parts.join(', ')}` : 'Everything already seeded — no new records created.')
       fetchYachts()
     } catch (err) {
       setSeedResult(`Error: ${err instanceof Error ? err.message : 'Network error'}`)
@@ -369,14 +393,14 @@ export default function YachtsFleetPage() {
               description={
                 search || type !== 'All Types' || status !== 'All Statuses' || destinationId
                   ? 'Try adjusting your search or filter criteria.'
-                  : 'Seed the fleet with 50 yachts across 10 Mediterranean destinations, or add one manually.'
+                  : 'Seed the fleet with 50 yachts, 10 destinations, 5 itineraries, and 3 journal articles — or add one manually.'
               }
               action={
                 <div className="flex flex-wrap gap-2 justify-center">
                   {!(search || type !== 'All Types' || status !== 'All Statuses' || destinationId) && (
                     <AdminButton variant="primary" size="sm" onClick={handleSeedFleet} loading={seeding}>
                       <Database size={14} />
-                      {seeding ? 'Seeding...' : 'Seed Fleet (50 Yachts)'}
+                      {seeding ? 'Seeding...' : 'Seed Everything'}
                     </AdminButton>
                   )}
                   <Link href="/admin/yachts/new">

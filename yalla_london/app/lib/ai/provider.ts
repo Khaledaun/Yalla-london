@@ -158,30 +158,46 @@ interface CircuitState {
   quotaExhausted?: boolean;
 }
 
-const circuitBreakers = new Map<AIProvider, CircuitState>();
+// Per-site circuit breakers: outer key is siteId ("__global__" for non-site contexts),
+// inner map is provider → state. One site's API failures don't block other sites.
+// Memory: max 6 sites × 5 providers = 30 entries (trivial).
+const circuitBreakers = new Map<string, Map<AIProvider, CircuitState>>();
+const GLOBAL_CIRCUIT_KEY = '__global__';
 
-function getCircuitState(provider: AIProvider): CircuitState {
-  if (!circuitBreakers.has(provider)) {
-    circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed' });
+function getSiteCircuitMap(siteId?: string): Map<AIProvider, CircuitState> {
+  const key = siteId || GLOBAL_CIRCUIT_KEY;
+  if (!circuitBreakers.has(key)) {
+    circuitBreakers.set(key, new Map());
   }
-  return circuitBreakers.get(provider)!;
+  return circuitBreakers.get(key)!;
 }
 
-/** Returns all circuit breaker states — used by campaign runner to detect all-providers-down */
-export function getAllCircuitStates(): Record<string, { state: string; failures: number }> {
+function getCircuitState(provider: AIProvider, siteId?: string): CircuitState {
+  const siteMap = getSiteCircuitMap(siteId);
+  if (!siteMap.has(provider)) {
+    siteMap.set(provider, { failures: 0, lastFailure: 0, state: 'closed' });
+  }
+  return siteMap.get(provider)!;
+}
+
+/** Returns all circuit breaker states — used by campaign runner to detect all-providers-down.
+ *  When siteId is provided, returns that site's states. Otherwise returns global states. */
+export function getAllCircuitStates(siteId?: string): Record<string, { state: string; failures: number }> {
   const result: Record<string, { state: string; failures: number }> = {};
-  for (const [provider, state] of circuitBreakers.entries()) {
+  const siteMap = getSiteCircuitMap(siteId);
+  for (const [provider, state] of siteMap.entries()) {
     result[provider] = { state: state.state, failures: state.failures };
   }
   return result;
 }
 
-function recordProviderSuccess(provider: AIProvider): void {
-  circuitBreakers.set(provider, { failures: 0, lastFailure: 0, state: 'closed', quotaExhausted: false });
+function recordProviderSuccess(provider: AIProvider, siteId?: string): void {
+  const siteMap = getSiteCircuitMap(siteId);
+  siteMap.set(provider, { failures: 0, lastFailure: 0, state: 'closed', quotaExhausted: false });
 }
 
-function recordProviderFailure(provider: AIProvider, errorMessage?: string): void {
-  const state = getCircuitState(provider);
+function recordProviderFailure(provider: AIProvider, errorMessage?: string, siteId?: string): void {
+  const state = getCircuitState(provider, siteId);
   state.failures++;
   state.lastFailure = Date.now();
 
@@ -197,25 +213,28 @@ function recordProviderFailure(provider: AIProvider, errorMessage?: string): voi
     state.failures = 3; // Instantly trip the circuit breaker
     state.state = 'open';
     state.quotaExhausted = true; // Extended cooldown — quota won't self-heal in 30s
-    console.warn(`[ai/provider] Circuit OPEN for ${provider} — quota/billing error (5-min cooldown): "${errorMessage.slice(0, 80)}"`);
+    const siteTag = siteId ? ` [site=${siteId}]` : '';
+    console.warn(`[ai/provider] Circuit OPEN for ${provider}${siteTag} — quota/billing error (30-min cooldown): "${errorMessage.slice(0, 80)}"`);
     return;
   }
 
   if (state.failures >= 3) {
     state.state = 'open';
-    console.warn(`[ai/provider] Circuit OPEN for ${provider} — ${state.failures} consecutive failures`);
+    const siteTag = siteId ? ` [site=${siteId}]` : '';
+    console.warn(`[ai/provider] Circuit OPEN for ${provider}${siteTag} — ${state.failures} consecutive failures`);
   }
 }
 
-function isProviderAvailable(provider: AIProvider, isLastProvider = false): boolean {
-  const state = getCircuitState(provider);
+function isProviderAvailable(provider: AIProvider, isLastProvider = false, siteId?: string): boolean {
+  const state = getCircuitState(provider, siteId);
   if (state.state === 'closed') return true;
   if (state.state === 'open') {
     // SINGLE-PROVIDER SAFETY: Never circuit-break the LAST available provider.
     // Better to try and fail than to return "no providers available" — at least
     // the failure gets logged and the draft stays in queue for next run.
     if (isLastProvider) {
-      console.warn(`[ai/provider] Circuit open for ${provider} but it's the LAST provider — forcing half-open`);
+      const siteTag = siteId ? ` [site=${siteId}]` : '';
+      console.warn(`[ai/provider] Circuit open for ${provider}${siteTag} but it's the LAST provider — forcing half-open`);
       state.state = 'half-open';
       return true;
     }
@@ -227,7 +246,8 @@ function isProviderAvailable(provider: AIProvider, isLastProvider = false): bool
     if (Date.now() - state.lastFailure > cooldownMs) {
       state.state = 'half-open';
       if (state.quotaExhausted) {
-        console.log(`[ai/provider] Quota-exhausted ${provider} cooldown expired (${Math.round(cooldownMs / 60000)}min) — allowing probe`);
+        const siteTag = siteId ? ` [site=${siteId}]` : '';
+        console.log(`[ai/provider] Quota-exhausted ${provider}${siteTag} cooldown expired (${Math.round(cooldownMs / 60000)}min) — allowing probe`);
       }
       return true;
     }
@@ -235,6 +255,52 @@ function isProviderAvailable(provider: AIProvider, isLastProvider = false): bool
   }
   // half-open: allow one attempt (probe)
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Per-Site AI Budget Limits — checks SiteSettings.workflow before AI calls.
+// Returns null if within budget, or an error message if budget exceeded.
+// ---------------------------------------------------------------------------
+async function checkSiteBudgetLimit(siteId?: string): Promise<string | null> {
+  if (!siteId) return null; // No site context — no budget limit
+  try {
+    const { prisma: db } = await import('@/lib/db');
+    const settings = await db.siteSettings.findUnique({
+      where: { siteId_category: { siteId, category: 'workflow' } },
+      select: { settings: true },
+    });
+    if (!settings?.settings || typeof settings.settings !== 'object') return null;
+    const s = settings.settings as Record<string, unknown>;
+
+    // Check maxDailyAiCostUsd
+    if (typeof s.maxDailyAiCostUsd === 'number' && s.maxDailyAiCostUsd > 0) {
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const todayCost = await db.apiUsageLog.aggregate({
+        where: { siteId, createdAt: { gte: todayStart }, success: true },
+        _sum: { estimatedCostUsd: true },
+      });
+      const spent = todayCost._sum.estimatedCostUsd ?? 0;
+      if (spent >= s.maxDailyAiCostUsd) {
+        return `Site ${siteId} daily AI budget exhausted: $${spent.toFixed(2)} / $${s.maxDailyAiCostUsd} limit`;
+      }
+    }
+
+    // Check maxDailyArticles (count of drafts created today)
+    if (typeof s.maxDailyArticles === 'number' && s.maxDailyArticles > 0) {
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const todayDrafts = await db.articleDraft.count({
+        where: { site_id: siteId, created_at: { gte: todayStart } },
+      });
+      if (todayDrafts >= s.maxDailyArticles) {
+        return `Site ${siteId} daily article limit reached: ${todayDrafts} / ${s.maxDailyArticles} max`;
+      }
+    }
+  } catch {
+    // DB unavailable — don't block AI calls
+  }
+  return null;
 }
 
 /**
@@ -613,6 +679,14 @@ export async function generateCompletion(
   messages: AIMessage[],
   options: AICompletionOptions = {}
 ): Promise<AICompletionResult> {
+  // Per-site budget limit check — skip AI call entirely if site has exhausted daily budget
+  if (options.siteId) {
+    const budgetError = await checkSiteBudgetLimit(options.siteId);
+    if (budgetError) {
+      throw new Error(`[ai/provider] Site budget exceeded for ${options.siteId}: ${budgetError}`);
+    }
+  }
+
   // If a specific provider is requested, try that one first.
   // CRITICAL CHANGE: If it fails, fall through to the standard fallback chain
   // instead of throwing. This ensures no single provider failure blocks generation.
@@ -629,7 +703,7 @@ export async function generateCompletion(
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         console.warn(`[ai/provider] Requested provider ${options.provider} failed, falling through to chain: ${msg}`);
-        recordProviderFailure(options.provider, msg);
+        recordProviderFailure(options.provider, msg, options.siteId);
         // Fall through to standard fallback chain below
       }
     } else {
@@ -672,6 +746,27 @@ export async function generateCompletion(
     }
   }
 
+  // Per-site preferred provider: if SiteSettings.workflow.preferredProvider is set
+  // and no task-type route overrode the priority, move the preferred provider to front.
+  if (options.siteId && routedPriority[0] === PROVIDER_PRIORITY[0]) {
+    try {
+      const { prisma: db } = await import('@/lib/db');
+      const wfSettings = await db.siteSettings.findUnique({
+        where: { siteId_category: { siteId: options.siteId, category: 'workflow' } },
+        select: { settings: true },
+      });
+      if (wfSettings?.settings && typeof wfSettings.settings === 'object') {
+        const wf = wfSettings.settings as Record<string, unknown>;
+        if (typeof wf.preferredProvider === 'string' && PROVIDER_PRIORITY.includes(wf.preferredProvider as AIProvider)) {
+          const preferred = wf.preferredProvider as AIProvider;
+          routedPriority = [preferred, ...routedPriority.filter(p => p !== preferred)];
+        }
+      }
+    } catch {
+      // DB unavailable — use default priority
+    }
+  }
+
   // Pre-scan which providers have API keys AND are not circuit-broken.
   // First pass: find all providers with valid keys
   const keyedProviders: Array<{ provider: AIProvider; apiKey: string }> = [];
@@ -685,7 +780,7 @@ export async function generateCompletion(
   for (let idx = 0; idx < keyedProviders.length; idx++) {
     const { provider: p, apiKey } = keyedProviders[idx];
     const isLast = keyedProviders.length === 1 || (idx === keyedProviders.length - 1 && availableProviders.length === 0);
-    if (!isProviderAvailable(p, isLast)) {
+    if (!isProviderAvailable(p, isLast, options.siteId)) {
       errors.push(`${p}: skipped — circuit open`);
       continue;
     }
@@ -755,7 +850,7 @@ export async function generateCompletion(
         ...options,
         timeoutMs: providerTimeout,
       });
-      recordProviderSuccess(provider);
+      recordProviderSuccess(provider, options.siteId);
       logUsage(result, options);
       return result;
     } catch (error) {
@@ -763,7 +858,7 @@ export async function generateCompletion(
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       const msg = `${provider}: ${errorMsg}`;
       errors.push(msg);
-      recordProviderFailure(provider, errorMsg);
+      recordProviderFailure(provider, errorMsg, options.siteId);
       // Detect fast failures (<5s) for adaptive fallback on heavy phases
       lastFailWasFast = attemptDurationMs < 5_000;
       continue;

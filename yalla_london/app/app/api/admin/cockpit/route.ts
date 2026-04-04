@@ -387,11 +387,11 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     withErrorTracking(buildPipeline(prisma, activeSiteIds), emptyPipeline(), "buildPipeline"),
   ]);
   const [cronHealth, revenue] = await Promise.all([
-    withErrorTracking(buildCronHealth(prisma), emptyCronHealth(), "buildCronHealth"),
+    withErrorTracking(buildCronHealth(prisma, activeSiteIds), emptyCronHealth(), "buildCronHealth"),
     withErrorTracking(buildRevenue(prisma, activeSiteIds), emptyRevenue(), "buildRevenue"),
   ]);
   const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), emptyIndexing(), "buildIndexing");
-  const sites = await withErrorTracking(buildSites(prisma, allSiteIds), [], "buildSites");
+  const sites = await withErrorTracking(buildSites(prisma, activeSiteIds), [], "buildSites");
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({
@@ -583,7 +583,11 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
   const indexing = emptyIndexing();
 
-  const targetSiteId = activeSiteIds[0];
+  // When multiple sites are active, prefer yalla-london for indexing panel;
+  // otherwise take the first (or only) requested site
+  const targetSiteId = activeSiteIds.includes("yalla-london")
+    ? "yalla-london"
+    : activeSiteIds[0];
   if (!targetSiteId) return indexing;
 
   try {
@@ -741,15 +745,20 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
 // Cron health builder
 // ─────────────────────────────────────────────
 
-async function buildCronHealth(prisma: any): Promise<CronHealth> {
+async function buildCronHealth(prisma: any, activeSiteIds?: string[]): Promise<CronHealth> {
   const cronHealth = emptyCronHealth();
 
   try {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+    // Site filter: show site-specific logs + global logs (site_id null)
+    const siteFilter = activeSiteIds && activeSiteIds.length > 0
+      ? { OR: [{ site_id: { in: activeSiteIds } }, { site_id: null }] }
+      : {};
+
     // Single query: recent jobs (contains enough data to derive counts)
     const recentJobs = await prisma.cronJobLog.findMany({
-      where: { started_at: { gte: since24h } },
+      where: { started_at: { gte: since24h }, ...siteFilter },
       orderBy: { started_at: "desc" },
       take: 50, // Get more so we can count failures accurately
       select: {

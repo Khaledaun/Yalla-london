@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUpcomingEvents, formatEventPrice, formatEventDate } from "@/lib/apis/events";
 import { getActiveSiteIds } from "@/config/sites";
+import { checkCronEnabled } from "@/lib/cron-feature-guard";
 
 export const maxDuration = 60;
 
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const flagBlock = await checkCronEnabled("events-sync");
+  if (flagBlock) return flagBlock;
 
   const startTime = Date.now();
   const results: Record<string, { synced: number; skipped: number; error?: string }> = {};

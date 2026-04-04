@@ -304,7 +304,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
 
       // CEO Inbox — fire-and-forget
       import("@/lib/ops/ceo-inbox")
-        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId))
         .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
@@ -328,7 +328,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
 
       // CEO Inbox — fire-and-forget
       import("@/lib/ops/ceo-inbox")
-        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId))
         .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
@@ -339,7 +339,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
 
       // CEO Inbox — fire-and-forget
       import("@/lib/ops/ceo-inbox")
-        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg))
+        .then(({ handleCronFailureNotice }) => handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId))
         .catch((err) => console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err));
       return;
     }
@@ -363,7 +363,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
     // Fire-and-forget — never blocks the caller, never crashes on failure.
     import("@/lib/ops/ceo-inbox")
       .then(({ handleCronFailureNotice }) =>
-        handleCronFailureNotice(ctx.jobName, errorMsg),
+        handleCronFailureNotice(ctx.jobName, errorMsg, undefined, ctx.siteId),
       )
       .catch((err) =>
         console.warn("[onCronFailure] CEO inbox notice failed (non-fatal):", err instanceof Error ? err.message : err),
@@ -638,8 +638,19 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
 async function handleTopicGenerationFailure(errorMsg: string, detectedAt: string, category: SweeperLogEntry["errorCategory"]): Promise<void> {
   try {
     const { prisma } = await import("@/lib/db");
+    // Per-site topic backlog: count only topics for active sites.
+    // Prevents cross-site contamination where site B's topic surplus
+    // masks site A's starvation.
+    const { getActiveSiteIds: getFailureActiveSiteIds } = await import("@/config/sites");
+    const failureActiveSiteIds = getFailureActiveSiteIds();
     const pendingCount = await prisma.topicProposal.count({
-      where: { status: { in: ["ready", "queued", "planned", "proposed"] } },
+      where: {
+        status: { in: ["ready", "queued", "planned", "proposed"] },
+        OR: [
+          { site_id: { in: failureActiveSiteIds } },
+          { site_id: null }, // Legacy topics without site_id
+        ],
+      },
     });
 
     const isCritical = pendingCount < 5;

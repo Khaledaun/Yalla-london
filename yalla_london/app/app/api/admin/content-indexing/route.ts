@@ -125,9 +125,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Also include static blog articles (legacy content that's live and indexed by Google)
+    // Static content files only exist for yalla-london — other sites are DB-only
     const dbSlugs = new Set(dbPosts.map((p) => p.slug));
     let staticPosts: typeof dbPosts = [];
-    if (siteId === "yalla-london") {
+    if (siteId === "yalla-london" || !siteId) {
       try {
         const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
         const { extendedBlogPosts } = await import("@/data/blog-content-extended");
@@ -1309,9 +1310,9 @@ export async function POST(request: NextRequest) {
       });
       const dbSlugSet = new Set(dbArticles.map((p) => p.slug));
 
-      // Include static articles for yalla-london
+      // Include static articles — only exist for yalla-london
       let staticArticles: Array<{ slug: string }> = [];
-      if (siteId === "yalla-london") {
+      if (siteId === "yalla-london" || !siteId) {
         try {
           const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
           const { extendedBlogPosts } = await import("@/data/blog-content-extended");

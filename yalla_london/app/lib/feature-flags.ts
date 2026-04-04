@@ -11,11 +11,13 @@
  */
 
 // --- In-memory cache for DB flags (avoids hitting DB on every check) ---
+// Cache structure: Map<flagName, Map<siteId|"__global__", boolean>>
 const FLAG_CACHE_TTL_MS = 60_000; // 60 seconds
-let _flagCache: Map<string, boolean> | null = null;
+let _flagCache: Map<string, Map<string, boolean>> | null = null;
 let _flagCacheTimestamp = 0;
+const GLOBAL_KEY = "__global__";
 
-async function loadDbFlags(): Promise<Map<string, boolean>> {
+async function loadDbFlags(): Promise<Map<string, Map<string, boolean>>> {
   const now = Date.now();
   if (_flagCache && now - _flagCacheTimestamp < FLAG_CACHE_TTL_MS) {
     return _flagCache;
@@ -24,11 +26,15 @@ async function loadDbFlags(): Promise<Map<string, boolean>> {
   try {
     const { prisma } = await import("@/lib/db");
     const flags = await prisma.featureFlag.findMany({
-      select: { name: true, enabled: true },
+      select: { name: true, enabled: true, siteId: true },
     });
-    const map = new Map<string, boolean>();
+    const map = new Map<string, Map<string, boolean>>();
     for (const f of flags) {
-      map.set(f.name, f.enabled);
+      if (!map.has(f.name)) {
+        map.set(f.name, new Map<string, boolean>());
+      }
+      const key = f.siteId ?? GLOBAL_KEY;
+      map.get(f.name)!.set(key, f.enabled);
     }
     _flagCache = map;
     _flagCacheTimestamp = now;
@@ -43,17 +49,28 @@ async function loadDbFlags(): Promise<Map<string, boolean>> {
  * Check if a feature flag is enabled — DB first, env var fallback.
  * Use this in any async context (cron jobs, API routes, server components).
  *
- * Precedence:
- *   1. FeatureFlag table row with matching name → use its `enabled` value
- *   2. Environment variable with matching name → "1" or "true" = enabled
- *   3. Default → disabled (false)
+ * Precedence (per-site aware):
+ *   1. Site-specific DB flag (name + siteId) → if exists, use it
+ *   2. Global DB flag (name + null siteId) → if exists, use it
+ *   3. Environment variable with matching name → "1" or "true" = enabled
+ *   4. Default → disabled (false)
+ *
+ * @param name - Flag name (e.g. "CRON_CONTENT_BUILDER")
+ * @param siteId - Optional site ID for per-site override lookup
  */
-export async function isFeatureFlagEnabled(name: string): Promise<boolean> {
+export async function isFeatureFlagEnabled(name: string, siteId?: string): Promise<boolean> {
   const dbFlags = await loadDbFlags();
 
-  // DB flag exists → use it
-  if (dbFlags.has(name)) {
-    return dbFlags.get(name)!;
+  const flagMap = dbFlags.get(name);
+  if (flagMap) {
+    // Check site-specific flag first
+    if (siteId && flagMap.has(siteId)) {
+      return flagMap.get(siteId)!;
+    }
+    // Fall back to global flag
+    if (flagMap.has(GLOBAL_KEY)) {
+      return flagMap.get(GLOBAL_KEY)!;
+    }
   }
 
   // Fallback to env var
@@ -69,13 +86,30 @@ export async function isFeatureFlagEnabled(name: string): Promise<boolean> {
  * Get feature flag value — returns null if the flag is not defined anywhere.
  * Useful when the caller needs to distinguish "off" from "not configured."
  *
- * Returns: true (enabled), false (disabled), or null (not set in DB or env).
+ * Precedence (per-site aware):
+ *   1. Site-specific DB flag (name + siteId) → if exists, use it
+ *   2. Global DB flag (name + null siteId) → if exists, use it
+ *   3. Environment variable → if exists, use it
+ *   4. null (not set anywhere)
+ *
+ * @param name - Flag name
+ * @param siteId - Optional site ID for per-site override lookup
  */
-export async function getFeatureFlagValue(name: string): Promise<boolean | null> {
+export async function getFeatureFlagValue(name: string, siteId?: string): Promise<boolean | null> {
   const dbFlags = await loadDbFlags();
-  if (dbFlags.has(name)) {
-    return dbFlags.get(name)!;
+
+  const flagMap = dbFlags.get(name);
+  if (flagMap) {
+    // Check site-specific flag first
+    if (siteId && flagMap.has(siteId)) {
+      return flagMap.get(siteId)!;
+    }
+    // Fall back to global flag
+    if (flagMap.has(GLOBAL_KEY)) {
+      return flagMap.get(GLOBAL_KEY)!;
+    }
   }
+
   const envVal = process.env[name];
   if (envVal !== undefined) {
     return envVal === "1" || envVal === "true";

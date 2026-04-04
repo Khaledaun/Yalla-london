@@ -16,8 +16,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = request.headers.get("x-site-id") || request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
     const orders = await prisma.blogPost.findMany({
-      where: { photo_order_status: "pending", photo_order_query: { not: null } },
+      where: { photo_order_status: "pending", photo_order_query: { not: null }, siteId },
       select: {
         id: true,
         title_en: true,

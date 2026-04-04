@@ -82,8 +82,15 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
     // inflates updated_at (making them appear "active"), and blocks new draft creation.
     // Only diagnose: (a) 3+ failed attempts, or (b) has a stale processing lock
     // (phase_started_at set and >2h old) AND has been attempted at least once.
+    // Per-site isolation: only diagnose drafts belonging to active sites.
+    // Prevents cross-site interference where one site's stuck drafts trigger
+    // recovery actions that affect another site's pipeline throughput.
+    const { getActiveSiteIds: getDiagActiveSiteIds } = await import("@/config/sites");
+    const diagActiveSiteIds = getDiagActiveSiteIds();
+
     const stuckDrafts = await prisma.articleDraft.findMany({
       where: {
+        site_id: { in: diagActiveSiteIds },
         current_phase: {
           in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
         },
@@ -122,6 +129,7 @@ export async function diagnoseStuckDrafts(): Promise<Diagnosis[]> {
       const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
       const stuckPromoting = await prisma.articleDraft.findMany({
         where: {
+          site_id: { in: diagActiveSiteIds },
           current_phase: "promoting",
           updated_at: { lt: thirtyMinsAgo },
         },

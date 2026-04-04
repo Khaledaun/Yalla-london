@@ -289,6 +289,7 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
 export interface InboxAlert {
   id: string;
   originalJob: string;
+  siteId?: string;
   error: string;
   diagnosis: InterpretedError;
   fixStrategy: FixStrategy | null;
@@ -308,6 +309,7 @@ export async function handleCronFailureNotice(
   jobName: string,
   errorMsg: string,
   baseUrl?: string,
+  siteId?: string,
 ): Promise<string | null> {
   try {
     const { prisma } = await import("@/lib/db");
@@ -322,6 +324,7 @@ export async function handleCronFailureNotice(
         job_name: "ceo-inbox",
         job_type: "alert",
         started_at: { gte: todayStart },
+        ...(siteId ? { site_id: siteId } : {}),
       },
     });
 
@@ -347,6 +350,7 @@ export async function handleCronFailureNotice(
         job_type: "alert",
         started_at: { gte: cooldownTime },
         error_message: { startsWith: `[${jobName}]` },
+        ...(siteId ? { site_id: siteId } : {}),
       },
     });
     if (recentSameJob > 0) {
@@ -361,6 +365,7 @@ export async function handleCronFailureNotice(
         job_type: "alert",
         status: "running",
         started_at: new Date(),
+        site_id: siteId || null,
         items_processed: 0,
         items_succeeded: 0,
         items_failed: 1,
@@ -369,6 +374,7 @@ export async function handleCronFailureNotice(
         result_summary: {
           type: "ceo_inbox",
           originalJob: jobName,
+          siteId: siteId || null,
           error: errorMsg.substring(0, 500),
           diagnosis: { plain: diagnosis.plain, fix: diagnosis.fix, severity: diagnosis.severity },
           fixStrategy: fixStrategy ? { path: fixStrategy.path, label: fixStrategy.label } : null,
@@ -558,11 +564,14 @@ export async function retestCronJob(
 /**
  * Get all inbox alerts for the dashboard.
  */
-export async function getInboxAlerts(limit = 20): Promise<InboxAlert[]> {
+export async function getInboxAlerts(limit = 20, siteId?: string): Promise<InboxAlert[]> {
   try {
     const { prisma } = await import("@/lib/db");
     const entries = await prisma.cronJobLog.findMany({
-      where: { job_name: "ceo-inbox" },
+      where: {
+        job_name: "ceo-inbox",
+        ...(siteId ? { OR: [{ site_id: siteId }, { site_id: null }] } : {}),
+      },
       orderBy: { started_at: "desc" },
       take: limit,
     });
@@ -572,6 +581,7 @@ export async function getInboxAlerts(limit = 20): Promise<InboxAlert[]> {
       return {
         id: e.id,
         originalJob: (summary.originalJob as string) || "unknown",
+        siteId: (summary.siteId as string) || e.site_id || undefined,
         error: (summary.error as string) || e.error_message || "",
         diagnosis: (summary.diagnosis as InterpretedError) || { plain: e.error_message || "", fix: "", severity: "warning" },
         fixStrategy: (summary.fixStrategy as FixStrategy) || null,

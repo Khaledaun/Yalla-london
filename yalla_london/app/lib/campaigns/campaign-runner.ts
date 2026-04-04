@@ -192,7 +192,7 @@ export async function runCampaignBatch(
     try {
       const { getAllCircuitStates } = await import('@/lib/ai/provider');
       if (typeof getAllCircuitStates === 'function') {
-        const circuits = getAllCircuitStates();
+        const circuits = getAllCircuitStates(campaign.siteId);
         if (circuits && Object.keys(circuits).length > 0 && Object.values(circuits).every(s => s.state === 'open')) {
           console.log('[campaign-runner] All AI providers circuit-open — pausing batch until cooldown');
           result.errors.push('All AI providers circuit-open — batch paused, will retry next run');

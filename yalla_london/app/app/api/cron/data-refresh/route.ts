@@ -26,6 +26,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagBlock = await checkCronEnabled("data-refresh");
+  if (flagBlock) return flagBlock;
+
   const startTime = Date.now();
   const results: Record<string, { success: boolean; error?: string }> = {};
 

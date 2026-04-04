@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
         title: content.title,
         type: content.page_type || 'article',
         status: content.status,
-        site: 'Arabaldives',
+        site: content.site_id || siteId,
         locale: content.language as 'ar' | 'en',
         createdAt: content.created_at.toISOString(),
         updatedAt: formatRelativeTime(content.updated_at),

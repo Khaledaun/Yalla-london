@@ -368,7 +368,7 @@ export async function enhancePublishedArticle(
     const { generateCompletion, getAllCircuitStates } = await import('@/lib/ai/provider');
 
     // Check if all providers are circuit-open before wasting an attempt
-    const circuitState = typeof getAllCircuitStates === 'function' ? getAllCircuitStates() : null;
+    const circuitState = typeof getAllCircuitStates === 'function' ? getAllCircuitStates(post?.siteId) : null;
     if (circuitState && Object.keys(circuitState).length > 0 && Object.values(circuitState).every(s => s.state === 'open')) {
       return {
         success: false, operationsApplied: [], changes: {},

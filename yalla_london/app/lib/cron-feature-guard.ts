@@ -94,52 +94,67 @@ const CRON_FLAG_MAP: Record<string, string> = {
 /**
  * Check if a cron job is enabled.
  *
- * Checks in order:
- *   1. FeatureFlag DB table (via isFeatureFlagEnabled)
- *   2. Environment variable (e.g. CRON_CONTENT_BUILDER=false)
- *   3. Default: true (enabled)
+ * Checks in order (per-site aware):
+ *   1. Site-specific FeatureFlag (name + siteId) → if exists, use it
+ *   2. Global FeatureFlag (name + null siteId) → if exists, use it
+ *   3. Environment variable (e.g. CRON_CONTENT_BUILDER=false)
+ *   4. Default: true (enabled)
  *
  * Returns null if enabled (proceed), or a NextResponse if disabled (return early).
+ *
+ * Usage inside forEachSite loops:
+ *   for (const siteId of activeSiteIds) {
+ *     const disabled = await checkCronEnabled("content-builder", siteId);
+ *     if (disabled) { log.skipSite(siteId); continue; }
+ *     // ... process site
+ *   }
+ *
+ * Usage for global check (backwards compatible):
+ *   const disabled = await checkCronEnabled("content-builder");
+ *   if (disabled) return { skipped: true };
  */
 export async function checkCronEnabled(
-  jobName: string
+  jobName: string,
+  siteId?: string
 ): Promise<NextResponse | null> {
   // Resolve aliases first (e.g. "discover-deals" → "affiliate-discover-deals")
   const canonicalName = CRON_NAME_ALIASES[jobName] || jobName;
   const flagKey = CRON_FLAG_MAP[canonicalName] || `CRON_${canonicalName.toUpperCase().replace(/-/g, "_")}`;
 
+  const siteLabel = siteId ? ` [site:${siteId}]` : "";
+
   try {
-    const { isFeatureFlagEnabled } = await import("@/lib/feature-flags");
-    // Check DB first — if flag exists in DB and is disabled, stop
     const { getFeatureFlagValue } = await import("@/lib/feature-flags");
-    const dbValue = await getFeatureFlagValue(flagKey);
+    const dbValue = await getFeatureFlagValue(flagKey, siteId);
 
     if (dbValue === false) {
-      console.log(`[${jobName}] Disabled via feature flag (DB): ${flagKey}=false`);
+      console.log(`[${jobName}]${siteLabel} Disabled via feature flag (DB): ${flagKey}=false`);
       return NextResponse.json({
         success: true,
         skipped: true,
-        message: `${jobName} disabled via feature flag ${flagKey}`,
+        message: `${jobName} disabled via feature flag ${flagKey}${siteLabel}`,
+        siteId: siteId || null,
         timestamp: new Date().toISOString(),
       });
     }
 
     if (dbValue === null) {
-      // Not in DB — check env var
+      // Not in DB — check env var (env vars are always global, no per-site override)
       const envVal = process.env[flagKey];
       if (envVal === "false" || envVal === "0") {
-        console.log(`[${jobName}] Disabled via env var: ${flagKey}=${envVal}`);
+        console.log(`[${jobName}]${siteLabel} Disabled via env var: ${flagKey}=${envVal}`);
         return NextResponse.json({
           success: true,
           skipped: true,
           message: `${jobName} disabled via env var ${flagKey}`,
+          siteId: siteId || null,
           timestamp: new Date().toISOString(),
         });
       }
     }
   } catch (err) {
     // If feature flag check fails, allow cron to run (fail-open for crons)
-    console.warn(`[${jobName}] Feature flag check failed, allowing execution:`, (err as Error).message);
+    console.warn(`[${jobName}]${siteLabel} Feature flag check failed, allowing execution:`, (err as Error).message);
   }
 
   return null; // enabled — proceed

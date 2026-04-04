@@ -16,7 +16,7 @@ export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per 
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
-import { RESERVOIR_CAP } from "@/lib/content-pipeline/constants";
+import { RESERVOIR_CAP, getReservoirCap } from "@/lib/content-pipeline/constants";
 
 const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
 
@@ -53,15 +53,20 @@ async function handleCreate(request: NextRequest) {
         break;
       }
 
+      // Per-site feature flag check — allows disabling content creation for a single site
+      const siteFlag = await checkCronEnabled("content-builder-create", siteId);
+      if (siteFlag) { skippedSites.push(`${siteId}(disabled)`); continue; }
+
       const site = SITES[siteId];
       if (!site) { skippedSites.push(siteId); continue; }
 
-      // Skip if reservoir is full
+      // Skip if reservoir is full (per-site cap from SiteSettings, falls back to global)
+      const siteReservoirCap = await getReservoirCap(siteId);
       const reservoirCount = await prisma.articleDraft.count({
         where: { site_id: siteId, current_phase: "reservoir" },
       });
-      if (reservoirCount >= RESERVOIR_CAP) {
-        fullReservoirs.push(`${siteId}(${reservoirCount})`);
+      if (reservoirCount >= siteReservoirCap) {
+        fullReservoirs.push(`${siteId}(${reservoirCount}/${siteReservoirCap})`);
         continue;
       }
 

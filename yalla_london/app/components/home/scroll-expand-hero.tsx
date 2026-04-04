@@ -131,13 +131,9 @@ const ScrollExpandHero = ({
             <Image
               src={bgImageSrc}
               alt="London skyline"
-              width={1920}
-              height={1080}
-              className="w-full h-full"
-              style={{
-                objectFit: 'cover',
-                objectPosition: 'center',
-              }}
+              fill
+              sizes="100vw"
+              className="w-full h-full object-cover object-center"
               priority
             />
             {/* Elegant overlay with brand gradient */}
@@ -216,8 +212,8 @@ const ScrollExpandHero = ({
                     <Image
                       src={mediaSrc}
                       alt={title || 'London'}
-                      width={1920}
-                      height={1080}
+                      fill
+                      sizes="(max-width: 768px) 95vw, 1200px"
                       className="w-full h-full object-cover rounded-card"
                       priority
                     />

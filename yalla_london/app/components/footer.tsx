@@ -57,7 +57,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl"
+                    className="font-mono text-xs tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl"
                   >
                     {language === 'en' ? link.en : link.ar}
                   </Link>
@@ -82,7 +82,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl"
+                    className="font-mono text-xs tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl"
                   >
                     {language === 'en' ? link.en : link.ar}
                   </Link>
@@ -100,12 +100,12 @@ export function Footer() {
             <div className="space-y-3 mb-5">
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="flex items-center gap-2.5 font-mono text-[11px] tracking-wider text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl"
+                className="flex items-center gap-2.5 font-mono text-xs tracking-wider text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl"
               >
                 <Mail size={14} className="text-yl-gold shrink-0" />
                 <span>{CONTACT_EMAIL}</span>
               </a>
-              <div className="flex items-center gap-2.5 font-mono text-[11px] tracking-wider text-yl-gray-400">
+              <div className="flex items-center gap-2.5 font-mono text-xs tracking-wider text-yl-gray-400">
                 <MapPin size={14} className="text-yl-gold shrink-0" />
                 <span>{language === 'en' ? 'London, United Kingdom' : 'لندن، المملكة المتحدة'}</span>
               </div>
@@ -114,12 +114,12 @@ export function Footer() {
             {/* About links */}
             <ul className="space-y-2.5">
               <li>
-                <Link href="/about" className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl">
+                <Link href="/about" className="font-mono text-xs tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl">
                   {language === 'en' ? 'The Founder' : 'المؤسس'}
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl">
+                <Link href="/contact" className="font-mono text-xs tracking-wider uppercase text-yl-gray-400 hover:text-yl-gold transition-colors duration-300 ease-yl">
                   {language === 'en' ? 'Contact' : 'تواصل معنا'}
                 </Link>
               </li>
@@ -133,7 +133,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div className="flex items-center gap-4 text-center md:text-left">
-            <p className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase">
+            <p className="font-mono text-xs text-yl-gray-500 tracking-wider uppercase">
               © 2025–2026 Zenitha.Luxury LLC. All rights reserved.
             </p>
             {/* Arabic brand name on the right */}
@@ -148,14 +148,14 @@ export function Footer() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
+                className="font-mono text-xs text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
               >
                 {language === 'en' ? link.en : link.ar}
               </Link>
             ))}
             <a
               href={`mailto:${ENTITY.contact.legalEmail}`}
-              className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
+              className="font-mono text-xs text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}
             </a>

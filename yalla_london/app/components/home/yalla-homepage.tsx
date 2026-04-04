@@ -302,7 +302,7 @@ function SectionHeader({ title, href, linkText, icon: Icon, isArabic }: { title:
         {Icon && <Icon className="w-5 h-5 text-yl-gold" />}
         <h2 className={`text-2xl md:text-3xl font-heading font-bold text-yl-charcoal ${isArabic ? 'font-arabic' : ''}`}>{title}</h2>
       </div>
-      <Link href={href} className="group flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-wider uppercase text-yl-red hover:text-yl-gold transition-colors duration-300 ease-yl">
+      <Link href={href} className="group flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider uppercase text-yl-red hover:text-yl-gold transition-colors duration-300 ease-yl">
         {linkText}
         <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300 ease-yl" />
       </Link>
@@ -546,7 +546,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       {/* ═══ TRENDING BAR ═══ */}
       <div className="bg-yl-cream border-b border-yl-gray-200 py-3 px-7">
         <div className="max-w-7xl mx-auto flex items-center gap-6 overflow-x-auto">
-          <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-yl-red uppercase tracking-widest whitespace-nowrap">
+          <div className="flex items-center gap-2 font-mono text-xs font-bold text-yl-red uppercase tracking-widest whitespace-nowrap">
             <TrendingUp className="w-4 h-4" />
             {t.trending}
           </div>
@@ -579,7 +579,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   {effectiveFeatured.title}
                 </h3>
                 <p className="font-body text-sm text-yl-gray-400 mb-4 max-w-lg line-clamp-2">{effectiveFeatured.excerpt}</p>
-                <div className="flex items-center gap-4 font-mono text-[11px] tracking-wider uppercase text-yl-gray-500">
+                <div className="flex items-center gap-4 font-mono text-xs tracking-wider uppercase text-yl-gray-500">
                   <span>{effectiveFeatured.author}</span>
                   <span className="w-1 h-1 bg-yl-gray-500 rounded-full" />
                   <span>{effectiveFeatured.date}</span>
@@ -600,11 +600,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                       <Image src={article.image} alt={article.title} fill className="object-cover" />
                     </div>
                     <div className="flex flex-col justify-center min-w-0">
-                      <span className="font-mono text-[11px] font-semibold text-yl-red uppercase tracking-wider mb-1">{article.category}</span>
+                      <span className="font-mono text-xs font-semibold text-yl-red uppercase tracking-wider mb-1">{article.category}</span>
                       <h4 className={`text-sm font-heading font-bold text-yl-charcoal group-hover:text-yl-red transition-colors duration-300 ease-yl line-clamp-2 mb-1.5 ${isRTL ? 'font-arabic' : ''}`}>
                         {article.title}
                       </h4>
-                      <div className="flex items-center gap-2 font-mono text-[11px] text-yl-gray-500 tracking-wider">
+                      <div className="flex items-center gap-2 font-mono text-xs text-yl-gray-500 tracking-wider">
                         <span>{article.date}</span>
                         <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {article.readTime}</span>
                       </div>
@@ -629,7 +629,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-yl-parchment placeholder-yl-gray-500 focus:outline-none focus:ring-2 focus:ring-yl-gold/20 focus:border-yl-gold transition-all duration-300 ease-yl"
                 />
-                <button className="px-4 py-2 bg-yl-red text-white font-mono text-[11px] font-bold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl whitespace-nowrap">
+                <button className="px-4 py-2 bg-yl-red text-white font-mono text-xs font-bold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl whitespace-nowrap">
                   {t.subscribeBtn}
                 </button>
               </div>
@@ -656,11 +656,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <div className="absolute inset-0 bg-gradient-to-t from-yl-charcoal/50 to-transparent" />
                   <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-md`}>
                     <div className="text-2xl font-heading font-bold text-yl-charcoal leading-none">{event.day}</div>
-                    <div className="font-mono text-[11px] font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
+                    <div className="font-mono text-xs font-bold text-yl-red uppercase tracking-wider">{event.month}</div>
                   </div>
                   {liveEvents.length > 0 && (
                     <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-                      <span className="bg-green-500 text-white text-[11px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
+                      <span className="bg-green-500 text-white text-xs font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
                     </div>
                   )}
                 </div>
@@ -671,7 +671,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </p>
                   <span className="block font-mono text-sm font-bold text-yl-charcoal tracking-wider mb-3">{event.price}</span>
                   {event.url ? (
-                    <a href={event.url} target="_blank" rel="noopener sponsored" className="inline-flex items-center justify-center font-mono tracking-wider uppercase rounded-lg transition-all duration-300 ease-yl bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg py-2 px-4 text-[11px] w-full justify-center">
+                    <a href={event.url} target="_blank" rel="noopener sponsored" className="inline-flex items-center justify-center font-mono tracking-wider uppercase rounded-lg transition-all duration-300 ease-yl bg-yl-red text-white hover:bg-[#a82924] hover:-translate-y-0.5 shadow-lg py-2 px-4 text-xs w-full justify-center">
                       {t.getTickets}
                     </a>
                   ) : (
@@ -752,7 +752,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <span className="font-heading text-xl font-bold text-yl-charcoal">{guide.price}</span>
-                    <span className="flex items-center gap-2 px-4 py-2.5 bg-yl-gray-100 text-yl-gray-500 font-mono text-[11px] tracking-wider uppercase rounded-lg cursor-default">
+                    <span className="flex items-center gap-2 px-4 py-2.5 bg-yl-gray-100 text-yl-gray-500 font-mono text-xs tracking-wider uppercase rounded-lg cursor-default">
                       <Clock className="w-4 h-4" /> {t.downloadNow}
                     </span>
                   </div>
@@ -785,7 +785,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </div>
                   <div className="flex items-center justify-between px-1">
                     <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{exp.price}</span>
-                    <span className="font-mono text-[11px] font-semibold text-yl-red tracking-wider uppercase group-hover:underline">{t.bookNow}</span>
+                    <span className="font-mono text-xs font-semibold text-yl-red tracking-wider uppercase group-hover:underline">{t.bookNow}</span>
                   </div>
                 </Link>
                 {expAffLink && (
@@ -793,7 +793,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     href={expAffLink.url}
                     target="_blank"
                     rel="noopener sponsored"
-                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-yl-red text-white font-mono text-[11px] font-semibold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl`}
+                    className={`${expAffLink.trackingClass} mt-1.5 block text-center py-1.5 bg-yl-red text-white font-mono text-xs font-semibold tracking-wider uppercase rounded-lg hover:bg-[#a82924] transition-all duration-300 ease-yl`}
                     data-affiliate-partner={expAffLink.partner}
                   >
                     {expAffLink.label}
@@ -833,10 +833,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     <p className="font-body text-sm text-yl-gray-500 flex items-center gap-1.5 mb-1">
                       <MapPin className="w-3.5 h-3.5" /> {hotel.location}
                     </p>
-                    <p className="font-mono text-[11px] font-medium text-yl-gold tracking-wider uppercase mb-4">{hotel.category}</p>
+                    <p className="font-mono text-xs font-medium text-yl-gold tracking-wider uppercase mb-4">{hotel.category}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
                       <span className="font-mono text-sm font-bold text-yl-charcoal tracking-wider">{hotel.price}</span>
-                      <span className="px-4 py-2 border border-yl-charcoal text-yl-charcoal font-mono text-[11px] font-semibold tracking-wider uppercase rounded-lg group-hover:bg-yl-charcoal group-hover:text-white transition-all duration-300 ease-yl">
+                      <span className="px-4 py-2 border border-yl-charcoal text-yl-charcoal font-mono text-xs font-semibold tracking-wider uppercase rounded-lg group-hover:bg-yl-charcoal group-hover:text-white transition-all duration-300 ease-yl">
                         {t.viewDeals}
                       </span>
                     </div>
@@ -848,7 +848,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     href={affLink.url}
                     target="_blank"
                     rel="noopener sponsored"
-                    className={`${affLink.trackingClass} mt-2 block text-center py-2.5 bg-yl-red text-white font-mono text-[11px] font-semibold tracking-wider uppercase rounded-xl hover:bg-[#a82924] transition-all duration-300 ease-yl`}
+                    className={`${affLink.trackingClass} mt-2 block text-center py-2.5 bg-yl-red text-white font-mono text-xs font-semibold tracking-wider uppercase rounded-xl hover:bg-[#a82924] transition-all duration-300 ease-yl`}
                     data-affiliate-partner={affLink.partner}
                   >
                     {affLink.label} →
@@ -899,12 +899,12 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 </div>
                 <p className="font-body text-yl-charcoal text-sm leading-relaxed mb-4 italic">&ldquo;{locale === 'ar' ? item.textAr : item.textEn}&rdquo;</p>
                 <div className="flex items-center gap-3 pt-3 border-t border-yl-gray-200">
-                  <div className="w-9 h-9 rounded-full bg-yl-red text-white flex items-center justify-center font-mono text-[11px] font-bold tracking-wider">
+                  <div className="w-9 h-9 rounded-full bg-yl-red text-white flex items-center justify-center font-mono text-xs font-bold tracking-wider">
                     {item.initials}
                   </div>
                   <div>
                     <p className="text-sm font-heading font-semibold text-yl-charcoal">{item.name}</p>
-                    <p className="font-mono text-[11px] text-yl-gray-500 tracking-wider">{locale === 'ar' ? item.locationAr : item.location}</p>
+                    <p className="font-mono text-xs text-yl-gray-500 tracking-wider">{locale === 'ar' ? item.locationAr : item.location}</p>
                   </div>
                 </div>
               </BrandCardLight>

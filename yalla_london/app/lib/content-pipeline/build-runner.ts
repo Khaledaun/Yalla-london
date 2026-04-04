@@ -150,7 +150,9 @@ export async function runContentBuilder(
         const aLightBoost = LIGHT_PHASE_SET.has(a.current_phase as string) ? 20 : 0;
         const bLightBoost = LIGHT_PHASE_SET.has(b.current_phase as string) ? 20 : 0;
         // Deprioritize drafts that have failed 3+ times with budget errors —
-        // they need a full-budget run, not another shared-budget attempt
+        // they need a full-budget run, not another shared-budget attempt.
+        // Note: this threshold (3) is intentionally NOT from constants.ts — it's a
+        // priority heuristic for sorting, not a retry cap. Retry caps use getMaxAttempts().
         const aStuck = ((a.phase_attempts as number) || 0) >= 3 && ((a.last_error as string) || "").includes("Budget too low") ? -10 : 0;
         const bStuck = ((b.phase_attempts as number) || 0) >= 3 && ((b.last_error as string) || "").includes("Budget too low") ? -10 : 0;
         // Boost drafts whose paired draft is further ahead — they need to catch up

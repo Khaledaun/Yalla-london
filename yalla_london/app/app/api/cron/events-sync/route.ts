@@ -3,9 +3,9 @@ import { getUpcomingEvents, formatEventPrice, formatEventDate } from "@/lib/apis
 import { getActiveSiteIds } from "@/config/sites";
 import { checkCronEnabled } from "@/lib/cron-feature-guard";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 280_000;
 
 /**
  * Events Sync Cron — fetches real events from Ticketmaster and writes to Event table.

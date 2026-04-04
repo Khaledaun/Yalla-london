@@ -12,9 +12,9 @@
 |----------|-------------|-------|------|
 | CRITICAL | 5 | 5 | 0 |
 | HIGH | 2 | 2 | 0 |
-| MEDIUM | 10 | 0 | 10 |
+| MEDIUM | 10 | 1 | 9 |
 | LOW | 8 | 0 | 8 |
-| **TOTAL** | **25** | **7** | **18** |
+| **TOTAL** | **25** | **8** | **17** |
 
 **Current Posture:** All CRITICAL and HIGH gaps resolved. 18 remaining items are MEDIUM (UX/polish) and LOW (documentation artifacts, minor a11y). None block launch or revenue generation.
 
@@ -70,7 +70,7 @@ These are UX polish, feature completeness, and design consistency items. None bl
 | ZY-M06 | UX Polish | MEDIUM | Navigation items have no active state indicator — current page not visually distinguished in header nav, leaving users without location awareness | OPEN | — | `components/zenitha/zenitha-header.tsx` |
 | ZY-M07 | Schema Consistency | MEDIUM | Design system field naming inconsistency — some models and APIs use `site` (string) while others use `siteId` (string). Both refer to the same concept but create confusion in API contracts | OPEN | — | Multiple API routes and Prisma models |
 | ZY-M08 | CRM Feature | MEDIUM | Broker assignment UI missing in inquiries CRM — CharterInquiry table has a broker relationship field but the admin inquiries page has no dropdown/selector to assign a broker to an inquiry | OPEN | — | `app/admin/yachts/inquiries/page.tsx` |
-| ZY-M09 | Content | MEDIUM | No content produced yet for yacht site — fleet inventory, destinations, and itineraries need manual seeding or import from external sources (NauSYS, MMK, Charter Index) before the site has meaningful content | OPEN | — | Database (Yacht, YachtDestination, CharterItinerary tables) |
+| ZY-M09 | Content | MEDIUM | No content produced yet for yacht site — fleet inventory, destinations, and itineraries need manual seeding or import from external sources (NauSYS, MMK, Charter Index) before the site has meaningful content | FIXED | Added "Seed Fleet" button to yacht admin page (`/admin/yachts`) that calls `POST /api/admin/yachts/seed` with `action: "all"`. Seeds 10 destinations, 50 yachts, 5 itineraries, brokers in correct order. Idempotent (skips existing). Also added 3 seed blog articles (Greek Islands, Turkish Riviera, Croatian Dalmatia). | `app/admin/yachts/page.tsx`, `app/api/admin/yachts/seed/route.ts`, `app/api/admin/seed-article/route.ts` |
 | ZY-M10 | i18n | MEDIUM | Arabic route handling not optimized for yacht site — `/ar/` prefix routing works but yacht-specific content (fleet specs, itinerary descriptions, inquiry forms) has no Arabic translation pipeline or bilingual field population strategy | OPEN | — | `middleware.ts`, yacht page components |
 
 ---

@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { ChevronDown, ShoppingBag, Ticket, Home, Compass, Calendar } from 'lucide-react';
 import { useBrandConfig, useNavigationTranslations } from '@/hooks/use-brand-config';
 import { useLanguage } from '@/components/language-provider';
@@ -12,6 +13,7 @@ import { TriBar } from '@/components/brand-kit';
 export function DynamicHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const pathname = usePathname();
   const { language, setLanguage, isRTL } = useLanguage();
   const { translations, colors, logos } = useBrandConfig();
   const { navigation } = useNavigationTranslations();
@@ -213,24 +215,29 @@ export function DynamicHeader() {
             { href: '/events', icon: Calendar, labelEn: 'Events', labelAr: 'فعاليات' },
             { href: '/shop', icon: ShoppingBag, labelEn: 'Shop', labelAr: 'متجر' },
             { href: '/experiences', icon: Ticket, labelEn: 'Book', labelAr: 'احجز', highlight: true },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors duration-200 ${
-                item.highlight
-                  ? 'text-yl-red'
-                  : 'text-yl-gray-400 hover:text-yl-parchment active:text-yl-gold'
-              }`}
-            >
-              <item.icon className={`w-5 h-5 ${item.highlight ? 'text-yl-red' : ''}`} />
-              <span className={`text-[10px] font-semibold leading-tight ${
-                isRTL ? 'font-arabic' : 'font-mono tracking-wide uppercase'
-              }`}>
-                {language === 'en' ? item.labelEn : item.labelAr}
-              </span>
-            </Link>
-          ))}
+          ].map((item) => {
+            const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors duration-200 ${
+                  item.highlight
+                    ? 'text-yl-red'
+                    : isActive
+                      ? 'text-yl-gold'
+                      : 'text-yl-gray-400 hover:text-yl-parchment active:text-yl-gold'
+                }`}
+              >
+                <item.icon className={`w-5 h-5 ${item.highlight ? 'text-yl-red' : isActive ? 'text-yl-gold' : ''}`} />
+                <span className={`text-xs font-semibold leading-tight ${
+                  isRTL ? 'font-arabic' : 'font-mono tracking-wide uppercase'
+                }`}>
+                  {language === 'en' ? item.labelEn : item.labelAr}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </nav>
     </>

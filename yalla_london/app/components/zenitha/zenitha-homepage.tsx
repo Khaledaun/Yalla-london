@@ -285,9 +285,9 @@ function HowItWorksSection({ locale }: { locale: Locale }) {
 
         <div ref={stepsRef} className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {STEPS.map((step, i) => (
-            <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger">
+            <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger group cursor-default">
               {/* Step number + Icon */}
-              <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--z-sand)] mb-6">
+              <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--z-sand)] mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-lg">
                 <step.icon size={32} className="text-[var(--z-aegean)]" />
                 <span className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-[var(--z-gold)] text-[var(--z-navy)] text-sm font-heading font-bold flex items-center justify-center">
                   {i + 1}

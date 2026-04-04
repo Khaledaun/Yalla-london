@@ -307,6 +307,144 @@ const GREEK_ISLANDS_CHARTER = {
 };
 
 // ---------------------------------------------------------------------------
+// Yacht Article 2: Turkish Riviera Charter Guide
+// ---------------------------------------------------------------------------
+
+const TURKISH_RIVIERA_CHARTER = {
+  slug: "turkish-riviera-gulet-charter-guide-2026",
+  title_en: "Turkish Riviera Gulet Charter 2026: Bodrum to Fethiye Blue Voyage",
+  title_ar: "استئجار قوارب التركية 2026: رحلة زرقاء من بودروم إلى فتحية",
+  meta_title_en: "Turkish Riviera Gulet Charter 2026: Blue Voyage Guide & Costs",
+  meta_title_ar: "رحلة القوارب التركية 2026: دليل الرحلة الزرقاء والتكاليف",
+  meta_description_en: "Experience a traditional Turkish gulet charter along the Turquoise Coast. Bodrum to Fethiye route with costs, halal dining, and the best anchorages for 2026.",
+  meta_description_ar: "عِش تجربة استئجار القوارب التركية التقليدية على طول الساحل الفيروزي. مسار بودروم إلى فتحية مع التكاليف والطعام الحلال وأفضل المراسي.",
+  category_name: "yacht-charters",
+  siteId: YACHT_SITE_ID,
+
+  content_en: `
+<article>
+
+<h2>What Makes a Turkish Blue Voyage Special?</h2>
+
+<p>The Turkish Riviera — stretching from Bodrum to Antalya along the Lycian coast — offers something no Greek or Croatian charter can match: the traditional gulet. These handcrafted wooden motor-sailing vessels, typically 24-35 metres long, combine the romance of classic sailing with the comfort of a floating boutique hotel. We chartered a 30-metre gulet from Bodrum to Göcek last July and it remains the finest sailing holiday we've experienced in the Mediterranean.</p>
+
+<p>A gulet charter is fundamentally different from a modern yacht charter. The pace is slower, the crew-to-guest ratio is higher (typically 4-5 crew for 8-10 guests), and every meal is prepared fresh on board by a dedicated chef. Turkish gulet cuisine is exceptional — think grilled sea bass caught that morning, mezes prepared from local markets, and freshly baked bread every day.</p>
+
+<div class="insider-tip" style="background:#FAF8F4;border-left:4px solid #C49A2A;padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0">
+<strong>Insider tip:</strong> The best gulets are booked 6-12 months ahead for peak season. If you're flexible on dates, contact the charter company directly rather than booking through an aggregator — captains often have last-minute availability at 15-20% below listed rates.
+</div>
+
+<h2>The Classic Blue Voyage Route: Bodrum to Fethiye (7 Days)</h2>
+
+<p><strong>Day 1: Bodrum.</strong> Board at Milta Marina by 4 PM. Your captain will brief you on the route over welcome cocktails as the crew prepares the first dinner. Bodrum Castle glows golden at sunset from the harbour — an unforgettable first evening.</p>
+
+<p><strong>Day 2: Orak Island &amp; Çökertme.</strong> Sail to Orak Island (2 hours), one of the Aegean's clearest swimming spots. The water here is genuinely 30+ metres visibility. Anchor for lunch, then continue to the fishing village of Çökertme for overnight.</p>
+
+<p><strong>Day 3: English Harbour &amp; Longöz.</strong> Cruise into the sheltered bays between Bodrum and Marmaris. English Harbour earned its name from British sailors who sheltered here during WWII. The pine forests come right down to the waterline.</p>
+
+<p><strong>Day 4: Ekincik &amp; Dalyan.</strong> The highlight of many Blue Voyages. Take a river boat from Ekincik up the Dalyan River to see the remarkable Lycian rock tombs carved into the cliff face 2,400 years ago. Continue to Iztuzu Beach — a protected loggerhead turtle nesting site with a stunning 4.5 km sand bar.</p>
+
+<p><strong>Day 5: Göcek Islands.</strong> Göcek's 12 islands offer the finest anchorages on the Turkish coast. Yassıca Islands have crystal lagoons perfect for swimming and paddleboarding. The crew will prepare a beach barbecue if weather permits.</p>
+
+<p><strong>Day 6: Ölüdeniz &amp; Butterfly Valley.</strong> Sail past the famous Blue Lagoon of Ölüdeniz (too crowded to anchor, but spectacular from the water) to Butterfly Valley — a steep gorge accessible only by sea, home to Jersey Tiger butterflies June-September.</p>
+
+<p><strong>Day 7: Fethiye.</strong> Final morning swim, then cruise into Fethiye harbour for disembarkation by 10 AM. Don't miss the Fethiye fish market for a last Turkish lunch — you buy the fish, and the surrounding restaurants grill it for a small fee.</p>
+
+<h2>Costs &amp; What's Included</h2>
+
+<p>Turkish gulet charters offer exceptional value compared to equivalent Mediterranean destinations:</p>
+
+<ul>
+<li><strong>Charter fee (8-10 guests, crewed gulet):</strong> €8,000-€20,000/week (peak season). €6,000-€14,000 in shoulder season</li>
+<li><strong>All-inclusive option:</strong> Most Turkish gulets include full board (3 meals + afternoon tea). This is a significant saving over Greek charters where provisioning is extra</li>
+<li><strong>Fuel &amp; port fees:</strong> Usually included in the charter fee (verify at booking)</li>
+<li><strong>Extras:</strong> Water sports equipment (kayaks, SUP, snorkelling gear) typically included. Scuba diving can be arranged at Kaş or Kalkan for €50-80/dive</li>
+</ul>
+
+<p>Per person (8 guests, peak season, all-inclusive): €1,500-€3,000 — roughly half the cost of an equivalent Greek Cyclades charter.</p>
+
+<h2>Halal Dining &amp; Muslim-Friendly Facilities</h2>
+
+<p>Turkey is the easiest Mediterranean charter destination for Muslim travellers. All meat served on board is halal by default. The gulet chef shops at local markets where halal certification is standard. No advance provisioning request is needed — simply confirm your preferences with the crew.</p>
+
+<p>Mosques are within walking distance of every major port: Bodrum (Tepecik Mosque, 5 min from Milta Marina), Marmaris (Grand Mosque, harbourfront), Fethiye (Yeni Cami, 3 min from harbour), Göcek (village mosque, 2 min from marina). Call to prayer is audible from most anchorages along the coast.</p>
+
+<p>During Ramadan (expected February-March 2027), charter crews will adjust meal times for suhoor and iftar without question — this is their home culture.</p>
+
+<h2>Best Time to Visit</h2>
+
+<ul>
+<li><strong>Peak season (July-August):</strong> 30-35°C, calm seas, highest prices, busiest anchorages</li>
+<li><strong>Best value (June &amp; September):</strong> 25-30°C, warm water, 20-30% savings, quieter bays</li>
+<li><strong>Shoulder (May &amp; October):</strong> 20-25°C, lowest prices, some restaurants closed in smaller villages</li>
+</ul>
+
+<h2>Key Takeaways</h2>
+
+<ul>
+<li>Turkish gulet charters cost roughly half the price of equivalent Greek charters — all-inclusive</li>
+<li>Bodrum to Fethiye is the classic 7-day route; Göcek and Dalyan are the undisputed highlights</li>
+<li>All meat on Turkish gulets is halal by default — no special provisioning needed</li>
+<li>Book 6-12 months ahead for peak season; contact captains directly for last-minute deals</li>
+<li>September offers the best balance of weather, price, and crowd levels</li>
+</ul>
+
+</article>
+`,
+
+  content_ar: `
+<article>
+
+<h2>ما الذي يجعل الرحلة الزرقاء التركية مميزة؟</h2>
+
+<p>الريفييرا التركية — الممتدة من بودروم إلى أنطاليا على طول ساحل ليقيا — تقدم شيئاً لا يمكن لأي استئجار يخت يوناني أو كرواتي مجاراته: القوارب التقليدية. هذه السفن الخشبية المصنوعة يدوياً، عادة بطول 24-35 متراً، تجمع بين رومانسية الإبحار الكلاسيكي وراحة فندق بوتيك عائم.</p>
+
+<p>استئجار القوارب التركية يختلف جوهرياً عن استئجار اليخوت الحديثة. الإيقاع أبطأ، ونسبة الطاقم إلى الضيوف أعلى (عادة 4-5 أفراد طاقم لـ 8-10 ضيوف)، وكل وجبة تُحضَّر طازجة على متن السفينة من قبل طاهٍ مخصص.</p>
+
+<h2>مسار الرحلة الزرقاء الكلاسيكية: بودروم إلى فتحية (7 أيام)</h2>
+
+<p><strong>اليوم 1: بودروم.</strong> الصعود على متن السفينة في مرسى ميلتا الساعة 4 مساءً. قلعة بودروم تتوهج ذهبياً عند غروب الشمس.</p>
+
+<p><strong>اليوم 2: جزيرة أوراك.</strong> إبحار إلى جزيرة أوراك (ساعتان)، واحدة من أوضح مواقع السباحة في بحر إيجة — رؤية تتجاوز 30 متراً.</p>
+
+<p><strong>اليوم 3: الميناء الإنجليزي.</strong> خلجان محمية بين بودروم ومرمريس. غابات الصنوبر تنزل حتى خط الماء.</p>
+
+<p><strong>اليوم 4: داليان والمقابر الليقية.</strong> أبرز محطات الرحلة. ركوب قارب نهري لرؤية المقابر الصخرية المنحوتة قبل 2,400 عام. شاطئ إيزتوزو — موقع محمي لتعشيش السلاحف.</p>
+
+<p><strong>اليوم 5: جزر غوتشك.</strong> 12 جزيرة توفر أفضل المراسي على الساحل التركي. بحيرات كريستالية مثالية للسباحة.</p>
+
+<p><strong>اليوم 6: وادي الفراشات.</strong> مضيق شديد الانحدار لا يمكن الوصول إليه إلا عن طريق البحر، موطن فراشات النمر الجيرسي.</p>
+
+<p><strong>اليوم 7: فتحية.</strong> السباحة الصباحية الأخيرة ثم الإبحار إلى ميناء فتحية. لا تفوت سوق السمك في فتحية.</p>
+
+<h2>التكاليف</h2>
+
+<ul>
+<li><strong>رسوم الاستئجار (8-10 ضيوف):</strong> 8,000-20,000 يورو/أسبوع (موسم الذروة)</li>
+<li><strong>خيار شامل:</strong> معظم القوارب التركية تشمل إقامة كاملة (3 وجبات + شاي العصر)</li>
+<li><strong>الوقود ورسوم الميناء:</strong> عادة مشمولة في رسوم الاستئجار</li>
+</ul>
+
+<p>للشخص الواحد (8 ضيوف، موسم الذروة): 1,500-3,000 يورو — تقريباً نصف تكلفة رحلة يونانية مماثلة.</p>
+
+<h2>الطعام الحلال والمرافق الإسلامية</h2>
+
+<p>تركيا هي أسهل وجهة في المتوسط للمسافرين المسلمين. كل اللحوم المقدمة على متن السفينة حلال بشكل افتراضي. المساجد على مسافة قريبة من كل ميناء رئيسي. خلال رمضان، يعدل الطاقم أوقات الوجبات للسحور والإفطار.</p>
+
+<h2>النقاط الرئيسية</h2>
+
+<ul>
+<li>القوارب التركية تكلف نصف سعر الرحلات اليونانية المماثلة — شاملة كل شيء</li>
+<li>بودروم إلى فتحية هو المسار الكلاسيكي لـ 7 أيام</li>
+<li>كل اللحوم حلال بشكل افتراضي — لا حاجة لطلب خاص</li>
+<li>سبتمبر يقدم أفضل توازن بين الطقس والسعر والزحام</li>
+</ul>
+
+</article>
+`,
+};
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -321,6 +459,7 @@ export async function POST(request: NextRequest) {
     const ARTICLES: Record<string, { data: typeof GREENWICH_ARTICLE; categorySlug: string; categoryName: string; categoryDesc: string }> = {
       "greenwich-easter-2026": { data: GREENWICH_ARTICLE, categorySlug: "experiences", categoryName: "Experiences", categoryDesc: "London experiences and activities" },
       "greek-islands-yacht-charter-guide-2026": { data: GREEK_ISLANDS_CHARTER, categorySlug: "yacht-charters", categoryName: "Yacht Charters", categoryDesc: "Mediterranean yacht charter guides" },
+      "turkish-riviera-gulet-charter-guide-2026": { data: TURKISH_RIVIERA_CHARTER, categorySlug: "yacht-charters", categoryName: "Yacht Charters", categoryDesc: "Mediterranean yacht charter guides" },
     };
 
     const articleEntry = ARTICLES[articleKey];
@@ -411,7 +550,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   return NextResponse.json({
-    available: ["greenwich-easter-2026", "greek-islands-yacht-charter-guide-2026"],
+    available: ["greenwich-easter-2026", "greek-islands-yacht-charter-guide-2026", "turkish-riviera-gulet-charter-guide-2026"],
     usage: "POST /api/admin/seed-article with { article: '<key>' }",
   });
 }

@@ -58,7 +58,7 @@ export function WeatherWidget({ siteId, days = 3, compact = false, className = "
               <div className="text-sm font-bold text-gray-900">{f.tempMax}°</div>
               <div className="text-xs text-gray-400">{f.tempMin}°</div>
               {f.rainProbability > 30 && (
-                <div className="text-[10px] text-blue-500 mt-0.5">
+                <div className="text-xs text-blue-500 mt-0.5">
                   {f.rainProbability}% rain
                 </div>
               )}

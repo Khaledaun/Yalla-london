@@ -1852,7 +1852,7 @@ async function testDesignPdfGeneration(): Promise<LiveTestResult> {
 // F.8.1 — Yacht Prisma Models
 async function testYachtModelsExist(): Promise<LiveTestResult> {
   const schema = readContent("prisma/schema.prisma");
-  const models = ["Yacht", "YachtDestination", "CharterItinerary", "CharterInquiry", "BrokerPartner", "YachtAvailability", "YachtAmenity", "YachtImage"];
+  const models = ["Yacht", "YachtDestination", "CharterItinerary", "CharterInquiry", "BrokerPartner", "YachtAvailability"];
   const found = models.filter(m => schema.includes(`model ${m}`));
   return makeResult({
     success: found.length === models.length, readiness: Math.round((found.length / models.length) * 100),
@@ -2747,7 +2747,7 @@ async function testSocialCalendarVerify(): Promise<LiveTestResult> {
 // ── Yacht Models Verify ─────────────────────────────────────────────────────────
 async function testYachtModelsVerify(): Promise<LiveTestResult> {
   const schema = readContent("prisma/schema.prisma");
-  const models = ["Yacht", "YachtDestination", "CharterItinerary", "CharterInquiry", "BrokerPartner", "YachtAvailability", "YachtAmenity", "YachtImage"];
+  const models = ["Yacht", "YachtDestination", "CharterItinerary", "CharterInquiry", "BrokerPartner", "YachtAvailability"];
   const found = models.filter(m => schema.includes(`model ${m}`));
   return makeResult({
     success: found.length === models.length,

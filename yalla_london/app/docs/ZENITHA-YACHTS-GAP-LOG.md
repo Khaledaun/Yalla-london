@@ -1,7 +1,7 @@
 # Zenitha Yachts — Comprehensive Gap Log
 
 > Tracks ALL gaps found and fixed throughout the entire Zenitha Yachts build (zenithayachts.com, siteId: `zenitha-yachts-med`).
-> Created: 2026-02-22 | Last Updated: 2026-02-22
+> Created: 2026-02-22 | Last Updated: 2026-04-04
 > Cross-references: `docs/AUDIT-LOG.md` (platform-wide), `docs/FUNCTIONING-ROADMAP.md` (phase plan)
 
 ---
@@ -13,10 +13,10 @@
 | CRITICAL | 5 | 5 | 0 |
 | HIGH | 2 | 2 | 0 |
 | MEDIUM | 10 | 9 | 1 (deferred) |
-| LOW | 8 | 0 | 8 |
-| **TOTAL** | **25** | **16** | **9** |
+| LOW | 8 | 7 | 1 (won't-fix) |
+| **TOTAL** | **25** | **23** | **2** |
 
-**Current Posture:** All CRITICAL, HIGH, and MEDIUM gaps resolved (ZY-M10 Arabic i18n deferred to post-launch). 9 remaining items are 1 MEDIUM (deferred strategy) and 8 LOW (documentation artifacts, orphan models, minor a11y). None block launch or revenue generation.
+**Current Posture:** All CRITICAL, HIGH, and MEDIUM gaps resolved (ZY-M10 Arabic i18n deferred to post-launch). ZY-L01–L05 orphan models/enums already removed from schema in prior cleanup. ZY-L06 FAQPage schema intentionally kept for AIO comprehension. ZY-L07/L08 fixed (responsive padding + ARIA). **2 remaining: 1 deferred MEDIUM (Arabic i18n), 1 won't-fix LOW (FAQPage schema kept by design).** None block launch or revenue.
 
 ---
 
@@ -81,12 +81,12 @@ These are documentation artifacts, unused schema elements, and minor accessibili
 
 | ID | Area | Severity | Description | Status | Fix Applied | File(s) Affected |
 |----|------|----------|-------------|--------|-------------|-----------------|
-| ZY-L01 | Prisma Schema | LOW | `YachtAmenity` model declared in Prisma schema but yacht amenities are stored as a JSON field on the `Yacht` model instead — model exists but is never queried or populated | OPEN | — | `prisma/schema.prisma` |
-| ZY-L02 | Prisma Schema | LOW | `YachtImage` model declared in Prisma schema but yacht images are stored as a JSON array field on the `Yacht` model instead — model exists but is never queried or populated | OPEN | — | `prisma/schema.prisma` |
-| ZY-L03 | Prisma Schema | LOW | `InquiryPriority` enum declared but CharterInquiry uses a simple string field for priority — enum exists in schema but is not referenced by any model | OPEN | — | `prisma/schema.prisma` |
-| ZY-L04 | Prisma Schema | LOW | `BrokerTier` enum declared but BrokerPartner uses `commissionRate` (Float) for tier differentiation instead — enum exists in schema but is not referenced by any model | OPEN | — | `prisma/schema.prisma` |
-| ZY-L05 | Prisma Schema | LOW | `AmenityCategory` enum declared but no model references it — intended for `YachtAmenity` model which is itself unused (see ZY-L01) | OPEN | — | `prisma/schema.prisma` |
-| ZY-L06 | SEO | LOW | FAQ page uses FAQPage JSON-LD schema which Google deprecated for rich results in August 2023 — however, it remains valid for AI Overview comprehension and does not generate Search Console errors, so it is kept intentionally | OPEN | — | `app/faq/page.tsx` |
+| ZY-L01 | Prisma Schema | LOW | `YachtAmenity` model declared in Prisma schema but yacht amenities are stored as a JSON field on the `Yacht` model instead — model exists but is never queried or populated | FIXED | Already removed from `schema.prisma` in prior cleanup — model no longer exists in schema | `prisma/schema.prisma` |
+| ZY-L02 | Prisma Schema | LOW | `YachtImage` model declared in Prisma schema but yacht images are stored as a JSON array field on the `Yacht` model instead — model exists but is never queried or populated | FIXED | Already removed from `schema.prisma` in prior cleanup — model no longer exists in schema | `prisma/schema.prisma` |
+| ZY-L03 | Prisma Schema | LOW | `InquiryPriority` enum declared but CharterInquiry uses a simple string field for priority — enum exists in schema but is not referenced by any model | FIXED | Already removed from `schema.prisma` in prior cleanup — enum no longer exists in schema | `prisma/schema.prisma` |
+| ZY-L04 | Prisma Schema | LOW | `BrokerTier` enum declared but BrokerPartner uses `commissionRate` (Float) for tier differentiation instead — enum exists in schema but is not referenced by any model | FIXED | Already removed from `schema.prisma` in prior cleanup — enum no longer exists in schema | `prisma/schema.prisma` |
+| ZY-L05 | Prisma Schema | LOW | `AmenityCategory` enum declared but no model references it — intended for `YachtAmenity` model which is itself unused (see ZY-L01) | FIXED | Already removed from `schema.prisma` in prior cleanup — enum no longer exists in schema | `prisma/schema.prisma` |
+| ZY-L06 | SEO | LOW | FAQ page uses FAQPage JSON-LD schema which Google deprecated for rich results in August 2023 — however, it remains valid for AI Overview comprehension and does not generate Search Console errors, so it is kept intentionally | WON'T-FIX | Intentional — FAQPage JSON-LD remains valid schema.org vocabulary and aids AI Overview/AIO comprehension. Comment in code documents the reasoning. No Search Console errors generated. | `app/faq/page.tsx` |
 | ZY-L07 | Responsive Design | LOW | Missing responsive padding adjustments across several public yacht pages — content sits too close to screen edges on tablet-sized viewports (768px-1024px) | FIXED | Added 768px media query breakpoint to `z-container` CSS class: `padding-inline: var(--z-space-8)` (32px) at tablet, `var(--z-space-10)` (40px) at desktop. Also updated `yacht-search-client.tsx` containers from `px-6` to `px-5 md:px-8`. | `app/zenitha-tokens.css`, `app/yachts/yacht-search-client.tsx` |
 | ZY-L08 | Accessibility | LOW | Missing ARIA attributes on some interactive elements — yacht card grids lack `role="list"`, filter dropdowns lack `aria-label`, image galleries lack `aria-roledescription="carousel"` | FIXED | Added `role="list"` + `aria-label` to destination grid and steps grid on homepage, `role="listitem"` on each card. Added `aria-label` to 3 filter `<select>` elements (destination, guests, sort) in yacht search. Added `role="region"` + `aria-roledescription="carousel"` + `aria-label` to yacht gallery grid. | `components/zenitha/zenitha-homepage.tsx`, `app/yachts/yacht-search-client.tsx`, `components/zenitha/yacht-gallery.tsx` |
 

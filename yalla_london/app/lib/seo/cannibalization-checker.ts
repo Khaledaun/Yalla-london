@@ -47,7 +47,8 @@ function normalizeKeyword(kw: string): string {
     .toLowerCase()
     .replace(/\b(the|a|an|in|for|of|to|and|with|by|at|on|is)\b/g, "")
     .replace(/\b20\d{2}\b/g, "")
-    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
+    .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Preserve Arabic Unicode
     .replace(/\s+/g, " ")
     .trim();
 }

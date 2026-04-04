@@ -56,7 +56,8 @@ async function runAudit(prisma: typeof import("@/lib/db").prisma) {
         /\b(comparison|guide|review|complete|ultimate|best|top|the|a|an|for|in|of|and|to)\b/gi,
         ""
       )
-      .replace(/[^a-z0-9\s\u0600-\u06FF]/g, "")
+      .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
+      .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Full Arabic Unicode
       .replace(/\s+/g, " ")
       .trim();
   };

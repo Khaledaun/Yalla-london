@@ -124,6 +124,10 @@ export default function InquiriesPage() {
   const [summary, setSummary] = useState<InquirySummary>({ total: 0, new: 0, inProgress: 0, booked: 0, conversionRate: 0 })
   const [totalPages, setTotalPages] = useState(1)
 
+  // Brokers
+  const [brokers, setBrokers] = useState<{ id: string; companyName: string }[]>([])
+  const [brokerPickerId, setBrokerPickerId] = useState<string | null>(null)
+
   // UI
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -178,7 +182,18 @@ export default function InquiriesPage() {
     }
   }, [siteId, page, statusFilter, search])
 
+  // Fetch broker list for assignment picker
+  const fetchBrokers = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/yachts/brokers?siteId=${encodeURIComponent(siteId)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setBrokers((data.brokers ?? []).map((b: { id: string; companyName: string }) => ({ id: b.id, companyName: b.companyName })))
+    } catch { console.warn('[inquiries] broker fetch failed') }
+  }, [siteId])
+
   useEffect(() => { fetchInquiries() }, [fetchInquiries])
+  useEffect(() => { fetchBrokers() }, [fetchBrokers])
   useEffect(() => { setPage(1) }, [statusFilter, search])
 
   // -----------------------------------------------------------------------
@@ -216,6 +231,35 @@ export default function InquiriesPage() {
       }
     } catch { console.warn('[inquiries] add note failed') }
     finally { setUpdatingId(null) }
+  }
+
+  const assignBroker = async (inquiryId: string, brokerId: string) => {
+    setUpdatingId(inquiryId)
+    try {
+      const broker = brokers.find(b => b.id === brokerId)
+      const res = await fetch(`/api/admin/yachts/inquiries`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: inquiryId, brokerAssigned: brokerId, siteId }),
+      })
+      if (res.ok) {
+        setInquiries(prev => prev.map(inq =>
+          inq.id === inquiryId ? { ...inq, brokerAssigned: brokerId, updatedAt: new Date().toISOString() } : inq
+        ))
+        // Auto-advance to SENT_TO_BROKER if currently NEW/CONTACTED/QUALIFIED
+        const inq = inquiries.find(i => i.id === inquiryId)
+        if (inq && ['NEW', 'CONTACTED', 'QUALIFIED'].includes(inq.status)) {
+          await updateStatus(inquiryId, 'SENT_TO_BROKER')
+        }
+      }
+      setBrokerPickerId(null)
+    } catch { console.warn('[inquiries] broker assignment failed') }
+    finally { setUpdatingId(null) }
+  }
+
+  const getBrokerName = (brokerId: string | null) => {
+    if (!brokerId) return null
+    return brokers.find(b => b.id === brokerId)?.companyName ?? brokerId.slice(0, 8)
   }
 
   // -----------------------------------------------------------------------
@@ -392,6 +436,12 @@ export default function InquiriesPage() {
                           <DollarSign className="h-3.5 w-3.5" style={{ color: '#2D5A3D' }} />
                           {inq.budget ? formatPrice(Number(inq.budget), inq.budgetCurrency) : '--'}
                         </span>
+                        {inq.brokerAssigned && (
+                          <span className="flex items-center gap-1" style={{ fontFamily: 'var(--font-system)', fontSize: 11, color: '#0ea5a2', fontWeight: 600 }}>
+                            <UserPlus className="h-3.5 w-3.5" style={{ color: '#0ea5a2' }} />
+                            {getBrokerName(inq.brokerAssigned)}
+                          </span>
+                        )}
                       </div>
                       <div className="shrink-0">
                         {isExpanded
@@ -516,10 +566,43 @@ export default function InquiriesPage() {
                               <option key={val} value={val}>{statusLabel[val]}</option>
                             ))}
                           </select>
-                          <AdminButton variant="secondary" size="sm">
-                            <UserPlus className="h-3.5 w-3.5" />
-                            Assign Broker
-                          </AdminButton>
+                          {brokerPickerId === inq.id ? (
+                            <select
+                              autoFocus
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) assignBroker(inq.id, e.target.value)
+                              }}
+                              onBlur={() => setBrokerPickerId(null)}
+                              disabled={updatingId === inq.id}
+                              className="rounded-lg px-3 py-1.5 outline-none transition-colors"
+                              style={{
+                                fontFamily: 'var(--font-system)',
+                                fontSize: 11,
+                                border: '1px solid rgba(14,165,162,0.5)',
+                                backgroundColor: '#FFFFFF',
+                                color: '#1C1917',
+                                minWidth: 180,
+                              }}
+                            >
+                              <option value="">Select a broker...</option>
+                              {brokers.map(b => (
+                                <option key={b.id} value={b.id}>{b.companyName}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <AdminButton
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setBrokerPickerId(inq.id)}
+                              disabled={brokers.length === 0}
+                            >
+                              <UserPlus className="h-3.5 w-3.5" />
+                              {inq.brokerAssigned
+                                ? `Broker: ${getBrokerName(inq.brokerAssigned)}`
+                                : brokers.length === 0 ? 'No Brokers' : 'Assign Broker'}
+                            </AdminButton>
+                          )}
                           <span
                             className="ml-auto"
                             style={{

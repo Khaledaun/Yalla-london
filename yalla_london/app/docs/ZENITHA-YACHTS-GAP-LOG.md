@@ -12,11 +12,11 @@
 |----------|-------------|-------|------|
 | CRITICAL | 5 | 5 | 0 |
 | HIGH | 2 | 2 | 0 |
-| MEDIUM | 10 | 5 | 5 |
+| MEDIUM | 10 | 7 | 3 |
 | LOW | 8 | 0 | 8 |
-| **TOTAL** | **25** | **12** | **13** |
+| **TOTAL** | **25** | **14** | **11** |
 
-**Current Posture:** All CRITICAL and HIGH gaps resolved. 13 remaining items are MEDIUM (UX/polish) and LOW (documentation artifacts, minor a11y). None block launch or revenue generation.
+**Current Posture:** All CRITICAL and HIGH gaps resolved. 11 remaining items are MEDIUM (UX/polish) and LOW (documentation artifacts, minor a11y). None block launch or revenue generation.
 
 ---
 
@@ -63,13 +63,13 @@ These are UX polish, feature completeness, and design consistency items. None bl
 | ID | Area | Severity | Description | Status | Fix Applied | File(s) Affected |
 |----|------|----------|-------------|--------|-------------|-----------------|
 | ZY-M01 | Design System | MEDIUM | Yacht admin pages use hardcoded Tailwind color classes (e.g., `bg-blue-600`, `text-gray-700`) instead of Zenitha design tokens (`var(--z-navy)`, `var(--z-gold)`). Creates visual inconsistency between public yacht pages and admin yacht pages | OPEN | — | `app/admin/yachts/*.tsx` (all 8 admin pages) |
-| ZY-M02 | Responsive Design | MEDIUM | Homepage hero section has no `max-width` constraint — on ultra-wide monitors (2560px+), content stretches edge-to-edge without readable line length limits | OPEN | — | `components/zenitha/zenitha-homepage.tsx` |
+| ZY-M02 | Responsive Design | MEDIUM | Homepage hero section has no `max-width` constraint — on ultra-wide monitors (2560px+), content stretches edge-to-edge without readable line length limits | FIXED | Content already constrained at `max-w-[1280px]` with centered `mx-auto`. Background image is full-bleed by design (correct UX for hero sections). Subtitle has `max-w-[600px]` for readable line length. False positive. | `components/zenitha/zenitha-homepage.tsx` |
 | ZY-M03 | Responsive Design | MEDIUM | Destination page grid uses `grid-cols-3` without responsive breakpoints — on mobile devices, 3-column grid forces horizontal scroll or tiny cards instead of stacking to 1-2 columns | FIXED | Already has proper responsive classes (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`) — gap was a false positive from initial audit | `app/destinations/page.tsx` |
 | ZY-M04 | Responsive Design | MEDIUM | Itineraries sticky filter bar overflows on small phones (< 375px width) — filter buttons wrap incorrectly and overlap content | FIXED | Reduced filter `minWidth` from 180px/150px to 140px and added `maxWidth: 100%` on all three `<select>` elements to prevent overflow on phones < 375px wide | `app/itineraries/page.tsx` |
 | ZY-M05 | UX Polish | MEDIUM | Homepage yacht cards missing hover states — no visual feedback (shadow lift, border glow, scale transform) when user hovers over featured yacht cards, reducing perceived interactivity | FIXED | Homepage fleet section redesigned as single CTA card (no individual yacht cards). Yacht search page (`/yachts`) has full hover states (shadow-hover, scale-105, navy overlay). Added scale+shadow hover to How It Works step icons for homepage interactivity. | `components/zenitha/zenitha-homepage.tsx`, `app/yachts/yacht-search-client.tsx` |
 | ZY-M06 | UX Polish | MEDIUM | Navigation items have no active state indicator — current page not visually distinguished in header nav, leaving users without location awareness | FIXED | Added `usePathname()` active state detection. Desktop: aegean underline bar on current page. Mobile: left teal border + sand background. Both include `aria-current="page"` for accessibility. | `components/zenitha/zenitha-header.tsx` |
 | ZY-M07 | Schema Consistency | MEDIUM | Design system field naming inconsistency — some models and APIs use `site` (string) while others use `siteId` (string). Both refer to the same concept but create confusion in API contracts | OPEN | — | Multiple API routes and Prisma models |
-| ZY-M08 | CRM Feature | MEDIUM | Broker assignment UI missing in inquiries CRM — CharterInquiry table has a broker relationship field but the admin inquiries page has no dropdown/selector to assign a broker to an inquiry | OPEN | — | `app/admin/yachts/inquiries/page.tsx` |
+| ZY-M08 | CRM Feature | MEDIUM | Broker assignment UI missing in inquiries CRM — CharterInquiry table has a broker relationship field but the admin inquiries page has no dropdown/selector to assign a broker to an inquiry | FIXED | Added broker fetch from `/api/admin/yachts/brokers`, inline broker picker dropdown replacing dead button, auto-advances status to SENT_TO_BROKER on assignment, shows assigned broker name in summary row | `app/admin/yachts/inquiries/page.tsx` |
 | ZY-M09 | Content | MEDIUM | No content produced yet for yacht site — fleet inventory, destinations, and itineraries need manual seeding or import from external sources (NauSYS, MMK, Charter Index) before the site has meaningful content | FIXED | Added "Seed Fleet" button to yacht admin page (`/admin/yachts`) that calls `POST /api/admin/yachts/seed` with `action: "all"`. Seeds 10 destinations, 50 yachts, 5 itineraries, brokers in correct order. Idempotent (skips existing). Also added 3 seed blog articles (Greek Islands, Turkish Riviera, Croatian Dalmatia). | `app/admin/yachts/page.tsx`, `app/api/admin/yachts/seed/route.ts`, `app/api/admin/seed-article/route.ts` |
 | ZY-M10 | i18n | MEDIUM | Arabic route handling not optimized for yacht site — `/ar/` prefix routing works but yacht-specific content (fleet specs, itinerary descriptions, inquiry forms) has no Arabic translation pipeline or bilingual field population strategy | OPEN | — | `middleware.ts`, yacht page components |
 

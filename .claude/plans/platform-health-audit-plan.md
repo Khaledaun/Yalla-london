@@ -357,13 +357,13 @@ For each phase:
 | Phase | Area | Score | Status | Top Finding |
 |-------|------|-------|--------|-------------|
 | 1 | Multi-Language | 72/100 (B-) | DONE | 1,098+ RTL CSS violations; 4 pages with hreflang mismatch (declare AR, serve EN); Arabic content quality excellent (95/100) |
-| 2 | Content Health | — | PENDING | — |
-| 3 | Affiliate Management | — | PENDING | — |
-| 4 | Design & Production | — | PENDING | — |
-| 5 | Content Diversity | — | PENDING | — |
-| 6 | Social Media | — | PENDING | — |
-| 7 | Content Generation | — | PENDING | — |
-| 8 | Dashboard & Website | — | PENDING | — |
-| 9 | Public UX | — | PENDING | — |
-| 10 | MCP & API Health | — | PENDING | — |
-| — | **EXECUTIVE SUMMARY** | — | PENDING | — |
+| 2 | Content Health | 72/100 (B-) | DONE | Sitemap take:500 truncation risk Q3 2026; GEO citability WARNING-only should be BLOCKER; post-publish enhancement dependency |
+| 3 | Affiliate Management | 78/100 (B+) | DONE | FTC disclosure missing on category pages; CJ circuit breaker opens silently; Travelpayouts injection not tracked |
+| 4 | Design & Production | 66/100 (C+) | DONE | 591 hardcoded hex colors bypass design system; WCAG contrast 48/100; image lazy loading only 4% coverage |
+| 5 | Content Diversity | 78/100 (B+) | DONE | Seasonal content 11% vs 40% optimal; 71% guides (should be 40%); funnel imbalance 43% awareness / 17% decision |
+| 6 | Social Media | 75/100 (B) | DONE | OG/Twitter 100%; social posting not connected; footer social links hardcoded; engagement tracking returns null |
+| 7 | Content Generation | 87/100 (A-) | DONE | 8-phase pipeline excellent; multi-layered recovery; Gemini frozen reduces fallback chain; diagnostic agent 2h delay |
+| 8 | Dashboard & Website | 92/100 (A) | DONE | 10-tab cockpit, 3-wave sequential DB, zero mock data; missing root error.tsx and loading.tsx |
+| 9 | Public UX | 82/100 (A-) | DONE | Clear value proposition; language toggle hard to find; no breadcrumbs; no global error boundary |
+| 10 | MCP & API Health | 78/100 (B+) | DONE | Resend has no circuit breaker; rate limiting per-instance only; no API key rotation; 19/22 services ACTIVE |
+| — | **EXECUTIVE SUMMARY** | **78/100 (B+)** | DONE | See `reports/platform-health-executive-summary-2026-04-04.md` |

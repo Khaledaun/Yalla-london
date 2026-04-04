@@ -36,7 +36,7 @@ async function handleCreate(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { getActiveSiteIds, SITES } = await import("@/config/sites");
+    const { getActiveSiteIds, SITES, isYachtSite } = await import("@/config/sites");
     const activeSites = getActiveSiteIds();
 
     if (activeSites.length === 0) {
@@ -52,6 +52,9 @@ async function handleCreate(request: NextRequest) {
         console.log(`[builder-create] Budget low — processed ${activeSites.indexOf(siteId)} of ${activeSites.length} sites`);
         break;
       }
+
+      // Yacht sites don't use the content pipeline — skip
+      if (isYachtSite(siteId)) { skippedSites.push(`${siteId}(yacht-site)`); continue; }
 
       // Per-site feature flag check — allows disabling content creation for a single site
       const siteFlag = await checkCronEnabled("content-builder-create", siteId);

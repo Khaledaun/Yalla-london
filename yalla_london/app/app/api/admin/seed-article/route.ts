@@ -13,6 +13,8 @@ import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 export const maxDuration = 30;
 
+const YACHT_SITE_ID = "zenitha-yachts-med";
+
 // ---------------------------------------------------------------------------
 // Greenwich Easter 2026 Article Content
 // ---------------------------------------------------------------------------

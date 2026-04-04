@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Pipeline Health Monitor — Throughput & Bottleneck Detection
@@ -21,7 +21,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 import { checkCronEnabled } from "@/lib/cron-feature-guard";
 
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 280_000;
 
 async function handleRequest(request: NextRequest) {
   const cronStart = Date.now();

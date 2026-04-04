@@ -364,6 +364,6 @@ For each phase:
 | 6 | Social Media | 75/100 (B) | DONE | OG/Twitter 100%; social posting not connected; footer social links hardcoded; engagement tracking returns null |
 | 7 | Content Generation | 87/100 (A-) | DONE | 8-phase pipeline excellent; multi-layered recovery; Gemini frozen reduces fallback chain; diagnostic agent 2h delay |
 | 8 | Dashboard & Website | 92/100 (A) | DONE | 10-tab cockpit, 3-wave sequential DB, zero mock data; missing root error.tsx and loading.tsx |
-| 9 | Public UX | 82/100 (A-) | DONE | Clear value proposition; language toggle hard to find; no breadcrumbs; no global error boundary |
+| 9 | Public UX | 68/100 (C+) | DONE | **REVISED**: scroll-lock hero blocks touch 3s; both CTAs hidden on mobile; 25+ sub-10px fonts; raw `<img>` CLS; NewsSideBanner no mobile guard |
 | 10 | MCP & API Health | 78/100 (B+) | DONE | Resend has no circuit breaker; rate limiting per-instance only; no API key rotation; 19/22 services ACTIVE |
 | — | **EXECUTIVE SUMMARY** | **78/100 (B+)** | DONE | See `reports/platform-health-executive-summary-2026-04-04.md` |

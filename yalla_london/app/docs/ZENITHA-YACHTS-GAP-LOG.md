@@ -12,11 +12,11 @@
 |----------|-------------|-------|------|
 | CRITICAL | 5 | 5 | 0 |
 | HIGH | 2 | 2 | 0 |
-| MEDIUM | 10 | 1 | 9 |
+| MEDIUM | 10 | 3 | 7 |
 | LOW | 8 | 0 | 8 |
-| **TOTAL** | **25** | **8** | **17** |
+| **TOTAL** | **25** | **10** | **15** |
 
-**Current Posture:** All CRITICAL and HIGH gaps resolved. 18 remaining items are MEDIUM (UX/polish) and LOW (documentation artifacts, minor a11y). None block launch or revenue generation.
+**Current Posture:** All CRITICAL and HIGH gaps resolved. 15 remaining items are MEDIUM (UX/polish) and LOW (documentation artifacts, minor a11y). None block launch or revenue generation.
 
 ---
 
@@ -64,8 +64,8 @@ These are UX polish, feature completeness, and design consistency items. None bl
 |----|------|----------|-------------|--------|-------------|-----------------|
 | ZY-M01 | Design System | MEDIUM | Yacht admin pages use hardcoded Tailwind color classes (e.g., `bg-blue-600`, `text-gray-700`) instead of Zenitha design tokens (`var(--z-navy)`, `var(--z-gold)`). Creates visual inconsistency between public yacht pages and admin yacht pages | OPEN | — | `app/admin/yachts/*.tsx` (all 8 admin pages) |
 | ZY-M02 | Responsive Design | MEDIUM | Homepage hero section has no `max-width` constraint — on ultra-wide monitors (2560px+), content stretches edge-to-edge without readable line length limits | OPEN | — | `components/zenitha/zenitha-homepage.tsx` |
-| ZY-M03 | Responsive Design | MEDIUM | Destination page grid uses `grid-cols-3` without responsive breakpoints — on mobile devices, 3-column grid forces horizontal scroll or tiny cards instead of stacking to 1-2 columns | OPEN | — | `app/destinations/page.tsx` |
-| ZY-M04 | Responsive Design | MEDIUM | Itineraries sticky filter bar overflows on small phones (< 375px width) — filter buttons wrap incorrectly and overlap content | OPEN | — | `app/itineraries/page.tsx` |
+| ZY-M03 | Responsive Design | MEDIUM | Destination page grid uses `grid-cols-3` without responsive breakpoints — on mobile devices, 3-column grid forces horizontal scroll or tiny cards instead of stacking to 1-2 columns | FIXED | Already has proper responsive classes (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`) — gap was a false positive from initial audit | `app/destinations/page.tsx` |
+| ZY-M04 | Responsive Design | MEDIUM | Itineraries sticky filter bar overflows on small phones (< 375px width) — filter buttons wrap incorrectly and overlap content | FIXED | Reduced filter `minWidth` from 180px/150px to 140px and added `maxWidth: 100%` on all three `<select>` elements to prevent overflow on phones < 375px wide | `app/itineraries/page.tsx` |
 | ZY-M05 | UX Polish | MEDIUM | Homepage yacht cards missing hover states — no visual feedback (shadow lift, border glow, scale transform) when user hovers over featured yacht cards, reducing perceived interactivity | OPEN | — | `components/zenitha/zenitha-homepage.tsx` |
 | ZY-M06 | UX Polish | MEDIUM | Navigation items have no active state indicator — current page not visually distinguished in header nav, leaving users without location awareness | OPEN | — | `components/zenitha/zenitha-header.tsx` |
 | ZY-M07 | Schema Consistency | MEDIUM | Design system field naming inconsistency — some models and APIs use `site` (string) while others use `siteId` (string). Both refer to the same concept but create confusion in API contracts | OPEN | — | Multiple API routes and Prisma models |

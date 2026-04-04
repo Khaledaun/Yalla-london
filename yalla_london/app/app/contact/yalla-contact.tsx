@@ -192,12 +192,12 @@ export default function YallaContactPage({ serverLocale }: { serverLocale?: 'en'
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="name" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Name *</label>
+                    <label htmlFor="name" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Name *</label>
                     <input id="name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} required placeholder="Your full name"
                       className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                   </div>
                   <div>
-                    <label htmlFor="email" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Email *</label>
+                    <label htmlFor="email" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Email *</label>
                     <input id="email" type="email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} required placeholder="your@email.com"
                       className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                   </div>
@@ -205,12 +205,12 @@ export default function YallaContactPage({ serverLocale }: { serverLocale?: 'en'
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="phone" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Phone (Optional)</label>
+                    <label htmlFor="phone" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Phone (Optional)</label>
                     <input id="phone" type="tel" value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="+44 ..."
                       className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                   </div>
                   <div>
-                    <label htmlFor="category" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Category *</label>
+                    <label htmlFor="category" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Category *</label>
                     <select id="category" value={formData.category} onChange={(e) => handleInputChange('category', e.target.value)}
                       className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold">
                       <option value="">Select a category</option>
@@ -220,13 +220,13 @@ export default function YallaContactPage({ serverLocale }: { serverLocale?: 'en'
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Subject *</label>
+                  <label htmlFor="subject" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Subject *</label>
                   <input id="subject" value={formData.subject} onChange={(e) => handleInputChange('subject', e.target.value)} required placeholder="Brief description of your inquiry"
                     className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold" />
                 </div>
 
                 <div>
-                  <label htmlFor="priority" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Priority</label>
+                  <label htmlFor="priority" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Priority</label>
                   <select id="priority" value={formData.priority} onChange={(e) => handleInputChange('priority', e.target.value as 'low' | 'medium' | 'high')}
                     className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body text-sm appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold">
                     <option value="low">Low - General inquiry</option>
@@ -236,7 +236,7 @@ export default function YallaContactPage({ serverLocale }: { serverLocale?: 'en'
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Message *</label>
+                  <label htmlFor="message" className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mb-1.5">Message *</label>
                   <textarea id="message" value={formData.message} onChange={(e) => handleInputChange('message', e.target.value)} required
                     placeholder="Please provide detailed information about your inquiry..." rows={6}
                     className="w-full px-4 py-2.5 border border-yl-gray-200 rounded-[14px] font-body focus:outline-none focus:ring-2 focus:ring-yl-gold/30 focus:border-yl-gold resize-none" />

@@ -251,7 +251,7 @@ export default async function RootLayout({
             (components/integrations/monetization-scripts.tsx) using afterInteractive strategy.
             Uses the exact tp-em.com/NTEwNzc2.js script required for Drive verification. */}
       </head>
-      <body className={`antialiased ${isYachtSite ? 'font-body' : 'font-editorial'}`} suppressHydrationWarning>
+      <body className={`antialiased pb-16 lg:pb-0 ${isYachtSite ? 'font-body' : 'font-editorial'}`} suppressHydrationWarning>
         <NextAuthSessionProvider>
           <BrandThemeProvider>
             <ThemeProvider

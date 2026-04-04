@@ -133,7 +133,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div className="flex items-center gap-4 text-center md:text-left">
-            <p className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase">
+            <p className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase">
               © 2025–2026 Zenitha.Luxury LLC. All rights reserved.
             </p>
             {/* Arabic brand name on the right */}
@@ -148,14 +148,14 @@ export function Footer() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
+                className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
               >
                 {language === 'en' ? link.en : link.ar}
               </Link>
             ))}
             <a
               href={`mailto:${ENTITY.contact.legalEmail}`}
-              className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
+              className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase hover:text-yl-gold transition-colors duration-300 ease-yl"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}
             </a>

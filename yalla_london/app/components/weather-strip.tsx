@@ -88,7 +88,7 @@ export function WeatherStrip({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
           {/* Label */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Cloud className="w-4 h-4 text-[#87CEEB]" />
-            <span className="font-mono text-[9px] font-bold text-white/70 uppercase tracking-[2px] whitespace-nowrap">
+            <span className="font-mono text-[11px] font-bold text-white/70 uppercase tracking-[2px] whitespace-nowrap">
               {isRTL ? 'طقس لندن' : 'London Weather'}
             </span>
           </div>
@@ -106,7 +106,7 @@ export function WeatherStrip({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
                   }`}
                 >
                   <div className="text-center min-w-[28px]">
-                    <div className="font-mono text-[9px] font-semibold text-white/60 uppercase">
+                    <div className="font-mono text-[11px] font-semibold text-white/60 uppercase">
                       {i === 0 ? (isRTL ? 'اليوم' : 'Today') : day.dayName}
                     </div>
                   </div>

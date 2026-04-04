@@ -29,6 +29,7 @@ export function DynamicHeader() {
   };
 
   return (
+    <>
     <header className="fixed top-0 left-0 right-0 z-50">
       {/* V2 Tri-color bar — fixed at z-101 */}
       <TriBar className="relative z-[101]" />
@@ -202,5 +203,30 @@ export function DynamicHeader() {
         </div>
       </div>
     </header>
+
+      {/* Mobile bottom CTA bar — persistent Shop + Book Now visible on mobile */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-yl-dark-navy/95 backdrop-blur-xl border-t border-white/10 safe-area-bottom">
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <Link
+            href="/shop"
+            className={`flex items-center justify-center gap-2 flex-1 px-3 py-2.5 border border-white/20 text-yl-parchment rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-white/5 hover:border-yl-gold/40 ${
+              isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            {language === 'en' ? 'Shop' : 'متجر'}
+          </Link>
+          <Link
+            href="/experiences"
+            className={`flex items-center justify-center gap-2 flex-1 px-3 py-2.5 bg-yl-red text-white rounded-lg font-mono text-[11px] font-semibold uppercase transition-all duration-300 ease-yl hover:bg-[#a82924] ${
+              isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-wider'
+            }`}
+          >
+            <Ticket className="w-4 h-4" />
+            {language === 'en' ? 'Book Now' : 'احجز الآن'}
+          </Link>
+        </div>
+      </div>
+    </>
   );
 }

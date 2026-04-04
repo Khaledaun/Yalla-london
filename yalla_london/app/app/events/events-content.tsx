@@ -243,11 +243,11 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
               : "احجز تذاكر مميزة لأفضل تجارب لندن"}
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
-            <span className="font-mono text-[10px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
+            <span className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
               <Ticket className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
               {language === "en" ? "Verified Tickets" : "تذاكر معتمدة"}
             </span>
-            <span className="font-mono text-[10px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
+            <span className="font-mono text-[11px] tracking-wider uppercase px-4 py-2 bg-white/10 rounded-full">
               <Star className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
               {language === "en" ? "VIP Packages" : "باقات VIP"}
             </span>
@@ -289,7 +289,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`font-mono text-[10px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
+                  className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
                     selectedCategory === cat
                       ? "bg-yl-dark-navy text-yl-parchment"
                       : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
@@ -304,7 +304,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
               ))}
               <button
                 onClick={() => setShowVipOnly(!showVipOnly)}
-                className={`font-mono text-[10px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
+                className={`font-mono text-[11px] tracking-wider uppercase px-4 py-2 rounded-full transition-colors ${
                   showVipOnly ? "bg-yl-gold text-yl-charcoal" : "bg-yl-gray-100 text-yl-charcoal hover:bg-yl-gray-200"
                 }`}
               >
@@ -424,7 +424,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                     </div>
                     {event.ticketProvider && (
                       <div className="mb-4">
-                        <span className="font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
+                        <span className="font-mono text-[11px] tracking-wider uppercase text-yl-gray-500">
                           <Ticket className="h-3 w-3 inline mr-1 -mt-0.5" />
                           {language === "en" ? "via" : "عبر"}{" "}
                           {event.ticketProvider}
@@ -508,7 +508,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                   className="text-center px-6 py-4 rounded-[14px] border border-yl-gray-200 hover:border-yl-gold/30 hover:bg-yl-cream transition-all"
                 >
                   <span className="font-semibold text-yl-gray-500">{partner}</span>
-                  <span className="block font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mt-1">
+                  <span className="block font-mono text-[11px] tracking-wider uppercase text-yl-gray-500 mt-1">
                     {language === "en" ? "Verified Partner" : "شريك معتمد"}
                   </span>
                 </div>

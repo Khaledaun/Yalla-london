@@ -463,7 +463,7 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-all duration-300 ease-yl ${
+                className={`px-4 py-2 rounded-full font-mono text-[11px] tracking-wider uppercase whitespace-nowrap transition-all duration-300 ease-yl ${
                   selectedCategory === cat
                     ? 'bg-yl-dark-navy text-yl-parchment'
                     : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200 hover:text-yl-charcoal'
@@ -490,14 +490,14 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
                 )}
                 <div className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} bg-white/90 backdrop-blur rounded-full px-2.5 py-1 flex items-center gap-1`}>
                   <Star className="w-3 h-3 text-yl-gold fill-yl-gold" />
-                  <span className="font-mono text-[10px] font-bold text-yl-charcoal tracking-wider">{exp.rating}</span>
+                  <span className="font-mono text-[11px] font-bold text-yl-charcoal tracking-wider">{exp.rating}</span>
                 </div>
               </div>
               <div className="p-5">
-                <span className="font-mono text-[9px] font-semibold text-yl-red uppercase tracking-wider">{exp.category}</span>
+                <span className="font-mono text-[11px] font-semibold text-yl-red uppercase tracking-wider">{exp.category}</span>
                 <h3 className={`font-heading font-bold text-yl-charcoal mt-1 mb-2 line-clamp-2 group-hover:text-yl-red transition-colors duration-300 ease-yl ${isRTL ? 'font-arabic' : ''}`}>{exp.title}</h3>
                 <p className="font-body text-sm text-yl-gray-500 mb-3 line-clamp-2 leading-relaxed">{exp.description}</p>
-                <div className="flex items-center gap-4 font-mono text-[10px] text-yl-gray-500 tracking-wider mb-4">
+                <div className="flex items-center gap-4 font-mono text-[11px] text-yl-gray-500 tracking-wider mb-4">
                   <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-yl-gold" /> {exp.location}</span>
                   <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-yl-gold" /> {exp.duration}</span>
                 </div>
@@ -507,7 +507,7 @@ export default function ExperiencesPage({ serverLocale }: { serverLocale?: 'en' 
                       <span className="text-lg font-heading font-bold text-green-600">{t.free}</span>
                     ) : (
                       <>
-                        <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase">{t.from} </span>
+                        <span className="font-mono text-[11px] text-yl-gray-500 tracking-wider uppercase">{t.from} </span>
                         <span className="text-lg font-heading font-bold text-yl-charcoal">£{exp.price}</span>
                       </>
                     )}

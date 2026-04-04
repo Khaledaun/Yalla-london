@@ -580,7 +580,8 @@ function isValidAffiliateUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "https:" || parsed.protocol === "http:";
-  } catch {
+  } catch (err) {
+    console.warn(`[affiliate-injection] Invalid affiliate URL: "${url}" — ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }

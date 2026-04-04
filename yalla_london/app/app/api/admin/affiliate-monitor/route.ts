@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
           { content_en: { contains: 'rel="sponsored' } },
           { content_en: { contains: "affiliate-recommendation" } },
           { content_en: { contains: "/api/affiliate/click" } },
+          { content_en: { contains: "data-affiliate-id" } },
         ],
       },
     });

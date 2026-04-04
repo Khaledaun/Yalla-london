@@ -1000,7 +1000,9 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     const normalizeTitle = (t: string) => t.toLowerCase()
       .replace(/\b20\d{2}\b/g, '')
       .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
-      .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+      .replace(/\bv\d+\b/gi, '') // Strip version suffixes (v2, v3, etc.)
+      .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, '') // Preserve Arabic Unicode
+      .replace(/\s+/g, ' ').trim();
 
     for (const sid of getActiveSiteIds()) {
       const published = await prisma.blogPost.findMany({

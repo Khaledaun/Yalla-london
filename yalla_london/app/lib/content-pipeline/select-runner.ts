@@ -1020,7 +1020,9 @@ export async function promoteToBlogPost(
   const normalizeForDedup = (t: string) => t.toLowerCase()
     .replace(/\b20\d{2}\b/g, '')
     .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
-    .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    .replace(/\bv\d+\b/gi, '') // Strip version suffixes (v2, v3, etc.)
+    .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, '') // Preserve Arabic Unicode
+    .replace(/\s+/g, ' ').trim();
 
   const candidateTitle = (enTitle || "").trim();
   if (candidateTitle.length > 5) {
@@ -1284,12 +1286,27 @@ export async function promoteToBlogPost(
         // creates an infinite loop. Once attempts >= MAX_ENHANCEMENT_ATTEMPTS, the draft is
         // excluded from force-publish selection (see candidate filtering below).
         const currentAttempts = (draft.phase_attempts as number) || 0;
+        const GATE_REJECTION_THRESHOLD = 5; // Permanently reject after 5 gate-blocked attempts (Rule #114)
+        if (currentAttempts + 1 >= GATE_REJECTION_THRESHOLD) {
+          // Permanently reject — this draft will never pass the gate (e.g., permanently under word count)
+          console.warn(`[content-selector] REJECTING draft ${draft.id} after ${currentAttempts + 1} gate failures — will never pass. Keyword: "${draft.keyword}", blockers: ${gateResult.blockers.join("; ")}`);
+          await prisma.articleDraft.update({
+            where: { id: draft.id as string },
+            data: {
+              current_phase: "rejected",
+              phase_attempts: currentAttempts + 1,
+              last_error: `PERMANENTLY REJECTED after ${currentAttempts + 1} gate failures: ${gateResult.blockers.join("; ")}`,
+              updated_at: new Date(),
+            },
+          }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+          return null;
+        }
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
             current_phase: "reservoir",
             phase_attempts: currentAttempts + 1,
-            last_error: `Pre-pub gate blocked (attempt ${currentAttempts + 1}): ${gateResult.blockers.join("; ")}`,
+            last_error: `Pre-pub gate blocked (attempt ${currentAttempts + 1}/${GATE_REJECTION_THRESHOLD}): ${gateResult.blockers.join("; ")}`,
             updated_at: new Date(),
           },
         }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));

@@ -33,8 +33,10 @@ import { onCronFailure } from "@/lib/ops/failure-hooks";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
 
+import { SEO_DEEP_REVIEW_PER_ARTICLE_MS } from "@/lib/content-pipeline/constants";
+
 const TOTAL_BUDGET_MS = 280_000; // 280s budget, 20s buffer for Vercel 300s limit
-const PER_ARTICLE_BUDGET_MS = 25_000; // 25s per article — non-AI fixes 10-12s + AI content_expansion 10-12s. ~11 articles per run.
+const PER_ARTICLE_BUDGET_MS = SEO_DEEP_REVIEW_PER_ARTICLE_MS; // imported from constants.ts — single source of truth
 const RECENT_CUTOFF_MS = 26 * 60 * 60 * 1000; // 26h — catches articles published since last run
 const OLDER_CUTOFF_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — catches older under-optimized articles
 
@@ -110,7 +112,8 @@ export async function GET(request: NextRequest) {
         take: 5, // Cap to preserve budget for recent articles
       });
 
-      // Also find articles with short content (< 1000 words)
+      // Also find articles with short content (< 1000 words) for AI expansion
+      // Note: standards.ts minWords=500 is the publication blocker; 1000 is the expansion target
       if (underOptimized.length < 5) {
         const shortContent = await prisma.blogPost.findMany({
           where: {

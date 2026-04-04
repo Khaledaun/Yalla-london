@@ -13,8 +13,8 @@
  */
 
 // ─── Last verified against Google docs ──────────────────────────────────────
-export const STANDARDS_VERSION = "2026-03-10";
-export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + December 2025 Core Update + January 2026 Core Update (Authenticity) + Princeton GEO Research (arXiv:2311.09735) + GEO Best Practices 2026";
+export const STANDARDS_VERSION = "2026-04-04";
+export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + December 2025 Core Update + January 2026 Core Update (Authenticity) + March 2026 Core Update + Princeton GEO Research (arXiv:2311.09735) + GEO Best Practices 2026";
 const STALENESS_THRESHOLD_DAYS = 30;
 
 /**

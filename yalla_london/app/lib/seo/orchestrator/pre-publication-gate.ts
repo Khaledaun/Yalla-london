@@ -1,5 +1,5 @@
 /**
- * Pre-Publication Gate — 20+ checks, fail-closed
+ * Pre-Publication Gate — 17 checks, fail-closed
  *
  * A safety gate that runs BEFORE content is published to verify the
  * target URL will actually work. This prevents the system from publishing

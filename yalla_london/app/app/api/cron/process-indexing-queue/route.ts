@@ -103,6 +103,7 @@ async function handleProcessQueue(request: NextRequest) {
             submitted_indexnow: false,
             submitted_google_api: false,
             submitted_sitemap: false,
+            submission_attempts: { lt: 15 }, // Skip chronic failures (15+ attempts) — wastes crawl budget
           },
           select: { url: true, id: true },
           take: 250, // Raised from 100 to clear 198-page backlog faster
@@ -186,7 +187,7 @@ async function handleProcessQueue(request: NextRequest) {
             const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
             const indexNowKey = process.env.INDEXNOW_KEY;
             if (indexNowKey) {
-              // Cap at 50 per site per run to avoid timeout
+              // Cap at 100 per site per run to clear backlog while staying within budget
               const batch = standardUrls.slice(0, 100);
               const inResults = await submitToIndexNow(batch, siteUrl, indexNowKey);
               const success = inResults.some((r) => r.success);

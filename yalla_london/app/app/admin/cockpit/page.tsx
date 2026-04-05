@@ -34,6 +34,7 @@ import {
   useConfirm,
 } from "@/components/admin/admin-ui";
 import { MissionControl } from "./components/mission-control";
+import { ArticleDetailDrawer } from "./components/article-detail-drawer";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 
@@ -2461,11 +2462,57 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   // ─── Phase 1A: Type/Locale filters, Sort, Bulk selection ──────────────
   const [typeFilter, setTypeFilter] = useState<"all" | "blog" | "news" | "information" | "guide">("all");
   const [localeFilter, setLocaleFilter] = useState<"all" | "en" | "ar">("all");
+  const [dateRange, setDateRange] = useState<"all" | "today" | "7d" | "30d">("all");
   const [sortCol, setSortCol] = useState<"title" | "date" | "words" | "seo" | "status" | "clicks">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState<string | null>(null);
   const [cronResponsePanel, setCronResponsePanel] = useState<{ label: string; data: Record<string, unknown> } | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(50);
+
+  // ─── Article Detail Drawer state ────────────────────────────────────
+  const [detailArticle, setDetailArticle] = useState<ContentItem | null>(null);
+
+  // ─── Quick Edit modal state ───────────────────────────────────────────
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editMetaDesc, setEditMetaDesc] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editResult, setEditResult] = useState<string | null>(null);
+
+  const openQuickEdit = (item: ContentItem) => {
+    setEditingItem(item);
+    setEditTitle(item.title || "");
+    setEditMetaDesc(item.metaDescriptionEn || "");
+    setEditResult(null);
+  };
+
+  const saveQuickEdit = async () => {
+    if (!editingItem) return;
+    setEditSaving(true);
+    setEditResult(null);
+    try {
+      const endpoint = editingItem.type === "published"
+        ? `/api/admin/blog-posts/${editingItem.id}`
+        : "/api/admin/content-matrix";
+      const body = editingItem.type === "published"
+        ? { title_en: editTitle, meta_description_en: editMetaDesc }
+        : { action: "update_draft", draftId: editingItem.id, title: editTitle, metaDescription: editMetaDesc };
+      const res = await fetch(endpoint, {
+        method: editingItem.type === "published" ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setEditResult("Saved!");
+      fetchData();
+      setTimeout(() => setEditingItem(null), 800);
+    } catch (e) {
+      setEditResult(`Error: ${e instanceof Error ? e.message : "Failed"}`);
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   // ─── Photo Order state ────────────────────────────────────────────────────
   const [photoOrderOpen, setPhotoOrderOpen] = useState<Record<string, boolean>>({});
@@ -2521,7 +2568,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/admin/content-matrix?siteId=${activeSiteId}&limit=100`);
+      const res = await fetch(`/api/admin/content-matrix?siteId=${activeSiteId}&limit=500`);
       if (!res.ok) throw new Error(`API error: HTTP ${res.status}`);
       const json = await res.json();
       if (json.articles) {
@@ -2699,6 +2746,19 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     if (typeFilter !== "all" && detectArticleType(a) !== typeFilter) return false;
     if (localeFilter !== "all" && a.locale !== localeFilter) return false;
     if (search && !a.title.toLowerCase().includes(search.toLowerCase())) return false;
+    // Date range filter
+    if (dateRange !== "all") {
+      const itemDate = new Date(a.publishedAt || a.generatedAt || "");
+      const now = new Date();
+      if (dateRange === "today") {
+        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+        if (itemDate < todayStart) return false;
+      } else if (dateRange === "7d") {
+        if (now.getTime() - itemDate.getTime() > 7 * 24 * 60 * 60 * 1000) return false;
+      } else if (dateRange === "30d") {
+        if (now.getTime() - itemDate.getTime() > 30 * 24 * 60 * 60 * 1000) return false;
+      }
+    }
     return true;
   }).sort((a, b) => {
     const dir = sortDir === "asc" ? 1 : -1;
@@ -3102,10 +3162,80 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     {l === "all" ? "All" : l.toUpperCase()}
                   </button>
                 ))}
+                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider ml-2">Date:</span>
+                {(["all", "today", "7d", "30d"] as const).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDateRange(d)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      dateRange === d ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                    }`}
+                  >
+                    {d === "all" ? "All" : d === "today" ? "Today" : d === "7d" ? "7 Days" : "30 Days"}
+                  </button>
+                ))}
                 {selectedIds.size > 0 && (
                   <span className="ml-auto text-xs text-[#3B7EA1] font-medium">{selectedIds.size} selected</span>
                 )}
               </div>
+
+              {/* Quick Edit Modal */}
+              {editingItem && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setEditingItem(null)}>
+                  <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg p-5 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, color: '#1C1917' }}>Quick Edit</h3>
+                        <p className="text-stone-400 text-xs mt-0.5 truncate max-w-[280px]">{editingItem.slug}</p>
+                      </div>
+                      <button onClick={() => setEditingItem(null)} className="text-stone-400 hover:text-stone-600 text-lg">✕</button>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-stone-500 block mb-1">Title</label>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-[#3B7EA1]"
+                      />
+                      <p className="text-right text-[10px] text-stone-400 mt-0.5">{editTitle.length} chars</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-stone-500 block mb-1">Meta Description</label>
+                      <textarea
+                        value={editMetaDesc}
+                        onChange={(e) => setEditMetaDesc(e.target.value)}
+                        rows={3}
+                        className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-[#3B7EA1]"
+                      />
+                      <p className={`text-right text-[10px] mt-0.5 ${editMetaDesc.length > 160 ? "text-[#C8322B]" : editMetaDesc.length < 120 ? "text-[#C49A2A]" : "text-[#2D5A3D]"}`}>
+                        {editMetaDesc.length}/160 chars
+                      </p>
+                    </div>
+                    {editResult && (
+                      <p className={`text-xs font-medium ${editResult.startsWith("Saved") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{editResult}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveQuickEdit}
+                        disabled={editSaving}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97] disabled:opacity-50"
+                        style={{ backgroundColor: '#3B7EA1' }}
+                      >
+                        {editSaving ? "Saving…" : "Save Changes"}
+                      </button>
+                      {editingItem.type === "published" && (
+                        <a
+                          href={`/admin/articles/edit/${editingItem.id}`}
+                          className="py-2.5 px-4 rounded-xl text-sm font-semibold text-[#3B7EA1] border border-[#3B7EA1] transition-all active:scale-[0.97] text-center"
+                        >
+                          Full Editor
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Content table */}
               {filtered.length === 0 ? (
@@ -3132,7 +3262,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {filtered.map((item) => {
+                        {filtered.slice(0, displayLimit).map((item) => {
                           const badge = statusBadge(item.status);
                           const isExpanded = expandedId === item.id;
                           const checks = gateResults[item.id];
@@ -3145,9 +3275,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               </td>
                               {/* Page name */}
                               <td className="px-3 py-2.5">
-                                <p className="text-stone-800 font-medium truncate max-w-[280px]" title={item.title}>
+                                <button
+                                  onClick={() => setDetailArticle(item)}
+                                  className="text-stone-800 font-medium truncate max-w-[280px] text-left hover:text-[#3B7EA1] transition-colors cursor-pointer block"
+                                  title={`${item.title} — tap for details`}
+                                >
                                   {item.title || item.slug || item.id}
-                                </p>
+                                </button>
                                 {item.url && (
                                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#3B7EA1] hover:underline truncate block max-w-[280px] text-[10px]">
                                     {item.url}
@@ -3291,6 +3425,14 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                           Retry
                                         </ActionButton>
                                       )}
+                                      {item.status === "reservoir" && (
+                                        <button
+                                          onClick={() => openQuickEdit(item)}
+                                          className="px-1.5 py-0.5 rounded bg-[#3B7EA1]/10 hover:bg-[#3B7EA1]/20 text-[#3B7EA1] border border-[#3B7EA1]/30 whitespace-nowrap"
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   {item.type === "published" && (
@@ -3301,6 +3443,12 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                           View
                                         </a>
                                       )}
+                                      <button
+                                        onClick={() => openQuickEdit(item)}
+                                        className="px-1.5 py-0.5 rounded bg-[#3B7EA1]/10 hover:bg-[#3B7EA1]/20 text-[#3B7EA1] border border-[#3B7EA1]/30 whitespace-nowrap"
+                                      >
+                                        Edit
+                                      </button>
                                       <ActionButton
                                         onClick={async () => {
                                           if (!item.slug) { setActionResult((prev) => ({ ...prev, [item.id]: "❌ No slug" })); return; }
@@ -3437,6 +3585,20 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       </tbody>
                     </table>
                   </div>
+                  {/* Pagination: show count + Load More */}
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-stone-200/50">
+                    <span className="text-[10px] text-stone-400">
+                      Showing {Math.min(displayLimit, filtered.length)} of {filtered.length} articles
+                    </span>
+                    {filtered.length > displayLimit && (
+                      <button
+                        onClick={() => setDisplayLimit(prev => prev + 50)}
+                        className="px-3 py-1 rounded-lg text-xs font-medium bg-[#3B7EA1] text-white hover:bg-[#2D6B8E] transition-colors"
+                      >
+                        Load More ({filtered.length - displayLimit} remaining)
+                      </button>
+                    )}
+                  </div>
                 </Card>
               )}
 
@@ -3481,6 +3643,16 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
             </>
           )}
         </>
+      )}
+      {/* Article Detail Drawer */}
+      {detailArticle && (
+        <ArticleDetailDrawer
+          article={detailArticle}
+          onClose={() => setDetailArticle(null)}
+          onAction={doAction}
+          onRefresh={fetchData}
+          siteId={activeSiteId}
+        />
       )}
       <ConfirmDialog />
     </div>
@@ -8779,7 +8951,7 @@ function CockpitPage() {
       {/* Content */}
       <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20" style={{ backgroundColor: '#0F1419' }}>
         {activeTab === "hq" && (
-          <MissionControl />
+          <MissionControl siteId={activeSiteId} />
         )}
         {activeTab === "mission" && (
           <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />

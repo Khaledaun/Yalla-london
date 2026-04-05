@@ -69,7 +69,7 @@ interface CockpitData {
   }>;
 }
 
-export function MissionControl() {
+export function MissionControl({ siteId }: { siteId?: string }) {
   const [data, setData] = useState<CockpitData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,10 @@ export function MissionControl() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/cockpit");
+      const url = siteId && siteId !== "all"
+        ? `/api/admin/cockpit?siteId=${encodeURIComponent(siteId)}`
+        : "/api/admin/cockpit";
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setData(json);
@@ -88,7 +91,7 @@ export function MissionControl() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [siteId]);
 
   useEffect(() => {
     fetchData();

@@ -8779,7 +8779,7 @@ function CockpitPage() {
       {/* Content */}
       <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20" style={{ backgroundColor: '#0F1419' }}>
         {activeTab === "hq" && (
-          <MissionControl />
+          <MissionControl siteId={activeSiteId} />
         )}
         {activeTab === "mission" && (
           <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />

@@ -132,6 +132,26 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     }
 
     // ── Batch mode: pick best reservoir articles by score ────────────────────
+    // Track published titles within this batch to prevent duplicates even when skipDedup=true
+    const publishedTitlesThisBatch = new Set<string>();
+    const normalizeTitle = (t: string) => t.toLowerCase()
+      .replace(/\b20\d{2}\b/g, "")
+      .replace(/\b(comparison|guide|review|complete|ultimate|best|top|london|luxury|halal)\b/gi, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // Also fetch existing published titles to prevent cross-run duplicates
+    const existingPosts = await prisma.blogPost.findMany({
+      where: { siteId, published: true },
+      select: { title_en: true },
+      orderBy: { created_at: "desc" },
+      take: 200,
+    });
+    for (const p of existingPosts) {
+      if (p.title_en) publishedTitlesThisBatch.add(normalizeTitle(p.title_en));
+    }
+
     for (const lang of localesToProcess) {
       log(`[force-publish] Looking for top ${count} ${lang.toUpperCase()} reservoir articles...`);
 
@@ -152,6 +172,15 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
       for (const draft of candidates) {
         if (published_this_locale >= count) break;
+
+        // Within-batch dedup: never publish the same normalized title twice
+        const draftTitle = (draft.keyword as string) || "";
+        const normalizedDraftTitle = normalizeTitle(draftTitle);
+        if (normalizedDraftTitle && publishedTitlesThisBatch.has(normalizedDraftTitle)) {
+          log(`[force-publish] SKIPPING "${draftTitle}" — duplicate of already-published title`);
+          skipped.push({ draftId: draft.id, keyword: draftTitle, reason: "Duplicate title (already published or in this batch)", locale: lang });
+          continue;
+        }
 
         const draftId = draft.id;
         const keyword = draft.keyword as string || "unknown";
@@ -195,6 +224,8 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           if (result) {
             published.push({ ...result, locale: lang });
             published_this_locale++;
+            // Track title to prevent duplicate in same batch
+            if (normalizedDraftTitle) publishedTitlesThisBatch.add(normalizedDraftTitle);
             log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
             // Track URL for indexing (fire-and-forget)
             try {

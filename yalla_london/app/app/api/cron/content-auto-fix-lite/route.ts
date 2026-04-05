@@ -492,6 +492,22 @@ async function handleAutoFixLite(request: NextRequest) {
         // NewsItem table may not exist — proceed with blog posts only
       }
 
+      // Also check static pages (faq, glossary, editorial-policy, etc.)
+      // These are hardcoded page.tsx files that never appear in DB queries above.
+      try {
+        const { getStaticPageUrls } = await import("@/lib/seo/indexing-service");
+        for (const sid of activeSiteIds) {
+          const domain = getSiteDomain(sid);
+          const staticUrls = getStaticPageUrls(domain, sid);
+          for (const url of staticUrls) {
+            const slug = url.replace(/^https?:\/\/[^/]+\/?/, "") || "/";
+            postUrls.push({ url, siteId: sid, slug });
+          }
+        }
+      } catch {
+        // Non-critical — static page tracking is best-effort
+      }
+
       // Batch-check which URLs are already tracked (1 query instead of N)
       const existingUrls = await withPoolRetry(async () => prisma.uRLIndexingStatus.findMany({
         where: { url: { in: postUrls.map((p) => p.url) } },

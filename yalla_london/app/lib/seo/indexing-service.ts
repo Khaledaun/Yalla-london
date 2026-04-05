@@ -1227,6 +1227,36 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
   return urls;
 }
 
+/**
+ * Returns URLs for ALL static pages that should be indexed.
+ * These pages are not in the DB — they are hardcoded page.tsx files.
+ * Without this, static pages like /faq, /glossary, /editorial-policy
+ * are NEVER submitted to IndexNow because getNewUrls() only finds
+ * recently created DB records.
+ *
+ * Called by seo-agent to ensure static pages get tracked in URLIndexingStatus.
+ */
+export function getStaticPageUrls(baseUrl: string, siteId: string): string[] {
+  const isYacht = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
+
+  if (isYacht) {
+    return [
+      "/fleet", "/yachts", "/destinations", "/itineraries",
+      "/charter-planner", "/inquiry", "/how-it-works", "/faq",
+      "/about", "/contact", "/blog", "/glossary", "/halal-charter",
+    ].map(p => `${baseUrl}${p}`);
+  }
+
+  return [
+    "/blog", "/recommendations", "/hotels", "/experiences", "/events", "/news",
+    "/halal-restaurants-london", "/luxury-hotels-london", "/london-with-kids",
+    "/london-by-foot", "/faq", "/glossary", "/halal-charter",
+    "/destinations", "/itineraries", "/journal", "/information", "/shop",
+    "/tools", "/how-it-works", "/team", "/editorial-policy",
+    "/affiliate-disclosure", "/about", "/contact",
+  ].map(p => `${baseUrl}${p}`);
+}
+
 export async function getUpdatedUrls(
   withinDays: number = 7,
   siteId?: string,

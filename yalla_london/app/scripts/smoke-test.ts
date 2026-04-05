@@ -1686,6 +1686,54 @@ test("SEO Infrastructure", "Dev/internal pages have noindex in metadata", () => 
     : { status: FAIL, details: issues.join("; ") };
 });
 
+test("SEO Infrastructure", "Sitemap cache includes same static pages as fallback", () => {
+  const cacheFile = "lib/sitemap-cache.ts";
+  const sitemapFile = "app/sitemap.ts";
+  if (!fileExists(cacheFile) || !fileExists(sitemapFile)) return { status: FAIL, details: "Missing sitemap files" };
+  const cacheContent = fs.readFileSync(path.join(APP_DIR, cacheFile), "utf-8");
+  const sitemapContent = fs.readFileSync(path.join(APP_DIR, sitemapFile), "utf-8");
+  // Check key pages that must be in BOTH
+  const requiredPaths = ["/faq", "/glossary", "/halal-charter", "/editorial-policy", "/team"];
+  const missingFromCache = requiredPaths.filter(p => !cacheContent.includes(`"${p}"`));
+  const missingFromFallback = requiredPaths.filter(p => !sitemapContent.includes(`"${p}"`));
+  const issues: string[] = [];
+  if (missingFromCache.length > 0) issues.push(`Cache missing: ${missingFromCache.join(", ")}`);
+  if (missingFromFallback.length > 0) issues.push(`Fallback missing: ${missingFromFallback.join(", ")}`);
+  return issues.length === 0
+    ? { status: PASS, details: "Sitemap cache and fallback have same static pages" }
+    : { status: FAIL, details: issues.join("; ") };
+});
+
+test("SEO Infrastructure", "getStaticPageUrls exists for IndexNow static page submission", () => {
+  const file = "lib/seo/indexing-service.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "indexing-service.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
+  const hasFunc = content.includes("export function getStaticPageUrls");
+  const hasFaq = content.includes("/faq");
+  const hasEditorial = content.includes("/editorial-policy");
+  return hasFunc && hasFaq && hasEditorial
+    ? { status: PASS, details: "getStaticPageUrls includes static pages for IndexNow submission" }
+    : { status: FAIL, details: `hasFunc=${hasFunc} hasFaq=${hasFaq} hasEditorial=${hasEditorial}` };
+});
+
+test("SEO Infrastructure", "seo-agent discovers static pages for IndexNow", () => {
+  const file = "app/api/cron/seo-agent/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "seo-agent route missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
+  return content.includes("getStaticPageUrls")
+    ? { status: PASS, details: "seo-agent calls getStaticPageUrls for static page discovery" }
+    : { status: FAIL, details: "seo-agent only discovers blog posts — static pages never submitted to IndexNow" };
+});
+
+test("SEO Infrastructure", "content-auto-fix-lite tracks static pages in never-submitted catchup", () => {
+  const file = "app/api/cron/content-auto-fix-lite/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "content-auto-fix-lite route missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
+  return content.includes("getStaticPageUrls")
+    ? { status: PASS, details: "content-auto-fix-lite includes static pages in never-submitted scan" }
+    : { status: FAIL, details: "content-auto-fix-lite only scans blog posts/news — static pages never tracked" };
+});
+
 test("SEO Infrastructure", "Privacy and terms pages in sitemap with yearly frequency", () => {
   const sitemapFile = "app/sitemap.ts";
   if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };

@@ -7,6 +7,41 @@
 
 ---
 
+## Multi-Site Design Principle (MANDATORY — applies to ALL features)
+
+Every component, API call, and data display in Plan A MUST be multi-site from day one. This is NOT optional — Plan B's Tube Map gives each site its own branded map, and Plan A builds the foundation.
+
+### Rules for every component:
+1. **Accept `siteId` as a required prop** — never hardcode or assume a site
+2. **Pass `siteId` to every API fetch** — `?siteId=${siteId}` on every GET
+3. **Include `siteId` in every mutation** — POST/PUT/DELETE bodies include it
+4. **Load brand colors from `getBrandProfile(siteId)`** — accent colors, not hardcoded
+5. **Show site name in headers** — "Content — Yalla London" not just "Content"
+6. **Filter chips/views are per-site** — "Not Indexed" shows only that site's articles
+7. **Calendar shows per-site content** — never mix articles from different sites
+8. **Kanban board is per-site** — each site's pipeline is independent
+9. **Operations feed filtered by site** — only that site's cron activity
+10. **Zero cross-site data leakage** — switching sites resets all state cleanly
+
+### Component signature pattern:
+```typescript
+interface ContentTabProps {
+  siteId: string;           // REQUIRED — hermetic separation
+  siteName: string;         // For display in headers
+  onSiteChange?: (id: string) => void;
+}
+```
+
+### State reset on site switch:
+When `siteId` changes, every component MUST:
+- Clear all cached data (articles, stats, filters)
+- Reset pagination to page 1
+- Reset expanded/selected state
+- Re-fetch with new siteId
+- Update accent colors from brand profile
+
+---
+
 ## Phase 1: Foundation Refactor (Do First)
 
 ### 1.1 Extract ContentTab into standalone component

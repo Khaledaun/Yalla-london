@@ -21,7 +21,7 @@ This is NOT a static diagram. It's a **live operations dashboard** that replaces
 
 ## The Map Layout
 
-### Lines (Pipelines)
+### Lines (8 Pipelines)
 
 ```
 CONTENT LINE (Blue) ═══════════════════════════════════════════════════
@@ -35,12 +35,195 @@ AFFILIATE LINE (Gold) ═══════════════════�
 
 QUALITY LINE (Red) ════════════════════════════════════════════════════
   Published ──→ Auto-Fix Scan ──→ Thin Content ──→ Broken Links ──→ Duplicate Check ──→ Clean
+
+SOCIAL MEDIA LINE (Purple) ════════════════════════════════════════════
+  Published ──→ Repurpose ──→ Script ──→ Schedule ──→ Posted (Twitter) ──→ Posted (Instagram) ──→ Engagement
+
+PDF LINE (Teal) ═══════════════════════════════════════════════════════
+  Published ──→ Select for Guide ──→ Cover Design ──→ PDF Render ──→ Library ──→ Downloaded
+
+COMMERCE LINE (Copper) ════════════════════════════════════════════════
+  Product Idea ──→ Design Created ──→ Listing Draft ──→ Etsy Published ──→ Selling ──→ Fulfilled
+
+KPI LINE (White/Silver — CEO Dashboard) ═══════════════════════════════
+  Content Velocity ──→ Indexing Rate ──→ Traffic Growth ──→ CTR ──→ Affiliate Clicks ──→ Revenue ──→ Goal
+```
+
+### Line Details
+
+**SOCIAL MEDIA LINE** tracks content repurposing:
+- "Repurpose" = AI selects best-performing articles for social content
+- "Script" = Content Engine Scripter generates platform-specific posts
+- "Schedule" = Social Calendar queues posts
+- "Posted (Twitter/Instagram)" = auto-published or marked manual
+- "Engagement" = tracks likes/shares/reach (when platform APIs connected)
+- Data source: `ScheduledContent` table + social cron logs
+
+**PDF LINE** tracks guide generation:
+- "Select for Guide" = articles chosen for PDF compilation
+- "Cover Design" = PDF cover generated (6 branded templates exist)
+- "PDF Render" = Puppeteer renders HTML → PDF
+- "Library" = stored in MediaAsset / PdfGuide table
+- "Downloaded" = tracked via PdfDownload table
+- Data source: `PdfGuide`, `PdfDownload`, `MediaAsset` tables
+
+**COMMERCE LINE** tracks Etsy product lifecycle:
+- "Product Idea" = content/design identified for merchandise
+- "Design Created" = artwork generated via Design Studio
+- "Listing Draft" = product title, description, tags, pricing prepared
+- "Etsy Published" = listing live on Etsy store
+- "Selling" = active with views/favorites
+- "Fulfilled" = orders shipped
+- Data source: Future `EtsyListing`, `EtsyOrder` models (schema exists but not populated)
+- Note: Etsy API integration is future work — this line shows placeholder stations until connected
+
+**KPI LINE** (CEO Progress Tracker):
+- NOT article-based — trains on this line are KPI metrics, not content
+- Each station = a business metric with target vs actual
+- "Content Velocity" = articles published/day (target: 4, actual: current)
+- "Indexing Rate" = % of published pages indexed (target: 90%)
+- "Traffic Growth" = sessions week-over-week change (target: +10%/week)
+- "CTR" = Google Search CTR (target: 3.0%)
+- "Affiliate Clicks" = clicks/day (target: 50)
+- "Revenue" = monthly affiliate revenue (target: $500/month → $2000/month)
+- "Goal" = financial freedom milestone (configurable)
+- Stations are GREEN when target met, AMBER when within 80%, RED when below 50%
+- Powered by: `kpi-manager.ts` targets + GA4/GSC/CJ real data
+- This line is always visible at the top of the map as a "progress bar"
 ```
 
 ### Interchange Stations (Where Lines Connect)
-- **"Published" is the central interchange** — all 4 lines pass through it (like Bank/Monument)
+- **"Published" is the central interchange** — 6 lines pass through it (like Bank/Monument): Content, SEO, Affiliate, Quality, Social Media, PDF
 - **"Reservoir → Published"** is the key transfer (Content Line → all other lines)
 - **"Indexed → Performing"** connects to Affiliate Line (articles need indexing before earning)
+- **"Published → Repurpose"** connects Content to Social Media Line (published articles feed social)
+- **"Published → Select for Guide"** connects Content to PDF Line (published articles become PDF guides)
+- **"Design Created"** on Commerce Line connects to Design Studio assets
+- **"Revenue"** on KPI Line reflects aggregate from Affiliate Line's "Converted" station + Commerce Line's "Selling" station
+
+---
+
+## Multi-Site Architecture (Hermetic Separation)
+
+Every site gets its **own complete Tube Map** with its own branded visual identity. Sites NEVER share trains, station counts, or data. The map is fully multi-tenant.
+
+### Site Selector & Map Switching
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  [🟦 Yalla London ▾]  ←── tap to switch site map       │
+│                                                         │
+│  ● Yalla London        (navy + gold)       110 articles │
+│  ● Zenitha Yachts      (navy + aegean)      4 articles  │
+│  ● Arabaldives         (turquoise + coral)   0 articles │
+│  ● Yalla Riviera       (navy + champagne)    0 articles │
+│  ● Yalla Istanbul      (burgundy + copper)   0 articles │
+│  ● Yalla Thailand      (emerald + amber)     0 articles │
+│  ─────────────────────────────────────────               │
+│  ◉ All Sites (overview)                    114 total    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Per-Site Visual Branding
+
+Each site's Tube Map uses that site's brand colors from `getBrandProfile(siteId)`:
+
+| Site | Line Colors | Map Background | Station Style |
+|------|------------|----------------|--------------|
+| **Yalla London** | Navy blue, Forest green, Gold, Crimson red | #0F1419 (dark navy) | White circles, gold accent |
+| **Zenitha Yachts** | Aegean blue, Navy, Gold, Teal | #0A1628 (deep navy) | White circles, aegean accent |
+| **Arabaldives** | Turquoise, Coral, Sand, Deep sea | #0D1B2A (ocean dark) | White circles, turquoise accent |
+| **Yalla Riviera** | Mediterranean navy, Champagne, Lavender, Rose | #1A1A2E (midnight) | Cream circles, champagne accent |
+| **Yalla Istanbul** | Burgundy, Copper, Ottoman gold, Deep teal | #1A0F0F (dark burgundy) | Ivory circles, copper accent |
+| **Yalla Thailand** | Emerald, Golden amber, Teak, Lotus pink | #0F1A0F (forest dark) | White circles, emerald accent |
+
+Colors loaded dynamically from `lib/design/brand-provider.ts` → `getBrandProfile(siteId).colors`.
+
+### Per-Site Line Availability
+
+Not all lines apply to all sites:
+
+| Line | Yalla London | Zenitha Yachts | Arabaldives | Yalla Riviera | Yalla Istanbul | Yalla Thailand |
+|------|:---:|:---:|:---:|:---:|:---:|:---:|
+| Content | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SEO | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Affiliate | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Quality | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Social Media | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| PDF | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Commerce (Etsy) | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| KPI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Zenitha Yachts skips PDF and Commerce lines (yacht charter ≠ merchandise). Lines with no data show as dimmed/inactive on the map.
+
+### "All Sites" Overview Mode
+
+Selecting "All Sites" shows a simplified **network map** — one node per site, each showing:
+- Site name + logo
+- Total articles (published / pipeline / reservoir)
+- KPI health bar (green/amber/red)
+- Last activity timestamp
+- Quick tap → switches to that site's full Tube Map
+
+```
+     ┌──────────┐         ┌──────────┐
+     │  Yalla   │────────│ Zenitha  │
+     │ London   │        │  Yachts  │
+     │ 110 📄   │        │   4 📄   │
+     │ ████░ 78%│        │ ██░░ 40% │
+     └────┬─────┘        └──────────┘
+          │
+     ┌────┴─────┐    ┌──────────┐    ┌──────────┐
+     │  Arab    │────│  Yalla   │────│  Yalla   │
+     │ aldives  │    │ Riviera  │    │ Istanbul │
+     │   0 📄   │    │   0 📄   │    │   0 📄   │
+     │ ░░░░ 0%  │    │ ░░░░ 0%  │    │ ░░░░ 0%  │
+     └──────────┘    └──────────┘    └──────────┘
+                          │
+                     ┌────┴─────┐
+                     │  Yalla   │
+                     │ Thailand │
+                     │   0 📄   │
+                     │ ░░░░ 0%  │
+                     └──────────┘
+```
+
+### Hermetic Data Separation Rules
+
+**MANDATORY — enforced in every API call and component render:**
+
+1. **Every API query includes `siteId` in WHERE clause** — no global queries ever
+2. **Tube Map state is keyed by siteId** — switching sites resets all station counts, trains, animations
+3. **KPI targets are per-site** — each site has its own targets in `kpi-manager.ts`
+4. **Operations feed is filtered by site** — shows only that site's cron activity
+5. **Article actions are scoped** — publish/edit/delete only affects the selected site's content
+6. **Brand colors never bleed** — site switch triggers full CSS variable swap
+7. **No cross-site trains** — an article from Yalla London NEVER appears on Zenitha Yachts' map
+8. **Commerce Line is per-site** — Etsy products are tied to specific site branding
+9. **Social Media Line is per-site** — each site has its own social accounts and posting schedule
+10. **PDF Line is per-site** — guides are branded per-site with correct colors/logos
+
+### Implementation Pattern
+
+```typescript
+// Every Tube Map component receives siteId as a required prop
+interface TubeMapProps {
+  siteId: string;           // REQUIRED — hermetic separation
+  brandProfile: BrandProfile; // from getBrandProfile(siteId)
+}
+
+// Every data fetch includes siteId
+const fetchStationData = async (siteId: string) => {
+  const res = await fetch(`/api/admin/content-matrix?siteId=${encodeURIComponent(siteId)}&limit=500`);
+  // ...
+};
+
+// Every action includes siteId
+const publishArticle = async (articleId: string, siteId: string) => {
+  // siteId validated server-side against article's actual siteId
+  // Server rejects if article.siteId !== request.siteId
+};
+```
 
 ### Visual Design
 - **Background:** Dark navy (#0F1419) matching cockpit
@@ -372,56 +555,111 @@ Full map visible with all 4 lines, stations labeled, trains animated.
 
 ## Implementation Phases
 
-### Phase B.1: Static Map + Data (3-4 sessions)
-- Define all lines, stations, and positions in `tube-map-data.ts`
-- Render SVG/CSS map with correct layout and colors
-- Fetch real data and display station counts
+### Phase B.1: Static Map + Data — Core 4 Lines (3-4 sessions)
+- Define all 8 lines, stations, and positions in `tube-map-data.ts`
+- Render SVG/CSS map with Content + SEO + Affiliate + Quality lines first
+- Load brand colors from `getBrandProfile(siteId)` — map is site-branded from day 1
+- Fetch real data and display station counts (per-site filtered)
 - Tap station → show article list (no detail panel yet)
+- Site selector at top — switching site reloads entire map with new colors + data
 - No animations yet — static snapshot
+- KPI Line rendered as horizontal progress bar at map top
 
-### Phase B.2: Interactive Stations (2-3 sessions)
+### Phase B.2: Interactive Stations + Multi-Site (2-3 sessions)
 - Station detail panel (bottom sheet)
 - Station actions (Run Phase, Skip, Reject)
 - Train dots at stations (sized by count)
-- Tap train → opens ArticleDetailDrawer
+- Tap train → opens ArticleDetailDrawer (with siteId context)
 - Station status indicators (healthy/warning/error)
+- "All Sites" overview map showing one node per site with health bar
+- Tap site node → switches to that site's full Tube Map
+- Every action passes siteId — server validates article belongs to that site
 
 ### Phase B.3: Train Animations + Activity Feed (2-3 sessions)
-- Poll operations-feed every 30s
+- Poll operations-feed every 30s (filtered by siteId)
 - Detect article phase changes → animate train movement
-- Activity overlay at bottom
+- Activity overlay at bottom (per-site activity only)
 - Line health coloring (green/amber/gray/red)
 - Published station celebration animation
 
 ### Phase B.4: Content Enhancement Actions (2 sessions)
-- Build `/api/admin/article-enhance` endpoint
-- Add Photo (Unsplash integration)
-- Add Link (URL + anchor input)
+- Build `/api/admin/article-enhance` endpoint (siteId required)
+- Add Photo (Unsplash integration — site-specific search queries from `SITE_IMAGE_QUERIES`)
+- Add Link (URL + anchor input — site-specific affiliate partners)
 - Add Video (YouTube/Vimeo embed)
 - Add Social Embed (Instagram/TikTok/Twitter)
 - All available from train detail panel
+- All enhancements logged to `enhancement_log` with siteId
 
 ### Phase B.5: Journey Timeline + Stats (1-2 sessions)
-- Article journey timeline in train detail
-- Stats overlay
+- Article journey timeline in train detail (per-article, not cross-site)
+- Stats overlay (per-site stats with site name + brand colors)
 - Map controls (site selector, line filter, time range)
+- KPI station detail — tap any KPI node to see target vs actual + trend chart
 - Performance polish (reduce re-renders, optimize animations)
+
+### Phase B.6: Social Media + PDF + Commerce + KPI Lines (3-4 sessions)
+- **Social Media Line:**
+  - Connect to `ScheduledContent` table for post scheduling data
+  - Connect to social cron logs for posting status
+  - Station detail shows: platform breakdown, scheduled vs posted, engagement (when available)
+  - Action: "Create Social Post from Article" → opens Content Engine Scripter
+  - Per-site social accounts (from SiteSettings `social` category)
+
+- **PDF Line:**
+  - Connect to `PdfGuide` + `PdfDownload` tables
+  - Station detail shows: available guides, download count, cover preview
+  - Action: "Create PDF Guide" → selects articles + generates cover + renders PDF
+  - Uses per-site branded PDF cover templates (6 templates × site brand colors)
+
+- **Commerce Line (Etsy):**
+  - Initially shows placeholder stations (Etsy API not yet connected)
+  - "Product Idea" station → pulls from Design Studio assets
+  - "Listing Draft" → form for title, description, tags, pricing
+  - Future: connect to Etsy API for auto-publishing and order tracking
+  - Per-site Etsy store (each site can have its own Etsy shop)
+
+- **KPI Line Enhancement:**
+  - Tap any KPI station → full detail panel with:
+    - Current value vs target (big number)
+    - 30-day sparkline chart
+    - Week-over-week trend arrow
+    - "Set New Target" button (writes to `kpi-manager.ts`)
+    - Plain-English diagnosis: "You're at 34 clicks/day. Target is 50. Gap: 16 clicks. Suggested action: improve meta titles on high-impression articles."
+  - CEO Agent auto-generates weekly KPI summary email using this data
+  - KPI targets configurable per-site (Yalla London has different targets than Zenitha Yachts)
 
 ---
 
 ## Success Criteria
 
 The Tube Map is successful when Khaled can:
+
+**Core Operations (from his iPhone):**
 1. ✅ Open cockpit → see entire pipeline health in 2 seconds (visual scan)
 2. ✅ Tap any station → see every article there + take action
 3. ✅ Tap any article → see full details + edit title/meta + add media
 4. ✅ See trains move in real-time when crons run
 5. ✅ Identify bottlenecks visually (amber/red stations)
-6. ✅ Add a photo/link/video to any article without leaving the map
+6. ✅ Add a photo/link/video/social embed to any article without leaving the map
 7. ✅ Publish an article from the Reservoir station with one tap
 8. ✅ See the full journey of any article from topic to revenue
 9. ✅ Know "what happened overnight" from the activity feed
 10. ✅ Manage everything from his iPhone without scrolling through tables
+
+**Multi-Site (hermetic separation):**
+11. ✅ Switch between sites → map rebrands instantly (colors, data, KPIs)
+12. ✅ See "All Sites" overview → one node per site with health status
+13. ✅ Never see another site's content on the wrong map
+14. ✅ Each site has independent KPI targets and progress tracking
+
+**Extended Lines:**
+15. ✅ See social media posts flowing from Published → Repurpose → Scheduled → Posted
+16. ✅ See PDF guides being generated from Published → Cover → Render → Library
+17. ✅ Track Etsy product lifecycle from idea to sale
+18. ✅ Monitor KPI progress at a glance — green/amber/red per metric
+19. ✅ Tap any KPI station → see target vs actual with trend and suggested action
+20. ✅ CEO Agent weekly report pulls from KPI Line data automatically
 
 ---
 

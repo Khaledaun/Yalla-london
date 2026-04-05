@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
       'Luxury halal yacht charters in the Mediterranean. Certified halal catering, prayer-friendly spaces, alcohol-free options, and Arabic-speaking crew. Book your family-friendly charter today.',
     alternates: {
       canonical: `${baseUrl}/halal-charter`,
-      languages: { 'en-GB': `${baseUrl}/halal-charter`, 'ar-SA': `${baseUrl}/ar/halal-charter` },
+      languages: { 'en-GB': `${baseUrl}/halal-charter`, 'ar-SA': `${baseUrl}/ar/halal-charter`, 'x-default': `${baseUrl}/halal-charter` },
     },
     openGraph: {
       title: `Halal-Certified Yacht Charters | ${brandName}`,

@@ -260,7 +260,7 @@ export async function generateMetadata(): Promise<Metadata> {
       'A comprehensive bilingual glossary of yacht charter terminology. Learn about yacht types, charter terms, pricing, navigation, and crew roles in English and Arabic.',
     alternates: {
       canonical: `${baseUrl}/glossary`,
-      languages: { 'en-GB': `${baseUrl}/glossary`, 'ar-SA': `${baseUrl}/ar/glossary` },
+      languages: { 'en-GB': `${baseUrl}/glossary`, 'ar-SA': `${baseUrl}/ar/glossary`, 'x-default': `${baseUrl}/glossary` },
     },
     openGraph: {
       title: `Yacht Charter Glossary | ${brandName}`,

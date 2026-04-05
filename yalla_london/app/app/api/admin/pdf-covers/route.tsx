@@ -24,6 +24,13 @@ import {
   getDefaultSiteId,
   getSiteConfig,
 } from "@/config/sites";
+import {
+  getPdfCoverTemplates,
+  getTemplateById,
+  siteIdToTemplateBrand,
+  getBrandTemplateSet,
+  type CanvaTemplate,
+} from "@/lib/canva/template-registry";
 
 export const runtime = "edge";
 
@@ -41,6 +48,15 @@ const BRAND = {
   stone: "#78716C",
   white: "#FFFFFF",
 } as const;
+
+/** Determine if a hex color is light (for text contrast decisions) */
+function isLightBackground(hex: string): boolean {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
 
 // ── Brand Elements (JSX recreations of SVG brand kit) ───────────────────────
 
@@ -369,21 +385,113 @@ export async function GET(request: NextRequest) {
   // List mode — return available templates with preview URLs
   if (!generate) {
     const baseUrl = request.nextUrl.origin;
-    const templates = TEMPLATES.map((t) => ({
+
+    // Built-in JSX templates (code-generated covers)
+    const builtInTemplates = TEMPLATES.map((t) => ({
       id: t.id,
       name: t.name,
       description: t.description,
+      source: "built-in" as const,
       previewUrl: `${baseUrl}/api/admin/pdf-covers?generate=true&template=${t.id}&siteId=${siteId}&title=${encodeURIComponent("Nightlife & Entertainment Guide")}&subtitle=${encodeURIComponent("Your Luxury London Experience")}`,
     }));
-    return NextResponse.json({ templates, siteId });
+
+    // Canva CDN templates (pre-designed in Canva, hosted on Supabase Storage)
+    const brand = siteIdToTemplateBrand(siteId);
+    const canvaCoverTemplates = getPdfCoverTemplates(brand).map((ct) => ({
+      id: `canva:${ct.id}`,
+      name: `${ct.name} (Canva)`,
+      description: ct.description,
+      source: "canva" as const,
+      previewUrl: ct.thumbnailUrl,
+      cdnUrl: ct.cdnUrl,
+      canvaAssetId: ct.canvaAssetId,
+      width: ct.width,
+      height: ct.height,
+    }));
+
+    const brandSet = getBrandTemplateSet(brand);
+
+    return NextResponse.json({
+      templates: builtInTemplates,
+      canvaTemplates: canvaCoverTemplates,
+      brand: {
+        id: brand,
+        displayName: brandSet.displayName,
+        colors: brandSet.colors,
+        fonts: brandSet.fonts,
+        canvaFolderUrl: brandSet.canvaFolderUrl,
+      },
+      siteId,
+    });
   }
 
   // Generate mode — return image
   const templateId = searchParams.get("template") || "boarding-pass";
+  const canvaTemplateId = searchParams.get("canvaTemplate"); // e.g., "yalla-london--01-boarding-pass-cover"
   const title = searchParams.get("title") || config?.name || "Travel Guide";
   const subtitle = searchParams.get("subtitle") || "Your Luxury London Experience";
   const destination = searchParams.get("destination") || config?.destination || "London";
 
+  // ── Canva CDN template mode: background image + text overlay ──
+  if (canvaTemplateId) {
+    const canvaTpl = getTemplateById(canvaTemplateId);
+    if (!canvaTpl) {
+      return NextResponse.json({ error: `Canva template not found: ${canvaTemplateId}` }, { status: 404 });
+    }
+    const brandSet = getBrandTemplateSet(canvaTpl.brand);
+    const textColor = isLightBackground(brandSet.colors.background) ? brandSet.colors.primary : "#FFFFFF";
+    const subtitleColor = isLightBackground(brandSet.colors.background) ? brandSet.colors.secondary : "rgba(255,255,255,0.7)";
+
+    const jsx = (
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative" }}>
+        {/* Canva template background */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={canvaTpl.cdnUrl}
+          alt=""
+          width={canvaTpl.width}
+          height={canvaTpl.height}
+          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+        {/* Text overlay */}
+        <div style={{
+          position: "absolute",
+          bottom: "120px",
+          left: "80px",
+          right: "80px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        }}>
+          <div style={{
+            fontSize: "64px",
+            fontWeight: 700,
+            lineHeight: 1.1,
+            color: textColor,
+            display: "flex",
+            flexDirection: "column",
+            textShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}>{title}</div>
+          {subtitle && (
+            <div style={{
+              fontSize: "24px",
+              fontWeight: 400,
+              color: subtitleColor,
+              display: "flex",
+              textShadow: "0 1px 4px rgba(0,0,0,0.2)",
+            }}>{subtitle}</div>
+          )}
+        </div>
+      </div>
+    );
+
+    return new ImageResponse(jsx, {
+      width: canvaTpl.width,
+      height: canvaTpl.height,
+    });
+  }
+
+  // ── Built-in JSX template mode ──
   const template = TEMPLATES.find((t) => t.id === templateId) || TEMPLATES[0];
   const primary = config?.primaryColor || BRAND.charcoal;
   const secondary = config?.secondaryColor || BRAND.red;

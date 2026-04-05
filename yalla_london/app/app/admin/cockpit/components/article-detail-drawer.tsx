@@ -189,11 +189,11 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
   };
 
   const statusLabel = () => {
-    if (isPublished) return { text: "Published", bg: "#E8F5E9", color: "#2D5A3D" };
-    if (isReservoir) return { text: "Ready to Publish", bg: "#E3F2FD", color: "#1565C0" };
-    if (isRejected) return { text: "Rejected", bg: "#FFEBEE", color: "#C8322B" };
-    if (article.phase) return { text: article.phase.charAt(0).toUpperCase() + article.phase.slice(1), bg: "#F3E5F5", color: "#7B1FA2" };
-    return { text: "Draft", bg: "#FFF3E0", color: "#E65100" };
+    if (isPublished) return { text: "Published", bg: "var(--status-green-bg, #E8F5E9)", color: "var(--admin-green, #2D5A3D)" };
+    if (isReservoir) return { text: "Ready to Publish", bg: "var(--status-blue-bg, #E3F2FD)", color: "var(--status-blue-text, #1B5070)" };
+    if (isRejected) return { text: "Rejected", bg: "var(--status-red-bg, #FFEBEE)", color: "var(--admin-red, #C8322B)" };
+    if (article.phase) return { text: article.phase.charAt(0).toUpperCase() + article.phase.slice(1), bg: "var(--status-purple-bg, #F3E5F5)", color: "var(--status-purple-text, #7B1FA2)" };
+    return { text: "Draft", bg: "var(--status-gold-bg, #FFF3E0)", color: "var(--status-gold-text, #6B4F0F)" };
   };
 
   const status = statusLabel();
@@ -201,7 +201,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={onClose}>
       <div
-        className="bg-white rounded-t-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-up"
+        className="bg-[var(--admin-card-bg,#FFFFFF)] rounded-t-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-up"
         onClick={(e) => e.stopPropagation()}
         style={{ animation: "slideUp 0.25s ease-out" }}
       >
@@ -560,7 +560,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
         </div>
 
         {/* Action Buttons — sticky at bottom */}
-        <div className="sticky bottom-0 bg-white border-t border-stone-200 px-5 py-4 space-y-2">
+        <div className="sticky bottom-0 bg-[var(--admin-card-bg,#FFFFFF)] border-t border-[var(--admin-border)] px-5 py-4 space-y-2">
           {/* Edit mode save */}
           {editMode && (
             <div className="flex gap-2">

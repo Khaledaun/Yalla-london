@@ -29,7 +29,7 @@ export function NewsTicker({ locale }: Props) {
           <React.Fragment key={i}>
             <Link
               href={`/blog?q=${encodeURIComponent(item)}`}
-              className="flex-shrink-0 text-[11px] text-white/40 hover:text-yl-gold whitespace-nowrap transition-colors font-body"
+              className="flex-shrink-0 text-xs text-white/40 hover:text-yl-gold whitespace-nowrap transition-colors font-body"
             >
               {item}
             </Link>

@@ -55,30 +55,27 @@ const ScrollExpandHero = ({
       return undefined;
     }
 
-    // Desktop-only: scroll-expand animation via wheel events (no touch listeners needed)
+    // Desktop-only: scroll-expand animation via wheel events
+    // Use passive:true to avoid blocking main thread (INP impact)
     const handleWheel = (e: globalThis.WheelEvent) => {
-      if (mediaFullyExpanded && e.deltaY < 0 && window.scrollY <= 5) {
-        setMediaFullyExpanded(false);
-        e.preventDefault();
-      } else if (!mediaFullyExpanded) {
-        e.preventDefault();
-        const scrollDelta = e.deltaY * 0.0009;
-        const newProgress = Math.min(
-          Math.max(scrollProgress + scrollDelta, 0),
-          1
-        );
-        setScrollProgress(newProgress);
+      if (mediaFullyExpanded) return; // normal scrolling once expanded
 
-        if (newProgress >= 1) {
-          setMediaFullyExpanded(true);
-          setShowContent(true);
-        } else if (newProgress < 0.75) {
-          setShowContent(false);
-        }
+      const scrollDelta = e.deltaY * 0.0009;
+      const newProgress = Math.min(
+        Math.max(scrollProgress + scrollDelta, 0),
+        1
+      );
+      setScrollProgress(newProgress);
+
+      if (newProgress >= 1) {
+        setMediaFullyExpanded(true);
+        setShowContent(true);
+      } else if (newProgress < 0.75) {
+        setShowContent(false);
       }
     };
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('wheel', handleWheel, { passive: true });
 
     // Auto-expand after 3s if desktop user hasn't scrolled through the hero manually
     const autoExpandTimer = setTimeout(() => {

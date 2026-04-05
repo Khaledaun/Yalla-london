@@ -35,7 +35,7 @@ export function StatusDropdown({ item, siteId, onAction, onViewDetails }: Status
 
   // Close on click outside
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -48,7 +48,7 @@ export function StatusDropdown({ item, siteId, onAction, onViewDetails }: Status
 
   // Close on Escape
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") { setOpen(false); setFeedback(null); }
     };

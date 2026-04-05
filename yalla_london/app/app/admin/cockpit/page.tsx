@@ -34,6 +34,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { MissionControl } from "./components/mission-control";
 import { ContentTab } from "./components/content-tab";
+import { TubeMap } from "./components/tube-map/tube-map";
 import { PipelineKanban } from "./components/pipeline-kanban";
 import type {
   SystemStatus,
@@ -7251,6 +7252,7 @@ function SeoIntelTab({ siteId }: { siteId: string }) {
 
 const TABS = [
   { id: "hq", label: "HQ" },
+  { id: "map", label: "Map" },
   { id: "mission", label: "Mission" },
   { id: "seo", label: "SEO Intel" },
   { id: "content", label: "Content" },
@@ -7477,6 +7479,16 @@ function CockpitPage() {
       <main className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 pb-20" style={{ backgroundColor: '#0F1419' }}>
         {activeTab === "hq" && (
           <MissionControl siteId={activeSiteId} />
+        )}
+        {activeTab === "map" && (
+          <TubeMap
+            siteId={activeSiteId}
+            siteName={cockpitData?.sites?.find((s: { id: string }) => s.id === activeSiteId)?.name ?? activeSiteId}
+            onArticleClick={(article) => {
+              // Switch to content tab and open article detail
+              setActiveTab("content");
+            }}
+          />
         )}
         {activeTab === "mission" && (
           <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />

@@ -10,7 +10,6 @@ import { StationDetailPanel } from "./station-detail-panel";
 import { ActivityOverlay } from "./activity-overlay";
 import { MapControls, LineLegend } from "./map-controls";
 import type { ContentItem } from "../../types";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — Next.js handles CSS imports at build time
 import "./tube-map.css";
 

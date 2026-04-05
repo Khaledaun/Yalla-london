@@ -35,8 +35,7 @@ export function StationDetailPanel({
   onRefresh,
 }: StationDetailPanelProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const station = STATION_MAP.get(stationId);
-  if (!station) return null;
+  const station = STATION_MAP.get(stationId) ?? null;
 
   // Find which line this station belongs to (primary)
   const line = TUBE_LINES.find((l) => l.stations.includes(stationId));
@@ -49,7 +48,7 @@ export function StationDetailPanel({
   const handleAction = useCallback(async (action: string, articleId?: string) => {
     setActionLoading(action + (articleId ?? ""));
     try {
-      if (action === "run-phase" && station.phase) {
+      if (action === "run-phase" && station?.phase) {
         // Trigger the content-builder cron
         await runCronAction("/api/cron/content-builder", siteId);
       } else if (action === "re-queue" && articleId) {
@@ -67,6 +66,8 @@ export function StationDetailPanel({
       setActionLoading(null);
     }
   }, [station, siteId, data.articles, onRefresh]);
+
+  if (!station) return null;
 
   // Sort: stuck first, then by time in phase descending
   const sortedArticles = [...data.articles].sort((a, b) => {

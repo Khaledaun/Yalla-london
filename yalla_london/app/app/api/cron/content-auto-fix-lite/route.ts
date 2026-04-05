@@ -663,9 +663,127 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── Section 14: Bad Featured Image Detection & Replacement ─────────
+  // Catches: AI-hallucinated URLs (404), non-London images (Statue of Liberty on London articles),
+  // missing featured images, and images from unrelated stock photo results
+  let badImagesFixed = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 20_000) {
+    try {
+      // Find published posts with suspicious or missing featured images
+      const postsToCheck = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { featured_image: null },
+            { featured_image: "" },
+            // AI often generates plausible but fake image URLs
+            { featured_image: { contains: "placeholder" } },
+            { featured_image: { contains: "example.com" } },
+            { featured_image: { contains: "via.placeholder" } },
+          ],
+        },
+        select: { id: true, title_en: true, slug: true, featured_image: true },
+        take: 5,
+      });
+
+      if (postsToCheck.length > 0 && process.env.UNSPLASH_ACCESS_KEY) {
+        const { getRandomPhoto, trackDownload, buildImageUrl } = await import("@/lib/apis/unsplash");
+        for (const post of postsToCheck) {
+          if (Date.now() - cronStart > BUDGET_MS - 10_000) break;
+          try {
+            // Extract search terms from title
+            const titleWords = (post.title_en || post.slug || "london travel")
+              .replace(/[-_]/g, " ")
+              .replace(/\b(best|top|guide|ultimate|complete|2026|2025)\b/gi, "")
+              .trim();
+            const searchQuery = `${titleWords} london`.substring(0, 60);
+            const photo = await getRandomPhoto(searchQuery, "landscape");
+            if (!photo) continue;
+            const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, height: 675, quality: 80, format: "webp" });
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { featured_image: imageUrl },
+            });
+            await trackDownload(photo.downloadUrl).catch(() => {});
+            badImagesFixed++;
+          } catch (e) {
+            console.warn("[auto-fix-lite] bad image fix failed:", post.id, e instanceof Error ? e.message : String(e));
+          }
+        }
+      }
+    } catch (e) {
+      results.errors.push(`bad-images: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // ── Section 15: Strip unapproved affiliate partner sections ────────
+  // Removes "Recommended Partners" blocks that list partners we're not approved by
+  let affiliateBlocksCleaned = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      // Find posts with Booking.com/GetYourGuide/StubHub affiliate blocks where env vars are empty
+      const unapprovedPartners = ["Booking.com", "GetYourGuide", "StubHub", "Agoda", "OpenTable", "TheFork", "Blacklane"];
+      const envVarMap: Record<string, string> = {
+        "Booking.com": process.env.BOOKING_AFFILIATE_ID || "",
+        "GetYourGuide": process.env.GETYOURGUIDE_AFFILIATE_ID || "",
+        "StubHub": process.env.STUBHUB_AFFILIATE_ID || "",
+        "Agoda": process.env.AGODA_AFFILIATE_ID || "",
+        "OpenTable": process.env.OPENTABLE_AFFILIATE_ID || "",
+        "TheFork": process.env.THEFORK_AFFILIATE_ID || "",
+        "Blacklane": process.env.BLACKLANE_AFFILIATE_ID || "",
+      };
+      const unapproved = unapprovedPartners.filter(p => !envVarMap[p]);
+
+      if (unapproved.length > 0) {
+        const postsWithBadPartners = await prisma.blogPost.findMany({
+          where: {
+            published: true,
+            siteId: { in: activeSiteIds },
+            OR: unapproved.map(p => ({ content_en: { contains: `data-affiliate-partner="${p}"` } })),
+          },
+          select: { id: true, content_en: true },
+          take: 10,
+        });
+
+        for (const post of postsWithBadPartners) {
+          if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+          let content = post.content_en || "";
+          let changed = false;
+          for (const partner of unapproved) {
+            // Remove individual CTA blocks for unapproved partners
+            const ctaRegex = new RegExp(`<div class="affiliate-recommendation"[^>]*data-affiliate="${partner}"[^>]*>[\\s\\S]*?</div>`, "gi");
+            if (ctaRegex.test(content)) {
+              content = content.replace(ctaRegex, "");
+              changed = true;
+            }
+            // Remove from Recommended Partners section
+            const linkRegex = new RegExp(`<a[^>]*data-affiliate-partner="${partner}"[^>]*>[\\s\\S]*?</a>`, "gi");
+            if (linkRegex.test(content)) {
+              content = content.replace(linkRegex, "");
+              changed = true;
+            }
+          }
+          // If Recommended Partners section is now empty, remove it entirely
+          const emptySection = /<div class="affiliate-partners-section"[^>]*>[\s\S]*?<div[^>]*>[\s]*<\/div>[\s]*<\/div>/gi;
+          if (emptySection.test(content)) {
+            content = content.replace(emptySection, "");
+            changed = true;
+          }
+          if (changed) {
+            await prisma.blogPost.update({ where: { id: post.id }, data: { content_en: content } });
+            affiliateBlocksCleaned++;
+          }
+        }
+      }
+    } catch (e) {
+      results.errors.push(`affiliate-cleanup: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed + photoOrdersFulfilled;
+  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed + photoOrdersFulfilled + badImagesFixed + affiliateBlocksCleaned;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {
@@ -680,7 +798,7 @@ async function handleAutoFixLite(request: NextRequest) {
     resultSummary: results,
   }).catch(err => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
 
-  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, cronLogsDeleted, photoOrdersFulfilled, ...results });
+  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, cronLogsDeleted, photoOrdersFulfilled, badImagesFixed, affiliateBlocksCleaned, ...results });
 }
 
 export async function GET(request: NextRequest) {

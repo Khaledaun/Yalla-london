@@ -41,11 +41,18 @@ export async function GET(request: NextRequest) {
     // -----------------------------------------------------------------------
     // 1. Click counts
     // -----------------------------------------------------------------------
-    const [clicksToday, clicks7d, clicks30d] = await Promise.all([
+    // Count CJ link clicks + direct URL clicks (AuditLog with action=AFFILIATE_CLICK_DIRECT)
+    const [cjClicksToday, cjClicks7d, cjClicks30d, directToday, direct7d, direct30d] = await Promise.all([
       prisma.cjClickEvent.count({ where: { ...siteFilter, createdAt: { gte: todayStart } } }),
       prisma.cjClickEvent.count({ where: { ...siteFilter, createdAt: { gte: d7 } } }),
       prisma.cjClickEvent.count({ where: { ...siteFilter, createdAt: { gte: d30 } } }),
+      prisma.auditLog.count({ where: { action: "AFFILIATE_CLICK_DIRECT", timestamp: { gte: todayStart } } }),
+      prisma.auditLog.count({ where: { action: "AFFILIATE_CLICK_DIRECT", timestamp: { gte: d7 } } }),
+      prisma.auditLog.count({ where: { action: "AFFILIATE_CLICK_DIRECT", timestamp: { gte: d30 } } }),
     ]);
+    const clicksToday = cjClicksToday + directToday;
+    const clicks7d = cjClicks7d + direct7d;
+    const clicks30d = cjClicks30d + direct30d;
 
     // -----------------------------------------------------------------------
     // 2. Revenue
@@ -71,11 +78,15 @@ export async function GET(request: NextRequest) {
         siteId,
         published: true,
         OR: [
-          { content_en: { contains: "affiliate-cta-block" } },
-          { content_en: { contains: 'rel="sponsored' } },
           { content_en: { contains: "affiliate-recommendation" } },
+          { content_en: { contains: "affiliate-cta-block" } },
+          { content_en: { contains: "affiliate-partners-section" } },
+          { content_en: { contains: "data-affiliate-partner=" } },
+          { content_en: { contains: 'rel="sponsored' } },
+          { content_en: { contains: 'rel="noopener sponsored"' } },
           { content_en: { contains: "/api/affiliate/click" } },
           { content_en: { contains: "data-affiliate-id" } },
+          { content_en: { contains: "data-affiliate=" } },
         ],
       },
     });

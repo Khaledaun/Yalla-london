@@ -638,8 +638,10 @@ function findMatches(content: string, siteId: string, limit = 4, dbRules?: Affil
 
     let skippedEmpty = 0;
     for (const aff of rule.affiliates) {
-      // Skip affiliates with empty tracking params (env var not set)
-      if (aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) { skippedEmpty++; continue; }
+      // Skip affiliates with empty tracking params (env var not set — we're not approved yet)
+      // This prevents showing partner names like "Booking.com" when we have no commission tracking
+      const paramValue = aff.param.split("=").pop() || "";
+      if (!paramValue || aff.param.endsWith("=") || aff.param.endsWith("=''") || aff.param.endsWith('=""')) { skippedEmpty++; continue; }
       if (!matches.some((m) => m.name === aff.name)) {
         matches.push({ keyword: bestKeyword, ...aff, score: Math.min(categoryScore * 10, 100) });
       }
@@ -692,14 +694,17 @@ function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[
   // Replace any remaining placeholders with the partners section
   result = result.replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
 
-  // Add recommended partners section at the end
-  if (matches.length > 0) {
+  // Add recommended partners section at the end — only with tracked (approved) partners
+  const trackedMatches = matches.filter((m) => {
+    const pv = m.param.split("=").pop() || "";
+    return pv && !m.param.endsWith("=") && isValidAffiliateUrl(m.url + m.param);
+  });
+  if (trackedMatches.length > 0) {
     result += `
 <div class="affiliate-partners-section" style="margin-top: 2rem; padding: 1.5rem; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
   <h3 style="margin: 0 0 1rem 0; color: #1f2937;">Recommended Partners</h3>
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-    ${matches
-      .filter((m) => isValidAffiliateUrl(m.url + m.param))
+    ${trackedMatches
       .map(
         (m) =>
           `<a href="${buildTrackedUrl(m.url + m.param, articleSlug, siteId)}" target="_blank" rel="noopener sponsored" data-affiliate-partner="${escapeHtml(m.name)}" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit;">
@@ -710,7 +715,7 @@ function injectAffiliates(html: string, siteId: string, dbRules?: AffiliateRule[
       .join("")}
   </div>
 </div>`;
-    partners.push(...matches.filter((m) => !partners.includes(m.name)).map((m) => m.name));
+    partners.push(...trackedMatches.filter((m) => !partners.includes(m.name)).map((m) => m.name));
   }
 
   return { content: result, count: partners.length, partners };

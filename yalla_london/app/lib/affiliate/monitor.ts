@@ -284,24 +284,20 @@ export async function getContentCoverage(siteId?: string): Promise<ContentCovera
     take: 200,
   });
 
-  const withAffiliates = articles.filter((a) =>
-    (a.content_en || "").includes('rel="sponsored') ||
-    (a.content_en || "").includes("affiliate-cta-block") ||
-    (a.content_en || "").includes("data-affiliate-id") ||
-    (a.content_en || "").includes("affiliate-recommendation") ||
-    (a.content_en || "").includes('rel="noopener sponsored"')
-  );
+  const hasAffiliate = (content: string) =>
+    content.includes("affiliate-recommendation") ||
+    content.includes("affiliate-cta-block") ||
+    content.includes("affiliate-partners-section") ||
+    content.includes("data-affiliate-partner=") ||
+    content.includes("data-affiliate=") ||
+    content.includes("data-affiliate-id") ||
+    content.includes('rel="sponsored') ||
+    content.includes('rel="noopener sponsored"') ||
+    content.includes("/api/affiliate/click");
 
-  const without = articles.filter(
-    (a) =>
-      !(a.content_en || "").includes('rel="sponsored') &&
-      !(a.content_en || "").includes("affiliate-cta-block") &&
-      !(a.content_en || "").includes("affiliate-recommendation") &&
-      !(a.content_en || "").includes('rel="noopener sponsored"') &&
-      !(a.content_en || "").includes("data-affiliate-id") &&
-      !(a.content_en || "").includes("data-affiliate-partner") &&
-      !(a.content_en || "").includes("/api/affiliate/click")
-  );
+  const withAffiliates = articles.filter((a) => hasAffiliate(a.content_en || ""));
+
+  const without = articles.filter((a) => !hasAffiliate(a.content_en || ""));
 
   return {
     totalArticles: articles.length,

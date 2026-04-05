@@ -473,8 +473,16 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
       <TriBar />
 
       {/* ═══ Article Body — Two Column Layout ═══ */}
-      <section className="py-10 md:py-14 bg-white" ref={articleRef}>
-        <div className="max-w-7xl mx-auto px-7">
+      <section className="py-10 md:py-14 bg-white relative" ref={articleRef}>
+        {/* Subtle brand watermark */}
+        <div
+          className="absolute -right-20 top-20 w-[200px] h-[200px] opacity-[0.02] rotate-[12deg] pointer-events-none bg-contain bg-no-repeat bg-center"
+          style={{ backgroundImage: "url('/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-watermark-500px.png')" }}
+          aria-hidden="true"
+        />
+        <div className="max-w-7xl mx-auto px-7 relative z-10">
+          {/* Gold accent rule above content */}
+          <div className="w-16 h-[2px] bg-yl-gold mb-8" />
           <div className="flex flex-col lg:flex-row gap-10 lg:gap-14">
 
             {/* ─── Main Content Column ─── */}

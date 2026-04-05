@@ -26,12 +26,16 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-10 mb-8">
           {/* Brand Column */}
           <div>
-            <div className="mb-5">
-              <span className="font-heading font-bold text-2xl tracking-wider">
-                <span className="text-yl-parchment">YALLA</span>
-                <span className="text-yl-red ml-1.5">LONDON</span>
-              </span>
+            <div className="mb-5 flex items-center gap-3">
+              <img
+                src="/branding/yalla-london/brand-kit/02-logos-transparent/yalla-horizontal-transparent-on-dark.svg"
+                alt="Yalla London"
+                width={160}
+                height={40}
+                className="h-9 w-auto"
+              />
             </div>
+            <div className="w-12 h-[2px] bg-yl-gold mb-4" />
             <p className="font-body text-sm font-light text-yl-gray-400 leading-relaxed mb-5 max-w-sm">
               {language === 'en'
                 ? 'Your curated guide to the finest luxury experiences in London. Discover hidden gems, exclusive events, and unforgettable moments.'

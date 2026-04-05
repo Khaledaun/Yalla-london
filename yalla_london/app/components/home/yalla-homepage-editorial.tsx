@@ -180,29 +180,26 @@ export function YallaHomepageEditorial({ locale = "en" }: Props) {
 
       <TriBar />
 
-      {/* ═══ EVENTS ═══ */}
-      <EventsSection locale={locale} events={events} />
-
-      <TriBar />
-
-      {/* ═══ INFORMATION HUB ═══ */}
-      <InfoHubSection locale={locale} />
-
-      <TriBar />
-
-      {/* ═══ EXPERIENCES ═══ */}
-      <ExperiencesSection locale={locale} />
-
-      <TriBar />
-
-      {/* ═══ HOTELS ═══ */}
+      {/* ═══ HOTELS (highest affiliate value — above fold priority) ═══ */}
       <HotelsSection locale={locale} />
 
       <TriBar />
 
-      {/* ═══ NEWS CAROUSEL (London Today) ═══ */}
-      <section className="max-w-7xl mx-auto px-5 pt-10 pb-4">
-        <NewsCarousel />
+      {/* ═══ EXPERIENCES (second-highest affiliate value) ═══ */}
+      <ExperiencesSection locale={locale} />
+
+      <TriBar />
+
+      {/* ═══ EVENTS (ticket affiliates) ═══ */}
+      <EventsSection locale={locale} events={events} />
+
+      <TriBar />
+
+      {/* ═══ NEWS CAROUSEL (London Today — editorial content) ═══ */}
+      <section className="bg-white py-10">
+        <div className="max-w-7xl mx-auto px-5">
+          <NewsCarousel />
+        </div>
       </section>
 
       {/* ═══ WEATHER ═══ */}
@@ -210,7 +207,14 @@ export function YallaHomepageEditorial({ locale = "en" }: Props) {
         <WeatherStrip locale={locale} />
       </div>
 
-      {/* ═══ TESTIMONIALS ═══ */}
+      <TriBar />
+
+      {/* ═══ INFORMATION HUB (utility — below monetizable content) ═══ */}
+      <InfoHubSection locale={locale} />
+
+      <TriBar />
+
+      {/* ═══ TESTIMONIALS (social proof — near CTA/footer) ═══ */}
       <TestimonialsSection locale={locale} />
 
       <TriBar />

@@ -64,13 +64,13 @@ export function PriorityInbox({ siteId, contentData }: PriorityInboxProps) {
   if (contentData) {
     const { summary, articles } = contentData;
 
-    // 1. Pipeline stalled
-    const isStalled = queueHealth && (queueHealth as Record<string, unknown>).health === "stalled";
-    if (isStalled || (summary.publishedToday === 0 && summary.reservoir > 10)) {
+    // 1. Pipeline stalled — check overallHealth from queue monitor
+    const isStalled = queueHealth && (queueHealth as Record<string, unknown>).overallHealth === "stalled";
+    if (isStalled || (summary.reservoir > 10 && summary.published === 0)) {
       items.push({
         id: "pipeline-stalled",
         severity: "critical",
-        message: `Pipeline may be stalled — ${summary.reservoir} in reservoir, 0 published today`,
+        message: `Pipeline may be stalled — ${summary.reservoir} in reservoir, ${summary.published} published`,
         actionLabel: "Fix Pipeline",
         action: () => runCronAction("/api/cron/diagnostic-sweep", siteId).then(() => {}),
       });

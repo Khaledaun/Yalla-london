@@ -119,15 +119,18 @@ export async function enhanceDraft(
 
 export async function submitToGoogle(
   slug: string,
-  siteId: string
+  _siteId: string
 ): Promise<ActionResult> {
+  const url = slug ? `/blog/${slug}` : "";
+  if (!url) return { success: false, message: "No slug to submit" };
   const { ok, data } = await safeFetch(
-    `/api/seo/submit-indexnow?slug=${encodeURIComponent(slug)}&siteId=${encodeURIComponent(siteId)}`
+    "/api/admin/content-indexing",
+    jsonPost({ action: "submit", url })
   );
   if (!ok) return { success: false, message: `${data.error}` };
   return {
     success: !!data.success,
-    message: data.success ? "Submitted to IndexNow" : `${data.error ?? "Submission failed"}`,
+    message: data.success ? "Submitted for indexing" : `${data.error ?? "Submission failed"}`,
     data,
   };
 }

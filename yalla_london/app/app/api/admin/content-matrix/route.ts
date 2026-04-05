@@ -271,12 +271,15 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
                 }));
                 const latestTs = entries[entries.length - 1]?.timestamp;
                 if (latestTs && post.updated_at) {
-                  hasUnreviewedEnhancements = new Date(latestTs) > post.updated_at;
+                  const latestDate = new Date(latestTs);
+                  if (!isNaN(latestDate.getTime())) {
+                    hasUnreviewedEnhancements = latestDate > post.updated_at;
+                  }
                 }
               }
             }
-          } catch {
-            // enhancement_log parse failed — leave defaults
+          } catch (err) {
+            console.warn(`[content-matrix] enhancement_log parse failed for post ${post.id}:`, err instanceof Error ? err.message : err);
           }
 
           items.push({

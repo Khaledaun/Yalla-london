@@ -31,10 +31,8 @@ import {
   AdminEmptyState,
   AdminAlertBanner,
   AdminTabs,
-  useConfirm,
 } from "@/components/admin/admin-ui";
 import { MissionControl } from "./components/mission-control";
-import { ArticleDetailDrawer } from "./components/article-detail-drawer";
 import { ContentTab } from "./components/content-tab";
 import type {
   SystemStatus,
@@ -44,12 +42,7 @@ import type {
   RevenueSnapshot,
   TrafficSnapshot,
   CockpitData,
-  ContentItem,
-  ContentMatrixData,
-  GateCheck,
-  ResearchedTopic,
   LatestPublishedArticle,
-  BulkQueueResult,
   ProviderInfo,
   RouteInfo,
   AIConfigData,

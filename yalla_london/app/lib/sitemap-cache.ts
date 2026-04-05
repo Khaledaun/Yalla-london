@@ -177,6 +177,7 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       ["/journal", staticDate, "weekly", 0.7],
       ["/shop", staticDate, "weekly", 0.7],
       ["/tools", staticDate, "monthly", 0.7],
+      ["/tools/seo-audit", staticDate, "monthly", 0.7],
       ["/how-it-works", staticDate, "monthly", 0.7],
       // E-E-A-T trust signals
       ["/team", staticDate, "monthly", 0.6],

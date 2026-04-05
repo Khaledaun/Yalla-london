@@ -1252,7 +1252,7 @@ export function getStaticPageUrls(baseUrl: string, siteId: string): string[] {
     "/halal-restaurants-london", "/luxury-hotels-london", "/london-with-kids",
     "/london-by-foot", "/faq", "/glossary", "/halal-charter",
     "/destinations", "/itineraries", "/journal", "/information", "/shop",
-    "/tools", "/how-it-works", "/team", "/editorial-policy",
+    "/tools", "/tools/seo-audit", "/how-it-works", "/team", "/editorial-policy",
     "/affiliate-disclosure", "/about", "/contact",
   ].map(p => `${baseUrl}${p}`);
 }

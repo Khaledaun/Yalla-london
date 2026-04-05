@@ -1744,6 +1744,16 @@ test("SEO Infrastructure", "Content selector has diversity balancer (general vs 
     : { status: FAIL, details: "No diversity awareness in content selector — publishes whatever has highest score" };
 });
 
+test("SEO Infrastructure", "Content selector has within-batch duplicate prevention", () => {
+  const file = "lib/content-pipeline/select-runner.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "select-runner.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
+  const hasBatchDedup = content.includes("selectedKeywordSets") && content.includes("isDuplicateOfSelected");
+  return hasBatchDedup
+    ? { status: PASS, details: "Within-batch dedup prevents publishing 6 near-identical articles in one run" }
+    : { status: FAIL, details: "No within-batch dedup — same topic can be published multiple times per run" };
+});
+
 test("SEO Infrastructure", "Privacy and terms pages in sitemap with yearly frequency", () => {
   const sitemapFile = "app/sitemap.ts";
   if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };

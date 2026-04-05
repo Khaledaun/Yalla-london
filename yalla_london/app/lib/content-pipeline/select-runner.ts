@@ -436,6 +436,18 @@ export async function runContentSelector(
 
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
+    // Track keywords of candidates selected IN THIS BATCH to prevent within-batch duplicates.
+    // Without this, 6 near-identical "halal spas" drafts all pass the published-articles check
+    // (because none are published yet) and get promoted simultaneously.
+    const selectedKeywordSets: Array<Set<string>> = [];
+
+    // Shared stop words — extracted here once, used for both published + within-batch checks
+    const SITE_STOP_WORDS = new Set([
+      "london", "best", "top", "guide", "luxury", "arab", "halal",
+      "2024", "2025", "2026", "2027", "ultimate", "complete",
+      "hotel", "hotels", "restaurant", "restaurants", "experience", "experiences",
+      "travel", "family", "visit", "visiting", "things",
+    ]);
 
     for (const candidate of publishReady) {
       if (selected.length >= MAX_CANDIDATES_PER_RUN) break;
@@ -452,14 +464,6 @@ export async function runContentSelector(
       // Use Jaccard similarity (intersection/union) — NOT Math.min which caused
       // 100% overlap on short keywords sharing common words like "london", "luxury".
       // Also strip site-common words that EVERY article shares.
-      // Expanded stop words: common travel/niche words that EVERY London travel article shares.
-      // Without stripping these, Jaccard similarity is inflated and blocks legitimate different topics.
-      const SITE_STOP_WORDS = new Set([
-        "london", "best", "top", "guide", "luxury", "arab", "halal",
-        "2024", "2025", "2026", "2027", "ultimate", "complete",
-        "hotel", "hotels", "restaurant", "restaurants", "experience", "experiences",
-        "travel", "family", "visit", "visiting", "things",
-      ]);
       const keywordWords = new Set<string>(keyword.split(/\s+/).filter(w => w.length > 2 && !SITE_STOP_WORDS.has(w)));
       const isDuplicateOfPublished = keywordWords.size > 0 && publishedKeywordSets.some((existingWords) => {
         if (existingWords.size === 0) return false;
@@ -473,10 +477,22 @@ export async function runContentSelector(
         return jaccardSimilarity > 0.92;
       });
 
-      if (!isDuplicateOfPublished) {
+      // Also check within-batch: prevent selecting 6 "halal spas" variants in one run
+      const isDuplicateOfSelected = keywordWords.size > 0 && selectedKeywordSets.some((selectedWords) => {
+        if (selectedWords.size === 0) return false;
+        const shared = [...keywordWords].filter(w => selectedWords.has(w)).length;
+        const union = keywordWords.size + selectedWords.size - shared;
+        const jaccardSimilarity = union === 0 ? 0 : shared / union;
+        return jaccardSimilarity > 0.75; // Tighter within-batch: 0.75 vs 0.92 for published
+      });
+
+      if (!isDuplicateOfPublished && !isDuplicateOfSelected) {
         selected.push(candidate);
         selectedDraftIds.add(candidateId);
         if (pairedId) selectedDraftIds.add(pairedId);
+        selectedKeywordSets.push(keywordWords); // Track for within-batch dedup
+      } else if (isDuplicateOfSelected) {
+        console.log(`[content-selector] Skipping within-batch duplicate: "${keyword}" — similar to already-selected candidate`);
       }
     }
 

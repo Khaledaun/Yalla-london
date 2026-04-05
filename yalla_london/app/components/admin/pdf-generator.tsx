@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useConfirm } from '@/components/admin/admin-ui'
 import Link from 'next/link'
+import { getBrandDefaults } from '@/lib/design/brand-defaults'
+
+const BD = getBrandDefaults();
 
 interface PdfGuide {
   id: string
@@ -257,8 +260,8 @@ export function PDFGenerator() {
             style={{
               padding: '10px 20px',
               borderRadius: 8,
-              border: tab === t.id ? '2px solid #C8322B' : '1px solid rgba(214,208,196,0.5)',
-              background: tab === t.id ? '#C8322B' : '#fff',
+              border: tab === t.id ? `2px solid ${BD.secondary}` : '1px solid rgba(214,208,196,0.5)',
+              background: tab === t.id ? BD.secondary : '#fff',
               color: tab === t.id ? '#fff' : '#374151',
               fontWeight: 600,
               cursor: 'pointer',
@@ -349,7 +352,7 @@ export function PDFGenerator() {
               width: '100%',
               padding: '14px 20px',
               borderRadius: 10,
-              background: generating ? '#9ca3af' : '#C8322B',
+              background: generating ? '#9ca3af' : BD.secondary,
               color: '#fff',
               fontWeight: 700,
               fontSize: 15,
@@ -486,7 +489,7 @@ export function PDFGenerator() {
                         style={{
                           padding: '8px 14px',
                           borderRadius: 8,
-                          background: '#C8322B',
+                          background: BD.secondary,
                           color: '#fff',
                           border: 'none',
                           cursor: downloading === guide.id ? 'not-allowed' : 'pointer',

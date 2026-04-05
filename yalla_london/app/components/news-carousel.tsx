@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { getTricolorGradient } from '@/lib/design/brand-defaults'
 import { motion } from 'framer-motion'
 import {
   Newspaper,
@@ -373,7 +374,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                       className="absolute inset-0 -z-10 rounded-2xl opacity-60 group-hover/card:opacity-100 transition-opacity duration-300"
                       style={{
                         margin: '-2px',
-                        background: 'conic-gradient(from var(--border-angle, 0deg), #C8322B, #C49A2A, #3B7EA1, #C8322B)',
+                        background: getTricolorGradient(),
                         borderRadius: 'inherit',
                         animation: 'rotateBorder 4s linear infinite',
                       }}

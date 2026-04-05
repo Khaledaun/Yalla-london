@@ -68,63 +68,91 @@ const TESTIMONIALS = [
   { name: 'Khalid & Noor', origin: { en: 'Kuwait City', ar: 'مدينة الكويت' }, quote: { en: 'First time chartering and Zenitha made it effortless. The AI planner suggested a Croatian route we would never have found ourselves. Every port was a discovery.', ar: 'أول تجربة استئجار وزينيثا جعلتها سهلة. المخطط الذكي اقترح مساراً كرواتياً لم نكن لنجده بأنفسنا. كل ميناء كان اكتشافاً.' }, destination: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, yachtType: { en: 'Sailing Yacht', ar: 'يخت شراعي' }, rating: 5 },
 ];
 
-// ─── Hero Section ────────────────────────────────────────────
+// ─── Hero Section — Stripe maritime split layout ────────────
 function HeroSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
+  const isRTL = locale === 'ar';
 
-  // Explicit h-* (not min-h-*) prevents CLS — fixed height before hero image loads
   return (
-    <section className="relative h-[70vh] sm:h-[80vh] md:h-[90vh] flex items-center justify-center overflow-hidden bg-[var(--z-navy)]">
-      {/* Hero background photo — aerial yacht on deep blue sea */}
-      <Image
-        src={PHOTOS.hero}
-        alt="Luxury yacht on deep blue Mediterranean sea — aerial view"
-        fill
-        priority
-        className="object-cover"
-        sizes="100vw"
-      />
-      {/* Dark overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[var(--z-navy)]/70 via-[var(--z-navy)]/40 to-[var(--z-navy)]/80" />
+    <section
+      className="relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, var(--z-navy) 0%, #1B2A4A 100%)' }}
+    >
+      <div className={`max-w-[1280px] mx-auto px-6 py-16 md:py-24 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 items-center ${isRTL ? 'direction-rtl' : ''}`}>
+        {/* Text column */}
+        <div className={isRTL ? 'order-2' : ''}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-[2px]" style={{ background: 'var(--z-gold)' }} />
+            <span className="font-heading text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--z-gold)' }}>
+              {t({ en: 'Mediterranean Charters', ar: 'رحلات البحر المتوسط' })}
+            </span>
+          </div>
 
-      {/* Content */}
-      <div className="relative z-10 max-w-[1280px] mx-auto px-6 text-center">
-        <div className="animate-fadeUp">
-          {/* Overline */}
-          <span className="inline-block text-[var(--z-gold)] text-xs font-heading font-semibold uppercase tracking-[0.2em] mb-6">
-            {t({ en: 'Luxury Yacht Charter', ar: 'استئجار يخوت فاخرة' })}
-          </span>
-
-          {/* H1 */}
-          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.05] mb-6" style={{ letterSpacing: '-0.02em' }}>
-            {t({
-              en: 'Sail the World\'s Most Beautiful Coastlines',
-              ar: 'أبحر على أجمل سواحل العالم',
-            })}
+          <h1
+            className={`text-4xl sm:text-5xl md:text-[3.2rem] leading-[1.1] mb-5 ${isRTL ? 'font-arabic' : 'font-display'}`}
+            style={{ fontWeight: 300, color: 'white' }}
+          >
+            {t({ en: 'Your Voyage,', ar: 'رحلتك,' })}
+            <br />
+            <span style={{ color: 'var(--z-shallow, #7CB8D4)' }}>
+              {t({ en: 'Our Expertise', ar: 'خبرتنا' })}
+            </span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="font-body text-lg sm:text-xl text-[var(--z-shallow)] max-w-[600px] mx-auto mb-10 leading-relaxed">
+          <p
+            className={`text-base sm:text-lg leading-relaxed mb-8 max-w-[440px] ${isRTL ? 'font-arabic' : 'font-body'}`}
+            style={{ color: 'var(--z-ocean, #4A90B8)', fontWeight: 300 }}
+          >
             {t({
-              en: 'Private charters across the Mediterranean, Arabian Gulf & beyond. Halal dining. Expert crews. Your sea, your way.',
-              ar: 'رحلات بحرية خاصة عبر البحر المتوسط والخليج العربي وما وراءهما. طعام حلال. طواقم محترفة. بحرك، على طريقتك.',
+              en: 'Hand-selected superyachts and motor sailors across the Greek Islands, Turkish Riviera, and Cote d\'Azur. White-glove service from first enquiry to final sunset.',
+              ar: 'يخوت فاخرة مختارة بعناية عبر الجزر اليونانية والريفيرا التركية وكوت دازور. خدمة استثنائية من أول استفسار حتى آخر غروب.',
             })}
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/charter-planner" className="z-btn-primary text-base px-8 py-3.5">
-              {t({ en: 'Plan Your Charter', ar: 'خطط رحلتك' })} <ArrowRight size={18} className="inline ml-2" />
+          <div className="flex gap-3 flex-wrap">
+            <Link
+              href="/charter-planner"
+              className="inline-flex items-center gap-2 no-underline transition-all duration-300 hover:shadow-lg"
+              style={{
+                padding: '14px 32px',
+                background: 'var(--z-gold)',
+                color: 'var(--z-navy)',
+                fontSize: 14,
+                fontWeight: 600,
+                borderRadius: 6,
+              }}
+            >
+              {t({ en: 'Browse Fleet', ar: 'تصفح الأسطول' })}
             </Link>
-            <Link href="/fleet" className="text-white font-heading font-medium text-base hover:text-[var(--z-gold)] transition-colors underline underline-offset-4 decoration-white/30 hover:decoration-[var(--z-gold)]">
-              {t({ en: 'Browse Our Fleet', ar: 'تصفح أسطولنا' })}
+            <Link
+              href="/itineraries"
+              className="inline-flex items-center gap-2 no-underline transition-all duration-300"
+              style={{
+                padding: '14px 32px',
+                background: 'transparent',
+                color: 'white',
+                fontSize: 14,
+                borderRadius: 6,
+                border: '1px solid rgba(255,255,255,0.2)',
+              }}
+            >
+              {t({ en: 'Plan Itinerary', ar: 'خطط المسار' })}
             </Link>
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-pulse">
-          <ChevronDown size={24} className="text-white/40" aria-hidden="true" />
+        {/* Image column — Stripe-style deep shadow */}
+        <div className={`relative ${isRTL ? 'order-1' : ''}`}>
+          <div className="relative aspect-[4/3] rounded-lg overflow-hidden" style={{ boxShadow: '0 25px 50px -12px rgba(10,22,40,0.5)' }}>
+            <Image
+              src={PHOTOS.hero}
+              alt={t({ en: 'Luxury yacht on Mediterranean', ar: 'يخت فاخر في البحر المتوسط' })}
+              fill
+              priority
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
         </div>
       </div>
     </section>

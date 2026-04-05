@@ -1019,16 +1019,27 @@ export async function promoteToBlogPost(
   if (!options?.skipDedup) {
   const normalizeForDedup = (t: string) => t.toLowerCase()
     .replace(/\b20\d{2}\b/g, '')
-    .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
+    .replace(/\b(comparison|guide|review|complete|ultimate|best|top|london|luxury|halal|yalla|skip|line)\b/g, '')
     .replace(/\bv\d+\b/gi, '') // Strip version suffixes (v2, v3, etc.)
     .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, '') // Preserve Arabic Unicode
     .replace(/\s+/g, ' ').trim();
+
+  // Jaccard similarity catches near-duplicates with different subtitles (Rule #155, #203)
+  const jaccardWords = (a: string, b: string): number => {
+    const setA = new Set(a.split(/\s+/).filter(Boolean));
+    const setB = new Set(b.split(/\s+/).filter(Boolean));
+    if (setA.size === 0 && setB.size === 0) return 1;
+    let intersection = 0;
+    for (const w of setA) if (setB.has(w)) intersection++;
+    const union = setA.size + setB.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+  };
 
   const candidateTitle = (enTitle || "").trim();
   if (candidateTitle.length > 5) {
     try {
       const normalizedCandidate = normalizeForDedup(candidateTitle);
-      // Fetch recent published titles for this site and compare normalized forms
+      // Fetch recent published titles for this site and compare — exact + Jaccard fuzzy match
       const recentTitles = await prisma.blogPost.findMany({
         where: {
           siteId,
@@ -1040,7 +1051,14 @@ export async function promoteToBlogPost(
         take: 200,
       });
       const existingMatch = recentTitles.find(
-        (p: { title_en: string }) => normalizeForDedup(p.title_en || "") === normalizedCandidate,
+        (p: { title_en: string }) => {
+          const normExisting = normalizeForDedup(p.title_en || "");
+          // Exact normalized match
+          if (normExisting === normalizedCandidate) return true;
+          // Fuzzy match — 0.7 Jaccard catches "London Eye Fast Track Skip Line" vs "London Eye Fast Track Skip Queues"
+          if (normalizedCandidate.length > 3 && normExisting.length > 3 && jaccardWords(normalizedCandidate, normExisting) >= 0.7) return true;
+          return false;
+        },
       );
       if (existingMatch) {
         console.warn(`[content-selector] SKIPPED draft ${draft.id}: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already published as /blog/${existingMatch.slug}`);

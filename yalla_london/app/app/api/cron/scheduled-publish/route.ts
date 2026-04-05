@@ -29,11 +29,34 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
   const normalizeTitle = (t: string) =>
     t.toLowerCase()
       .replace(/\b20\d{2}\b/g, "")
-      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/gi, "")
+      .replace(/\b(comparison|guide|review|complete|ultimate|best|top|london|luxury|halal|yalla|skip|line)\b/gi, "")
       .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
       .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Preserve Arabic Unicode
       .replace(/\s+/g, " ")
       .trim();
+
+  // Jaccard similarity for fuzzy title matching — catches "London Eye Tickets Fast Track: Skip the Line"
+  // vs "London Eye Tickets Fast Track: Skip Queues Guide" as duplicates even when subtitles differ
+  const jaccardSimilarity = (a: string, b: string): number => {
+    const setA = new Set(a.split(/\s+/).filter(Boolean));
+    const setB = new Set(b.split(/\s+/).filter(Boolean));
+    if (setA.size === 0 && setB.size === 0) return 1;
+    let intersection = 0;
+    for (const w of setA) if (setB.has(w)) intersection++;
+    const union = setA.size + setB.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+  };
+
+  const isDuplicateTitle = (normTitle: string): boolean => {
+    if (!normTitle) return false;
+    // Exact match
+    if (publishedTitleSet.has(normTitle)) return true;
+    // Fuzzy match — 0.7 Jaccard similarity catches near-duplicates with different subtitles
+    for (const existing of publishedTitleSet) {
+      if (jaccardSimilarity(normTitle, existing) >= 0.7) return true;
+    }
+    return false;
+  };
 
   // Pre-fetch published titles for dedup — shared by ScheduledContent and orphan paths
   const recentPublished = await prisma.blogPost.findMany({
@@ -164,7 +187,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         // Normalized title dedup check before publishing (Rule #145)
         if (postData?.title_en) {
           const normScheduledTitle = normalizeTitle(postData.title_en);
-          if (normScheduledTitle && publishedTitleSet.has(normScheduledTitle)) {
+          if (isDuplicateTitle(normScheduledTitle)) {
             console.warn(`[Scheduled Publish] BLOCKED duplicate: "${postData.title_en}" (normalized match exists)`);
             await prisma.scheduledContent.update({
               where: { id: item.id },
@@ -300,9 +323,10 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
           if (orphanFlag) continue;
 
           // Title dedup: skip orphans whose normalized title matches an already-published article.
-          // This prevents the "4 copies of Best Halal Fine Dining" problem (Rule #17).
+          // Uses Jaccard similarity to catch near-duplicates like "London Eye Fast Track: Skip Line"
+          // vs "London Eye Fast Track: Skip Queues Guide" (Rule #17, #155, #203).
           const normTitle = normalizeTitle(orphan.title_en || "");
-          if (normTitle && publishedTitleSet.has(normTitle)) {
+          if (isDuplicateTitle(normTitle)) {
             console.log(`[scheduled-publish] Skipping duplicate orphan: "${orphan.title_en}" (normalized: "${normTitle}")`);
             // Mark as duplicate so it doesn't get picked up again
             await prisma.blogPost.update({

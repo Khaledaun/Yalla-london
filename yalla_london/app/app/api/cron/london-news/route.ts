@@ -1211,7 +1211,7 @@ export async function GET(request: NextRequest) {
 
     // 10. Return response with metrics
     return NextResponse.json({
-      success: isSuccess,
+      success: cronStatus === "completed",
       agent: "london-news-carousel",
       runType,
       timestamp: today.toISOString(),

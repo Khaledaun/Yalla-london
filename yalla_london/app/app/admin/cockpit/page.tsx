@@ -34,6 +34,7 @@ import {
   useConfirm,
 } from "@/components/admin/admin-ui";
 import { MissionControl } from "./components/mission-control";
+import { ArticleDetailDrawer } from "./components/article-detail-drawer";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 
@@ -2469,6 +2470,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const [cronResponsePanel, setCronResponsePanel] = useState<{ label: string; data: Record<string, unknown> } | null>(null);
   const [displayLimit, setDisplayLimit] = useState(50);
 
+  // ─── Article Detail Drawer state ────────────────────────────────────
+  const [detailArticle, setDetailArticle] = useState<ContentItem | null>(null);
+
   // ─── Quick Edit modal state ───────────────────────────────────────────
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -3271,9 +3275,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               </td>
                               {/* Page name */}
                               <td className="px-3 py-2.5">
-                                <p className="text-stone-800 font-medium truncate max-w-[280px]" title={item.title}>
+                                <button
+                                  onClick={() => setDetailArticle(item)}
+                                  className="text-stone-800 font-medium truncate max-w-[280px] text-left hover:text-[#3B7EA1] transition-colors cursor-pointer block"
+                                  title={`${item.title} — tap for details`}
+                                >
                                   {item.title || item.slug || item.id}
-                                </p>
+                                </button>
                                 {item.url && (
                                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#3B7EA1] hover:underline truncate block max-w-[280px] text-[10px]">
                                     {item.url}
@@ -3635,6 +3643,16 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
             </>
           )}
         </>
+      )}
+      {/* Article Detail Drawer */}
+      {detailArticle && (
+        <ArticleDetailDrawer
+          article={detailArticle}
+          onClose={() => setDetailArticle(null)}
+          onAction={doAction}
+          onRefresh={fetchData}
+          siteId={activeSiteId}
+        />
       )}
       <ConfirmDialog />
     </div>

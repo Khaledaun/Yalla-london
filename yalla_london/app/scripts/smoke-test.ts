@@ -920,8 +920,7 @@ console.log("  SMOKE TEST RESULTS — Yalla London Platform");
 console.log("  " + new Date().toISOString());
 console.log("=".repeat(80) + "\n");
 
-const categories = [...new Set(results.map(r => r.category))];
-let totalPass = 0, totalFail = 0, totalWarn = 0;
+// NOTE: categories + totals are computed AFTER all tests — see reporting section below.
 
 // ── FRAGILITY DETECTION TESTS ──
 // These tests verify the fixes for the 18 fragilities found in the March 9 2026 deep audit.
@@ -1554,6 +1553,157 @@ test("Kapso & Post Bridge", ".env.example includes Kapso and Post Bridge vars", 
     ? { status: PASS, details: "Both POST_BRIDGE_API_KEY and KAPSO_API_KEY in .env.example" }
     : { status: FAIL, details: `POST_BRIDGE_API_KEY=${hasPostBridge} KAPSO_API_KEY=${hasKapso}` };
 });
+
+// ==================== CATEGORY: SEO Infrastructure ====================
+// These tests catch site-architecture SEO issues that content-focused audits miss:
+// missing sitemap pages, brand mismatches, wrong robots directives, blocked assets.
+
+test("SEO Infrastructure", "Sitemap includes all high-value static pages", () => {
+  const sitemapFile = "app/sitemap.ts";
+  if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, sitemapFile), "utf-8");
+  const requiredPaths = [
+    "/faq", "/glossary", "/halal-charter", "/destinations", "/itineraries",
+    "/london-by-foot", "/journal", "/information", "/shop", "/tools",
+    "/how-it-works", "/team", "/editorial-policy", "/affiliate-disclosure",
+    "/about", "/contact", "/privacy", "/terms",
+  ];
+  const missing = requiredPaths.filter(p => !content.includes(`"${p}"`));
+  return missing.length === 0
+    ? { status: PASS, details: `All ${requiredPaths.length} required static paths found in sitemap` }
+    : { status: FAIL, details: `Missing from sitemap: ${missing.join(", ")}` };
+});
+
+test("SEO Infrastructure", "Static pages use appropriate changeFrequency (not all daily)", () => {
+  const sitemapFile = "app/sitemap.ts";
+  if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, sitemapFile), "utf-8");
+  // /about and /contact should NOT be "daily"
+  const aboutMatch = content.match(/path:\s*"\/about"[^}]*changeFrequency:\s*"([^"]+)"/);
+  const contactMatch = content.match(/path:\s*"\/contact"[^}]*changeFrequency:\s*"([^"]+)"/);
+  const aboutFreq = aboutMatch?.[1] || "unknown";
+  const contactFreq = contactMatch?.[1] || "unknown";
+  const aboutOk = aboutFreq === "monthly" || aboutFreq === "yearly";
+  const contactOk = contactFreq === "monthly" || contactFreq === "yearly";
+  return aboutOk && contactOk
+    ? { status: PASS, details: `about=${aboutFreq}, contact=${contactFreq} — correct` }
+    : { status: FAIL, details: `about=${aboutFreq}, contact=${contactFreq} — static pages should not be "daily"` };
+});
+
+test("SEO Infrastructure", "robots.ts allows /api/og for social crawlers", () => {
+  const robotsFile = "app/robots.ts";
+  if (!fileExists(robotsFile)) return { status: FAIL, details: "app/robots.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, robotsFile), "utf-8");
+  return content.includes("/api/og")
+    ? { status: PASS, details: "/api/og explicitly allowed in robots.ts" }
+    : { status: FAIL, details: "/api/og not found in robots.ts — OG images blocked by /api/ disallow" };
+});
+
+test("SEO Infrastructure", "robots.ts blocks dev/internal pages", () => {
+  const robotsFile = "app/robots.ts";
+  if (!fileExists(robotsFile)) return { status: FAIL, details: "app/robots.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, robotsFile), "utf-8");
+  const devPages = ["/design-system/", "/brand-showcase/", "/brand-guidelines/", "/offline/"];
+  const missing = devPages.filter(p => !content.includes(`"${p}"`));
+  return missing.length === 0
+    ? { status: PASS, details: `All ${devPages.length} dev pages blocked in robots.ts` }
+    : { status: FAIL, details: `Dev pages not blocked: ${missing.join(", ")}` };
+});
+
+test("SEO Infrastructure", "Root layout title under 60 chars (no Arabic suffix)", () => {
+  const layoutFile = "app/layout.tsx";
+  if (!fileExists(layoutFile)) return { status: FAIL, details: "app/layout.tsx missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, layoutFile), "utf-8");
+  // The title template should NOT include siteNameAr
+  const hasBadPattern = content.includes("siteNameAr}") && content.match(/title:\s*`[^`]*siteNameAr/);
+  return hasBadPattern
+    ? { status: FAIL, details: "Root title includes Arabic name suffix — exceeds 60 char SERP limit" }
+    : { status: PASS, details: "Root title does not include Arabic suffix" };
+});
+
+test("SEO Infrastructure", "No hardcoded 'Zenitha Yachts' brand in non-yacht page metadata", () => {
+  // Check pages that should use dynamic brand names, not hardcoded "Zenitha Yachts"
+  const pagesToCheck = ["app/glossary/page.tsx", "app/halal-charter/page.tsx"];
+  const issues: string[] = [];
+  for (const p of pagesToCheck) {
+    if (!fileExists(p)) continue;
+    const content = fs.readFileSync(path.join(APP_DIR, p), "utf-8");
+    // Check for hardcoded brand in title strings (not in comments)
+    const titleMatches = content.match(/title:\s*['"`].*Zenitha Yachts.*['"`]/g);
+    if (titleMatches && titleMatches.length > 0) {
+      issues.push(`${p}: hardcoded "Zenitha Yachts" in title`);
+    }
+  }
+  return issues.length === 0
+    ? { status: PASS, details: "No hardcoded brand names in shared page metadata" }
+    : { status: FAIL, details: issues.join("; ") };
+});
+
+test("SEO Infrastructure", "Offline page has noindex robots directive", () => {
+  // Check layout or page for robots: { index: false }
+  const layoutFile = "app/offline/layout.tsx";
+  const pageFile = "app/offline/page.tsx";
+  const layoutExists = fileExists(layoutFile);
+  const pageExists = fileExists(pageFile);
+  if (!layoutExists && !pageExists) return { status: FAIL, details: "No offline page found" };
+  const layoutContent = layoutExists ? fs.readFileSync(path.join(APP_DIR, layoutFile), "utf-8") : "";
+  const pageContent = pageExists ? fs.readFileSync(path.join(APP_DIR, pageFile), "utf-8") : "";
+  const combined = layoutContent + pageContent;
+  return combined.includes("index: false")
+    ? { status: PASS, details: "Offline page has noindex directive" }
+    : { status: FAIL, details: "Offline page missing noindex — will appear in search results" };
+});
+
+test("SEO Infrastructure", "StructuredData component generates SearchAction for all sites", () => {
+  const sdFile = "components/structured-data.tsx";
+  if (!fileExists(sdFile)) return { status: FAIL, details: "components/structured-data.tsx missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, sdFile), "utf-8");
+  // SearchAction should NOT be gated behind isZenitha only
+  const hasSearchAction = content.includes("SearchAction");
+  const isZenithaOnly = content.includes("isZenitha ?") && content.includes("SearchAction") &&
+    content.match(/\.\.\.\(isZenitha\s*\?\s*\{[^}]*SearchAction/);
+  return hasSearchAction && !isZenithaOnly
+    ? { status: PASS, details: "SearchAction schema available for all sites" }
+    : { status: FAIL, details: isZenithaOnly ? "SearchAction gated to Zenitha only" : "SearchAction missing entirely" };
+});
+
+test("SEO Infrastructure", "Dev/internal pages have noindex in metadata", () => {
+  const devPages = [
+    { path: "app/design-system/page.tsx", name: "/design-system" },
+    { path: "app/brand-showcase/page.tsx", name: "/brand-showcase" },
+    { path: "app/brand-guidelines/page.tsx", name: "/brand-guidelines" },
+  ];
+  const issues: string[] = [];
+  for (const { path: p, name } of devPages) {
+    if (!fileExists(p)) continue;
+    const content = fs.readFileSync(path.join(APP_DIR, p), "utf-8");
+    if (!content.includes("index: false")) {
+      issues.push(`${name} missing noindex`);
+    }
+  }
+  return issues.length === 0
+    ? { status: PASS, details: "All dev/internal pages have noindex" }
+    : { status: FAIL, details: issues.join("; ") };
+});
+
+test("SEO Infrastructure", "Privacy and terms pages in sitemap with yearly frequency", () => {
+  const sitemapFile = "app/sitemap.ts";
+  if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, sitemapFile), "utf-8");
+  const hasPrivacy = content.includes('"/privacy"');
+  const hasTerms = content.includes('"/terms"');
+  const privacyMatch = content.match(/path:\s*"\/privacy"[^}]*changeFrequency:\s*"([^"]+)"/);
+  const termsMatch = content.match(/path:\s*"\/terms"[^}]*changeFrequency:\s*"([^"]+)"/);
+  const privacyFreq = privacyMatch?.[1] || "missing";
+  const termsFreq = termsMatch?.[1] || "missing";
+  return hasPrivacy && hasTerms && privacyFreq === "yearly" && termsFreq === "yearly"
+    ? { status: PASS, details: `privacy=${privacyFreq}, terms=${termsFreq}` }
+    : { status: FAIL, details: `privacy=${privacyFreq}, terms=${termsFreq} — legal pages should be yearly` };
+});
+
+// Compute categories AFTER all tests have run
+const categories = [...new Set(results.map(r => r.category))];
+let totalPass = 0, totalFail = 0, totalWarn = 0;
 
 for (const cat of categories) {
   const catResults = results.filter(r => r.category === cat);

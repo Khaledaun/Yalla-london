@@ -72,25 +72,47 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
  */
 async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
-  const pages = [
-    { path: "", priority: 1 },
-    { path: "/blog", priority: 0.9 },
-    { path: "/recommendations", priority: 0.9 },
-    { path: "/hotels", priority: 0.8 },
-    { path: "/experiences", priority: 0.8 },
-    { path: "/events", priority: 0.8 },
-    { path: "/news", priority: 0.8 },
-    { path: "/halal-restaurants-london", priority: 0.9 },
-    { path: "/luxury-hotels-london", priority: 0.9 },
-    { path: "/london-with-kids", priority: 0.9 },
-    { path: "/about", priority: 0.7 },
-    { path: "/contact", priority: 0.6 },
+  const pages: { path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" | "yearly" }[] = [
+    // Homepage — changes frequently with new content
+    { path: "", priority: 1, changeFrequency: "daily" },
+    // High-value content pages — updated regularly
+    { path: "/blog", priority: 0.9, changeFrequency: "daily" },
+    { path: "/recommendations", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/hotels", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/experiences", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/events", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/news", priority: 0.8, changeFrequency: "daily" },
+    { path: "/halal-restaurants-london", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/luxury-hotels-london", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/london-with-kids", priority: 0.9, changeFrequency: "weekly" },
+    { path: "/london-by-foot", priority: 0.9, changeFrequency: "weekly" },
+    // Structured data pages — high SEO value
+    { path: "/faq", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/glossary", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/halal-charter", priority: 0.9, changeFrequency: "monthly" },
+    // Navigation & discovery pages
+    { path: "/destinations", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/itineraries", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/journal", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/information", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/shop", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/tools", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/how-it-works", priority: 0.7, changeFrequency: "monthly" },
+    // E-E-A-T trust signals
+    { path: "/team", priority: 0.6, changeFrequency: "monthly" },
+    { path: "/editorial-policy", priority: 0.5, changeFrequency: "yearly" },
+    { path: "/affiliate-disclosure", priority: 0.5, changeFrequency: "yearly" },
+    // Standard pages — rarely change
+    { path: "/about", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/contact", priority: 0.6, changeFrequency: "monthly" },
+    { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
+    { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   ];
 
-  const entries: MetadataRoute.Sitemap = pages.map(({ path, priority }) => ({
+  const entries: MetadataRoute.Sitemap = pages.map(({ path, priority, changeFrequency }) => ({
     url: path ? `${baseUrl}${path}` : baseUrl,
     lastModified: now,
-    changeFrequency: "daily" as const,
+    changeFrequency,
     priority,
     alternates: {
       languages: {

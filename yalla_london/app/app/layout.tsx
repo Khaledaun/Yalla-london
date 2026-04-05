@@ -114,7 +114,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteNameAr = getSiteNameAr(siteId);
 
   return {
-    title: `${siteName} - ${siteTagline} | ${siteNameAr}`,
+    // Title kept under 60 chars for SERP display — Arabic name moved to og:site_name
+    title: `${siteName} — ${siteTagline}`,
     description: siteDescription,
     authors: [{ name: siteName }],
     creator: siteName,

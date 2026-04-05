@@ -77,6 +77,11 @@ interface ContentItem {
   traceId: string | null;
   photoOrderQuery: string | null;
   photoOrderStatus: string | null;
+  // Phase 3.1 additions for UX features
+  wordCountAr?: number;
+  hasUnreviewedEnhancements?: boolean;
+  enhancementSummary?: Array<{ type: string; timestamp: string; cron?: string }>;
+  featuredImage?: string | null;
 }
 
 interface ContentMatrixSummary {
@@ -228,11 +233,15 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             siteId: true,
             published: true,
             created_at: true,
+            updated_at: true,
             seo_score: true,
             meta_title_en: true,
             meta_description_en: true,
             tags: true,
             content_en: true,
+            content_ar: true,
+            featured_image: true,
+            enhancement_log: true,
             source_pipeline: true,
             trace_id: true,
             photo_order_query: true,
@@ -244,7 +253,31 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
           const slug = post.slug ?? null;
           const indexData = slug ? indexingMap.get(slug) : null;
           const wc = wordCount(post.content_en);
+          const wcAr = wordCount(post.content_ar);
           const ilCount = countInternalLinks(post.content_en);
+
+          // Enhancement log analysis for "Changed" state
+          let hasUnreviewedEnhancements = false;
+          let enhancementSummary: Array<{ type: string; timestamp: string; cron?: string }> = [];
+          try {
+            const rawLog = post.enhancement_log;
+            if (rawLog && Array.isArray(rawLog)) {
+              const entries = rawLog as Array<{ type?: string; timestamp?: string; cron?: string }>;
+              if (entries.length > 0) {
+                enhancementSummary = entries.slice(-3).map(e => ({
+                  type: e.type ?? "unknown",
+                  timestamp: e.timestamp ?? "",
+                  cron: e.cron,
+                }));
+                const latestTs = entries[entries.length - 1]?.timestamp;
+                if (latestTs && post.updated_at) {
+                  hasUnreviewedEnhancements = new Date(latestTs) > post.updated_at;
+                }
+              }
+            }
+          } catch {
+            // enhancement_log parse failed — leave defaults
+          }
 
           items.push({
             id: post.id,
@@ -283,6 +316,10 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             topicTitle: null,
             photoOrderQuery: (post as Record<string, unknown>).photo_order_query as string ?? null,
             photoOrderStatus: (post as Record<string, unknown>).photo_order_status as string ?? null,
+            wordCountAr: wcAr,
+            hasUnreviewedEnhancements,
+            enhancementSummary: enhancementSummary.length > 0 ? enhancementSummary : undefined,
+            featuredImage: post.featured_image ?? null,
           });
         }
       } catch (err) {

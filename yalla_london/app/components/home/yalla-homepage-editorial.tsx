@@ -145,14 +145,15 @@ export function YallaHomepageEditorial({ locale = "en" }: Props) {
 
   // Featured article (first DB article or fallback)
   const feat = FEATURED_ARTICLE[locale];
+  const featSlug = FEATURED_ARTICLE.slug || "#";
   const featured = dbArticles.length > 0
     ? {
         ...articles[0],
-        slug: dbArticles[0].slug || feat.slug || "#",
+        slug: dbArticles[0].slug || featSlug,
         author: feat.author,
         image: FEATURED_ARTICLE.image,
       }
-    : { id: "0", slug: feat.slug || "#", ...feat, image: FEATURED_ARTICLE.image };
+    : { id: "0", slug: featSlug, ...feat, image: FEATURED_ARTICLE.image };
 
   const events = liveEvents.length > 0 ? liveEvents : FALLBACK_EVENTS;
 

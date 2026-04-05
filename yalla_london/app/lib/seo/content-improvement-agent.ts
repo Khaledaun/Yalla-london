@@ -9,7 +9,14 @@ import { searchConsole, SearchAnalyticsRow } from '../integrations/google-search
 import { blogPosts } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+function getBaseUrl(siteId?: string): string {
+  const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+  if (siteId) {
+    return getSiteDomain(siteId);
+  }
+  return process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+}
+const BASE_URL = getBaseUrl();
 const allPosts = [...blogPosts, ...extendedBlogPosts];
 
 // ============================================

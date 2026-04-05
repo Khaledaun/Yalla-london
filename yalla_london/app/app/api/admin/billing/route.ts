@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getBaseUrl } from "@/lib/url-utils";
 
 /**
  * Billing Management API
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+        const baseUrl = await getBaseUrl();
         const checkoutUrl = await createCheckoutSession(
           entityId,
           planId,
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+        const baseUrl = await getBaseUrl();
         const portalUrl = await createBillingPortalSession(
           entityId,
           `${baseUrl}/admin/billing`,

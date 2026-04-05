@@ -169,7 +169,7 @@ export class ParallelSEOAgentDispatcher {
     priority: 'high' | 'medium' | 'low' = 'medium'
   ): SEOAgentTask {
     const task: SEOAgentTask = {
-      id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `${type}-${Date.now()}-${crypto.randomUUID().slice(0, 9)}`,
       type,
       scope: SEO_AGENT_DEFINITIONS[type].description,
       urls,

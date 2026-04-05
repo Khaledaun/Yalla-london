@@ -20,7 +20,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     }
 
     const apiKey =
-      process.env.LIGHTHOUSE_API_KEY || process.env.PAGESPEED_API_KEY;
+      process.env.LIGHTHOUSE_API_KEY || process.env.PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(

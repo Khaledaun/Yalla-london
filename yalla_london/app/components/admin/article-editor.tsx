@@ -119,11 +119,32 @@ export function ArticleEditor({
     readingTime: 0
   })
 
-  // Load pre-filled data from URL parameters (when coming from topics)
+  // Load initialData when in edit mode
   useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setArticle(prev => ({
+        ...prev,
+        id: initialData.id || undefined,
+        title: initialData.title_en || initialData.title || '',
+        slug: initialData.slug || '',
+        excerpt: initialData.excerpt_en || initialData.excerpt || '',
+        content: initialData.content_en || initialData.content || '',
+        language: 'en',
+        status: initialData.published ? 'published' : 'draft',
+        tags: Array.isArray(initialData.tags) ? initialData.tags : [],
+        category: initialData.category?.id || initialData.category_id || '',
+        seoTitle: initialData.meta_title_en || initialData.title_en || '',
+        seoDescription: initialData.meta_description_en || '',
+        authorId: initialData.author?.id || initialData.author_id || 'current-user',
+        featuredImage: initialData.featured_image || undefined,
+      }))
+      return
+    }
+
+    // Load pre-filled data from URL parameters (when coming from topics)
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
-      
+
       if (urlParams.get('title')) {
         setArticle(prev => ({
           ...prev,
@@ -137,7 +158,7 @@ export function ArticleEditor({
         }))
       }
     }
-  }, [])
+  }, [mode, initialData])
 
   const [isTopicResearchOpen, setIsTopicResearchOpen] = useState(false)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
@@ -148,25 +169,15 @@ export function ArticleEditor({
   const [contentGenerationProgress, setContentGenerationProgress] = useState(0)
   const [newTag, setNewTag] = useState('')
 
-  // Mock media assets
-  const [mediaAssets] = useState<MediaAsset[]>([
-    {
-      id: '1',
-      url: '/images/london-bridge.jpg',
-      thumbnailUrl: '/images/london-bridge-thumb.jpg',
-      filename: 'london-bridge-hero.jpg',
-      altText: 'Beautiful view of London Bridge at sunset',
-      type: 'image'
-    },
-    {
-      id: '2',
-      url: '/images/london-markets.jpg',
-      thumbnailUrl: '/images/london-markets-thumb.jpg',
-      filename: 'london-markets.jpg',
-      altText: 'Busy London market with fresh produce and vendors',
-      type: 'image'
-    }
-  ])
+  // Media assets loaded from API
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/media')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => { if (Array.isArray(data.assets)) setMediaAssets(data.assets); })
+      .catch(err => console.warn('[ArticleEditor] Failed to load media:', err instanceof Error ? err.message : err));
+  }, [])
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -186,46 +197,28 @@ export function ArticleEditor({
     setArticle(prev => ({ ...prev, readingTime }))
   }, [article.content])
 
-  // Mock topic research
+  // Topic research via API
   const performTopicResearch = async (query: string) => {
-    // Simulate API call
-    const mockSuggestions: TopicSuggestion[] = [
-      {
-        id: '1',
-        title: 'Best Hidden Gems in London 2024',
-        description: 'Discover secret spots and lesser-known attractions that locals love',
-        relevanceScore: 95,
-        trendingScore: 88,
-        competition: 'medium',
-        estimatedTraffic: 15000,
-        keywords: ['london hidden gems', 'secret london', 'off beaten path'],
-        suggestedLength: 2500
-      },
-      {
-        id: '2',
-        title: 'London Food Markets: A Complete Guide',
-        description: 'Comprehensive guide to the best food markets in London with insider tips',
-        relevanceScore: 92,
-        trendingScore: 76,
-        competition: 'high',
-        estimatedTraffic: 25000,
-        keywords: ['london food markets', 'borough market', 'street food london'],
-        suggestedLength: 3000
-      },
-      {
-        id: '3',
-        title: 'Free Things to Do in London This Weekend',
-        description: 'Budget-friendly activities and events happening in London',
-        relevanceScore: 89,
-        trendingScore: 91,
-        competition: 'low',
-        estimatedTraffic: 12000,
-        keywords: ['free london activities', 'weekend london', 'budget travel london'],
-        suggestedLength: 2000
-      }
-    ]
-
-    setTopicSuggestions(mockSuggestions)
+    try {
+      const res = await fetch(`/api/admin/topics?status=planned&limit=10`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const suggestions: TopicSuggestion[] = (data.topics || []).slice(0, 5).map((t: Record<string, unknown>, i: number) => ({
+        id: String(t.id || i),
+        title: String(t.title || ''),
+        description: String(t.primary_keyword || ''),
+        relevanceScore: Number(t.confidence_score) || 0,
+        trendingScore: 0,
+        competition: 'medium' as const,
+        estimatedTraffic: 0,
+        keywords: Array.isArray(t.longtails) ? t.longtails as string[] : [],
+        suggestedLength: 2000,
+      }));
+      setTopicSuggestions(suggestions);
+    } catch (err) {
+      console.warn('[ArticleEditor] Topic research failed:', err instanceof Error ? err.message : err);
+      setTopicSuggestions([]);
+    }
   }
 
   const selectTopicAndGenerateContent = async (topic: TopicSuggestion) => {
@@ -256,66 +249,46 @@ export function ArticleEditor({
       })
     }
 
-    // Generate mock content based on language and topic
-    const generatedContent = generateMockContent(topic, article.language)
-    setArticle(prev => ({ ...prev, content: generatedContent }))
-    
-    setIsGeneratingContent(false)
-    setIsTopicResearchOpen(false)
-    
+    // Generate content outline as starting point (no mock content)
+    const outline = generateContentOutline(topic, article.language);
+    setArticle(prev => ({ ...prev, content: outline }));
+
+    setIsGeneratingContent(false);
+    setIsTopicResearchOpen(false);
+
     toast({
-      title: "Content Generated Successfully",
-      description: `Article content has been generated for "${topic.title}"`,
-    })
+      title: "Outline Created",
+      description: `Content outline created for "${topic.title}" — expand each section with real content.`,
+    });
   }
 
-  const generateMockContent = (topic: TopicSuggestion, language: string) => {
+  const generateContentOutline = (topic: TopicSuggestion, language: string) => {
     if (language === 'ar') {
       return `# ${topic.title}
 
 ## مقدمة
-${topic.description}
+<!-- اكتب مقدمة جذابة عن: ${topic.description} -->
 
 ## النقاط الرئيسية
-
-### النقطة الأولى
-هذا النص هو مثال لنص يمكن أن يستبدل في نفس المساحة، لقد تم توليد هذا النص من مولد النص العربى.
-
-### النقطة الثانية
-حيث يمكنك أن تولد مثل هذا النص أو العديد من النصوص الأخرى إضافة إلى زيادة عدد الحروف التى يولدها التطبيق.
-
-### النقطة الثالثة
-إذا كنت تحتاج إلى عدد أكبر من الفقرات يتيح لك مولد النص العربى زيادة عدد الفقرات كما تريد.
+<!-- أضف 3-5 أقسام رئيسية مع محتوى أصلي -->
 
 ## الخلاصة
-النص المولد مفيد جداً لفهم كيف سيبدو النص النهائي وتخطيط التصميم.`
+<!-- اكتب خلاصة مع دعوة للعمل -->`;
     }
 
     return `# ${topic.title}
 
 ## Introduction
-${topic.description}
+<!-- Write an engaging introduction about: ${topic.description} -->
 
-## Main Points
+## Main Sections
+<!-- Add 3-5 main sections with original content, insider tips, and first-hand experience markers -->
 
-### Point One
-London is a city that never ceases to amaze. From its rich history to its vibrant modern culture, there's always something new to discover.
-
-### Point Two
-Whether you're a first-time visitor or a long-time resident, this guide will help you uncover some of the city's best-kept secrets.
-
-### Point Three
-Each recommendation comes with insider tips and practical information to help you make the most of your experience.
-
-## Key Highlights
-- Detailed information about each location
-- Insider tips from locals
-- Best times to visit
-- Transportation options
-- Budget considerations
+## Key Takeaways
+<!-- Summarize key points for AI Overview eligibility -->
 
 ## Conclusion
-London's charm lies in its diversity and the countless opportunities it offers for exploration and discovery.`
+<!-- Write conclusion with call-to-action and affiliate links -->`;
   }
 
   const addTag = () => {
@@ -362,44 +335,84 @@ London's charm lies in its diversity and the countless opportunities it offers f
   const saveArticle = async (status: 'draft' | 'published') => {
     try {
       setArticle(prev => ({ ...prev, status }))
-      
-      const response = await fetch('/api/admin/content', {
-        method: article.id ? 'PUT' : 'POST',
+
+      // Generate Arabic translations via AI if content is in English
+      let titleAr = article.title;
+      let excerptAr = article.excerpt;
+      let contentAr = article.content;
+      try {
+        const transRes = await fetch("/api/admin/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: article.title, excerpt: article.excerpt }),
+        });
+        if (transRes.ok) {
+          const transData = await transRes.json();
+          if (transData.title_ar) titleAr = transData.title_ar;
+          if (transData.excerpt_ar) excerptAr = transData.excerpt_ar;
+          if (transData.content_ar) contentAr = transData.content_ar;
+        }
+      } catch {
+        // Translation failed — fall back to English copies
+      }
+
+      const payload = {
+        title_en: article.title,
+        title_ar: titleAr,
+        slug: article.slug,
+        excerpt_en: article.excerpt,
+        excerpt_ar: excerptAr,
+        content_en: article.content,
+        content_ar: contentAr,
+        published: status === 'published',
+        category_id: article.category || undefined,
+        author_id: article.authorId || undefined,
+        tags: article.tags,
+        meta_title_en: article.seoTitle,
+        meta_description_en: article.seoDescription,
+        featured_image: article.featuredImage
+      }
+
+      // Use blog-posts API for existing articles, content API for new
+      const url = article.id
+        ? `/api/admin/blog-posts/${article.id}`
+        : '/api/admin/content'
+      const method = article.id ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: article.id,
-          title_en: article.title,
-          title_ar: article.title, // TODO: Add proper translation
-          slug: article.slug,
-          excerpt_en: article.excerpt,
-          excerpt_ar: article.excerpt,
-          content_en: article.content,
-          content_ar: article.content,
-          published: status === 'published',
-          category_id: article.category || 'default-category',
-          author_id: article.authorId || 'system-user',
-          tags: article.tags,
-          meta_title_en: article.seoTitle,
-          meta_description_en: article.seoDescription,
-          featured_image: article.featuredImage
-        })
+        body: JSON.stringify(article.id ? payload : { ...payload, id: article.id })
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save article')
+        let errorMsg = `Server error (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          // Non-JSON response (e.g. Vercel 504 timeout HTML page)
+          // Safari throws "The string did not match the expected pattern"
+          errorMsg = response.status === 504 ? 'Request timed out — please try again' : errorMsg;
+        }
+        throw new Error(errorMsg)
       }
 
-      const result = await response.json()
-      
+      let result: { data?: { id?: string }; success?: boolean };
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error('Invalid response from server — please try again');
+      }
+
       // Update article with the ID from server
       if (result.data?.id) {
         setArticle(prev => ({ ...prev, id: result.data.id }))
       }
-      
+
       toast({
         title: status === 'draft' ? "Draft Saved" : "Article Published",
-        description: status === 'draft' 
+        description: status === 'draft'
           ? "Your article has been saved as a draft."
           : "Your article has been published successfully.",
       })

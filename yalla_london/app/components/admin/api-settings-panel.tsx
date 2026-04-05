@@ -611,8 +611,8 @@ export function ApiSettingsPanel() {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <code className="text-sm">
                       NEXT_PUBLIC_BRAND_TYPE=luxury-guide<br/>
-                      NEXT_PUBLIC_SITE_URL=https://yallalondon.com<br/>
-                      NEXTAUTH_URL=https://yallalondon.com<br/>
+                      NEXT_PUBLIC_SITE_URL=https://your-site-domain.com<br/>
+                      NEXTAUTH_URL=https://your-site-domain.com<br/>
                       NEXTAUTH_SECRET=your-nextauth-secret<br/>
                     </code>
                   </div>

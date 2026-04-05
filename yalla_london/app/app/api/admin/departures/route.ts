@@ -1,0 +1,546 @@
+/**
+ * /api/admin/departures
+ *
+ * Airport departures board — all upcoming scheduled events in the platform.
+ * Returns cron jobs, scheduled publications, reservoir articles ready to publish,
+ * and pending audits — all sorted by next fire time.
+ *
+ * GET  — returns departure list
+ * POST — "Do Now" trigger: { type: 'cron', path: '/api/cron/...' }
+ */
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // POST triggers cron routes that can take up to 280s (gsc-sync, content-selector)
+
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin-middleware';
+import { getActiveSiteIds, getDefaultSiteId } from '@/config/sites';
+import { logManualAction } from '@/lib/action-logger';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface Departure {
+  id: string;
+  label: string;
+  type: 'cron' | 'publication' | 'audit' | 'content';
+  icon: string; // emoji used as visual indicator
+  scheduledAt: string | null;      // ISO string, null = "on demand"
+  countdownMs: number | null;      // ms until scheduledAt (negative = overdue)
+  status: 'scheduled' | 'running' | 'overdue' | 'ready' | 'on_demand';
+  cronPath: string | null;         // POST target for "Do Now"
+  cronSchedule: string | null;     // human-readable schedule string
+  lastRunAt: string | null;        // ISO string of last execution
+  lastRunStatus: 'success' | 'failed' | 'unknown' | null;
+  siteId: string | null;
+  meta?: Record<string, string | number>;
+  // Phase 6 enhancements
+  description: string | null;      // plain-English "what will happen"
+  category: string | null;         // content | seo | analytics | maintenance | publishing
+  feedsInto: string | null;        // what this cron feeds into
+  successRate7d: number | null;    // 7-day success rate (0-100)
+  avgDurationMs: number | null;    // average execution duration
+  lastError: string | null;        // plain-English last error message
+}
+
+// ---------------------------------------------------------------------------
+// Cron schedule definitions (mirrors vercel.json)
+// ---------------------------------------------------------------------------
+
+interface CronDef {
+  path: string;
+  schedule: string;
+  label: string;
+  icon: string;
+  type: 'cron';
+  description: string;
+  category: 'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing' | 'ai' | 'email' | 'agent';
+  feedsInto?: string;
+}
+
+const CRON_DEFS: CronDef[] = [
+  { path: '/api/cron/analytics',              schedule: '30 2 * * *',          label: 'Analytics Sync',            icon: '📊', type: 'cron', category: 'analytics',    description: 'Syncs GA4 + Search Console data into the dashboard. Updates traffic, clicks, and keyword rankings.',           feedsInto: 'Dashboard metrics' },
+  { path: '/api/cron/gsc-sync',               schedule: '0 4 * * *',          label: 'GSC Data Sync',             icon: '📡', type: 'cron', category: 'seo',          description: 'Pulls per-page clicks/impressions/CTR/position from Google Search Console. Cross-references indexing status — URLs with impressions confirmed indexed.', feedsInto: 'Cockpit + Content Matrix' },
+  { path: '/api/cron/weekly-topics',          schedule: '10 4 * * *',          label: 'Topic Research (daily)',    icon: '🔍', type: 'cron', category: 'content',      description: 'Generates new content topic ideas for all active sites. Full generation Mondays, backlog-refill other days.', feedsInto: 'Content Builder' },
+  { path: '/api/cron/daily-content-generate', schedule: '0 5 * * *',          label: 'Daily Content Generation',  icon: '✍️', type: 'cron', category: 'content',      description: 'Creates new article drafts from approved topics. Each draft enters the 8-phase pipeline.',                     feedsInto: 'Content Builder' },
+  { path: '/api/cron/seo-orchestrator?mode=weekly', schedule: '0 5 * * 0',   label: 'SEO Orchestrator (weekly)', icon: '🎯', type: 'cron', category: 'seo',          description: 'Deep weekly SEO audit. Checks indexing gaps, content quality, schema markup, and generates health reports.',    feedsInto: 'SEO Reports' },
+  { path: '/api/cron/trends-monitor',         schedule: '0 6 * * *',          label: 'Trends Monitor',            icon: '📈', type: 'cron', category: 'content',      description: 'Scans trending topics for timely content opportunities. Creates urgent topic proposals for viral moments.',     feedsInto: 'Weekly Topics' },
+  { path: '/api/cron/seo-orchestrator?mode=daily', schedule: '10 6 * * *',   label: 'SEO Orchestrator (daily)',  icon: '🎯', type: 'cron', category: 'seo',          description: 'Daily SEO maintenance. Checks for new indexing issues and updates SEO health scores.',                        feedsInto: 'SEO Agent' },
+  { path: '/api/cron/london-news',            schedule: '40 6,14 * * *',      label: 'London News Fetch',         icon: '📰', type: 'cron', category: 'content',      description: 'Fetches London-specific news and generates timely news articles for the site.',                                feedsInto: 'Published content' },
+  { path: '/api/cron/seo-agent',              schedule: '0 7 * * *',          label: 'SEO Agent (morning)',       icon: '🤖', type: 'cron', category: 'seo',          description: 'Auto-fixes meta titles/descriptions, injects internal links, discovers new pages for IndexNow submission.',   feedsInto: 'IndexNow' },
+  { path: '/api/seo/cron?task=daily',         schedule: '30 7 * * *',         label: 'IndexNow Submission',       icon: '🔗', type: 'cron', category: 'seo',          description: 'Submits new/updated URLs to IndexNow for instant search engine discovery. Faster than waiting for crawlers.',  feedsInto: 'Google indexing' },
+  { path: '/api/cron/sweeper',               schedule: '45 8,14,20 * * *',    label: 'DB Sweeper / Cleanup',      icon: '🧹', type: 'cron', category: 'maintenance',  description: 'Cleans up old logs, expired sessions, and stale data. Keeps the database lean and performant.' },
+  { path: '/api/seo/cron?task=weekly',        schedule: '0 8 * * 0',          label: 'SEO Cron (weekly)',         icon: '🔗', type: 'cron', category: 'seo',          description: 'Weekly deep sitemap and indexing analysis. Checks for broken links, duplicate content, and orphan pages.',     feedsInto: 'SEO Reports' },
+  { path: '/api/cron/content-builder',        schedule: '8,23,38,53 * * * *', label: 'Content Builder (15min)',   icon: '🏗️', type: 'cron', category: 'content',      description: 'Advances article drafts through the 8-phase pipeline. Full 53s budget dedicated to AI phase execution.', feedsInto: 'Content Selector' },
+  { path: '/api/cron/content-builder-create', schedule: '7 */1 * * *',        label: 'Draft Creator (hourly)',    icon: '📝', type: 'cron', category: 'content',      description: 'Creates new EN+AR draft pairs from topic queue. DB-only, no AI calls. Separated so builder gets full budget for phases.', feedsInto: 'Content Builder' },
+  { path: '/api/cron/content-selector',       schedule: '5 7,9,11,13,15,17,19,21 * * *', label: 'Content Selector',  icon: '✅', type: 'cron', category: 'publishing',   description: 'Selects highest-quality articles from the reservoir and schedules them for publication.',                      feedsInto: 'Scheduled Publish' },
+  { path: '/api/cron/affiliate-injection',    schedule: '25 9 * * *',         label: 'Affiliate Injection',       icon: '💰', type: 'cron', category: 'content',      description: 'Injects affiliate and booking links (HalalBooking, Booking.com, Viator) into published articles for revenue.' },
+  { path: '/api/affiliate/cron/sync-advertisers',  schedule: '30 0,6,12,18 * * *', label: 'CJ Advertiser Sync',    icon: '🤝', type: 'cron', category: 'content',      description: 'Syncs CJ advertiser statuses. Detects newly approved advertisers and auto-fetches their links/products.',     feedsInto: 'Affiliate Injection' },
+  { path: '/api/affiliate/cron/sync-commissions',  schedule: '50 6 * * *',          label: 'CJ Commission Sync',    icon: '💵', type: 'cron', category: 'content',      description: 'Fetches commission data from CJ for the last 7 days. Updates revenue dashboard with real earnings.' },
+  { path: '/api/affiliate/cron/discover-deals',    schedule: '30 5 * * *',          label: 'CJ Deal Discovery',     icon: '🏷️', type: 'cron', category: 'content',      description: 'Searches CJ product catalog for new deals and price drops relevant to each site destination.' },
+  { path: '/api/affiliate/cron/refresh-links',     schedule: '15 3 * * 0',         label: 'CJ Link Refresh',       icon: '🔗', type: 'cron', category: 'content',      description: 'Refreshes affiliate tracking links from CJ for all joined advertisers. Deactivates expired links.' },
+  { path: '/api/cron/scheduled-publish',      schedule: '15 9 * * *',         label: 'Scheduled Publish (9am)',   icon: '🚀', type: 'cron', category: 'publishing',   description: 'Publishes scheduled articles at 9am UTC. Each article passes the 16-check pre-publication gate.',              feedsInto: 'SEO Agent' },
+  { path: '/api/cron/scheduled-publish',      schedule: '15 12 * * *',        label: 'Scheduled Publish (noon)',  icon: '🚀', type: 'cron', category: 'publishing',   description: 'Noon publish window. Publishes remaining scheduled content.',                                                  feedsInto: 'SEO Agent' },
+  { path: '/api/cron/google-indexing',        schedule: '35 9 * * *',         label: 'Google Indexing Submit',    icon: '🔎', type: 'cron', category: 'seo',          description: 'Submits newly published pages to Google via the Indexing API for faster crawling and indexing.' },
+  { path: '/api/cron/seo-agent',              schedule: '0 13 * * *',         label: 'SEO Agent (afternoon)',     icon: '🤖', type: 'cron', category: 'seo',          description: 'Afternoon SEO pass. Catches newly published articles and fixes any meta tag or link issues.',                 feedsInto: 'IndexNow' },
+  { path: '/api/cron/seo-agent-intelligence', schedule: '0 14 * * *',         label: 'SEO Intelligence (AI)',     icon: '🧠', type: 'cron', category: 'seo',          description: 'AI-powered: GSC analysis, low-CTR meta rewriting, content strengthening, GA4 traffic analysis, content strategy.', feedsInto: 'Content Strategy' },
+  { path: '/api/cron/scheduled-publish',      schedule: '0 16 * * *',         label: 'Scheduled Publish (4pm)',   icon: '🚀', type: 'cron', category: 'publishing',   description: 'Afternoon publish window. Publishes remaining scheduled content for the day.',                                feedsInto: 'SEO Agent' },
+  { path: '/api/cron/verify-indexing',        schedule: '5 11,17 * * *',      label: 'Verify Indexing (2x)',      icon: '✔️', type: 'cron', category: 'seo',          description: 'Checks previously submitted URLs to confirm Google has indexed them. Updates indexing status in the database.' },
+  { path: '/api/cron/content-auto-fix-lite',  schedule: '40 0,4,8,12,16,20 * * *', label: 'Auto-Fix Lite (6x)',  icon: '🔧', type: 'cron', category: 'content',      description: 'Fast DB-only fixes: stuck draft recovery, heading hierarchy, meta description trims. Every 4 hours.',          feedsInto: 'Content Builder' },
+  { path: '/api/cron/content-auto-fix',       schedule: '0 11,18 * * *',      label: 'Auto-Fix Heavy (AI)',       icon: '🔧', type: 'cron', category: 'content',      description: 'AI-powered: word count expansion, quality score enhancement, link injection, Arabic meta generation. 2x daily.', feedsInto: 'Quality gate' },
+  { path: '/api/cron/seo-agent',              schedule: '0 20 * * *',         label: 'SEO Agent (evening)',       icon: '🤖', type: 'cron', category: 'seo',          description: 'Evening SEO sweep. Final daily check for missing meta tags, internal links, and schema markup.',               feedsInto: 'IndexNow' },
+  { path: '/api/cron/site-health-check',      schedule: '0 22 * * *',         label: 'Site Health Check',         icon: '❤️', type: 'cron', category: 'maintenance',  description: 'Nightly health check across all configured sites. Detects downtime, slow responses, and configuration issues.' },
+  { path: '/api/cron/reserve-publisher',      schedule: '10 21 * * *',        label: 'Reserve Publisher',         icon: '🛡️', type: 'cron', category: 'publishing',   description: 'Daily safety net. At 9pm UTC, checks if each site published 1 EN + 1 AR article today. If not, generates and publishes from reservoir or scratch. Guarantees daily minimums.',  feedsInto: 'SEO Deep Review' },
+  { path: '/api/cron/seo-deep-review',        schedule: '0 0 * * *',          label: 'SEO Deep Review',           icon: '🔬', type: 'cron', category: 'seo',          description: '3 hours after reserve-publisher. ACTIVELY FIXES every SEO dimension on articles published today: meta, links, headings, content expansion, affiliate injection, alt text, then resubmits to IndexNow.', feedsInto: 'IndexNow' },
+  { path: '/api/cron/fact-verification',      schedule: '0 3 * * 0',          label: 'Fact Verification',         icon: '🔬', type: 'cron', category: 'content',      description: 'Weekly fact-check pass on generated content. Flags suspicious claims and verifies key data points.' },
+  { path: '/api/cron/campaign-executor',      schedule: '12,42 * * * *',      label: 'Campaign Agent',            icon: '🎯', type: 'cron', category: 'content',      description: 'Processes active campaign batches. Enhances published articles, injects affiliates, fixes headings, expands Arabic content. 2x per hour.',  feedsInto: 'Published content' },
+  { path: '/api/cron/pipeline-health',       schedule: '30 1,7,13,19 * * *', label: 'Pipeline Health Monitor',   icon: '📋', type: 'cron', category: 'maintenance',  description: 'Snapshots pipeline throughput, bottlenecks, active count accuracy, recovery agent conflicts, and AI provider health. Pure observation — never modifies data.' },
+  { path: '/api/cron/perplexity-scheduler',  schedule: '10 */2 * * *',       label: 'Perplexity Scheduler',      icon: '🔮', type: 'cron', category: 'ai',            description: 'Processes due Perplexity Computer schedules. Creates tasks from templates for recurring research, audits, and monitoring.',  feedsInto: 'Perplexity Executor' },
+  { path: '/api/cron/perplexity-executor',   schedule: '20,50 * * * *',      label: 'Perplexity Executor',       icon: '⚡', type: 'cron', category: 'ai',            description: 'Executes ready Perplexity Computer tasks by calling the Perplexity API. Processes up to 5 tasks per run with rate limiting.',  feedsInto: 'Task Results' },
+  { path: '/api/cron/diagnostic-sweep',      schedule: '55 1,3,5,7,9,11,13,15,17,19,21,23 * * *', label: 'Diagnostic Sweep', icon: '🔍', type: 'cron', category: 'maintenance',  description: 'Runs diagnostic agent to auto-fix stuck drafts, timeout loops, and pipeline blockages every 2 hours.',  feedsInto: 'AutoFixLog' },
+  { path: '/api/cron/ceo-intelligence',      schedule: '50 5 * * 0',         label: 'CEO Intelligence',          icon: '🧠', type: 'cron', category: 'maintenance',  description: 'Weekly autonomous intelligence: gathers GA4/GSC metrics, runs cleanup, compares KPIs, generates plans, reviews standards, emails CEO report.',  feedsInto: 'CEO Email Report' },
+  { path: '/api/cron/data-refresh',           schedule: '45 6 * * *',         label: 'Data Refresh',              icon: '🔄', type: 'cron', category: 'maintenance',  description: 'Refreshes currency, weather, holidays, and countries caches daily.',  feedsInto: 'Foundation APIs' },
+  { path: '/api/cron/events-sync',            schedule: '45 6 * * 1',         label: 'Events Sync',               icon: '🎫', type: 'cron', category: 'content',      description: 'Fetches Ticketmaster events weekly for homepage display.',  feedsInto: 'Homepage Events' },
+  { path: '/api/cron/image-pipeline',         schedule: '20 2,10,18 * * *',   label: 'Image Pipeline (3x)',       icon: '🖼️', type: 'cron', category: 'content',      description: 'Stocks media library from Unsplash and assigns featured images to articles.',  feedsInto: 'MediaAsset' },
+  { path: '/api/cron/process-indexing-queue',  schedule: '25 7,13,20 * * *', label: 'IndexNow Queue', icon: '📡', type: 'cron', category: 'seo',     description: 'Processes pending URLs and submits to IndexNow (Bing, Yandex, api.indexnow.org).',  feedsInto: 'IndexNow Engines' },
+  { path: '/api/cron/discovery-monitor',      schedule: '0 3,9,15,21 * * *',  label: 'Discovery Monitor',         icon: '🔎', type: 'cron', category: 'seo',          description: 'Monitors URL discovery and indexing health 4x daily.',  feedsInto: 'Indexing Dashboard' },
+  { path: '/api/cron/daily-seo-audit',        schedule: '20 5 * * *',         label: 'Daily SEO Audit',           icon: '📊', type: 'cron', category: 'seo',          description: 'Runs daily SEO audit checks across all published pages.',  feedsInto: 'SEO Reports' },
+  { path: '/api/cron/agent-maintenance',      schedule: '30 6 * * 0',         label: 'CTO Agent Maintenance',     icon: '🔧', type: 'cron', category: 'maintenance',  description: 'Weekly CTO Agent maintenance loop: scans codebase, checks cron/pipeline health, researches fixes, proposes improvements.',  feedsInto: 'AgentTask' },
+  { path: '/api/cron/retention-executor',     schedule: '30 0,4,8,12,16,20 * * *', label: 'Retention Executor',   icon: '📧', type: 'cron', category: 'email',        description: 'Sends due retention emails (welcome series, post-booking follow-ups), triggers re-engagement for 30d+ inactive subscribers, seeds default sequences.', feedsInto: 'RetentionProgress' },
+  { path: '/api/cron/followup-executor',      schedule: '5 1,5,9,13,17,21 * * *',  label: 'Follow-up Executor',   icon: '🔄', type: 'cron', category: 'agent',        description: 'Processes due CEO Agent follow-up tasks by re-invoking CEO Brain. Picks up AgentTask records with dueAt <= now.', feedsInto: 'AgentTask' },
+  { path: '/api/cron/schedule-executor',     schedule: '20 1,3,5,7,9,11,13,15,17,19,21,23 * * *', label: 'Schedule Executor', icon: '📅', type: 'cron', category: 'content', description: 'Creates EN+AR draft pairs from ContentScheduleRule every 2h. Seeds default rule on first run. Critical for pipeline throughput.', feedsInto: 'Content Builder' },
+  { path: '/api/cron/content-freshness',     schedule: '0 10 * * 0',         label: 'Content Freshness',         icon: '🔄', type: 'cron', category: 'content',      description: 'Weekly freshness check on published articles. Flags stale content for update or rewrite.' },
+  { path: '/api/cron/seo-audit-runner',      schedule: '0 2 * * *',          label: 'SEO Audit Runner',          icon: '📊', type: 'cron', category: 'seo',          description: 'Daily automated SEO audit across all published pages. Generates SeoAuditReport records.',   feedsInto: 'SEO Reports' },
+  { path: '/api/cron/social',                schedule: '5 10,15,20 * * *',   label: 'Social Publisher',          icon: '📣', type: 'cron', category: 'content',      description: 'Auto-publishes scheduled social posts (Twitter). Flags other platforms as pending manual.', feedsInto: 'Social Calendar' },
+  { path: '/api/cron/subscriber-emails',     schedule: '10 11 * * *',        label: 'Subscriber Emails',         icon: '📬', type: 'cron', category: 'email',        description: 'Sends daily subscriber digest emails. Processes email queue for welcome sequences and newsletters.' },
+];
+
+// ---------------------------------------------------------------------------
+// Cron expression parser — next fire time from a cron expression (UTC)
+// ---------------------------------------------------------------------------
+
+function nextFireTime(expr: string, from: Date = new Date()): Date {
+  // Supports: minute hour dom month dow
+  // Special: */N patterns, comma lists, single values, *
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return new Date(from.getTime() + 60_000);
+
+  const [minExpr, hrExpr, domExpr, , dowExpr] = parts;
+
+  // Parse a field into an array of valid values
+  function expand(field: string, min: number, max: number): number[] {
+    if (field === '*') return Array.from({ length: max - min + 1 }, (_, i) => i + min);
+    const vals = new Set<number>();
+    for (const part of field.split(',')) {
+      if (part.includes('/')) {
+        const [rangeStr, step] = part.split('/');
+        const start = rangeStr === '*' ? min : parseInt(rangeStr);
+        for (let v = start; v <= max; v += parseInt(step)) vals.add(v);
+      } else {
+        vals.add(parseInt(part));
+      }
+    }
+    return Array.from(vals).sort((a, b) => a - b);
+  }
+
+  const validMins = expand(minExpr, 0, 59);
+  const validHrs  = expand(hrExpr, 0, 23);
+  const validDows = dowExpr === '*' ? [0,1,2,3,4,5,6] : expand(dowExpr, 0, 6);
+  const domWild   = domExpr === '*';
+
+  // Walk forward minute-by-minute for up to 8 days
+  const candidate = new Date(from);
+  candidate.setUTCSeconds(0, 0);
+  candidate.setUTCMinutes(candidate.getUTCMinutes() + 1);
+
+  const limit = new Date(from.getTime() + 8 * 24 * 60 * 60 * 1000);
+  while (candidate < limit) {
+    const dow = candidate.getUTCDay();
+    const hr  = candidate.getUTCHours();
+    const min = candidate.getUTCMinutes();
+
+    if (!validDows.includes(dow)) {
+      // skip to next day
+      candidate.setUTCDate(candidate.getUTCDate() + 1);
+      candidate.setUTCHours(0, 0, 0, 0);
+      continue;
+    }
+    if (!validHrs.includes(hr)) {
+      const nextHr = validHrs.find((h) => h > hr);
+      if (nextHr !== undefined) {
+        candidate.setUTCHours(nextHr, validMins[0], 0, 0);
+      } else {
+        candidate.setUTCDate(candidate.getUTCDate() + 1);
+        candidate.setUTCHours(validHrs[0], validMins[0], 0, 0);
+      }
+      continue;
+    }
+    if (!validMins.includes(min)) {
+      const nextMin = validMins.find((m) => m > min);
+      if (nextMin !== undefined) {
+        candidate.setUTCMinutes(nextMin, 0, 0);
+      } else {
+        const nextHr2 = validHrs.find((h) => h > hr);
+        if (nextHr2 !== undefined) {
+          candidate.setUTCHours(nextHr2, validMins[0], 0, 0);
+        } else {
+          candidate.setUTCDate(candidate.getUTCDate() + 1);
+          candidate.setUTCHours(validHrs[0], validMins[0], 0, 0);
+        }
+      }
+      continue;
+    }
+    // All fields match
+    if (!domWild) {
+      // Skip DOM validation for simplicity — treat as wildcard if DOM specified
+    }
+    return new Date(candidate);
+  }
+
+  return new Date(from.getTime() + 24 * 60 * 60 * 1000); // fallback: tomorrow
+}
+
+function scheduleLabel(expr: string): string {
+  const labels: Record<string, string> = {
+    // Analytics & early morning
+    '30 2 * * *': 'Daily 2:30 AM UTC',
+    '0 3,9,15,21 * * *': '4x daily 3,9,15,21 UTC',
+    '0 3 * * 0': 'Sun 3:00 AM UTC',
+    '15 3 * * 0': 'Sun 3:15 AM UTC',
+    // Topics & sync
+    '10 4 * * *': 'Daily 4:10 AM UTC',
+    '50 4 * * *': 'Daily 4:50 AM UTC',
+    '20 5 * * *': 'Daily 5:20 AM UTC',
+    '30 5 * * *': 'Daily 5:30 AM UTC',
+    '50 5 * * 0': 'Sun 5:50 AM UTC',
+    // SEO & morning crons
+    '10 6 * * *': 'Daily 6:10 AM UTC',
+    '10 6 * * 0': 'Sun 6:10 AM UTC',
+    '30 6 * * *': 'Daily 6:30 AM UTC',
+    '40 6,14 * * *': '2x daily 6:40 & 14:40 UTC',
+    '45 6 * * *': 'Daily 6:45 AM UTC',
+    '45 6 * * 1': 'Mon 6:45 AM UTC',
+    '50 6 * * *': 'Daily 6:50 AM UTC',
+    '0 7 * * *': 'Daily 7:00 AM UTC',
+    '25 7,13,20 * * *': '3x daily 7:25,13:25,20:25 UTC',
+    '30 7 * * *': 'Daily 7:30 AM UTC',
+    // Content builder & pipeline
+    '8,23,38,53 * * * *': 'Every 15 min (offset)',
+    '7 */1 * * *': 'Hourly at :07',
+    '45 8,14,20 * * *': '3x daily 8:45,14:45,20:45 UTC',
+    // Publishing & indexing
+    '15 9 * * *': 'Daily 9:15 AM UTC',
+    '15 12 * * *': 'Daily 12:15 PM UTC',
+    '35 9 * * *': 'Daily 9:35 AM UTC',
+    '5 7,9,11,13,15,17,19,21 * * *': '8x daily :05 past even hours',
+    '25 9 * * *': 'Daily 9:25 AM UTC',
+    '0 11,18 * * *': 'Daily 11:00 & 18:00 UTC',
+    '5 11,17 * * *': '2x daily 11:05 & 17:05 UTC',
+    '10 11 * * *': 'Daily 11:10 AM UTC',
+    // Afternoon & evening
+    '0 13 * * *': 'Daily 1:00 PM UTC',
+    '0 14 * * *': 'Daily 2:00 PM UTC',
+    '0 16 * * *': 'Daily 4:00 PM UTC',
+    '0 20 * * *': 'Daily 8:00 PM UTC',
+    '10 21 * * *': 'Daily 9:10 PM UTC',
+    '0 0 * * *': 'Daily midnight UTC',
+    '0 22 * * *': 'Daily 10:00 PM UTC',
+    '0 10 * * 0': 'Sun 10:00 AM UTC',
+    '0 2 * * *': 'Daily 2:00 AM UTC',
+    '5 10,15,20 * * *': '3x daily 10:05,15:05,20:05 UTC',
+    // High-frequency crons
+    '12,42 * * * *': '2x hourly at :12 & :42',
+    '10 */2 * * *': 'Every 2h at :10',
+    '20,50 * * * *': '2x hourly at :20 & :50',
+    '55 1,3,5,7,9,11,13,15,17,19,21,23 * * *': 'Every 2h at :55 (odd hours)',
+    '20 2,10,18 * * *': '3x daily 2:20,10:20,18:20 UTC',
+    '30 1,7,13,19 * * *': '4x daily 1:30,7:30,13:30,19:30 UTC',
+    '40 0,4,8,12,16,20 * * *': '6x daily :40 every 4h',
+    '30 0,4,8,12,16,20 * * *': '6x daily :30 every 4h',
+    '5 1,5,9,13,17,21 * * *': '6x daily :05 every 4h',
+    '20 1,3,5,7,9,11,13,15,17,19,21,23 * * *': 'Every 2h at :20',
+    '30 6 * * 0': 'Sun 6:30 AM UTC',
+  };
+  return labels[expr] ?? expr;
+}
+
+// ---------------------------------------------------------------------------
+// GET handler — build departures list
+// ---------------------------------------------------------------------------
+
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth) return auth;
+
+  const siteId = req.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
+
+  const { prisma } = await import('@/lib/db');
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Fetch 7 days of logs for success rate + last run info
+  const cronSiteFilter = siteId && siteId !== "all"
+    ? { OR: [{ site_id: siteId }, { site_id: null }] }
+    : {};
+  const recentLogs = await prisma.cronJobLog.findMany({
+    where: { started_at: { gte: sevenDaysAgo }, ...cronSiteFilter },
+    orderBy: { started_at: 'desc' },
+    select: { job_name: true, status: true, started_at: true, duration_ms: true, error_message: true },
+    take: 1000,
+  });
+
+  // Build maps: lastRun + 7-day stats
+  const lastRunMap = new Map<string, { at: Date; status: string; error: string | null }>();
+  const statsMap = new Map<string, { total: number; success: number; durations: number[] }>();
+  for (const log of recentLogs) {
+    if (!lastRunMap.has(log.job_name)) {
+      lastRunMap.set(log.job_name, { at: log.started_at, status: log.status, error: log.error_message });
+    }
+    const prev = statsMap.get(log.job_name) ?? { total: 0, success: 0, durations: [] };
+    prev.total++;
+    if (log.status === 'success' || log.status === 'completed') prev.success++;
+    if (log.duration_ms) prev.durations.push(log.duration_ms);
+    statsMap.set(log.job_name, prev);
+  }
+
+  // Derive job name from cron path, resolving aliases for affiliate/orchestrator crons
+  const { resolveCronAlias } = await import("@/lib/cron-feature-guard");
+  function jobName(path: string): string {
+    const raw = path.split('/').pop()?.split('?')[0] ?? path;
+    return resolveCronAlias(raw);
+  }
+
+  // Build cron departures (deduplicated by next fire — keep closest)
+  const seen = new Set<string>();
+  const departures: Departure[] = [];
+
+  for (const def of CRON_DEFS) {
+    const fireAt = nextFireTime(def.schedule, now);
+    const countdown = fireAt.getTime() - now.getTime();
+    const name = jobName(def.path);
+    const lastRun = lastRunMap.get(name) ?? lastRunMap.get(def.path);
+
+    // Deduplicate same path+schedule combos
+    const dedupeKey = `${def.path}::${def.schedule}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    // 7-day stats
+    const stats = statsMap.get(name) ?? statsMap.get(def.path);
+    const successRate = stats && stats.total > 0
+      ? Math.round((stats.success / stats.total) * 100)
+      : null;
+    const avgDuration = stats && stats.durations.length > 0
+      ? Math.round(stats.durations.reduce((a, b) => a + b, 0) / stats.durations.length)
+      : null;
+
+    // Plain-English error from last failure
+    let lastError: string | null = null;
+    if (lastRun?.status !== 'success' && lastRun?.status !== 'completed' && lastRun?.error) {
+      try {
+        const { interpretError } = await import('@/lib/error-interpreter');
+        const interpreted = interpretError(lastRun.error);
+        lastError = interpreted.plain;
+      } catch (interpErr) {
+        console.warn('[departures] interpretError import failed:', interpErr instanceof Error ? interpErr.message : String(interpErr));
+        lastError = lastRun.error.slice(0, 120);
+      }
+    }
+
+    departures.push({
+      id: `cron::${dedupeKey}`,
+      label: def.label,
+      type: 'cron',
+      icon: def.icon,
+      scheduledAt: fireAt.toISOString(),
+      countdownMs: countdown,
+      status: countdown < 0 ? 'overdue' : 'scheduled',
+      cronPath: def.path,
+      cronSchedule: scheduleLabel(def.schedule),
+      lastRunAt: lastRun?.at.toISOString() ?? null,
+      lastRunStatus: lastRun ? (lastRun.status === 'success' || lastRun.status === 'completed' ? 'success' : 'failed') : 'unknown',
+      siteId: null,
+      description: def.description,
+      category: def.category,
+      feedsInto: def.feedsInto ?? null,
+      successRate7d: successRate,
+      avgDurationMs: avgDuration,
+      lastError,
+    });
+  }
+
+  // Scheduled content publications
+  try {
+    const activeSiteIds = getActiveSiteIds();
+    const scheduled = await prisma.scheduledContent.findMany({
+      where: {
+        status: { in: ['scheduled', 'pending'] },
+        scheduled_time: { gte: now },
+        site_id: { in: activeSiteIds },
+      },
+      orderBy: { scheduled_time: 'asc' },
+      take: 20,
+      select: {
+        id: true,
+        title: true,
+        scheduled_time: true,
+        content_type: true,
+        site_id: true,
+      },
+    });
+
+    for (const sc of scheduled) {
+      const fireAt = sc.scheduled_time ?? new Date(now.getTime() + 999 * 60_000);
+      departures.push({
+        id: `pub::${sc.id}`,
+        label: sc.title ?? 'Scheduled Publication',
+        type: 'publication',
+        icon: '📄',
+        scheduledAt: fireAt.toISOString(),
+        countdownMs: fireAt.getTime() - now.getTime(),
+        status: 'scheduled',
+        cronPath: '/api/cron/scheduled-publish',
+        cronSchedule: fireAt.toLocaleString('en-GB', { timeZone: 'UTC', hour12: false }),
+        lastRunAt: null,
+        lastRunStatus: null,
+        siteId: sc.site_id ?? null,
+        meta: { contentType: sc.content_type ?? 'article' },
+        description: 'Scheduled article awaiting its publish time. Will pass the 14-check pre-publication gate before going live.',
+        category: 'publishing',
+        feedsInto: 'SEO Agent',
+        successRate7d: null,
+        avgDurationMs: null,
+        lastError: null,
+      });
+    }
+  } catch (err) {
+    console.warn("[departures] ScheduledContent query failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  // Articles ready in reservoir (awaiting content-selector)
+  try {
+    const activeSiteIds = getActiveSiteIds();
+    const reservoir = await prisma.articleDraft.findMany({
+      where: { current_phase: 'reservoir', site_id: { in: activeSiteIds } },
+      orderBy: { updated_at: 'desc' },
+      take: 5,
+      select: { id: true, keyword: true, quality_score: true, site_id: true },
+    });
+    for (const d of reservoir) {
+      // Next content-selector run = closest of 9,13,17,21 UTC today
+      const selectorNext = nextFireTime('0 9,13,17,21 * * *', now);
+      departures.push({
+        id: `reservoir::${d.id}`,
+        label: `Publish: ${d.keyword?.slice(0, 50) ?? 'Article'}`,
+        type: 'content',
+        icon: '✅',
+        scheduledAt: selectorNext.toISOString(),
+        countdownMs: selectorNext.getTime() - now.getTime(),
+        status: 'ready',
+        cronPath: '/api/cron/content-selector',
+        cronSchedule: 'Next content-selector run',
+        lastRunAt: null,
+        lastRunStatus: null,
+        siteId: d.site_id,
+        meta: { qualityScore: d.quality_score ?? 0 },
+        description: 'Article ready in the reservoir — highest quality score articles are published first by the content selector.',
+        category: 'publishing',
+        feedsInto: 'Published content → SEO Agent',
+        successRate7d: null,
+        avgDurationMs: null,
+        lastError: null,
+      });
+    }
+  } catch (err) {
+    console.warn("[departures] ArticleDraft reservoir query failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  // Sort all departures: overdue first, then by countdown ascending
+  departures.sort((a, b) => {
+    if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+    if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+    if (a.countdownMs === null) return 1;
+    if (b.countdownMs === null) return -1;
+    return a.countdownMs - b.countdownMs;
+  });
+
+  // Category breakdown for grouped view
+  const categories: Record<string, number> = {};
+  for (const d of departures) {
+    if (d.category) categories[d.category] = (categories[d.category] ?? 0) + 1;
+  }
+
+  return NextResponse.json({
+    departures,
+    generatedAt: now.toISOString(),
+    totalCrons: CRON_DEFS.length,
+    totalPublications: departures.filter((d) => d.type === 'publication').length,
+    totalReady: departures.filter((d) => d.status === 'ready').length,
+    categories,
+    siteId,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// POST handler — "Do Now" trigger
+// ---------------------------------------------------------------------------
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth) return auth;
+
+  const body = await req.json().catch(() => ({}));
+  // Accept both "cronPath" (departures board) and "path" (cockpit GSC sync button)
+  const cronPath = (body as Record<string, string>).cronPath || (body as Record<string, string>).path;
+
+  if (!cronPath || !cronPath.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Invalid cronPath' }, { status: 400 });
+  }
+
+  // Validate against known cron paths only
+  const knownPaths = new Set(CRON_DEFS.map((d) => d.path));
+  const basePath = cronPath.split('?')[0];
+  const isKnown = knownPaths.has(cronPath) || knownPaths.has(basePath) ||
+    Array.from(knownPaths).some((p) => p.split('?')[0] === basePath);
+
+  if (!isKnown) {
+    return NextResponse.json({ error: 'Unknown cron path' }, { status: 400 });
+  }
+
+  // Trigger the cron by calling it as an internal POST request
+  const base = req.nextUrl.origin;
+  const targetUrl = `${base}${cronPath}`;
+
+  try {
+    const triggerRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Pass through the cron secret if configured
+        ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
+      },
+      signal: AbortSignal.timeout(305_000), // Must be > longest cron maxDuration (300s) to avoid premature abort
+    });
+
+    const text = await triggerRes.text().catch(() => '');
+    let result: unknown;
+    try { result = JSON.parse(text); } catch { result = text.slice(0, 200); }
+
+    logManualAction(req, { action: "do-now", resource: "cron", resourceId: cronPath, success: triggerRes.ok, summary: triggerRes.ok ? `Triggered ${cronPath} (${triggerRes.status})` : `Trigger ${cronPath} returned ${triggerRes.status}`, error: !triggerRes.ok ? `HTTP ${triggerRes.status}` : undefined, fix: !triggerRes.ok ? "Check cron endpoint logs and AI/DB connectivity." : undefined, details: { path: cronPath, statusCode: triggerRes.status } }).catch(() => {});
+
+    return NextResponse.json({
+      triggered: true,
+      path: cronPath,
+      statusCode: triggerRes.status,
+      result,
+    });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'Unknown error';
+    logManualAction(req, { action: "do-now", resource: "cron", resourceId: cronPath, success: false, summary: `Trigger ${cronPath} crashed`, error: errMsg, fix: "Cron endpoint may be timing out or the server is unreachable." }).catch(() => {});
+    return NextResponse.json(
+      { triggered: false, error: errMsg },
+      { status: 500 }
+    );
+  }
+}

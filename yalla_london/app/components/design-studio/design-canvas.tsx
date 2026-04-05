@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { Stage, Layer, Rect, Text, Line, Circle, Group, Transformer } from "react-konva";
+import { Stage, Layer, Rect, Text, Line, Circle, Group, Transformer, Image as KonvaImage } from "react-konva";
 import type Konva from "konva";
 import type {
   DesignTemplate,
@@ -53,13 +53,108 @@ interface DesignCanvasProps {
 // ─── Stage Dimensions ────────────────────────────────────────────
 
 const FORMAT_SIZES: Record<string, { width: number; height: number }> = {
+  // Print formats
   A4: { width: 595, height: 842 },
   A5: { width: 420, height: 595 },
   letter: { width: 612, height: 792 },
+  // Social media formats
+  "instagram-post": { width: 1080, height: 1080 },
+  "instagram-story": { width: 1080, height: 1920 },
+  "instagram-reel": { width: 1080, height: 1920 },
+  "facebook-post": { width: 1200, height: 630 },
+  "facebook-cover": { width: 820, height: 312 },
+  "twitter-post": { width: 1200, height: 675 },
+  "twitter-header": { width: 1500, height: 500 },
+  "linkedin-post": { width: 1200, height: 627 },
+  "linkedin-cover": { width: 1584, height: 396 },
+  "tiktok-video": { width: 1080, height: 1920 },
+  "youtube-thumbnail": { width: 1280, height: 720 },
+  "pinterest-pin": { width: 1000, height: 1500 },
+  "og-image": { width: 1200, height: 630 },
+  // Generic formats
   square: { width: 600, height: 600 },
   story: { width: 540, height: 960 },
   landscape: { width: 842, height: 595 },
 };
+
+// ─── Image Loader Component ─────────────────────────────────────
+
+function CanvasImage({
+  src,
+  commonProps,
+  width,
+  height,
+  isSelected,
+  borderRadius,
+  alt,
+}: {
+  src: string;
+  commonProps: any;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  borderRadius: number;
+  alt: string;
+}) {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      setImage(img);
+      setLoadError(false);
+    };
+    img.onerror = () => {
+      setLoadError(true);
+    };
+    img.src = src;
+  }, [src]);
+
+  if (loadError || !image) {
+    return (
+      <Group key={commonProps.id} {...commonProps}>
+        <Rect
+          width={width}
+          height={height}
+          fill={loadError ? "#FEE2E2" : "#F3F4F6"}
+          stroke={isSelected ? "#3b82f6" : "#D1D5DB"}
+          strokeWidth={isSelected ? 2 : 1}
+          cornerRadius={borderRadius}
+        />
+        <Text
+          width={width}
+          height={height}
+          text={loadError ? "Failed to load image" : "Loading..."}
+          fontSize={11}
+          fill={loadError ? "#DC2626" : "#9CA3AF"}
+          align="center"
+          verticalAlign="middle"
+        />
+      </Group>
+    );
+  }
+
+  return (
+    <Group key={commonProps.id} {...commonProps}>
+      {borderRadius > 0 && (
+        <Rect
+          width={width}
+          height={height}
+          cornerRadius={borderRadius}
+          stroke={isSelected ? "#3b82f6" : undefined}
+          strokeWidth={isSelected ? 2 : 0}
+        />
+      )}
+      <KonvaImage
+        image={image}
+        width={width}
+        height={height}
+      />
+    </Group>
+  );
+}
 
 // ─── Main Canvas Component ───────────────────────────────────────
 
@@ -591,32 +686,43 @@ export default function DesignCanvas({
       }
 
       case "image": {
-        // Render as placeholder rectangle with icon
         const isPlaceholder = element.image?.placeholder || !element.image?.src;
+
+        if (!isPlaceholder && element.image?.src) {
+          return (
+            <CanvasImage
+              key={element.id}
+              src={element.image.src}
+              commonProps={commonProps}
+              width={width}
+              height={height}
+              isSelected={isSelected}
+              borderRadius={element.image?.borderRadius || 0}
+              alt={element.image?.alt || ""}
+            />
+          );
+        }
+
+        // Placeholder for images without a source
         return (
           <Group key={element.id} {...commonProps}>
             <Rect
               width={width}
               height={height}
-              fill={isPlaceholder ? "#E5E7EB" : "#F3F4F6"}
+              fill="#E5E7EB"
               stroke={isSelected ? "#3b82f6" : "#D1D5DB"}
               strokeWidth={isSelected ? 2 : 1}
               cornerRadius={element.image?.borderRadius || 0}
             />
-            {isPlaceholder && (
-              <>
-                {/* Image icon placeholder */}
-                <Text
-                  width={width}
-                  height={height}
-                  text={element.image?.alt || "Drop image here"}
-                  fontSize={12}
-                  fill="#9CA3AF"
-                  align="center"
-                  verticalAlign="middle"
-                />
-              </>
-            )}
+            <Text
+              width={width}
+              height={height}
+              text={element.image?.alt || "Drop image here"}
+              fontSize={12}
+              fill="#9CA3AF"
+              align="center"
+              verticalAlign="middle"
+            />
           </Group>
         );
       }

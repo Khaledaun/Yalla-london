@@ -1,0 +1,1506 @@
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 min — Vercel Pro supports up to 300s per route
+
+/**
+ * Content Auto-Fix HEAVY — AI-Powered Content Enhancement
+ *
+ * Runs twice daily (11am + 6pm UTC). Handles ONLY expensive AI operations:
+ *
+ * 1. WORD COUNT FIX — AI expansion for short reservoir drafts (~20s each)
+ * 2. LOW QUALITY FIX — AI enhancement for low-score drafts (~20s each)
+ * 3. INTERNAL LINK INJECTION — Auto-remediate engine
+ * 4. AFFILIATE LINK INJECTION — Auto-remediate engine
+ * 5. DUPLICATE META REWRITE — AI-powered uniqueness fix
+ * 6. ARABIC META GENERATION — AI translation
+ *
+ * Lightweight DB-only fixes (stuck recovery, heading fix, meta trims)
+ * are handled by content-auto-fix-lite (runs every 4 hours).
+ * This split prevents connection pool exhaustion from 300+ DB ops.
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { logCronExecution } from "@/lib/cron-logger";
+import { CONTENT_QUALITY } from "@/lib/seo/standards";
+import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
+import { isEnhancementOwner, buildEnhancementLogEntry } from "@/lib/db/enhancement-log";
+
+const BUDGET_MS = 280_000; // 280s usable budget within 300s maxDuration
+const MIN_WORD_COUNT = CONTENT_QUALITY.minWords; // 500 — aligned with standards.ts
+const MAX_WORD_COUNT_ENHANCES = 1;
+const MAX_LOW_SCORE_ENHANCES = 1;
+
+async function handleAutoFix(request: NextRequest) {
+  const cronStart = Date.now();
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Feature flag guard — can be disabled via DB flag or env var CRON_CONTENT_AUTO_FIX=false
+  const { checkCronEnabled } = await import("@/lib/cron-feature-guard");
+  const flagResponse = await checkCronEnabled("content-auto-fix");
+  if (flagResponse) return flagResponse;
+
+  const { prisma } = await import("@/lib/db");
+  const { getActiveSiteIds } = await import("@/config/sites");
+  const activeSiteIds = getActiveSiteIds();
+
+  const results = {
+    enhanced: 0,
+    enhancedLowScore: 0,
+    enhanceFailed: 0,
+    internalLinksInjected: 0,
+    affiliateLinksInjected: 0,
+    duplicateMetasFixed: 0,
+    arabicMetaGenerated: 0,
+    brokenLinksFixed: 0,
+    orphansFixed: 0,
+    thinUnpublished: 0,
+    badSlugUnpublished: 0,
+    duplicatesUnpublished: 0,
+    arabicContentBackfilled: 0,
+    deadAffiliateLinksRemoved: 0,
+    staleAffiliateLinksRemoved: 0,
+    untrackedLinksWrapped: 0,
+    placeholderIdsFixed: 0,
+    notIndexedEnhanced: 0,
+    seoBoostEnhanced: 0,
+    errors: [] as string[],
+  };
+
+  // NOTE: Sections 1 (stuck recovery), 2 (heading fix) moved to content-auto-fix-lite
+
+  // ── 1. WORD COUNT FIX (AI-powered, ~20s per draft) ───────────────────────
+  // Find reservoir drafts with word_count < MIN_WORD_COUNT, oldest first
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
+    try {
+    const shortDrafts = await prisma.articleDraft.findMany({
+      where: {
+        site_id: { in: activeSiteIds },
+        current_phase: "reservoir",
+        OR: [
+          { word_count: { lt: MIN_WORD_COUNT } },
+          { word_count: null },
+        ],
+        assembled_html: { not: null },
+      },
+      orderBy: { updated_at: "asc" }, // oldest first → longest-waiting first
+      take: MAX_WORD_COUNT_ENHANCES,
+    });
+
+    const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
+
+    for (const draft of shortDrafts) {
+      const budgetUsed = Date.now() - cronStart;
+      if (budgetUsed > BUDGET_MS - 25_000) {
+        // Need 25s budget remaining for a full enhance call
+        console.warn(`[content-auto-fix] Budget low (${Math.round(budgetUsed / 1000)}s used) — stopping enhancement loop`);
+        break;
+      }
+
+      const wordCount = (draft.assembled_html || "")
+        .replace(/<[^>]+>/g, " ")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean).length;
+
+      console.log(`[content-auto-fix] Enhancing draft ${draft.id} (keyword: "${draft.keyword}", words: ${wordCount})`);
+
+      try {
+        const result = await enhanceReservoirDraft(draft as Record<string, unknown>);
+        if (result.success) {
+          results.enhanced++;
+          console.log(`[content-auto-fix] Enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`);
+        } else {
+          results.enhanceFailed++;
+          results.errors.push(`enhance:${draft.id}: ${result.error}`);
+          console.warn(`[content-auto-fix] Enhance failed for ${draft.id}: ${result.error}`);
+        }
+      } catch (err) {
+        results.enhanceFailed++;
+        const msg = err instanceof Error ? err.message : String(err);
+        results.errors.push(`enhance:${draft.id}: ${msg}`);
+        console.warn(`[content-auto-fix] Enhance threw for ${draft.id}:`, msg);
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    results.errors.push(`word-count-query: ${msg}`);
+    console.warn("[content-auto-fix] Word count query failed:", msg);
+    }
+  }
+
+  // ── 4. LOW QUALITY SCORE FIX ──────────────────────────────────────────────
+  // Find reservoir drafts with quality_score below the gate threshold but adequate word count.
+  // These articles are stuck: content-selector won't promote them and the
+  // word count query above won't find them. Without this, they sit forever.
+  const QUALITY_THRESHOLD = CONTENT_QUALITY.qualityGateScore;
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
+    try {
+      const lowScoreDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          current_phase: "reservoir",
+          quality_score: { lt: QUALITY_THRESHOLD },
+          word_count: { gte: MIN_WORD_COUNT }, // adequate words — only score is low
+          assembled_html: { not: null },
+        },
+        orderBy: { updated_at: "asc" },
+        take: MAX_LOW_SCORE_ENHANCES,
+      });
+
+      if (lowScoreDrafts.length > 0) {
+        const { enhanceReservoirDraft: enhanceLowScore } = await import("@/lib/content-pipeline/enhance-runner");
+
+        for (const draft of lowScoreDrafts) {
+          const budgetUsed = Date.now() - cronStart;
+          if (budgetUsed > BUDGET_MS - 25_000) break;
+
+          console.log(`[content-auto-fix] Enhancing low-score draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score})`);
+
+          try {
+            const result = await enhanceLowScore(draft as Record<string, unknown>);
+            if (result.success) {
+              results.enhancedLowScore++;
+              console.log(`[content-auto-fix] Low-score enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`);
+            } else {
+              results.enhanceFailed++;
+              results.errors.push(`low-score:${draft.id}: ${result.error}`);
+              console.warn(`[content-auto-fix] Low-score enhance failed for ${draft.id}: ${result.error}`);
+            }
+          } catch (err) {
+            results.enhanceFailed++;
+            const msg = err instanceof Error ? err.message : String(err);
+            results.errors.push(`low-score:${draft.id}: ${msg}`);
+            console.warn(`[content-auto-fix] Low-score enhance threw for ${draft.id}:`, msg);
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`low-score-query: ${msg}`);
+      console.warn("[content-auto-fix] Low-score query failed:", msg);
+    }
+  }
+
+  // NOTE: Sections 5, 5b, 6 (meta trims) moved to content-auto-fix-lite
+
+  // ── 3. INTERNAL LINK INJECTION — articles missing internal links ──────────
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const postsNoLinks = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, content_en: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const { injectInternalLinks } = await import("@/lib/auto-remediate/engine") as { injectInternalLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
+      for (const post of postsNoLinks) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        const linkCount = ((post.content_en || "").match(/class="internal-link"|href="\/blog\//gi) || []).length;
+        if (linkCount < 1 && (post.content_en || "").length > 2000) {
+          const result = await injectInternalLinks(post.id, post.siteId);
+          if (result.success) results.internalLinksInjected++;
+          if (results.internalLinksInjected >= 5) break; // max 5 per run
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`internal-links: ${msg}`);
+      console.warn("[content-auto-fix] Internal link injection failed:", msg);
+    }
+  }
+
+  // ── 7. BROKEN INTERNAL LINK CLEANUP — fix ALL broken /blog/ links in published content ──
+  // Catches both TOPIC_SLUG (uppercase) AND AI-hallucinated slugs (lowercase fake slugs
+  // like "top-halal-restaurants-in-central-london" that point to non-existent articles).
+  if (Date.now() - cronStart < BUDGET_MS - 5_000 && isEnhancementOwner("content-auto-fix", "broken_links")) {
+    try {
+      // Build a Set of all real published slugs for O(1) lookup
+      const realPosts = await prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null },
+        select: { slug: true, title_en: true },
+        orderBy: { created_at: "desc" },
+        take: 500,
+      });
+      const validSlugs = new Set<string>(realPosts.map(p => p.slug));
+
+      // Target articles that actually contain broken links (TOPIC_SLUG or hallucinated slugs)
+      // instead of just scanning the 50 newest articles — old articles with placeholders
+      // were never cleaned because they fell outside the take:50 window.
+      const postsToCheck = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+          OR: [
+            { content_en: { contains: "TOPIC_SLUG" } },
+            { content_en: { contains: "PLACEHOLDER" } },
+            { content_ar: { contains: "TOPIC_SLUG" } },
+            { content_ar: { contains: "PLACEHOLDER" } },
+          ],
+        },
+        select: { id: true, content_en: true, content_ar: true, siteId: true, slug: true },
+        take: 50,
+      });
+
+      // Helper: fix broken links in a content string
+      const fixBrokenLinks = (content: string): string => {
+        // Phase 1: Strip TOPIC_SLUG placeholders immediately (no fuzzy matching needed)
+        let fixed = content.replace(
+          /<a\s+[^>]*href="\/blog\/TOPIC_SLUG"[^>]*>(.*?)<\/a>/gi,
+          (_match, anchor) => anchor,
+        );
+        // Phase 2: Fix remaining broken links (hallucinated slugs)
+        fixed = fixed.replace(
+          /<a\s+([^>]*?)href="\/blog\/([a-zA-Z0-9_-]+)"([^>]*?)>(.*?)<\/a>/gi,
+          (fullMatch, pre, slug, post2, anchor) => {
+            if (validSlugs.has(slug) || validSlugs.has(slug.toLowerCase())) return fullMatch;
+            const topic = slug.toLowerCase().replace(/[-_]/g, " ");
+            const topicWords = topic.split(" ").filter((w: string) => w.length > 3);
+            const match = realPosts.find(p => {
+              const title = (p.title_en || "").toLowerCase();
+              return topicWords.filter((w: string) => title.includes(w)).length >= 2;
+            });
+            if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
+            return anchor;
+          }
+        );
+        return fixed;
+      };
+
+      let brokenLinksFixed = 0;
+      const processPost = async (post: { id: string; content_en: string | null; content_ar: string | null }) => {
+        const contentEn = post.content_en || "";
+        const contentAr = post.content_ar || "";
+        const fixedEn = fixBrokenLinks(contentEn);
+        const fixedAr = fixBrokenLinks(contentAr);
+        const enChanged = fixedEn !== contentEn;
+        const arChanged = fixedAr !== contentAr;
+        if (enChanged || arChanged) {
+          const updateData: Record<string, string> = {};
+          if (enChanged) updateData.content_en = fixedEn;
+          if (arChanged) updateData.content_ar = fixedAr;
+          await optimisticBlogPostUpdate(post.id, (current) => {
+            const result: Record<string, unknown> = {};
+            if (enChanged) result.content_en = fixBrokenLinks(current.content_en || "");
+            if (arChanged) result.content_ar = fixBrokenLinks(current.content_ar || "");
+            result.enhancement_log = buildEnhancementLogEntry(current.enhancement_log, "broken_links", "content-auto-fix", `Fixed broken internal links`);
+            return result;
+          }, { tag: "[content-auto-fix]" });
+          brokenLinksFixed++;
+        }
+      };
+
+      // Pass 1: articles with explicit placeholders (TOPIC_SLUG, PLACEHOLDER)
+      const checkedIds = new Set<string>();
+      for (const post of postsToCheck) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000 || brokenLinksFixed >= 30) break;
+        checkedIds.add(post.id);
+        await processPost(post);
+      }
+
+      // Pass 2: recent articles that may have hallucinated slugs (no placeholder text)
+      if (Date.now() - cronStart < BUDGET_MS - 3_000 && brokenLinksFixed < 30) {
+        const recentPosts = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+            deletedAt: null,
+            content_en: { not: "" },
+            id: { notIn: Array.from(checkedIds) },
+          },
+          select: { id: true, content_en: true, content_ar: true, siteId: true, slug: true },
+          take: 30,
+          orderBy: { created_at: "desc" },
+        });
+        for (const post of recentPosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 3_000 || brokenLinksFixed >= 30) break;
+          await processPost(post);
+        }
+      }
+      if (brokenLinksFixed > 0) {
+        console.log(`[content-auto-fix] Fixed broken internal links in ${brokenLinksFixed} articles`);
+      }
+      results.brokenLinksFixed = brokenLinksFixed;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`broken-links: ${msg}`);
+      console.warn("[content-auto-fix] Broken link cleanup failed:", msg);
+    }
+  }
+
+  // ── 8. AFFILIATE LINK INJECTION — published articles missing affiliate links
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const postsNoAffiliates = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, content_en: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const affiliatePattern = /booking\.com|halalbooking|agoda|getyourguide|viator|klook|boatbookings|class="affiliate|anrdoezrs\.net|dpbolvw\.net|tkqlhce\.com|jdoqocy\.com|kqzyfj\.com|affiliate-recommendation|data-affiliate-id/i;
+      const { injectAffiliateLinks } = await import("@/lib/auto-remediate/engine") as { injectAffiliateLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
+
+      for (const post of postsNoAffiliates) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (!affiliatePattern.test(post.content_en || "") && (post.content_en || "").length > 2000) {
+          const result = await injectAffiliateLinks(post.id, post.siteId);
+          if (result.success) results.affiliateLinksInjected++;
+          if (results.affiliateLinksInjected >= 5) break; // max 5 per run
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`affiliate-links: ${msg}`);
+      console.warn("[content-auto-fix] Affiliate link injection failed:", msg);
+    }
+  }
+
+  // ── 9. DUPLICATE META DESCRIPTIONS — rewrite duplicates for uniqueness ─────
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const { fixDuplicateMetas } = await import("@/lib/auto-remediate/engine");
+      for (const siteId of activeSiteIds) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        const fixes = await fixDuplicateMetas(siteId, 2);
+        results.duplicateMetasFixed += fixes.filter((f) => f.success).length;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`duplicate-metas: ${msg}`);
+      console.warn("[content-auto-fix] Duplicate meta fix failed:", msg);
+    }
+  }
+
+  // ── 10. ARABIC META GENERATION — bilingual articles missing Arabic meta ────
+  if (Date.now() - cronStart < BUDGET_MS - 10_000) {
+    try {
+      const postsMissingArMeta = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_ar: { not: "" },
+          OR: [
+            { meta_title_ar: null },
+            { meta_description_ar: null },
+          ],
+        },
+        select: { id: true },
+        take: 2,
+      });
+
+      if (postsMissingArMeta.length > 0) {
+        const { generateArabicMeta } = await import("@/lib/auto-remediate/engine") as { generateArabicMeta: (id: string) => Promise<{ success: boolean }> };
+        for (const post of postsMissingArMeta) {
+          if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+          const result = await generateArabicMeta(post.id);
+          if (result.success) results.arabicMetaGenerated++;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`arabic-meta: ${msg}`);
+      console.warn("[content-auto-fix] Arabic meta generation failed:", msg);
+    }
+  }
+
+  // ── 11. ORPHAN PAGE RESOLUTION — inject links TO orphan articles ───────────
+  // Finds published articles with NO inbound internal links, then edits
+  // related articles to add a contextual link to the orphan. This solves
+  // crawl isolation (19 orphans detected in audit).
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const allPosts = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: "" },
+        },
+        select: { id: true, slug: true, title_en: true, content_en: true, siteId: true },
+        orderBy: { created_at: "desc" },
+        take: 100,
+      });
+
+      // Build inbound link map: slug → number of articles linking to it
+      const inboundCount = new Map<string, number>();
+      for (const p of allPosts) inboundCount.set(p.slug, 0);
+      for (const p of allPosts) {
+        const links = (p.content_en || "").match(/href="\/blog\/([a-zA-Z0-9_-]+)"/gi) || [];
+        for (const link of links) {
+          const m = link.match(/href="\/blog\/([a-zA-Z0-9_-]+)"/i);
+          if (m && inboundCount.has(m[1])) {
+            inboundCount.set(m[1], (inboundCount.get(m[1]) || 0) + 1);
+          }
+        }
+      }
+
+      // Find orphans (0 inbound links)
+      const orphans = allPosts.filter(p => (inboundCount.get(p.slug) || 0) === 0);
+      let orphansFixed = 0;
+
+      for (const orphan of orphans) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (orphansFixed >= 10) break; // Raised from 5 to clear 13-orphan backlog
+
+        // Find best host article: same site, has content, doesn't already link to orphan
+        const orphanWords = (orphan.title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        if (orphanWords.length < 2) continue;
+
+        let bestHost: typeof allPosts[0] | null = null;
+        let bestScore = 0;
+        for (const candidate of allPosts) {
+          if (candidate.id === orphan.id) continue;
+          if (candidate.siteId !== orphan.siteId) continue;
+          if ((candidate.content_en || "").includes(`/blog/${orphan.slug}`)) continue;
+          // Score by title word overlap
+          const candidateTitle = (candidate.title_en || "").toLowerCase();
+          const score = orphanWords.filter(w => candidateTitle.includes(w)).length;
+          if (score > bestScore) {
+            bestScore = score;
+            bestHost = candidate;
+          }
+        }
+
+        if (!bestHost || bestScore < 1) continue;
+
+        // Skip if the host already has any related section (from seo-agent or previous runs)
+        // Prevents accumulation of multiple "Related:" blocks from different injectors.
+        if ((bestHost.content_en || "").includes("related-articles") || (bestHost.content_en || "").includes("related-link")) continue;
+
+        // Append a "Related reading" link at the end of the host article
+        const linkHtml = `\n<p class="related-link"><strong>Related:</strong> <a href="/blog/${orphan.slug}" class="internal-link">${orphan.title_en}</a></p>`;
+        await optimisticBlogPostUpdate(bestHost.id, (current) => ({
+          content_en: (current.content_en || "") + linkHtml,
+        }), { tag: "[content-auto-fix]" });
+        orphansFixed++;
+        console.log(`[content-auto-fix] Fixed orphan: "${orphan.slug}" — linked from "${bestHost.slug}"`);
+      }
+      results.orphansFixed = orphansFixed;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`orphan-resolution: ${msg}`);
+      console.warn("[content-auto-fix] Orphan page resolution failed:", msg);
+    }
+  }
+
+  // ── 11B. RECOVER AUTO-UNPUBLISHED ARTICLES — re-publish articles wrongly unpublished by old thin-content logic ──
+  // The old Section 12 used to unpublish articles with < 500 words. This was destructive:
+  // it removed indexed pages from Google, lost SEO equity, and caused "false positive" removals.
+  // This recovery section finds articles with [AUTO-UNPUBLISHED:] in their meta description
+  // and re-publishes them so they can be expanded by seo-deep-review instead.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const autoUnpublished = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: false,
+          deletedAt: null,
+          meta_description_en: { startsWith: "[AUTO-UNPUBLISHED:" },
+        },
+        select: { id: true, slug: true, meta_description_en: true, title_en: true },
+        take: 20,
+      });
+
+      let recovered = 0;
+      for (const post of autoUnpublished) {
+        // Restore original meta description (strip the [AUTO-UNPUBLISHED:...] prefix)
+        const originalMeta = (post.meta_description_en || "").replace(/^\[AUTO-UNPUBLISHED:[^\]]*\]\s*/, "").trim();
+        await optimisticBlogPostUpdate(post.id, () => ({
+          published: true,
+          meta_description_en: originalMeta || post.title_en || "",
+        }), { tag: "[content-auto-fix]" });
+        recovered++;
+        console.log(`[content-auto-fix] Re-published auto-unpublished article: "${post.slug}"`);
+      }
+      if (recovered > 0) {
+        console.log(`[content-auto-fix] Recovered ${recovered} wrongly auto-unpublished articles`);
+      }
+      (results as Record<string, unknown>).articlesRecovered = recovered;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`recover-unpublished: ${msg}`);
+      console.warn("[content-auto-fix] Recovery of auto-unpublished articles failed:", msg);
+    }
+  }
+
+  // ── 12. THIN CONTENT HANDLING — noindex ultra-thin, flag moderate-thin for expansion ──
+  // Strategy: Articles below thinContentThreshold (300w for blog) are ACTIVELY HARMFUL to SEO.
+  // Google's Helpful Content system demotes entire sites for thin pages.
+  // - Ultra-thin (< thinContentThreshold): unpublish — zero SEO equity to protect
+  // - Moderate-thin (< minWords but >= thinContentThreshold): flag for seo-deep-review expansion
+  // Also catches: bad slugs (empty/"-"), "EXPAND:" prefix titles that leaked through pipeline
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      // Fetch ALL published articles — scan entire catalog for thin content.
+      // Previous take:200 + orderBy:asc missed newer thin articles beyond position 200.
+      // With ~109 published articles, take:500 covers the full catalog.
+      const allPublished = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          created_at: { lt: twoHoursAgo },
+        },
+        select: { id: true, slug: true, content_en: true, content_ar: true, title_en: true, title_ar: true },
+        orderBy: { created_at: "desc" }, // newest first — most likely to have issues
+        take: 500,
+      });
+
+      let thinCount = 0;
+      let ultraThinUnpublished = 0;
+      let badSlugUnpublished = 0;
+      const thinThreshold = CONTENT_QUALITY.thinContentThreshold || 300;
+
+      for (const post of allPublished) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+
+        // ── Bad slug / "EXPAND:" prefix check ──
+        const hasBadSlug = !post.slug || post.slug === "-" || post.slug === "";
+        const hasExpandPrefix = /^EXPAND:\s/i.test(post.title_en || "") || /^EXPAND:\s/i.test(post.title_ar || "");
+        if (hasBadSlug || hasExpandPrefix) {
+          try {
+            const reason = hasBadSlug ? `BAD_SLUG: "${post.slug}"` : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
+            await optimisticBlogPostUpdate(post.id, () => ({
+              published: false,
+              meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
+            }), { tag: "[content-auto-fix]" });
+            badSlugUnpublished++;
+            console.log(`[content-auto-fix] Unpublished bad article: ${reason}`);
+          } catch (upErr) {
+            console.warn(`[content-auto-fix] Failed to unpublish bad article "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+          }
+          continue;
+        }
+
+        // ── Word count check — use whichever language has content ──
+        const enText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const arText = (post.content_ar || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const enWords = enText.split(" ").filter(Boolean).length;
+        const arWords = arText.split(" ").filter(Boolean).length;
+        const wordCount = Math.max(enWords, arWords); // Use the longer version
+
+        if (wordCount < thinThreshold) {
+          // Ultra-thin: unpublish — actively harmful, zero SEO equity
+          try {
+            await optimisticBlogPostUpdate(post.id, () => ({
+              published: false,
+              meta_description_en: `[UNPUBLISHED-THIN: ${wordCount}w < ${thinThreshold}w threshold] ${(post.slug || "").slice(0, 80)}`,
+            }), { tag: "[content-auto-fix]" });
+            ultraThinUnpublished++;
+            console.log(`[content-auto-fix] Unpublished ultra-thin article: "${post.slug}" (${wordCount}w < ${thinThreshold}w threshold)`);
+          } catch (upErr) {
+            console.warn(`[content-auto-fix] Failed to unpublish thin "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+          }
+        } else if (wordCount < CONTENT_QUALITY.minWords) {
+          thinCount++;
+          console.log(`[content-auto-fix] Moderate-thin article flagged for expansion: "${post.slug}" (${wordCount}w) — will be expanded by seo-deep-review`);
+        }
+      }
+      results.thinUnpublished = ultraThinUnpublished;
+      results.badSlugUnpublished = badSlugUnpublished;
+      if (thinCount > 0) {
+        console.log(`[content-auto-fix] ${thinCount} moderate-thin articles flagged for seo-deep-review expansion`);
+      }
+      if (ultraThinUnpublished > 0) {
+        console.log(`[content-auto-fix] ${ultraThinUnpublished} ultra-thin articles unpublished (<${thinThreshold}w)`);
+      }
+      if (badSlugUnpublished > 0) {
+        console.log(`[content-auto-fix] ${badSlugUnpublished} bad-slug/EXPAND-prefix articles unpublished`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`thin-content-flag: ${msg}`);
+      console.warn("[content-auto-fix] Thin content handling failed:", msg);
+    }
+  }
+
+  // ── 12. DUPLICATE CONTENT DETECTION — unpublish the worse duplicate ──
+  // Compares title similarity between all published articles per site.
+  // If two articles have > 80% word overlap in title, the one with fewer words
+  // (or lower SEO score as tiebreaker) is unpublished. Keeping both causes
+  // keyword cannibalization — Google splits authority between them, neither ranks.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      let duplicatesUnpublished = 0;
+      const alreadyUnpublished = new Set<string>();
+      for (const siteId of activeSiteIds) {
+        if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
+        const sitePosts = await prisma.blogPost.findMany({
+          where: {
+            siteId,
+            published: true,
+            deletedAt: null,
+          },
+          select: { id: true, slug: true, title_en: true, created_at: true, meta_description_en: true, content_en: true, seo_score: true },
+          orderBy: { created_at: "asc" },
+          take: 100,
+        });
+
+        // Compare each pair for title similarity using word overlap (Jaccard)
+        for (let i = 0; i < sitePosts.length; i++) {
+          if (alreadyUnpublished.has(sitePosts[i].id)) continue;
+          for (let j = i + 1; j < sitePosts.length; j++) {
+            if (alreadyUnpublished.has(sitePosts[j].id)) continue;
+            const wordsA = new Set((sitePosts[i].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
+            const wordsB = new Set((sitePosts[j].title_en || "").toLowerCase().split(/\s+/).filter(w => w.length > 2));
+            if (wordsA.size < 3 || wordsB.size < 3) continue;
+            let intersection = 0;
+            for (const w of wordsA) { if (wordsB.has(w)) intersection++; }
+            const union = new Set([...wordsA, ...wordsB]).size;
+            const jaccard = union > 0 ? intersection / union : 0;
+
+            if (jaccard > 0.8) {
+              // Pick the worse version: fewer words, or lower SEO score as tiebreaker
+              const wcA = (sitePosts[i].content_en || "").split(/\s+/).length;
+              const wcB = (sitePosts[j].content_en || "").split(/\s+/).length;
+              const scoreA = sitePosts[i].seo_score ?? 0;
+              const scoreB = sitePosts[j].seo_score ?? 0;
+              // Worse = fewer words; if equal, lower SEO score; if still equal, newer article
+              const worseIdx = wcA < wcB ? i : wcB < wcA ? j : scoreA < scoreB ? i : j;
+              const betterIdx = worseIdx === i ? j : i;
+              const worse = sitePosts[worseIdx];
+              const better = sitePosts[betterIdx];
+
+              await optimisticBlogPostUpdate(worse.id, () => ({
+                published: false,
+                meta_description_en: `[DUPLICATE-UNPUBLISHED: kept "${better.slug}"] ${(worse.meta_description_en || "").replace(/\[DUPLICATE[^\]]*\]\s*/, "").slice(0, 100)}`,
+              }), { tag: "[content-auto-fix]" });
+              alreadyUnpublished.add(worse.id);
+              duplicatesUnpublished++;
+              console.log(`[content-auto-fix] Unpublished duplicate: "${worse.slug}" (${wcA}w/${scoreA}s) — kept "${better.slug}" (${wcB}w/${scoreB}s) (jaccard=${jaccard.toFixed(2)})`);
+              if (duplicatesUnpublished >= 5) break;
+            }
+          }
+          if (duplicatesUnpublished >= 5) break;
+        }
+      }
+      results.duplicatesUnpublished = duplicatesUnpublished;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`duplicate-content: ${msg}`);
+      console.warn("[content-auto-fix] Duplicate content detection failed:", msg);
+    }
+  }
+
+  // ── 14. CHRONIC INDEXING FAILURES — fix & resubmit pages Google won't index ──
+  // Pages submitted 5+ times without indexing likely have content quality issues.
+  // Lowered from 10 to 5 to catch problems earlier (report showed 5-14 attempt pages).
+  // Now actively fixes: thin meta descriptions, missing meta, and resets submission
+  // attempts to trigger resubmission via IndexNow on next seo-agent run.
+  let chronicIndexingFixed = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      const chronicPages = await prisma.uRLIndexingStatus.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          status: { in: ["submitted", "discovered", "pending_review", "error"] },
+          submission_attempts: { gte: 5 },
+        },
+        select: { url: true, site_id: true, submission_attempts: true, id: true },
+        take: 20,
+      });
+
+      for (const page of chronicPages) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+        // Extract slug from URL
+        const slugMatch = page.url.match(/\/blog\/([^\/]+)$/);
+        if (!slugMatch) continue;
+        const slug = slugMatch[1];
+
+        // Find the BlogPost and check content quality
+        const post = await prisma.blogPost.findFirst({
+          where: { slug, siteId: page.site_id },
+          select: { id: true, content_en: true, title_en: true, meta_title_en: true, meta_description_en: true, seo_score: true, tags: true },
+        });
+        if (!post) continue;
+
+        const contentText = (post.content_en || "").replace(/<[^>]+>/g, " ").trim();
+        const wordCount = contentText.split(/\s+/).filter(Boolean).length;
+
+        const issues: string[] = [];
+        const updateData: Record<string, unknown> = {};
+
+        // Fix 1: Thin content → flag (will be caught by Section 12 too, but be explicit)
+        if (wordCount < CONTENT_QUALITY.minWords) {
+          issues.push(`thin (${wordCount}w)`);
+        }
+
+        // Fix 2: Missing or short meta description → auto-generate from content
+        const metaDesc = post.meta_description_en || "";
+        if (metaDesc.length < 120 || metaDesc.startsWith("[AUTO-")) {
+          const firstParagraph = contentText.split(/[.!?]/).slice(0, 2).join(". ").trim();
+          if (firstParagraph.length >= 60) {
+            const trimmedMeta = firstParagraph.length > 155 ? firstParagraph.slice(0, 152) + "..." : firstParagraph + ".";
+            updateData.meta_description_en = trimmedMeta;
+            issues.push("fixed meta desc");
+          } else {
+            issues.push("weak meta desc (too short to auto-fix)");
+          }
+        }
+
+        // Fix 3: Missing meta title → generate from title
+        if (!post.meta_title_en || post.meta_title_en.length < 20) {
+          const title = post.title_en || "";
+          if (title.length >= 20 && title.length <= 60) {
+            updateData.meta_title_en = title;
+            issues.push("fixed meta title");
+          } else if (title.length > 60) {
+            updateData.meta_title_en = title.slice(0, 57) + "...";
+            issues.push("fixed meta title (trimmed)");
+          }
+        }
+
+        // Tag for review and apply fixes
+        const currentTags = (post.tags || []) as string[];
+        if (!currentTags.includes("needs-indexing-review")) {
+          updateData.tags = [...currentTags, "needs-indexing-review"];
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          updateData.updated_at = new Date();
+          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix]" });
+        }
+
+        // Reset submission attempts so IndexNow resubmits with improved content
+        // Only reset if we actually fixed something (meta desc or meta title)
+        if (issues.some(i => i.startsWith("fixed"))) {
+          await prisma.uRLIndexingStatus.update({
+            where: { id: page.id },
+            data: {
+              submission_attempts: 0,
+              status: "discovered",
+              last_error: `[content-auto-fix] Reset after fixes: ${issues.join(", ")}`,
+            },
+          });
+        }
+
+        chronicIndexingFixed++;
+        console.log(`[content-auto-fix] Chronic indexing fix: ${slug} (${page.submission_attempts} attempts, ${issues.join(", ") || "no fixable issues"})`);
+      }
+      if (chronicIndexingFixed > 0) {
+        console.log(`[content-auto-fix] Fixed ${chronicIndexingFixed} chronic indexing failures`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`chronic-indexing: ${msg}`);
+      console.warn("[content-auto-fix] Chronic indexing fix failed:", msg);
+    }
+  }
+
+  // ── 15. WORD COUNT ARTIFACT CLEANUP — strip "(248 words)" from published content ──
+  // AI models echo word counts from prompt instructions into article body text.
+  // Visible to readers as "(248 words)", "(212 words)" etc.
+  let wordCountArtifactsCleaned = 0;
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const { sanitizeContentBody } = await import("@/lib/content-pipeline/title-sanitizer");
+      // Find published posts containing word count patterns
+      const postsWithArtifacts = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          deletedAt: null,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: " words)" } },
+            { content_ar: { contains: " words)" } },
+          ],
+        },
+        select: { id: true, content_en: true, content_ar: true, slug: true },
+        take: 50,
+      });
+
+      for (const post of postsWithArtifacts) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        const cleanEn = sanitizeContentBody(post.content_en || "");
+        const cleanAr = sanitizeContentBody(post.content_ar || "");
+        // Only update if content actually changed
+        if (cleanEn !== post.content_en || cleanAr !== post.content_ar) {
+          await optimisticBlogPostUpdate(post.id, (current) => ({
+            ...(cleanEn !== post.content_en ? { content_en: sanitizeContentBody(current.content_en || "") } : {}),
+            ...(cleanAr !== post.content_ar ? { content_ar: sanitizeContentBody(current.content_ar || "") } : {}),
+          }), { tag: "[content-auto-fix]" });
+          wordCountArtifactsCleaned++;
+          console.log(`[content-auto-fix] Stripped word count artifacts from: ${post.slug}`);
+        }
+      }
+      if (wordCountArtifactsCleaned > 0) {
+        console.log(`[content-auto-fix] Cleaned word count artifacts from ${wordCountArtifactsCleaned} articles`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`word-count-cleanup: ${msg}`);
+      console.warn("[content-auto-fix] Word count cleanup failed:", msg);
+    }
+  }
+
+  // ── 16. ARABIC CONTENT BACKFILL — translate EN→AR for articles published with English fallback ──
+  // When an AR draft wasn't ready, select-runner copies content_en into content_ar as a placeholder.
+  // This section detects those articles (content_ar === content_en) and generates real Arabic via AI.
+  // Budget: ~25-40s per article (AI translation). Max 2 per run to stay within budget.
+  if (Date.now() - cronStart < BUDGET_MS - 30_000) {
+    try {
+      // Find articles where content_ar is exactly the same as content_en (English fallback)
+      // Use raw query since Prisma doesn't support column-to-column comparison
+      const dupeContentPosts: Array<{ id: string; title_en: string; slug: string; content_en: string }> = await prisma.$queryRawUnsafe(
+        `SELECT id, title_en, slug, LEFT(content_en, 6000) as content_en
+         FROM "BlogPost"
+         WHERE published = true
+           AND "deletedAt" IS NULL
+           AND "siteId" = ANY($1)
+           AND content_en != ''
+           AND content_ar = content_en
+         ORDER BY created_at DESC
+         LIMIT 5`,
+        activeSiteIds,
+      );
+
+      if (dupeContentPosts.length > 0) {
+        console.log(`[content-auto-fix] Found ${dupeContentPosts.length} articles with English-in-Arabic fallback — backfilling`);
+        const { generateCompletion } = await import("@/lib/ai/provider");
+        const { SITES, getDefaultSiteId } = await import("@/config/sites");
+        let backfilled = 0;
+
+        for (const post of dupeContentPosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 25_000) break;
+          if (backfilled >= 2) break; // Max 2 per run
+
+          try {
+            // Truncate content to avoid huge prompts
+            const enContent = (post.content_en || "").substring(0, 5000);
+            const siteId = getDefaultSiteId();
+            const site = SITES[siteId];
+
+            const messages = [
+              { role: "system" as const, content: site?.systemPromptEN || "You are a professional Arabic translator specializing in luxury travel content." },
+              { role: "user" as const, content: `Translate this English travel article into Arabic. Maintain the HTML structure, headings (h2, h3), paragraph tags, and links. Write naturally in Modern Standard Arabic (فصحى). Add dir="rtl" lang="ar" to the wrapping element. Keep all href URLs unchanged. Do NOT translate brand names, hotel names, or restaurant names.\n\nTitle: ${post.title_en}\n\nContent:\n${enContent}` },
+            ];
+
+            const arResult = await generateCompletion(messages, {
+              maxTokens: 3500, // Arabic is ~2.5x more token-dense
+              taskType: "arabic-backfill",
+              calledFrom: "content-auto-fix-s16",
+              phaseBudgetHint: "heavy",
+              timeoutMs: 40_000,
+            });
+
+            if (arResult.content && arResult.content.length > 200) {
+              // Wrap in RTL article tag if not already present
+              let arHtml = arResult.content;
+              if (!arHtml.includes('dir="rtl"') && !arHtml.includes("dir='rtl'")) {
+                arHtml = `<article dir="rtl" lang="ar">${arHtml}</article>`;
+              }
+
+              await prisma.blogPost.update({
+                where: { id: post.id },
+                data: { content_ar: arHtml },
+              });
+              results.arabicContentBackfilled++;
+              backfilled++;
+              console.log(`[content-auto-fix] Backfilled Arabic content for: ${post.slug} (${arHtml.length} chars)`);
+            }
+          } catch (postErr) {
+            const msg = postErr instanceof Error ? postErr.message : String(postErr);
+            console.warn(`[content-auto-fix] Arabic backfill failed for ${post.slug}:`, msg);
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`arabic-backfill: ${msg}`);
+      console.warn("[content-auto-fix] Arabic content backfill failed:", msg);
+    }
+  }
+
+  // ── 17. DEAD AFFILIATE LINK REMOVAL ─────────────────────────────────────────
+  // HTTP HEAD check on affiliate links in published articles. Strip links returning 404/403/410.
+  if (Date.now() - cronStart < BUDGET_MS - 15_000) {
+    try {
+      const postsWithAffiliates = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: 'rel="sponsored"' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
+          ],
+        },
+        select: { id: true, content_en: true, slug: true, updated_at: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      for (const post of postsWithAffiliates) {
+        if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+        if (results.deadAffiliateLinksRemoved >= 10) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+
+        // Extract all affiliate link hrefs
+        const affiliateLinkRegex = /<a\s[^>]*(?:rel="[^"]*sponsored[^"]*"|class="[^"]*affiliate[^"]*")[^>]*href="([^"]+)"[^>]*>[\s\S]*?<\/a>/gi;
+        const linksToCheck: Array<{ fullMatch: string; url: string }> = [];
+        let linkMatch: RegExpExecArray | null;
+        while ((linkMatch = affiliateLinkRegex.exec(content)) !== null) {
+          const href = linkMatch[1];
+          // Only check external URLs (skip our own /api/affiliate/click — those are tracked redirects)
+          if (href && !href.startsWith("/api/affiliate/click") && (href.startsWith("http://") || href.startsWith("https://"))) {
+            linksToCheck.push({ fullMatch: linkMatch[0], url: href });
+          }
+        }
+
+        for (const link of linksToCheck.slice(0, 3)) { // Max 3 checks per article
+          if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch(link.url, {
+              method: "HEAD",
+              redirect: "follow",
+              signal: controller.signal,
+              headers: { "User-Agent": "YallaLondon-LinkChecker/1.0" },
+            });
+            clearTimeout(timeout);
+
+            if (res.status === 404 || res.status === 410 || res.status === 403) {
+              // Dead link — remove the entire affiliate block containing it
+              content = content.replace(link.fullMatch, "<!-- affiliate link removed: dead -->");
+              modified = true;
+              results.deadAffiliateLinksRemoved++;
+              console.log(`[content-auto-fix] Removed dead affiliate link (${res.status}) in /${post.slug}: ${link.url.substring(0, 80)}`);
+            }
+          } catch {
+            // Timeout or network error — don't remove, might be transient
+          }
+        }
+
+        if (modified) {
+          // Also remove empty affiliate-recommendation divs left behind
+          content = content.replace(/<div class="affiliate-recommendation"[^>]*>\s*<!-- affiliate link removed: dead -->\s*<\/div>/gi, "");
+          const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
+            console.warn("[content-auto-fix] Dead link update failed:", err instanceof Error ? err.message : String(err))
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`dead-affiliate-links: ${msg}`);
+      console.warn("[content-auto-fix] Dead affiliate link removal failed:", msg);
+    }
+  }
+
+  // ── 18. STALE AFFILIATE LINK REMOVAL ──────────────────────────────────────────
+  // Detect affiliate links near past-year dates or expired event references. Strip them.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const currentYear = new Date().getFullYear();
+      const stalePatterns = [
+        new RegExp(`\\b20(?:${Array.from({ length: currentYear - 2020 }, (_, i) => String(20 + i).padStart(2, "0")).join("|")})\\b`), // 2020-2025 (past years)
+        /\bexpired?\b/i,
+        /\bclosed\b/i,
+        /\bsold\s+out\b/i,
+        /\bno\s+longer\s+available\b/i,
+      ];
+
+      const postsForStale = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: 'rel="sponsored"' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+          ],
+        },
+        select: { id: true, content_en: true, slug: true },
+        take: 20,
+        orderBy: { created_at: "asc" }, // Oldest first — most likely to have stale content
+      });
+
+      for (const post of postsForStale) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (results.staleAffiliateLinksRemoved >= 10) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+
+        // Find affiliate blocks and check their surrounding text for stale signals
+        const blockRegex = /<div class="affiliate-recommendation"[^>]*>[\s\S]*?<\/div>/gi;
+        let blockMatch: RegExpExecArray | null;
+        const blocksToRemove: string[] = [];
+
+        while ((blockMatch = blockRegex.exec(content)) !== null) {
+          const blockStart = Math.max(0, blockMatch.index - 500);
+          const blockEnd = Math.min(content.length, blockMatch.index + blockMatch[0].length + 200);
+          const surroundingText = content.substring(blockStart, blockEnd).replace(/<[^>]+>/g, " ");
+
+          for (const pattern of stalePatterns) {
+            if (pattern.test(surroundingText)) {
+              blocksToRemove.push(blockMatch[0]);
+              break;
+            }
+          }
+        }
+
+        for (const block of blocksToRemove) {
+          content = content.replace(block, "<!-- affiliate block removed: stale content -->");
+          modified = true;
+          results.staleAffiliateLinksRemoved++;
+          console.log(`[content-auto-fix] Removed stale affiliate block in /${post.slug}`);
+        }
+
+        if (modified) {
+          const { optimisticBlogPostUpdate } = await import("@/lib/db/optimistic-update");
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
+            console.warn("[content-auto-fix] Stale link update failed:", err instanceof Error ? err.message : String(err))
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`stale-affiliate-links: ${msg}`);
+      console.warn("[content-auto-fix] Stale affiliate link removal failed:", msg);
+    }
+  }
+
+  // ── 19. UNTRACKED AFFILIATE LINK WRAPPING ────────────────────────────────────
+  // Find affiliate links that go directly to partner URLs (bypass /api/affiliate/click).
+  // Wrap them through our click tracker for revenue attribution + GA4 events.
+  // Covers ALL known partner domains including CJ deep links and Travelpayouts.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      // Known affiliate partner domains — includes CJ deep link domains and Travelpayouts
+      const AFFILIATE_PARTNER_DOMAINS = [
+        "booking.com", "agoda.com", "expedia.com", "hotels.com",
+        "getyourguide.com", "viator.com", "klook.com",
+        "halalbooking.com", "tripadvisor.com", "tripadvisor.co.uk",
+        "thefork.co.uk", "thefork.com", "thefork.fr", "opentable.co.uk", "opentable.com",
+        "welcomepickups.com", "tiqets.com", "ticketnetwork.com",
+        "blacklane.com", "stubhub.co.uk", "stubhub.com",
+        "boatbookings.com", "clickandboat.com",
+        "harrods.com", "selfridges.com",
+        "allianztravelinsurance.com",
+        // CJ deep link domains
+        "anrdoezrs.net", "dpbolvw.net", "jdoqocy.com", "kqzyfj.com", "tkqlhce.com",
+        // Travelpayouts
+        "tp.media", "tp-em.com",
+        // Vrbo / VRBO
+        "vrbo.com",
+      ];
+
+      // Build OR conditions: articles with rel="sponsored" OR any known partner domain
+      const partnerDomainConditions = AFFILIATE_PARTNER_DOMAINS.map(domain => ({
+        content_en: { contains: domain },
+      }));
+
+      const postsForTracking = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: 'rel="sponsored"' } },
+            { content_en: { contains: "affiliate-recommendation" } },
+            { content_en: { contains: 'rel="noopener sponsored"' } },
+            ...partnerDomainConditions,
+          ],
+        },
+        select: { id: true, content_en: true, slug: true, siteId: true },
+        take: 30,
+        orderBy: { created_at: "desc" },
+      });
+
+      const { getDefaultSiteId } = await import("@/config/sites");
+
+      // Build regex pattern for all partner domains
+      const domainPattern = AFFILIATE_PARTNER_DOMAINS
+        .map(d => d.replace(/\./g, "\\."))
+        .join("|");
+
+      for (const post of postsForTracking) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (results.untrackedLinksWrapped >= 50) break;
+
+        let content = post.content_en || "";
+        // Skip if ALL affiliate links are already tracked
+        if (!content.includes("booking.com") && !content.includes("getyourguide.com") &&
+            !content.includes("viator.com") && !content.includes("agoda.com") &&
+            !content.includes("anrdoezrs.net") && !content.includes("welcomepickups.com") &&
+            !content.includes("tiqets.com") && !content.includes("ticketnetwork.com") &&
+            !content.includes('rel="sponsored"') && !content.includes("affiliate-recommendation") &&
+            !content.includes("halalbooking.com") && !content.includes("vrbo.com") &&
+            !content.includes("expedia.com") && !content.includes("tripadvisor")) continue;
+
+        let modified = false;
+        const postSiteId = post.siteId || getDefaultSiteId();
+        const sid = `${postSiteId}_${post.slug}`.substring(0, 100);
+
+        // Match ANY <a> tag pointing to a known affiliate partner domain
+        // This catches: rel="sponsored" links, AI-generated inline links, CJ deep links, Travelpayouts links
+        const partnerLinkRegex = new RegExp(
+          `<a\\s([^>]*)href="(https?:\\/\\/[^"]*(?:${domainPattern})[^"]*)"([^>]*)>`,
+          "gi"
+        );
+        let directMatch: RegExpExecArray | null;
+
+        while ((directMatch = partnerLinkRegex.exec(content)) !== null) {
+          const originalHref = directMatch[2];
+          // Skip if already tracked through our click tracker
+          if (originalHref.includes("/api/affiliate/click")) continue;
+
+          const trackedHref = `/api/affiliate/click?url=${encodeURIComponent(originalHref)}&sid=${encodeURIComponent(sid)}`;
+          const originalTag = directMatch[0];
+
+          // Also ensure rel="noopener sponsored" is present
+          let newTag = originalTag.replace(`href="${originalHref}"`, `href="${trackedHref}"`);
+          if (!newTag.includes('rel="') || !newTag.includes("sponsored")) {
+            if (newTag.includes('rel="')) {
+              // Add "sponsored" to existing rel attribute
+              newTag = newTag.replace(/rel="([^"]*)"/, 'rel="$1 sponsored"');
+            } else {
+              // Add rel attribute before closing >
+              newTag = newTag.replace(/>$/, ' rel="noopener sponsored">');
+            }
+          }
+
+          content = content.replace(originalTag, newTag);
+          modified = true;
+          results.untrackedLinksWrapped++;
+        }
+
+        if (modified) {
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
+            console.warn("[content-auto-fix] Tracking wrap failed:", err instanceof Error ? err.message : String(err))
+          );
+          console.log(`[content-auto-fix] Wrapped ${results.untrackedLinksWrapped} untracked affiliate links in /${post.slug}`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`untracked-link-wrapping: ${msg}`);
+      console.warn("[content-auto-fix] Untracked link wrapping failed:", msg);
+    }
+  }
+
+  // ── 20. PLACEHOLDER AFFILIATE ID CLEANUP ─────────────────────────────────────
+  // AI content generation often writes links with placeholder IDs like aid=12345,
+  // AFFILIATE_ID, youraffiliateid. Find and fix them — either replace with real
+  // tracked URLs or strip the broken parameters.
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      // Patterns that indicate a placeholder/fake affiliate ID
+      const PLACEHOLDER_PATTERNS = [
+        /\baid=12345\b/gi,
+        /\baid=1234567\b/gi,
+        /\baid=123456\b/gi,
+        /\bpartner_id=12345\b/gi,
+        /\bpid=12345\b/gi,
+        /\bcid=12345\b/gi,
+        /\bref=12345\b/gi,
+        /AFFILIATE_ID/g,
+        /YOUR_AFFILIATE_ID/gi,
+        /youraffiliateid/gi,
+        /your-affiliate-id/gi,
+        /\[affiliate[_-]?id\]/gi,
+        /\{affiliate[_-]?id\}/gi,
+        /INSERT_AFFILIATE_ID/gi,
+        /PARTNER_ID_HERE/gi,
+        /YOUR_PARTNER_ID/gi,
+        /\baid=\b(?=[&"' ])/gi, // aid= with nothing after (empty)
+        /\bcid=\b(?=[&"' ])/gi, // cid= with nothing after
+      ];
+
+      // Find articles with potential placeholder IDs
+      const postsWithPlaceholders = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          siteId: { in: activeSiteIds },
+          OR: [
+            { content_en: { contains: "aid=12345" } },
+            { content_en: { contains: "AFFILIATE_ID" } },
+            { content_en: { contains: "youraffiliateid" } },
+            { content_en: { contains: "your-affiliate-id" } },
+            { content_en: { contains: "partner_id=12345" } },
+            { content_en: { contains: "pid=12345" } },
+            { content_en: { contains: "INSERT_AFFILIATE" } },
+            { content_en: { contains: "PARTNER_ID_HERE" } },
+            { content_en: { contains: "YOUR_PARTNER" } },
+          ],
+        },
+        select: { id: true, content_en: true, slug: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const { getDefaultSiteId } = await import("@/config/sites");
+
+      for (const post of postsWithPlaceholders) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        if (results.placeholderIdsFixed >= 30) break;
+
+        let content = post.content_en || "";
+        let modified = false;
+        const postSiteId = post.siteId || getDefaultSiteId();
+        const sid = `${postSiteId}_${post.slug}`.substring(0, 100);
+
+        // Find <a> tags with known partner domains that have placeholder params
+        const linkRegex = /<a\s([^>]*)href="(https?:\/\/[^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi;
+        let match: RegExpExecArray | null;
+        const replacements: Array<{ original: string; replacement: string }> = [];
+
+        while ((match = linkRegex.exec(content)) !== null) {
+          const fullTag = match[0];
+          const href = match[2];
+
+          // Check if this href contains a placeholder pattern
+          const hasPlaceholder = PLACEHOLDER_PATTERNS.some(p => p.test(href));
+          // Reset regex lastIndex after test()
+          PLACEHOLDER_PATTERNS.forEach(p => { p.lastIndex = 0; });
+
+          if (!hasPlaceholder) continue;
+          if (href.includes("/api/affiliate/click")) continue;
+
+          // Strip placeholder params from URL and wrap through click tracker
+          let cleanUrl = href;
+          for (const pattern of PLACEHOLDER_PATTERNS) {
+            cleanUrl = cleanUrl.replace(pattern, "");
+            pattern.lastIndex = 0;
+          }
+          // Clean up resulting URL (remove dangling ?&, &&, trailing &)
+          cleanUrl = cleanUrl
+            .replace(/[?&]$/, "")
+            .replace(/&&+/g, "&")
+            .replace(/\?&/, "?")
+            .replace(/\?$/, "");
+
+          const trackedUrl = `/api/affiliate/click?url=${encodeURIComponent(cleanUrl)}&sid=${encodeURIComponent(sid)}`;
+          let newTag = fullTag.replace(`href="${href}"`, `href="${trackedUrl}"`);
+
+          // Add rel="noopener sponsored" if missing
+          if (!newTag.includes("sponsored")) {
+            if (newTag.includes('rel="')) {
+              newTag = newTag.replace(/rel="([^"]*)"/, 'rel="$1 sponsored"');
+            } else {
+              newTag = newTag.replace(/<a\s/, '<a rel="noopener sponsored" ');
+            }
+          }
+
+          replacements.push({ original: fullTag, replacement: newTag });
+        }
+
+        for (const { original, replacement } of replacements) {
+          content = content.replace(original, replacement);
+          modified = true;
+          results.placeholderIdsFixed++;
+        }
+
+        if (modified) {
+          await optimisticBlogPostUpdate(post.id, () => ({ content_en: content }), { tag: "[content-auto-fix]" }).catch(err =>
+            console.warn("[content-auto-fix] Placeholder cleanup failed:", err instanceof Error ? err.message : String(err))
+          );
+          console.log(`[content-auto-fix] Fixed ${replacements.length} placeholder affiliate IDs in /${post.slug}`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`placeholder-affiliate-cleanup: ${msg}`);
+      console.warn("[content-auto-fix] Placeholder affiliate cleanup failed:", msg);
+    }
+  }
+
+  // ── Section 21: Fix Not-Indexed Pages (7+ days) ────────────────────────────
+  // Finds published articles stuck "not indexed" for 7+ days, enhances content
+  // (expand, add links, affiliates, images) and resubmits to IndexNow.
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Find URLs that were submitted 7+ days ago but are NOT indexed
+      const stuckUrls = await prisma.uRLIndexingStatus.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          status: { in: ["submitted", "discovered", "error"] },
+          last_submitted_at: { lt: sevenDaysAgo },
+          indexing_state: { not: "indexed" },
+        },
+        select: { url: true, site_id: true },
+        take: 5,
+      });
+
+      if (stuckUrls.length > 0) {
+        // Extract slugs from URLs to find matching BlogPosts
+        const slugsFromUrls = stuckUrls.map(u => {
+          const parts = u.url.split("/blog/");
+          return parts[1]?.replace(/\/$/, "") || null;
+        }).filter(Boolean) as string[];
+
+        const postsToFix = await prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSiteIds },
+            published: true,
+            deletedAt: null,
+            slug: { in: slugsFromUrls },
+          },
+          select: { id: true, slug: true, siteId: true },
+          take: 3,
+        });
+
+        const { enhancePublishedArticle } = await import("@/lib/campaigns/article-enhancer");
+
+        for (const post of postsToFix) {
+          if (Date.now() - cronStart > BUDGET_MS - 15_000) break;
+
+          try {
+            const enhanceResult = await enhancePublishedArticle(
+              post.id,
+              ["expand_content", "add_internal_links", "add_affiliate_links", "add_authenticity", "fix_meta_description", "inject_images"],
+              { operations: ["expand_content", "add_internal_links", "add_affiliate_links", "add_authenticity", "fix_meta_description", "inject_images"] },
+              Math.min(40_000, BUDGET_MS - (Date.now() - cronStart) - 5_000),
+            );
+
+            if (enhanceResult.success) {
+              results.notIndexedEnhanced++;
+              console.log(`[content-auto-fix] Enhanced not-indexed article /${post.slug}: +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links`);
+
+              // Resubmit to IndexNow
+              try {
+                const { getSiteDomain } = await import("@/config/sites");
+                const domain = getSiteDomain(post.siteId);
+                const articleUrl = `${domain}/blog/${post.slug}`;
+                const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+                await submitToIndexNow([articleUrl]);
+                console.log(`[content-auto-fix] Resubmitted /${post.slug} to IndexNow`);
+              } catch (indexErr) {
+                console.warn("[content-auto-fix] IndexNow resubmit failed:", indexErr instanceof Error ? indexErr.message : String(indexErr));
+              }
+            }
+          } catch (err) {
+            console.warn(`[content-auto-fix] Not-indexed fix failed for /${post.slug}:`, err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`not-indexed-fix: ${msg}`);
+      console.warn("[content-auto-fix] Not-indexed fix section failed:", msg);
+    }
+  }
+
+  // ── Section 22: SEO Boost for Low-Score Articles (< 80%) ──────────────────
+  // Enhances articles with seo_score < 80 by adding photos, internal links,
+  // affiliate links, and fixing meta tags.
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
+    try {
+      const lowScorePosts = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          seo_score: { lt: 80 },
+          content_en: { not: "" },
+        },
+        select: { id: true, slug: true, seo_score: true, siteId: true },
+        orderBy: { seo_score: "asc" },
+        take: 3,
+      });
+
+      if (lowScorePosts.length > 0) {
+        const { enhancePublishedArticle } = await import("@/lib/campaigns/article-enhancer");
+
+        for (const post of lowScorePosts) {
+          if (Date.now() - cronStart > BUDGET_MS - 15_000) break;
+
+          try {
+            const enhanceResult = await enhancePublishedArticle(
+              post.id,
+              ["add_internal_links", "add_affiliate_links", "inject_images", "fix_meta_description", "fix_meta_title", "add_authenticity"],
+              { operations: ["add_internal_links", "add_affiliate_links", "inject_images", "fix_meta_description", "fix_meta_title", "add_authenticity"] },
+              Math.min(40_000, BUDGET_MS - (Date.now() - cronStart) - 5_000),
+            );
+
+            if (enhanceResult.success && (enhanceResult.operationsApplied?.length || 0) > 0) {
+              results.seoBoostEnhanced++;
+              console.log(`[content-auto-fix] SEO boosted /${post.slug} (score: ${post.seo_score}): +${enhanceResult.changes?.wordsAdded || 0}w, +${enhanceResult.changes?.internalLinksAdded || 0} links, +${enhanceResult.changes?.affiliateLinksAdded || 0} affiliates`);
+            }
+          } catch (err) {
+            console.warn(`[content-auto-fix] SEO boost failed for /${post.slug}:`, err instanceof Error ? err.message : String(err));
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`seo-boost: ${msg}`);
+      console.warn("[content-auto-fix] SEO boost section failed:", msg);
+    }
+  }
+
+  // ── Log + respond ──────────────────────────────────────────────────────────
+  const durationMs = Date.now() - cronStart;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated + results.brokenLinksFixed + results.orphansFixed + results.thinUnpublished + results.duplicatesUnpublished + chronicIndexingFixed + wordCountArtifactsCleaned + results.arabicContentBackfilled + results.deadAffiliateLinksRemoved + results.staleAffiliateLinksRemoved + results.untrackedLinksWrapped + results.placeholderIdsFixed + results.notIndexedEnhanced + results.seoBoostEnhanced;
+  const hasErrors = results.errors.length > 0;
+
+  // Fire onCronFailure if everything failed — ensures dashboard visibility
+  if (hasErrors && totalFixed === 0) {
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch(err => console.warn("[content-auto-fix] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+  }
+
+  // Invalidate sitemap cache if any articles were published/unpublished
+  const publishStateChanged =
+    (results.thinUnpublished || 0) > 0 ||
+    ((results as Record<string, unknown>).articlesRecovered as number || 0) > 0 ||
+    (results.duplicatesUnpublished || 0) > 0;
+  if (publishStateChanged) {
+    try {
+      const { invalidateSitemapCache } = await import("@/lib/sitemap-cache");
+      for (const sid of activeSiteIds) {
+        invalidateSitemapCache(sid);
+      }
+    } catch (e) {
+      console.warn("[content-auto-fix] Sitemap invalidation failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  await logCronExecution("content-auto-fix", hasErrors && totalFixed === 0 ? "failed" : "completed", {
+    durationMs,
+    itemsProcessed: totalFixed + results.enhanceFailed,
+    itemsSucceeded: totalFixed,
+    itemsFailed: results.enhanceFailed,
+    errorMessage: hasErrors ? results.errors.slice(0, 3).join(" | ") : undefined,
+    resultSummary: results,
+  }).catch((e) => console.warn("[content-auto-fix] Log failed:", e instanceof Error ? e.message : e));
+
+  const isSuccess = !(hasErrors && totalFixed === 0);
+  return NextResponse.json({
+    success: isSuccess,
+    durationMs,
+    results,
+    summary: `Enhanced ${results.enhanced}+${results.enhancedLowScore}, links +${results.internalLinksInjected}, broken ${results.brokenLinksFixed}, orphans ${results.orphansFixed}, affiliates +${results.affiliateLinksInjected}, tracked ${results.untrackedLinksWrapped}, placeholders ${results.placeholderIdsFixed}, dead aff ${results.deadAffiliateLinksRemoved}, dupe metas ${results.duplicateMetasFixed}, ar meta ${results.arabicMetaGenerated}, ar backfill ${results.arabicContentBackfilled}, thin ${results.thinUnpublished}, dupes ${results.duplicatesUnpublished}, not-indexed-fix ${results.notIndexedEnhanced}, seo-boost ${results.seoBoostEnhanced}`,
+  });
+}
+
+export async function GET(request: NextRequest) {
+  return handleAutoFix(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleAutoFix(request);
+}

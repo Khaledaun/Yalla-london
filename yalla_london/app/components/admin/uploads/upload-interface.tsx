@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -67,52 +67,7 @@ export default function UploadInterface({
     setIsDragging(false)
   }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    
-    const files = Array.from(e.dataTransfer.files)
-    handleFiles(files)
-  }, [])
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    handleFiles(files)
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }, [])
-
-  const handleFiles = useCallback((files: File[]) => {
-    const validFiles = files.filter(file => {
-      if (file.size > maxFileSize) {
-        toast({
-          title: "File too large",
-          description: `${file.name} exceeds the ${Math.round(maxFileSize / 1024 / 1024)}MB limit`,
-          variant: "destructive"
-        })
-        return false
-      }
-      return true
-    })
-
-    const newFiles: UploadFile[] = validFiles.map(file => ({
-      id: crypto.randomUUID(),
-      file,
-      status: 'pending',
-      progress: 0
-    }))
-
-    setUploadedFiles(prev => [...prev, ...newFiles])
-
-    // Start uploads
-    newFiles.forEach(uploadFile => {
-      uploadSingleFile(uploadFile)
-    })
-  }, [maxFileSize, toast])
-
-  const uploadSingleFile = async (uploadFile: UploadFile) => {
+  const uploadSingleFile = useCallback(async (uploadFile: UploadFile) => {
     try {
       // Update status to uploading
       setUploadedFiles(prev =>
@@ -187,7 +142,52 @@ export default function UploadInterface({
         variant: "destructive"
       })
     }
-  }
+  }, [enableBulkEnrichment, onFileUploaded, toast])
+
+  const handleFiles = useCallback((files: File[]) => {
+    const validFiles = files.filter(file => {
+      if (file.size > maxFileSize) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds the ${Math.round(maxFileSize / 1024 / 1024)}MB limit`,
+          variant: "destructive"
+        })
+        return false
+      }
+      return true
+    })
+
+    const newFiles: UploadFile[] = validFiles.map(file => ({
+      id: crypto.randomUUID(),
+      file,
+      status: 'pending',
+      progress: 0
+    }))
+
+    setUploadedFiles(prev => [...prev, ...newFiles])
+
+    // Start uploads
+    newFiles.forEach(uploadFile => {
+      uploadSingleFile(uploadFile)
+    })
+  }, [maxFileSize, toast, uploadSingleFile])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    handleFiles(files)
+  }, [handleFiles])
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    handleFiles(files)
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [handleFiles])
 
   const enrichSingleFile = async (fileId: string, mediaId: string) => {
     try {

@@ -1,4 +1,5 @@
 "use client"
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { performanceMonitor } from '@/lib/performance-monitoring';

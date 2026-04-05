@@ -4,7 +4,7 @@
  */
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
@@ -97,12 +97,12 @@ export function TopicPolicyManager() {
   })
 
   // Fetch policies
-  const fetchPolicies = async () => {
+  const fetchPolicies = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/admin/topics/policy')
       const data = await response.json()
-      
+
       if (data.success) {
         setPolicies(data.data)
       } else {
@@ -122,11 +122,11 @@ export function TopicPolicyManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchPolicies()
-  }, [])
+  }, [fetchPolicies])
 
   // Create policy
   const handleCreatePolicy = async () => {

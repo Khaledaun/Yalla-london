@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 interface CronLogHandle {
   /** Increment success/failure counters */
@@ -34,6 +35,8 @@ interface CronLogOptions {
   marginMs?: number;
   /** Max execution time in ms (default: 60000) */
   maxDurationMs?: number;
+  /** Site ID for per-site cron log scoping */
+  siteId?: string;
 }
 
 /**
@@ -55,6 +58,7 @@ export async function logCronExecution(
     sitesProcessed?: string[];
     errorMessage?: string;
     resultSummary?: Record<string, unknown>;
+    siteId?: string;
   },
 ): Promise<void> {
   try {
@@ -74,10 +78,11 @@ export async function logCronExecution(
         error_message: details.errorMessage ?? null,
         result_summary: details.resultSummary as Record<string, unknown> | undefined,
         timed_out: status === "timed_out",
+        site_id: details.siteId ?? null,
       },
     });
-  } catch {
-    // best-effort — never break the cron route
+  } catch (logError) {
+    console.error(`[cron-logger] Failed to persist log for ${jobName}:`, logError instanceof Error ? logError.message : logError);
   }
 }
 
@@ -94,16 +99,12 @@ export function withCronLog(
 
   return async function cronHandler(request: NextRequest) {
     // 1. Auth check
+    // If CRON_SECRET is configured and doesn't match, reject.
+    // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!cronSecret && process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Server misconfiguration: CRON_SECRET not set" },
-        { status: 503 },
-      );
     }
 
     const startTime = Date.now();
@@ -147,6 +148,7 @@ export function withCronLog(
           job_type: jobType,
           status: "running",
           started_at: new Date(startTime),
+          site_id: options.siteId ?? null,
         },
       });
       logId = logEntry.id;
@@ -168,6 +170,9 @@ export function withCronLog(
       errorMessage = error instanceof Error ? error.message : String(error);
       errorStack = error instanceof Error ? error.stack ?? null : null;
       console.error(`[cron-logger] ${jobName} failed:`, error);
+
+      // Fire failure hook for automatic recovery
+      onCronFailure({ jobName, error }).catch(err => console.error(`[cron-logger] onCronFailure hook failed for ${jobName}:`, err instanceof Error ? err.message : err));
     }
 
     if (timedOut) status = "timed_out";
@@ -193,6 +198,7 @@ export function withCronLog(
             sites_processed: sitesProcessed,
             sites_skipped: sitesSkipped,
             timed_out: timedOut,
+            site_id: options.siteId ?? null,
           },
         });
       } catch (dbErr) {

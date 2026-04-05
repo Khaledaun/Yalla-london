@@ -9,6 +9,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { prisma } from '@/lib/db';
+import { logManualAction } from '@/lib/action-logger';
 import { z } from 'zod';
 
 const BlogPostUpdateSchema = z.object({
@@ -19,16 +20,16 @@ const BlogPostUpdateSchema = z.object({
   content_en: z.string().min(1, 'English content is required').optional(),
   content_ar: z.string().min(1, 'Arabic content is required').optional(),
   slug: z.string().min(1, 'Slug is required').optional(),
-  category_id: z.string().uuid('Valid category ID is required').optional(),
-  author_id: z.string().uuid('Valid author ID is required').optional(),
-  featured_image: z.string().url('Valid featured image URL is required').optional(),
-  page_type: z.enum(['guide', 'place', 'event', 'list', 'faq', 'news', 'itinerary']).optional(),
+  category_id: z.string().min(1, 'Category ID is required').optional(),
+  author_id: z.string().min(1, 'Author ID is required').optional(),
+  featured_image: z.string().optional(),
+  page_type: z.enum(['guide', 'comparison', 'hotel-review', 'restaurant-review', 'service-review', 'news', 'events', 'sales', 'listicle', 'deep-dive', 'seasonal', 'answer', 'place', 'event', 'list', 'faq', 'itinerary']).optional(),
   tags: z.array(z.string()).optional(),
   meta_title_en: z.string().optional(),
   meta_title_ar: z.string().optional(),
   meta_description_en: z.string().optional(),
   meta_description_ar: z.string().optional(),
-  place_id: z.string().uuid().nullable().optional(),
+  place_id: z.string().nullable().optional(),
   published: z.boolean().optional(),
   seo_score: z.number().min(0).max(100).optional()
 });
@@ -265,23 +266,35 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       );
     }
     
-    // Check if blog post exists
-    const existingPost = await prisma.blogPost.findUnique({
-      where: { id }
+    // 1. Pre-check
+    const existing = await prisma.blogPost.findUnique({
+      where: { id },
+      select: { id: true, title_en: true },
     });
-    
-    if (!existingPost) {
+    if (!existing) {
+      logManualAction(request, { action: "delete-blogpost", resource: "blogpost", resourceId: id, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
       return NextResponse.json(
         { error: 'Blog post not found' },
         { status: 404 }
       );
     }
-    
-    // Delete the blog post
+
+    // 2. Execute
     await prisma.blogPost.delete({
       where: { id }
     });
-    
+
+    // 3. Post-verify
+    const stillExists = await prisma.blogPost.findUnique({ where: { id }, select: { id: true } });
+    if (stillExists) {
+      logManualAction(request, { action: "delete-blogpost", resource: "blogpost", resourceId: id, success: false, summary: "Delete verification failed", error: "Record still exists after delete" }).catch(() => {});
+      return NextResponse.json(
+        { error: 'Delete failed — record still exists' },
+        { status: 500 }
+      );
+    }
+
+    logManualAction(request, { action: "delete-blogpost", resource: "blogpost", resourceId: id, success: true, summary: `Deleted "${existing.title_en}"` }).catch(() => {});
     return NextResponse.json({
       success: true,
       message: 'Blog post deleted successfully'

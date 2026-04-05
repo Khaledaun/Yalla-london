@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 // Validation schemas
 const QueueTopicsSchema = z.object({
@@ -40,9 +41,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'queued';
     const locale = searchParams.get('locale');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const siteId = request.headers.get("x-site-id") || searchParams.get("siteId") || getDefaultSiteId();
 
-    // Build where clause
-    const where: any = {};
+    // Build where clause — always scoped by site
+    const where: any = { site_id: siteId };
     if (status !== 'all') {
       where.status = status;
     }
@@ -75,12 +77,13 @@ export async function GET(request: NextRequest) {
       dueToday,
       dueThisWeek,
     ] = await Promise.all([
-      prisma.topicProposal.count({ where: { status: 'queued' } }),
-      prisma.topicProposal.count({ where: { status: 'planned' } }),
-      prisma.topicProposal.count({ where: { status: 'generated' } }),
-      prisma.topicProposal.count({ where: { status: 'published' } }),
+      prisma.topicProposal.count({ where: { site_id: siteId, status: 'queued' } }),
+      prisma.topicProposal.count({ where: { site_id: siteId, status: 'planned' } }),
+      prisma.topicProposal.count({ where: { site_id: siteId, status: 'generated' } }),
+      prisma.topicProposal.count({ where: { site_id: siteId, status: 'published' } }),
       prisma.topicProposal.count({
         where: {
+          site_id: siteId,
           status: 'queued',
           planned_at: {
             gte: new Date(new Date().setHours(0, 0, 0, 0)),
@@ -90,6 +93,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.topicProposal.count({
         where: {
+          site_id: siteId,
           status: 'queued',
           planned_at: {
             gte: new Date(),

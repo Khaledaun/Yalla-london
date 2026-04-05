@@ -1,0 +1,78 @@
+/* ═══════════════════════════════════════════════
+   YALLA LONDON — Design Tokens
+   Import this file at the root of any project
+   ═══════════════════════════════════════════════ */
+
+:root {
+  /* ── COLORS ── */
+  --yl-red: #C8322B;
+  --yl-gold: #C49A2A;
+  --yl-blue: #4A7BA8;
+  --yl-charcoal: #1C1917;
+  --yl-parchment: #EDE9E1;
+  --yl-cream: #F5F0E8;
+  --yl-navy: #1A2332;
+  --yl-dark-navy: #0F1621;
+  --yl-white: #FFFFFF;
+
+  /* Grays */
+  --yl-gray-100: #F7F5F2;
+  --yl-gray-200: #E8E3DB;
+  --yl-gray-300: #D4CFC5;
+  --yl-gray-400: #A09A8E;
+  --yl-gray-500: #7A746A;
+  --yl-gray-600: #5A5449;
+
+  /* ── TYPOGRAPHY ── */
+  --yl-font-heading: 'Anybody', sans-serif;
+  --yl-font-body: 'Source Serif 4', Georgia, serif;
+  --yl-font-mono: 'IBM Plex Mono', monospace;
+  --yl-font-arabic: 'Noto Sans Arabic', sans-serif;
+
+  /* ── EASING ── */
+  --yl-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --yl-ease-out: cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --yl-ease-in: cubic-bezier(0.4, 0.0, 1.0, 1.0);
+
+  /* ── SPACING ── */
+  --yl-space-xs: 4px;
+  --yl-space-sm: 8px;
+  --yl-space-md: 16px;
+  --yl-space-lg: 24px;
+  --yl-space-xl: 32px;
+  --yl-space-2xl: 48px;
+  --yl-space-3xl: 64px;
+
+  /* ── RADII ── */
+  --yl-radius-sm: 6px;
+  --yl-radius-md: 10px;
+  --yl-radius-lg: 14px;
+  --yl-radius-xl: 20px;
+  --yl-radius-full: 9999px;
+
+  /* ── SHADOWS ── */
+  --yl-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --yl-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --yl-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --yl-shadow-gold: 0 0 30px rgba(196, 154, 42, 0.2);
+
+  /* ── BORDERS ── */
+  --yl-border-subtle: 1px solid rgba(255, 255, 255, 0.05);
+  --yl-border-light: 1px solid rgba(255, 255, 255, 0.1);
+  --yl-border-gold: 1px solid rgba(196, 154, 42, 0.3);
+
+  /* ── Z-INDEX ── */
+  --yl-z-tribar: 101;
+  --yl-z-nav: 100;
+  --yl-z-modal: 200;
+  --yl-z-toast: 300;
+
+  /* ── TRICOLOR BAR ── */
+  --yl-tribar-height: 3px;
+}
+
+/* ── ARABIC RTL CRITICAL RULE ── */
+[dir="rtl"], .type-ar, [lang="ar"] {
+  letter-spacing: 0 !important;
+  font-family: var(--yl-font-arabic);
+}

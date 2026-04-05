@@ -4,6 +4,7 @@
  * GET /api/admin/skills - List all skills
  * POST /api/admin/skills - Create a new skill
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SkillService, SkillCategory } from '@/lib/domains/team';

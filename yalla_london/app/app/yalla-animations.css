@@ -1,0 +1,95 @@
+/* ═══════════════════════════════════════════════
+   YALLA LONDON — Animation Library
+   Brand motion tokens for web & video
+   ═══════════════════════════════════════════════ */
+
+/* ── MICRO INTERACTIONS ── */
+@keyframes yl-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } }
+@keyframes yl-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes yl-spin { to { transform: rotate(360deg); } }
+@keyframes yl-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes yl-bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-16px); } 60% { transform: translateY(-8px); } }
+
+/* ── PAGE TRANSITIONS ── */
+@keyframes yl-fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes yl-slideRight { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes yl-slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes yl-goldWipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* ── BRAND SIGNATURE: STAMP-IN ── */
+@keyframes yl-stampIn {
+  0% { transform: scale(2) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(0.9) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* ── PASSPORT STAMPING ── */
+@keyframes yl-stampDrop {
+  0% { transform: scale(3) rotate(var(--stamp-rotation, 0deg)); opacity: 0; }
+  50% { transform: scale(0.85) rotate(var(--stamp-rotation, 0deg)); opacity: 1; }
+  70% { transform: scale(1.05) rotate(var(--stamp-rotation, 0deg)); }
+  100% { transform: scale(1) rotate(var(--stamp-rotation, 0deg)); opacity: 0.85; }
+}
+
+@keyframes yl-inkSlam {
+  0% { transform: translateY(-20px) scale(1.8); opacity: 0; }
+  40% { transform: translateY(2px) scale(0.9); opacity: 1; }
+  60% { transform: translateY(-3px) scale(1.05); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes yl-rockAndSet {
+  0% { transform: rotate(-15deg) scale(2); opacity: 0; }
+  40% { transform: rotate(5deg) scale(0.9); opacity: 1; }
+  70% { transform: rotate(-2deg) scale(1.02); }
+  100% { transform: rotate(0) scale(1); }
+}
+
+@keyframes yl-inkFade {
+  0% { opacity: 0; filter: blur(4px); }
+  100% { opacity: 0.8; filter: blur(0); }
+}
+
+/* ── TRI-COLOR BAR ── */
+@keyframes yl-triSlide {
+  0% { transform: scaleX(0); transform-origin: left; }
+  100% { transform: scaleX(1); transform-origin: left; }
+}
+
+/* ── EMAIL LOGO WOBBLE ── */
+@keyframes yl-wobble {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(-8deg); }
+  30% { transform: rotate(6deg); }
+  45% { transform: rotate(-4deg); }
+  60% { transform: rotate(2deg); }
+  75% { transform: rotate(-1deg); }
+  100% { transform: rotate(0); }
+}
+
+/* ── VIDEO LOWER THIRD ── */
+@keyframes yl-lowerThirdIn {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes yl-lowerThirdOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+/* ── CONFETTI (for bookings) ── */
+@keyframes yl-confetti1 { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(-200px) rotate(720deg); opacity: 0; } }
+@keyframes yl-confetti2 { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(-180px) translateX(40px) rotate(540deg); opacity: 0; } }
+@keyframes yl-confetti3 { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(-160px) translateX(-30px) rotate(480deg); opacity: 0; } }
+
+/* ── SCROLL REVEAL UTILITY ── */
+.yl-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s var(--yl-ease, cubic-bezier(0.25, 0.46, 0.45, 0.94));
+}
+.yl-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

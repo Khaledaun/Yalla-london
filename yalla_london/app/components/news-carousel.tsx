@@ -287,6 +287,15 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
     return null
   }
 
+  // Staleness check — if newest item is older than 7 days, skip rendering
+  const newestDate = newsItems.reduce((latest, item) => {
+    const d = new Date(item.published_at || 0).getTime()
+    return d > latest ? d : latest
+  }, 0)
+  if (newestDate > 0 && Date.now() - newestDate > 7 * 24 * 60 * 60 * 1000) {
+    return null // Don't show stale news — better to show nothing
+  }
+
   const sectionTitle = language === 'en' ? 'London Today' : 'لندن اليوم'
   const readFullStory = language === 'en' ? 'Read Full Story' : 'اقرأ القصة كاملة'
   const sourceLabel = language === 'en' ? 'Source' : 'المصدر'

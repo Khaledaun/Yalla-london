@@ -14,10 +14,9 @@ interface Props { locale: "en" | "ar" }
 /* ── News Ticker Bar ── */
 export function NewsTicker({ locale }: Props) {
   const t = TEXT[locale];
-  const isRTL = locale === "ar";
   return (
-    <div className="bg-yl-dark-navy border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-5 py-2.5 flex items-center gap-4 overflow-x-auto scrollbar-hide">
+    <div className="bg-yl-dark-navy border-b border-white/10 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-5 py-2 flex items-center gap-3" style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", msOverflowStyle: "none", scrollbarWidth: "none" }}>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yl-red opacity-75" />
@@ -30,12 +29,12 @@ export function NewsTicker({ locale }: Props) {
           <React.Fragment key={i}>
             <Link
               href={`/blog?q=${encodeURIComponent(item)}`}
-              className="text-[11px] text-white/40 hover:text-yl-gold whitespace-nowrap transition-colors font-body"
+              className="flex-shrink-0 text-[11px] text-white/40 hover:text-yl-gold whitespace-nowrap transition-colors font-body"
             >
               {item}
             </Link>
             {i < t.trendingItems.length - 1 && (
-              <span className="text-white/10 flex-shrink-0">&middot;</span>
+              <span className="flex-shrink-0 text-white/15 text-[10px]">|</span>
             )}
           </React.Fragment>
         ))}

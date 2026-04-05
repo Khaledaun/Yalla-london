@@ -3,17 +3,20 @@
 import React, { memo } from "react";
 import { STATION_MAP, getLinePath, type TubeLine as TubeLineDef } from "./tube-map-data";
 
+type SegmentHealth = "healthy" | "slow" | "blocked" | "inactive";
+
 interface TubeLineProps {
   line: TubeLineDef;
   color: string;
   visible: boolean;
+  /** Per-segment health: array of health states between consecutive stations */
+  segmentHealth?: SegmentHealth[];
 }
 
-export const TubeLine = memo(function TubeLine({ line, color, visible }: TubeLineProps) {
+export const TubeLine = memo(function TubeLine({ line, color, visible, segmentHealth }: TubeLineProps) {
   if (!visible) return null;
 
-  // Build SVG path segments between consecutive stations
-  const segments: Array<{ key: string; d: string }> = [];
+  const segments: Array<{ key: string; d: string; health: SegmentHealth }> = [];
 
   for (let i = 0; i < line.stations.length - 1; i++) {
     const fromStation = STATION_MAP.get(line.stations[i]);
@@ -21,10 +24,8 @@ export const TubeLine = memo(function TubeLine({ line, color, visible }: TubeLin
     if (!fromStation || !toStation) continue;
 
     const pathD = getLinePath(fromStation, toStation);
-    segments.push({
-      key: `${line.id}-${i}`,
-      d: pathD,
-    });
+    const health = segmentHealth?.[i] ?? "healthy";
+    segments.push({ key: `${line.id}-${i}`, d: pathD, health });
   }
 
   return (
@@ -33,7 +34,7 @@ export const TubeLine = memo(function TubeLine({ line, color, visible }: TubeLin
         <path
           key={seg.key}
           d={seg.d}
-          className="tube-line-path line-healthy"
+          className={`tube-line-path line-${seg.health}`}
           stroke={color}
           vectorEffect="non-scaling-stroke"
         />

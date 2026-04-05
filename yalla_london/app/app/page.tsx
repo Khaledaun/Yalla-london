@@ -11,7 +11,7 @@ import {
   isParentBrandSite,
 } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
-import { YallaHomepage } from "@/components/home/yalla-homepage";
+import { YallaHomepageEditorial as YallaHomepage } from "@/components/home/yalla-homepage-editorial";
 import { ZenithaHomepage } from "@/components/zenitha/zenitha-homepage";
 import { ZenithaLuxuryHomepage } from "@/components/zenitha-luxury/zenitha-luxury-homepage";
 

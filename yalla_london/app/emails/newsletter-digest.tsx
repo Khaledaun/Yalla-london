@@ -108,13 +108,20 @@ export default function NewsletterDigest({
                       </td>
                     </tr>
 
-                    {/* Header */}
+                    {/* Header with brand wordmark */}
                     <tr>
-                      <td style={{ padding: "32px 32px 16px", textAlign: "center", backgroundColor: BRAND.navy }}>
+                      <td style={{ padding: "28px 32px 16px", textAlign: "center", backgroundColor: BRAND.navy }}>
+                        {/* YALLA + LDN badge */}
+                        <div style={{ marginBottom: "12px" }}>
+                          <span style={{ fontSize: "28px", fontWeight: 800, color: BRAND.white, fontFamily: headingFamily, letterSpacing: "-0.5px" }}>YALLA</span>
+                          <span style={{ display: "inline-block", marginLeft: "8px", padding: "3px 10px", border: `2px solid ${BRAND.blue}`, borderRadius: "3px", fontSize: "12px", fontWeight: 600, color: BRAND.blue, fontFamily: headingFamily, letterSpacing: "3px" }}>LDN</span>
+                        </div>
+                        {/* Gold accent line */}
+                        <div style={{ width: "40px", height: "2px", backgroundColor: BRAND.gold, margin: "0 auto 16px" }} />
                         <h1 style={{
                           margin: "0",
                           color: BRAND.gold,
-                          fontSize: "24px",
+                          fontSize: "22px",
                           fontFamily: headingFamily,
                           fontWeight: "600",
                           letterSpacing: isAr ? "0" : "0.5px",

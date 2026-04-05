@@ -8,6 +8,7 @@ import { TubeStation } from "./tube-station";
 import { TubeTrain } from "./tube-train";
 import { StationDetailPanel } from "./station-detail-panel";
 import { ActivityOverlay } from "./activity-overlay";
+import { AllSitesMap } from "./all-sites-map";
 import { MapControls, LineLegend } from "./map-controls";
 import type { ContentItem } from "../../types";
 // @ts-ignore — Next.js handles CSS imports at build time
@@ -128,6 +129,8 @@ export function TubeMap({ siteId, siteName, onArticleClick, brandColors }: TubeM
   );
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(false);
+  const [showAllSites, setShowAllSites] = useState(false);
+  const [celebration, setCelebration] = useState<{ stationId: string; key: number } | null>(null);
 
   // Data
   const mapData = useTubeMapData(siteId, liveMode);
@@ -153,6 +156,23 @@ export function TubeMap({ siteId, siteName, onArticleClick, brandColors }: TubeM
 
   const handleCloseStation = useCallback(() => {
     setSelectedStation(null);
+  }, []);
+
+  // Train click — find the article in station data and open drawer
+  const handleTrainClick = useCallback((articleId: string) => {
+    for (const [, data] of mapData.stationData) {
+      const article = data.articles.find((a) => a.id === articleId);
+      if (article) {
+        onArticleClick(article);
+        return;
+      }
+    }
+  }, [mapData.stationData, onArticleClick]);
+
+  // Trigger celebration animation on Published station
+  const triggerCelebration = useCallback((stationId: string) => {
+    setCelebration({ stationId, key: Date.now() });
+    setTimeout(() => setCelebration(null), 1000);
   }, []);
 
   // Group trains by station for stacking
@@ -255,21 +275,43 @@ export function TubeMap({ siteId, siteName, onArticleClick, brandColors }: TubeM
                 train={train}
                 lineColor={lineColors[train.lineId] ?? "#FFFFFF"}
                 stackIndex={idx}
+                onClick={handleTrainClick}
               />
             ));
           })}
+
+          {/* Published celebration flash */}
+          {celebration && (() => {
+            const st = STATION_MAP.get(celebration.stationId);
+            if (!st) return null;
+            return (
+              <div
+                key={celebration.key}
+                className="station-celebration"
+                style={{ left: `${st.x}%`, top: `${st.y}%` }}
+              />
+            );
+          })()}
 
           {/* Activity overlay */}
           <ActivityOverlay entries={operations} visible={liveMode} />
         </div>
 
-        {/* Stats button */}
-        <button
-          onClick={() => setShowStats(!showStats)}
-          className="absolute top-3 right-3 z-25 bg-white/10 hover:bg-white/15 text-white/70 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
-        >
-          📊 Stats
-        </button>
+        {/* Top-right buttons */}
+        <div className="absolute top-3 right-3 z-25 flex gap-1.5">
+          <button
+            onClick={() => setShowAllSites(!showAllSites)}
+            className={`bg-white/10 hover:bg-white/15 text-white/70 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${showAllSites ? "bg-white/20 text-white" : ""}`}
+          >
+            🌐 Sites
+          </button>
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="bg-white/10 hover:bg-white/15 text-white/70 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+          >
+            📊 Stats
+          </button>
+        </div>
 
         {/* Stats overlay */}
         {showStats && (
@@ -277,6 +319,26 @@ export function TubeMap({ siteId, siteName, onArticleClick, brandColors }: TubeM
             summary={mapData.summary}
             onClose={() => setShowStats(false)}
           />
+        )}
+
+        {/* All Sites overlay */}
+        {showAllSites && (
+          <div className="absolute inset-0 z-30 bg-[#0F1419]/95 backdrop-blur-sm overflow-y-auto rounded-xl">
+            <AllSitesMap
+              activeSiteId={siteId}
+              onSelectSite={(newSiteId) => {
+                setShowAllSites(false);
+                // Parent handles site switch via onArticleClick context
+              }}
+            />
+            <button
+              onClick={() => setShowAllSites(false)}
+              className="absolute top-3 right-3 text-white/40 hover:text-white text-sm p-1"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </div>
         )}
       </div>
 

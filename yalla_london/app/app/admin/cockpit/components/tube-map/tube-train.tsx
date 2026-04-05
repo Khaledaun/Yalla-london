@@ -7,17 +7,16 @@ import type { TubeTrain as TubeTrainDef } from "./tube-map-data";
 interface TubeTrainProps {
   train: TubeTrainDef;
   lineColor: string;
-  /** Offset index for stacking multiple trains at same station */
   stackIndex: number;
+  onClick?: (articleId: string) => void;
 }
 
-export const TubeTrain = memo(function TubeTrain({ train, lineColor, stackIndex }: TubeTrainProps) {
+export const TubeTrain = memo(function TubeTrain({ train, lineColor, stackIndex, onClick }: TubeTrainProps) {
   const station = STATION_MAP.get(train.currentStation);
   if (!station) return null;
 
-  // Offset trains slightly so they don't overlap at same station
   const offsetX = (stackIndex % 4) * 5 - 7.5;
-  const offsetY = Math.floor(stackIndex / 4) * 5 + 16; // Below station
+  const offsetY = Math.floor(stackIndex / 4) * 5 + 16;
 
   const statusClass =
     train.status === "error" ? "train-error" :
@@ -25,8 +24,8 @@ export const TubeTrain = memo(function TubeTrain({ train, lineColor, stackIndex 
     train.status === "moving" ? "train-moving" : "";
 
   return (
-    <div
-      className={`tube-train ${statusClass}`}
+    <button
+      className={`tube-train ${statusClass} ${onClick ? "cursor-pointer pointer-events-auto" : ""}`}
       style={{
         left: `${station.x}%`,
         top: `${station.y}%`,
@@ -35,6 +34,8 @@ export const TubeTrain = memo(function TubeTrain({ train, lineColor, stackIndex 
         "--train-color": lineColor,
       } as React.CSSProperties}
       title={`${train.title} — ${train.status}`}
+      onClick={() => onClick?.(train.articleId)}
+      aria-label={`Article: ${train.title}`}
     />
   );
 });

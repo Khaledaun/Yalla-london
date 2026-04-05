@@ -34,6 +34,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { MissionControl } from "./components/mission-control";
 import { ContentTab } from "./components/content-tab";
+import { PipelineKanban } from "./components/pipeline-kanban";
 import type {
   SystemStatus,
   PipelineStatus,
@@ -42,6 +43,7 @@ import type {
   RevenueSnapshot,
   TrafficSnapshot,
   CockpitData,
+  ContentItem,
   LatestPublishedArticle,
   ProviderInfo,
   RouteInfo,
@@ -2171,6 +2173,8 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
 // ─── Tab 3: Pipeline & Workflows ─────────────────────────────────────────────
 
 function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
+  const [pipelineView, setPipelineView] = useState<"status" | "kanban">("status");
+  const [detailArticle, setDetailArticle] = useState<ContentItem | null>(null);
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -2221,6 +2225,17 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Pipeline view toggle */}
+      <div className="flex items-center gap-2 mb-2">
+        <button onClick={() => setPipelineView("status")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${pipelineView === "status" ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"}`}>Status</button>
+        <button onClick={() => setPipelineView("kanban")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${pipelineView === "kanban" ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"}`}>Kanban Board</button>
+      </div>
+
+      {pipelineView === "kanban" && (
+        <PipelineKanban siteId={activeSiteId} onArticleClick={(item) => setDetailArticle(item)} />
+      )}
+
+      {pipelineView === "status" && (<>
       <Card>
         <SectionTitle>Content Pipeline — {activeSiteId}</SectionTitle>
         <div className="flex flex-wrap gap-3 text-sm mb-3">
@@ -2322,6 +2337,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
           </div>
         </Card>
       )}
+      </>)}
     </div>
   );
 }

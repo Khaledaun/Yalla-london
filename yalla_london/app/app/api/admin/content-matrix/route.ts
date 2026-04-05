@@ -233,7 +233,6 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             siteId: true,
             published: true,
             created_at: true,
-            updated_at: true,
             seo_score: true,
             meta_title_en: true,
             meta_description_en: true,
@@ -257,6 +256,10 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
           const ilCount = countInternalLinks(post.content_en);
 
           // Enhancement log analysis for "Changed" state
+          // Note: We can't compare enhancement_log timestamps to updated_at because
+          // Prisma @updatedAt auto-advances on every write (including the write that
+          // adds the enhancement_log entry). Instead, we simply check if enhancement_log
+          // has entries — any non-empty log means the article was auto-enhanced.
           let hasUnreviewedEnhancements = false;
           let enhancementSummary: Array<{ type: string; timestamp: string; cron?: string }> = [];
           try {
@@ -269,13 +272,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
                   timestamp: e.timestamp ?? "",
                   cron: e.cron,
                 }));
-                const latestTs = entries[entries.length - 1]?.timestamp;
-                if (latestTs && post.updated_at) {
-                  const latestDate = new Date(latestTs);
-                  if (!isNaN(latestDate.getTime())) {
-                    hasUnreviewedEnhancements = latestDate > post.updated_at;
-                  }
-                }
+                hasUnreviewedEnhancements = true;
               }
             }
           } catch (err) {

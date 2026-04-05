@@ -10,6 +10,11 @@ import {
   useConfirm,
 } from "@/components/admin/admin-ui";
 import { ArticleDetailDrawer } from "./article-detail-drawer";
+import { StatusDropdown } from "./status-dropdown";
+import { PriorityInbox } from "./priority-inbox";
+import { LocaleDots } from "./locale-dots";
+import { NamedViews, getViewFilter } from "./named-views";
+import { ContentCalendar } from "./content-calendar";
 import type {
   ContentItem,
   ContentMatrixData,
@@ -86,7 +91,8 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const [actionResult, setActionResult] = useState<Record<string, string>>({});
 
   // ─── Topic Research & Bulk Create state ──────────────────────────────────
-  const [contentView, setContentView] = useState<"articles" | "research">("articles");
+  const [contentView, setContentView] = useState<"articles" | "research" | "calendar">("articles");
+  const [namedView, setNamedView] = useState("all");
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
   const [researchedTopics, setResearchedTopics] = useState<ResearchedTopic[]>([]);
@@ -373,7 +379,10 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     return "blog";
   };
 
+  const viewFilter = getViewFilter(namedView);
   const filtered = (data?.articles ?? []).filter((a) => {
+    // Named view filter (applied first)
+    if (namedView !== "all" && !viewFilter(a)) return false;
     if (filter === "published" && a.type !== "published") return false;
     if (filter === "draft" && a.type !== "draft") return false;
     if (filter === "reservoir" && a.status !== "reservoir") return false;
@@ -450,6 +459,14 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
           }`}
         >
           Research & Create
+        </button>
+        <button
+          onClick={() => setContentView("calendar")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            contentView === "calendar" ? "bg-[#C49A2A] text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+          }`}
+        >
+          Calendar
         </button>
       </div>
 
@@ -665,6 +682,17 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
+           CALENDAR VIEW
+         ═══════════════════════════════════════════════════════════════════ */}
+      {contentView === "calendar" && data && (
+        <ContentCalendar
+          articles={data.articles}
+          siteId={activeSiteId}
+          onArticleClick={(item) => setDetailArticle(item)}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
            ARTICLES VIEW (enhanced existing table)
          ═══════════════════════════════════════════════════════════════════ */}
       {contentView === "articles" && (
@@ -678,6 +706,11 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
             </Card>
           ) : (
             <>
+              {/* Priority Inbox — attention-needed items */}
+              {data && (
+                <PriorityInbox siteId={activeSiteId} contentData={data} />
+              )}
+
               {/* Summary cards */}
               {data && (
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -750,6 +783,16 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__builder}</span>}
                 {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__selector}</span>}
               </Card>
+
+              {/* Named filter views */}
+              {data && (
+                <NamedViews
+                  articles={data.articles}
+                  activeView={namedView}
+                  onViewChange={setNamedView}
+                  siteId={activeSiteId}
+                />
+              )}
 
               {/* Filters + Search */}
               <div className="flex flex-wrap gap-2">
@@ -911,13 +954,16 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               </td>
                               {/* Page name */}
                               <td className="px-3 py-2.5">
-                                <button
-                                  onClick={() => setDetailArticle(item)}
-                                  className="text-stone-800 font-medium truncate max-w-[280px] text-left hover:text-[#3B7EA1] transition-colors cursor-pointer block"
-                                  title={`${item.title} — tap for details`}
-                                >
-                                  {item.title || item.slug || item.id}
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <LocaleDots wordCountEn={item.wordCount} wordCountAr={item.wordCountAr} />
+                                  <button
+                                    onClick={() => setDetailArticle(item)}
+                                    className="text-stone-800 font-medium truncate max-w-[260px] text-left hover:text-[#3B7EA1] transition-colors cursor-pointer block"
+                                    title={`${item.title} — tap for details`}
+                                  >
+                                    {item.title || item.slug || item.id}
+                                  </button>
+                                </div>
                                 {item.url && (
                                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#3B7EA1] hover:underline truncate block max-w-[280px] text-[10px]">
                                     {item.url}
@@ -956,11 +1002,21 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                 )}
                               </td>
 
-                              {/* Status badge */}
+                              {/* Status badge — tappable dropdown */}
                               <td className="px-3 py-2.5 whitespace-nowrap">
-                                <span className={`inline-block px-1.5 py-0.5 rounded-full border text-[10px] font-medium leading-none ${badge.color}`}>
-                                  {badge.label}
-                                </span>
+                                <StatusDropdown
+                                  item={item}
+                                  siteId={activeSiteId}
+                                  onAction={fetchData}
+                                  onViewDetails={(it) => setDetailArticle(it)}
+                                />
+                                {item.hasUnreviewedEnhancements && item.type === "published" && (
+                                  <span className="inline-block mt-0.5 px-1.5 py-px rounded text-[9px] font-medium bg-[rgba(196,154,42,0.12)] text-[#7a5a10] border border-[rgba(196,154,42,0.2)]"
+                                    title={item.enhancementSummary?.map(e => `${e.type} by ${e.cron ?? "system"}`).join(", ") ?? "Auto-enhanced"}
+                                  >
+                                    Enhanced
+                                  </span>
+                                )}
                                 {item.phase && item.type === "draft" && (
                                   <span className={`inline-block mt-0.5 px-1.5 py-px rounded text-[9px] font-medium ${
                                     item.phase === "research" || item.phase === "outline" ? "bg-purple-100 text-purple-700" :

@@ -17,6 +17,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useLanguage } from "@/components/language-provider";
 import { TriBar } from "@/components/brand-kit";
 import { NewsCarousel } from "@/components/news-carousel";
 import { WeatherStrip } from "@/components/weather-strip";
@@ -85,7 +86,11 @@ const FALLBACK_EVENTS: EventItem[] = [
 
 // ─── Main Component ───────────────────────────────────────────────────────
 
-export function YallaHomepageEditorial({ locale = "en" }: Props) {
+export function YallaHomepageEditorial({ locale: serverLocale = "en" }: Props) {
+  // Client-side language context (responds to language switcher toggle).
+  // Falls back to server locale prop for initial SSR render.
+  const { language } = useLanguage();
+  const locale: "en" | "ar" = (language === "en" || language === "ar") ? language : serverLocale;
   const isRTL = locale === "ar";
   const [dbArticles, setDbArticles] = useState<DBArticle[]>([]);
   const [liveEvents, setLiveEvents] = useState<EventItem[]>([]);

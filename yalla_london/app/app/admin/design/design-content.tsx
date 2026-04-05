@@ -19,6 +19,9 @@ import {
   ArrowRight,
   RefreshCw,
   Layers,
+  Clapperboard,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SITES as SITE_CONFIG, getDefaultSiteId } from "@/config/sites";
@@ -108,9 +111,18 @@ export default function DesignContent() {
   const [templateSeedResult, setTemplateSeedResult] = useState<{ seeded: number; skipped: number } | null>(null);
   const [canvaTemplates, setCanvaTemplates] = useState<Array<{ id: string; name: string; source: string; previewUrl?: string; cdnUrl?: string; canvaAssetId?: string; width?: number; height?: number }>>([]);
   const [selectedBrand, setSelectedBrand] = useState<string>("yalla-london");
+  const [videoSetupRunning, setVideoSetupRunning] = useState(false);
+  const [videoSetupStatus, setVideoSetupStatus] = useState<{
+    ready: boolean;
+    nodeModulesExists: boolean;
+    allAssetsReady: boolean;
+    videoProjectExists: boolean;
+  } | null>(null);
+  const [videoSetupResult, setVideoSetupResult] = useState<{ success: boolean; results?: Array<{ step: string; success: boolean; detail: string }> } | null>(null);
 
   useEffect(() => {
     loadData();
+    loadVideoStatus();
   }, []);
 
   const loadData = async () => {
@@ -272,6 +284,60 @@ export default function DesignContent() {
   useEffect(() => {
     loadCanvaTemplates(selectedBrand);
   }, [selectedBrand]);
+
+  const loadVideoStatus = async () => {
+    try {
+      const res = await fetch("/api/admin/video-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status" }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setVideoSetupStatus({
+        ready: data.ready,
+        nodeModulesExists: data.nodeModulesExists,
+        allAssetsReady: data.allAssetsReady,
+        videoProjectExists: data.videoProjectExists,
+      });
+    } catch (err) {
+      console.warn("[design-hub] Video status check failed:", err);
+    }
+  };
+
+  const handleVideoSetup = async (action: "setup-all" | "copy-brand-assets" | "install-deps") => {
+    setVideoSetupRunning(true);
+    setVideoSetupResult(null);
+    try {
+      const res = await fetch("/api/admin/video-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setVideoSetupResult(data);
+      if (data.success) {
+        toast.success(
+          action === "setup-all"
+            ? "Video studio setup complete"
+            : action === "copy-brand-assets"
+              ? "Brand assets copied to video project"
+              : "Remotion dependencies installed"
+        );
+        loadVideoStatus();
+      } else {
+        toast.error("Setup had issues — check details below");
+      }
+    } catch (err) {
+      console.warn("[design-hub] Video setup failed:", err);
+      toast.error(`Setup failed: ${err instanceof Error ? err.message : "unknown error"}`);
+    }
+    setVideoSetupRunning(false);
+  };
 
   // ─── Render ──────────────────────────────────────────────────
 
@@ -438,6 +504,89 @@ export default function DesignContent() {
                     <p className="text-xs mt-2 text-green-600 dark:text-green-400">
                       Done: {templateSeedResult.seeded} seeded, {templateSeedResult.skipped} existed
                     </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Remotion Video Studio Setup card */}
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 shrink-0">
+                  <Clapperboard className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Remotion Video Studio</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    8 branded video compositions — intros, content posts, promos, events
+                  </p>
+
+                  {/* Status indicators */}
+                  {videoSetupStatus && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${videoSetupStatus.videoProjectExists ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>
+                        {videoSetupStatus.videoProjectExists ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        Project
+                      </span>
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${videoSetupStatus.allAssetsReady ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"}`}>
+                        {videoSetupStatus.allAssetsReady ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        Assets
+                      </span>
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${videoSetupStatus.nodeModulesExists ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"}`}>
+                        {videoSetupStatus.nodeModulesExists ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        Dependencies
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {videoSetupStatus?.ready ? (
+                      <span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400 font-medium">
+                        <CheckCircle className="h-4 w-4" />
+                        Ready to render
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          className="admin-btn admin-btn-primary text-sm px-3 py-1.5 inline-flex items-center gap-1"
+                          onClick={() => handleVideoSetup("setup-all")}
+                          disabled={videoSetupRunning}
+                        >
+                          {videoSetupRunning ? (
+                            <><RefreshCw className="h-4 w-4 animate-spin" /> Setting up...</>
+                          ) : (
+                            <><Clapperboard className="h-4 w-4" /> Setup Everything</>
+                          )}
+                        </button>
+                        <button
+                          className="admin-btn admin-btn-secondary text-sm px-3 py-1.5 inline-flex items-center gap-1"
+                          onClick={() => handleVideoSetup("copy-brand-assets")}
+                          disabled={videoSetupRunning}
+                        >
+                          Copy Assets Only
+                        </button>
+                        <button
+                          className="admin-btn admin-btn-secondary text-sm px-3 py-1.5 inline-flex items-center gap-1"
+                          onClick={() => handleVideoSetup("install-deps")}
+                          disabled={videoSetupRunning}
+                        >
+                          Install Deps Only
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Result feedback */}
+                  {videoSetupResult && (
+                    <div className={`text-xs mt-2 space-y-0.5 ${videoSetupResult.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                      {videoSetupResult.results?.map((r, i) => (
+                        <div key={i} className="flex items-center gap-1">
+                          {r.success ? <CheckCircle className="h-3 w-3 shrink-0" /> : <AlertCircle className="h-3 w-3 shrink-0" />}
+                          <span>{r.step}: {r.detail}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

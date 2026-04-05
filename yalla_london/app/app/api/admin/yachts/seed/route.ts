@@ -1,7 +1,7 @@
 /**
  * Yacht Seed Data API
  * POST: Seed yacht data in batches
- *   action: "destinations" | "yachts" | "itineraries" | "all"
+ *   action: "destinations" | "yachts" | "itineraries" | "brokers" | "all"
  *
  * Idempotent — checks slug+siteId uniqueness before creating.
  */
@@ -225,6 +225,10 @@ export async function POST(request: NextRequest) {
       return await seedItineraries()
     }
 
+    if (action === 'brokers') {
+      return await seedBrokers()
+    }
+
     if (action === 'all') {
       const destResult = await seedDestinations()
       const destData = await destResult.json()
@@ -232,10 +236,13 @@ export async function POST(request: NextRequest) {
       const yachtData = await yachtResult.json()
       const itinResult = await seedItineraries()
       const itinData = await itinResult.json()
+      const brokerResult = await seedBrokers()
+      const brokerData = await brokerResult.json()
       return NextResponse.json({
         destinations: destData,
         yachts: yachtData,
         itineraries: itinData,
+        brokers: brokerData,
       })
     }
 
@@ -647,6 +654,148 @@ const ITINERARIES: ItinerarySeed[] = [
     status: 'active',
   },
 ]
+
+// ═══════════════════════════════════════════════════════════
+// BROKER SEED DATA — 5 Mediterranean charter brokers
+// ═══════════════════════════════════════════════════════════
+
+const BROKERS = [
+  {
+    companyName: 'Mediterranean Yacht Brokers',
+    contactName: 'Jean-Pierre Dupont',
+    email: 'charters@medyachtbrokers.com',
+    phone: '+33-4-93-34-5500',
+    website: 'https://www.medyachtbrokers.com',
+    commissionRate: 12.0,
+    status: 'active',
+    destinations: {
+      tier: 'GOLD',
+      regions: ['French Riviera', 'Italian Coast', 'Sardinia', 'Corsica'],
+      specialties: ['Superyacht charters', 'Corporate events', 'Film industry charters'],
+      description_en: 'Premium yacht brokerage based in Antibes, France. Specialists in French Riviera and Italian coast luxury charters with over 20 years of Mediterranean experience.',
+      description_ar: 'وساطة يخوت فاخرة مقرها في أنتيب، فرنسا. متخصصون في رحلات الريفييرا الفرنسية والساحل الإيطالي الفاخرة مع أكثر من 20 عامًا من الخبرة في البحر المتوسط.',
+      location: 'Antibes, France',
+    },
+  },
+  {
+    companyName: 'Aegean Charter Partners',
+    contactName: 'Nikolaos Papadopoulos',
+    email: 'bookings@aegeancharters.gr',
+    phone: '+30-210-458-7200',
+    website: 'https://www.aegeancharters.gr',
+    commissionRate: 10.0,
+    status: 'active',
+    destinations: {
+      tier: 'SILVER',
+      regions: ['Greek Islands', 'Turkish Riviera', 'Cyclades', 'Dodecanese'],
+      specialties: ['Gulet charters', 'Island hopping', 'Honeymoon cruises'],
+      description_en: 'Athens-based charter partner specialising in Greek Islands and Turkish Riviera. Expert knowledge of the Aegean with a fleet of traditional gulets and modern catamarans.',
+      description_ar: 'شريك تأجير مقره في أثينا متخصص في الجزر اليونانية والريفييرا التركية. معرفة خبيرة ببحر إيجة مع أسطول من قوارب الجوليت التقليدية والقوارب الحديثة.',
+      location: 'Athens, Greece',
+    },
+  },
+  {
+    companyName: 'Adriatic Sailing Co.',
+    contactName: 'Marko Kovačević',
+    email: 'info@adriaticsailing.hr',
+    phone: '+385-21-345-678',
+    website: 'https://www.adriaticsailing.hr',
+    commissionRate: 10.0,
+    status: 'active',
+    destinations: {
+      tier: 'SILVER',
+      regions: ['Croatian Coast', 'Montenegro', 'Dalmatian Islands', 'Kornati'],
+      specialties: ['Bareboat charters', 'Flotilla sailing', 'Adventure cruises'],
+      description_en: 'Split-based sailing company covering the Croatian coast and Montenegro. Specialists in bareboat and skippered charters through the Dalmatian islands and Kornati National Park.',
+      description_ar: 'شركة إبحار مقرها سبليت تغطي الساحل الكرواتي والجبل الأسود. متخصصون في تأجير القوارب بدون طاقم وبقبطان عبر جزر دالماتيا ومنتزه كورناتي الوطني.',
+      location: 'Split, Croatia',
+    },
+  },
+  {
+    companyName: 'Blue Water Charters',
+    contactName: 'Carlos Martínez',
+    email: 'reservations@bluewatercharters.es',
+    phone: '+34-971-234-567',
+    website: 'https://www.bluewatercharters.es',
+    commissionRate: 11.0,
+    status: 'active',
+    destinations: {
+      tier: 'GOLD',
+      regions: ['Balearic Islands', 'Sardinia', 'Ibiza', 'Mallorca'],
+      specialties: ['Party charters', 'VIP experiences', 'Multi-week voyages'],
+      description_en: 'Palma de Mallorca-based luxury charter company specialising in the Balearic Islands and Sardinia. Known for VIP experiences, party charters, and bespoke multi-week Mediterranean voyages.',
+      description_ar: 'شركة تأجير يخوت فاخرة مقرها بالما دي مايوركا متخصصة في جزر البليار وسردينيا. معروفة بتجارب كبار الشخصيات ورحلات الحفلات والرحلات المتوسطية المخصصة متعددة الأسابيع.',
+      location: 'Palma, Mallorca',
+    },
+  },
+  {
+    companyName: 'Istanbul Maritime Group',
+    contactName: 'Ahmet Yılmaz',
+    email: 'charters@istanbulmaritime.com.tr',
+    phone: '+90-212-555-3400',
+    website: 'https://www.istanbulmaritime.com.tr',
+    commissionRate: 8.0,
+    status: 'active',
+    destinations: {
+      tier: 'BRONZE',
+      regions: ['Turkish Riviera', 'Eastern Mediterranean', 'Bodrum', 'Fethiye'],
+      specialties: ['Blue Voyage gulets', 'Budget-friendly charters', 'Cultural sailing tours'],
+      description_en: 'Istanbul-based maritime group covering the Turkish Riviera and Eastern Mediterranean. Specialists in traditional Blue Voyage gulet charters from Bodrum to Fethiye with exceptional value and authentic Turkish hospitality.',
+      description_ar: 'مجموعة بحرية مقرها إسطنبول تغطي الريفييرا التركية وشرق البحر المتوسط. متخصصون في رحلات قوارب الجوليت التقليدية للرحلة الزرقاء من بودروم إلى فتحية بقيمة استثنائية وضيافة تركية أصيلة.',
+      location: 'Istanbul, Turkey',
+    },
+  },
+]
+
+// ─── Seed Brokers ──────────────────────────────────────────
+
+async function seedBrokers() {
+  const { prisma } = await import('@/lib/db')
+
+  let created = 0
+  let skipped = 0
+  const results: string[] = []
+
+  for (const broker of BROKERS) {
+    // Idempotent: skip if companyName+siteId already exists
+    const existing = await prisma.brokerPartner.findFirst({
+      where: { companyName: broker.companyName, siteId: SITE_ID },
+    })
+
+    if (existing) {
+      skipped++
+      results.push(`⏭ ${broker.companyName} (already exists)`)
+      continue
+    }
+
+    await prisma.brokerPartner.create({
+      data: {
+        companyName: broker.companyName,
+        contactName: broker.contactName,
+        email: broker.email,
+        phone: broker.phone,
+        website: broker.website,
+        commissionRate: broker.commissionRate,
+        status: broker.status,
+        destinations: broker.destinations,
+        siteId: SITE_ID,
+      },
+    })
+
+    created++
+    const tier = (broker.destinations as Record<string, unknown>).tier || 'N/A'
+    results.push(`✅ ${broker.companyName} (${tier}, ${broker.commissionRate}%)`)
+  }
+
+  return NextResponse.json({
+    success: true,
+    action: 'brokers',
+    created,
+    skipped,
+    total: BROKERS.length,
+    results,
+  })
+}
 
 // ─── Seed Itineraries ───────────────────────────────────────
 

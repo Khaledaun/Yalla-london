@@ -99,7 +99,7 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
   return (
     <>
       {/* Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3" role="region" aria-roledescription="carousel" aria-label="Yacht image gallery">
         {/* Main Image */}
         <button
           type="button"

@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
+  Database,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -97,6 +98,8 @@ export default function YachtsFleetPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+  const [seeding, setSeeding] = useState(false)
+  const [seedResult, setSeedResult] = useState<string | null>(null)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -205,6 +208,60 @@ export default function YachtsFleetPage() {
     URL.revokeObjectURL(url)
   }
 
+  const handleSeedFleet = async () => {
+    if (seeding) return
+    setSeeding(true)
+    setSeedResult(null)
+    try {
+      const parts: string[] = []
+
+      // 1. Seed fleet data (destinations, yachts, itineraries, brokers)
+      const fleetRes = await fetch('/api/admin/yachts/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'all' }),
+      })
+      if (fleetRes.ok) {
+        const data = await fleetRes.json().catch(() => ({}))
+        if (data.destinations?.created) parts.push(`${data.destinations.created} destinations`)
+        if (data.yachts?.created) parts.push(`${data.yachts.created} yachts`)
+        if (data.itineraries?.created) parts.push(`${data.itineraries.created} itineraries`)
+        if (data.brokers?.created) parts.push(`${data.brokers.created} brokers`)
+      } else {
+        parts.push('Fleet seed error')
+      }
+
+      // 2. Seed journal articles (3 yacht charter guides)
+      const articleSlugs = [
+        'greek-islands-yacht-charter-guide-2026',
+        'turkish-riviera-gulet-charter-guide-2026',
+        'croatian-dalmatian-coast-yacht-charter-guide-2026',
+      ]
+      let articlesSeeded = 0
+      for (const slug of articleSlugs) {
+        try {
+          const artRes = await fetch('/api/admin/seed-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ article: slug }),
+          })
+          if (artRes.ok) {
+            const artData = await artRes.json().catch(() => ({}))
+            if (artData.created) articlesSeeded++
+          }
+        } catch { /* skip individual article errors */ }
+      }
+      if (articlesSeeded > 0) parts.push(`${articlesSeeded} journal articles`)
+
+      setSeedResult(parts.length ? `Seeded: ${parts.join(', ')}` : 'Everything already seeded — no new records created.')
+      fetchYachts()
+    } catch (err) {
+      setSeedResult(`Error: ${err instanceof Error ? err.message : 'Network error'}`)
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   // -----------------------------------------------------------------------
   // JSX
   // -----------------------------------------------------------------------
@@ -231,9 +288,28 @@ export default function YachtsFleetPage() {
               <Download size={14} />
               Export CSV
             </AdminButton>
+            <AdminButton variant="secondary" size="sm" onClick={handleSeedFleet} loading={seeding}>
+              <Database size={14} />
+              {seeding ? 'Seeding...' : 'Seed Fleet'}
+            </AdminButton>
           </div>
         }
       />
+
+      {/* Seed Result Banner */}
+      {seedResult && (
+        <div
+          className="mb-4 p-3 rounded-lg text-sm"
+          style={{
+            background: seedResult.startsWith('Error') ? '#FEE2E2' : '#ECFDF5',
+            border: `1px solid ${seedResult.startsWith('Error') ? '#FECACA' : '#A7F3D0'}`,
+            color: seedResult.startsWith('Error') ? '#991B1B' : '#065F46',
+          }}
+        >
+          {seedResult}
+          <button className="ml-3 underline text-xs opacity-70" onClick={() => setSeedResult(null)}>dismiss</button>
+        </div>
+      )}
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -317,15 +393,23 @@ export default function YachtsFleetPage() {
               description={
                 search || type !== 'All Types' || status !== 'All Statuses' || destinationId
                   ? 'Try adjusting your search or filter criteria.'
-                  : 'Get started by adding your first yacht to the fleet.'
+                  : 'Seed the fleet with 50 yachts, 10 destinations, 5 itineraries, and 3 journal articles — or add one manually.'
               }
               action={
-                <Link href="/admin/yachts/new">
-                  <AdminButton variant="primary" size="sm">
-                    <Plus size={14} />
-                    Add Yacht
-                  </AdminButton>
-                </Link>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {!(search || type !== 'All Types' || status !== 'All Statuses' || destinationId) && (
+                    <AdminButton variant="primary" size="sm" onClick={handleSeedFleet} loading={seeding}>
+                      <Database size={14} />
+                      {seeding ? 'Seeding...' : 'Seed Everything'}
+                    </AdminButton>
+                  )}
+                  <Link href="/admin/yachts/new">
+                    <AdminButton variant="secondary" size="sm">
+                      <Plus size={14} />
+                      Add Yacht
+                    </AdminButton>
+                  </Link>
+                </div>
               }
             />
           ) : (

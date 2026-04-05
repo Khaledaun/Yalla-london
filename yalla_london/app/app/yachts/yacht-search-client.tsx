@@ -116,6 +116,7 @@ function FilterPanel({
             <select
               value={filters.destination || ''}
               onChange={(e) => updateFilter('destination', e.target.value)}
+              aria-label={t({ en: 'Filter by destination', ar: 'تصفية حسب الوجهة' })}
               className="w-full px-3 py-2.5 rounded-lg border border-[var(--z-champagne)] text-sm font-body text-[var(--z-navy)] bg-white focus:outline-none focus:border-[var(--z-aegean)]"
             >
               <option value="">{t({ en: 'All Destinations', ar: 'جميع الوجهات' })}</option>
@@ -176,6 +177,7 @@ function FilterPanel({
             <select
               value={filters.guests || ''}
               onChange={(e) => updateFilter('guests', e.target.value)}
+              aria-label={t({ en: 'Filter by number of guests', ar: 'تصفية حسب عدد الضيوف' })}
               className="w-full px-3 py-2.5 rounded-lg border border-[var(--z-champagne)] text-sm font-body text-[var(--z-navy)] bg-white focus:outline-none focus:border-[var(--z-aegean)]"
             >
               <option value="">{t({ en: 'Any', ar: 'أي عدد' })}</option>
@@ -509,7 +511,7 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
     <div className="bg-[var(--z-pearl)] min-h-screen">
       {/* Page Header */}
       <div className="bg-white border-b border-[var(--z-champagne)]">
-        <div className="max-w-[1280px] mx-auto px-6 py-8">
+        <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-8">
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)]">
             {t({ en: 'Find Your Perfect Yacht', ar: 'اعثر على يختك المثالي' })}
           </h1>
@@ -519,7 +521,7 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
         </div>
       </div>
 
-      <div className="max-w-[1280px] mx-auto px-6 py-8">
+      <div className="max-w-[1280px] mx-auto px-5 md:px-8 py-8">
         {/* Search & Controls Bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           {/* Search */}
@@ -540,6 +542,7 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
             <select
               value={sort}
               onChange={(e) => { setSort(e.target.value); setPage(1); }}
+              aria-label={t({ en: 'Sort results', ar: 'ترتيب النتائج' })}
               className="pl-9 pr-8 py-2.5 rounded-lg border border-[var(--z-champagne)] text-sm font-body text-[var(--z-navy)] bg-white focus:outline-none focus:border-[var(--z-aegean)] appearance-none"
             >
               {SORT_OPTIONS.map(opt => (

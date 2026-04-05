@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, ChevronDown, Globe, Compass } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
@@ -114,8 +115,15 @@ export function ZenithaHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const dropdownTimeout = useRef<NodeJS.Timeout | null>(null);
+  const dropdownTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { language, setLanguage, isRTL } = useLanguage();
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/' || pathname === '/ar';
+    const clean = pathname.replace(/^\/ar/, '') || '/';
+    return clean === href || clean.startsWith(href + '/');
+  };
 
   /* Track scroll for sticky header styling */
   useEffect(() => {
@@ -178,12 +186,18 @@ export function ZenithaHeader() {
               >
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-1 px-3.5 py-2 text-[14px] font-heading font-medium transition-colors duration-200 ${
-                    activeDropdown === idx
+                  className={`relative flex items-center gap-1 px-3.5 py-2 text-[14px] font-heading font-medium transition-colors duration-200 ${
+                    isActive(item.href)
                       ? 'text-[var(--z-sea,#0ea5a2)]'
-                      : 'text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)]'
+                      : activeDropdown === idx
+                        ? 'text-[var(--z-sea,#0ea5a2)]'
+                        : 'text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)]'
                   }`}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
                 >
+                  {isActive(item.href) && (
+                    <span className="absolute bottom-0 left-3.5 right-3.5 h-[2px] rounded-full bg-[var(--z-sea,#0ea5a2)]" />
+                  )}
                   {t(item.label)}
                   {item.children && (
                     <ChevronDown
@@ -263,7 +277,12 @@ export function ZenithaHeader() {
                 <Link
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
-                  className="block px-4 py-3 text-base font-heading font-medium text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)] rounded-lg"
+                  className={`block px-4 py-3 text-base font-heading font-medium rounded-lg ${
+                    isActive(item.href)
+                      ? 'text-[var(--z-sea,#0ea5a2)] bg-[var(--z-sand,#f5f0e8)] border-l-2 border-[var(--z-sea,#0ea5a2)]'
+                      : 'text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)]'
+                  }`}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
                 >
                   {t(item.label)}
                 </Link>

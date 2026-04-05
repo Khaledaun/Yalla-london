@@ -243,7 +243,7 @@ export default async function ItinerariesPage({
                 <div>
                   <select
                     className="z-input z-input-sm"
-                    style={{ minWidth: "180px" }}
+                    style={{ minWidth: "140px", maxWidth: "100%" }}
                     aria-label="Filter by destination"
                     name="dest"
                     defaultValue={filterDest}
@@ -262,7 +262,7 @@ export default async function ItinerariesPage({
               <div>
                 <select
                   className="z-input z-input-sm"
-                  style={{ minWidth: "150px" }}
+                  style={{ minWidth: "140px", maxWidth: "100%" }}
                   aria-label="Filter by duration"
                   name="dur"
                   defaultValue={filterDur}
@@ -279,7 +279,7 @@ export default async function ItinerariesPage({
               <div>
                 <select
                   className="z-input z-input-sm"
-                  style={{ minWidth: "140px" }}
+                  style={{ minWidth: "140px", maxWidth: "100%" }}
                   aria-label="Filter by difficulty"
                   name="diff"
                   defaultValue={filterDiff}

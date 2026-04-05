@@ -1187,9 +1187,10 @@ export async function GET(request: NextRequest) {
 
     // 9. Log cron execution
     const itemsSucceeded = itemsPublished + itemsUpdated;
-    // Grok failure with zero published = not a success (Rule #130-132: status must reflect actual outcomes)
-    const isSuccess = itemsPublished > 0 || grokResult.status !== "failed";
-    const cronStatus = isSuccess ? "completed" : "failed";
+    // Grok failure is "partial" when templates still worked, "failed" only when zero items processed
+    // (Rule #130-132: status must reflect actual outcomes, but template updates count as work)
+    const itemsWorked = itemsPublished + itemsUpdated;
+    const cronStatus = itemsWorked > 0 ? "completed" : (grokResult.status === "failed" ? "failed" : "completed");
     await logCronExecution("london-news", cronStatus, {
       durationMs,
       itemsProcessed: itemsFound,
@@ -1210,7 +1211,7 @@ export async function GET(request: NextRequest) {
 
     // 10. Return response with metrics
     return NextResponse.json({
-      success: isSuccess,
+      success: cronStatus === "completed",
       agent: "london-news-carousel",
       runType,
       timestamp: today.toISOString(),

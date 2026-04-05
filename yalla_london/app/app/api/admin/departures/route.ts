@@ -10,7 +10,7 @@
  */
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // POST triggers cron routes that can take up to 53s
+export const maxDuration = 300; // POST triggers cron routes that can take up to 280s (gsc-sync, content-selector)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-middleware';
@@ -520,7 +520,7 @@ export async function POST(req: NextRequest) {
         // Pass through the cron secret if configured
         ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
       },
-      signal: AbortSignal.timeout(55_000),
+      signal: AbortSignal.timeout(305_000), // Must be > longest cron maxDuration (300s) to avoid premature abort
     });
 
     const text = await triggerRes.text().catch(() => '');

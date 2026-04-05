@@ -441,29 +441,29 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const competitionColor = (c: string) => c === "low" ? "text-[#2D5A3D]" : c === "high" ? "text-[#C8322B]" : "text-[#C49A2A]";
 
   return (
-    <div className="space-y-4">
-      {/* ─── View Toggle: Articles | Research ──────────────────────────── */}
-      <div className="flex items-center gap-2">
+    <div className="space-y-2">
+      {/* ─── View Toggle: Articles | Research | Calendar ─────────────────── */}
+      <div className="flex items-center gap-1">
         <button
           onClick={() => setContentView("articles")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "articles" ? "bg-[#3B7EA1] text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+          className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+            contentView === "articles" ? "bg-[#3B7EA1] text-white" : "bg-stone-100 text-stone-400"
           }`}
         >
           Articles ({data?.summary.total ?? "…"})
         </button>
         <button
           onClick={() => setContentView("research")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "research" ? "bg-[#5B21B6] text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+          className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+            contentView === "research" ? "bg-[#5B21B6] text-white" : "bg-stone-100 text-stone-400"
           }`}
         >
-          Research & Create
+          Research
         </button>
         <button
           onClick={() => setContentView("calendar")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            contentView === "calendar" ? "bg-[#C49A2A] text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+          className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+            contentView === "calendar" ? "bg-[#C49A2A] text-white" : "bg-stone-100 text-stone-400"
           }`}
         >
           Calendar
@@ -711,35 +711,34 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <PriorityInbox siteId={activeSiteId} contentData={data} />
               )}
 
-              {/* Summary cards */}
+              {/* Summary cards — compact */}
               {data && (
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {[
+                <div className="grid grid-cols-6 gap-1">
+                  {([
                     ["Total", data.summary.total, "text-stone-600"],
-                    ["Published", data.summary.published, "text-[#2D5A3D]"],
-                    ["Reservoir", data.summary.reservoir, "text-[#3B7EA1]"],
-                    ["Pipeline", data.summary.inPipeline, "text-[#C49A2A]"],
-                    ["Rejected", data.summary.rejected, "text-[#C8322B]"],
+                    ["Pub", data.summary.published, "text-[#2D5A3D]"],
+                    ["Res", data.summary.reservoir, "text-[#3B7EA1]"],
+                    ["Pipe", data.summary.inPipeline, "text-[#C49A2A]"],
+                    ["Rej", data.summary.rejected, "text-[#C8322B]"],
                     ["Stuck", data.summary.stuck, "text-[#92400E]"],
-                  ].map(([label, val, color]) => (
-                    <Card key={label as string} className="text-center py-3">
-                      <div className={`text-xl font-bold ${color}`}>{val}</div>
-                      <div className="text-xs text-stone-500 mt-0.5">{label}</div>
-                    </Card>
+                  ] as [string, number, string][]).map(([label, val, color]) => (
+                    <div key={label} className="text-center bg-white rounded-lg border border-stone-100 py-1.5">
+                      <div className={`text-sm font-bold ${color}`}>{val}</div>
+                      <div className="text-[9px] text-stone-400">{label}</div>
+                    </div>
                   ))}
                 </div>
               )}
 
-              {/* Quick actions row */}
-              <Card className="flex flex-wrap gap-2 items-center">
-                <ActionButton
+              {/* Quick actions — compact single row */}
+              <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+                <button
                   onClick={() => setContentView("research")}
-                  variant="default"
-                  className="bg-[#5B21B6] hover:bg-[#5B21B6] border-[#5B21B6] text-white"
+                  className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-[#5B21B6] text-white whitespace-nowrap active:scale-[0.97]"
                 >
-                  Research & Create Topics
-                </ActionButton>
-                <ActionButton
+                  Research
+                </button>
+                <button
                   onClick={async () => {
                     setActionLoading("run-builder");
                     setCronResponsePanel(null);
@@ -747,18 +746,19 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       const r = await fetch("/api/cron/content-builder", { method: "POST" });
                       if (!r.ok) throw new Error(`HTTP ${r.status}`);
                       const j = await r.json();
-                      setActionResult((prev) => ({ ...prev, __builder: j.success !== false ? "✅ Builder triggered" : `❌ ${j.error ?? "Failed"}` }));
+                      setActionResult((prev) => ({ ...prev, __builder: j.success !== false ? "✅" : "❌" }));
                       setCronResponsePanel({ label: "Run Pipeline", data: j });
                       setTimeout(() => fetchData(), 3000);
                     } catch (e) {
                       setActionResult((prev) => ({ ...prev, __builder: `❌ ${e instanceof Error ? e.message : "Error"}` }));
                     } finally { setActionLoading(null); }
                   }}
-                  loading={actionLoading === "run-builder"}
+                  disabled={actionLoading === "run-builder"}
+                  className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-medium bg-stone-100 text-stone-600 whitespace-nowrap disabled:opacity-50 active:scale-[0.97]"
                 >
-                  Run Pipeline
-                </ActionButton>
-                <ActionButton
+                  {actionLoading === "run-builder" ? "…" : "Run Pipeline"}
+                </button>
+                <button
                   onClick={async () => {
                     setActionLoading("run-selector");
                     setCronResponsePanel(null);
@@ -766,23 +766,26 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       const r = await fetch("/api/cron/content-selector", { method: "POST" });
                       if (!r.ok) throw new Error(`HTTP ${r.status}`);
                       const j = await r.json();
-                      setActionResult((prev) => ({ ...prev, __selector: j.success !== false ? "✅ Selector ran" : `❌ ${j.error ?? "Failed"}` }));
+                      setActionResult((prev) => ({ ...prev, __selector: j.success !== false ? "✅" : "❌" }));
                       setCronResponsePanel({ label: "Publish Ready", data: j });
                       setTimeout(() => fetchData(), 2000);
                     } catch (e) {
                       setActionResult((prev) => ({ ...prev, __selector: `❌ ${e instanceof Error ? e.message : "Error"}` }));
                     } finally { setActionLoading(null); }
                   }}
-                  loading={actionLoading === "run-selector"}
+                  disabled={actionLoading === "run-selector"}
+                  className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-medium bg-stone-100 text-stone-600 whitespace-nowrap disabled:opacity-50 active:scale-[0.97]"
                 >
-                  Publish Ready
-                </ActionButton>
-                <ActionButton onClick={fetchData} loading={loading}>
-                  Refresh
-                </ActionButton>
-                {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__builder}</span>}
-                {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__selector}</span>}
-              </Card>
+                  {actionLoading === "run-selector" ? "…" : "Publish Ready"}
+                </button>
+                <button
+                  onClick={fetchData}
+                  disabled={loading}
+                  className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-medium bg-stone-100 text-stone-600 whitespace-nowrap disabled:opacity-50 active:scale-[0.97]"
+                >
+                  {loading ? "…" : "Refresh"}
+                </button>
+              </div>
 
               {/* Named filter views */}
               {data && (
@@ -794,34 +797,35 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 />
               )}
 
-              {/* Filters + Search */}
-              <div className="flex flex-wrap gap-2">
+              {/* Search + Status filters — compact */}
+              <div className="space-y-1.5">
                 <input
                   type="text"
                   placeholder="Search articles…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 min-w-[150px] bg-stone-100 border border-stone-200 rounded-lg px-3 py-1.5 text-xs text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-300"
+                  className="w-full bg-stone-100 border border-stone-200 rounded-lg px-2.5 py-1 text-[11px] text-stone-800 placeholder-stone-400 focus:outline-none focus:border-stone-300"
                 />
-                {["all", "published", "draft", "reservoir", "rejected", "stuck"].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
-                      filter === f ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
+                <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                  {["all", "published", "draft", "reservoir", "rejected", "stuck"].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors capitalize whitespace-nowrap ${
+                        filter === f ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400"
+                      }`}
+                    >
+                      {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {/* Type + Locale filters */}
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">Type:</span>
+              {/* Type + Locale + Date — single compact line */}
+              <div className="flex gap-1.5 items-center flex-wrap text-[10px]">
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-                  className="bg-stone-100 border border-stone-200 rounded-lg px-2 py-1 text-xs text-stone-700 focus:outline-none"
+                  className="bg-stone-100 border border-stone-200 rounded px-1.5 py-0.5 text-[10px] text-stone-600 focus:outline-none"
                 >
                   <option value="all">All Types</option>
                   <option value="blog">Blog</option>
@@ -829,28 +833,28 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   <option value="information">Info</option>
                   <option value="guide">Guide</option>
                 </select>
-                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider ml-2">Locale:</span>
+                <span className="text-stone-300">|</span>
                 {(["all", "en", "ar"] as const).map((l) => (
                   <button
                     key={l}
                     onClick={() => setLocaleFilter(l)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      localeFilter === l ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      localeFilter === l ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400"
                     }`}
                   >
                     {l === "all" ? "All" : l.toUpperCase()}
                   </button>
                 ))}
-                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider ml-2">Date:</span>
+                <span className="text-stone-300">|</span>
                 {(["all", "today", "7d", "30d"] as const).map((d) => (
                   <button
                     key={d}
                     onClick={() => setDateRange(d)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      dateRange === d ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      dateRange === d ? "bg-stone-800 text-white" : "bg-stone-100 text-stone-400"
                     }`}
                   >
-                    {d === "all" ? "All" : d === "today" ? "Today" : d === "7d" ? "7 Days" : "30 Days"}
+                    {d === "all" ? "All" : d === "today" ? "Today" : d === "7d" ? "7d" : "30d"}
                   </button>
                 ))}
                 {selectedIds.size > 0 && (

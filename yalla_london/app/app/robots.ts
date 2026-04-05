@@ -31,7 +31,11 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   // Common disallow rules for bots that should skip admin/API/internal paths
   // /cdn-cgi/ = Cloudflare internal endpoints (email protection, etc.) — wastes crawl budget
   // /d/ = blocks malformed /d/ownload URL pattern discovered by Google (broken external link)
-  const standardDisallow = ["/admin/", "/api/", "/_next/", "/cdn-cgi/", "/d/"];
+  // Dev/internal pages — have noindex but still waste crawl budget if discovered via links
+  const standardDisallow = [
+    "/admin/", "/api/", "/_next/", "/cdn-cgi/", "/d/",
+    "/design-system/", "/brand-showcase/", "/brand-guidelines/", "/offline/",
+  ];
   // Empty string generates explicit `Disallow: ` line (= allow all).
   // Do NOT use [] — Next.js omits the Disallow line entirely for empty arrays.
   const allowAll = "";
@@ -39,15 +43,16 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   return {
     rules: [
       // Default: allow everything except admin/api/_next
+      // Explicitly allow /api/og so Facebook/LinkedIn crawlers can fetch OG images
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/api/og"],
         disallow: standardDisallow,
       },
       // Google crawlers
       {
         userAgent: "Googlebot",
-        allow: "/",
+        allow: ["/", "/api/og"],
         disallow: standardDisallow,
       },
       // Google Extended (used for AI training/Gemini/AI Overview)
@@ -59,7 +64,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       // OpenAI GPTBot (ChatGPT, AI search)
       {
         userAgent: "GPTBot",
-        allow: "/",
+        allow: ["/", "/api/og"],
         disallow: standardDisallow,
       },
       // OpenAI ChatGPT user browsing
@@ -88,7 +93,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       // Bing/Microsoft (Copilot, AI search)
       {
         userAgent: "Bingbot",
-        allow: "/",
+        allow: ["/", "/api/og"],
         disallow: standardDisallow,
       },
       // Meta AI

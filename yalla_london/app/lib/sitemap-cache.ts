@@ -122,6 +122,7 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
   // ── Static pages ─────────────────────────────────────────────────────────
 
   if (isYachtSite) {
+    // IMPORTANT: Keep in sync with buildFallbackSitemap() in app/sitemap.ts
     const yachtStatic: Array<[string, string, SitemapEntry["changeFrequency"], number]> = [
       ["", staticDate, "daily", 1],
       ["/fleet", staticDate, "weekly", 0.9],
@@ -133,6 +134,8 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       ["/inquiry", staticDate, "monthly", 0.7],
       ["/how-it-works", staticDate, "monthly", 0.7],
       ["/faq", staticDate, "monthly", 0.6],
+      ["/glossary", staticDate, "monthly", 0.8],
+      ["/halal-charter", staticDate, "monthly", 0.9],
       ["/about", staticDate, "monthly", 0.7],
       ["/contact", staticDate, "monthly", 0.6],
       ["/blog", staticDate, "weekly", 0.7],
@@ -149,22 +152,41 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       });
     }
   } else {
+    // IMPORTANT: Keep in sync with buildFallbackSitemap() in app/sitemap.ts
+    // Every static page must appear in BOTH places.
     const blogStatic: Array<[string, string, SitemapEntry["changeFrequency"], number]> = [
+      // Homepage + content hubs
       ["", staticDate, "daily", 1],
       ["/blog", staticDate, "daily", 0.9],
       ["/recommendations", staticDate, "weekly", 0.9],
       ["/events", staticDate, "daily", 0.8],
       ["/experiences", staticDate, "weekly", 0.8],
       ["/hotels", staticDate, "weekly", 0.8],
+      ["/news", staticDate, "daily", 0.8],
+      // High-value long-tail pages
+      ["/halal-restaurants-london", staticDate, "weekly", 0.9],
+      ["/luxury-hotels-london", staticDate, "weekly", 0.9],
+      ["/london-with-kids", staticDate, "weekly", 0.9],
+      // Structured data pages (DefinedTermSet, Service, FAQPage)
+      ["/faq", staticDate, "monthly", 0.8],
+      ["/glossary", staticDate, "monthly", 0.8],
+      ["/halal-charter", staticDate, "monthly", 0.9],
+      // Navigation & discovery
+      ["/destinations", staticDate, "weekly", 0.8],
+      ["/itineraries", staticDate, "weekly", 0.8],
+      ["/journal", staticDate, "weekly", 0.7],
+      ["/shop", staticDate, "weekly", 0.7],
+      ["/tools", staticDate, "monthly", 0.7],
+      ["/how-it-works", staticDate, "monthly", 0.7],
+      // E-E-A-T trust signals
+      ["/team", staticDate, "monthly", 0.6],
+      ["/editorial-policy", staticDate, "yearly", 0.5],
+      ["/affiliate-disclosure", staticDate, "yearly", 0.5],
+      // Standard pages
       ["/about", staticDate, "monthly", 0.7],
       ["/contact", staticDate, "monthly", 0.6],
       ["/privacy", staticDate, "yearly", 0.3],
       ["/terms", staticDate, "yearly", 0.3],
-      ["/affiliate-disclosure", staticDate, "yearly", 0.3],
-      ["/shop", staticDate, "weekly", 0.7],
-      ["/halal-restaurants-london", staticDate, "weekly", 0.9],
-      ["/luxury-hotels-london", staticDate, "weekly", 0.9],
-      ["/london-with-kids", staticDate, "weekly", 0.9],
     ];
     for (const [path, lastMod, freq, prio] of blogStatic) {
       entries.push({

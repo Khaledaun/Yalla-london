@@ -933,6 +933,17 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
       }
     } catch { /* NewsItem table might not exist */ }
 
+    // Also discover static pages (faq, glossary, editorial-policy, etc.)
+    // These are hardcoded page.tsx files that never appear in DB queries above.
+    // Without this, static pages are NEVER submitted to IndexNow.
+    try {
+      const { getStaticPageUrls } = await import("@/lib/seo/indexing-service");
+      const staticUrls = getStaticPageUrls(siteUrl, siteId || "");
+      for (const su of staticUrls) {
+        if (!urls.includes(su)) urls.push(su);
+      }
+    } catch { /* Non-critical */ }
+
     // Add Arabic variants for all discovered URLs
     const arUrls = urls.map((u: string) => u.replace(/^(https?:\/\/[^/]+)(\/.*)$/, "$1/ar$2"));
     urls.push(...arUrls);

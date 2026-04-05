@@ -24,6 +24,11 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     alternates: {
       canonical: `${baseUrl}/tools/seo-audit`,
+      languages: {
+        "en-GB": `${baseUrl}/tools/seo-audit`,
+        "ar-SA": `${baseUrl}/ar/tools/seo-audit`,
+        "x-default": `${baseUrl}/tools/seo-audit`,
+      },
     },
     robots: {
       index: true,

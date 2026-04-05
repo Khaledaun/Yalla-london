@@ -9,16 +9,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteId = hdrs.get('x-site-id') || getDefaultSiteId();
   const baseUrl = getBaseUrlForSite(siteId);
 
+  const config = getSiteConfig(siteId);
+  const brandName = config?.name || 'Yalla London';
+
   return {
-    title: 'Halal-Certified Yacht Charters | Zenitha Yachts',
+    title: `Halal-Certified Yacht Charters | ${brandName}`,
     description:
       'Luxury halal yacht charters in the Mediterranean. Certified halal catering, prayer-friendly spaces, alcohol-free options, and Arabic-speaking crew. Book your family-friendly charter today.',
     alternates: {
       canonical: `${baseUrl}/halal-charter`,
-      languages: { 'en-GB': `${baseUrl}/halal-charter`, 'ar-SA': `${baseUrl}/ar/halal-charter` },
+      languages: { 'en-GB': `${baseUrl}/halal-charter`, 'ar-SA': `${baseUrl}/ar/halal-charter`, 'x-default': `${baseUrl}/halal-charter` },
     },
     openGraph: {
-      title: 'Halal-Certified Yacht Charters | Zenitha Yachts',
+      title: `Halal-Certified Yacht Charters | ${brandName}`,
       description: 'Luxury halal yacht charters with certified catering, prayer spaces, and Arabic-speaking crew.',
       url: `${baseUrl}/halal-charter`,
       type: 'website',

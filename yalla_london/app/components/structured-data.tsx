@@ -115,18 +115,17 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "name": siteName,
         "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
       },
-      // Only add SearchAction when the site has a working search endpoint
-      // Yachts has /yachts?q=, blog sites need /blog?q= or /search?q= to be implemented first
-      ...(isZenitha ? {
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": {
-            "@type": "EntryPoint",
-            "urlTemplate": `${baseUrl}/yachts?q={search_term_string}`
-          },
-          "query-input": "required name=search_term_string"
-        }
-      } : {})
+      // SearchAction enables Google Sitelinks Searchbox for all sites
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": isZenitha
+            ? `${baseUrl}/yachts?q={search_term_string}`
+            : `${baseUrl}/blog?q={search_term_string}`
+        },
+        "query-input": "required name=search_term_string"
+      }
     }
 
     return { organizationData, websiteData }

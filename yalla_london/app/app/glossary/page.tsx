@@ -251,16 +251,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteId = hdrs.get('x-site-id') || getDefaultSiteId();
   const baseUrl = getBaseUrlForSite(siteId);
 
+  const config = getSiteConfig(siteId);
+  const brandName = config?.name || 'Yalla London';
+
   return {
-    title: 'Yacht Charter Glossary | Zenitha Yachts',
+    title: `Yacht Charter Glossary | ${brandName}`,
     description:
       'A comprehensive bilingual glossary of yacht charter terminology. Learn about yacht types, charter terms, pricing, navigation, and crew roles in English and Arabic.',
     alternates: {
       canonical: `${baseUrl}/glossary`,
-      languages: { 'en-GB': `${baseUrl}/glossary`, 'ar-SA': `${baseUrl}/ar/glossary` },
+      languages: { 'en-GB': `${baseUrl}/glossary`, 'ar-SA': `${baseUrl}/ar/glossary`, 'x-default': `${baseUrl}/glossary` },
     },
     openGraph: {
-      title: 'Yacht Charter Glossary | Zenitha Yachts',
+      title: `Yacht Charter Glossary | ${brandName}`,
       description: 'Master yacht charter terminology in English and Arabic.',
       url: `${baseUrl}/glossary`,
       type: 'website',

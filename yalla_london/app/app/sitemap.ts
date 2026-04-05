@@ -97,6 +97,7 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     { path: "/information", priority: 0.7, changeFrequency: "weekly" },
     { path: "/shop", priority: 0.7, changeFrequency: "weekly" },
     { path: "/tools", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/tools/seo-audit", priority: 0.7, changeFrequency: "monthly" },
     { path: "/how-it-works", priority: 0.7, changeFrequency: "monthly" },
     // E-E-A-T trust signals
     { path: "/team", priority: 0.6, changeFrequency: "monthly" },

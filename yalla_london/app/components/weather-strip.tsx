@@ -79,7 +79,13 @@ export function WeatherStrip({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     })()
   }, [locale])
 
-  if (forecast.length === 0) return null
+  // Reserve space to prevent CLS (Cumulative Layout Shift) when forecast loads.
+  // Without this, content shifts down by ~44px when the weather strip appears.
+  if (forecast.length === 0) {
+    return (
+      <div className="bg-gradient-to-r from-[#1a2a3a] to-[#0f1e2e] border-y border-white/10 h-[44px]" aria-hidden="true" />
+    );
+  }
 
   return (
     <div className="bg-gradient-to-r from-[#1a2a3a] to-[#0f1e2e] border-y border-white/10" dir={isRTL ? 'rtl' : 'ltr'}>

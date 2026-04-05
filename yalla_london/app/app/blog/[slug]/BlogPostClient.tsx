@@ -622,10 +622,14 @@ export default function BlogPostClient({ post, serverLocale, unsplashAttribution
                   </div>
                 )}
 
-                {/* ─── Stay22 Hotel Map — auto-shown for accommodation-related articles ─── */}
+                {/* ─── Stay22 Hotel Map — shown only on articles primarily about hotels/accommodation ─── */}
                 {(() => {
-                  const contentLower = (post.content_en || '').toLowerCase();
-                  const isHotelArticle = ['hotel', 'hotels', 'accommodation', 'stay', 'resort', 'booking', 'check-in'].some(kw => contentLower.includes(kw));
+                  const titleLower = (post.title_en || '').toLowerCase();
+                  const slugLower = (post.slug || '').toLowerCase();
+                  // Only show on articles specifically about hotels/accommodation (title or slug must mention it)
+                  const isHotelArticle = ['hotel', 'hotels', 'accommodation', 'resort', 'where to stay'].some(
+                    kw => titleLower.includes(kw) || slugLower.includes(kw)
+                  );
                   if (!isHotelArticle) return null;
                   return (
                     <div className="mt-10 mb-6">

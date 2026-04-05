@@ -41,7 +41,7 @@ export function AdminCard({
   return (
     <div
       className={`
-        bg-white rounded-xl p-5
+        bg-[var(--admin-card-bg,#FFFFFF)] rounded-xl p-5
         border border-[var(--admin-border)]
         ${elevated
           ? 'shadow-[var(--admin-shadow-lg)]'
@@ -160,7 +160,7 @@ export function AdminStatusBadge({
 export function AdminKPICard({
   value,
   label,
-  color = '#1C1917',
+  color = 'var(--admin-text-primary, #1C1917)',
   trend,
   onClick,
 }: {
@@ -174,7 +174,7 @@ export function AdminKPICard({
     <div
       onClick={onClick}
       className={`
-        bg-white rounded-xl p-4 text-center
+        bg-[var(--admin-card-bg,#FFFFFF)] rounded-xl p-4 text-center
         border border-[var(--admin-border)]
         shadow-[var(--admin-shadow-sm)]
         ${onClick ? 'cursor-pointer hover:shadow-[var(--admin-shadow-lg)] active:scale-[0.98] transition-all' : ''}
@@ -291,7 +291,7 @@ export function AdminEmptyState({
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
       <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-[var(--admin-bg)] border border-[var(--admin-border)]">
-        <Icon size={24} color="#78716C" />
+        <Icon size={24} color="var(--admin-text-muted, #78716C)" />
       </div>
       <p className="font-[var(--font-display)] font-bold text-base text-[var(--admin-text)]">
         {title}
@@ -468,7 +468,7 @@ export function ConfirmModal({
       aria-describedby="confirm-desc"
     >
       <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl border border-[var(--admin-border)] max-w-md w-full p-6 font-[var(--font-system)]">
+      <div className="relative bg-[var(--admin-card-bg,#FFFFFF)] rounded-xl shadow-xl border border-[var(--admin-border)] max-w-md w-full p-6 font-[var(--font-system)]">
         <div className="flex items-start gap-3 mb-3">
           <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: colors.bg }}>
             <AlertTriangle size={18} color={colors.icon} />

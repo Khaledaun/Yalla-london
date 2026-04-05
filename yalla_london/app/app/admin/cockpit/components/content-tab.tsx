@@ -420,9 +420,9 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
   const indexColor = (s: string | null) => {
     if (!s) return "text-stone-500";
-    if (s === "indexed") return "text-[#2D5A3D]";
-    if (s === "submitted") return "text-[#3B7EA1]";
-    if (s === "error") return "text-[#C8322B]";
+    if (s === "indexed") return "text-[var(--admin-green,#2D5A3D)]";
+    if (s === "submitted") return "text-[var(--admin-blue,#3B7EA1)]";
+    if (s === "error") return "text-[var(--admin-red,#C8322B)]";
     return "text-stone-400";
   };
 
@@ -436,9 +436,9 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     return item.indexingStatus;
   };
 
-  const volumeColor = (v: string) => v === "high" ? "text-[#2D5A3D]" : v === "medium" ? "text-[#C49A2A]" : "text-stone-400";
+  const volumeColor = (v: string) => v === "high" ? "text-[var(--admin-green,#2D5A3D)]" : v === "medium" ? "text-[var(--admin-gold,#C49A2A)]" : "text-stone-400";
   const trendIcon = (t: string) => t === "rising" ? "📈" : t === "declining" ? "📉" : "➡️";
-  const competitionColor = (c: string) => c === "low" ? "text-[#2D5A3D]" : c === "high" ? "text-[#C8322B]" : "text-[#C49A2A]";
+  const competitionColor = (c: string) => c === "low" ? "text-[var(--admin-green,#2D5A3D)]" : c === "high" ? "text-[var(--admin-red,#C8322B)]" : "text-[var(--admin-gold,#C49A2A)]";
 
   return (
     <div className="space-y-2">
@@ -455,7 +455,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         <button
           onClick={() => setContentView("research")}
           className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-            contentView === "research" ? "bg-[#5B21B6] text-white" : "bg-stone-100 text-stone-400"
+            contentView === "research" ? "bg-[var(--status-purple,#5B21B6)] text-white" : "bg-stone-100 text-stone-400"
           }`}
         >
           Research
@@ -494,13 +494,13 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 onClick={runTopicResearch}
                 loading={researchLoading}
                 variant="default"
-                className="whitespace-nowrap bg-[#5B21B6] hover:bg-[#5B21B6] border-[#5B21B6] text-white"
+                className="whitespace-nowrap bg-[var(--status-purple,#5B21B6)] hover:bg-[var(--status-purple,#5B21B6)] border-[#5B21B6] text-white"
               >
                 Research Topics
               </ActionButton>
             </div>
             {researchError && (
-              <p className="text-[#C8322B] text-xs mt-2">Research failed: {researchError}</p>
+              <p className="text-[var(--admin-red,#C8322B)] text-xs mt-2">Research failed: {researchError}</p>
             )}
           </Card>
 
@@ -553,7 +553,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <Card className={bulkResult.success ? "border-[rgba(45,90,61,0.3)] bg-[rgba(45,90,61,0.04)]" : "border-[rgba(200,50,43,0.3)] bg-[rgba(200,50,43,0.04)]"}>
                   {bulkResult.success ? (
                     <div>
-                      <p className="text-[#2D5A3D] text-sm font-medium">
+                      <p className="text-[var(--admin-green,#2D5A3D)] text-sm font-medium">
                         {bulkResult.queued} article{(bulkResult.queued ?? 0) !== 1 ? "s" : ""} queued in pipeline
                       </p>
                       <p className="text-stone-400 text-xs mt-1">{bulkResult.message}</p>
@@ -561,7 +561,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                         <div className="mt-2 space-y-1">
                           {bulkResult.articles.map((a, i) => (
                             <div key={i} className="flex items-center gap-2 text-xs">
-                              <span className="text-[#2D5A3D]">✓</span>
+                              <span className="text-[var(--admin-green,#2D5A3D)]">✓</span>
                               <span className="text-stone-600">{a.keyword}</span>
                               <span className="text-stone-500">→ pipeline</span>
                             </div>
@@ -576,7 +576,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-[#C8322B] text-sm">{bulkResult.error || "Failed to queue articles"}</p>
+                    <p className="text-[var(--admin-red,#C8322B)] text-sm">{bulkResult.error || "Failed to queue articles"}</p>
                   )}
                 </Card>
               )}
@@ -604,7 +604,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       >
                         {/* Checkbox */}
                         <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                          isSelected ? "bg-[#5B21B6] border-[#5B21B6]" : "border-stone-300"
+                          isSelected ? "bg-[var(--status-purple,#5B21B6)] border-[#5B21B6]" : "border-stone-300"
                         }`}>
                           {isSelected && <span className="text-white text-xs font-bold">✓</span>}
                         </div>
@@ -701,7 +701,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
             <div className="flex items-center justify-center h-48"><p className="text-stone-500 text-sm">Loading content…</p></div>
           ) : fetchError ? (
             <Card className="text-center py-8 space-y-2">
-              <p className="text-[#C8322B] text-sm">Failed to load articles: {fetchError}</p>
+              <p className="text-[var(--admin-red,#C8322B)] text-sm">Failed to load articles: {fetchError}</p>
               <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs">Retry</button>
             </Card>
           ) : (
@@ -716,10 +716,10 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 <div className="grid grid-cols-6 gap-1">
                   {([
                     ["Total", data.summary.total, "text-stone-600"],
-                    ["Pub", data.summary.published, "text-[#2D5A3D]"],
-                    ["Res", data.summary.reservoir, "text-[#3B7EA1]"],
-                    ["Pipe", data.summary.inPipeline, "text-[#C49A2A]"],
-                    ["Rej", data.summary.rejected, "text-[#C8322B]"],
+                    ["Pub", data.summary.published, "text-[var(--admin-green,#2D5A3D)]"],
+                    ["Res", data.summary.reservoir, "text-[var(--admin-blue,#3B7EA1)]"],
+                    ["Pipe", data.summary.inPipeline, "text-[var(--admin-gold,#C49A2A)]"],
+                    ["Rej", data.summary.rejected, "text-[var(--admin-red,#C8322B)]"],
                     ["Stuck", data.summary.stuck, "text-[#92400E]"],
                   ] as [string, number, string][]).map(([label, val, color]) => (
                     <div key={label} className="text-center bg-white rounded-lg border border-stone-100 py-1.5">
@@ -734,7 +734,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
               <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
                 <button
                   onClick={() => setContentView("research")}
-                  className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-[#5B21B6] text-white whitespace-nowrap active:scale-[0.97]"
+                  className="flex-shrink-0 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-[var(--status-purple,#5B21B6)] text-white whitespace-nowrap active:scale-[0.97]"
                 >
                   Research
                 </button>
@@ -858,7 +858,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   </button>
                 ))}
                 {selectedIds.size > 0 && (
-                  <span className="ml-auto text-xs text-[#3B7EA1] font-medium">{selectedIds.size} selected</span>
+                  <span className="ml-auto text-xs text-[var(--admin-blue,#3B7EA1)] font-medium">{selectedIds.size} selected</span>
                 )}
               </div>
 
@@ -891,12 +891,12 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                         rows={3}
                         className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-[#3B7EA1]"
                       />
-                      <p className={`text-right text-[10px] mt-0.5 ${editMetaDesc.length > 160 ? "text-[#C8322B]" : editMetaDesc.length < 120 ? "text-[#C49A2A]" : "text-[#2D5A3D]"}`}>
+                      <p className={`text-right text-[10px] mt-0.5 ${editMetaDesc.length > 160 ? "text-[var(--admin-red,#C8322B)]" : editMetaDesc.length < 120 ? "text-[var(--admin-gold,#C49A2A)]" : "text-[var(--admin-green,#2D5A3D)]"}`}>
                         {editMetaDesc.length}/160 chars
                       </p>
                     </div>
                     {editResult && (
-                      <p className={`text-xs font-medium ${editResult.startsWith("Saved") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{editResult}</p>
+                      <p className={`text-xs font-medium ${editResult.startsWith("Saved") ? "text-[var(--admin-green,#2D5A3D)]" : "text-[var(--admin-red,#C8322B)]"}`}>{editResult}</p>
                     )}
                     <div className="flex gap-2">
                       <button
@@ -910,7 +910,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       {editingItem.type === "published" && (
                         <a
                           href={`/admin/articles/edit/${editingItem.id}`}
-                          className="py-2.5 px-4 rounded-xl text-sm font-semibold text-[#3B7EA1] border border-[#3B7EA1] transition-all active:scale-[0.97] text-center"
+                          className="py-2.5 px-4 rounded-xl text-sm font-semibold text-[var(--admin-blue,#3B7EA1)] border border-[#3B7EA1] transition-all active:scale-[0.97] text-center"
                         >
                           Full Editor
                         </a>
@@ -962,22 +962,22 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                   <LocaleDots wordCountEn={item.wordCount} wordCountAr={item.wordCountAr} />
                                   <button
                                     onClick={() => setDetailArticle(item)}
-                                    className="text-stone-800 font-medium truncate max-w-[260px] text-left hover:text-[#3B7EA1] transition-colors cursor-pointer block"
+                                    className="text-stone-800 font-medium truncate max-w-[260px] text-left hover:text-[var(--admin-blue,#3B7EA1)] transition-colors cursor-pointer block"
                                     title={`${item.title} — tap for details`}
                                   >
                                     {item.title || item.slug || item.id}
                                   </button>
                                 </div>
                                 {item.url && (
-                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#3B7EA1] hover:underline truncate block max-w-[280px] text-[10px]">
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[var(--admin-blue,#3B7EA1)] hover:underline truncate block max-w-[280px] text-[10px]">
                                     {item.url}
                                   </a>
                                 )}
                                 {item.plainError && (
-                                  <p className="text-[#C8322B] mt-0.5 truncate max-w-[280px] text-[10px]" title={item.plainError}>{item.plainError}</p>
+                                  <p className="text-[var(--admin-red,#C8322B)] mt-0.5 truncate max-w-[280px] text-[10px]" title={item.plainError}>{item.plainError}</p>
                                 )}
                                 {actionResult[item.id] && (
-                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
+                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-[var(--admin-green,#2D5A3D)]" : "text-[var(--admin-red,#C8322B)]"}`}>
                                     {actionResult[item.id]}
                                   </p>
                                 )}
@@ -992,7 +992,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                           <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-stone-100/30" : c.isBlocker ? "bg-[rgba(200,50,43,0.04)]" : "bg-[rgba(196,154,42,0.04)]"}`}>
                                             <span className="shrink-0">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
                                             <div>
-                                              <span className={c.pass ? "text-stone-400" : c.isBlocker ? "text-[#C8322B]" : "text-[#7a5a10]"}>{c.label}</span>
+                                              <span className={c.pass ? "text-stone-400" : c.isBlocker ? "text-[var(--admin-red,#C8322B)]" : "text-[#7a5a10]"}>{c.label}</span>
                                               {!c.pass && c.detail && <p className="text-stone-500 mt-0.5">{c.detail}</p>}
                                             </div>
                                           </div>
@@ -1000,7 +1000,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                       </div>
                                     )}
                                     {!checks && !gateLoading && (
-                                      <button onClick={() => runGateCheck(item)} className="text-[#3B7EA1] hover:underline">Run gate check</button>
+                                      <button onClick={() => runGateCheck(item)} className="text-[var(--admin-blue,#3B7EA1)] hover:underline">Run gate check</button>
                                     )}
                                   </div>
                                 )}
@@ -1038,7 +1038,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               <td className="px-3 py-2.5 text-stone-400 whitespace-nowrap">
                                 {shortDate(item.generatedAt)}
                                 {item.publishedAt && (
-                                  <p className="text-[#2D5A3D] text-[10px]">Pub {shortDate(item.publishedAt)}</p>
+                                  <p className="text-[var(--admin-green,#2D5A3D)] text-[10px]">Pub {shortDate(item.publishedAt)}</p>
                                 )}
                               </td>
 
@@ -1060,7 +1060,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
                               {/* Word Count */}
                               <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                                <span className={item.wordCount < 1000 ? "text-[#C8322B]" : item.wordCount < 1200 ? "text-[#C49A2A]" : "text-stone-400"}>
+                                <span className={item.wordCount < 1000 ? "text-[var(--admin-red,#C8322B)]" : item.wordCount < 1200 ? "text-[var(--admin-gold,#C49A2A)]" : "text-stone-400"}>
                                   {item.wordCount > 0 ? item.wordCount.toLocaleString() : "—"}
                                 </span>
                               </td>
@@ -1068,7 +1068,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               {/* Clicks */}
                               <td className="px-3 py-2.5 text-right whitespace-nowrap">
                                 {item.gscClicks !== null ? (
-                                  <span className={item.gscClicks > 0 ? "text-[#2D5A3D] font-medium" : "text-stone-600"}>{item.gscClicks.toLocaleString()}</span>
+                                  <span className={item.gscClicks > 0 ? "text-[var(--admin-green,#2D5A3D)] font-medium" : "text-stone-600"}>{item.gscClicks.toLocaleString()}</span>
                                 ) : (
                                   <span className="text-stone-500">—</span>
                                 )}
@@ -1124,7 +1124,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                       {item.status === "reservoir" && (
                                         <button
                                           onClick={() => openQuickEdit(item)}
-                                          className="px-1.5 py-0.5 rounded bg-[#3B7EA1]/10 hover:bg-[#3B7EA1]/20 text-[#3B7EA1] border border-[#3B7EA1]/30 whitespace-nowrap"
+                                          className="px-1.5 py-0.5 rounded bg-[#3B7EA1]/10 hover:bg-[#3B7EA1]/20 text-[var(--admin-blue,#3B7EA1)] border border-[#3B7EA1]/30 whitespace-nowrap"
                                         >
                                           Edit
                                         </button>
@@ -1141,7 +1141,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                       )}
                                       <button
                                         onClick={() => openQuickEdit(item)}
-                                        className="px-1.5 py-0.5 rounded bg-[#3B7EA1]/10 hover:bg-[#3B7EA1]/20 text-[#3B7EA1] border border-[#3B7EA1]/30 whitespace-nowrap"
+                                        className="px-1.5 py-0.5 rounded bg-[#3B7EA1]/10 hover:bg-[#3B7EA1]/20 text-[var(--admin-blue,#3B7EA1)] border border-[#3B7EA1]/30 whitespace-nowrap"
                                       >
                                         Edit
                                       </button>
@@ -1312,7 +1312,7 @@ export function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
               {/* Bulk action result */}
               {actionResult.__bulk && (
-                <p className={`text-xs px-1 ${actionResult.__bulk.startsWith("✅") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>{actionResult.__bulk}</p>
+                <p className={`text-xs px-1 ${actionResult.__bulk.startsWith("✅") ? "text-[var(--admin-green,#2D5A3D)]" : "text-[var(--admin-red,#C8322B)]"}`}>{actionResult.__bulk}</p>
               )}
 
               {/* Phase 1B: Cron response panel */}

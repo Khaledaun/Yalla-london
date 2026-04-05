@@ -78,7 +78,7 @@ export function StationDetailPanel({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-50 bg-[#1A1F26] border-t border-white/10 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto"
+      className="fixed inset-x-0 bottom-0 z-50 bg-[var(--yl-navy,#1A2332)] border-t border-white/10 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto"
       role="dialog"
       aria-label={`${station.label} station details`}
     >
@@ -126,7 +126,7 @@ export function StationDetailPanel({
             return (
               <div
                 key={article.id}
-                className={`py-3 border-b border-white/5 ${isStuck ? "bg-amber-900/10" : ""}`}
+                className={`py-3 border-b border-white/5 ${isStuck ? "bg-[rgba(196,154,42,0.08)]" : ""}`}
               >
                 {/* Title row */}
                 <button
@@ -158,7 +158,7 @@ export function StationDetailPanel({
                       <span>{article.wordCount.toLocaleString()}w</span>
                     )}
                     {hasError && (
-                      <span className="text-red-400 truncate max-w-[150px]">
+                      <span className="text-[var(--admin-red,#C8322B)] truncate max-w-[150px]">
                         {article.plainError ?? "Error"}
                       </span>
                     )}

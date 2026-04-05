@@ -151,14 +151,14 @@ export function PriorityInbox({ siteId, contentData }: PriorityInboxProps) {
   if (sorted.length === 0) return null;
 
   const severityColors = {
-    critical: "border-l-[#C8322B] bg-[rgba(200,50,43,0.04)]",
-    warning: "border-l-[#C49A2A] bg-[rgba(196,154,42,0.04)]",
-    info: "border-l-[#3B7EA1] bg-[rgba(59,126,161,0.04)]",
+    critical: "border-l-[var(--admin-red,#C8322B)] bg-[var(--status-red-bg,rgba(200,50,43,0.04))]",
+    warning: "border-l-[var(--admin-gold,#C49A2A)] bg-[var(--status-gold-bg,rgba(196,154,42,0.04))]",
+    info: "border-l-[var(--admin-blue,#3B7EA1)] bg-[var(--status-blue-bg,rgba(59,126,161,0.04))]",
   };
   const dotColors = {
-    critical: "bg-[#C8322B]",
-    warning: "bg-[#C49A2A]",
-    info: "bg-[#3B7EA1]",
+    critical: "bg-[var(--admin-red,#C8322B)]",
+    warning: "bg-[var(--admin-gold,#C49A2A)]",
+    info: "bg-[var(--admin-blue,#3B7EA1)]",
   };
 
   return (
@@ -167,7 +167,7 @@ export function PriorityInbox({ siteId, contentData }: PriorityInboxProps) {
         onClick={() => setCollapsed(!collapsed)}
         className="flex items-center gap-2 text-xs font-semibold text-stone-700 mb-2 hover:text-stone-900"
       >
-        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[rgba(200,50,43,0.1)] text-[#C8322B] text-[10px] font-bold">
+        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--status-red-bg,rgba(200,50,43,0.1))] text-[var(--admin-red,#C8322B)] text-[10px] font-bold">
           {sorted.length}
         </span>
         Attention Needed

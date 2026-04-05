@@ -7,6 +7,7 @@ import { Star, MapPin, Phone, Globe, Search, ChevronDown, ChevronUp, Utensils, U
 import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink, type AffiliateCategory } from '@/lib/affiliate/page-affiliate-links'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
+import AffiliateDisclosure from '@/components/affiliate/AffiliateDisclosure'
 
 const recommendations = [
   {
@@ -665,6 +666,7 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
           </div>
         </div>
       </section>
+      <AffiliateDisclosure language={locale} className="mx-auto max-w-6xl px-4" />
     </div>
   )
 }

@@ -22,7 +22,6 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/experiences`,
         "x-default": canonicalUrl,
       },
     },
@@ -32,7 +31,6 @@ export async function generateMetadata(): Promise<Metadata> {
       url: canonicalUrl,
       siteName,
       locale: "en_GB",
-      alternateLocale: "ar_SA",
       type: "website",
     },
     twitter: {

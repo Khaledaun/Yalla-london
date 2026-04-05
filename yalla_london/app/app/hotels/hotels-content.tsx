@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getPageAffiliateLink } from '@/lib/affiliate/page-affiliate-links'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
+import AffiliateDisclosure from '@/components/affiliate/AffiliateDisclosure'
 
 const hotels = {
   en: [
@@ -786,6 +787,7 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
         </div>
       </section>
 
+      <AffiliateDisclosure language={locale} className="mx-auto max-w-6xl px-4" />
       <TriBar />
     </div>
   )

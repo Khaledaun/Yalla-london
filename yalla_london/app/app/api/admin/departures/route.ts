@@ -520,7 +520,7 @@ export async function POST(req: NextRequest) {
         // Pass through the cron secret if configured
         ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}),
       },
-      signal: AbortSignal.timeout(280_000), // Must be >= longest cron maxDuration (gsc-sync, content-selector: 300s)
+      signal: AbortSignal.timeout(305_000), // Must be > longest cron maxDuration (300s) to avoid premature abort
     });
 
     const text = await triggerRes.text().catch(() => '');

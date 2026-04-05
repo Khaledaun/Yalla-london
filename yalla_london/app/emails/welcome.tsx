@@ -52,8 +52,22 @@ function Footer({ locale, unsubscribeUrl }: { locale: "en" | "ar"; unsubscribeUr
   return (
     <table width="100%" cellPadding="0" cellSpacing="0" role="presentation">
       <tbody>
+        {/* Gold accent line above footer */}
         <tr>
-          <td style={{ padding: "24px 32px", backgroundColor: BRAND.navy, textAlign: "center" }}>
+          <td style={{ backgroundColor: BRAND.navy, padding: "0 32px" }}>
+            <div style={{ width: "40px", height: "2px", backgroundColor: BRAND.gold, margin: "0 auto" }} />
+          </td>
+        </tr>
+        {/* LDN stamp seal (text-based for email compatibility) */}
+        <tr>
+          <td style={{ backgroundColor: BRAND.navy, padding: "20px 32px 8px", textAlign: "center" }}>
+            <div style={{ display: "inline-block", width: "60px", height: "60px", borderRadius: "50%", border: `2px solid ${BRAND.blue}40`, textAlign: "center", lineHeight: "56px" }}>
+              <span style={{ fontSize: "16px", fontWeight: 600, color: `${BRAND.blue}60`, letterSpacing: "3px", fontFamily: FONTS.heading }}>LDN</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style={{ padding: "8px 32px 24px", backgroundColor: BRAND.navy, textAlign: "center" }}>
             <p style={{
               margin: "0 0 8px 0",
               color: "#999999",
@@ -173,17 +187,34 @@ export default function WelcomeEmail({
                     {/* Tri-color bar */}
                     <tr><td><TriColorBar /></td></tr>
 
-                    {/* Header */}
+                    {/* Header with brand wordmark */}
                     <tr>
                       <td style={{
-                        padding: "40px 32px 24px",
+                        padding: "32px 32px 24px",
                         textAlign: "center",
                         backgroundColor: BRAND.navy,
                       }}>
+                        {/* YALLA wordmark + LDN badge */}
+                        <table width="100%" cellPadding="0" cellSpacing="0" role="presentation">
+                          <tbody>
+                            <tr>
+                              <td align="center" style={{ paddingBottom: "16px" }}>
+                                <span style={{ fontSize: "32px", fontWeight: 800, color: BRAND.white, fontFamily: headingFamily, letterSpacing: "-0.5px" }}>YALLA</span>
+                                <span style={{ display: "inline-block", marginLeft: "10px", padding: "4px 12px", border: `2px solid ${BRAND.blue}`, borderRadius: "4px", fontSize: "14px", fontWeight: 600, color: BRAND.blue, fontFamily: headingFamily, letterSpacing: "3px", transform: "rotate(-5deg)" }}>LDN</span>
+                              </td>
+                            </tr>
+                            {/* Gold accent line */}
+                            <tr>
+                              <td align="center" style={{ paddingBottom: "20px" }}>
+                                <div style={{ width: "50px", height: "2px", backgroundColor: BRAND.gold, margin: "0 auto" }} />
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                         <h1 style={{
                           margin: "0 0 8px 0",
                           color: BRAND.gold,
-                          fontSize: "28px",
+                          fontSize: "24px",
                           fontFamily: headingFamily,
                           fontWeight: "600",
                           letterSpacing: isAr ? "0" : "0.5px",

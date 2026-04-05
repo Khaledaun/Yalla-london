@@ -589,43 +589,92 @@ export function generateProductCoverSvg(
   <rect width="1200" height="800" fill="url(#${gradientId})" rx="0" />
   <rect width="1200" height="800" fill="url(#dots-${gradientId})" />
 
+  <!-- Tri-color bar at top (Red | Gold | Blue) — signature brand element -->
+  <rect x="0" y="0" width="400" height="5" fill="#C8322B" />
+  <rect x="400" y="0" width="400" height="5" fill="#C49A2A" />
+  <rect x="800" y="0" width="400" height="5" fill="#3B7EA1" />
+
   <!-- Decorative border (inset) -->
   <rect x="30" y="30" width="1140" height="740" rx="8" ry="8"
     fill="none" stroke="url(#${borderGradientId})" stroke-width="2" />
   <rect x="40" y="40" width="1120" height="720" rx="6" ry="6"
     fill="none" stroke="${brand.colors.accent}" stroke-width="0.5" stroke-opacity="0.3" />
 
-  <!-- Product type icon (centred, upper area) -->
-  <g transform="translate(564, 200) scale(3)" fill="white" fill-opacity="0.9">
-    <path d="${iconPath}" />
-  </g>
+  <!-- YALLA wordmark (top-left) -->
+  <text x="80" y="100" fill="white" font-family="'${brand.fonts.heading.name}', 'Segoe UI', Arial, sans-serif"
+    font-size="38" font-weight="800" letter-spacing="-0.5">YALLA</text>
+  <!-- LDN badge (beside wordmark) -->
+  <rect x="220" y="78" width="60" height="28" rx="4" fill="none" stroke="#3B7EA1" stroke-width="2"
+    transform="rotate(-5 250 92)" />
+  <text x="250" y="97" fill="#3B7EA1" font-family="'${brand.fonts.heading.name}', 'Segoe UI', Arial, sans-serif"
+    font-size="16" font-weight="600" letter-spacing="3" text-anchor="middle"
+    transform="rotate(-5 250 92)">LDN</text>
 
-  <!-- Product title (centred) -->
-  <text text-anchor="middle" fill="white" font-family="'${brand.fonts.heading.name}', 'Segoe UI', Arial, sans-serif" font-weight="700" letter-spacing="0.5">
+  <!-- Gold accent line below logo -->
+  <line x1="80" y1="120" x2="180" y2="120" stroke="#C49A2A" stroke-width="2" />
+
+  <!-- Boarding pass metadata: GATE Y | CLASS 1st | TO LONDON -->
+  <text x="80" y="160" fill="white" fill-opacity="0.4" font-family="'${brand.fonts.body.name}', Arial, sans-serif"
+    font-size="10" letter-spacing="3">GATE</text>
+  <text x="80" y="180" fill="white" font-family="'${brand.fonts.heading.name}', Arial, sans-serif"
+    font-size="22" font-weight="700">Y</text>
+  <text x="160" y="160" fill="white" fill-opacity="0.4" font-family="'${brand.fonts.body.name}', Arial, sans-serif"
+    font-size="10" letter-spacing="3">CLASS</text>
+  <text x="160" y="180" fill="white" font-family="'${brand.fonts.heading.name}', Arial, sans-serif"
+    font-size="22" font-weight="700">1st</text>
+  <text x="260" y="160" fill="white" fill-opacity="0.4" font-family="'${brand.fonts.body.name}', Arial, sans-serif"
+    font-size="10" letter-spacing="3">TO</text>
+  <text x="260" y="180" fill="white" fill-opacity="0.3" font-family="'${brand.fonts.body.name}', Arial, sans-serif"
+    font-size="18" font-weight="300" letter-spacing="4">LONDON</text>
+
+  <!-- Kicker label (above title) -->
+  <text x="80" y="340" fill="#C49A2A" font-family="'${brand.fonts.body.name}', Arial, sans-serif"
+    font-size="14" font-weight="600" letter-spacing="5">LUXURY TRAVEL GUIDE</text>
+
+  <!-- Product title (large, editorial serif) -->
+  <text fill="white" font-family="'${brand.fonts.heading.name}', 'Segoe UI', Arial, sans-serif" font-weight="700" letter-spacing="0.5">
 ${titleLines
   .map(
     (line, i) =>
-      `    <tspan x="600" y="${420 + i * 52}" font-size="42">${escapeXml(line)}</tspan>`,
+      `    <tspan x="80" y="${385 + i * 56}" font-size="48">${escapeXml(line)}</tspan>`,
   )
   .join("\n")}
   </text>
 
   <!-- Product type subtitle -->
-  <text x="600" y="${420 + titleLines.length * 52 + 30}" text-anchor="middle" fill="white" fill-opacity="0.7"
-    font-family="'${brand.fonts.body.name}', 'Segoe UI', Arial, sans-serif" font-size="22" font-weight="400" letter-spacing="2"
-    text-transform="uppercase">
+  <text x="80" y="${385 + titleLines.length * 56 + 30}" fill="white" fill-opacity="0.5"
+    font-family="'${brand.fonts.body.name}', 'Segoe UI', Arial, sans-serif" font-size="20" font-weight="400" letter-spacing="2">
     ${escapeXml(typeLabel.toUpperCase())}
   </text>
 
-  <!-- Brand name (bottom) -->
-  <text x="600" y="720" text-anchor="middle" fill="white" fill-opacity="0.5"
-    font-family="'${brand.fonts.heading.name}', 'Segoe UI', Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="3">
-    ${escapeXml(brand.name.toUpperCase())}
-  </text>
+  <!-- Gold accent line below title -->
+  <line x1="80" y1="${385 + titleLines.length * 56 + 50}" x2="230" y2="${385 + titleLines.length * 56 + 50}"
+    stroke="#C49A2A" stroke-width="2" />
 
-  <!-- Decorative accent line (below title area) -->
-  <line x1="500" y1="${420 + titleLines.length * 52 + 55}" x2="700" y2="${420 + titleLines.length * 52 + 55}"
-    stroke="${brand.colors.accent}" stroke-width="2" stroke-opacity="0.6" />
+  <!-- Stamp seal (bottom-right) — double circle with LDN -->
+  <circle cx="1050" cy="650" r="65" fill="none" stroke="#3B7EA1" stroke-width="2.5" stroke-opacity="0.5" />
+  <circle cx="1050" cy="650" r="55" fill="none" stroke="#3B7EA1" stroke-width="0.8" stroke-opacity="0.3" />
+  <text x="1050" y="638" text-anchor="middle" fill="#3B7EA1" fill-opacity="0.5"
+    font-family="'${brand.fonts.heading.name}', Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="2.5">YALLA LONDON</text>
+  <text x="1050" y="660" text-anchor="middle" fill="#3B7EA1" fill-opacity="0.5"
+    font-family="'${brand.fonts.heading.name}', Arial, sans-serif" font-size="26" font-weight="600" letter-spacing="4">LDN</text>
+  <text x="1050" y="676" text-anchor="middle" fill="#3B7EA1" fill-opacity="0.4"
+    font-family="'${brand.fonts.body.name}', Arial, sans-serif" font-size="8" letter-spacing="2">GATE Y · 1st CLASS</text>
+  <!-- Cardinal dots on stamp -->
+  <circle cx="982" cy="650" r="3.5" fill="#C8322B" opacity="0.5" />
+  <circle cx="1118" cy="650" r="3.5" fill="#3B7EA1" opacity="0.5" />
+  <circle cx="1050" cy="582" r="3.5" fill="#C49A2A" opacity="0.5" />
+
+  <!-- Tri-color bar at bottom -->
+  <rect x="0" y="795" width="400" height="5" fill="#C8322B" />
+  <rect x="400" y="795" width="400" height="5" fill="#C49A2A" />
+  <rect x="800" y="795" width="400" height="5" fill="#3B7EA1" />
+
+  <!-- Website URL (bottom-left) -->
+  <text x="80" y="750" fill="white" fill-opacity="0.3"
+    font-family="'${brand.fonts.body.name}', Arial, sans-serif" font-size="12" letter-spacing="2">
+    ${escapeXml(brand.domain || "yalla-london.com")}
+  </text>
 </svg>`;
 }
 

@@ -296,7 +296,8 @@ export function useOperationsFeed(
       const data = await res.json();
       setEntries(data.entries ?? []);
       setLoading(false);
-    } catch {
+    } catch (err) {
+      console.warn("[operations-feed] Fetch error:", err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
   }, [siteId]);

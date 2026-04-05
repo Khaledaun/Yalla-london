@@ -1734,6 +1734,16 @@ test("SEO Infrastructure", "content-auto-fix-lite tracks static pages in never-s
     : { status: FAIL, details: "content-auto-fix-lite only scans blog posts/news — static pages never tracked" };
 });
 
+test("SEO Infrastructure", "Content selector has diversity balancer (general vs niche)", () => {
+  const file = "lib/content-pipeline/select-runner.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "select-runner.ts missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
+  const hasDiversity = content.includes("NICHE_KEYWORDS") && content.includes("TARGET_NICHE_RATIO") && content.includes("nicheBoost");
+  return hasDiversity
+    ? { status: PASS, details: "Content selector balances general (60-70%) vs niche halal/Arab (30-40%) topics" }
+    : { status: FAIL, details: "No diversity awareness in content selector — publishes whatever has highest score" };
+});
+
 test("SEO Infrastructure", "Privacy and terms pages in sitemap with yearly frequency", () => {
   const sitemapFile = "app/sitemap.ts";
   if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };

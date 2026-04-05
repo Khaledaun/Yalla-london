@@ -247,6 +247,51 @@ export async function runContentSelector(
       };
     }
 
+    // ── Content Diversity: balance general luxury (60-70%) vs niche halal/Arab (30-40%) ──
+    // Strategy from CLAUDE.md rule #48: "Topic mix must be 60-70% general + 30-40% niche."
+    // General luxury keywords have 10-50x more search volume than Arab-specific variants.
+    // Both are valuable but at different scales — we need to publish both, in the right ratio.
+    //
+    // Implementation: Check the mix of last 20 published articles. If we've published
+    // too many niche articles in a row, boost general candidates (and vice versa).
+    // "Niche" = keyword contains halal, arab, islamic, muslim, ramadan, eid, prayer, mosque.
+    // "General" = everything else (luxury hotels, restaurants, things to do, etc.)
+    const NICHE_KEYWORDS = ["halal", "arab", "islamic", "muslim", "ramadan", "eid", "prayer", "mosque", "hijab", "abaya", "gulf", "gcc"];
+    const TARGET_NICHE_RATIO = 0.35; // 35% niche = within the 30-40% target band
+    const DIVERSITY_WINDOW = 20;     // Look at last 20 published articles
+    let nicheBoost = 0; // -1 = suppress niche (too many), 0 = neutral, +1 = boost niche (too few)
+
+    try {
+      const recentPublished = await prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null, siteId: { in: activeSites } },
+        orderBy: { created_at: "desc" },
+        select: { title_en: true, category_id: true },
+        take: DIVERSITY_WINDOW,
+      });
+
+      if (recentPublished.length >= 5) {
+        const nicheCount = recentPublished.filter((p) => {
+          const title = (p.title_en || "").toLowerCase();
+          return NICHE_KEYWORDS.some((kw) => title.includes(kw));
+        }).length;
+        const currentRatio = nicheCount / recentPublished.length;
+
+        if (currentRatio > TARGET_NICHE_RATIO + 0.15) {
+          // >50% niche — heavily boost general topics
+          nicheBoost = -1;
+          console.log(`[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — boosting GENERAL topics`);
+        } else if (currentRatio < TARGET_NICHE_RATIO - 0.15) {
+          // <20% niche — boost niche topics
+          nicheBoost = 1;
+          console.log(`[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — boosting NICHE topics`);
+        } else {
+          console.log(`[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — within target range`);
+        }
+      }
+    } catch (divErr) {
+      console.warn("[content-selector] Diversity check failed (non-fatal):", divErr instanceof Error ? divErr.message : divErr);
+    }
+
     // ── Topical Clustering: prefer publishing articles in the same category ──
     // Google rewards topical authority — 5-6 interlinked articles on the same topic
     // rank better than scattered coverage. (Gemini audit action #3)
@@ -285,15 +330,31 @@ export async function runContentSelector(
       console.warn("[content-selector] Cluster detection failed (non-fatal):", clusterErr instanceof Error ? clusterErr.message : clusterErr);
     }
 
-    // Sort candidates: same category as active cluster first, then by quality score
-    if (activeClusterCategoryId) {
-      candidates.sort((a, b) => {
+    // Sort candidates: diversity-aware, then cluster, then by quality score.
+    // Diversity takes priority over clustering — a diverse portfolio beats deep topical authority
+    // when the niche/general ratio is skewed. When ratio is balanced, clustering wins.
+    candidates.sort((a, b) => {
+      const aKeyword = ((a as Record<string, unknown>).keyword as string || "").toLowerCase();
+      const bKeyword = ((b as Record<string, unknown>).keyword as string || "").toLowerCase();
+      const aIsNiche = NICHE_KEYWORDS.some(kw => aKeyword.includes(kw));
+      const bIsNiche = NICHE_KEYWORDS.some(kw => bKeyword.includes(kw));
+
+      // Diversity sort: boost underrepresented type
+      if (nicheBoost !== 0 && aIsNiche !== bIsNiche) {
+        if (nicheBoost > 0) return aIsNiche ? -1 : 1; // boost niche to top
+        return aIsNiche ? 1 : -1; // boost general to top
+      }
+
+      // Cluster sort: same category as active cluster first
+      if (activeClusterCategoryId) {
         const aCat = (a as Record<string, unknown>).category_id === activeClusterCategoryId ? 0 : 1;
         const bCat = (b as Record<string, unknown>).category_id === activeClusterCategoryId ? 0 : 1;
-        if (aCat !== bCat) return aCat - bCat; // same-cluster first
-        return ((b as Record<string, unknown>).quality_score as number || 0) - ((a as Record<string, unknown>).quality_score as number || 0);
-      });
-    }
+        if (aCat !== bCat) return aCat - bCat;
+      }
+
+      // Quality sort: highest score first
+      return ((b as Record<string, unknown>).quality_score as number || 0) - ((a as Record<string, unknown>).quality_score as number || 0);
+    });
 
     // Separate candidates into publish-ready and needs-enhancement.
     //

@@ -151,6 +151,117 @@ export async function getRevenueReport(siteId?: string): Promise<RevenueReport> 
 }
 
 // ---------------------------------------------------------------------------
+// Revenue Per Article — links affiliate clicks to specific articles via SID
+// ---------------------------------------------------------------------------
+
+export interface ArticleRevenueReport {
+  articleSlug: string;
+  articleTitle: string;
+  clicks7d: number;
+  clicks30d: number;
+  revenue30d: number;
+  topPartner: string | null;
+  lastClickAt: string | null;
+}
+
+/**
+ * Get affiliate revenue attribution per article.
+ * Uses CjClickEvent.sessionId (format: "{siteId}_{articleSlug}") to link clicks to articles,
+ * and CjCommission.sid to link revenue back to the originating article.
+ */
+export async function getRevenueByArticle(siteId?: string): Promise<ArticleRevenueReport[]> {
+  const { prisma } = await import("@/lib/db");
+
+  const now = new Date();
+  const d7 = new Date(now.getTime() - 7 * 86400_000);
+  const d30 = new Date(now.getTime() - 30 * 86400_000);
+
+  const siteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
+
+  // Fetch clicks grouped by page URL (which contains article slug)
+  const [clicks7d, clicks30d, commissions] = await Promise.all([
+    prisma.cjClickEvent.findMany({
+      where: { createdAt: { gte: d7 }, ...siteFilter },
+      select: { pageUrl: true, sessionId: true, createdAt: true },
+    }),
+    prisma.cjClickEvent.findMany({
+      where: { createdAt: { gte: d30 }, ...siteFilter },
+      select: { pageUrl: true, sessionId: true, createdAt: true },
+    }),
+    prisma.cjCommission.findMany({
+      where: { eventDate: { gte: d30 }, ...siteFilter },
+      select: { commissionAmount: true, sid: true, advertiser: { select: { name: true } } },
+    }),
+  ]);
+
+  // Extract article slug from pageUrl (e.g., "/blog/best-hotels-london" → "best-hotels-london")
+  // or from sessionId (e.g., "yalla-london_best-hotels-london" → "best-hotels-london")
+  const extractSlug = (pageUrl: string | null, sessionId: string | null): string => {
+    if (pageUrl) {
+      const match = pageUrl.match(/\/blog\/([^/?#]+)/);
+      if (match) return match[1];
+    }
+    if (sessionId && sessionId.includes("_")) {
+      return sessionId.split("_").slice(1).join("_");
+    }
+    return "unknown";
+  };
+
+  // Aggregate clicks by article
+  const articleMap = new Map<string, { clicks7d: number; clicks30d: number; revenue: number; lastClick: Date | null; partners: Set<string> }>();
+
+  for (const click of clicks30d) {
+    const slug = extractSlug(click.pageUrl, click.sessionId);
+    if (!articleMap.has(slug)) articleMap.set(slug, { clicks7d: 0, clicks30d: 0, revenue: 0, lastClick: null, partners: new Set() });
+    const entry = articleMap.get(slug)!;
+    entry.clicks30d++;
+    if (click.createdAt >= d7) entry.clicks7d++;
+    if (!entry.lastClick || click.createdAt > entry.lastClick) entry.lastClick = click.createdAt;
+  }
+
+  for (const click of clicks7d) {
+    const slug = extractSlug(click.pageUrl, click.sessionId);
+    if (!articleMap.has(slug)) articleMap.set(slug, { clicks7d: 0, clicks30d: 0, revenue: 0, lastClick: null, partners: new Set() });
+    // clicks7d already counted in the 30d loop above if within 7d
+  }
+
+  // Attribute revenue to articles via SID
+  for (const comm of commissions) {
+    if (comm.sid && comm.sid.includes("_")) {
+      const slug = comm.sid.split("_").slice(1).join("_");
+      if (!articleMap.has(slug)) articleMap.set(slug, { clicks7d: 0, clicks30d: 0, revenue: 0, lastClick: null, partners: new Set() });
+      const entry = articleMap.get(slug)!;
+      entry.revenue += comm.commissionAmount;
+      if (comm.advertiser?.name) entry.partners.add(comm.advertiser.name);
+    }
+  }
+
+  // Fetch article titles for known slugs
+  const slugs = [...articleMap.keys()].filter(s => s !== "unknown");
+  const articles = slugs.length > 0
+    ? await prisma.blogPost.findMany({
+        where: { slug: { in: slugs }, ...(siteId ? { siteId } : {}) },
+        select: { slug: true, title_en: true },
+      })
+    : [];
+  const titleMap = new Map(articles.map(a => [a.slug, a.title_en]));
+
+  // Build sorted result
+  return [...articleMap.entries()]
+    .filter(([slug]) => slug !== "unknown")
+    .map(([slug, data]) => ({
+      articleSlug: slug,
+      articleTitle: (titleMap.get(slug) as string) || slug,
+      clicks7d: data.clicks7d,
+      clicks30d: data.clicks30d,
+      revenue30d: data.revenue,
+      topPartner: data.partners.size > 0 ? [...data.partners][0] : null,
+      lastClickAt: data.lastClick?.toISOString() || null,
+    }))
+    .sort((a, b) => b.clicks30d - a.clicks30d);
+}
+
+// ---------------------------------------------------------------------------
 // Content Coverage Monitor
 // ---------------------------------------------------------------------------
 

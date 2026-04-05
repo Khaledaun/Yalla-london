@@ -292,6 +292,136 @@ export async function fetchGA4Metrics(
 }
 
 /**
+ * Fetch per-page engagement metrics for a specific article.
+ * Returns detailed engagement data including bounce rate, scroll events, and time on page.
+ */
+export async function fetchGA4PageMetrics(
+  pagePath: string,
+  startDate: string = "30daysAgo",
+  endDate: string = "today",
+): Promise<{
+  pageViews: number;
+  sessions: number;
+  avgEngagementTime: number;
+  bounceRate: number;
+  engagementRate: number;
+  newUsers: number;
+  returningUsers: number;
+} | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+
+  try {
+    const report = await runReport(creds.propertyId, token, {
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: "pagePath" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "pagePath",
+          stringFilter: { value: pagePath, matchType: "EXACT" },
+        },
+      },
+      metrics: [
+        { name: "screenPageViews" },
+        { name: "sessions" },
+        { name: "averageSessionDuration" },
+        { name: "bounceRate" },
+        { name: "engagementRate" },
+        { name: "newUsers" },
+        { name: "totalUsers" },
+      ],
+    });
+
+    const row = report?.rows?.[0];
+    if (!row) return null;
+
+    return {
+      pageViews: extractMetricValue(row, 0),
+      sessions: extractMetricValue(row, 1),
+      avgEngagementTime: Math.round(extractMetricValue(row, 2)),
+      bounceRate: Math.round(extractMetricValue(row, 3) * 10000) / 100,
+      engagementRate: Math.round(extractMetricValue(row, 4) * 10000) / 100,
+      newUsers: extractMetricValue(row, 5),
+      returningUsers: extractMetricValue(row, 6) - extractMetricValue(row, 5),
+    };
+  } catch (error) {
+    console.warn("[GA4] Failed to fetch page metrics:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
+ * Fetch device and traffic source breakdown.
+ * Returns how visitors access the site (mobile vs desktop, organic vs direct vs social).
+ */
+export async function fetchGA4TrafficBreakdown(
+  startDate: string = "7daysAgo",
+  endDate: string = "today",
+): Promise<{
+  byDevice: Array<{ device: string; sessions: number; bounceRate: number }>;
+  bySourceMedium: Array<{ source: string; medium: string; sessions: number; users: number }>;
+  byCountry: Array<{ country: string; sessions: number; users: number }>;
+} | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+
+  try {
+    // Parallel: device + source/medium + country
+    const [deviceReport, sourceReport, countryReport] = await Promise.all([
+      runReport(creds.propertyId, token, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "deviceCategory" }],
+        metrics: [{ name: "sessions" }, { name: "bounceRate" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 5,
+      }),
+      runReport(creds.propertyId, token, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 15,
+      }),
+      runReport(creds.propertyId, token, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "country" }],
+        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 10,
+      }),
+    ]);
+
+    return {
+      byDevice: (deviceReport?.rows || []).map((row: Record<string, unknown>) => ({
+        device: (row as any).dimensionValues?.[0]?.value || "unknown",
+        sessions: extractMetricValue(row, 0),
+        bounceRate: Math.round(extractMetricValue(row, 1) * 10000) / 100,
+      })),
+      bySourceMedium: (sourceReport?.rows || []).map((row: Record<string, unknown>) => ({
+        source: (row as any).dimensionValues?.[0]?.value || "(direct)",
+        medium: (row as any).dimensionValues?.[1]?.value || "(none)",
+        sessions: extractMetricValue(row, 0),
+        users: extractMetricValue(row, 1),
+      })),
+      byCountry: (countryReport?.rows || []).map((row: Record<string, unknown>) => ({
+        country: (row as any).dimensionValues?.[0]?.value || "unknown",
+        sessions: extractMetricValue(row, 0),
+        users: extractMetricValue(row, 1),
+      })),
+    };
+  } catch (error) {
+    console.warn("[GA4] Failed to fetch traffic breakdown:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
  * Check if GA4 credentials are properly configured.
  */
 export function isGA4Configured(): boolean {

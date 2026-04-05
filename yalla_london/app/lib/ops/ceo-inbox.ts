@@ -282,6 +282,13 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
     label: "Retry CTO agent maintenance",
     manualInstructions: "Go to Agent HQ → CTO tab → tap 'Run Maintenance'. Weekly scan/propose/execute cycle.",
   },
+
+  // ─── Affiliate Circuit Breaker ───────────────────────────────────────────
+  "cj-circuit-breaker": {
+    path: "/api/affiliate/cron/sync-advertisers",
+    label: "Reset CJ circuit breaker & re-sync advertisers",
+    manualInstructions: "Go to Affiliate HQ → System tab → tap 'Reset Circuit Breaker', then 'Sync Advertisers'. If it keeps failing, check CJ_API_TOKEN in Settings.",
+  },
 };
 
 // ─── Core Functions ────────────────────────────────────────────────────────

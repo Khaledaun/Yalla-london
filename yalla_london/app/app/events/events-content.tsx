@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLanguage } from "@/components/language-provider";
 import { getTranslation } from "@/lib/i18n";
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from "@/components/brand-kit";
+import AffiliateDisclosure from "@/components/affiliate/AffiliateDisclosure";
 import {
   ArrowRight,
   MapPin,
@@ -557,6 +558,7 @@ export default function EventsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
           </div>
         </div>
       </section>
+      <AffiliateDisclosure language={language as "en" | "ar"} className="mx-auto max-w-6xl px-4" />
     </div>
   );
 }

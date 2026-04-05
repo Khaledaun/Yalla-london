@@ -361,6 +361,17 @@ function recordCjFailure(): void {
   if (_circuitFailures >= CIRCUIT_BREAKER_THRESHOLD) {
     _circuitOpenedAt = Date.now();
     console.warn(`[cj-client] Circuit breaker OPEN after ${_circuitFailures} consecutive failures. Cooldown: ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`);
+    // Fire-and-forget: notify CEO Inbox so Khaled sees the outage
+    import("@/lib/ops/ceo-inbox")
+      .then(({ handleCronFailureNotice }) =>
+        handleCronFailureNotice(
+          "cj-circuit-breaker",
+          `CJ affiliate API circuit breaker OPEN after ${_circuitFailures} consecutive failures. Affiliate link sync, deal discovery, and commission tracking are paused for ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s.`,
+        ),
+      )
+      .catch((err) =>
+        console.warn("[cj-client] CEO Inbox notification failed:", err instanceof Error ? err.message : err),
+      );
   }
 }
 

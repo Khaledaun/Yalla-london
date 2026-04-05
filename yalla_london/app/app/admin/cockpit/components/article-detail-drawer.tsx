@@ -2,45 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import type { ContentItem } from "../types";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface ArticleDetail {
-  id: string;
-  type: "published" | "draft";
-  title: string;
-  titleAr: string | null;
-  slug: string | null;
-  url: string | null;
-  locale: string;
-  siteId: string;
-  status: string;
-  generatedAt: string;
-  publishedAt: string | null;
-  qualityScore: number | null;
-  seoScore: number | null;
-  wordCount: number;
-  internalLinksCount: number;
-  indexingStatus: string | null;
-  coverageState: string | null;
-  lastSubmittedAt: string | null;
-  lastCrawledAt: string | null;
-  gscClicks: number | null;
-  gscImpressions: number | null;
-  rejectionReason: string | null;
-  lastError: string | null;
-  plainError: string | null;
-  phase: string | null;
-  phaseProgress: number;
-  hoursInPhase: number;
-  pairedDraftId: string | null;
-  metaTitleEn: string | null;
-  metaDescriptionEn: string | null;
-  tags: string[];
-  topicTitle: string | null;
-  sourcePipeline?: string | null;
-  traceId?: string | null;
-}
+type ArticleDetail = ContentItem;
 
 interface Props {
   article: ArticleDetail;

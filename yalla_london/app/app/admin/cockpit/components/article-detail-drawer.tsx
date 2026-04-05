@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { ContentItem } from "../types";
+import { TrainJourneyTimeline } from "./tube-map/train-journey-timeline";
 
 type ArticleDetail = ContentItem;
 
@@ -48,6 +49,11 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
   const [saveResult, setSaveResult] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
+  const [showJourney, setShowJourney] = useState(false);
+  const [enhancePanel, setEnhancePanel] = useState<string | null>(null); // "photo"|"link"|"video"|"social"
+  const [enhanceInput, setEnhanceInput] = useState({ query: "", url: "", anchor: "", embedUrl: "", platform: "twitter" });
+  const [enhancing, setEnhancing] = useState(false);
+  const [enhanceResult, setEnhanceResult] = useState<string | null>(null);
 
   // Reset edit state when article changes
   useEffect(() => {
@@ -130,6 +136,45 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
       setActionLoading(null);
     }
   };
+
+  const runEnhance = useCallback(async (action: string) => {
+    setEnhancing(true);
+    setEnhanceResult(null);
+    try {
+      const payload: Record<string, string> = {
+        action,
+        articleId: article.id,
+        articleType: article.type === "published" ? "published" : "draft",
+        siteId,
+      };
+      if (action === "add_photo") payload.query = enhanceInput.query;
+      if (action === "add_link") { payload.url = enhanceInput.url; payload.anchorText = enhanceInput.anchor; }
+      if (action === "add_video") payload.embedUrl = enhanceInput.embedUrl;
+      if (action === "add_social_embed") { payload.embedUrl = enhanceInput.embedUrl; payload.platform = enhanceInput.platform; }
+
+      const res = await fetch("/api/admin/article-enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+        setEnhanceResult(`Error: ${j.message ?? "Failed"}`);
+        return;
+      }
+      const j = await res.json();
+      setEnhanceResult(j.success ? j.message : `Error: ${j.message}`);
+      if (j.success) {
+        setEnhancePanel(null);
+        setEnhanceInput({ query: "", url: "", anchor: "", embedUrl: "", platform: "twitter" });
+        onRefresh();
+      }
+    } catch (e) {
+      setEnhanceResult(`Error: ${e instanceof Error ? e.message : "Failed"}`);
+    } finally {
+      setEnhancing(false);
+    }
+  }, [article.id, article.type, siteId, enhanceInput, onRefresh]);
 
   const isPublished = article.type === "published";
   const isReservoir = article.status === "reservoir";
@@ -365,6 +410,153 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
               {actionResult}
             </p>
           )}
+
+          {/* ─── Journey Timeline (collapsible) ─────────────────────── */}
+          <div className="mt-4 border-t border-stone-200 pt-3">
+            <button
+              onClick={() => setShowJourney(!showJourney)}
+              className="flex items-center justify-between w-full text-xs font-semibold text-stone-500"
+            >
+              <span>Journey Timeline</span>
+              <span>{showJourney ? "▲" : "▼"}</span>
+            </button>
+            {showJourney && (
+              <div className="mt-2 bg-[#0F1419] rounded-xl p-3 -mx-1">
+                <TrainJourneyTimeline
+                  articleId={article.id}
+                  articleType={isPublished ? "published" : "draft"}
+                  currentPhase={article.phase ?? (isPublished ? "published" : null)}
+                  siteId={siteId}
+                  generatedAt={article.generatedAt ?? null}
+                  publishedAt={article.publishedAt ?? null}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* ─── Content Enhancement Panel ───────────────────────────── */}
+          <div className="mt-3 border-t border-stone-200 pt-3">
+            <p className="text-xs font-semibold text-stone-500 mb-2">Enhance Content</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {(["photo", "link", "video", "social"] as const).map((type) => {
+                const labels = { photo: "📷 Photo", link: "🔗 Link", video: "🎬 Video", social: "📱 Social" };
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setEnhancePanel(enhancePanel === type ? null : type);
+                      setEnhanceResult(null);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      enhancePanel === type
+                        ? "bg-[#3B7EA1] text-white"
+                        : "bg-stone-100 text-stone-600 active:scale-[0.97]"
+                    }`}
+                  >
+                    {labels[type]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {enhancePanel === "photo" && (
+              <div className="mt-2 space-y-2">
+                <input
+                  type="text"
+                  placeholder="Search Unsplash (e.g. luxury london hotel)"
+                  value={enhanceInput.query}
+                  onChange={(e) => setEnhanceInput({ ...enhanceInput, query: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm"
+                />
+                <button
+                  onClick={() => runEnhance("add_photo")}
+                  disabled={enhancing || !enhanceInput.query}
+                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {enhancing ? "Adding…" : "Add Photo"}
+                </button>
+              </div>
+            )}
+
+            {enhancePanel === "link" && (
+              <div className="mt-2 space-y-2">
+                <input
+                  type="url"
+                  placeholder="URL (https://...)"
+                  value={enhanceInput.url}
+                  onChange={(e) => setEnhanceInput({ ...enhanceInput, url: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Anchor text"
+                  value={enhanceInput.anchor}
+                  onChange={(e) => setEnhanceInput({ ...enhanceInput, anchor: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm"
+                />
+                <button
+                  onClick={() => runEnhance("add_link")}
+                  disabled={enhancing || !enhanceInput.url || !enhanceInput.anchor}
+                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {enhancing ? "Adding…" : "Add Link"}
+                </button>
+              </div>
+            )}
+
+            {enhancePanel === "video" && (
+              <div className="mt-2 space-y-2">
+                <input
+                  type="url"
+                  placeholder="YouTube or Vimeo URL"
+                  value={enhanceInput.embedUrl}
+                  onChange={(e) => setEnhanceInput({ ...enhanceInput, embedUrl: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm"
+                />
+                <button
+                  onClick={() => runEnhance("add_video")}
+                  disabled={enhancing || !enhanceInput.embedUrl}
+                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {enhancing ? "Embedding…" : "Embed Video"}
+                </button>
+              </div>
+            )}
+
+            {enhancePanel === "social" && (
+              <div className="mt-2 space-y-2">
+                <select
+                  value={enhanceInput.platform}
+                  onChange={(e) => setEnhanceInput({ ...enhanceInput, platform: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm"
+                >
+                  <option value="twitter">Twitter / X</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="tiktok">TikTok</option>
+                </select>
+                <input
+                  type="url"
+                  placeholder="Post URL"
+                  value={enhanceInput.embedUrl}
+                  onChange={(e) => setEnhanceInput({ ...enhanceInput, embedUrl: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm"
+                />
+                <button
+                  onClick={() => runEnhance("add_social_embed")}
+                  disabled={enhancing || !enhanceInput.embedUrl}
+                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {enhancing ? "Embedding…" : "Embed Post"}
+                </button>
+              </div>
+            )}
+
+            {enhanceResult && (
+              <p className={`text-xs mt-2 ${enhanceResult.startsWith("Error") ? "text-[#C8322B]" : "text-[#2D5A3D]"}`}>
+                {enhanceResult}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons — sticky at bottom */}

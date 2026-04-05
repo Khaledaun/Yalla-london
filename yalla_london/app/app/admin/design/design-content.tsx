@@ -104,6 +104,10 @@ export default function DesignContent() {
   const [isSeedingVideos, setIsSeedingVideos] = useState(false);
   const [seedResult, setSeedResult] = useState<{ success: boolean; seeded: number; skipped: number; total: number } | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isSeedingTemplates, setIsSeedingTemplates] = useState(false);
+  const [templateSeedResult, setTemplateSeedResult] = useState<{ seeded: number; skipped: number } | null>(null);
+  const [canvaTemplates, setCanvaTemplates] = useState<Array<{ id: string; name: string; source: string; previewUrl?: string; cdnUrl?: string; canvaAssetId?: string; width?: number; height?: number }>>([]);
+  const [selectedBrand, setSelectedBrand] = useState<string>("yalla-london");
 
   useEffect(() => {
     loadData();
@@ -228,6 +232,46 @@ export default function DesignContent() {
     }
     setIsSeedingVideos(false);
   };
+
+  const loadCanvaTemplates = async (brand: string) => {
+    try {
+      const res = await fetch(`/api/admin/canva-templates?brand=${brand}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCanvaTemplates(data.templates || []);
+    } catch (err) {
+      console.warn("[design-hub] Failed to load Canva templates:", err);
+    }
+  };
+
+  const handleSeedCanvaTemplates = async () => {
+    setIsSeedingTemplates(true);
+    setTemplateSeedResult(null);
+    try {
+      const res = await fetch("/api/admin/canva-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "seed" }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setTemplateSeedResult({ seeded: data.seeded, skipped: data.skipped });
+      if (data.seeded > 0) {
+        toast.success(`Seeded ${data.seeded} Canva template${data.seeded !== 1 ? "s" : ""} to media library`);
+        loadData();
+      } else {
+        toast.info("All Canva templates already seeded");
+      }
+    } catch (err) {
+      console.warn("[design-hub] Seed Canva templates failed:", err);
+      toast.error("Failed to seed Canva templates");
+    }
+    setIsSeedingTemplates(false);
+  };
+
+  useEffect(() => {
+    loadCanvaTemplates(selectedBrand);
+  }, [selectedBrand]);
 
   // ─── Render ──────────────────────────────────────────────────
 
@@ -367,7 +411,118 @@ export default function DesignContent() {
                 </div>
               </div>
             </div>
+
+            {/* Canva Templates seed card */}
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 shrink-0">
+                  <FileImage className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Canva Brand Templates</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    30 templates across 3 brands — PDF covers, social, Etsy, email headers
+                  </p>
+                  <button
+                    className="admin-btn admin-btn-primary text-sm px-3 py-1.5 mt-3 inline-flex items-center gap-1"
+                    onClick={handleSeedCanvaTemplates}
+                    disabled={isSeedingTemplates}
+                  >
+                    {isSeedingTemplates ? (
+                      <><RefreshCw className="h-4 w-4 animate-spin" /> Seeding...</>
+                    ) : (
+                      <><FileImage className="h-4 w-4" /> Seed Templates</>
+                    )}
+                  </button>
+                  {templateSeedResult && (
+                    <p className="text-xs mt-2 text-green-600 dark:text-green-400">
+                      Done: {templateSeedResult.seeded} seeded, {templateSeedResult.skipped} existed
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
+
+        {/* Canva Brand Templates */}
+        <section>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Canva Brand Templates</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">30 pre-designed templates across 3 brands — PDF covers, social posts, Etsy listings, email headers</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedBrand}
+                onChange={(e) => setSelectedBrand(e.target.value)}
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="yalla-london">Yalla London</option>
+                <option value="zenitha-luxury">Zenitha.Luxury</option>
+                <option value="zenitha-yachts">Zenitha Yachts</option>
+              </select>
+              <button
+                className="admin-btn admin-btn-secondary text-sm px-3 py-1.5 inline-flex items-center gap-1"
+                onClick={handleSeedCanvaTemplates}
+                disabled={isSeedingTemplates}
+              >
+                {isSeedingTemplates ? (
+                  <><RefreshCw className="h-4 w-4 animate-spin" /> Seeding...</>
+                ) : (
+                  <><Plus className="h-4 w-4" /> Seed All to Library</>
+                )}
+              </button>
+            </div>
+          </div>
+          {templateSeedResult && (
+            <p className="text-xs text-green-600 dark:text-green-400 mb-3">
+              Done: {templateSeedResult.seeded} seeded, {templateSeedResult.skipped} already existed
+            </p>
+          )}
+          {canvaTemplates.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {canvaTemplates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="group rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="aspect-[3/4] bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
+                    {(tpl.cdnUrl || tpl.previewUrl) ? (
+                      <NextImage
+                        src={tpl.cdnUrl || tpl.previewUrl || ""}
+                        alt={tpl.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FileImage className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                      </div>
+                    )}
+                    {tpl.canvaAssetId && (
+                      <span className="absolute top-2 right-2 text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded">
+                        Canva
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{tpl.name}</p>
+                    {tpl.width && tpl.height && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{tpl.width}×{tpl.height}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-8 text-center">
+              <FileImage className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading templates...</p>
+            </div>
+          )}
         </section>
 
         {/* Quick Create */}

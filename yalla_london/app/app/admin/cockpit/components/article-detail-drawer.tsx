@@ -287,9 +287,9 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
               <div className="flex justify-between text-sm">
                 <span className="text-stone-500">Indexing</span>
                 <span className={`font-medium ${
-                  article.indexingStatus === "indexed" ? "text-[#2D5A3D]" :
+                  article.indexingStatus === "indexed" ? "text-[var(--admin-green,#2D5A3D)]" :
                   article.indexingStatus === "submitted" ? "text-[#3B7EA1]" :
-                  article.indexingStatus === "error" ? "text-[#C8322B]" :
+                  article.indexingStatus === "error" ? "text-[var(--admin-red,#C8322B)]" :
                   "text-stone-400"
                 }`}>
                   {article.indexingStatus ? article.indexingStatus.charAt(0).toUpperCase() + article.indexingStatus.slice(1) : "Not tracked"}
@@ -326,7 +326,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                   rows={3}
                   className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-[#3B7EA1]"
                 />
-                <p className={`text-right text-[10px] mt-0.5 ${editMetaDesc.length > 160 ? "text-[#C8322B]" : editMetaDesc.length < 120 ? "text-[#C49A2A]" : "text-[#2D5A3D]"}`}>
+                <p className={`text-right text-[10px] mt-0.5 ${editMetaDesc.length > 160 ? "text-[var(--admin-red,#C8322B)]" : editMetaDesc.length < 120 ? "text-[#C49A2A]" : "text-[var(--admin-green,#2D5A3D)]"}`}>
                   {editMetaDesc.length}/160 chars
                 </p>
               </div>
@@ -360,7 +360,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-stone-500">Time in Phase</span>
-                  <span className={`font-medium ${article.hoursInPhase > 6 ? "text-[#C8322B]" : article.hoursInPhase > 2 ? "text-[#C49A2A]" : "text-[#2D5A3D]"}`}>
+                  <span className={`font-medium ${article.hoursInPhase > 6 ? "text-[var(--admin-red,#C8322B)]" : article.hoursInPhase > 2 ? "text-[#C49A2A]" : "text-[var(--admin-green,#2D5A3D)]"}`}>
                     {article.hoursInPhase < 1 ? `${Math.round(article.hoursInPhase * 60)}m` : `${Math.round(article.hoursInPhase)}h`}
                   </span>
                 </div>
@@ -382,10 +382,10 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
           {/* Error */}
           {(article.plainError || article.rejectionReason) && (
             <div className="rounded-xl p-3" style={{ backgroundColor: "rgba(200,50,43,0.05)" }}>
-              <h4 className="text-xs font-semibold text-[#C8322B] uppercase tracking-wider mb-1">
+              <h4 className="text-xs font-semibold text-[var(--admin-red,#C8322B)] uppercase tracking-wider mb-1">
                 {article.rejectionReason ? "Rejection Reason" : "Last Error"}
               </h4>
-              <p className="text-sm text-[#C8322B]">{article.rejectionReason || article.plainError}</p>
+              <p className="text-sm text-[var(--admin-red,#C8322B)]">{article.rejectionReason || article.plainError}</p>
             </div>
           )}
 
@@ -399,14 +399,14 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
 
           {/* Save Result */}
           {saveResult && (
-            <p className={`text-sm font-medium ${saveResult.startsWith("Saved") ? "text-[#2D5A3D]" : "text-[#C8322B]"}`}>
+            <p className={`text-sm font-medium ${saveResult.startsWith("Saved") ? "text-[var(--admin-green,#2D5A3D)]" : "text-[var(--admin-red,#C8322B)]"}`}>
               {saveResult}
             </p>
           )}
 
           {/* Action Result */}
           {actionResult && (
-            <p className={`text-sm font-medium ${actionResult.includes("Error") || actionResult.includes("Failed") ? "text-[#C8322B]" : "text-[#2D5A3D]"}`}>
+            <p className={`text-sm font-medium ${actionResult.includes("Error") || actionResult.includes("Failed") ? "text-[var(--admin-red,#C8322B)]" : "text-[var(--admin-green,#2D5A3D)]"}`}>
               {actionResult}
             </p>
           )}
@@ -449,7 +449,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                     }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       enhancePanel === type
-                        ? "bg-[#3B7EA1] text-white"
+                        ? "bg-[var(--admin-blue,#3B7EA1)] text-white"
                         : "bg-stone-100 text-stone-600 active:scale-[0.97]"
                     }`}
                   >
@@ -471,7 +471,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                 <button
                   onClick={() => runEnhance("add_photo")}
                   disabled={enhancing || !enhanceInput.query}
-                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                  className="w-full py-2 rounded-lg bg-[var(--admin-blue,#3B7EA1)] text-white text-sm font-medium disabled:opacity-50"
                 >
                   {enhancing ? "Adding…" : "Add Photo"}
                 </button>
@@ -497,7 +497,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                 <button
                   onClick={() => runEnhance("add_link")}
                   disabled={enhancing || !enhanceInput.url || !enhanceInput.anchor}
-                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                  className="w-full py-2 rounded-lg bg-[var(--admin-blue,#3B7EA1)] text-white text-sm font-medium disabled:opacity-50"
                 >
                   {enhancing ? "Adding…" : "Add Link"}
                 </button>
@@ -516,7 +516,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                 <button
                   onClick={() => runEnhance("add_video")}
                   disabled={enhancing || !enhanceInput.embedUrl}
-                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                  className="w-full py-2 rounded-lg bg-[var(--admin-blue,#3B7EA1)] text-white text-sm font-medium disabled:opacity-50"
                 >
                   {enhancing ? "Embedding…" : "Embed Video"}
                 </button>
@@ -544,7 +544,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                 <button
                   onClick={() => runEnhance("add_social_embed")}
                   disabled={enhancing || !enhanceInput.embedUrl}
-                  className="w-full py-2 rounded-lg bg-[#3B7EA1] text-white text-sm font-medium disabled:opacity-50"
+                  className="w-full py-2 rounded-lg bg-[var(--admin-blue,#3B7EA1)] text-white text-sm font-medium disabled:opacity-50"
                 >
                   {enhancing ? "Embedding…" : "Embed Post"}
                 </button>
@@ -552,7 +552,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
             )}
 
             {enhanceResult && (
-              <p className={`text-xs mt-2 ${enhanceResult.startsWith("Error") ? "text-[#C8322B]" : "text-[#2D5A3D]"}`}>
+              <p className={`text-xs mt-2 ${enhanceResult.startsWith("Error") ? "text-[var(--admin-red,#C8322B)]" : "text-[var(--admin-green,#2D5A3D)]"}`}>
                 {enhanceResult}
               </p>
             )}
@@ -567,8 +567,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all active:scale-[0.97]"
-                style={{ backgroundColor: "#3B7EA1" }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all active:scale-[0.97] bg-[var(--admin-blue,#3B7EA1)]"
               >
                 {saving ? "Saving…" : "Save Changes"}
               </button>
@@ -600,22 +599,20 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                   )}
                   <button
                     onClick={() => setEditMode(true)}
-                    className="py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97]"
-                    style={{ backgroundColor: "#3B7EA1" }}
+                    className="py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97] bg-[var(--admin-blue,#3B7EA1)]"
                   >
                     Edit
                   </button>
                   <Link
                     href={`/admin/articles/edit/${article.id}`}
-                    className="py-2.5 rounded-xl text-sm font-semibold text-center transition-all active:scale-[0.97] border border-stone-200 text-stone-600"
+                    className="py-2.5 rounded-xl text-sm font-semibold text-center transition-all active:scale-[0.97] border border-[var(--admin-border)] text-[var(--admin-text-secondary,#57534e)]"
                   >
                     Full Editor
                   </Link>
                   <button
                     onClick={() => doAction("reindex", "Re-index")}
                     disabled={actionLoading === "reindex"}
-                    className="py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50"
-                    style={{ backgroundColor: "#EDE7F6", color: "#5B21B6" }}
+                    className="py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 bg-[rgba(124,58,237,0.08)] text-[#5B21B6]"
                   >
                     {actionLoading === "reindex" ? "…" : "Submit to Google"}
                   </button>
@@ -628,15 +625,13 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                   <button
                     onClick={() => doAction("publish", "Publish")}
                     disabled={actionLoading === "publish"}
-                    className="py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97] disabled:opacity-50"
-                    style={{ backgroundColor: "#2D5A3D" }}
+                    className="py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.97] disabled:opacity-50 bg-[var(--admin-green,#2D5A3D)]"
                   >
                     {actionLoading === "publish" ? "Publishing…" : "Publish Now"}
                   </button>
                   <button
                     onClick={() => setEditMode(true)}
-                    className="py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97]"
-                    style={{ backgroundColor: "#E3F2FD", color: "#1565C0" }}
+                    className="py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] bg-[rgba(59,126,161,0.1)] text-[var(--admin-blue,#3B7EA1)]"
                   >
                     Edit
                   </button>
@@ -648,8 +643,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
                 <button
                   onClick={() => doAction("re_queue", "Re-queue")}
                   disabled={actionLoading === "re_queue"}
-                  className="py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50"
-                  style={{ backgroundColor: "#FFF3E0", color: "#E65100" }}
+                  className="py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 bg-[rgba(196,154,42,0.08)] text-[var(--admin-gold,#C49A2A)]"
                 >
                   {actionLoading === "re_queue" ? "…" : "Retry"}
                 </button>
@@ -672,7 +666,7 @@ export function ArticleDetailDrawer({ article, onClose, onAction, onRefresh, sit
               <button
                 onClick={() => doAction("delete", "Delete")}
                 disabled={actionLoading === "delete"}
-                className="flex-1 py-2 rounded-xl text-xs font-medium text-[#C8322B] border border-[#C8322B]/20 transition-all active:scale-[0.97] disabled:opacity-50"
+                className="flex-1 py-2 rounded-xl text-xs font-medium text-[var(--admin-red,#C8322B)] border border-[#C8322B]/20 transition-all active:scale-[0.97] disabled:opacity-50"
               >
                 {actionLoading === "delete" ? "…" : "Delete"}
               </button>

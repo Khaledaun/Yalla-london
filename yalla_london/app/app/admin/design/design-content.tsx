@@ -339,6 +339,41 @@ export default function DesignContent() {
     setVideoSetupRunning(false);
   };
 
+  const [quickCreateTitle, setQuickCreateTitle] = useState("");
+  const [quickCreateAction, setQuickCreateAction] = useState<string | null>(null);
+  const [quickCreating, setQuickCreating] = useState(false);
+  const [quickCreateResult, setQuickCreateResult] = useState<{ url: string; width: number; height: number; action: string } | null>(null);
+
+  const handleQuickCreate = async (action: string, format?: string) => {
+    if (!quickCreateTitle.trim()) {
+      toast.error("Enter a title first");
+      return;
+    }
+    setQuickCreating(true);
+    setQuickCreateAction(action);
+    setQuickCreateResult(null);
+    try {
+      const siteId = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)?.[1] || getDefaultSiteId();
+      const res = await fetch("/api/admin/design-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, title: quickCreateTitle, siteId, format }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setQuickCreateResult({ url: data.image.url, width: data.image.width, height: data.image.height, action });
+      toast.success(`${action} created and saved to media library`);
+      loadData();
+    } catch (err) {
+      toast.error(`Failed: ${err instanceof Error ? err.message : "unknown"}`);
+    }
+    setQuickCreating(false);
+    setQuickCreateAction(null);
+  };
+
   // ─── Render ──────────────────────────────────────────────────
 
   return (
@@ -670,6 +705,85 @@ export default function DesignContent() {
             <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-8 text-center">
               <FileImage className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
               <p className="text-sm text-gray-500 dark:text-gray-400">Loading templates...</p>
+            </div>
+          )}
+        </section>
+
+        {/* One-Tap Branded Asset Generator */}
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">One-Tap Create</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Type a title, tap a format — branded image saved to your media library instantly.
+          </p>
+
+          {/* Title input */}
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              value={quickCreateTitle}
+              onChange={(e) => setQuickCreateTitle(e.target.value)}
+              placeholder="Enter title (e.g., Top 5 Halal Restaurants in Mayfair)"
+              className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400"
+            />
+          </div>
+
+          {/* Format buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { action: "social-post", format: "square", label: "Instagram Post", sub: "1080×1080", icon: "📸" },
+              { action: "social-post", format: "story", label: "Story / Reel", sub: "1080×1920", icon: "📱" },
+              { action: "etsy-listing", label: "Etsy Listing", sub: "1200×800", icon: "🏷️" },
+              { action: "email-header", label: "Email Header", sub: "600×200", icon: "✉️" },
+              { action: "pdf-cover", label: "PDF Cover", sub: "1200×1600", icon: "📄" },
+              { action: "blog-og", label: "Blog OG Image", sub: "1080×1080", icon: "🔗" },
+            ].map((item) => (
+              <button
+                key={`${item.action}-${item.format || ""}`}
+                onClick={() => handleQuickCreate(item.action, item.format)}
+                disabled={quickCreating || !quickCreateTitle.trim()}
+                className={`rounded-xl border p-4 text-left transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                  quickCreating && quickCreateAction === item.action
+                    ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950"
+                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-indigo-300"
+                }`}
+              >
+                <div className="text-2xl mb-2">{item.icon}</div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {quickCreating && quickCreateAction === item.action ? (
+                    <span className="inline-flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin" /> Creating...
+                    </span>
+                  ) : (
+                    item.label
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{item.sub}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Result preview */}
+          {quickCreateResult && (
+            <div className="mt-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 p-4 flex items-start gap-4">
+              <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0">
+                <NextImage
+                  src={quickCreateResult.url}
+                  alt="Generated asset"
+                  width={quickCreateResult.width}
+                  height={quickCreateResult.height}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  <CheckCircle className="h-4 w-4 inline mr-1" />
+                  {quickCreateResult.action} created and saved to media library
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  {quickCreateResult.width}×{quickCreateResult.height} — ready to use in articles, emails, and social posts
+                </p>
+              </div>
             </div>
           )}
         </section>

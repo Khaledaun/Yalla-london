@@ -1,6 +1,9 @@
 'use client'
 
 import React, { ReactNode } from 'react'
+import { getBrandDefaults } from '@/lib/design/brand-defaults'
+
+const BD = getBrandDefaults();
 
 // ── Sticky Action Bar ───────────────────────────────────────────────────────────
 // Sticks to the bottom of the viewport on mobile so the primary action
@@ -23,7 +26,7 @@ export function StickyActionBar({ children, className = '' }: StickyActionBarPro
         ${className}
       `}
       style={{
-        backgroundColor: '#FAF8F4',
+        backgroundColor: BD.cream,
         boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
         // Desktop: remove mobile shadow
       }}
@@ -73,8 +76,8 @@ export function ActionButton({
         textTransform: 'uppercase',
         letterSpacing: 1,
         minHeight: 48, // WCAG 2.2 target size
-        color: isPrimary ? '#FAF8F4' : '#1C1917',
-        backgroundColor: isPrimary ? '#C8322B' : '#FAF8F4',
+        color: isPrimary ? BD.cream : BD.primary,
+        backgroundColor: isPrimary ? BD.secondary : BD.cream,
         boxShadow: isPrimary
           ? '0 1px 3px rgba(28,25,23,0.08), 0 0 0 1px rgba(200,50,43,0.2)'
           : '0 1px 2px rgba(28,25,23,0.04)',

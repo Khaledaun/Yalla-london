@@ -7,9 +7,9 @@ import {
   Source_Serif_4,
   IBM_Plex_Mono,
   Noto_Sans_Arabic,
-  Playfair_Display,
-  DM_Sans,
-  Source_Sans_3,
+  Cinzel,
+  Montserrat,
+  Cormorant_Garamond,
   IBM_Plex_Sans_Arabic,
   JetBrains_Mono,
 } from "next/font/google";
@@ -62,21 +62,21 @@ const notoSansArabic = Noto_Sans_Arabic({
 });
 
 // ─── Zenitha Yachts Fonts ───
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  display: "swap",
-  variable: "--z-font-display",
-});
-const dmSans = DM_Sans({
+const cinzel = Cinzel({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
+  variable: "--z-font-display",
+});
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
   variable: "--z-font-heading",
 });
-const sourceSans3 = Source_Sans_3({
+const cormorantGaramond = Cormorant_Garamond({
   subsets: ["latin"],
-  weight: ["300", "400", "600"],
+  weight: ["300", "400", "500", "600"],
   display: "swap",
   variable: "--z-font-body",
 });
@@ -194,7 +194,7 @@ export default async function RootLayout({
 
   // Build font CSS variable classes — next/font self-hosts woff2 files, eliminating render-blocking Google Fonts CSS
   const yallaFontVars = `${anybody.variable} ${sourceSerif4.variable} ${ibmPlexMono.variable} ${notoSansArabic.variable}`;
-  const zenithFontVars = `${playfairDisplay.variable} ${dmSans.variable} ${sourceSans3.variable} ${ibmPlexSansArabic.variable} ${jetbrainsMono.variable}`;
+  const zenithFontVars = `${cinzel.variable} ${montserrat.variable} ${cormorantGaramond.variable} ${ibmPlexSansArabic.variable} ${jetbrainsMono.variable}`;
   const fontVarClasses = isYachtSite ? zenithFontVars : yallaFontVars;
 
   return (

@@ -1,11 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, Globe, Compass } from 'lucide-react';
-import { useLanguage } from '@/components/language-provider';
-import { LogoHorizontal } from '@/components/zenitha/zenitha-logo';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { Menu, X, ChevronDown, Globe, Compass } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
 /* ════════════════════════════════════════════════════════════════════
    NAV CONFIG — matches the URL structure in the user specification.
@@ -21,38 +20,38 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   {
-    label: { en: 'Destinations', ar: 'الوجهات' },
-    href: '/destinations',
+    label: { en: "Destinations", ar: "الوجهات" },
+    href: "/destinations",
     children: [
-      { label: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, href: '/destinations/greek-islands' },
-      { label: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, href: '/destinations/croatian-coast' },
-      { label: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, href: '/destinations/turkish-riviera' },
-      { label: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, href: '/destinations/french-riviera' },
-      { label: { en: 'Amalfi Coast', ar: 'ساحل أمالفي' }, href: '/destinations/amalfi-coast' },
-      { label: { en: 'Dubai & Abu Dhabi', ar: 'دبي وأبوظبي' }, href: '/destinations/arabian-gulf' },
-      { label: { en: 'Ibiza & Balearics', ar: 'إيبيزا والبليار' }, href: '/destinations/balearic-islands' },
-      { label: { en: 'View All Destinations', ar: 'جميع الوجهات' }, href: '/destinations' },
+      { label: { en: "Greek Islands", ar: "الجزر اليونانية" }, href: "/destinations/greek-islands" },
+      { label: { en: "Croatian Coast", ar: "ساحل كرواتيا" }, href: "/destinations/croatian-coast" },
+      { label: { en: "Turkish Riviera", ar: "الريفيرا التركية" }, href: "/destinations/turkish-riviera" },
+      { label: { en: "French Riviera", ar: "الريفيرا الفرنسية" }, href: "/destinations/french-riviera" },
+      { label: { en: "Amalfi Coast", ar: "ساحل أمالفي" }, href: "/destinations/amalfi-coast" },
+      { label: { en: "Dubai & Abu Dhabi", ar: "دبي وأبوظبي" }, href: "/destinations/arabian-gulf" },
+      { label: { en: "Ibiza & Balearics", ar: "إيبيزا والبليار" }, href: "/destinations/balearic-islands" },
+      { label: { en: "View All Destinations", ar: "جميع الوجهات" }, href: "/destinations" },
     ],
   },
   {
-    label: { en: 'Fleet', ar: 'الأسطول' },
-    href: '/fleet',
+    label: { en: "Fleet", ar: "الأسطول" },
+    href: "/fleet",
   },
   {
-    label: { en: 'How It Works', ar: 'كيف يعمل' },
-    href: '/how-it-works',
+    label: { en: "How It Works", ar: "كيف يعمل" },
+    href: "/how-it-works",
   },
   {
-    label: { en: 'Journal', ar: 'المجلة' },
-    href: '/journal',
+    label: { en: "Journal", ar: "المجلة" },
+    href: "/journal",
   },
   {
-    label: { en: 'About', ar: 'من نحن' },
-    href: '/about',
+    label: { en: "About", ar: "من نحن" },
+    href: "/about",
   },
   {
-    label: { en: 'Contact', ar: 'تواصل معنا' },
-    href: '/contact',
+    label: { en: "Contact", ar: "تواصل معنا" },
+    href: "/contact",
   },
 ];
 
@@ -60,15 +59,15 @@ const NAV_LINKS: NavLink[] = [
    LOGO — Official brand logo from zenitha-logo.tsx
    ════════════════════════════════════════════════════════════════════ */
 
-function ZenithaLogo({ className = '', scrolled = false }: { className?: string; scrolled?: boolean }) {
+function ZenithaLogo({ scrolled = false }: { scrolled?: boolean }) {
   return (
-    <div className={`transition-all duration-300 ${className}`}>
-      <LogoHorizontal
-        textColor="#FFFFFF"
-        scale={scrolled ? 0.52 : 0.62}
-        showBg={false}
-      />
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/branding/zenitha-yachts/logo/compass-gold-navy-800.png"
+      alt="Zenitha Yachts"
+      className="transition-all duration-300"
+      style={{ height: scrolled ? 44 : 56, width: "auto" }}
+    />
   );
 }
 
@@ -91,7 +90,7 @@ function NavDropdown({
     <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
       <div
         className="min-w-[240px] rounded-xl bg-white shadow-lg border border-[var(--z-champagne,#e8e0d0)] py-2"
-        style={{ animation: 'fadeIn 150ms ease-out' }}
+        style={{ animation: "fadeIn 150ms ease-out" }}
       >
         {items.map((item, i) => (
           <Link
@@ -99,7 +98,7 @@ function NavDropdown({
             href={item.href}
             className="block px-5 py-2.5 text-sm font-body text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)] hover:text-[var(--z-sea,#0ea5a2)] transition-colors"
           >
-            {item.label[language as 'en' | 'ar'] || item.label.en}
+            {item.label[language as "en" | "ar"] || item.label.en}
           </Link>
         ))}
       </div>
@@ -120,28 +119,28 @@ export function ZenithaHeader() {
   const pathname = usePathname();
 
   const isActive = (href: string) => {
-    if (href === '/') return pathname === '/' || pathname === '/ar';
-    const clean = pathname.replace(/^\/ar/, '') || '/';
-    return clean === href || clean.startsWith(href + '/');
+    if (href === "/") return pathname === "/" || pathname === "/ar";
+    const clean = pathname.replace(/^\/ar/, "") || "/";
+    return clean === href || clean.startsWith(href + "/");
   };
 
   /* Track scroll for sticky header styling */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   /* Close on Escape */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setActiveDropdown(null);
         setMobileOpen(false);
       }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   const openDropdown = (idx: number) => {
@@ -151,30 +150,30 @@ export function ZenithaHeader() {
   const closeDropdown = () => {
     dropdownTimeout.current = setTimeout(() => setActiveDropdown(null), 180);
   };
-  const t = (obj: { en: string; ar: string }) => obj[language as 'en' | 'ar'] || obj.en;
+  const t = (obj: { en: string; ar: string }) => obj[language as "en" | "ar"] || obj.en;
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 backdrop-blur-md ${
-        scrolled
-          ? 'shadow-lg'
-          : ''
+        scrolled ? "shadow-lg" : ""
       }`}
       style={{
-        background: scrolled
-          ? 'rgba(10, 22, 40, 0.97)'
-          : 'rgba(10, 22, 40, 0.90)',
+        background: scrolled ? "rgba(10, 22, 40, 0.97)" : "rgba(10, 22, 40, 0.90)",
       }}
-      dir={isRTL ? 'rtl' : 'ltr'}
+      dir={isRTL ? "rtl" : "ltr"}
     >
       {/* Top accent line */}
       <div
         className="h-[2px] w-full"
-        style={{ background: 'linear-gradient(to right, var(--z-navy,#0a1628), var(--z-gold,#c9a96e), var(--z-sea,#0ea5a2))' }}
+        style={{
+          background: "linear-gradient(to right, var(--z-navy,#0a1628), var(--z-gold,#c9a96e), var(--z-sea,#0ea5a2))",
+        }}
       />
 
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
-        <div className={`flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-16' : 'h-[72px]'}`}>
+        <div
+          className={`flex items-center justify-between transition-all duration-300 ${scrolled ? "h-16" : "h-[72px]"}`}
+        >
           {/* ── Logo ── */}
           <Link href="/" className="hover:opacity-90 transition-opacity">
             <ZenithaLogo scrolled={scrolled} />
@@ -186,19 +185,19 @@ export function ZenithaHeader() {
               <div
                 key={idx}
                 className="relative"
-                onMouseEnter={() => item.children ? openDropdown(idx) : undefined}
-                onMouseLeave={() => item.children ? closeDropdown() : undefined}
+                onMouseEnter={() => (item.children ? openDropdown(idx) : undefined)}
+                onMouseLeave={() => (item.children ? closeDropdown() : undefined)}
               >
                 <Link
                   href={item.href}
                   className={`relative flex items-center gap-1 px-3.5 py-2 text-[14px] font-heading font-medium transition-colors duration-200 ${
                     isActive(item.href)
-                      ? 'text-[var(--z-gold,#c9a96e)]'
+                      ? "text-[var(--z-gold,#c9a96e)]"
                       : activeDropdown === idx
-                        ? 'text-[var(--z-gold,#c9a96e)]'
-                        : 'text-white/70 hover:text-white'
+                        ? "text-[var(--z-gold,#c9a96e)]"
+                        : "text-white/70 hover:text-white"
                   }`}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
+                  aria-current={isActive(item.href) ? "page" : undefined}
                 >
                   {isActive(item.href) && (
                     <span className="absolute bottom-0 left-3.5 right-3.5 h-[2px] rounded-full bg-[var(--z-gold,#c9a96e)]" />
@@ -207,17 +206,13 @@ export function ZenithaHeader() {
                   {item.children && (
                     <ChevronDown
                       size={14}
-                      className={`transition-transform duration-200 ${activeDropdown === idx ? 'rotate-180' : ''}`}
+                      className={`transition-transform duration-200 ${activeDropdown === idx ? "rotate-180" : ""}`}
                     />
                   )}
                 </Link>
 
                 {item.children && (
-                  <NavDropdown
-                    items={item.children}
-                    language={language}
-                    isOpen={activeDropdown === idx}
-                  />
+                  <NavDropdown items={item.children} language={language} isOpen={activeDropdown === idx} />
                 )}
               </div>
             ))}
@@ -226,21 +221,21 @@ export function ZenithaHeader() {
           {/* ── Right side: language + CTA ── */}
           <div className="hidden lg:flex items-center gap-3">
             <button
-              onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+              onClick={() => setLanguage(language === "en" ? "ar" : "en")}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-heading font-medium text-white/70 hover:text-white transition-colors"
-              aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
+              aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
             >
               <Globe size={16} />
-              {language === 'en' ? 'AR' : 'EN'}
+              {language === "en" ? "AR" : "EN"}
             </button>
 
             <Link
               href="/contact"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[14px] font-heading font-semibold text-white transition-all duration-200 hover:brightness-110"
-              style={{ background: 'var(--z-sea, #0ea5a2)' }}
+              style={{ background: "var(--z-sea, #0ea5a2)" }}
             >
               <Compass size={16} />
-              {t({ en: 'Plan Your Charter', ar: 'خطط رحلتك' })}
+              {t({ en: "Plan Your Charter", ar: "خطط رحلتك" })}
             </Link>
           </div>
 
@@ -248,7 +243,7 @@ export function ZenithaHeader() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="lg:hidden p-2 text-white"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -258,11 +253,18 @@ export function ZenithaHeader() {
 
       {/* ── Mobile Drawer ── */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 top-0 z-50 bg-white overflow-y-auto" style={{ animation: 'fadeIn 200ms ease-out' }}>
+        <div
+          className="lg:hidden fixed inset-0 top-0 z-50 overflow-y-auto"
+          style={{ background: "var(--z-navy, #0F1621)", animation: "fadeIn 200ms ease-out" }}
+        >
           {/* Mobile header */}
-          <div className="px-5 py-4 flex items-center justify-between border-b border-[var(--z-champagne,#e8e0d0)]">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-white/10">
             <ZenithaLogo />
-            <button onClick={() => setMobileOpen(false)} className="p-2 text-[var(--z-navy,#0a1628)]" aria-label="Close menu">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="p-2 text-white"
+              aria-label="Close menu"
+            >
               <X size={24} />
             </button>
           </div>
@@ -272,9 +274,9 @@ export function ZenithaHeader() {
             <Link
               href="/"
               onClick={() => setMobileOpen(false)}
-              className="block px-4 py-3 text-base font-heading font-medium text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)] rounded-lg"
+              className="block px-4 py-3 text-base font-heading font-medium text-white/80 hover:bg-white/5 rounded-lg"
             >
-              {t({ en: 'Home', ar: 'الرئيسية' })}
+              {t({ en: "Home", ar: "الرئيسية" })}
             </Link>
 
             {NAV_LINKS.map((item, idx) => (
@@ -284,10 +286,10 @@ export function ZenithaHeader() {
                   onClick={() => setMobileOpen(false)}
                   className={`block px-4 py-3 text-base font-heading font-medium rounded-lg ${
                     isActive(item.href)
-                      ? 'text-[var(--z-sea,#0ea5a2)] bg-[var(--z-sand,#f5f0e8)] border-l-2 border-[var(--z-sea,#0ea5a2)]'
-                      : 'text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)]'
+                      ? "text-[var(--z-gold,#C49A2A)] bg-white/5 border-l-2 border-[var(--z-gold,#C49A2A)]"
+                      : "text-white/80 hover:bg-white/5"
                   }`}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
+                  aria-current={isActive(item.href) ? "page" : undefined}
                 >
                   {t(item.label)}
                 </Link>
@@ -298,7 +300,7 @@ export function ZenithaHeader() {
                         key={ci}
                         href={child.href}
                         onClick={() => setMobileOpen(false)}
-                        className="block px-4 py-2 text-sm text-[var(--z-navy,#0a1628)]/80 hover:text-[var(--z-sea,#0ea5a2)] hover:bg-[var(--z-sand,#f5f0e8)] rounded"
+                        className="block px-4 py-2 text-sm text-white/60 hover:text-[var(--z-gold,#C49A2A)] hover:bg-white/5 rounded"
                       >
                         {t(child.label)}
                       </Link>
@@ -308,15 +310,18 @@ export function ZenithaHeader() {
               </div>
             ))}
 
-            <hr className="my-4 border-[var(--z-champagne,#e8e0d0)]" />
+            <hr className="my-4 border-white/10" />
 
             {/* Language */}
             <button
-              onClick={() => { setLanguage(language === 'en' ? 'ar' : 'en'); setMobileOpen(false); }}
-              className="flex items-center gap-2 px-4 py-3 text-base font-heading text-[var(--z-navy,#0a1628)] w-full hover:bg-[var(--z-sand,#f5f0e8)] rounded-lg"
+              onClick={() => {
+                setLanguage(language === "en" ? "ar" : "en");
+                setMobileOpen(false);
+              }}
+              className="flex items-center gap-2 px-4 py-3 text-base font-heading text-white/70 w-full hover:bg-white/5 rounded-lg"
             >
               <Globe size={18} />
-              {language === 'en' ? 'العربية' : 'English'}
+              {language === "en" ? "العربية" : "English"}
             </button>
 
             {/* CTA */}
@@ -325,10 +330,10 @@ export function ZenithaHeader() {
                 href="/contact"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center justify-center gap-2 w-full text-center text-base font-heading font-semibold text-white rounded-lg py-3.5 transition-all hover:brightness-110"
-                style={{ background: 'var(--z-sea, #0ea5a2)' }}
+                style={{ background: "var(--z-sea, #0ea5a2)" }}
               >
                 <Compass size={18} />
-                {t({ en: 'Plan Your Charter', ar: 'خطط رحلتك' })}
+                {t({ en: "Plan Your Charter", ar: "خطط رحلتك" })}
               </Link>
             </div>
           </nav>

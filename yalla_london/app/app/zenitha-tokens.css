@@ -4,9 +4,9 @@
    Version 1.0 | February 2026
    ═══════════════════════════════════════════════════════════════════════════
 
-   Color system:     Deep maritime blues + antique gold warmth
-   Typography:       Playfair Display (display) + DM Sans (heading) +
-                     Source Sans 3 (body) + IBM Plex Sans Arabic (AR) +
+   Color system:     Dark Navy #0F1621 + Royal Gold #C49A2A + Parchment #F5F0E6
+   Typography:       Cinzel (display/branding) + Cormorant Garamond (body) +
+                     Montserrat (UI/labels) + IBM Plex Sans Arabic (AR) +
                      JetBrains Mono (specs/data)
    Spacing:          8px base grid
    Motion:           Gentle, serene — slow luxury feel
@@ -20,16 +20,19 @@
 .zenitha-site {
 
   /* ── 1.1  Colors: Deep Maritime ────────────────────────────────────────── */
-  --z-navy:          #0A1628;
+  --z-navy:          #0F1621;
   --z-midnight:      #1B2A4A;
   --z-aegean:        #2E5A88;
   --z-ocean:         #4A90B8;
   --z-shallow:       #7CB8D4;
 
   /* ── 1.2  Colors: Gold & Warm ──────────────────────────────────────────── */
-  --z-gold:          #C9A96E;
+  --z-gold:          #C49A2A;
+  --z-gold-light:    #D4AF5A;
   --z-gold-dark:     #8B6914;       /* WCAG AA safe on white (4.56:1) — use for text on light bg */
   --z-champagne:     #E8D5B5;
+  --z-parchment:     #F5F0E6;
+  --z-charcoal:      #1E1E1E;
   --z-sand:          #F5EDE0;
   --z-pearl:         #FAFAF7;
   --z-white:         #FFFFFF;
@@ -68,9 +71,9 @@
 
 
   /* ── 2.1  Font Families ────────────────────────────────────────────────── */
-  --z-font-display:  'Playfair Display', Georgia, 'Times New Roman', serif;
-  --z-font-heading:  'DM Sans', 'Helvetica Neue', Arial, sans-serif;
-  --z-font-body:     'Source Sans 3', 'Segoe UI', Tahoma, sans-serif;
+  --z-font-display:  'Cinzel', Georgia, 'Times New Roman', serif;
+  --z-font-heading:  'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  --z-font-body:     'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   --z-font-arabic:   'IBM Plex Sans Arabic', 'Noto Sans Arabic', Tahoma, sans-serif;
   --z-font-mono:     'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 

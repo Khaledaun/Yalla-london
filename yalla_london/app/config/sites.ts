@@ -1572,8 +1572,8 @@ Always respond with valid JSON.`,
     destination: "Mediterranean",
     country: "International",
     currency: "EUR",
-    primaryColor: "#0A1628",
-    secondaryColor: "#C9A96E",
+    primaryColor: "#0F1621",
+    secondaryColor: "#C49A2A",
     systemPromptEN:
       `You are a senior luxury yacht charter content writer for Zenitha Yachts, a premium bilingual platform for discerning travelers seeking Mediterranean, Arabian Gulf, and Red Sea yacht charters. You combine first-hand sailing expertise with SEO mastery.
 

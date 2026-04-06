@@ -5,7 +5,7 @@ import { useLanguage } from '@/components/language-provider';
 import { Mail, MessageCircle, Instagram, Linkedin } from 'lucide-react';
 import { getCopyrightLine } from '@/config/entity';
 import { ZENITHA_CONTACT } from './zenitha-config';
-import { LogoHorizontal } from '@/components/zenitha/zenitha-logo';
+
 
 /* ════════════════════════════════════════════════════════════════════
    FOOTER NAV — aligned with header nav + legal/social
@@ -70,7 +70,8 @@ export function ZenithaFooter() {
           <div className="lg:col-span-2">
             {/* Logo */}
             <div className="mb-5">
-              <LogoHorizontal textColor="#FFFFFF" scale={0.55} showBg={false} />
+{/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/branding/zenitha-yachts/logo/compass-gold-navy-800.png" alt="Zenitha Yachts" style={{ height: 64, width: 'auto' }} />
             </div>
 
             {/* Brand description — global audience, specific countries */}

@@ -21,7 +21,7 @@ const PHOTOS = {
   turkishRiviera: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop',
   frenchRiviera: 'https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop',
   motorYacht: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=1200&q=80&auto=format&fit=crop',
-  catamaran: 'https://images.unsplash.com/photo-1724261813677-05803b039805?w=1200&q=80&auto=format&fit=crop',
+  catamaran: 'https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=1200&q=80&auto=format&fit=crop',
   sunset: 'https://images.unsplash.com/photo-1504472478235-9bc48ba4d60f?w=1200&q=80&auto=format&fit=crop',
   dining: 'https://images.unsplash.com/photo-1721488145498-3a8d7dfbab67?w=1200&q=80&auto=format&fit=crop',
 } as const;

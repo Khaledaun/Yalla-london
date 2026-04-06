@@ -60,12 +60,12 @@ const NAV_LINKS: NavLink[] = [
    LOGO — Official brand logo from zenitha-logo.tsx
    ════════════════════════════════════════════════════════════════════ */
 
-function ZenithaLogo({ className = '', dark = false }: { className?: string; dark?: boolean }) {
+function ZenithaLogo({ className = '', scrolled = false }: { className?: string; scrolled?: boolean }) {
   return (
-    <div className={className}>
+    <div className={`transition-all duration-300 ${className}`}>
       <LogoHorizontal
-        textColor={dark ? '#FFFFFF' : '#0A1628'}
-        scale={0.42}
+        textColor="#FFFFFF"
+        scale={scrolled ? 0.52 : 0.62}
         showBg={false}
       />
     </div>
@@ -155,11 +155,16 @@ export function ZenithaHeader() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 backdrop-blur-md ${
         scrolled
-          ? 'bg-white/[0.98] backdrop-blur-md shadow-lg'
-          : 'bg-white/95 backdrop-blur-sm'
+          ? 'shadow-lg'
+          : ''
       }`}
+      style={{
+        background: scrolled
+          ? 'rgba(10, 22, 40, 0.97)'
+          : 'rgba(10, 22, 40, 0.90)',
+      }}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       {/* Top accent line */}
@@ -171,8 +176,8 @@ export function ZenithaHeader() {
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <div className={`flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-16' : 'h-[72px]'}`}>
           {/* ── Logo ── */}
-          <Link href="/" className="text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)] transition-colors">
-            <ZenithaLogo />
+          <Link href="/" className="hover:opacity-90 transition-opacity">
+            <ZenithaLogo scrolled={scrolled} />
           </Link>
 
           {/* ── Desktop Nav ── */}
@@ -188,15 +193,15 @@ export function ZenithaHeader() {
                   href={item.href}
                   className={`relative flex items-center gap-1 px-3.5 py-2 text-[14px] font-heading font-medium transition-colors duration-200 ${
                     isActive(item.href)
-                      ? 'text-[var(--z-sea,#0ea5a2)]'
+                      ? 'text-[var(--z-gold,#c9a96e)]'
                       : activeDropdown === idx
-                        ? 'text-[var(--z-sea,#0ea5a2)]'
-                        : 'text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)]'
+                        ? 'text-[var(--z-gold,#c9a96e)]'
+                        : 'text-white/70 hover:text-white'
                   }`}
                   aria-current={isActive(item.href) ? 'page' : undefined}
                 >
                   {isActive(item.href) && (
-                    <span className="absolute bottom-0 left-3.5 right-3.5 h-[2px] rounded-full bg-[var(--z-sea,#0ea5a2)]" />
+                    <span className="absolute bottom-0 left-3.5 right-3.5 h-[2px] rounded-full bg-[var(--z-gold,#c9a96e)]" />
                   )}
                   {t(item.label)}
                   {item.children && (
@@ -222,7 +227,7 @@ export function ZenithaHeader() {
           <div className="hidden lg:flex items-center gap-3">
             <button
               onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-heading font-medium text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-heading font-medium text-white/70 hover:text-white transition-colors"
               aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
             >
               <Globe size={16} />
@@ -242,7 +247,7 @@ export function ZenithaHeader() {
           {/* ── Mobile hamburger ── */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-2 text-[var(--z-navy,#0a1628)]"
+            className="lg:hidden p-2 text-white"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
           >

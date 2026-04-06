@@ -2032,6 +2032,24 @@ export function getSiteDomain(siteId: string): string {
  *
  * Example: GSC_SITE_URL_ARABALDIVES → GSC_SITE_URL → sc-domain:{domain}
  */
+// Env var key aliases: siteId → [primary env key, ...fallback keys]
+// Handles cases where the user-friendly env var name differs from the auto-generated one
+// e.g., zenitha-yachts-med → ZENITHA_YACHTS_MED (auto) but user sets ZENITHA_YACHTS
+const ENV_KEY_ALIASES: Record<string, string[]> = {
+  "zenitha-yachts-med": ["ZENITHA_YACHTS_MED", "ZENITHA_YACHTS"],
+  "zenitha-luxury": ["ZENITHA_LUXURY"],
+  "yalla-london": ["YALLA_LONDON"],
+};
+
+function resolveEnvVar(prefix: string, siteId: string, fallbackVar?: string): string {
+  const aliases = ENV_KEY_ALIASES[siteId] || [siteId.toUpperCase().replace(/-/g, "_")];
+  for (const alias of aliases) {
+    const val = process.env[`${prefix}_${alias}`];
+    if (val) return val;
+  }
+  return (fallbackVar ? process.env[fallbackVar] : "") || "";
+}
+
 export function getSiteSeoConfig(siteId: string): {
   gscSiteUrl: string;
   ga4PropertyId: string;
@@ -2040,26 +2058,18 @@ export function getSiteSeoConfig(siteId: string): {
   indexNowKey: string;
 } {
   const site = SITES[siteId];
-  const envKey = siteId.toUpperCase().replace(/-/g, "_");
 
   return {
     gscSiteUrl:
-      process.env[`GSC_SITE_URL_${envKey}`] ||
-      process.env.GSC_SITE_URL ||
+      resolveEnvVar("GSC_SITE_URL", siteId, "GSC_SITE_URL") ||
       (site ? `sc-domain:${site.domain}` : ""),
     ga4PropertyId:
-      process.env[`GA4_PROPERTY_ID_${envKey}`] ||
-      process.env.GA4_PROPERTY_ID ||
-      "",
+      resolveEnvVar("GA4_PROPERTY_ID", siteId, "GA4_PROPERTY_ID"),
     ga4MeasurementId:
-      process.env[`GA4_MEASUREMENT_ID_${envKey}`] ||
-      process.env.GA4_MEASUREMENT_ID ||
-      "",
+      resolveEnvVar("GA4_MEASUREMENT_ID", siteId, "GA4_MEASUREMENT_ID"),
     siteUrl: site ? `https://www.${site.domain}` : process.env.NEXT_PUBLIC_SITE_URL || "",
     indexNowKey:
-      process.env[`INDEXNOW_KEY_${envKey}`] ||
-      process.env.INDEXNOW_KEY ||
-      "",
+      resolveEnvVar("INDEXNOW_KEY", siteId, "INDEXNOW_KEY"),
   };
 }
 

@@ -20,11 +20,27 @@ interface GA4EventParams {
   [key: string]: string | number | boolean | undefined;
 }
 
-function getConfig(): { measurementId: string; apiSecret: string } | null {
-  const measurementId =
-    process.env.GA4_MEASUREMENT_ID ||
-    process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
-    "";
+function getConfig(siteId?: string): { measurementId: string; apiSecret: string } | null {
+  let measurementId = "";
+
+  // Per-site measurement ID resolution — try exact key + alias (zenitha-yachts-med → ZENITHA_YACHTS)
+  if (siteId) {
+    const envKey = siteId.toUpperCase().replace(/-/g, "_");
+    measurementId = process.env[`GA4_MEASUREMENT_ID_${envKey}`] || "";
+    // Fallback: try without trailing _MED suffix (user-friendly env var names)
+    if (!measurementId && envKey.endsWith("_MED")) {
+      measurementId = process.env[`GA4_MEASUREMENT_ID_${envKey.replace(/_MED$/, "")}`] || "";
+    }
+  }
+
+  // Fallback to global
+  if (!measurementId) {
+    measurementId =
+      process.env.GA4_MEASUREMENT_ID ||
+      process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+      "";
+  }
+
   const apiSecret = process.env.GA4_API_SECRET || "";
 
   if (!measurementId || measurementId === "G-XXXXX" || !apiSecret) {
@@ -41,9 +57,10 @@ function getConfig(): { measurementId: string; apiSecret: string } | null {
 export async function fireGA4Event(
   eventName: string,
   params: GA4EventParams,
-  clientId?: string
+  clientId?: string,
+  siteId?: string,
 ): Promise<boolean> {
-  const config = getConfig();
+  const config = getConfig(siteId);
   if (!config) return false;
 
   // GA4 requires a client_id — use provided or generate a server-side one
@@ -116,7 +133,8 @@ export async function fireAffiliateClickEvent(opts: {
       country: opts.country,
       content_group: "monetization",
     },
-    opts.clientId
+    opts.clientId,
+    opts.siteId,
   );
 }
 

@@ -1558,14 +1558,15 @@ export async function promoteToBlogPost(
       console.warn(`[select-runner] ensureUrlTracked AR failed for ${slug}:`, err instanceof Error ? err.message : err);
     });
 
-    // Auto-queue featured image from Unsplash if missing
+    // Flag article for photo review — DO NOT auto-assign stock photos
+    // Articles publish without featured image; cockpit shows "Needs Photo" badge
+    // Owner manually uploads real, curated, high-quality photos via dashboard
     if (!blogPost.featured_image) {
-      const searchQuery = (cleanedEnTitle || slug).replace(/-/g, " ").substring(0, 60);
       prisma.blogPost.update({
         where: { id: blogPost.id },
-        data: { photo_order_status: "pending", photo_order_query: searchQuery },
+        data: { photo_order_status: "needs_review" },
       }).catch((err) => {
-        console.warn(`[select-runner] photo_order queue failed:`, err instanceof Error ? err.message : err);
+        console.warn(`[select-runner] photo flag failed:`, err instanceof Error ? err.message : err);
       });
     }
   }

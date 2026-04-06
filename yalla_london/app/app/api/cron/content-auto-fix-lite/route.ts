@@ -607,70 +607,19 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   } catch (e) { console.warn("[content-auto-fix-lite] Rejected draft cleanup failed:", e instanceof Error ? e.message : e); }
 
-  // ── Section 13: Photo Order Fulfillment ────────────────────────────────
+  // ── Section 13: Photo Order Fulfillment — DISABLED ─────────────────
+  // Policy: No auto-assigned stock photos. Owner manually curates real HQ photos.
+  // Articles with photo_order_status="needs_review" appear in cockpit for manual upload.
   let photoOrdersFulfilled = 0;
-  if (Date.now() - cronStart < BUDGET_MS - 15_000) {
-    try {
-      const pendingOrders = await prisma.blogPost.findMany({
-        where: { photo_order_status: "pending", photo_order_query: { not: null } },
-        select: { id: true, photo_order_query: true, enhancement_log: true },
-        take: 10,
-      });
-      if (pendingOrders.length > 0) {
-        const { getRandomPhoto, trackDownload, buildImageUrl } = await import("@/lib/apis/unsplash");
-        for (const post of pendingOrders) {
-          if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
-          try {
-            const photo = await getRandomPhoto(post.photo_order_query!, "landscape");
-            if (!photo) {
-              await prisma.blogPost.update({
-                where: { id: post.id },
-                data: { photo_order_status: "failed" },
-              });
-              continue;
-            }
-            const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, height: 675, quality: 80, format: "webp" });
-            const existingLog = Array.isArray(post.enhancement_log) ? post.enhancement_log as unknown[] : [];
-            const logEntry = {
-              type: "photo_order",
-              cron: "content-auto-fix-lite",
-              timestamp: new Date().toISOString(),
-              summary: `Photo ordered: "${post.photo_order_query}" → ${photo.id}`,
-            };
-            await prisma.blogPost.update({
-              where: { id: post.id },
-              data: {
-                featured_image: imageUrl,
-                photo_order_status: "fulfilled",
-                enhancement_log: [...existingLog, logEntry] as never,
-              },
-            });
-            // Required by Unsplash ToS
-            await trackDownload(photo.downloadUrl).catch((e: unknown) =>
-              console.warn("[auto-fix-lite] trackDownload failed:", e instanceof Error ? e.message : String(e))
-            );
-            photoOrdersFulfilled++;
-          } catch (e) {
-            console.warn("[auto-fix-lite] photo order fulfillment failed for", post.id, ":", e instanceof Error ? e.message : String(e));
-          }
-        }
-        if (photoOrdersFulfilled > 0) {
-          console.log(`[content-auto-fix-lite] Fulfilled ${photoOrdersFulfilled} photo orders`);
-        }
-      }
-    } catch (e) {
-      results.errors.push(`photo-orders: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
+  // Skipped — auto-Unsplash assignment disabled per brand policy.
+  // Articles with photo_order_status="needs_review" wait for manual photo upload.
 
-  // ── Section 14: Bad Featured Image Detection & Replacement ─────────
-  // Catches: AI-hallucinated URLs (404), non-London images (Statue of Liberty on London articles),
-  // missing featured images, and images from unrelated stock photo results
+  // ── Section 14: DISABLED — No auto image replacement ───────────────
+  // Policy: Only real, curated, high-quality photos. No AI stock photos.
+  // Articles without photos show a branded gradient placeholder on the blog page.
   let badImagesFixed = 0;
-  if (Date.now() - cronStart < BUDGET_MS - 20_000) {
-    try {
-      // Find published posts with suspicious or missing featured images
-      const postsToCheck = await prisma.blogPost.findMany({
+  /* DISABLED per brand policy — entire section commented out
+    const postsToCheck = await prisma.blogPost.findMany({
         where: {
           published: true,
           siteId: { in: activeSiteIds },
@@ -712,10 +661,7 @@ async function handleAutoFixLite(request: NextRequest) {
           }
         }
       }
-    } catch (e) {
-      results.errors.push(`bad-images: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
+  DISABLED per brand policy — end of commented section */
 
   // ── Section 15: Strip unapproved affiliate partner sections ────────
   // Removes "Recommended Partners" blocks that list partners we're not approved by

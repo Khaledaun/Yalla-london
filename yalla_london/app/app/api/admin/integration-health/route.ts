@@ -58,6 +58,13 @@ export async function GET(request: NextRequest) {
         select: { started_at: true },
       }).catch(() => null);
 
+      // List individual JOINED advertisers with their details
+      const joinedAdvertisers = await prisma.cjAdvertiser.findMany({
+        where: { status: "JOINED" },
+        select: { name: true, status: true, epc: true, cookieDuration: true },
+        take: 20,
+      }).catch(() => []);
+
       results.push({
         name: "CJ Affiliate",
         category: "affiliate",
@@ -65,7 +72,16 @@ export async function GET(request: NextRequest) {
         message: joinedCount > 0
           ? `${joinedCount} joined advertiser(s) of ${totalCount} total. Last sync: ${lastSync?.started_at ? timeAgo(lastSync.started_at) : "never"}`
           : `0 joined advertisers (${totalCount} total synced). Apply to advertisers in CJ dashboard.`,
-        details: { joinedCount, totalCount, lastSync: lastSync?.started_at },
+        details: {
+          joinedCount,
+          totalCount,
+          lastSync: lastSync?.started_at,
+          joinedAdvertisers: joinedAdvertisers.map(a => ({
+            name: a.name,
+            epc: a.epc,
+            cookieDays: a.cookieDuration,
+          })),
+        },
       });
     }
   } catch (e) {
@@ -80,14 +96,19 @@ export async function GET(request: NextRequest) {
     if (!tpMarker) {
       results.push({ name: "Travelpayouts", category: "affiliate", status: "not_configured", message: "NEXT_PUBLIC_TRAVELPAYOUTS_MARKER not set" });
     } else {
+      const tpPrograms = [
+        { name: "Welcome Pickups", commission: "8-9%", cookie: "45d", category: "Transport" },
+        { name: "Tiqets", commission: "3.5-8%", cookie: "30d", category: "Attractions" },
+        { name: "TicketNetwork", commission: "6-12.5%", cookie: "45d", category: "Events" },
+      ];
       results.push({
         name: "Travelpayouts",
         category: "affiliate",
         status: tpToken ? "ok" : "warning",
         message: tpToken
-          ? `Marker: ${tpMarker}. API token set. 3 programs connected (Welcome Pickups, Tiqets, TicketNetwork).`
+          ? `Marker: ${tpMarker}. API token set. ${tpPrograms.length} programs connected.`
           : `Marker: ${tpMarker} (Drive script loads). API token NOT set — advanced features unavailable.`,
-        details: { marker: tpMarker, apiTokenSet: !!tpToken },
+        details: { marker: tpMarker, apiTokenSet: !!tpToken, programs: tpPrograms },
       });
     }
   } catch (e) {

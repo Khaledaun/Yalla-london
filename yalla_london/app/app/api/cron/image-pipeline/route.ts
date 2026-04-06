@@ -42,8 +42,11 @@ export async function GET(request: NextRequest) {
 
     const activeSites = getActiveSiteIds();
 
-    // ── Step 1: Fill missing article featured images ─────────────────
-    for (const siteId of activeSites) {
+    // ── Step 1: DISABLED — No auto-fill article images ────────────────
+    // Policy: Only real, curated photos. Articles without photos show branded gradient.
+    // Owner uploads photos manually via dashboard /admin/media.
+    // Articles with photo_order_status="needs_review" are visible in cockpit.
+    if (false) { for (const siteId of activeSites) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
       const articles = await prisma.blogPost.findMany({
@@ -150,7 +153,7 @@ export async function GET(request: NextRequest) {
           }).catch(() => {});
         }
       }
-    }
+    } } // close disabled Step 1
 
     // ── Step 2: Pre-stock library with per-site travel imagery ────────
     // Pick 1 random query per site per run (stays within rate limits)

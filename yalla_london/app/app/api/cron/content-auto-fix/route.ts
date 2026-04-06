@@ -72,6 +72,82 @@ async function handleAutoFix(request: NextRequest) {
 
   // NOTE: Sections 1 (stuck recovery), 2 (heading fix) moved to content-auto-fix-lite
 
+  // ── 0. THIN CONTENT CLEANUP (zero AI, runs FIRST — prevents budget starvation) ──
+  // Previously Section 12, moved to run before AI-heavy sections because:
+  // 1) Thin content (<300w) actively harms SEO (Helpful Content system site-wide demotion)
+  // 2) This section is pure DB operations — no AI budget needed
+  // 3) When AI sections consume full budget, thin content cleanup never runs
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const allPublished = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          created_at: { lt: twoHoursAgo },
+        },
+        select: { id: true, slug: true, content_en: true, content_ar: true, title_en: true, title_ar: true },
+        orderBy: { created_at: "desc" },
+        take: 500,
+      });
+
+      let earlyThinUnpublished = 0;
+      let earlyBadSlugUnpublished = 0;
+      const thinThreshold = CONTENT_QUALITY.thinContentThreshold || 300;
+
+      for (const post of allPublished) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+
+        const hasBadSlug = !post.slug || post.slug === "-" || post.slug === "";
+        const hasExpandPrefix = /^EXPAND:\s/i.test(post.title_en || "") || /^EXPAND:\s/i.test(post.title_ar || "");
+        if (hasBadSlug || hasExpandPrefix) {
+          try {
+            const reason = hasBadSlug ? `BAD_SLUG: "${post.slug}"` : `EXPAND_PREFIX: "${(post.title_en || "").slice(0, 60)}"`;
+            await optimisticBlogPostUpdate(post.id, () => ({
+              published: false,
+              meta_description_en: `[UNPUBLISHED: ${reason}] ${(post.slug || "").slice(0, 80)}`,
+            }), { tag: "[content-auto-fix]" });
+            earlyBadSlugUnpublished++;
+            console.log(`[content-auto-fix] Unpublished bad article: ${reason}`);
+          } catch (upErr) {
+            console.warn(`[content-auto-fix] Failed to unpublish bad article "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+          }
+          continue;
+        }
+
+        const enText = (post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const arText = (post.content_ar || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        const enWords = enText.split(" ").filter(Boolean).length;
+        const arWords = arText.split(" ").filter(Boolean).length;
+        const wordCount = Math.max(enWords, arWords);
+
+        if (wordCount < thinThreshold) {
+          try {
+            await optimisticBlogPostUpdate(post.id, () => ({
+              published: false,
+              meta_description_en: `[UNPUBLISHED: THIN_CONTENT ${wordCount}w < ${thinThreshold}w] ${(post.slug || "").slice(0, 80)}`,
+            }), { tag: "[content-auto-fix]" });
+            earlyThinUnpublished++;
+            console.log(`[content-auto-fix] Unpublished ultra-thin article "${post.slug}" (${wordCount}w < ${thinThreshold}w)`);
+          } catch (upErr) {
+            console.warn(`[content-auto-fix] Failed to unpublish thin "${post.slug}":`, upErr instanceof Error ? upErr.message : upErr);
+          }
+        }
+      }
+
+      if (earlyThinUnpublished > 0 || earlyBadSlugUnpublished > 0) {
+        console.log(`[content-auto-fix] Section 0: ${earlyThinUnpublished} thin + ${earlyBadSlugUnpublished} bad-slug unpublished`);
+      }
+      results.thinContentUnpublished = (results.thinContentUnpublished || 0) + earlyThinUnpublished;
+      results.badSlugUnpublished = (results.badSlugUnpublished || 0) + earlyBadSlugUnpublished;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`early-thin-cleanup: ${msg}`);
+      console.warn("[content-auto-fix] Section 0 (early thin cleanup) failed:", msg);
+    }
+  }
+
   // ── 1. WORD COUNT FIX (AI-powered, ~20s per draft) ───────────────────────
   // Find reservoir drafts with word_count < MIN_WORD_COUNT, oldest first
   if (Date.now() - cronStart < BUDGET_MS - 25_000) {

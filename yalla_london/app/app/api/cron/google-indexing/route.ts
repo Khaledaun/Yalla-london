@@ -4,6 +4,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { INDEXNOW_CHRONIC_FAILURE_CAP } from "@/lib/content-pipeline/constants";
 
 /**
  * Google Indexing Cron — Submits new/updated URLs to search engines
@@ -302,7 +303,7 @@ async function handleIndexing(request: NextRequest) {
             // Cap resubmission at 15 attempts — pages with 5-12 failed submissions
             // likely have fundamental quality/technical issues that IndexNow can't fix.
             // Stop wasting crawl budget and flag for content review instead.
-            submission_attempts: { lt: 15 },
+            submission_attempts: { lt: INDEXNOW_CHRONIC_FAILURE_CAP },
             OR: [
               // Submitted >7 days ago but still not indexed
               { last_submitted_at: { lt: sevenDaysAgo } },

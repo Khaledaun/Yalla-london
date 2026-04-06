@@ -255,8 +255,7 @@ export function ZenithaHeader() {
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 top-0 z-50 overflow-y-auto"
-          style={{ background: "var(--z-navy, #0F1621)" }}
-          style={{ animation: "fadeIn 200ms ease-out" }}
+          style={{ background: "var(--z-navy, #0F1621)", animation: "fadeIn 200ms ease-out" }}
         >
           {/* Mobile header */}
           <div className="px-5 py-4 flex items-center justify-between border-b border-white/10">

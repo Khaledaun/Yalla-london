@@ -1557,6 +1557,17 @@ export async function promoteToBlogPost(
     ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch((err) => {
       console.warn(`[select-runner] ensureUrlTracked AR failed for ${slug}:`, err instanceof Error ? err.message : err);
     });
+
+    // Auto-queue featured image from Unsplash if missing
+    if (!blogPost.featured_image) {
+      const searchQuery = (cleanedEnTitle || slug).replace(/-/g, " ").substring(0, 60);
+      prisma.blogPost.update({
+        where: { id: blogPost.id },
+        data: { photo_order_status: "pending", photo_order_query: searchQuery },
+      }).catch((err) => {
+        console.warn(`[select-runner] photo_order queue failed:`, err instanceof Error ? err.message : err);
+      });
+    }
   }
 
   // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)
@@ -1575,6 +1586,8 @@ export async function promoteToBlogPost(
         'istanbul': '#YallaIstanbul #Istanbul',
         'thailand': '#YallaThailand #Thailand',
         'zenitha-yachts-med': '#ZenithaYachts #Mediterranean',
+        'worldtme': '#WTME #WorldThroughMyEyes #Travel',
+        'zenitha-luxury': '#ZenithaLuxury #LuxuryTravel',
       };
       const tagSuffix = siteHashtag[siteId] || '#Zenitha';
       const contentHashtags = keywords

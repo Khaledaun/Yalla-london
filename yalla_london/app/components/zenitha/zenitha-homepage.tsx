@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight, Users, Heart, Briefcase, Globe } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
@@ -148,13 +147,12 @@ function HeroSection({ locale }: { locale: Locale }) {
         {/* Image column — Stripe-style deep shadow */}
         <div className={`relative ${isRTL ? 'order-1' : ''}`}>
           <div className="relative aspect-[4/3] rounded-lg overflow-hidden" style={{ boxShadow: '0 25px 50px -12px rgba(10,22,40,0.5)' }}>
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={PHOTOS.hero}
               alt={t({ en: 'Luxury yacht on Mediterranean', ar: 'يخت فاخر في البحر المتوسط' })}
-              fill
-              priority
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="eager"
             />
           </div>
         </div>
@@ -211,12 +209,12 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
         <div ref={sectionRef} className="z-reveal-fadeUp">
           <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '420px' }}>
             {/* Background photo — catamaran on turquoise water */}
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={PHOTOS.catamaran}
               alt="Luxury catamaran anchored in crystal-clear turquoise water"
-              fill
-              className="object-cover"
-              sizes="(max-width: 1280px) 100vw, 1280px"
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--z-navy)]/85 via-[var(--z-navy)]/60 to-[var(--z-navy)]/30" />
             <div className="relative z-10 p-10 sm:p-14 flex flex-col justify-center" style={{ minHeight: '420px' }}>
@@ -265,12 +263,12 @@ function DestinationsSection({ locale }: { locale: Locale }) {
             <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger" role="listitem">
               <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[var(--z-midnight)]">
                 {/* Destination photo */}
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={dest.image}
                   alt={`${dest.name.en} — yacht charter destination`}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
                 />
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/85 via-[var(--z-navy)]/30 to-transparent" />
@@ -418,12 +416,12 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
           </div>
           {/* Sunset lifestyle photo */}
           <div className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger rounded-2xl overflow-hidden">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={PHOTOS.sunset}
               alt="Yacht sailing at golden hour in the Greek islands"
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 448px"
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/40 to-transparent" />
           </div>

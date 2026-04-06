@@ -227,24 +227,10 @@ export interface ComingSoonCard {
 export const COMING_SOON_CARDS: ComingSoonCard[] = [
   {
     name: 'Worldtme',
-    tag: 'Time & Travel',
+    tag: 'World Through My Eyes \u2014 Travel & Discovery',
     description:
-      'A Zenitha product exploring the intersection of global time zones and travel planning.',
+      'A travel content platform powered by the Zenitha engine \u2014 neighbourhood guides, cultural deep-dives, and curated experiences through the lens of local ambassadors.',
     faded: false,
-  },
-  {
-    name: '[Future Product]',
-    tag: '',
-    // TODO: Replace with a real project name or remove this card when the roadmap is confirmed.
-    description: 'Placeholder for a future Zenitha product. Details to be confirmed.',
-    faded: true,
-  },
-  {
-    name: '[Future Product]',
-    tag: '',
-    // TODO: Replace with a real project name or remove this card when the roadmap is confirmed.
-    description: 'Placeholder for a future Zenitha product. Details to be confirmed.',
-    faded: true,
   },
 ];
 

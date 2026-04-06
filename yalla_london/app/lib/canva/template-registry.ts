@@ -455,3 +455,109 @@ export function getAvailableBrands(): TemplateBrand[] {
 export function getTemplateCount(): number {
   return getAllCanvaTemplates().length;
 }
+
+// ─── Extended Brand Profiles (for design tools, Canva setup, and content generation) ───
+
+export interface ExtendedBrandProfile {
+  brand: string;
+  displayName: string;
+  domain: string;
+  colors: Record<string, string>;
+  fonts: { display: string; body: string; arabic?: string };
+  logoDescription: string;
+  tagline: string;
+  canvaBrandKitName: string;
+}
+
+/**
+ * Full brand profiles for all portfolio brands — used by design tools,
+ * Canva brand kit setup, content generation prompts, and email templates.
+ */
+export const EXTENDED_BRAND_PROFILES: Record<string, ExtendedBrandProfile> = {
+  "yalla-london": {
+    brand: "yalla-london",
+    displayName: "Yalla London",
+    domain: "yalla-london.com",
+    colors: {
+      red: "#C8322B",
+      gold: "#C49A2A",
+      blue: "#4A7BA8",
+      charcoal: "#1C1917",
+      cream: "#F5F0E8",
+      navy: "#0F1621",
+      parchment: "#EDE9E1",
+    },
+    fonts: { display: "Anybody", body: "Source Serif 4", arabic: "Noto Sans Arabic" },
+    logoDescription: "Big Ben scalloped stamp + YALLA (parchment) + LONDON (red) wordmark",
+    tagline: "Your Luxury London Guide",
+    canvaBrandKitName: "Yalla London",
+  },
+  "zenitha-luxury": {
+    brand: "zenitha-luxury",
+    displayName: "Zenitha.Luxury",
+    domain: "zenitha.luxury",
+    colors: {
+      obsidian: "#0C0C0C",
+      midnight: "#111111",
+      charcoal: "#161616",
+      stone: "#5A5248",
+      muted: "#9E9080",
+      gold: "#C49A2A",
+      goldWarm: "#C9A84C",
+      goldSoft: "#D4AF6A",
+      cream: "#F0EBE1",
+      white: "#FFFFFF",
+    },
+    fonts: { display: "Cormorant Garamond", body: "Inter" },
+    logoDescription: "Gold anchor mark on dark background — serif ZENITHA wordmark",
+    tagline: "Curated Luxury Across the World",
+    canvaBrandKitName: "Zenitha.Luxury",
+  },
+  "zenitha-yachts": {
+    brand: "zenitha-yachts",
+    displayName: "Zenitha Yachts",
+    domain: "zenithayachts.com",
+    colors: {
+      navy: "#101F31",
+      gold: "#B8923E",
+      goldLight: "#D4B254",
+      cream: "#FBF2E3",
+      charcoal: "#0A0A0A",
+      white: "#FFFFFF",
+    },
+    fonts: { display: "Cormorant Garamond", body: "Inter" },
+    logoDescription: "Compass rose/star + ZENITHA (spaced caps) / YACHTS (small caps)",
+    tagline: "Private Charter & Bespoke Voyages",
+    canvaBrandKitName: "Zenitha Yachts",
+  },
+  "worldtme": {
+    brand: "worldtme",
+    displayName: "World Through My Eyes",
+    domain: "worldtme.com",
+    colors: {
+      skyBlue: "#07A4F2",
+      blue: "#068DD0",
+      green: "#03AD62",
+      darkTeal: "#007965",
+      lime: "#85C342",
+      gold: "#FFC417",
+      burgundy: "#9B1749",
+      black: "#000000",
+      white: "#FFFFFF",
+    },
+    fonts: { display: "Gilroy", body: "Montserrat", arabic: "Shamel Family Sans" },
+    logoDescription: "Circular badge — WORLD THROUGH MY EYES text around nature/travel illustration (sun, mountains, airplane, leaf). Sky blue outer ring.",
+    tagline: "Travel & Discovery",
+    canvaBrandKitName: "World Through My Eyes",
+  },
+};
+
+/** Get extended brand profile by brand key */
+export function getExtendedBrandProfile(brand: string): ExtendedBrandProfile | undefined {
+  return EXTENDED_BRAND_PROFILES[brand];
+}
+
+/** Get all extended brand profiles */
+export function getAllExtendedBrandProfiles(): ExtendedBrandProfile[] {
+  return Object.values(EXTENDED_BRAND_PROFILES);
+}

@@ -5,29 +5,29 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ─── CORE PALETTE ─── */
-  --zl-obsidian:      #0A0A0A;   /* Near-black — primary backgrounds  */
-  --zl-midnight:      #141414;   /* Rich dark — elevated surfaces      */
-  --zl-charcoal:      #2A2A2A;   /* Dark surfaces — cards, panels      */
-  --zl-smoke:         #4A4A4A;   /* Borders, dividers on dark          */
-  --zl-mist:          #8A8A8A;   /* Secondary text, captions           */
-  --zl-platinum:      #D6D0C4;   /* Light mode borders, dividers       */
-  --zl-cream:         #F5F0E8;   /* Light mode background              */
-  --zl-ivory:         #FDFCF9;   /* Near-white surface                 */
+  /* ─── CORE PALETTE (matched to brand identity system) ─── */
+  --zl-obsidian:      #0C0C0C;   /* Brand black — primary backgrounds   */
+  --zl-midnight:      #111111;   /* Rich dark — elevated surfaces       */
+  --zl-charcoal:      #161616;   /* Dark surfaces — cards, panels       */
+  --zl-smoke:         #5A5248;   /* Stone — borders, dividers on dark   */
+  --zl-mist:          #9E9080;   /* Muted — secondary text, captions    */
+  --zl-platinum:      #D4AF6A;   /* Gold muted — light mode accents     */
+  --zl-cream:         #F0EBE1;   /* Brand cream — light backgrounds     */
+  --zl-ivory:         #FDFCF9;   /* Near-white surface                  */
   --zl-white:         #FFFFFF;
 
-  /* ─── GOLD PALETTE ─── */
-  --zl-gold:          #C4A96C;   /* Primary accent — refined warm gold */
-  --zl-gold-light:    #E2CBА0;   /* Hover, highlights                  */
-  --zl-gold-deep:     #9A7A42;   /* Pressed state, deep accents        */
-  --zl-champagne:     #EAD9BB;   /* Soft gold — backgrounds, cards     */
-  --zl-brass:         #B8934A;   /* Supporting accent                  */
+  /* ─── GOLD PALETTE (from brand identity) ─── */
+  --zl-gold:          #C49A2A;   /* Primary gold — main accent          */
+  --zl-gold-light:    #C9A84C;   /* Warm gold — hover, highlights       */
+  --zl-gold-deep:     #A07B1E;   /* Deep gold — pressed state           */
+  --zl-champagne:     #D4AF6A;   /* Soft gold — backgrounds, cards      */
+  --zl-brass:         #B8934A;   /* Supporting gold accent              */
 
-  /* ─── TYPOGRAPHY ─── */
-  --zl-font-display:  'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  --zl-font-heading:  'DM Sans', 'Helvetica Neue', Arial, sans-serif;
-  --zl-font-body:     'Source Serif 4', 'Georgia', Times, serif;
-  --zl-font-label:    'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  /* ─── TYPOGRAPHY (brand identity fonts) ─── */
+  --zl-font-display:  'Cormorant Garamond', Georgia, serif;
+  --zl-font-heading:  'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --zl-font-body:     'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --zl-font-label:    'Inter', 'Helvetica Neue', Arial, sans-serif;
   --zl-font-arabic:   'IBM Plex Sans Arabic', 'Noto Sans Arabic', Tahoma, sans-serif;
 
   /* ─── FONT SIZES ─── */

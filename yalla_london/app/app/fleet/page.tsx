@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+
 import { headers } from "next/headers";
 import {
   Ship,
@@ -298,12 +298,12 @@ export default async function FleetPage() {
                           background: "var(--z-gradient-card)",
                         }}
                       >
-                        <Image
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={yacht.image}
                           alt={`${yacht.name} — luxury charter yacht`}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, 50vw"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loading="lazy"
                         />
                         <div
                           style={{

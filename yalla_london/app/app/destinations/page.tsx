@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import Image from "next/image";
+
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import {
@@ -486,12 +486,12 @@ function DestinationCardLarge({ destination }: { destination: Destination }) {
         style={{ background: "var(--z-gradient-card)" }}
       >
         {DEST_IMAGES[destination.slug] && (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={DEST_IMAGES[destination.slug]}
             alt={`${destination.name_en} yacht charter destination`}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, 33vw"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
           />
         )}
         <div
@@ -560,12 +560,12 @@ function DestinationCard({ destination }: { destination: Destination }) {
         style={{ background: "var(--z-gradient-card)" }}
       >
         {DEST_IMAGES[destination.slug] ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={DEST_IMAGES[destination.slug]}
             alt={`${destination.name_en} charter destination`}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">

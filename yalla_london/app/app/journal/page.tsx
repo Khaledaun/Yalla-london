@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+
 import { headers } from "next/headers";
 import { Calendar, Clock, ArrowRight, Tag, Compass } from "lucide-react";
 import { getBaseUrl } from "@/lib/url-utils";
@@ -122,16 +122,12 @@ function ArticleCard({
           background: "var(--z-gradient-card)",
         }}
       >
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={article.image}
           alt={article.title}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-          sizes={
-            featured
-              ? "(max-width: 768px) 100vw, 66vw"
-              : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          }
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading={featured ? "eager" : "lazy"}
         />
         <div
           style={{

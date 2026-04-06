@@ -70,17 +70,17 @@ export function ZenithaFooter() {
           <div className="lg:col-span-2">
             {/* Logo */}
             <div className="mb-5">
-              <LogoHorizontal textColor="#FFFFFF" scale={0.44} showBg={false} />
+              <LogoHorizontal textColor="#FFFFFF" scale={0.55} showBg={false} />
             </div>
 
             {/* Brand description — global audience, specific countries */}
-            <p className="text-[15px] font-body leading-relaxed text-white/60 max-w-sm mb-2">
+            <p className="text-[15px] font-body leading-relaxed text-white/75 max-w-sm mb-2">
               {t({
                 en: 'Luxury private yacht charters across the Mediterranean, Adriatic, Aegean, and selected global destinations.',
                 ar: 'استئجار يخوت فاخرة خاصة عبر البحر المتوسط والأدرياتيكي وبحر إيجة ووجهات عالمية مختارة.',
               })}
             </p>
-            <p className="text-sm font-body leading-relaxed text-white/45 max-w-sm mb-6">
+            <p className="text-sm font-body leading-relaxed text-white/55 max-w-sm mb-6">
               {t({
                 en: 'Tailored experiences for travellers from the United Kingdom, France, Germany, Italy, the United States, Canada, Saudi Arabia, the UAE, Qatar, Kuwait, Egypt, Singapore, and Australia.',
                 ar: 'تجارب مصممة خصيصاً للمسافرين من المملكة المتحدة وفرنسا وألمانيا وإيطاليا والولايات المتحدة وكندا والسعودية والإمارات وقطر والكويت ومصر وسنغافورة وأستراليا.',
@@ -91,7 +91,7 @@ export function ZenithaFooter() {
             <div className="space-y-2.5">
               <a
                 href={`mailto:${ZENITHA_CONTACT.email}`}
-                className="flex items-center gap-2 text-sm text-white/55 hover:text-[var(--z-gold,#c9a96e)] transition-colors"
+                className="flex items-center gap-2 text-sm text-white/70 hover:text-[var(--z-gold,#c9a96e)] transition-colors"
               >
                 <Mail size={15} /> {ZENITHA_CONTACT.email}
               </a>
@@ -100,7 +100,7 @@ export function ZenithaFooter() {
                   href={`https://wa.me/${ZENITHA_CONTACT.whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-white/55 hover:text-[var(--z-gold,#c9a96e)] transition-colors"
+                  className="flex items-center gap-2 text-sm text-white/70 hover:text-[var(--z-gold,#c9a96e)] transition-colors"
                 >
                   <MessageCircle size={15} /> WhatsApp
                 </a>
@@ -150,7 +150,7 @@ export function ZenithaFooter() {
                   <li key={li}>
                     <Link
                       href={link.href}
-                      className="text-sm font-body text-white/55 hover:text-white transition-colors duration-200"
+                      className="text-sm font-body text-white/70 hover:text-white transition-colors duration-200"
                     >
                       {t(link.label)}
                     </Link>

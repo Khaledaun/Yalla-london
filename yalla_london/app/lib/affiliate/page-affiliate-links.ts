@@ -33,7 +33,7 @@ export interface AffiliateLink {
 
 const SITE_PARTNERS: Record<string, Record<AffiliateCategory, string[]>> = {
   "yalla-london": {
-    hotel: ["expedia", "agoda", "booking", "ihg"],
+    hotel: ["vrbo", "expedia"],  // Vrbo (CJ approved) is primary
     experience: ["tiqets", "viator", "bigbus", "citypass"],
     restaurant: ["thefork", "opentable"],
     attraction: ["tiqets", "viator"],
@@ -245,10 +245,22 @@ const VENUE_MAPPINGS: VenueMapping[] = [
 // Generic Search URLs by Category
 // ---------------------------------------------------------------------------
 
+/**
+ * Build CJ deep link for approved advertisers.
+ * Vrbo (Expedia family) is our only approved hotel affiliate via CJ.
+ * CJ Publisher CID from env var, Vrbo advertiser external ID: 9220803
+ */
+function buildCjDeepLink(destinationUrl: string, siteId: string, pageSlug: string): string | null {
+  const publisherCid = typeof process !== "undefined" ? process.env?.CJ_PUBLISHER_CID : undefined;
+  if (!publisherCid) return null;
+  const sid = `${siteId}_${pageSlug}`.substring(0, 100);
+  return `/api/affiliate/click?url=${encodeURIComponent(`https://www.anrdoezrs.net/links/${publisherCid}/type/dlg/sid/${encodeURIComponent(sid)}/${destinationUrl}`)}&sid=${encodeURIComponent(sid)}`;
+}
+
 const GENERIC_SEARCH_URLS: Record<string, Record<string, string>> = {
   hotel: {
-    agoda: "https://www.agoda.com/city/london-gb.html",
-    booking: "https://www.booking.com/city/gb/london.html",
+    // Vrbo (CJ approved) is primary — Expedia family, earns commission
+    vrbo: "https://www.vrbo.com/search/keywords:london-england",
     expedia: "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
   },
   experience: {
@@ -278,6 +290,7 @@ const GENERIC_SEARCH_URLS: Record<string, Record<string, string>> = {
 const PARTNER_LABELS: Record<string, string> = {
   agoda: "Agoda",
   booking: "Booking.com",
+  vrbo: "Vrbo",
   expedia: "Expedia",
   ihg: "IHG",
   getyourguide: "GetYourGuide",
@@ -344,7 +357,7 @@ export function getPageAffiliateLink(
       const url = venueMatch.affiliateUrls[partner];
       if (url) {
         return {
-          url: appendSid(url, siteId, pageSlug),
+          url: appendSid(url, siteId, pageSlug, partner),
           partner,
           label: `Book on ${PARTNER_LABELS[partner] || partner}`,
           trackingClass: "affiliate-page-link",
@@ -355,7 +368,7 @@ export function getPageAffiliateLink(
     const [firstPartner, firstUrl] = Object.entries(venueMatch.affiliateUrls)[0] || [];
     if (firstPartner && firstUrl) {
       return {
-        url: appendSid(firstUrl, siteId, pageSlug),
+        url: appendSid(firstUrl, siteId, pageSlug, firstPartner),
         partner: firstPartner,
         label: `Book on ${PARTNER_LABELS[firstPartner] || firstPartner}`,
         trackingClass: "affiliate-page-link",
@@ -370,7 +383,7 @@ export function getPageAffiliateLink(
       const url = genericUrls[partner];
       if (url) {
         return {
-          url: appendSid(url, siteId, pageSlug),
+          url: appendSid(url, siteId, pageSlug, partner),
           partner,
           label: `Browse on ${PARTNER_LABELS[partner] || partner}`,
           trackingClass: "affiliate-page-link",
@@ -434,15 +447,19 @@ export function getAllAffiliateLinks(
  * CJ SID format: siteId_pageSlug (max 100 chars)
  * Also appends Travelpayouts marker if configured (for LinkSwitcher recognition).
  */
-function appendSid(url: string, siteId: string, pageSlug: string): string {
-  const sid = `${siteId}_${pageSlug}`.substring(0, 100);
-  const separator = url.includes("?") ? "&" : "?";
-  let tracked = `${url}${separator}sid=${encodeURIComponent(sid)}`;
-  // Append Travelpayouts marker for partners in the TP network
-  // LinkSwitcher will also catch these, but explicit marker ensures attribution
-  const tpMarker = typeof process !== "undefined" ? process.env?.NEXT_PUBLIC_TRAVELPAYOUTS_MARKER : undefined;
-  if (tpMarker) {
-    tracked += `&marker=${tpMarker}&utm_source=${siteId}`;
+// CJ-approved partners — these get routed through CJ deep links for commission
+const CJ_PARTNERS = new Set(["vrbo", "expedia"]);
+
+function appendSid(url: string, siteId: string, pageSlug: string, partner?: string): string {
+  // For CJ-approved partners, route through CJ deep link for actual commission tracking
+  if (partner && CJ_PARTNERS.has(partner)) {
+    const cjLink = buildCjDeepLink(url, siteId, pageSlug);
+    if (cjLink) return cjLink;
   }
-  return tracked;
+
+  // Route through our click tracker for attribution
+  const sid = `${siteId}_${pageSlug}`.substring(0, 100);
+  const trackedUrl = `/api/affiliate/click?url=${encodeURIComponent(url)}&sid=${encodeURIComponent(sid)}`;
+
+  return trackedUrl;
 }

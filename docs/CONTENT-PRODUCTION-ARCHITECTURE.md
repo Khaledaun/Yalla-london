@@ -2,308 +2,187 @@
 
 ## Three Engines — Clear Boundaries
 
-Every visual asset produced by the Zenitha platform is created by exactly ONE of three engines. No overlap, no ambiguity.
+Every visual asset is created by exactly ONE engine. No overlap.
 
 ---
 
-## ENGINE 1: SYSTEM (Next.js / Vercel)
+## ENGINE 1: SYSTEM (Auto-Pilot)
 
-**When:** Automatic — fires on every publish event, no human input.
-**Where:** Runs on Vercel serverless functions.
-**Cost:** Free (CPU-rendered via `ImageResponse` / HTML).
+**Runs:** Automatically on every publish. No human input ever.
+**Where:** Vercel serverless.
+**Owner's role:** None — it just works.
 
-### What it produces
+### What it produces automatically
 
-| Asset | Trigger | Size | Route |
-|-------|---------|------|-------|
-| OG image | Article published | 1200×630 | `/api/og?siteId=X&title=Y` |
-| Email header | Newsletter sent | 600×200 | Inline in React Email template |
-| Blog layout | Page request | Responsive | `app/blog/[slug]` |
-| Structured data | Page request | JSON-LD | `<StructuredData>` component |
-| Sitemap | Cache refresh (4h) | XML | `app/sitemap.ts` |
-| IndexNow submission | After publish | POST | `lib/seo/indexing-service.ts` |
-| Affiliate injection | Cron (daily) | HTML inject | `content-auto-fix` cron |
-| Featured image | Cron (4h) | Unsplash URL | `image-pipeline` / `content-auto-fix-lite` |
-| Meta tags | Page request | HTML `<head>` | `generateMetadata()` |
+| Asset | When | How |
+|-------|------|-----|
+| OG image (1200×630) | Article published | `/api/og` — site colors + title |
+| Featured image | Article published (if missing) | Unsplash search by title → `image-pipeline` cron |
+| Email newsletter branding | Digest cron fires | Per-site logo, colors, fonts via `getBrand(siteId)` |
+| JSON-LD structured data | Page loads | `<StructuredData>` component reads site config |
+| Sitemap XML | Every 4h cache rebuild | `sitemap.ts` per-site |
+| IndexNow submission | After publish | 3 engines: Bing, Yandex, api.indexnow.org |
+| Affiliate link injection | Daily cron | Per-site partner rules, only approved partners |
+| Meta tags (title, desc, canonical) | Page loads | `generateMetadata()` per-site |
+| Arabic URL tracking | After publish | Auto-tracks `/ar/blog/{slug}` variant |
+| Tweet auto-queue | After publish (if Twitter keys set) | Per-site hashtags |
+| Bad image replacement | Every 4h | Detects wrong/missing photos, replaces via Unsplash |
+| Unapproved partner cleanup | Every 4h | Strips partner blocks where env var is empty |
 
-### Brand enforcement (automatic)
+### System NEVER asks you to do anything
 
-```
-Article publish event
-  → getSiteConfig(siteId)
-  → getBrandDefaults(siteId)
-  → OG image uses site primaryColor + secondaryColor
-  → Email uses site logo + brand colors
-  → JSON-LD uses site name + domain
-  → Sitemap uses site domain
-  → IndexNow uses site-specific key
-  → Affiliate injection uses site-specific partner rules
-```
-
-### System NEVER produces
-
-- Custom designs requiring visual editing
-- Video content
-- Print materials
-- Editable social post images (use Canva)
+If you see a System-generated asset that's wrong (wrong photo, bad title), the auto-fix crons catch it within 4 hours. If it persists, flag it in the cockpit.
 
 ---
 
-## ENGINE 2: CANVA (MCP or Manual)
+## ENGINE 2: CANVA (Your Design Studio)
 
-**When:** On-demand — triggered from dashboard button or Claude MCP prompt.
-**Where:** Canva cloud (canva.com). Accessed via MCP tools or browser.
-**Cost:** Canva Pro subscription.
+**Runs:** When you want custom visuals. Semi-manual — you design, it exports.
+**Where:** Canva app or browser. Templates stored in 4 brand folders.
+**Owner's role:** Pick template → customize → export → upload to dashboard.
 
-### What it produces
+### Your Canva template library
 
-| Asset | How to trigger | Templates available |
-|-------|---------------|-------------------|
-| Social story (1080×1920) | Dashboard "Generate Social" or MCP prompt | YL: 1 template, WTME: 5 EN + 5 AR |
-| Instagram post (1080×1350) | Dashboard "Generate Social" or MCP prompt | YL: 1 template, WTME: 2 EN + 2 AR |
-| Etsy listing (1200×800) | Dashboard "One-Tap Create" | 1 per brand (3 total) |
-| PDF cover (1200×1600) | Dashboard PDF workshop | 6 per brand (18 total) |
-| Email header (600×200) | Dashboard "One-Tap Create" | 1 per brand (3 total) |
-| Brand kit export (ZIP) | `/api/admin/brand-kit` | Auto-generated |
-| Custom design | Canva editor directly | Brand kit colors/fonts |
-| Print materials | Canva editor directly | Brand kit colors/fonts |
+| Brand | Folder | Templates | What's there |
+|-------|--------|-----------|-------------|
+| **Yalla London** | `FAHGA4ZPMR8` | 10 | 6 PDF covers, 1 Etsy, 1 social square, 1 social story, 1 email header |
+| **Zenitha.Luxury** | `FAHGBAIduP0` | 10 | Same set — navy/gold brand |
+| **Zenitha Yachts** | `FAHGBDx0oO8` | 10 | Same set — maritime brand |
+| **WTME** | `FAHGEYMPxtQ` | 14 | 7 EN frames + 7 AR frames (stories + IG posts) |
 
-### Template registry
-
-| Brand | Canva Folder | Templates | Social Frames |
-|-------|-------------|-----------|---------------|
-| Yalla London | `FAHGA4ZPMR8` | 10 (covers, social, etsy, email) | 2 (square + story) |
-| Zenitha.Luxury | `FAHGBAIduP0` | 10 | 2 |
-| Zenitha Yachts | `FAHGBDx0oO8` | 10 | 2 |
-| WTME | `FAHGEYMPxtQ` | 14 social frames (7 EN + 7 AR) | 14 |
-
-### Canva MCP workflow
+### Canva workflow (from your iPhone)
 
 ```
-1. Dashboard: user taps "Generate Social" on an article
-2. API returns: Canva design ID + edit URL + suggested content
-3. User opens Canva URL OR Claude MCP customizes the template:
-   - Replaces placeholder title with article title
-   - Replaces placeholder photo with article featured image
-   - Exports as PNG
-4. PNG saved to MediaAsset DB via upload or API
-5. Ready for social calendar scheduling
+1. Open Canva app
+2. Go to Brand Hub → pick brand kit
+3. Pick a template (e.g., WTME Photo Feature Story)
+4. Replace title text, swap photo
+5. Tap "Share" → Download as PNG/MP4
+6. Upload to dashboard media library
 ```
 
-### Canva NEVER produces
+### When to use Canva (not System)
 
-- Anything automatic (always requires a trigger)
-- Video content with animation/motion (use Remotion)
-- Structured data, sitemaps, or SEO assets (use System)
+- Custom social posts with specific photos you chose
+- Etsy product listing images
+- PDF guide covers with custom titles
+- Presentation slides
+- Print materials (business cards, flyers)
+- Any design that needs visual editing
+
+### Canva designs stay in Canva
+
+Your Canva templates are your visual toolkit. They don't need to be "imported" into the platform — they live in Canva, you export what you need. The platform's template registry (Canva asset IDs) exists so that Claude MCP sessions can reference and customize them programmatically when you ask.
 
 ---
 
-## ENGINE 3: REMOTION (Local Machine)
+## ENGINE 3: REMOTION (Monthly Video Batch)
 
-**When:** On-demand — triggered from CLI (`npm run studio`) or future dashboard button.
-**Where:** Local machine with Node.js + ffmpeg. NOT on Vercel.
-**Cost:** Free (open source). Requires compute for rendering.
+**Runs:** From your PC, once a month (or whenever you want video content).
+**Where:** Your local machine with Node.js installed.
+**Owner's role:** Run the CLI, answer prompts, get MP4s. Upload to dashboard.
 
-### What it produces
-
-| Asset | Composition | Duration | Use case |
-|-------|------------|----------|----------|
-| Brand intro | `BrandIntro` | 3s | Start of any video |
-| Brand outro | `BrandOutro` | 3s | End of any video |
-| Content post | `ContentPost` | 15s | Top 5 lists, tips, guides |
-| Promo sale | `PromoSale` | 15s | Flash sales, offers |
-| Photo feature | `PhotoFeature` | 15s | Destination highlights |
-| Event ticket | `EventTicket` | 15s | Event announcements |
-| Story overlay | `StoryOverlay` | Variable | ProRes 4444 alpha overlay |
-| Branded video | `VideoWithBranding` | Variable | Intro + footage + outro |
-
-### Multi-brand support
-
-```typescript
-// tokens.ts — getBrandTokens(siteId) returns correct colors for any brand
-const tokens = getBrandTokens("worldtme");
-// → skyBlue #07A4F2, green #03AD62, Gilroy font, WTME logo
-```
-
-### Remotion workflow
+### How you'll use it
 
 ```
-1. User runs: npm run studio (interactive CLI menu)
-2. Picks composition (e.g., ContentPost)
-3. Enters props (title, items, optional: auto-photo from library)
-4. Remotion renders MP4 to out/ folder
-5. User uploads to Instagram/TikTok/YouTube
+Monthly video production session (2-3 hours):
+
+1. Open terminal on your PC
+2. cd yalla-video
+3. npm run studio
+
+4. Render 5-10 ContentPost videos (Top 5 lists, tips)
+5. Render 5-10 PhotoFeature videos (destination highlights)
+6. Render 2-3 PromoSale videos (seasonal offers)
+7. Render 2-3 EventTicket videos (upcoming events)
+8. Brand 5-10 raw Canva footage clips (BrandIntro + overlay + BrandOutro)
+
+Output: 20-30 MP4 files in the out/ folder
 ```
 
-### Remotion NEVER produces
-
-- Static images (use System or Canva)
-- Anything that needs to run on Vercel serverless
-- Real-time/on-demand content (rendering takes 30-120s)
-
----
-
-## Decision Matrix: Which Engine?
+### What happens to the rendered videos
 
 ```
-Is it a VIDEO with motion/animation?
-  YES → REMOTION
-  NO ↓
+After rendering on your PC:
 
-Is it generated AUTOMATICALLY on every publish?
-  YES → SYSTEM
-  NO ↓
+1. Upload all MP4s to dashboard: /admin/media (drag & drop)
+2. Each video appears in your media library with thumbnail
+3. From Social Calendar: pick a video → schedule for Instagram/TikTok
+4. Videos drip-publish over 2-4 weeks from your phone
+```
 
-Does it need CUSTOM VISUAL EDITING (drag elements, adjust layout)?
-  YES → CANVA
-  NO ↓
+### 8 compositions available
 
-Is it a standard format (OG, email header, meta tags)?
-  YES → SYSTEM
-  NO → CANVA
+| Composition | Duration | Best for |
+|------------|----------|----------|
+| BrandIntro | 3s | Start of any video |
+| BrandOutro | 3s | End of any video |
+| ContentPost | 15s | "Top 5 halal restaurants in Mayfair" |
+| PromoSale | 15s | Flash sales, seasonal offers |
+| PhotoFeature | 15s | Destination spotlights |
+| EventTicket | 15s | Event announcements |
+| StoryOverlay | Variable | Transparent overlay for footage |
+| VideoWithBranding | Variable | Raw footage → branded video |
+
+### Using Canva footage in Remotion
+
+```
+1. Download clips from your Canva video library (433 clips available)
+2. Place MP4 files in yalla-video/public/footage/
+3. Run: npm run studio → "Brand a Video"
+4. Select footage file → auto-adds BrandIntro + StoryOverlay + BrandOutro
+5. Output: professionally branded video ready for social
 ```
 
 ---
 
-## Auto-Generation Pipeline (on article publish)
-
-When `content-selector` promotes an article from reservoir to BlogPost:
+## The Complete Flow
 
 ```
-BlogPost.create({ published: true })
+CONTENT PUBLISHED (article goes live)
   │
-  ├─ [SYSTEM] OG image generated via /api/og (automatic)
-  ├─ [SYSTEM] Featured image set from Unsplash (if missing)
-  ├─ [SYSTEM] JSON-LD structured data rendered on page load
-  ├─ [SYSTEM] IndexNow submitted to 3 engines
-  ├─ [SYSTEM] sitemap-cache rebuilt
+  ├── SYSTEM (instant, automatic)
+  │   ├── OG image generated
+  │   ├── Featured image queued
+  │   ├── IndexNow submitted
+  │   ├── Tweet queued (if enabled)
+  │   └── Sitemap updated
   │
-  ├─ [DB FLAG] social_content_needed = true
-  │   └─ Dashboard shows "Generate Social" button next to article
-  │       ├─ WTME: links to 14 Canva frame templates
-  │       ├─ YL/ZL/ZY: renders image from CDN template
-  │       └─ Video option: shows Remotion composition picker
+  ├── YOU DECIDE: Want social posts for this article?
+  │   │
+  │   ├── Quick → System One-Tap Create (basic branded image)
+  │   │
+  │   └── Custom → Open Canva → pick WTME/YL/ZL frame
+  │       → customize with article photo + title
+  │       → export PNG → upload to dashboard
+  │       → schedule in Social Calendar
   │
-  └─ [DB FLAG] email_digest_queued = true
-      └─ Next subscriber-emails cron includes this article
-          └─ Email rendered with per-site brand colors + logo
+  └── Monthly: Want video content?
+      │
+      └── PC session → Remotion CLI → render batch
+          → upload to dashboard → schedule over 2-4 weeks
 ```
 
 ---
 
-## Brand Color Quick Reference
+## Brand Enforcement Rules (ALL engines)
 
-| Brand | Primary | Accent | Highlight | Dark | Cream |
-|-------|---------|--------|-----------|------|-------|
-| Yalla London | `#C8322B` red | `#C49A2A` gold | `#4A7BA8` blue | `#1C1917` | `#FAF8F4` |
-| Zenitha.Luxury | `#C49A2A` gold | `#D4AF6A` soft gold | `#C9A84C` warm gold | `#0C0C0C` | `#F0EBE1` |
-| Zenitha Yachts | `#B8923E` gold | `#D4B254` light gold | `#101F31` navy | `#101F31` | `#FBF2E3` |
-| WTME | `#07A4F2` sky blue | `#03AD62` green | `#FFC417` gold | `#000000` | `#FFFFFF` |
-
----
-
-## Canva MCP Prompt Templates
-
-### For Claude sessions with Canva MCP connected:
-
-#### Generate social post for a Yalla London article
-
-```
-Using the Canva MCP, customize the Yalla London social story template:
-
-1. Start editing: design ID from the Canva template registry for yalla-london social-story
-2. Replace the title text with: "[ARTICLE TITLE]"
-3. Replace the subtitle with: "[ARTICLE CATEGORY]"
-4. If an image is available, upload it and replace the placeholder photo
-5. Export as PNG (1080x1920)
-6. Save the exported image URL
-
-Brand rules:
-- Red #C8322B is the ONLY red
-- Tricolor bar: red | gold | blue (flat, never gradient)
-- Font: Anybody for headings, Source Serif 4 for body
-- Logo: stamp seal, always round, always bottom-left
-```
-
-#### Generate social post for a WTME article
-
-```
-Using the Canva MCP, customize a WTME social frame:
-
-Template folder: FAHGEYMPxtQ
-For English story: use design DAHGEb-N6hw (Photo Feature)
-For Arabic story: use design DAHGEQNCbnA (Photo Feature)
-
-1. Start editing transaction on the appropriate design
-2. Find and replace placeholder title with: "[ARTICLE TITLE]"
-3. Find and replace placeholder subtitle with: "[DESTINATION]"
-4. Upload the article's hero image and replace the placeholder photo
-5. Commit the editing transaction
-6. Export as PNG
-
-Brand rules:
-- Sky Blue #07A4F2 + Green #03AD62 are the signature pair
-- The diagonal blue-to-green wave transition is WTME's signature
-- Arabic text: NEVER letter-space. Use Shamel Family Sans or Noto Sans Arabic
-- Every design must include: zenitha.luxury | worldtme.com
-- Logo: circular badge with nature/travel illustration
-```
-
-#### Generate social post for Zenitha Yachts
-
-```
-Using the Canva MCP, customize the Zenitha Yachts social template:
-
-Template: from Canva folder FAHGBDx0oO8 (social-story or social-square)
-
-1. Start editing the template
-2. Replace title with: "[ARTICLE TITLE]"
-3. Replace subtitle with: "[YACHT REGION / DESTINATION]"
-4. Export as PNG
-
-Brand rules:
-- Navy #101F31 is the primary dark
-- Gold #B8923E is the accent — gold rules 1.5px height, 48-56px width
-- Font: Cormorant Garamond for display, Inter for body
-- No stock photos in materials — use yacht/maritime imagery only
-```
+| Rule | System | Canva | Remotion |
+|------|--------|-------|---------|
+| Colors from brand config | `getBrandDefaults(siteId)` | Brand Kit in Canva | `getBrandTokens(siteId)` |
+| Fonts per site | CSS tokens | Brand Kit fonts | `@remotion/google-fonts` |
+| Logo per site | `/branding/{site}/logo/` | Brand Kit logos | `staticFile()` in public/ |
+| Arabic: no letter-spacing | CSS rule | Canva template constraint | Component rule |
+| Ownership footer | Auto in email/structured data | Manual in Canva design | Footer component |
+| Site separation | `siteId` in every DB query | Separate Canva folders | `getBrandTokens(siteId)` |
 
 ---
 
-## Remotion Prompt Templates
+## Brand Reference
 
-### For rendering videos from the CLI:
-
-#### Content Post (Top 5 list)
-
-```bash
-node render.mjs
-# Select: 📋 Content Post (Tips/List)
-# Kicker: INSIDER TIP
-# Headline: Top 5 Halal\nRestaurants\nin Mayfair
-# Items: The Montagu — Michelin-starred,Rüya — Ottoman-Turkish,Novikov — Russian-Asian,Hakkasan — Cantonese,Sexy Fish — Japanese
-# Output: content-post-halal-mayfair.mp4
-```
-
-#### Photo Feature with auto-photo
-
-```bash
-node render.mjs
-# Select: 📸 Photo Feature
-# Photo source: 🔍 Auto-select from library
-# Topic: greenwich royal observatory
-# Kicker: DESTINATION SPOTLIGHT
-# Headline: The Royal\nObservatory\nGreenwich
-# Body: Stand on the Prime Meridian and explore 400 years of astronomy.
-# Output: photo-greenwich.mp4
-```
-
-#### Brand a raw video
-
-```bash
-node render.mjs
-# Select: 🎬 Brand a Video
-# Footage: footage/london-walk.mp4
-# → Auto adds: BrandIntro (3s) + StoryOverlay + BrandOutro (3s)
-# Output: branded-london-walk.mp4
-```
+| Brand | Primary | Accent | Dark | Cream | Display Font | Body Font |
+|-------|---------|--------|------|-------|-------------|-----------|
+| Yalla London | `#C8322B` | `#C49A2A` | `#1C1917` | `#FAF8F4` | Anybody | Source Serif 4 |
+| Zenitha.Luxury | `#C49A2A` | `#D4AF6A` | `#0C0C0C` | `#F0EBE1` | Cormorant Garamond | Inter |
+| Zenitha Yachts | `#B8923E` | `#D4B254` | `#101F31` | `#FBF2E3` | Cormorant Garamond | Inter |
+| WTME | `#07A4F2` | `#03AD62` | `#000000` | `#FFFFFF` | Gilroy | Montserrat |

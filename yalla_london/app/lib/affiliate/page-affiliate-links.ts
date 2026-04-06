@@ -33,7 +33,7 @@ export interface AffiliateLink {
 
 const SITE_PARTNERS: Record<string, Record<AffiliateCategory, string[]>> = {
   "yalla-london": {
-    hotel: ["vrbo", "expedia"],  // Vrbo (CJ approved) is primary
+    hotel: ["expedia", "vrbo", "excellence"],  // All 3 CJ-approved hotel partners (Expedia highest EPC)
     experience: ["tiqets", "viator", "bigbus", "citypass"],
     restaurant: ["thefork", "opentable"],
     attraction: ["tiqets", "viator"],
@@ -259,17 +259,18 @@ function buildCjDeepLink(destinationUrl: string, siteId: string, pageSlug: strin
 
 const GENERIC_SEARCH_URLS: Record<string, Record<string, string>> = {
   hotel: {
-    // Vrbo (CJ approved) is primary — Expedia family, earns commission
-    vrbo: "https://www.vrbo.com/search/keywords:london-england",
+    // CJ approved partners — Expedia highest EPC ($65.50), Vrbo ($37.98)
     expedia: "https://www.expedia.com/London-Hotels.d178279.Travel-Guide-Hotels",
+    vrbo: "https://www.vrbo.com/search/keywords:london-england",
+    excellence: "https://www.theexcellencecollection.com",
   },
   experience: {
     tiqets: "https://www.tiqets.com/en/london-c824706/",
-    viator: "https://www.viator.com/London/d737-ttd",
+    ticketnetwork: "https://www.ticketnetwork.com/performers/london-events",
   },
   attraction: {
     tiqets: "https://www.tiqets.com/en/london-c824706/",
-    viator: "https://www.viator.com/London-attractions/d737-a",
+    ticketnetwork: "https://www.ticketnetwork.com/performers/london-events",
   },
   transport: {
     welcomepickups: "https://www.welcomepickups.com/london/",
@@ -292,6 +293,8 @@ const PARTNER_LABELS: Record<string, string> = {
   booking: "Booking.com",
   vrbo: "Vrbo",
   expedia: "Expedia",
+  excellence: "The Excellence Collection",
+  ticketnetwork: "TicketNetwork",
   ihg: "IHG",
   getyourguide: "GetYourGuide",
   viator: "Viator",
@@ -299,7 +302,6 @@ const PARTNER_LABELS: Record<string, string> = {
   citypass: "CityPASS",
   tiqets: "Tiqets",
   welcomepickups: "Welcome Pickups",
-  ticketnetwork: "TicketNetwork",
   thefork: "TheFork",
   opentable: "OpenTable",
   qatar: "Qatar Airways",
@@ -448,7 +450,8 @@ export function getAllAffiliateLinks(
  * Also appends Travelpayouts marker if configured (for LinkSwitcher recognition).
  */
 // CJ-approved partners — these get routed through CJ deep links for commission
-const CJ_PARTNERS = new Set(["vrbo", "expedia"]);
+// Expedia EPC $65.50, Vrbo EPC $37.98, Excellence Collection EPC $0 (luxury resorts)
+const CJ_PARTNERS = new Set(["vrbo", "expedia", "excellence"]);
 
 function appendSid(url: string, siteId: string, pageSlug: string, partner?: string): string {
   // For CJ-approved partners, route through CJ deep link for actual commission tracking

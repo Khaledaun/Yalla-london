@@ -65,14 +65,14 @@ export function ZenithaLuxuryHeader() {
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
       style={{
-        padding: scrolled ? '0.6rem 1.25rem' : '0.9rem 1.25rem',
+        padding: scrolled ? '0.5rem 1.25rem' : '0.75rem 1.25rem',
         background: scrolled
           ? 'rgba(10, 10, 10, 0.95)'
-          : 'transparent',
-        backdropFilter: scrolled ? 'blur(20px)' : 'none',
+          : 'rgba(10, 10, 10, 0.85)',
+        backdropFilter: 'blur(20px)',
         borderBottom: scrolled
           ? '1px solid rgba(196, 169, 108, 0.08)'
-          : '1px solid transparent',
+          : '1px solid rgba(196, 169, 108, 0.04)',
       }}
     >
       <div className="flex items-center justify-between max-w-[1360px] mx-auto" style={{ padding: '0 0.5rem' }}>
@@ -86,7 +86,7 @@ export function ZenithaLuxuryHeader() {
             src="/branding/zenitha-luxury/logo/zenitha-logo-light.png"
             alt="Zenitha Luxury"
             style={{
-              height: scrolled ? '28px' : '34px',
+              height: scrolled ? '36px' : '48px',
               width: 'auto',
               transition: 'height 0.5s ease',
             }}
@@ -198,7 +198,7 @@ export function ZenithaLuxuryHeader() {
             src="/branding/zenitha-luxury/logo/zenitha-logo-light.png"
             alt="Zenitha Luxury"
             style={{
-              height: '32px',
+              height: '44px',
               width: 'auto',
               marginBottom: '2rem',
               opacity: mobileOpen ? 1 : 0,

@@ -60,8 +60,8 @@ export function ZenithaLuxuryFooter() {
         <FooterColumn title="Platforms">
           <FooterLink href="https://www.yalla-london.com">Yalla London</FooterLink>
           <FooterLink href="https://www.zenithayachts.com">Zenitha Yachts</FooterLink>
-          {/* TODO: Update Worldtme href once production URL is finalised. */}
-          <FooterLink href="#">Worldtme (coming soon)</FooterLink>
+          {/* TODO: Update Worldtime href once production URL is finalised. */}
+          <FooterLink href="#">Worldtime (coming soon)</FooterLink>
         </FooterColumn>
 
         {/* Company */}

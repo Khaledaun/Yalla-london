@@ -40,7 +40,7 @@ const PLACEHOLDER_ARTICLES: JournalArticle[] = [
     category: "Itineraries",
     readTime: "10 min read",
     date: "2026-02-15",
-    image: "https://images.unsplash.com/photo-1696227213867-e16c8e082e8c?w=800&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80&auto=format&fit=crop",
     featured: true,
   },
   {
@@ -51,7 +51,7 @@ const PLACEHOLDER_ARTICLES: JournalArticle[] = [
     category: "Charter Experience",
     readTime: "8 min read",
     date: "2026-02-10",
-    image: "https://images.unsplash.com/photo-1721488145498-3a8d7dfbab67?w=800&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1544124499-58912cbddaad?w=800&q=80&auto=format&fit=crop",
     featured: false,
   },
   {
@@ -62,7 +62,7 @@ const PLACEHOLDER_ARTICLES: JournalArticle[] = [
     category: "Itineraries",
     readTime: "11 min read",
     date: "2026-02-05",
-    image: "https://images.unsplash.com/photo-1626690218773-09d845797704?w=800&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1555990538-1d0f55016bfc?w=800&q=80&auto=format&fit=crop",
     featured: false,
   },
   {
@@ -73,7 +73,7 @@ const PLACEHOLDER_ARTICLES: JournalArticle[] = [
     category: "Charter Guides",
     readTime: "7 min read",
     date: "2026-01-28",
-    image: "https://images.unsplash.com/photo-1724261813677-05803b039805?w=800&q=80&auto=format&fit=crop",
+    image: "https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=800&q=80&auto=format&fit=crop",
     featured: false,
   },
   {

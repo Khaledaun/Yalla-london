@@ -19,13 +19,13 @@ import {
    UNSPLASH PHOTO MAP — free commercial license
    ═══════════════════════════════════════════════════════════════════ */
 const DEST_IMAGES: Record<string, string> = {
-  "greek-islands": "https://images.unsplash.com/photo-1696227213867-e16c8e082e8c?w=800&q=80&auto=format&fit=crop",
-  "croatian-coast": "https://images.unsplash.com/photo-1626690218773-09d845797704?w=800&q=80&auto=format&fit=crop",
+  "greek-islands": "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80&auto=format&fit=crop",
+  "croatian-coast": "https://images.unsplash.com/photo-1555990538-1d0f55016bfc?w=800&q=80&auto=format&fit=crop",
   "turkish-riviera": "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop",
   "amalfi-coast": "https://images.unsplash.com/photo-1515859005217-8a1f08870f59?w=800&q=80&auto=format&fit=crop",
   "french-riviera": "https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop",
-  "balearic-islands": "https://images.unsplash.com/photo-1662908773886-f1a25e7a1c95?w=800&q=80&auto=format&fit=crop",
-  "arabian-gulf": "https://images.unsplash.com/photo-1732296266498-68a67d84efdc?w=800&q=80&auto=format&fit=crop",
+  "balearic-islands": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80&auto=format&fit=crop",
+  "arabian-gulf": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80&auto=format&fit=crop",
   "red-sea": "https://images.unsplash.com/photo-1580541631950-7282082b53ce?w=800&q=80&auto=format&fit=crop",
 };
 

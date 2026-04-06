@@ -48,7 +48,7 @@ const YACHT_TYPES = [
       "Twin hulls provide exceptional stability, generous living space, and shallow drafts that allow anchoring in secluded bays inaccessible to monohulls. The most popular choice for families with children and first-time charterers exploring the Balearic Islands or Cyclades.",
     specs: { length: "38–62 ft", guests: "6–12", crew: "2–4" },
     image:
-      "https://images.unsplash.com/photo-1724261813677-05803b039805?w=800&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=800&q=80&auto=format&fit=crop",
     Icon: Anchor,
   },
   {
@@ -75,9 +75,9 @@ const FLEET_ADVANTAGES = [
       "Every vessel in our fleet has been inspected by our charter team. We check safety equipment, crew qualifications, maintenance logs, and guest reviews before recommending any yacht.",
   },
   {
-    title: "Halal Catering on Every Charter",
+    title: "Fully Customised Provisioning",
     description:
-      "We arrange certified halal provisioning at every departure port. Our kitchen coordinators work with local halal suppliers across the Mediterranean and Gulf to ensure authentic, high-quality meals onboard.",
+      "From gourmet Mediterranean cuisine to dietary-specific menus — halal, kosher, vegan, or allergen-free — our kitchen coordinators source ingredients from trusted local suppliers at every departure port.",
   },
   {
     title: "Multilingual Crews",

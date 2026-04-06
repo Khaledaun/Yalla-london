@@ -15,27 +15,28 @@ type Locale = 'en' | 'ar';
 // Credit: see PHOTO_CREDITS below.
 const PHOTOS = {
   hero: 'https://images.unsplash.com/photo-1528154291023-a6525fabe5b4?w=1920&q=85&auto=format&fit=crop',
-  heroAlt: 'https://images.unsplash.com/photo-1714745048611-5fa3ff3e2397?w=1920&q=85&auto=format&fit=crop',
-  greekIslands: 'https://images.unsplash.com/photo-1696227213867-e16c8e082e8c?w=800&q=80&auto=format&fit=crop',
-  croatianCoast: 'https://images.unsplash.com/photo-1626690218773-09d845797704?w=800&q=80&auto=format&fit=crop',
+  heroAlt: 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=85&auto=format&fit=crop',
+  greekIslands: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80&auto=format&fit=crop',
+  croatianCoast: 'https://images.unsplash.com/photo-1555990538-1d0f55016bfc?w=800&q=80&auto=format&fit=crop',
   turkishRiviera: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop',
   frenchRiviera: 'https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop',
   motorYacht: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=1200&q=80&auto=format&fit=crop',
   catamaran: 'https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=1200&q=80&auto=format&fit=crop',
   sunset: 'https://images.unsplash.com/photo-1504472478235-9bc48ba4d60f?w=1200&q=80&auto=format&fit=crop',
-  dining: 'https://images.unsplash.com/photo-1721488145498-3a8d7dfbab67?w=1200&q=80&auto=format&fit=crop',
+  dining: 'https://images.unsplash.com/photo-1544124499-58912cbddaad?w=1200&q=80&auto=format&fit=crop',
 } as const;
 
 // Photo credits (best practice, displayed in footer or image alt)
 const PHOTO_CREDITS = {
   hero: 'nikldn on Unsplash',
-  greekIslands: 'Dawid Tkocz on Unsplash',
+  heroAlt: 'Jared Rice on Unsplash',
+  greekIslands: 'Jonathan Gallegos on Unsplash',
   croatianCoast: 'Geio Tischler on Unsplash',
   turkishRiviera: 'Grant Durr on Unsplash',
   frenchRiviera: 'Nick Karvounis on Unsplash',
   sunset: 'Odysseas Chloridis on Unsplash',
-  catamaran: 'Bernd Dittrich on Unsplash',
-  dining: 'Ekaterina Bogdan on Unsplash',
+  catamaran: 'Martin Katler on Unsplash',
+  dining: 'Alex Haney on Unsplash',
 } as const;
 
 // ─── Trust Stats ─────────────────────────────────────────────

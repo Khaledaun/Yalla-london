@@ -183,26 +183,26 @@ export interface GalleryItem {
 
 export const GALLERY_ITEMS: GalleryItem[] = [
   {
-    image: 'https://images.unsplash.com/photo-1526495124232-a04e1849168c?w=960&q=80&auto=format',
-    alt: 'Tower Bridge London at sunset',
+    image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=960&q=80&auto=format',
+    alt: 'Tower Bridge London at twilight with city lights reflecting on the Thames',
     title: 'Tower Bridge',
     subtitle: 'London',
   },
   {
-    image: 'https://images.unsplash.com/photo-1530870110042-98b2cb110834?w=960&q=80&auto=format',
-    alt: 'Aerial view of yacht sailing the Mediterranean',
+    image: 'https://images.unsplash.com/photo-1605281317010-fe5ffe798166?w=960&q=80&auto=format',
+    alt: 'Luxury yacht cruising turquoise Mediterranean waters',
     title: 'Mediterranean',
     subtitle: 'Yacht Region',
   },
   {
     image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=960&q=80&auto=format',
-    alt: 'Luxury hotel lobby interior',
+    alt: 'Luxury hotel lobby interior with marble and gold accents',
     title: 'Grand Hotel',
     subtitle: 'London',
   },
   {
-    image: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=960&q=80&auto=format',
-    alt: 'Superyacht at sea',
+    image: 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=960&q=80&auto=format',
+    alt: 'Superyacht anchored in a secluded Mediterranean bay',
     title: 'Superyacht',
     subtitle: 'At Sea',
   },
@@ -227,10 +227,9 @@ export interface ComingSoonCard {
 export const COMING_SOON_CARDS: ComingSoonCard[] = [
   {
     name: 'Worldtme',
-    tag: 'Concept \u2014 Time & Travel',
-    // TODO: Define actual domain, product scope, and brand story for Worldtme.
+    tag: 'Time & Travel',
     description:
-      'A future Zenitha product exploring the intersection of global time zones and travel planning. Details to be confirmed.',
+      'A Zenitha product exploring the intersection of global time zones and travel planning.',
     faded: false,
   },
   {
@@ -271,8 +270,8 @@ export const YALLA_LONDON_DETAIL: DetailSection = {
   title: 'London, Curated',
   description:
     'Yalla London \u2014 a bilingual luxury city guide operated by Zenitha Luxury. It reaches Gulf and international travellers visiting London, giving hotels, restaurants, and experience providers a direct channel to high\u2011value guests.',
-  image: 'https://images.unsplash.com/photo-1549294413-26f195200c16?w=1280&q=80&auto=format',
-  imageAlt: 'Luxury Mayfair London streetscape',
+  image: 'https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=1280&q=80&auto=format',
+  imageAlt: 'Big Ben and Westminster Bridge at golden hour — iconic London landmark',
   bullets: [
     'Neighbourhood guides written and verified by London\u2011based travel ambassadors.',
     'Hotel and dining collections curated from first\u2011hand visits, not aggregated listings.',

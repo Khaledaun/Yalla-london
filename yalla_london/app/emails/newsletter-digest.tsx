@@ -8,23 +8,48 @@
 import * as React from "react";
 
 // ---------------------------------------------------------------------------
-// Brand Constants (shared with welcome.tsx)
+// Brand resolution — derives colors from site identity, no hardcoding
 // ---------------------------------------------------------------------------
 
-const BRAND = {
-  red: "#C8322B",
-  gold: "#C49A2A",
-  blue: "#4A7BA8",
-  navy: "#1C1917",
-  cream: "#FAF8F4",
-  text: "#333333",
-  lightText: "#666666",
-  border: "#E5E5E5",
-  white: "#FFFFFF",
+const SITE_BRANDS: Record<string, { primary: string; accent: string; highlight: string; dark: string; cream: string; heading: string; logoPath: string }> = {
+  "yalla-london": {
+    primary: "#C8322B", accent: "#C49A2A", highlight: "#4A7BA8",
+    dark: "#1C1917", cream: "#FAF8F4",
+    heading: "'Source Serif 4', Georgia, serif",
+    logoPath: "/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-200px.png",
+  },
+  "zenitha-luxury": {
+    primary: "#C49A2A", accent: "#D4AF6A", highlight: "#C9A84C",
+    dark: "#0C0C0C", cream: "#F0EBE1",
+    heading: "'Cormorant Garamond', Georgia, serif",
+    logoPath: "/branding/zenitha-luxury/logo/zenitha-logo-light.png",
+  },
+  "zenitha-yachts-med": {
+    primary: "#B8923E", accent: "#D4B254", highlight: "#101F31",
+    dark: "#101F31", cream: "#FBF2E3",
+    heading: "'Cormorant Garamond', Georgia, serif",
+    logoPath: "/branding/zenitha-luxury/logo/zenitha-logo-light.png",
+  },
+  "worldtme": {
+    primary: "#07A4F2", accent: "#03AD62", highlight: "#FFC417",
+    dark: "#000000", cream: "#FFFFFF",
+    heading: "'Montserrat', 'Helvetica Neue', Arial, sans-serif",
+    logoPath: "/branding/worldtme/logo/wtme-logo-1024.png",
+  },
 };
 
+function getBrand(siteId?: string) {
+  const brand = SITE_BRANDS[siteId || "yalla-london"] || SITE_BRANDS["yalla-london"];
+  return {
+    ...brand,
+    text: "#333333",
+    lightText: "#666666",
+    border: "#E5E5E5",
+    white: "#FFFFFF",
+  };
+}
+
 const FONTS = {
-  heading: "'Source Serif 4', 'Georgia', 'Times New Roman', serif",
   body: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
   arabic: "'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif",
 };
@@ -45,6 +70,7 @@ interface NewsletterDigestProps {
   locale?: "en" | "ar";
   articles?: DigestArticle[];
   siteUrl?: string;
+  siteId?: string;
   unsubscribeUrl?: string;
   weekLabel?: string;
 }
@@ -56,14 +82,16 @@ interface NewsletterDigestProps {
 export default function NewsletterDigest({
   locale = "en",
   articles = [],
+  siteId = "yalla-london",
   siteUrl = "https://www.yalla-london.com",
   unsubscribeUrl,
   weekLabel,
 }: NewsletterDigestProps) {
+  const BRAND = getBrand(siteId);
   const isAr = locale === "ar";
   const dir = isAr ? "rtl" : "ltr";
   const fontFamily = isAr ? FONTS.arabic : FONTS.body;
-  const headingFamily = isAr ? FONTS.arabic : FONTS.heading;
+  const headingFamily = isAr ? FONTS.arabic : BRAND.heading;
 
   const label = weekLabel || (isAr ? "ملخص الأسبوع" : "This Week in London");
   const ctaText = isAr ? "اقرأ المقال كاملاً" : "Read Full Article";
@@ -99,28 +127,27 @@ export default function NewsletterDigest({
                         <table width="100%" cellPadding="0" cellSpacing="0" role="presentation">
                           <tbody>
                             <tr>
-                              <td style={{ backgroundColor: BRAND.red, height: "4px", width: "33.33%" }} />
-                              <td style={{ backgroundColor: BRAND.gold, height: "4px", width: "33.34%" }} />
-                              <td style={{ backgroundColor: BRAND.blue, height: "4px", width: "33.33%" }} />
+                              <td style={{ backgroundColor: BRAND.primary, height: "4px", width: "33.33%" }} />
+                              <td style={{ backgroundColor: BRAND.accent, height: "4px", width: "33.34%" }} />
+                              <td style={{ backgroundColor: BRAND.highlight, height: "4px", width: "33.33%" }} />
                             </tr>
                           </tbody>
                         </table>
                       </td>
                     </tr>
 
-                    {/* Header with brand wordmark */}
+                    {/* Header with brand logo */}
                     <tr>
-                      <td style={{ padding: "28px 32px 16px", textAlign: "center", backgroundColor: BRAND.navy }}>
-                        {/* YALLA + LDN badge */}
+                      <td style={{ padding: "28px 32px 16px", textAlign: "center", backgroundColor: BRAND.dark }}>
+                        {/* Site logo */}
                         <div style={{ marginBottom: "12px" }}>
-                          <span style={{ fontSize: "28px", fontWeight: 800, color: BRAND.white, fontFamily: headingFamily, letterSpacing: "-0.5px" }}>YALLA</span>
-                          <span style={{ display: "inline-block", marginLeft: "8px", padding: "3px 10px", border: `2px solid ${BRAND.blue}`, borderRadius: "3px", fontSize: "12px", fontWeight: 600, color: BRAND.blue, fontFamily: headingFamily, letterSpacing: "3px" }}>LDN</span>
+                          <img src={`${siteUrl}${BRAND.logoPath}`} alt="" width="48" height="48" style={{ display: "inline-block", borderRadius: "50%", objectFit: "cover" }} />
                         </div>
-                        {/* Gold accent line */}
-                        <div style={{ width: "40px", height: "2px", backgroundColor: BRAND.gold, margin: "0 auto 16px" }} />
+                        {/* Brand accent line */}
+                        <div style={{ width: "40px", height: "2px", backgroundColor: BRAND.accent, margin: "0 auto 16px" }} />
                         <h1 style={{
                           margin: "0",
-                          color: BRAND.gold,
+                          color: BRAND.accent,
                           fontSize: "22px",
                           fontFamily: headingFamily,
                           fontWeight: "600",
@@ -183,7 +210,7 @@ export default function NewsletterDigest({
                                   {article.category && (
                                     <p style={{
                                       margin: "0 0 6px 0",
-                                      color: BRAND.blue,
+                                      color: BRAND.highlight,
                                       fontSize: "11px",
                                       fontFamily,
                                       fontWeight: "600",
@@ -202,7 +229,7 @@ export default function NewsletterDigest({
                                     lineHeight: "1.3",
                                     direction: dir,
                                   }}>
-                                    <a href={article.url} style={{ color: BRAND.navy, textDecoration: "none" }}>
+                                    <a href={article.url} style={{ color: BRAND.dark, textDecoration: "none" }}>
                                       {article.title}
                                     </a>
                                   </h2>
@@ -217,7 +244,7 @@ export default function NewsletterDigest({
                                     {article.excerpt}
                                   </p>
                                   <a href={article.url} style={{
-                                    color: BRAND.red,
+                                    color: BRAND.primary,
                                     fontSize: "13px",
                                     fontFamily,
                                     fontWeight: "600",
@@ -239,7 +266,7 @@ export default function NewsletterDigest({
                         <a href={`${siteUrl}/blog`} style={{
                           display: "inline-block",
                           padding: "12px 28px",
-                          backgroundColor: BRAND.red,
+                          backgroundColor: BRAND.primary,
                           color: BRAND.white,
                           fontSize: "14px",
                           fontFamily,
@@ -254,12 +281,12 @@ export default function NewsletterDigest({
 
                     {/* Footer */}
                     <tr>
-                      <td style={{ padding: "20px 32px", backgroundColor: BRAND.navy, textAlign: "center" }}>
+                      <td style={{ padding: "20px 32px", backgroundColor: BRAND.dark, textAlign: "center" }}>
                         <p style={{ margin: "0 0 8px", color: "#999", fontSize: "12px", fontFamily }}>
                           Zenitha.Luxury LLC
                         </p>
                         {unsubscribeUrl && (
-                          <a href={unsubscribeUrl} style={{ color: BRAND.gold, fontSize: "12px", fontFamily, textDecoration: "underline" }}>
+                          <a href={unsubscribeUrl} style={{ color: BRAND.accent, fontSize: "12px", fontFamily, textDecoration: "underline" }}>
                             {isAr ? "إلغاء الاشتراك" : "Unsubscribe"}
                           </a>
                         )}

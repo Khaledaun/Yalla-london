@@ -1833,8 +1833,8 @@ Always respond with valid JSON.`,
     destination: "Global",
     country: "US",
     currency: "USD",
-    primaryColor: "#0A0A0A",
-    secondaryColor: "#C4A96C",
+    primaryColor: "#0C0C0C",
+    secondaryColor: "#C49A2A",
     systemPromptEN: `You are a corporate content writer for Zenitha.Luxury LLC, the parent holding company for a portfolio of luxury travel brands. Write in a refined, authoritative corporate-luxury tone. No exclamation marks.
 Always respond with valid JSON.`,
     systemPromptAR: `أنت كاتب محتوى مؤسسي لشركة Zenitha.Luxury LLC، الشركة الأم لمجموعة من علامات السفر الفاخرة. اكتب بأسلوب مؤسسي راقٍ وموثوق. بدون علامات تعجب.
@@ -1850,6 +1850,52 @@ Always respond with valid JSON.`,
     ],
     socialLinks: {
       instagram: "https://instagram.com/zenithaluxury",
+    },
+  },
+
+  // ─── WORLD THROUGH MY EYES (WTME) ───────────────────────────────────
+  "worldtme": {
+    id: "worldtme",
+    name: "World Through My Eyes",
+    slug: "worldtme",
+    domain: "worldtme.com",
+    locale: "en" as const,
+    direction: "ltr" as const,
+    status: "planned" as SiteStatus,
+    destination: "Global",
+    country: "US",
+    currency: "USD",
+    primaryColor: "#07A4F2",
+    secondaryColor: "#03AD62",
+    systemPromptEN: `You are a travel content writer for World Through My Eyes (WTME) — a travel discovery platform. Write vivid, immersive neighbourhood guides and cultural deep-dives through the lens of local ambassadors.
+
+VOICE: Adventurous, curious, personal. Use first-person observations. Describe what you see, smell, hear.
+AUDIENCE: Independent travellers aged 25-45 who value authentic local experiences over tourist attractions.
+STRUCTURE: 1,500-2,000 words minimum. Include insider tips, local slang, and honest "skip this" recommendations.
+GEO CITABILITY: Include 2+ statistics with sources. Self-contained paragraphs of 40-80 words for AI citation.
+Always respond with valid JSON.`,
+    systemPromptAR: `أنت كاتب محتوى سفر لمنصة "World Through My Eyes" (WTME). اكتب أدلة أحياء غامرة واستكشافات ثقافية من منظور السفراء المحليين.
+الأسلوب: مغامر، فضولي، شخصي. استخدم الملاحظات بصيغة المتكلم.
+أجب دائماً بـ JSON صالح.`,
+    topicsEN: [
+      { keyword: "hidden neighbourhood gems", longtails: ["best hidden spots in local neighbourhoods", "off-the-beaten-path gems locals love"], questions: ["What are the best hidden gems in this neighbourhood?"], pageType: "guide" },
+      { keyword: "local food scene guide", longtails: ["authentic street food markets", "local cuisine deep dive"], questions: ["Where do locals eat?"], pageType: "guide" },
+      { keyword: "cultural traditions explained", longtails: ["local cultural heritage traditions", "cultural experiences for travellers"], questions: ["What cultural traditions should I know about?"], pageType: "deep-dive" },
+      { keyword: "off the beaten path travel", longtails: ["undiscovered destinations for independent travellers", "hidden travel destinations"], questions: ["What destinations are underrated?"], pageType: "listicle" },
+    ],
+    topicsAR: [
+      { keyword: "جواهر الأحياء المخفية", longtails: ["أفضل الأماكن المخفية في الأحياء المحلية"], questions: ["ما هي أفضل الجواهر المخفية؟"], pageType: "guide" },
+      { keyword: "دليل المطبخ المحلي", longtails: ["أسواق طعام الشارع الأصيلة"], questions: ["أين يأكل السكان المحليون؟"], pageType: "guide" },
+    ],
+    affiliateCategories: ["hotel", "activity", "transport", "food"],
+    primaryKeywordsEN: ["travel guide", "local experience", "hidden gems", "neighbourhood guide", "cultural travel"],
+    primaryKeywordsAR: ["دليل سفر", "تجربة محلية", "جواهر مخفية"],
+    categoryName: { en: "Travel Discovery", ar: "استكشاف السفر" },
+    authors: [
+      { name: "WTME Explorers", role: "Travel Ambassadors", url: "/about" },
+    ],
+    socialLinks: {
+      instagram: "https://instagram.com/worldtme",
     },
   },
 };
@@ -2039,6 +2085,7 @@ const ENV_KEY_ALIASES: Record<string, string[]> = {
   "zenitha-yachts-med": ["ZENITHA_YACHTS_MED", "ZENITHA_YACHTS"],
   "zenitha-luxury": ["ZENITHA_LUXURY"],
   "yalla-london": ["YALLA_LONDON"],
+  "worldtme": ["WORLDTME", "WTME"],
 };
 
 function resolveEnvVar(prefix: string, siteId: string, fallbackVar?: string): string {

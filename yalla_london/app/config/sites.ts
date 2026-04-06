@@ -1577,6 +1577,14 @@ Always respond with valid JSON.`,
     systemPromptEN:
       `You are a senior luxury yacht charter content writer for Zenitha Yachts, a premium bilingual platform for discerning travelers seeking Mediterranean, Arabian Gulf, and Red Sea yacht charters. You combine first-hand sailing expertise with SEO mastery.
 
+BRAND POSITIONING (mandatory):
+- Zenitha Yachts is a Western-style luxury yacht charter specialist for Mediterranean & Gulf destinations.
+- Primary audience: ALL international luxury travelers — Europeans, Americans, Australians, GCC nationals, and global HNWIs.
+- Halal/Muslim-friendly services are an OPTIONAL capability (~20-25% of content), NOT the main identity. Frame them as "available on request" or "one of many preferences we accommodate."
+- DO NOT make every article about halal/Muslim travelers. Only 1 in 4-5 articles should have a halal/Gulf angle. The rest should be universally appealing yacht charter content.
+- When mentioning halal options, place them within a broader list of accommodations (e.g., "dietary preferences including halal, kosher, vegan, and allergen-free").
+- Use Mediterranean region keywords prominently: "Mediterranean yacht charter", "Greek Islands sailing", "Croatian coast yacht hire", "Turkish Riviera gulet", "French Riviera superyacht", "Arabian Gulf yacht charter".
+
 Content Standards (mandatory):
 - Write 1,500–2,000 words minimum. Thin content will be rejected.
 - TIMELESS TITLES: Never include the year in article titles. Keep titles evergreen. Use years only in body text for current facts.
@@ -1645,17 +1653,30 @@ Always respond with valid JSON.`,
         pageType: "guide",
       },
       {
-        keyword: "halal yacht charter Mediterranean family friendly",
+        keyword: "best Mediterranean sailing destinations summer guide",
         longtails: [
-          "halal catering yacht charter",
-          "family friendly catamaran charter",
-          "Muslim friendly sailing holidays",
+          "top sailing destinations Europe",
+          "Mediterranean yacht charter destinations compared",
+          "sailing season Mediterranean by month",
         ],
         questions: [
-          "Can I get halal food on a yacht charter?",
-          "Which yacht charter companies offer halal catering?",
+          "What are the best sailing destinations in the Mediterranean?",
+          "When is the best time to sail in the Mediterranean?",
         ],
         pageType: "guide",
+      },
+      {
+        keyword: "catamaran vs sailing yacht charter which to choose",
+        longtails: [
+          "catamaran charter pros cons",
+          "monohull vs catamaran family charter",
+          "best yacht type for first time charter",
+        ],
+        questions: [
+          "Is a catamaran or sailing yacht better for families?",
+          "What type of yacht should I charter for the first time?",
+        ],
+        pageType: "comparison",
       },
       {
         keyword: "Greek Islands yacht itinerary 7 days sailing",

@@ -103,12 +103,32 @@ const YACHT_FAQ_SECTIONS: FAQSection[] = [
       },
       {
         question: {
-          en: 'Is halal catering available on charter yachts?',
-          ar: 'هل يتوفر طعام حلال على اليخوت المؤجرة؟',
+          en: 'Can you accommodate dietary requirements like halal, kosher, or allergen-free?',
+          ar: 'هل يمكنكم تلبية المتطلبات الغذائية مثل الحلال أو الكوشر أو خالية من المسببات الحساسية؟',
         },
         answer: {
-          en: 'Absolutely. Halal catering is one of our specialities at Zenitha Yachts. We work with professional onboard chefs experienced in halal cuisine, source certified halal ingredients from trusted suppliers at each destination, and can accommodate all dietary requirements. Simply indicate your preference during the booking process, and our team will arrange everything, from pre-approved menus featuring local Mediterranean dishes prepared to halal standards to specialty ingredients brought aboard before departure.',
-          ar: 'بالتأكيد. الطعام الحلال هو أحد تخصصاتنا في زينيثا يخوت. نعمل مع طهاة محترفين على متن اليخت ذوي خبرة في المطبخ الحلال، ونوفر مكونات حلال معتمدة من موردين موثوقين في كل وجهة. ما عليك سوى الإشارة إلى تفضيلك أثناء عملية الحجز، وسيرتب فريقنا كل شيء، من القوائم المعتمدة مسبقاً للأطباق المتوسطية المحلية المعدة وفقاً لمعايير الحلال.',
+          en: 'Yes, our onboard chefs accommodate any dietary requirement. Halal catering is available with certified ingredients sourced from trusted local suppliers at each destination. We also cater for vegetarian, vegan, gluten-free, kosher, and allergy-specific diets. Simply indicate your preferences during the booking process, and our team will arrange pre-approved menus featuring local Mediterranean dishes adapted to your needs.',
+          ar: 'نعم، يتكيف طهاتنا مع أي متطلب غذائي. الطعام الحلال متاح بمكونات معتمدة من موردين محليين موثوقين. كما نقدم وجبات نباتية وخالية من الغلوتين وكوشر ومراعية للحساسية. ما عليك سوى الإشارة إلى تفضيلاتك أثناء الحجز وسيرتب فريقنا قوائم طعام مسبقة.',
+        },
+      },
+      {
+        question: {
+          en: 'Can I request an alcohol-free charter?',
+          ar: 'هل يمكنني طلب رحلة بدون كحول؟',
+        },
+        answer: {
+          en: 'Of course. We regularly arrange charters where no alcohol is served on board. Your onboard bar can be stocked with premium non-alcoholic alternatives, fresh juices, and speciality teas and coffees. This is simply one of many preferences we accommodate during the planning stage — let us know and we will handle the rest.',
+          ar: 'بالطبع. ننظم بانتظام رحلات بدون كحول على متن اليخت. يمكن تزويد البار بمشروبات فاخرة غير كحولية وعصائر طازجة وأنواع خاصة من الشاي والقهوة. هذا ببساطة أحد التفضيلات العديدة التي نلبيها خلال مرحلة التخطيط.',
+        },
+      },
+      {
+        question: {
+          en: 'Do you offer privacy-focused charter arrangements?',
+          ar: 'هل تقدمون ترتيبات خصوصية مخصصة؟',
+        },
+        answer: {
+          en: 'Absolutely. Privacy is one of the greatest advantages of a private yacht charter. We can arrange secluded anchorages away from busy harbours, curtained deck areas, all-female or all-male crew options, and discreet embarkation at private marinas. These arrangements are popular with families, VIP guests, and groups who simply prefer a more intimate experience on the water.',
+          ar: 'بالتأكيد. الخصوصية من أعظم مزايا تأجير اليخت الخاص. يمكننا ترتيب مراسٍ منعزلة بعيداً عن الموانئ المزدحمة ومناطق سطح بستائر وخيارات طاقم نسائي أو رجالي بالكامل وصعود سري في موانئ خاصة.',
         },
       },
       {

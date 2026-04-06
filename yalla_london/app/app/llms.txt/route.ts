@@ -563,7 +563,7 @@ We provide structured data (JSON-LD) on all pages.
 
 ## About Zenitha Yachts
 
-Zenitha Yachts is a premium yacht charter platform specializing in Mediterranean, Arabian Gulf, and Red Sea sailing experiences. We connect discerning travelers — particularly from the Gulf Cooperation Council (GCC) region — with curated yacht charters, complete with halal catering options, family-friendly vessels, and professionally crewed itineraries.
+Zenitha Yachts is a premium yacht charter platform specializing in luxury Mediterranean, Arabian Gulf, and Red Sea sailing experiences. We connect discerning international travelers — couples, families, corporate groups, and celebration parties — with curated yacht charters featuring professionally crewed itineraries, family-friendly vessels, and fully customizable onboard experiences including dietary accommodations and privacy-focused arrangements.
 
 ## Site Sections
 
@@ -576,9 +576,9 @@ Zenitha Yachts is a premium yacht charter platform specializing in Mediterranean
 - /journal — The Zenitha Journal: charter guides, sailing itineraries, destination deep-dives, and practical advice written by charter specialists.
 - /journal/[slug] — Individual journal articles with Article JSON-LD, byline, reading time, and related content.
 - /charter-planner — AI-powered interactive charter planner (dates, destination, guests, preferences) that generates personalised recommendations.
-- /inquiry — Charter inquiry form with bilingual (EN/AR) support, destination selection, budget ranges, yacht type preferences, and halal catering options.
-- /how-it-works — Four-step charter booking process with FAQPage JSON-LD covering booking timing, halal catering, family charters, and first-time destination advice.
-- /faq — Comprehensive FAQ covering booking process, charter experience, halal catering, destinations, sailing conditions, and practical travel information. Bilingual EN/AR.
+- /inquiry — Charter inquiry form with bilingual (EN/AR) support, destination selection, budget ranges, yacht type preferences, and dietary/lifestyle preferences.
+- /how-it-works — Four-step charter booking process with FAQPage JSON-LD covering booking timing, dietary accommodations, family charters, and first-time destination advice.
+- /faq — Comprehensive FAQ covering booking process, charter experience, dietary requirements (halal, kosher, vegan), alcohol-free charters, privacy arrangements, destinations, sailing conditions, and practical travel information. Bilingual EN/AR.
 - /about — Company story, mission, and the Zenitha Yachts team.
 - /contact — Direct contact with charter specialists (Dubai HQ, Athens operations).
 
@@ -591,8 +591,9 @@ Languages: English (en-GB), Arabic (ar-SA)
 - Motor yacht, sailing yacht, catamaran, and gulet charters
 - Bareboat vs crewed charter comparisons
 - Weekly charter cost breakdowns by vessel type and season
-- Halal catering and Muslim-friendly charter services
 - Family-friendly yacht selection guides
+- Dietary accommodations (halal, kosher, vegan, allergen-free) available on request
+- Privacy-focused and alcohol-free charter arrangements
 
 ### Mediterranean Destinations
 - Greek Islands: Cyclades, Ionian, Dodecanese, Saronic sailing routes
@@ -629,8 +630,8 @@ All content is:
 
 - Website: https://zenithayachts.com
 - Languages: English, Arabic
-- Target Audience: Luxury travelers seeking Mediterranean yacht charters, with emphasis on GCC/Arab clientele
-- Content Focus: Yacht charters, sailing itineraries, Mediterranean destinations, halal-friendly marine travel
+- Target Audience: International luxury travelers seeking Mediterranean and Gulf yacht charters — couples, families, corporate groups, and GCC clientele
+- Content Focus: Yacht charters, sailing itineraries, Mediterranean and Gulf destinations, customizable onboard experiences
 - Parent Company: Zenitha.Luxury LLC (Delaware)
 - Charter Regions: Mediterranean (primary), Arabian Gulf, Red Sea
 - Vessel Types: Motor yachts, sailing yachts, catamarans, gulets, superyachts

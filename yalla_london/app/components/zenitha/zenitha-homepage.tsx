@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight, Users, Heart, Briefcase, Globe } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 import { useScrollRevealClass } from '@/hooks/use-scroll-reveal';
 
@@ -15,27 +15,28 @@ type Locale = 'en' | 'ar';
 // Credit: see PHOTO_CREDITS below.
 const PHOTOS = {
   hero: 'https://images.unsplash.com/photo-1528154291023-a6525fabe5b4?w=1920&q=85&auto=format&fit=crop',
-  heroAlt: 'https://images.unsplash.com/photo-1714745048611-5fa3ff3e2397?w=1920&q=85&auto=format&fit=crop',
-  greekIslands: 'https://images.unsplash.com/photo-1696227213867-e16c8e082e8c?w=800&q=80&auto=format&fit=crop',
-  croatianCoast: 'https://images.unsplash.com/photo-1626690218773-09d845797704?w=800&q=80&auto=format&fit=crop',
+  heroAlt: 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=85&auto=format&fit=crop',
+  greekIslands: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80&auto=format&fit=crop',
+  croatianCoast: 'https://images.unsplash.com/photo-1555990538-1d0f55016bfc?w=800&q=80&auto=format&fit=crop',
   turkishRiviera: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop',
   frenchRiviera: 'https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop',
   motorYacht: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=1200&q=80&auto=format&fit=crop',
-  catamaran: 'https://images.unsplash.com/photo-1724261813677-05803b039805?w=1200&q=80&auto=format&fit=crop',
+  catamaran: 'https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=1200&q=80&auto=format&fit=crop',
   sunset: 'https://images.unsplash.com/photo-1504472478235-9bc48ba4d60f?w=1200&q=80&auto=format&fit=crop',
-  dining: 'https://images.unsplash.com/photo-1721488145498-3a8d7dfbab67?w=1200&q=80&auto=format&fit=crop',
+  dining: 'https://images.unsplash.com/photo-1544124499-58912cbddaad?w=1200&q=80&auto=format&fit=crop',
 } as const;
 
 // Photo credits (best practice, displayed in footer or image alt)
 const PHOTO_CREDITS = {
   hero: 'nikldn on Unsplash',
-  greekIslands: 'Dawid Tkocz on Unsplash',
+  heroAlt: 'Jared Rice on Unsplash',
+  greekIslands: 'Jonathan Gallegos on Unsplash',
   croatianCoast: 'Geio Tischler on Unsplash',
   turkishRiviera: 'Grant Durr on Unsplash',
   frenchRiviera: 'Nick Karvounis on Unsplash',
   sunset: 'Odysseas Chloridis on Unsplash',
-  catamaran: 'Bernd Dittrich on Unsplash',
-  dining: 'Ekaterina Bogdan on Unsplash',
+  catamaran: 'Martin Katler on Unsplash',
+  dining: 'Alex Haney on Unsplash',
 } as const;
 
 // ─── Trust Stats ─────────────────────────────────────────────
@@ -43,7 +44,7 @@ const TRUST_STATS = [
   { value: '200+', label: { en: 'Handpicked Yachts', ar: 'يخت مختار بعناية' } },
   { value: '15', label: { en: 'Destinations', ar: 'وجهة' } },
   { value: '4.9', label: { en: 'Average Rating', ar: 'متوسط التقييم' }, suffix: '★' },
-  { value: '100%', label: { en: 'Halal Options', ar: 'خيارات حلال' } },
+  { value: '100%', label: { en: 'Tailored to You', ar: 'مصممة لك' } },
 ];
 
 // ─── Featured Destinations ──────────────────────────────────
@@ -52,20 +53,23 @@ const DESTINATIONS = [
   { name: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, season: { en: 'Jun – Sep', ar: 'يونيو – سبتمبر' }, slug: 'croatian-coast', yachtCount: 38, priceFrom: '€4,000', image: PHOTOS.croatianCoast },
   { name: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, season: { en: 'May – Oct', ar: 'مايو – أكتوبر' }, slug: 'turkish-riviera', yachtCount: 52, priceFrom: '€2,800', image: PHOTOS.turkishRiviera },
   { name: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, season: { en: 'Jun – Sep', ar: 'يونيو – سبتمبر' }, slug: 'french-riviera', yachtCount: 31, priceFrom: '€5,500', image: PHOTOS.frenchRiviera },
+  { name: { en: 'Arabian Gulf', ar: 'الخليج العربي' }, season: { en: 'Oct – Apr', ar: 'أكتوبر – أبريل' }, slug: 'arabian-gulf', yachtCount: 28, priceFrom: '$4,500', image: PHOTOS.sunset },
 ];
 
 // ─── How It Works Steps ─────────────────────────────────────
 const STEPS = [
   { icon: Compass, title: { en: 'Tell Us Your Dream', ar: 'أخبرنا بحلمك' }, description: { en: 'Share your destination, dates, group size, and preferences. Our charter specialists listen carefully.', ar: 'شاركنا وجهتك وتواريخك وحجم مجموعتك وتفضيلاتك. متخصصو الاستئجار لدينا يستمعون بعناية.' } },
-  { icon: Anchor, title: { en: 'We Curate Your Charter', ar: 'نصمم رحلتك' }, description: { en: 'We match you with the perfect yacht, plan your itinerary, and handle every detail — from halal catering to water sports.', ar: 'نطابقك مع اليخت المثالي، نخطط مسارك، ونتولى كل التفاصيل — من الطعام الحلال إلى الرياضات المائية.' } },
+  { icon: Anchor, title: { en: 'We Curate Your Charter', ar: 'نصمم رحلتك' }, description: { en: 'We match you with the perfect yacht, plan your itinerary, and handle every detail — from dining preferences and water sports to privacy arrangements and special celebrations.', ar: 'نطابقك مع اليخت المثالي، نخطط مسارك، ونتولى كل التفاصيل — من تفضيلات الطعام والرياضات المائية إلى ترتيبات الخصوصية والاحتفالات الخاصة.' } },
   { icon: Ship, title: { en: 'Set Sail', ar: 'أبحر' }, description: { en: 'Board your yacht and experience the Mediterranean, Gulf, or beyond. Your crew handles everything — you simply enjoy.', ar: 'استقل يختك واستمتع بالبحر المتوسط أو الخليج أو ما وراءهما. طاقمك يتولى كل شيء — أنت فقط استمتع.' } },
 ];
 
 // ─── Testimonials ────────────────────────────────────────────
 const TESTIMONIALS = [
+  { name: 'James & Sophie', origin: { en: 'London, UK', ar: 'لندن، المملكة المتحدة' }, quote: { en: 'We\'ve chartered in the Med three times now, but Zenitha found us anchorages in the Cyclades that the bigger agencies miss entirely. The crew knew every hidden cove.', ar: 'استأجرنا يخوتاً في المتوسط ثلاث مرات، لكن زينيثا وجدت لنا مراسٍ في سيكلاديز لا تعرفها الوكالات الكبرى. الطاقم عرف كل خليج مخفي.' }, destination: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, yachtType: { en: 'Sailing Yacht', ar: 'يخت شراعي' }, rating: 5 },
   { name: 'Ahmed & Family', origin: { en: 'Dubai, UAE', ar: 'دبي، الإمارات' }, quote: { en: 'Zenitha arranged everything perfectly — the halal kitchen was authentic, the crew spoke Arabic, and the children had the time of their lives. We\'re booking again next summer.', ar: 'نظمت زينيثا كل شيء بشكل مثالي — المطبخ الحلال كان أصيلاً، الطاقم يتحدث العربية، والأطفال استمتعوا كثيراً. سنحجز مرة أخرى الصيف القادم.' }, destination: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, yachtType: { en: 'Catamaran', ar: 'كاتاماران' }, rating: 5 },
   { name: 'Fatima Al-Rashid', origin: { en: 'Jeddah, KSA', ar: 'جدة، السعودية' }, quote: { en: 'The privacy was absolute. A week anchored in secluded bays along the Turkish coast with my closest friends — this is how luxury should feel.', ar: 'الخصوصية كانت مطلقة. أسبوع راسين في خلجان منعزلة على الساحل التركي مع أقرب صديقاتي — هكذا يجب أن يكون شعور الفخامة.' }, destination: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, yachtType: { en: 'Gulet', ar: 'قوارب تركية' }, rating: 5 },
   { name: 'Khalid & Noor', origin: { en: 'Kuwait City', ar: 'مدينة الكويت' }, quote: { en: 'First time chartering and Zenitha made it effortless. The AI planner suggested a Croatian route we would never have found ourselves. Every port was a discovery.', ar: 'أول تجربة استئجار وزينيثا جعلتها سهلة. المخطط الذكي اقترح مساراً كرواتياً لم نكن لنجده بأنفسنا. كل ميناء كان اكتشافاً.' }, destination: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, yachtType: { en: 'Sailing Yacht', ar: 'يخت شراعي' }, rating: 5 },
+  { name: 'Marco & Elena', origin: { en: 'Milan, Italy', ar: 'ميلانو، إيطاليا' }, quote: { en: 'We wanted a superyacht for our anniversary but had no idea where to start. Zenitha handled everything — the route through the French Riviera was unforgettable.', ar: 'أردنا سوبريخت لذكرى زواجنا لكن لم نعرف من أين نبدأ. زينيثا تولت كل شيء — المسار عبر الريفيرا الفرنسية كان لا يُنسى.' }, destination: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, yachtType: { en: 'Motor Yacht', ar: 'يخت آلي' }, rating: 5 },
 ];
 
 // ─── Hero Section — Stripe maritime split layout ────────────
@@ -84,7 +88,7 @@ function HeroSection({ locale }: { locale: Locale }) {
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-[2px]" style={{ background: 'var(--z-gold)' }} />
             <span className="font-heading text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--z-gold)' }}>
-              {t({ en: 'Mediterranean Charters', ar: 'رحلات البحر المتوسط' })}
+              {t({ en: 'Mediterranean & Gulf Charters', ar: 'رحلات المتوسط والخليج' })}
             </span>
           </div>
 
@@ -104,8 +108,8 @@ function HeroSection({ locale }: { locale: Locale }) {
             style={{ color: 'var(--z-ocean, #4A90B8)', fontWeight: 300 }}
           >
             {t({
-              en: 'Hand-selected superyachts and motor sailors across the Greek Islands, Turkish Riviera, and Cote d\'Azur. White-glove service from first enquiry to final sunset.',
-              ar: 'يخوت فاخرة مختارة بعناية عبر الجزر اليونانية والريفيرا التركية وكوت دازور. خدمة استثنائية من أول استفسار حتى آخر غروب.',
+              en: 'Hand-selected superyachts and motor sailors across the Greek Islands, Turkish Riviera, Côte d\'Azur, and Arabian Gulf. White-glove service from first enquiry to final sunset.',
+              ar: 'يخوت فاخرة مختارة بعناية عبر الجزر اليونانية والريفيرا التركية وكوت دازور والخليج العربي. خدمة استثنائية من أول استفسار حتى آخر غروب.',
             })}
           </p>
 
@@ -221,8 +225,8 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
               </h3>
               <p className="font-body text-white/80 max-w-lg mb-8 leading-relaxed">
                 {t({
-                  en: 'Browse our curated selection of motor yachts, catamarans, gulets, and sailing yachts — each handpicked for exceptional Mediterranean charters.',
-                  ar: 'تصفح مجموعتنا المختارة من اليخوت الآلية والكاتاماران والقوارب التركية واليخوت الشراعية — كل واحد مختار بعناية لرحلات استثنائية في البحر المتوسط.',
+                  en: 'Browse our curated selection of motor yachts, catamarans, gulets, and sailing yachts — each handpicked for exceptional Mediterranean and Gulf charters.',
+                  ar: 'تصفح مجموعتنا المختارة من اليخوت الآلية والكاتاماران والقوارب التركية واليخوت الشراعية — كل واحد مختار بعناية لرحلات استثنائية في المتوسط والخليج.',
                 })}
               </p>
               <div>
@@ -256,7 +260,7 @@ function DestinationsSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list" aria-label="Charter destinations">
+        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5" role="list" aria-label="Charter destinations">
           {DESTINATIONS.map((dest, i) => (
             <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger" role="listitem">
               <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[var(--z-midnight)]">
@@ -341,6 +345,51 @@ function HowItWorksSection({ locale }: { locale: Locale }) {
   );
 }
 
+// ─── Who We Serve Section ───────────────────────────────────
+const GUEST_PROFILES = [
+  { icon: Heart, title: { en: 'Couples & Honeymoons', ar: 'الأزواج وشهر العسل' }, description: { en: 'Secluded bays, sunset dinners, and curated routes for romantic escapes across the Med.', ar: 'خلجان منعزلة وعشاء عند الغروب ومسارات مصممة للرحلات الرومانسية.' } },
+  { icon: Users, title: { en: 'Families & Multi-Gen', ar: 'العائلات ومتعددة الأجيال' }, description: { en: 'Kid-friendly catamarans, calm anchorages, and flexible itineraries for all ages.', ar: 'كاتاماران ملائمة للأطفال ومراسٍ هادئة ومسارات مرنة لجميع الأعمار.' } },
+  { icon: Briefcase, title: { en: 'Corporate & Events', ar: 'الشركات والمناسبات' }, description: { en: 'Team retreats, milestone celebrations, and bespoke charter events on superyachts.', ar: 'رحلات الفريق والاحتفالات الخاصة وفعاليات التأجير المخصصة على السوبريخت.' } },
+  { icon: Globe, title: { en: 'Gulf & International', ar: 'الخليج والعالم' }, description: { en: 'Arabic-speaking crews, halal provisioning, and privacy-focused charters — available on request.', ar: 'طواقم ناطقة بالعربية وتموين حلال ورحلات مركزة على الخصوصية — متاحة عند الطلب.' } },
+];
+
+function WhoWeServeSection({ locale }: { locale: Locale }) {
+  const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
+  const headerRef = useScrollRevealClass<HTMLDivElement>();
+  const gridRef = useScrollRevealClass<HTMLDivElement>();
+
+  return (
+    <section className="py-20 bg-[var(--z-pearl)]">
+      <div className="max-w-[1280px] mx-auto px-6">
+        <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
+          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
+            {t({ en: 'Who We Serve', ar: 'من نخدم' })}
+          </span>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3">
+            {t({ en: 'Every Charter, Tailored to Your Group', ar: 'كل رحلة مصممة لمجموعتك' })}
+          </h2>
+        </div>
+
+        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
+          {GUEST_PROFILES.map((profile, i) => (
+            <div key={i} className="bg-white rounded-xl p-6 text-center z-reveal-fadeUp z-reveal-stagger border border-[var(--z-champagne)]" role="listitem">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[var(--z-sand)] mb-4">
+                <profile.icon size={24} className="text-[var(--z-aegean)]" />
+              </div>
+              <h3 className="font-heading text-base font-semibold text-[var(--z-navy)] mb-2">
+                {t(profile.title)}
+              </h3>
+              <p className="font-body text-sm text-[var(--z-aegean)] leading-relaxed">
+                {t(profile.description)}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── AI Planner Teaser ──────────────────────────────────────
 function AIPlannerSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
@@ -359,8 +408,8 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
             </h2>
             <p className="font-body text-lg text-[var(--z-aegean)] leading-relaxed mb-8">
               {t({
-                en: 'Tell us your dream destination, dates, and preferences. Our AI charter planner creates a personalized itinerary with yacht recommendations, daily routes, and cost estimates — in minutes.',
-                ar: 'أخبرنا عن وجهة أحلامك وتواريخك وتفضيلاتك. مخططنا الذكي يصمم مساراً مخصصاً مع توصيات اليخوت والطرق اليومية وتقديرات التكلفة — في دقائق.',
+                en: 'Our AI charter planner drafts ideas in minutes — yacht recommendations, daily routes, and cost estimates. Then our human specialists refine every detail to perfection.',
+                ar: 'مخططنا الذكي يصمم أفكاراً في دقائق — توصيات اليخوت والطرق اليومية وتقديرات التكلفة. ثم يُحسّن متخصصونا البشريون كل التفاصيل.',
               })}
             </p>
             <Link href="/charter-planner" className="z-btn-primary text-base px-8 py-3.5">
@@ -552,6 +601,7 @@ export function ZenithaHomepage({ locale }: { locale: Locale }) {
       <FeaturedYachtsSection locale={locale} />
       <DestinationsSection locale={locale} />
       <HowItWorksSection locale={locale} />
+      <WhoWeServeSection locale={locale} />
       <AIPlannerSection locale={locale} />
       <TestimonialsSection locale={locale} />
       <NewsletterSection locale={locale} />

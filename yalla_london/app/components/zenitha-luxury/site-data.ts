@@ -226,11 +226,10 @@ export interface ComingSoonCard {
 
 export const COMING_SOON_CARDS: ComingSoonCard[] = [
   {
-    name: 'Worldtime',
-    tag: 'Concept \u2014 Time & Travel',
-    // TODO: Define actual domain, product scope, and brand story for Worldtime.
+    name: 'Worldtme',
+    tag: 'Time & Travel',
     description:
-      'A future Zenitha product exploring the intersection of global time zones and travel planning. Details to be confirmed.',
+      'A Zenitha product exploring the intersection of global time zones and travel planning.',
     faded: false,
   },
   {

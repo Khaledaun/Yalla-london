@@ -4,6 +4,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { INDEXNOW_CHRONIC_FAILURE_CAP } from "@/lib/content-pipeline/constants";
 
 /**
  * Process Indexing Queue — Google Indexing API for Qualifying Pages ONLY
@@ -103,7 +104,7 @@ async function handleProcessQueue(request: NextRequest) {
             submitted_indexnow: false,
             submitted_google_api: false,
             submitted_sitemap: false,
-            submission_attempts: { lt: 15 }, // Skip chronic failures (15+ attempts) — wastes crawl budget
+            submission_attempts: { lt: INDEXNOW_CHRONIC_FAILURE_CAP }, // Skip chronic failures — wastes crawl budget
           },
           select: { url: true, id: true },
           take: 250, // Raised from 100 to clear 198-page backlog faster

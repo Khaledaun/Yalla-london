@@ -277,7 +277,7 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
   // because EN(22s) + overhead(5s) = 27s elapsed → 26s remaining < 28s → AR skipped.
   // Lowered to 18s. The per-call AI timeout cap will prevent Vercel overrun.
   if (todayAR === 0) {
-    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 10_000)) {
+    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 18_000)) {
       results.push({ language: "ar", status: "skipped", error: "timeout_approaching — insufficient time for AR generation" });
     } else {
       try {

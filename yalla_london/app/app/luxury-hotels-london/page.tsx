@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Hotel, MapPin, Star, ArrowRight, Wifi, Dumbbell, UtensilsCrossed } from 'lucide-react'
+import { Hotel, MapPin, Star, ArrowRight, Wifi, Dumbbell, UtensilsCrossed, ExternalLink } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { getBaseUrl } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
@@ -182,7 +182,15 @@ export default async function LuxuryHotelsLondonPage() {
                       <h4 className="text-sm font-semibold text-yl-dark-navy mb-2">Top Hotels:</h4>
                       <div className="flex flex-wrap gap-2">
                         {area.hotels.map((h) => (
-                          <span key={h} className="text-xs font-medium bg-yl-gold/10 text-yl-gold-dark px-3 py-1 rounded-full">{h}</span>
+                          <a
+                            key={h}
+                            href={`/api/affiliate/click?url=${encodeURIComponent(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(h + ' London')}&utm_source=yalla-london&utm_medium=affiliate`)}&partner=expedia&article=luxury-hotels-london`}
+                            target="_blank"
+                            rel="noopener sponsored"
+                            className="text-xs font-medium bg-yl-gold/10 text-yl-gold-dark px-3 py-1 rounded-full hover:bg-yl-gold/20 transition-colors inline-flex items-center gap-1"
+                          >
+                            {h} <ExternalLink className="w-3 h-3 opacity-50" />
+                          </a>
                         ))}
                       </div>
                     </div>
@@ -196,6 +204,33 @@ export default async function LuxuryHotelsLondonPage() {
               </BrandCardLight>
             </article>
           ))}
+        </div>
+      </section>
+
+      {/* Book Now CTA */}
+      <section className="bg-yl-dark-navy text-white py-12">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-display font-bold mb-3">Ready to Book Your London Stay?</h2>
+          <p className="text-white/70 mb-8 max-w-2xl mx-auto">Compare prices across London&apos;s finest 5-star hotels. Best rates guaranteed when you book through our partner platforms.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.expedia.com%2FLondon-Hotels.d178279.Travel-Guide-Hotels&partner=expedia&article=luxury-hotels-london"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 bg-yl-gold text-yl-dark-navy font-semibold px-8 py-3.5 rounded-lg hover:bg-yl-gold/90 transition-colors"
+            >
+              <Hotel className="w-5 h-5" /> Search Hotels on Expedia
+            </a>
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.vrbo.com%2Fvacation-rentals%2Fengland%2Flondon&partner=vrbo&article=luxury-hotels-london"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Browse Luxury Rentals on Vrbo
+            </a>
+          </div>
+          <p className="text-xs text-white/40 mt-4">Affiliate disclosure: We earn a commission when you book through our links at no extra cost to you.</p>
         </div>
       </section>
 

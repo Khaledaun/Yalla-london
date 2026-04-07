@@ -190,6 +190,33 @@ export default function LondonByFootPage() {
 
       <TriBar />
 
+      {/* Book Walking Tours CTA */}
+      <section className="bg-yl-dark-navy text-white py-12">
+        <div className="max-w-4xl mx-auto px-7 text-center">
+          <h2 className="text-2xl md:text-3xl font-heading font-bold mb-3">Prefer a Guided Walking Tour?</h2>
+          <p className="text-white/70 mb-8 max-w-2xl mx-auto">Our self-guided routes are free. For expert-led tours with local guides, skip-the-line access, and hidden gems, book a guided experience.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.tiqets.com%2Fen%2Flondon-walking-tours-c81354&partner=tiqets&article=london-by-foot"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 bg-yl-gold text-yl-dark-navy font-semibold px-8 py-3.5 rounded-lg hover:bg-yl-gold/90 transition-colors"
+            >
+              Guided Walking Tours — Tiqets
+            </a>
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.welcomepickups.com%2Flondon&partner=welcome-pickups&article=london-by-foot"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Airport Transfers — Welcome Pickups
+            </a>
+          </div>
+          <p className="text-xs text-white/40 mt-4">Affiliate disclosure: We earn a commission when you book through our links at no extra cost to you.</p>
+        </div>
+      </section>
+
       {/* SEO Content Section */}
       <section className="max-w-4xl mx-auto px-7 py-16">
         <div className="prose prose-stone max-w-none">

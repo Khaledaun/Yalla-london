@@ -196,6 +196,16 @@ export default async function LondonWithKidsPage() {
                       </div>
                       <p className="text-xs text-yl-charcoal/60 mt-1">{attraction.age}</p>
                       <p className="text-sm text-yl-charcoal mt-2">{attraction.highlight}</p>
+                      {!attraction.free && (
+                        <a
+                          href={`/api/affiliate/click?url=${encodeURIComponent(`https://www.tiqets.com/en/search?q=${encodeURIComponent(attraction.name + ' London')}`)}&partner=tiqets&article=london-with-kids`}
+                          target="_blank"
+                          rel="noopener sponsored"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-yl-red mt-3 hover:underline"
+                        >
+                          Get Tickets <ArrowRight className="w-3 h-3" />
+                        </a>
+                      )}
                     </BrandCardLight>
                     </div>
                   ))}
@@ -203,6 +213,33 @@ export default async function LondonWithKidsPage() {
               </article>
             );
           })}
+        </div>
+      </section>
+
+      {/* Book Attractions CTA */}
+      <section className="bg-yl-dark-navy text-white py-12">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-display font-bold mb-3">Book Family Tickets in Advance</h2>
+          <p className="text-white/70 mb-8 max-w-2xl mx-auto">Skip the queues and save 10-20% by booking London attraction tickets online before you arrive.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.tiqets.com%2Fen%2Flondon-attractions-c81338&partner=tiqets&article=london-with-kids"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 bg-yl-gold text-yl-dark-navy font-semibold px-8 py-3.5 rounded-lg hover:bg-yl-gold/90 transition-colors"
+            >
+              <Ticket className="w-5 h-5" /> Browse Attractions on Tiqets
+            </a>
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.expedia.com%2FLondon-Hotels.d178279.Travel-Guide-Hotels&partner=expedia&article=london-with-kids"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Family Hotels on Expedia
+            </a>
+          </div>
+          <p className="text-xs text-white/40 mt-4">Affiliate disclosure: We earn a commission when you book through our links at no extra cost to you.</p>
         </div>
       </section>
 

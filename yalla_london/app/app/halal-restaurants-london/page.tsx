@@ -262,6 +262,33 @@ export default async function HalalRestaurantsLondonPage() {
         </section>
       )}
 
+      {/* Book Your Stay CTA */}
+      <section className="bg-yl-dark-navy text-white py-12">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-display font-bold mb-3">Planning Your London Food Trip?</h2>
+          <p className="text-white/70 mb-8 max-w-2xl mx-auto">Stay near the best halal dining in London. Book a hotel in Edgware Road, Knightsbridge, or Whitechapel for easy access to 700+ halal restaurants.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.expedia.com%2FLondon-Hotels.d178279.Travel-Guide-Hotels&partner=expedia&article=halal-restaurants-london"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 bg-yl-gold text-yl-dark-navy font-semibold px-8 py-3.5 rounded-lg hover:bg-yl-gold/90 transition-colors"
+            >
+              Hotels Near Halal Dining — Expedia
+            </a>
+            <a
+              href="/api/affiliate/click?url=https%3A%2F%2Fwww.vrbo.com%2Fvacation-rentals%2Fengland%2Flondon&partner=vrbo&article=halal-restaurants-london"
+              target="_blank"
+              rel="noopener sponsored"
+              className="inline-flex items-center justify-center gap-2 border border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Self-Catering Apartments — Vrbo
+            </a>
+          </div>
+          <p className="text-xs text-white/40 mt-4">Affiliate disclosure: We earn a commission when you book through our links at no extra cost to you.</p>
+        </div>
+      </section>
+
       {/* Internal Links to Related Pillar Pages */}
       <section className="max-w-6xl mx-auto px-6 py-12">
         <h2 className="text-xl font-display font-bold text-yl-dark-navy mb-6">More London Guides</h2>

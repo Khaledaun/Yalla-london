@@ -284,13 +284,16 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
 
           const linkType = mapLinkType(rec.linkType);
 
+          const linkId = `cj-link-${rec.linkId}`;
+          const existingLink = await prisma.cjLink.findUnique({
+            where: { id: linkId },
+            select: { id: true },
+          });
+
           await prisma.cjLink.upsert({
-            where: {
-              // Use a composite or find-first approach since CJ link IDs may not be globally unique
-              id: `cj-link-${rec.linkId}`,
-            },
+            where: { id: linkId },
             create: {
-              id: `cj-link-${rec.linkId}`,
+              id: linkId,
               networkId: CJ_NETWORK_ID,
               advertiserId: advertiser.id,
               name: rec.linkName || rec.description || "Unnamed Link",
@@ -311,7 +314,11 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
             },
           });
 
-          result.created++;
+          if (existingLink) {
+            result.updated++;
+          } else {
+            result.created++;
+          }
         } catch (err) {
           result.errors.push(
             `Failed to sync link ${rec.linkId}: ${getErrorMessage(err)}`

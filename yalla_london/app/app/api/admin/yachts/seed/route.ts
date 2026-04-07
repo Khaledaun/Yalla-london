@@ -1,7 +1,7 @@
 /**
  * Yacht Seed Data API
  * POST: Seed yacht data in batches
- *   action: "destinations" | "yachts" | "itineraries" | "brokers" | "all"
+ *   action: "destinations" | "yachts" | "itineraries" | "brokers" | "photos" | "all"
  *
  * Idempotent — checks slug+siteId uniqueness before creating.
  */
@@ -229,6 +229,10 @@ export async function POST(request: NextRequest) {
       return await seedBrokers()
     }
 
+    if (action === 'photos') {
+      return await seedPhotos(SITE_ID)
+    }
+
     if (action === 'all') {
       const destResult = await seedDestinations()
       const destData = await destResult.json()
@@ -238,11 +242,18 @@ export async function POST(request: NextRequest) {
       const itinData = await itinResult.json()
       const brokerResult = await seedBrokers()
       const brokerData = await brokerResult.json()
+      // Also seed Unsplash photos for yacht site
+      let photosData = { seeded: 0, skipped: 0, note: 'UNSPLASH_ACCESS_KEY not set' }
+      try {
+        const photosResult = await seedPhotos(SITE_ID)
+        photosData = await photosResult.json()
+      } catch { /* photos are non-blocking */ }
       return NextResponse.json({
         destinations: destData,
         yachts: yachtData,
         itineraries: itinData,
         brokers: brokerData,
+        photos: photosData,
       })
     }
 
@@ -854,4 +865,91 @@ async function seedItineraries() {
     total: ITINERARIES.length,
     results,
   })
+}
+
+// ─── Seed Photos from Unsplash ─────────────────────────────
+
+async function seedPhotos(siteId: string) {
+  const { searchPhotos, trackDownload, buildImageUrl, buildAttribution, SITE_IMAGE_QUERIES } =
+    await import("@/lib/apis/unsplash");
+  const { prisma } = await import("@/lib/db");
+
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  if (!accessKey) {
+    return NextResponse.json({ seeded: 0, skipped: 0, note: "UNSPLASH_ACCESS_KEY not set — skipping photo seed" });
+  }
+
+  const queries = SITE_IMAGE_QUERIES[siteId];
+  if (!queries || !Array.isArray(queries)) {
+    return NextResponse.json({ seeded: 0, skipped: 0, note: `No queries for ${siteId}` });
+  }
+
+  let seeded = 0;
+  let skipped = 0;
+
+  for (const queryDef of queries) {
+    const query = typeof queryDef === "string" ? queryDef : queryDef.query;
+    const category = typeof queryDef === "string" ? "gallery" : queryDef.category;
+    const folder = typeof queryDef === "string" ? siteId : queryDef.folder;
+
+    try {
+      const photos = await searchPhotos(query, { perPage: 3, orientation: "landscape" });
+
+      for (const photo of photos) {
+        const tag = `unsplash:${photo.id}`;
+        const exists = await prisma.mediaAsset.findFirst({
+          where: { tags: { has: tag } },
+          select: { id: true },
+        });
+        if (exists) { skipped++; continue; }
+
+        const responsiveUrls = {
+          thumb: buildImageUrl(photo.urls.raw, { width: 200, quality: 70 }),
+          small: buildImageUrl(photo.urls.raw, { width: 400, quality: 75 }),
+          medium: buildImageUrl(photo.urls.raw, { width: 800, quality: 80 }),
+          large: buildImageUrl(photo.urls.raw, { width: 1200, quality: 85 }),
+          full: buildImageUrl(photo.urls.raw, { width: 1920, quality: 90 }),
+        };
+
+        const tags = [
+          tag, `site:${siteId}`, `category:${category}`, `folder:${folder}`,
+          ...query.split(" ").filter((w: string) => w.length > 3),
+        ];
+
+        await prisma.mediaAsset.create({
+          data: {
+            filename: `unsplash-${photo.id}.jpg`,
+            original_name: photo.description || photo.altDescription || query,
+            cloud_storage_path: `unsplash/${siteId}/${folder}/${photo.id}`,
+            url: photo.urls.regular,
+            file_type: "image",
+            mime_type: "image/jpeg",
+            file_size: 0,
+            width: photo.width,
+            height: photo.height,
+            alt_text: photo.altDescription || query,
+            title: photo.description || query,
+            description: `${query} — ${buildAttribution(photo)}`,
+            tags,
+            license_info: `Unsplash License — Photo by ${photo.photographer.name}`,
+            responsive_urls: responsiveUrls,
+            site_id: siteId,
+            category,
+            folder,
+          },
+        });
+
+        await trackDownload(photo.downloadUrl).catch(() => {});
+        seeded++;
+      }
+
+      // Rate limit respect
+      await new Promise(r => setTimeout(r, 500));
+    } catch (err) {
+      console.warn(`[yacht-seed] Photo seed "${query}": ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  console.log(`[yacht-seed] Photos for ${siteId}: ${seeded} seeded, ${skipped} duplicates skipped`);
+  return NextResponse.json({ seeded, skipped, siteId });
 }

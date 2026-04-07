@@ -66,7 +66,7 @@ function ZenithaLogo({ scrolled = false }: { scrolled?: boolean }) {
       src="/branding/zenitha-yachts/logo/compass-gold-navy-800.png"
       alt="Zenitha Yachts"
       className="transition-all duration-300"
-      style={{ height: scrolled ? 44 : 56, width: "auto" }}
+      style={{ height: scrolled ? 52 : 60, width: "auto" }}
     />
   );
 }

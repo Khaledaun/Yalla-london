@@ -4,7 +4,7 @@ import Link from 'next/link';
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight, Users, Heart, Briefcase, Globe } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
-import { useScrollRevealClass } from '@/hooks/use-scroll-reveal';
+
 
 // ─── Types ──────────────────────────────────────────────────
 type Locale = 'en' | 'ar';
@@ -16,7 +16,7 @@ const PHOTOS = {
   hero: 'https://images.unsplash.com/photo-1528154291023-a6525fabe5b4?w=1920&q=85&auto=format&fit=crop',
   heroAlt: 'https://images.unsplash.com/photo-1567899378494-47b22a2ae96a?w=1920&q=85&auto=format&fit=crop',
   greekIslands: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80&auto=format&fit=crop',
-  croatianCoast: 'https://images.unsplash.com/photo-1555990538-1d0f55016bfc?w=800&q=80&auto=format&fit=crop',
+  croatianCoast: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=800&q=80&auto=format&fit=crop',
   turkishRiviera: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop',
   frenchRiviera: 'https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop',
   motorYacht: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=1200&q=80&auto=format&fit=crop',
@@ -158,14 +158,14 @@ function HeroSection({ locale }: { locale: Locale }) {
 // ─── Trust Bar ───────────────────────────────────────────────
 function TrustBar({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-  const revealRef = useScrollRevealClass<HTMLElement>();
+  
 
   return (
-    <section ref={revealRef} className="border-b border-white/10" style={{ background: 'var(--z-navy, #0F1621)' }}>
+    <section className="border-b border-white/10" style={{ background: 'var(--z-navy, #0F1621)' }}>
       <div className="max-w-[1280px] mx-auto px-6 py-6">
         <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-16">
           {TRUST_STATS.map((stat, i) => (
-            <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger">
+            <div key={i} className="text-center">
               <div className="font-display text-2xl sm:text-3xl font-bold text-white">
                 {stat.value}{'suffix' in stat && <span className="text-[var(--z-gold)]">{stat.suffix}</span>}
               </div>
@@ -183,14 +183,14 @@ function TrustBar({ locale }: { locale: Locale }) {
 // ─── Featured Yachts Section ─────────────────────────────────
 function FeaturedYachtsSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-  const headerRef = useScrollRevealClass<HTMLDivElement>();
-  const sectionRef = useScrollRevealClass<HTMLDivElement>();
+  
+  
 
   return (
     <section className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
         {/* Section Header */}
-        <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
+        <div className="text-center mb-12">
           <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
             {t({ en: 'Our Fleet', ar: 'أسطولنا' })}
           </span>
@@ -200,7 +200,7 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
         </div>
 
         {/* Fleet Preview — links to full search */}
-        <div ref={sectionRef} className="z-reveal-fadeUp">
+        <div className="">
           <div
             className="relative rounded-2xl overflow-hidden"
             style={{
@@ -238,13 +238,13 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
 // ─── Destinations Section ────────────────────────────────────
 function DestinationsSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-  const headerRef = useScrollRevealClass<HTMLDivElement>();
-  const gridRef = useScrollRevealClass<HTMLDivElement>();
+  
+  
 
   return (
     <section className="py-20" style={{ background: 'var(--z-navy, #0F1621)' }}>
       <div className="max-w-[1280px] mx-auto px-6">
-        <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
+        <div className="text-center mb-12">
           <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)]">
             {t({ en: 'Destinations', ar: 'الوجهات' })}
           </span>
@@ -253,9 +253,9 @@ function DestinationsSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5" role="list" aria-label="Charter destinations">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5" role="list" aria-label="Charter destinations">
           {DESTINATIONS.map((dest, i) => (
-            <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger" role="listitem">
+            <Link key={i} href={`/destinations/${dest.slug}`} className="group relative" role="listitem">
               <div
                 className="relative aspect-[3/4] rounded-xl overflow-hidden transition-transform duration-500 group-hover:scale-[1.02]"
                 style={{
@@ -293,13 +293,13 @@ function DestinationsSection({ locale }: { locale: Locale }) {
 // ─── How It Works Section ────────────────────────────────────
 function HowItWorksSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-  const headerRef = useScrollRevealClass<HTMLDivElement>();
-  const stepsRef = useScrollRevealClass<HTMLDivElement>();
+  
+  
 
   return (
     <section className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
-        <div ref={headerRef} className="text-center mb-14 z-reveal-fadeUp">
+        <div className="text-center mb-14">
           <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
             {t({ en: 'The Process', ar: 'العملية' })}
           </span>
@@ -308,9 +308,9 @@ function HowItWorksSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        <div ref={stepsRef} className="grid grid-cols-1 md:grid-cols-3 gap-10" role="list" aria-label="How it works steps">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10" role="list" aria-label="How it works steps">
           {STEPS.map((step, i) => (
-            <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger group cursor-default" role="listitem">
+            <div key={i} className="text-center group cursor-default" role="listitem">
               {/* Step number + Icon */}
               <div className="relative inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--z-sand)] mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-lg">
                 <step.icon size={32} className="text-[var(--z-aegean)]" />
@@ -348,13 +348,13 @@ const GUEST_PROFILES = [
 
 function WhoWeServeSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-  const headerRef = useScrollRevealClass<HTMLDivElement>();
-  const gridRef = useScrollRevealClass<HTMLDivElement>();
+  
+  
 
   return (
     <section className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
-        <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
+        <div className="text-center mb-12">
           <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--z-gold, #C49A2A)' }}>
             {t({ en: 'Who We Serve', ar: 'من نخدم' })}
           </span>
@@ -363,9 +363,9 @@ function WhoWeServeSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" role="list">
           {GUEST_PROFILES.map((profile, i) => (
-            <div key={i} className="bg-white rounded-xl p-6 text-center z-reveal-fadeUp z-reveal-stagger border border-[var(--z-champagne)]" role="listitem">
+            <div key={i} className="bg-white rounded-xl p-6 text-center border border-[var(--z-champagne)]" role="listitem">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[var(--z-sand)] mb-4">
                 <profile.icon size={24} className="text-[var(--z-aegean)]" />
               </div>
@@ -386,13 +386,13 @@ function WhoWeServeSection({ locale }: { locale: Locale }) {
 // ─── AI Planner Teaser ──────────────────────────────────────
 function AIPlannerSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-  const sectionRef = useScrollRevealClass<HTMLElement>();
+  
 
   return (
-    <section ref={sectionRef} className="py-20 bg-white">
+    <section className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="z-reveal-fadeLeft z-reveal-stagger">
+          <div className="">
             <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
               {t({ en: 'AI-Powered', ar: 'مدعوم بالذكاء الاصطناعي' })}
             </span>
@@ -411,7 +411,7 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
           </div>
           {/* Sunset lifestyle photo */}
           <div
-            className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger rounded-2xl overflow-hidden"
+            className="relative aspect-square max-w-md mx-auto lg:mx-0 rounded-2xl overflow-hidden"
             style={{
               backgroundImage: `url(${PHOTOS.sunset})`,
               backgroundSize: 'cover',
@@ -502,7 +502,7 @@ function NewsletterSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-  const sectionRef = useScrollRevealClass<HTMLElement>();
+  
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -526,8 +526,8 @@ function NewsletterSection({ locale }: { locale: Locale }) {
   };
 
   return (
-    <section ref={sectionRef} className="py-16" style={{ background: 'var(--z-navy, #0F1621)' }}>
-      <div className="max-w-[600px] mx-auto px-6 text-center z-reveal-fadeUp">
+    <section className="py-16" style={{ background: 'var(--z-navy, #0F1621)' }}>
+      <div className="max-w-[600px] mx-auto px-6 text-center">
         <h3 className="font-display text-2xl sm:text-3xl font-bold text-white mb-3">
           {t({ en: 'Receive Exclusive Charter Offers', ar: 'احصل على عروض حصرية' })}
         </h3>

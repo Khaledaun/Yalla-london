@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight, Users, Heart, Briefcase, Globe } from 'lucide-react';
+import { PhotoCredits } from '@/components/photo-credits';
 import { useLanguage } from '@/components/language-provider';
 
 
@@ -25,18 +26,18 @@ const PHOTOS = {
   dining: 'https://images.unsplash.com/photo-1544124499-58912cbddaad?w=1200&q=80&auto=format&fit=crop',
 } as const;
 
-// Photo credits (best practice, displayed in footer or image alt)
-const PHOTO_CREDITS = {
-  hero: 'nikldn on Unsplash',
-  heroAlt: 'Jared Rice on Unsplash',
-  greekIslands: 'Jonathan Gallegos on Unsplash',
-  croatianCoast: 'Geio Tischler on Unsplash',
-  turkishRiviera: 'Grant Durr on Unsplash',
-  frenchRiviera: 'Nick Karvounis on Unsplash',
-  sunset: 'Odysseas Chloridis on Unsplash',
-  catamaran: 'Martin Katler on Unsplash',
-  dining: 'Alex Haney on Unsplash',
-} as const;
+// Photo credits — displayed via <PhotoCredits /> component (Unsplash License requirement)
+const PHOTOGRAPHERS = [
+  { name: 'nikldn', username: 'nikldn' },
+  { name: 'Jared Rice', username: 'jareddrice' },
+  { name: 'Jonathan Gallegos', username: 'jonathangallegos' },
+  { name: 'Geio Tischler', username: 'geiotischler' },
+  { name: 'Grant Durr', username: 'grant_durr' },
+  { name: 'Nick Karvounis', username: 'nickkarvounis' },
+  { name: 'Odysseas Chloridis', username: 'odysseasphotography' },
+  { name: 'Martin Katler', username: 'martinkatler' },
+  { name: 'Alex Haney', username: 'alexhaney' },
+];
 
 // ─── Trust Stats ─────────────────────────────────────────────
 const TRUST_STATS = [
@@ -599,6 +600,7 @@ export function ZenithaHomepage({ locale }: { locale: Locale }) {
       <AIPlannerSection locale={locale} />
       <TestimonialsSection locale={locale} />
       <NewsletterSection locale={locale} />
+      <PhotoCredits photographers={PHOTOGRAPHERS} className="text-white/30" />
       <StickyMobileCTA locale={locale} />
       {/* Bottom padding to prevent sticky CTA from overlapping newsletter on mobile */}
       <div className="lg:hidden h-16" aria-hidden="true" />

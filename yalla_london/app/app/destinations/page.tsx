@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
+import { PhotoCredits } from "@/components/photo-credits";
 import {
   Anchor,
   MapPin,
@@ -464,6 +465,13 @@ export default async function DestinationsPage() {
             </Link>
           </div>
         </section>
+
+        <PhotoCredits photographers={[
+          { name: 'Jonathan Gallegos', username: 'jonathangallegos' },
+          { name: 'Grant Durr', username: 'grant_durr' },
+          { name: 'Nick Karvounis', username: 'nickkarvounis' },
+          { name: 'Sven Huls', username: 'svenhuls' },
+        ]} className="text-white/25" />
       </div>
     </>
   );

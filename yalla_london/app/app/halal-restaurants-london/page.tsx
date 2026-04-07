@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { UtensilsCrossed, MapPin, Star, ArrowRight, Clock } from 'lucide-react'
+import { PhotoCredits } from '@/components/photo-credits'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { getBaseUrl } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
@@ -332,6 +333,10 @@ export default async function HalalRestaurantsLondonPage() {
           />
         ))
       )}
+      <PhotoCredits photographers={[
+        { name: 'Jay Wennington', username: 'jaywennington' },
+        { name: 'Jason Leung', username: 'ninjason' },
+      ]} className="text-yl-charcoal/30" />
     </div>
   )
 }

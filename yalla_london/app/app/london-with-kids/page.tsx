@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import { PhotoCredits } from '@/components/photo-credits'
 import { Baby, MapPin, Star, ArrowRight, Ticket, TreePine, Castle } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
 import { getBaseUrl } from '@/lib/url-utils'
@@ -312,6 +313,10 @@ export default async function LondonWithKidsPage() {
           </Link>
         </div>
       </section>
+      <PhotoCredits photographers={[
+        { name: 'Benjamin Davies', username: 'bendavisual' },
+        { name: 'Aron Van de Pol', username: 'aronvandepol' },
+      ]} className="text-yl-charcoal/30" />
     </div>
   )
 }

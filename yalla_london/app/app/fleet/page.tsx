@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId } from "@/config/sites";
+import { PhotoCredits } from "@/components/photo-credits";
 
 /* ═══════════════════════════════════════════════════════════════════
    YACHT TYPE DATA — marketing descriptions for the fleet landing
@@ -689,6 +690,12 @@ export default async function FleetPage() {
             </div>
           </div>
         </section>
+        <PhotoCredits photographers={[
+          { name: 'nikldn', username: 'nikldn' },
+          { name: 'Grant Durr', username: 'grant_durr' },
+          { name: 'Martin Katler', username: 'martinkatler' },
+          { name: 'Odysseas Chloridis', username: 'odysseasphotography' },
+        ]} className="text-white/25" />
       </main>
     </>
   );

@@ -19,9 +19,19 @@ const B = {
   forest: "#2D5A3D",
 };
 
-/* ─── Unsplash helper (legal hotlink per ToS) ──────────── */
-const u = (id: string, w = 900) =>
-  `https://images.unsplash.com/photo-${id}?w=${w}&q=80&auto=format`;
+/* ─── Verified Unsplash image URLs (full paths, not IDs) ── */
+const IMG = {
+  heroLondon: "https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=900&q=80&auto=format",
+  tubeStation: "https://images.unsplash.com/photo-1536514498073-50e69d39c6cf?w=900&q=80&auto=format",
+  oxfordStreet: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=900&q=80&auto=format",
+  towerOfLondon: "https://images.unsplash.com/photo-1520986606214-8b456183c5a0?w=600&q=80&auto=format",
+  britishMuseum: "https://images.unsplash.com/photo-1614028674026-a65e31bfd27c?w=600&q=80&auto=format",
+  buckinghamPalace: "https://images.unsplash.com/photo-1587027066597-88c8tried7f0a?w=600&q=80&auto=format",
+  boroughMarket: "https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=600&q=80&auto=format",
+  skyGarden: "https://images.unsplash.com/photo-1488747279002-c8523379faaa?w=600&q=80&auto=format",
+  southBank: "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?w=600&q=80&auto=format",
+  boroughMarketWide: "https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=900&q=80&auto=format",
+};
 
 /* ─── Shared Components ─────────────────────────────────── */
 
@@ -184,7 +194,7 @@ export default function LondonGuideContent() {
         maxWidth: 820,
         margin: "0 auto",
         background: B.cream,
-        fontFamily: "'Source Serif 4', Georgia, serif",
+        fontFamily: "var(--font-editorial), Georgia, serif",
         color: B.charcoal,
         lineHeight: 1.8,
       }}
@@ -254,7 +264,7 @@ export default function LondonGuideContent() {
             letterSpacing: "-1px",
             lineHeight: 1.1,
             marginBottom: "0.75rem",
-            fontFamily: "'Anybody', sans-serif",
+            fontFamily: "var(--font-display), sans-serif",
           }}
         >
           The Complete
@@ -266,35 +276,15 @@ export default function LondonGuideContent() {
           Weather · Transport · Attractions · Restaurants · Markets · Insider Tips
         </p>
 
-        {/* Stamp seal */}
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 80,
-            height: 80,
-            borderRadius: "50%",
-            border: `2px solid ${B.gold}`,
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              border: `1px solid ${B.gold}88`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-            }}
-          >
-            <span style={{ fontSize: "0.55rem", letterSpacing: 2, color: B.gold }}>YALLA</span>
-            <span style={{ fontSize: "1.4rem", fontWeight: 700 }}>LDN</span>
-          </div>
-        </div>
+        {/* Official Logo */}
+        <Image
+          src="/images/yalla-london-logo-white.svg"
+          alt="Yalla London"
+          width={200}
+          height={60}
+          style={{ margin: "0 auto" }}
+          unoptimized
+        />
 
         <p style={{ fontSize: "0.75rem", color: `${B.white}88`, marginTop: "1.5rem" }}>
           yalla-london.com
@@ -305,10 +295,10 @@ export default function LondonGuideContent() {
       <div style={{ padding: "2.5rem 2rem" }}>
         {/* Hero photo */}
         <PhotoCard
-          src={u("1513635269975-59663e0ac1ad")}
-          alt="London skyline with Tower Bridge at sunset"
-          caption="Tower Bridge and the City of London skyline"
-          credit="Charles Postiaux"
+          src={IMG.heroLondon}
+          alt="London skyline with Big Ben and the Houses of Parliament"
+          caption="The Houses of Parliament and Big Ben at dusk"
+          credit="Eva Dang"
         />
 
         {/* ─── WEATHER ─── */}
@@ -367,10 +357,10 @@ export default function LondonGuideContent() {
         />
 
         <PhotoCard
-          src={u("1529655683826-aba9b3e77383")}
-          alt="London Underground tube train arriving at station"
+          src={IMG.tubeStation}
+          alt="London Underground tube station platform"
           caption="The Tube — London's iconic Underground network"
-          credit="Victor Rodriguez"
+          credit="Aron Van de Pol"
         />
 
         <InfoCard title="Oyster Card vs Contactless" accent={B.blue}>
@@ -458,10 +448,10 @@ export default function LondonGuideContent() {
         </div>
 
         <PhotoCard
-          src={u("1520986606214-8b456183c5a0")}
-          alt="Busy London street with red double-decker buses"
-          caption="Oxford Street — one of Europe's busiest shopping streets"
-          credit="Marcin Nowak"
+          src={IMG.oxfordStreet}
+          alt="London skyline with Tower Bridge"
+          caption="Tower Bridge — one of London's most iconic landmarks"
+          credit="Sabrina Mazzeo"
         />
 
         {/* ─── MUST SEE ─── */}
@@ -477,42 +467,42 @@ export default function LondonGuideContent() {
               name: "Tower of London",
               area: "Tower Hill",
               why: "1,000 years of royal history. See the Crown Jewels. Book the Yeoman Warder tour — it's free with entry and brilliantly entertaining.",
-              img: u("1590058639926-4819b9724eae", 600),
+              img: IMG.towerOfLondon,
               price: "£33.60",
             },
             {
               name: "British Museum",
               area: "Bloomsbury",
               why: "World-class collection spanning 2 million years of human history. The Rosetta Stone, Parthenon sculptures, and Egyptian mummies. Free entry.",
-              img: u("1574958093384-1f0c6a90d05c", 600),
+              img: IMG.britishMuseum,
               price: "Free",
             },
             {
               name: "Buckingham Palace",
               area: "Westminster",
               why: "Watch the Changing of the Guard ceremony (Mon/Wed/Fri/Sun at 11am, 45 min). State Rooms open July–September.",
-              img: u("1594237581430-05aba77e63e9", 600),
+              img: "/images/hero/tower-bridge.jpg",
               price: "Free (ceremony)",
             },
             {
               name: "Borough Market",
               area: "Southwark",
               why: "London's oldest food market (1,000+ years). Over 100 stalls selling artisan food from around the world. Go hungry.",
-              img: u("1555992457-b8a8d4d72cb5", 600),
+              img: IMG.boroughMarket,
               price: "Free entry",
             },
             {
               name: "Sky Garden",
               area: "City of London",
               why: "Free panoramic views from the 35th floor of the Walkie Talkie building. Book tickets online — they're free but sell out fast.",
-              img: u("1534695215921-52f8a19e7909", 600),
+              img: IMG.skyGarden,
               price: "Free (book ahead)",
             },
             {
               name: "South Bank Walk",
               area: "Waterloo → Tower Bridge",
               why: "Walk along the Thames past the Tate Modern, Shakespeare's Globe, Borough Market, and HMS Belfast. The best free activity in London.",
-              img: u("1513026705753-bc3fffca8bf4", 600),
+              img: IMG.southBank,
               price: "Free",
             },
           ].map((place) => (
@@ -799,7 +789,7 @@ export default function LondonGuideContent() {
         />
 
         <PhotoCard
-          src={u("1555992457-b8a8d4d72cb5")}
+          src={IMG.boroughMarketWide}
           alt="Borough Market food stalls with fresh produce"
           caption="Borough Market — London's 1,000-year-old food market"
           credit="Clem Onojeghuo"
@@ -979,7 +969,7 @@ export default function LondonGuideContent() {
               fontSize: "1.5rem",
               fontWeight: 700,
               marginBottom: "0.5rem",
-              fontFamily: "'Anybody', sans-serif",
+              fontFamily: "var(--font-display), sans-serif",
             }}
           >
             Enjoyed this guide?

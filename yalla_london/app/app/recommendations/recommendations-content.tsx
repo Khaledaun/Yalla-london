@@ -518,43 +518,35 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
 
                 {(() => {
                   const affLink = getPageAffiliateLink(item.name_en, item.type as AffiliateCategory, 'yalla-london', 'recommendations');
-                  // Route ALL hotel/restaurant links through affiliate tracking
-                  const trackedWebsite = `/api/affiliate/click?url=${encodeURIComponent(item.website)}&partner=direct&article=recommendations&name=${encodeURIComponent(item.name_en)}`;
+                  // ALL bookable items → Expedia affiliate link. No "Official Site" buttons — every click earns commission.
+                  const expediaSearch = `/api/affiliate/click?url=${encodeURIComponent(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(item.name_en + ' London')}&utm_source=yalla-london&utm_medium=affiliate`)}&partner=expedia&article=recommendations`;
+                  const bookingUrl = affLink?.url || expediaSearch;
+                  const bookingLabel = affLink?.label || (item.type === 'hotel'
+                    ? (locale === 'en' ? 'Book on Expedia' : 'احجز على إكسبيديا')
+                    : item.type === 'restaurant'
+                    ? (locale === 'en' ? 'Reserve Table' : 'احجز طاولة')
+                    : (locale === 'en' ? 'Book Now' : 'احجز الآن'));
                   return (
                   <div className="flex flex-col gap-2 pt-4 border-t border-yl-gray-200">
-                    {/* Primary CTA: Affiliate booking link (highest revenue) */}
-                    {affLink && (
+                    {/* Single CTA: Always affiliate link — Expedia for hotels, partner for others */}
+                    <a
+                      href={bookingUrl}
+                      target="_blank"
+                      rel="noopener sponsored"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-yl-red text-white text-sm font-heading font-semibold rounded-[14px] hover:bg-[#a82924] hover:-translate-y-0.5 transition-all shadow-lg"
+                      data-affiliate-partner={affLink?.partner || 'expedia'}
+                    >
+                      {bookingLabel} →
+                    </a>
+                    {item.phone && (
                       <a
-                        href={affLink.url}
-                        target="_blank"
-                        rel="noopener sponsored"
-                        className={`${affLink.trackingClass} flex items-center justify-center gap-2 px-4 py-2.5 bg-yl-red text-white text-sm font-heading font-semibold rounded-[14px] hover:bg-[#a82924] hover:-translate-y-0.5 transition-all shadow-lg`}
-                        data-affiliate-partner={affLink.partner}
+                        href={`tel:${item.phone}`}
+                        className="flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
                       >
-                        {affLink.label} →
+                        <Phone className="h-4 w-4" />
+                        {locale === 'en' ? 'Call' : 'اتصل'}
                       </a>
                     )}
-                    {/* Secondary: Phone + Website (tracked through /api/affiliate/click) */}
-                    <div className="flex items-center gap-2">
-                      {item.phone && (
-                        <a
-                          href={`tel:${item.phone}`}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
-                        >
-                          <Phone className="h-4 w-4" />
-                          {locale === 'en' ? 'Call' : 'اتصل'}
-                        </a>
-                      )}
-                      <a
-                        href={trackedWebsite}
-                        target="_blank"
-                        rel="noopener sponsored"
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
-                      >
-                        <Globe className="h-4 w-4" />
-                        {locale === 'en' ? 'Official Site' : 'الموقع الرسمي'}
-                      </a>
-                    </div>
                   </div>
                   );
                 })()}

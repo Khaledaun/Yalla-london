@@ -306,7 +306,7 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
               destinationUrl: rec.destinationUrl || "",
               affiliateUrl: rec.clickUrl || "",
               linkType,
-              category: rec.category || advertiser.category || undefined,
+              category: rec.category || advertiser.category || null,
               isActive: true,
             },
           });
@@ -556,6 +556,16 @@ export async function syncCommissions(
             ? rec.sid.split("_")[0]
             : null;
 
+          const existing = await prisma.cjCommission.findUnique({
+            where: {
+              networkId_externalId: {
+                networkId: CJ_NETWORK_ID,
+                externalId: rec.actionId,
+              },
+            },
+            select: { id: true },
+          });
+
           await prisma.cjCommission.upsert({
             where: {
               networkId_externalId: {
@@ -594,7 +604,11 @@ export async function syncCommissions(
             },
           });
 
-          result.created++;
+          if (existing) {
+            result.updated++;
+          } else {
+            result.created++;
+          }
         } catch (err) {
           result.errors.push(
             `Failed to sync commission ${rec.actionId}: ${getErrorMessage(err)}`

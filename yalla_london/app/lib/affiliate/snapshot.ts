@@ -94,18 +94,27 @@ export async function listSnapshots(siteId?: string, limit = 50): Promise<Snapsh
     const now = Date.now();
     const records: SnapshotRecord[] = [];
 
+    // Batch lookup: collect all postIds, then fetch site ownership in one query
+    const parsed: Array<{ entry: typeof entries[0]; details: SnapshotDetails }> = [];
     for (const e of entries) {
-      const d = e.details as unknown as SnapshotDetails | null;
+      const d = e.details as SnapshotDetails | null;
       if (!d || !d.postId) continue;
+      parsed.push({ entry: e, details: d });
+    }
 
-      // If siteId filter provided, check the post belongs to that site
-      if (siteId) {
-        const post = await prisma.blogPost.findUnique({
-          where: { id: d.postId },
-          select: { siteId: true },
-        });
-        if (post && post.siteId !== siteId) continue;
-      }
+    // If siteId filter provided, batch-check ownership instead of N+1 queries
+    let allowedPostIds: Set<string> | null = null;
+    if (siteId && parsed.length > 0) {
+      const postIds = [...new Set<string>(parsed.map((p) => p.details.postId))];
+      const posts = await prisma.blogPost.findMany({
+        where: { id: { in: postIds }, siteId },
+        select: { id: true },
+      });
+      allowedPostIds = new Set<string>(posts.map((p) => p.id));
+    }
+
+    for (const { entry: e, details: d } of parsed) {
+      if (allowedPostIds && !allowedPostIds.has(d.postId)) continue;
 
       const expiresAt = new Date(d.expiresAt);
       records.push({
@@ -141,7 +150,7 @@ export async function restoreSnapshot(snapshotId: string): Promise<{ success: bo
       return { success: false, error: "Snapshot not found" };
     }
 
-    const d = entry.details as unknown as SnapshotDetails | null;
+    const d = entry.details as SnapshotDetails | null;
     if (!d || !d.postId) {
       return { success: false, error: "Snapshot data corrupt" };
     }
@@ -214,7 +223,7 @@ export async function restoreCronRunSnapshots(cronRunId: string): Promise<{ rest
     const errors: string[] = [];
 
     for (const e of entries) {
-      const d = e.details as unknown as SnapshotDetails | null;
+      const d = e.details as SnapshotDetails | null;
       if (!d || d.cronRunId !== cronRunId) continue;
 
       const result = await restoreSnapshot(e.id);

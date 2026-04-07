@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 import {
+  isEtsyEnabled,
   isEtsyConfigured,
   testConnection,
   publishDraft,
@@ -16,9 +17,16 @@ import {
 } from "@/lib/commerce/etsy-api";
 import { getDefaultSiteId } from "@/config/sites";
 
+const ETSY_FROZEN_RESPONSE = NextResponse.json(
+  { error: "Etsy integration temporarily unavailable" },
+  { status: 503 },
+);
+
 // ─── GET: Connection status + shop info ─────────────────
 
 export async function GET(request: NextRequest) {
+  if (!isEtsyEnabled()) return ETSY_FROZEN_RESPONSE;
+
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
@@ -86,6 +94,8 @@ export async function GET(request: NextRequest) {
 // ─── POST: Actions ──────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  if (!isEtsyEnabled()) return ETSY_FROZEN_RESPONSE;
+
   const authError = await requireAdmin(request);
   if (authError) return authError;
 

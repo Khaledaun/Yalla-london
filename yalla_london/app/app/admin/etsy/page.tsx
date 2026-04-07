@@ -822,6 +822,23 @@ function SettingsTab({ envStatus }: { envStatus: EnvStatus }) {
 // ---------------------------------------------------------------------------
 
 export default function EtsyShopPage() {
+  // Feature flag: Etsy integration is frozen
+  const etsyEnabled = process.env.NEXT_PUBLIC_ETSY_ENABLED === "true";
+  if (!etsyEnabled) {
+    return (
+      <div style={{ maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "2rem" }}>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1rem" }}>Etsy Integration</h1>
+        <div style={{ padding: "2rem", background: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 12 }}>
+          <p style={{ fontSize: "1.1rem", fontWeight: 500, marginBottom: "0.5rem" }}>Temporarily Unavailable</p>
+          <p style={{ color: "#666", fontSize: "0.9rem" }}>
+            The Etsy integration is currently frozen while we focus on other revenue channels.
+            All your Etsy configuration and code is preserved and will be re-enabled when ready.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [envStatus, setEnvStatus] = useState<EnvStatus>({
     ETSY_API_KEY: false,

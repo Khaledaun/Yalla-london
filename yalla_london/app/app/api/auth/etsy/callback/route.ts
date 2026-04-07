@@ -12,12 +12,21 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
+  isEtsyEnabled,
   exchangeCodeForTokens,
   storeTokens,
   resolveShopId,
 } from "@/lib/commerce/etsy-api";
 
 export async function GET(request: NextRequest) {
+  // Feature flag gate
+  if (!isEtsyEnabled()) {
+    return NextResponse.json(
+      { error: "Etsy integration temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const error = request.nextUrl.searchParams.get("error");

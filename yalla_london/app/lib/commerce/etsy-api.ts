@@ -48,7 +48,17 @@ export function getEtsyConfig() {
   };
 }
 
+/**
+ * Check if Etsy integration is enabled via feature flag.
+ * ETSY_ENABLED must be explicitly set to "true" to activate.
+ * This is separate from isEtsyConfigured() which checks API credentials.
+ */
+export function isEtsyEnabled(): boolean {
+  return process.env.ETSY_ENABLED === "true";
+}
+
 export function isEtsyConfigured(): boolean {
+  if (!isEtsyEnabled()) return false;
   const cfg = getEtsyConfig();
   return !!(cfg.clientId && cfg.sharedSecret);
 }

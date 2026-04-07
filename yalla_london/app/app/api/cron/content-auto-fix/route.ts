@@ -139,7 +139,7 @@ async function handleAutoFix(request: NextRequest) {
       if (earlyThinUnpublished > 0 || earlyBadSlugUnpublished > 0) {
         console.log(`[content-auto-fix] Section 0: ${earlyThinUnpublished} thin + ${earlyBadSlugUnpublished} bad-slug unpublished`);
       }
-      results.thinContentUnpublished = (results.thinContentUnpublished || 0) + earlyThinUnpublished;
+      results.thinUnpublished = (results.thinUnpublished || 0) + earlyThinUnpublished;
       results.badSlugUnpublished = (results.badSlugUnpublished || 0) + earlyBadSlugUnpublished;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

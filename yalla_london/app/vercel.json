@@ -384,6 +384,10 @@
       "schedule": "45 6 * * 1"
     },
     {
+      "path": "/api/cron/photo-refresh",
+      "schedule": "15 3 */3 * *"
+    },
+    {
       "path": "/api/cron/image-pipeline",
       "schedule": "20 2,10,18 * * *"
     },

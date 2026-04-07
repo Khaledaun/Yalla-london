@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { PhotoCredits } from '@/components/photo-credits'
 import {
   ChevronRight, MapPin, Star, Clock,
   Download, ArrowRight, Sparkles, Calendar,
@@ -924,6 +925,12 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       </section>
 
       </ScrollExpandHero>
+
+      <PhotoCredits photographers={[
+        { name: 'Benjamin Davies', username: 'bendavisual' },
+        { name: 'Jason Leung', username: 'ninjason' },
+        { name: 'Clark Van Der Beken', username: 'snapsbyclark' },
+      ]} className="text-yl-charcoal/30 bg-yl-cream" />
     </div>
   )
 }

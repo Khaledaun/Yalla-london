@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Hotel, MapPin, Star, ArrowRight, Wifi, Dumbbell, UtensilsCrossed, ExternalLink } from 'lucide-react'
+import { PhotoCredits } from '@/components/photo-credits'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
 import { getBaseUrl } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
@@ -326,6 +327,12 @@ export default async function LuxuryHotelsLondonPage() {
           />
         ))
       )}
+      <PhotoCredits photographers={[
+        { name: 'Valeriia Bugaiova', username: 'valeriia_bugaiova' },
+        { name: 'Edvin Johansson', username: 'edvinjohansson' },
+        { name: 'Humphrey Muleba', username: 'good_citizen' },
+        { name: 'Nik Lanús', username: 'nikarthur' },
+      ]} className="text-yl-charcoal/30" />
     </div>
   )
 }

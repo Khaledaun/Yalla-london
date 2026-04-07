@@ -30,29 +30,65 @@ export interface UnsplashPhoto {
 }
 
 // Per-site search query templates for relevant imagery
-export const SITE_IMAGE_QUERIES: Record<string, string[]> = {
+// Per-site search queries with categories for organized media libraries
+export const SITE_IMAGE_QUERIES: Record<string, Array<{ query: string; category: string; folder: string }>> = {
   "yalla-london": [
-    "luxury london hotel", "london skyline", "mayfair london",
-    "london landmark", "british luxury", "london restaurant",
-    "london shopping", "london theatre", "london park",
+    { query: "luxury london hotel lobby", category: "hero", folder: "london/hotels" },
+    { query: "london skyline thames", category: "hero", folder: "london/landmarks" },
+    { query: "mayfair london street", category: "gallery", folder: "london/neighbourhoods" },
+    { query: "london landmark big ben", category: "gallery", folder: "london/landmarks" },
+    { query: "halal restaurant london", category: "gallery", folder: "london/restaurants" },
+    { query: "london luxury shopping harrods", category: "gallery", folder: "london/shopping" },
+    { query: "london west end theatre", category: "gallery", folder: "london/entertainment" },
+    { query: "hyde park london", category: "gallery", folder: "london/parks" },
+    { query: "afternoon tea london", category: "gallery", folder: "london/dining" },
+  ],
+  "zenitha-yachts-med": [
+    { query: "luxury yacht mediterranean aerial", category: "hero", folder: "yachts/hero" },
+    { query: "catamaran turquoise water", category: "hero", folder: "yachts/fleet" },
+    { query: "sailing yacht sunset ocean", category: "hero", folder: "yachts/lifestyle" },
+    { query: "greek islands santorini sea", category: "gallery", folder: "destinations/greek-islands" },
+    { query: "dubrovnik croatia coast", category: "gallery", folder: "destinations/croatia" },
+    { query: "bodrum turkey marina", category: "gallery", folder: "destinations/turkey" },
+    { query: "french riviera monaco yacht", category: "gallery", folder: "destinations/french-riviera" },
+    { query: "dubai marina yacht", category: "gallery", folder: "destinations/arabian-gulf" },
+    { query: "yacht deck dining sunset", category: "gallery", folder: "yachts/onboard" },
+    { query: "snorkeling crystal clear water", category: "gallery", folder: "yachts/activities" },
+    { query: "gulet traditional wooden boat", category: "gallery", folder: "yachts/fleet" },
+    { query: "amalfi coast italy sea", category: "gallery", folder: "destinations/amalfi" },
   ],
   "arabaldives": [
-    "maldives resort", "overwater villa maldives", "maldives beach",
-    "tropical island", "underwater maldives", "maldives sunset",
+    { query: "maldives resort overwater villa", category: "hero", folder: "maldives/resorts" },
+    { query: "maldives beach tropical", category: "gallery", folder: "maldives/beaches" },
+    { query: "underwater coral reef maldives", category: "gallery", folder: "maldives/diving" },
+    { query: "maldives sunset ocean", category: "hero", folder: "maldives/sunsets" },
   ],
-  "yalla-riviera": [
-    "french riviera yacht", "saint tropez", "cannes luxury",
-    "mediterranean coast", "nice france", "monaco harbor",
+  "french-riviera": [
+    { query: "french riviera yacht saint tropez", category: "hero", folder: "riviera/yachts" },
+    { query: "cannes luxury promenade", category: "gallery", folder: "riviera/cities" },
+    { query: "nice france coast", category: "gallery", folder: "riviera/coast" },
+    { query: "monaco harbor luxury", category: "hero", folder: "riviera/monaco" },
   ],
-  "yalla-istanbul": [
-    "istanbul mosque", "bosphorus istanbul", "istanbul luxury hotel",
-    "grand bazaar istanbul", "istanbul sunset", "turkish cuisine",
+  "istanbul": [
+    { query: "istanbul bosphorus mosque", category: "hero", folder: "istanbul/landmarks" },
+    { query: "grand bazaar istanbul", category: "gallery", folder: "istanbul/culture" },
+    { query: "istanbul luxury hotel", category: "gallery", folder: "istanbul/hotels" },
+    { query: "turkish cuisine fine dining", category: "gallery", folder: "istanbul/dining" },
   ],
-  "yalla-thailand": [
-    "phuket beach", "thailand island", "thai spa luxury",
-    "koh samui", "bangkok temple", "thai food",
+  "thailand": [
+    { query: "phuket beach thailand", category: "hero", folder: "thailand/beaches" },
+    { query: "koh samui luxury resort", category: "gallery", folder: "thailand/resorts" },
+    { query: "thai spa wellness luxury", category: "gallery", folder: "thailand/wellness" },
+    { query: "bangkok temple gold", category: "gallery", folder: "thailand/culture" },
   ],
 };
+
+/** Flat query list for backward compatibility */
+export function getSiteQueries(siteId: string): string[] {
+  const queries = SITE_IMAGE_QUERIES[siteId];
+  if (!queries) return [];
+  return queries.map(q => q.query);
+}
 
 /**
  * Search Unsplash for photos matching a query.

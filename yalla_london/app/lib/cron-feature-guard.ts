@@ -85,6 +85,7 @@ const CRON_FLAG_MAP: Record<string, string> = {
   "discovery-monitor": "CRON_DISCOVERY_MONITOR",
   "events-sync": "CRON_EVENTS_SYNC",
   "image-pipeline": "CRON_IMAGE_PIPELINE",
+  "photo-refresh": "CRON_PHOTO_REFRESH",
   "process-indexing-queue": "CRON_PROCESS_INDEXING_QUEUE",
   "agent-maintenance": "CRON_AGENT_MAINTENANCE",
   "retention-executor": "CRON_RETENTION_EXECUTOR",

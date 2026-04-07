@@ -71,19 +71,26 @@ const TESTIMONIALS = [
   { name: 'Marco & Elena', origin: { en: 'Milan, Italy', ar: 'ميلانو، إيطاليا' }, quote: { en: 'We wanted a superyacht for our anniversary but had no idea where to start. Zenitha handled everything — the route through the French Riviera was unforgettable.', ar: 'أردنا سوبريخت لذكرى زواجنا لكن لم نعرف من أين نبدأ. زينيثا تولت كل شيء — المسار عبر الريفيرا الفرنسية كان لا يُنسى.' }, destination: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, yachtType: { en: 'Motor Yacht', ar: 'يخت آلي' }, rating: 5 },
 ];
 
-// ─── Hero Section — Stripe maritime split layout ────────────
+// ─── Hero Section — Full-bleed background image with overlay ────
 function HeroSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
   const isRTL = locale === 'ar';
 
   return (
     <section
-      className="relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, var(--z-navy) 0%, #1B2A4A 100%)' }}
+      className="relative overflow-hidden min-h-[85vh] flex items-center"
+      style={{
+        backgroundImage: `url(${PHOTOS.hero})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundColor: 'var(--z-navy, #0F1621)',
+      }}
     >
-      <div className={`max-w-[1280px] mx-auto px-6 py-16 md:py-24 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 items-center ${isRTL ? 'direction-rtl' : ''}`}>
-        {/* Text column */}
-        <div className={isRTL ? 'order-2' : ''}>
+      {/* Dark overlay for text legibility */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[var(--z-navy)]/90 via-[var(--z-navy)]/70 to-[var(--z-navy)]/40" />
+
+      <div className={`relative z-10 max-w-[1280px] mx-auto px-6 py-20 md:py-28 ${isRTL ? 'direction-rtl' : ''}`}>
+        <div className="max-w-2xl">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-[2px]" style={{ background: 'var(--z-gold)' }} />
             <span className="font-heading text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--z-gold)' }}>
@@ -92,19 +99,19 @@ function HeroSection({ locale }: { locale: Locale }) {
           </div>
 
           <h1
-            className={`text-4xl sm:text-5xl md:text-[3.2rem] leading-[1.1] mb-5 ${isRTL ? 'font-arabic' : 'font-display'}`}
+            className={`text-4xl sm:text-5xl md:text-[3.5rem] leading-[1.1] mb-5 ${isRTL ? 'font-arabic' : 'font-display'}`}
             style={{ fontWeight: 300, color: 'white' }}
           >
             {t({ en: 'Your Voyage,', ar: 'رحلتك,' })}
             <br />
-            <span style={{ color: 'var(--z-shallow, #7CB8D4)' }}>
+            <span style={{ color: 'var(--z-gold, #C49A2A)' }}>
               {t({ en: 'Our Expertise', ar: 'خبرتنا' })}
             </span>
           </h1>
 
           <p
-            className={`text-base sm:text-lg leading-relaxed mb-8 max-w-[440px] ${isRTL ? 'font-arabic' : 'font-body'}`}
-            style={{ color: 'var(--z-ocean, #4A90B8)', fontWeight: 300 }}
+            className={`text-base sm:text-lg leading-relaxed mb-8 max-w-[500px] ${isRTL ? 'font-arabic' : 'font-body'}`}
+            style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 300 }}
           >
             {t({
               en: 'Hand-selected superyachts and motor sailors across the Greek Islands, Turkish Riviera, Côte d\'Azur, and Arabian Gulf. White-glove service from first enquiry to final sunset.',
@@ -136,24 +143,11 @@ function HeroSection({ locale }: { locale: Locale }) {
                 color: 'white',
                 fontSize: 14,
                 borderRadius: 6,
-                border: '1px solid rgba(255,255,255,0.2)',
+                border: '1px solid rgba(255,255,255,0.3)',
               }}
             >
               {t({ en: 'Plan Itinerary', ar: 'خطط المسار' })}
             </Link>
-          </div>
-        </div>
-
-        {/* Image column — Stripe-style deep shadow */}
-        <div className={`relative ${isRTL ? 'order-1' : ''}`}>
-          <div className="relative aspect-[4/3] rounded-lg overflow-hidden" style={{ boxShadow: '0 25px 50px -12px rgba(10,22,40,0.5)' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={PHOTOS.hero}
-              alt={t({ en: 'Luxury yacht on Mediterranean', ar: 'يخت فاخر في البحر المتوسط' })}
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="eager"
-            />
           </div>
         </div>
       </div>
@@ -167,15 +161,15 @@ function TrustBar({ locale }: { locale: Locale }) {
   const revealRef = useScrollRevealClass<HTMLElement>();
 
   return (
-    <section ref={revealRef} className="bg-[var(--z-pearl)] border-b border-[var(--z-champagne)]">
+    <section ref={revealRef} className="border-b border-white/10" style={{ background: 'var(--z-navy, #0F1621)' }}>
       <div className="max-w-[1280px] mx-auto px-6 py-6">
         <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-16">
           {TRUST_STATS.map((stat, i) => (
             <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger">
-              <div className="font-display text-2xl sm:text-3xl font-bold text-[var(--z-navy)]">
-                {stat.value}{'suffix' in stat && <span className="text-[var(--z-gold-dark)]">{stat.suffix}</span>}
+              <div className="font-display text-2xl sm:text-3xl font-bold text-white">
+                {stat.value}{'suffix' in stat && <span className="text-[var(--z-gold)]">{stat.suffix}</span>}
               </div>
-              <div className="text-xs font-heading font-medium text-[var(--z-aegean)] uppercase tracking-wide mt-1">
+              <div className="text-xs font-heading font-medium text-white/50 uppercase tracking-wide mt-1">
                 {t(stat.label)}
               </div>
             </div>
@@ -207,15 +201,16 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
 
         {/* Fleet Preview — links to full search */}
         <div ref={sectionRef} className="z-reveal-fadeUp">
-          <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '420px' }}>
-            {/* Background photo — catamaran on turquoise water */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={PHOTOS.catamaran}
-              alt="Luxury catamaran anchored in crystal-clear turquoise water"
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="lazy"
-            />
+          <div
+            className="relative rounded-2xl overflow-hidden"
+            style={{
+              minHeight: '420px',
+              backgroundImage: `url(${PHOTOS.catamaran})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundColor: 'var(--z-navy, #0F1621)',
+            }}
+          >
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--z-navy)]/85 via-[var(--z-navy)]/60 to-[var(--z-navy)]/30" />
             <div className="relative z-10 p-10 sm:p-14 flex flex-col justify-center" style={{ minHeight: '420px' }}>
               <h3 className="font-heading text-xl sm:text-2xl font-semibold text-white mb-3">
@@ -247,13 +242,13 @@ function DestinationsSection({ locale }: { locale: Locale }) {
   const gridRef = useScrollRevealClass<HTMLDivElement>();
 
   return (
-    <section className="py-20 bg-[var(--z-sand)]">
+    <section className="py-20" style={{ background: 'var(--z-navy, #0F1621)' }}>
       <div className="max-w-[1280px] mx-auto px-6">
         <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
-          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
+          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)]">
             {t({ en: 'Destinations', ar: 'الوجهات' })}
           </span>
-          <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-3">
             {t({ en: 'Where Will the Wind Take You?', ar: 'إلى أين ستأخذك الرياح؟' })}
           </h2>
         </div>
@@ -261,15 +256,15 @@ function DestinationsSection({ locale }: { locale: Locale }) {
         <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5" role="list" aria-label="Charter destinations">
           {DESTINATIONS.map((dest, i) => (
             <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger" role="listitem">
-              <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[var(--z-midnight)]">
-                {/* Destination photo */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={dest.image}
-                  alt={`${dest.name.en} — yacht charter destination`}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
+              <div
+                className="relative aspect-[3/4] rounded-xl overflow-hidden transition-transform duration-500 group-hover:scale-[1.02]"
+                style={{
+                  backgroundImage: `url(${dest.image})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundColor: 'var(--z-navy, #0F1621)',
+                }}
+              >
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/85 via-[var(--z-navy)]/30 to-transparent" />
                 {/* Content */}
@@ -357,13 +352,13 @@ function WhoWeServeSection({ locale }: { locale: Locale }) {
   const gridRef = useScrollRevealClass<HTMLDivElement>();
 
   return (
-    <section className="py-20 bg-[var(--z-pearl)]">
+    <section className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
         <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
-          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
+          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--z-gold, #C49A2A)' }}>
             {t({ en: 'Who We Serve', ar: 'من نخدم' })}
           </span>
-          <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mt-3" style={{ color: 'var(--z-navy, #0F1621)' }}>
             {t({ en: 'Every Charter, Tailored to Your Group', ar: 'كل رحلة مصممة لمجموعتك' })}
           </h2>
         </div>
@@ -394,7 +389,7 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
   const sectionRef = useScrollRevealClass<HTMLElement>();
 
   return (
-    <section ref={sectionRef} className="py-20 bg-[var(--z-pearl)]">
+    <section ref={sectionRef} className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="z-reveal-fadeLeft z-reveal-stagger">
@@ -415,14 +410,15 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
             </Link>
           </div>
           {/* Sunset lifestyle photo */}
-          <div className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger rounded-2xl overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={PHOTOS.sunset}
-              alt="Yacht sailing at golden hour in the Greek islands"
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="lazy"
-            />
+          <div
+            className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger rounded-2xl overflow-hidden"
+            style={{
+              backgroundImage: `url(${PHOTOS.sunset})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundColor: 'var(--z-navy, #0F1621)',
+            }}
+          >
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/40 to-transparent" />
           </div>
         </div>
@@ -530,16 +526,16 @@ function NewsletterSection({ locale }: { locale: Locale }) {
   };
 
   return (
-    <section ref={sectionRef} className="py-16 bg-gradient-to-br from-[var(--z-champagne)] to-[var(--z-sand)]">
+    <section ref={sectionRef} className="py-16" style={{ background: 'var(--z-navy, #0F1621)' }}>
       <div className="max-w-[600px] mx-auto px-6 text-center z-reveal-fadeUp">
-        <h3 className="font-display text-2xl sm:text-3xl font-bold text-[var(--z-navy)] mb-3">
+        <h3 className="font-display text-2xl sm:text-3xl font-bold text-white mb-3">
           {t({ en: 'Receive Exclusive Charter Offers', ar: 'احصل على عروض حصرية' })}
         </h3>
-        <p className="font-body text-[var(--z-aegean)] mb-8">
+        <p className="font-body text-white/60 mb-8">
           {t({ en: 'Early access to new yachts, seasonal deals, and insider sailing guides.', ar: 'وصول مبكر لليخوت الجديدة والعروض الموسمية وأدلة الإبحار الحصرية.' })}
         </p>
         {status === 'success' ? (
-          <p className="font-body text-[var(--z-navy)] font-semibold py-3">
+          <p className="font-body text-[var(--z-gold)] font-semibold py-3">
             {t({ en: 'Thank you! You\'re on the list.', ar: 'شكراً! تمت إضافتك إلى القائمة.' })}
           </p>
         ) : (
@@ -549,7 +545,7 @@ function NewsletterSection({ locale }: { locale: Locale }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t({ en: 'Your email address', ar: 'بريدك الإلكتروني' })}
-              className="flex-1 px-4 py-3 rounded-lg border border-[var(--z-champagne)] bg-white text-[var(--z-navy)] font-body placeholder:text-[var(--z-aegean)]/50 focus:outline-none focus:border-[var(--z-aegean)] focus:ring-1 focus:ring-[var(--z-aegean)]"
+              className="flex-1 px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white font-body placeholder:text-white/40 focus:outline-none focus:border-[var(--z-gold)] focus:ring-1 focus:ring-[var(--z-gold)]"
               required
               disabled={status === 'submitting'}
             />
@@ -565,7 +561,7 @@ function NewsletterSection({ locale }: { locale: Locale }) {
             {t({ en: 'Something went wrong. Please try again.', ar: 'حدث خطأ. يرجى المحاولة مرة أخرى.' })}
           </p>
         )}
-        <p className="text-xs font-body text-[var(--z-aegean)]/60 mt-4">
+        <p className="text-xs font-body text-white/30 mt-4">
           {t({ en: 'We respect your privacy. Unsubscribe anytime.', ar: 'نحترم خصوصيتك. يمكنك إلغاء الاشتراك في أي وقت.' })}
         </p>
       </div>

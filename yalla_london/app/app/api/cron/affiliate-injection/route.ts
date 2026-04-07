@@ -145,6 +145,23 @@ async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRu
       const vrboDeepLink = buildCjDeepLink(publisherCid, VRBO_ADVERTISER_ID, "https://www.vrbo.com/", `${siteId}_cj`);
       const vrboEntry = { name: "Vrbo", url: vrboDeepLink, param: "", category: "hotel" };
 
+      // Look up Expedia from DB — external ID varies, so query by name
+      let expediaEntry = { name: "Expedia", url: "", param: "", category: "hotel" };
+      try {
+        const expediaAdv = await prisma.cjAdvertiser.findFirst({
+          where: { name: { contains: "Expedia" }, status: "JOINED" },
+          select: { externalId: true, programUrl: true },
+        });
+        if (expediaAdv) {
+          const expediaUrl = expediaAdv.programUrl || "https://www.expedia.com/";
+          expediaEntry.url = buildCjDeepLink(publisherCid, expediaAdv.externalId, expediaUrl, `${siteId}_cj`);
+          console.log(`[affiliate-injection] Expedia deep link generated from DB (externalId: ${expediaAdv.externalId})`);
+        }
+      } catch (e) {
+        console.warn("[affiliate-injection] Failed to look up Expedia:", e instanceof Error ? e.message : e);
+      }
+      const hasExpedia = expediaEntry.url.length > 0;
+
       // Only add categories that don't already have CJ rules
       const existingCategories = new Set(rules.map(r => {
         // Infer category from the first affiliate's category
@@ -154,32 +171,32 @@ async function getAffiliateRulesFromCjLinks(siteId: string): Promise<AffiliateRu
       if (!existingCategories.has("travel")) {
         rules.push({
           // Broad travel keywords — matches most London travel articles
-          keywords: ["london", "travel", "visit", "guide", "best", "top", "trip", "holiday", "vacation", "weekend", "luxury", "things to do", "سفر", "لندن", "زيارة", "دليل"],
-          affiliates: [{ ...vrboEntry, category: "travel" }],
+          keywords: ["london", "travel", "visit", "guide", "best", "top", "trip", "holiday", "vacation", "weekend", "luxury", "things to do", "hotel", "mosque", "ramadan", "tube", "underground", "museum", "park", "سفر", "لندن", "زيارة", "دليل"],
+          affiliates: [...(hasExpedia ? [{ ...expediaEntry, category: "travel" }] : []), { ...vrboEntry, category: "travel" }],
         });
       }
       if (!existingCategories.has("restaurant")) {
         rules.push({
-          keywords: CATEGORY_KEYWORDS["restaurant"] || ["restaurant"],
-          affiliates: [{ ...vrboEntry, category: "restaurant" }],
+          keywords: [...(CATEGORY_KEYWORDS["restaurant"] || ["restaurant"]), "halal", "food", "dining", "lunch", "dinner", "eat"],
+          affiliates: [...(hasExpedia ? [{ ...expediaEntry, category: "restaurant" }] : []), { ...vrboEntry, category: "restaurant" }],
         });
       }
       if (!existingCategories.has("activity")) {
         rules.push({
-          keywords: CATEGORY_KEYWORDS["activity"] || ["tour"],
-          affiliates: [{ ...vrboEntry, category: "activity" }],
+          keywords: [...(CATEGORY_KEYWORDS["activity"] || ["tour"]), "attraction", "museum", "gallery", "park", "walk", "kids"],
+          affiliates: [...(hasExpedia ? [{ ...expediaEntry, category: "activity" }] : []), { ...vrboEntry, category: "activity" }],
         });
       }
       if (!existingCategories.has("shopping")) {
         rules.push({
           keywords: CATEGORY_KEYWORDS["shopping"] || ["shopping"],
-          affiliates: [{ ...vrboEntry, category: "shopping" }],
+          affiliates: [...(hasExpedia ? [{ ...expediaEntry, category: "shopping" }] : []), { ...vrboEntry, category: "shopping" }],
         });
       }
       if (!existingCategories.has("transport")) {
         rules.push({
           keywords: CATEGORY_KEYWORDS["transport"] || ["transport"],
-          affiliates: [{ ...vrboEntry, category: "transport" }],
+          affiliates: [...(hasExpedia ? [{ ...expediaEntry, category: "transport" }] : []), { ...vrboEntry, category: "transport" }],
         });
       }
       console.log(`[affiliate-injection] After broad rules: ${rules.length} total CJ rules`);

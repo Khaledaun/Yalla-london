@@ -185,8 +185,15 @@ export async function getContentPerformance(articleSlug: string): Promise<{
 }> {
   const { prisma } = await import("@/lib/db");
 
+  // Use slug boundary match to avoid "london" matching "london-hotels"
   const clickEvents = await prisma.cjClickEvent.findMany({
-    where: { pageUrl: { contains: articleSlug } },
+    where: {
+      OR: [
+        { pageUrl: { endsWith: `/${articleSlug}` } },
+        { pageUrl: { contains: `/${articleSlug}?` } },
+        { pageUrl: { contains: `/${articleSlug}#` } },
+      ],
+    },
     include: {
       link: {
         include: { advertiser: { select: { name: true } } },
@@ -196,7 +203,7 @@ export async function getContentPerformance(articleSlug: string): Promise<{
 
   const byAdvertiser = new Map<string, number>();
   for (const ev of clickEvents) {
-    const name = ev.link.advertiser.name;
+    const name = ev.link?.advertiser?.name || "Unknown";
     byAdvertiser.set(name, (byAdvertiser.get(name) || 0) + 1);
   }
 
@@ -248,22 +255,29 @@ export async function getAlerts(): Promise<AffiliateAlert[]> {
       });
     }
 
-    // 2. Advertisers with no revenue in 30 days
+    // 2. Advertisers with no revenue in 30 days (batch query instead of N+1)
     const joinedAdvs = await prisma.cjAdvertiser.findMany({
       where: { networkId: CJ_NETWORK_ID, status: "JOINED" },
       select: { id: true, name: true },
     });
-    for (const adv of joinedAdvs) {
-      const recentCommission = await prisma.cjCommission.findFirst({
-        where: { advertiserId: adv.id, eventDate: { gte: thirtyDaysAgo } },
+    if (joinedAdvs.length > 0) {
+      const advsWithRevenue = await prisma.cjCommission.groupBy({
+        by: ["advertiserId"],
+        where: {
+          advertiserId: { in: joinedAdvs.map((a) => a.id) },
+          eventDate: { gte: thirtyDaysAgo },
+        },
       });
-      if (!recentCommission) {
-        alerts.push({
-          type: "no_revenue",
-          severity: "low",
-          message: `${adv.name} has generated no revenue in the last 30 days`,
-          details: { advertiserId: adv.id },
-        });
+      const advsWithRevenueSet = new Set<string>(advsWithRevenue.map((a) => a.advertiserId));
+      for (const adv of joinedAdvs) {
+        if (!advsWithRevenueSet.has(adv.id)) {
+          alerts.push({
+            type: "no_revenue",
+            severity: "low",
+            message: `${adv.name} has generated no revenue in the last 30 days`,
+            details: { advertiserId: adv.id },
+          });
+        }
       }
     }
 

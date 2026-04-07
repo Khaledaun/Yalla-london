@@ -155,6 +155,8 @@ function parseAdvertiser(xml: string): CjAdvertiserRecord {
     advertiserName: extractXmlText(xml, "advertiser-name"),
     programUrl: extractXmlText(xml, "program-url"),
     relationshipStatus: extractXmlText(xml, "relationship-status"),
+    // CJ returns <network-rank-seven-day> as a numeric rank (lower = better network performer).
+    // Stored in networkEarningsSevenDay for historical reasons — NOT actual dollar earnings.
     networkEarningsSevenDay: extractXmlNumber(xml, "network-rank-seven-day"),
     networkEarningsThreeMonth: extractXmlNumber(xml, "network-rank-three-month"),
     sevenDayEpc: extractXmlNumber(xml, "seven-day-epc"),
@@ -697,8 +699,14 @@ export async function fetchCommissions(opts: {
 /**
  * Get the CJ website ID for scoping API results.
  */
+let _websiteIdWarned = false;
 export function getWebsiteId(): string {
-  return process.env.CJ_WEBSITE_ID || "";
+  const id = process.env.CJ_WEBSITE_ID || "";
+  if (!id && !_websiteIdWarned) {
+    _websiteIdWarned = true;
+    console.warn("[cj-client] CJ_WEBSITE_ID not set — link search results may be unscoped");
+  }
+  return id;
 }
 
 /**

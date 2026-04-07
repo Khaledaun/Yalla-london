@@ -284,13 +284,16 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
 
           const linkType = mapLinkType(rec.linkType);
 
+          const linkId = `cj-link-${rec.linkId}`;
+          const existingLink = await prisma.cjLink.findUnique({
+            where: { id: linkId },
+            select: { id: true },
+          });
+
           await prisma.cjLink.upsert({
-            where: {
-              // Use a composite or find-first approach since CJ link IDs may not be globally unique
-              id: `cj-link-${rec.linkId}`,
-            },
+            where: { id: linkId },
             create: {
-              id: `cj-link-${rec.linkId}`,
+              id: linkId,
               networkId: CJ_NETWORK_ID,
               advertiserId: advertiser.id,
               name: rec.linkName || rec.description || "Unnamed Link",
@@ -306,12 +309,16 @@ export async function syncLinks(advertiserId: string): Promise<SyncResult> {
               destinationUrl: rec.destinationUrl || "",
               affiliateUrl: rec.clickUrl || "",
               linkType,
-              category: rec.category || advertiser.category || undefined,
+              category: rec.category || advertiser.category || null,
               isActive: true,
             },
           });
 
-          result.created++;
+          if (existingLink) {
+            result.updated++;
+          } else {
+            result.created++;
+          }
         } catch (err) {
           result.errors.push(
             `Failed to sync link ${rec.linkId}: ${getErrorMessage(err)}`
@@ -556,6 +563,16 @@ export async function syncCommissions(
             ? rec.sid.split("_")[0]
             : null;
 
+          const existing = await prisma.cjCommission.findUnique({
+            where: {
+              networkId_externalId: {
+                networkId: CJ_NETWORK_ID,
+                externalId: rec.actionId,
+              },
+            },
+            select: { id: true },
+          });
+
           await prisma.cjCommission.upsert({
             where: {
               networkId_externalId: {
@@ -594,7 +611,11 @@ export async function syncCommissions(
             },
           });
 
-          result.created++;
+          if (existing) {
+            result.updated++;
+          } else {
+            result.created++;
+          }
         } catch (err) {
           result.errors.push(
             `Failed to sync commission ${rec.actionId}: ${getErrorMessage(err)}`

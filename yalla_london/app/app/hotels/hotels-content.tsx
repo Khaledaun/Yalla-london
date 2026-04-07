@@ -555,18 +555,19 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                   </div>
                   {(() => {
                     const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'hotels-page');
-                    const href = affLink?.url || hotel.website;
-                    const rel = affLink ? 'noopener sponsored' : 'noopener noreferrer';
+                    // ALWAYS link to Expedia — no direct hotel URLs, every click earns commission
+                    const expediaUrl = `/api/affiliate/click?url=${encodeURIComponent(`https://www.expedia.com/Hotel-Search?destination=${encodeURIComponent(hotel.name + ' London')}&utm_source=yalla-london&utm_medium=affiliate`)}&partner=expedia&article=hotels-page`;
+                    const href = affLink?.url || expediaUrl;
                     return (
                       <a
                         href={href}
                         target="_blank"
-                        rel={rel}
-                        className={`${affLink ? 'affiliate-page-link' : ''}`}
-                        data-affiliate-partner={affLink?.partner || undefined}
+                        rel="noopener sponsored"
+                        className="affiliate-page-link"
+                        data-affiliate-partner={affLink?.partner || 'expedia'}
                       >
                         <BrandButton variant="primary" size="sm" className="pointer-events-none">
-                          {affLink ? affLink.label : t.bookNow}
+                          {affLink?.label || (locale === 'ar' ? 'احجز على إكسبيديا' : 'Book on Expedia')}
                         </BrandButton>
                       </a>
                     );

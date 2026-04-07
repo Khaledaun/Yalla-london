@@ -567,7 +567,7 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                         data-affiliate-partner={affLink?.partner || 'expedia'}
                       >
                         <BrandButton variant="primary" size="sm" className="pointer-events-none">
-                          {affLink?.label || (language === 'ar' ? 'احجز على إكسبيديا' : 'Book on Expedia')}
+                          {affLink?.label || (locale === 'ar' ? 'احجز على إكسبيديا' : 'Book on Expedia')}
                         </BrandButton>
                       </a>
                     );

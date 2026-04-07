@@ -518,28 +518,11 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
 
                 {(() => {
                   const affLink = getPageAffiliateLink(item.name_en, item.type as AffiliateCategory, 'yalla-london', 'recommendations');
+                  // Route ALL hotel/restaurant links through affiliate tracking
+                  const trackedWebsite = `/api/affiliate/click?url=${encodeURIComponent(item.website)}&partner=direct&article=recommendations&name=${encodeURIComponent(item.name_en)}`;
                   return (
                   <div className="flex flex-col gap-2 pt-4 border-t border-yl-gray-200">
-                    <div className="flex items-center gap-2">
-                      {item.phone && (
-                        <a
-                          href={`tel:${item.phone}`}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
-                        >
-                          <Phone className="h-4 w-4" />
-                          {locale === 'en' ? 'Call' : 'اتصل'}
-                        </a>
-                      )}
-                      <a
-                        href={item.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
-                      >
-                        <Globe className="h-4 w-4" />
-                        {locale === 'en' ? 'Official Site' : 'الموقع الرسمي'}
-                      </a>
-                    </div>
+                    {/* Primary CTA: Affiliate booking link (highest revenue) */}
                     {affLink && (
                       <a
                         href={affLink.url}
@@ -551,6 +534,27 @@ export default function RecommendationsPage({ serverLocale }: { serverLocale?: '
                         {affLink.label} →
                       </a>
                     )}
+                    {/* Secondary: Phone + Website (tracked through /api/affiliate/click) */}
+                    <div className="flex items-center gap-2">
+                      {item.phone && (
+                        <a
+                          href={`tel:${item.phone}`}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
+                        >
+                          <Phone className="h-4 w-4" />
+                          {locale === 'en' ? 'Call' : 'اتصل'}
+                        </a>
+                      )}
+                      <a
+                        href={trackedWebsite}
+                        target="_blank"
+                        rel="noopener sponsored"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-yl-gray-200 rounded-[14px] text-sm text-yl-gray-500 font-body hover:bg-yl-cream transition-colors"
+                      >
+                        <Globe className="h-4 w-4" />
+                        {locale === 'en' ? 'Official Site' : 'الموقع الرسمي'}
+                      </a>
+                    </div>
                   </div>
                   );
                 })()}

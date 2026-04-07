@@ -555,8 +555,9 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: 'en' | 'ar
                   </div>
                   {(() => {
                     const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'hotels-page');
-                    const href = affLink?.url || hotel.website;
-                    const rel = affLink ? 'noopener sponsored' : 'noopener noreferrer';
+                    // Always track through /api/affiliate/click — even when no affiliate partner matched
+                    const href = affLink?.url || `/api/affiliate/click?url=${encodeURIComponent(hotel.website)}&partner=direct&article=hotels-page&name=${encodeURIComponent(hotel.name)}`;
+                    const rel = 'noopener sponsored';
                     return (
                       <a
                         href={href}

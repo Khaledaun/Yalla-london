@@ -445,8 +445,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   }, [])
 
   // Build article list: DB articles first, then fallback
-  const articles = dbArticles.length > 0
-    ? dbArticles.slice(0, 3).map((a, i) => ({
+  // Filter to only show articles with content in the current locale
+  const localeArticles = dbArticles.filter(a => {
+    if (locale === 'ar') return a.title_ar && a.title_ar.length > 5;
+    return a.title_en && a.title_en.length > 5 && !/^[\u0600-\u06FF]/.test(a.title_en); // Exclude Arabic-only titles from EN page
+  });
+  const articles = localeArticles.length > 0
+    ? localeArticles.slice(0, 3).map((a, i) => ({
         id: a.id || String(i),
         slug: a.slug || '#',
         category: a.category?.name || (locale === 'ar' ? 'مقال' : 'Article'),
@@ -915,13 +920,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ BOTTOM TRI-BAR ═══ */}
       <TriBar />
-
-      {/* ═══ FOLLOW US ═══ */}
-      <section className="bg-yl-dark-navy py-12">
-        <div className="max-w-7xl mx-auto px-7 text-center">
-          <FollowUs variant="dark" showLabel={true} />
-        </div>
-      </section>
 
       </ScrollExpandHero>
     </div>

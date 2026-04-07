@@ -624,21 +624,33 @@ export default function CommerceHQPage() {
           <ProductsTab stats={stats} formatCents={formatCents} tierLabel={tierLabel} />
         )}
         {activeTab === "etsy" && (
-          <EtsyTab
-            status={etsyStatus}
-            drafts={etsyDrafts}
-            formatCents={formatCents}
-            formatDate={formatDate}
-            statusColor={statusColor}
-            onTestConnection={testEtsyConnection}
-            onPublish={publishToEtsy}
-            onDisconnect={disconnectEtsy}
-            quickCreateIdea={quickCreateIdea}
-            onQuickCreateIdeaChange={setQuickCreateIdea}
-            onQuickCreate={quickCreateProduct}
-            quickCreateResult={quickCreateResult}
-            actionLoading={actionLoading}
-          />
+          process.env.NEXT_PUBLIC_ETSY_ENABLED === "true" ? (
+            <EtsyTab
+              status={etsyStatus}
+              drafts={etsyDrafts}
+              formatCents={formatCents}
+              formatDate={formatDate}
+              statusColor={statusColor}
+              onTestConnection={testEtsyConnection}
+              onPublish={publishToEtsy}
+              onDisconnect={disconnectEtsy}
+              quickCreateIdea={quickCreateIdea}
+              onQuickCreateIdeaChange={setQuickCreateIdea}
+              onQuickCreate={quickCreateProduct}
+              quickCreateResult={quickCreateResult}
+              actionLoading={actionLoading}
+            />
+          ) : (
+            <div style={{ padding: "3rem 1.5rem", textAlign: "center" }}>
+              <div style={{ maxWidth: 400, margin: "0 auto", padding: "2rem", background: "#FFF8E1", border: "1px solid #FFE082", borderRadius: 12 }}>
+                <p style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Etsy Integration Frozen</p>
+                <p style={{ color: "#666", fontSize: "0.85rem" }}>
+                  Etsy is temporarily disabled while we focus on Stripe digital product sales.
+                  Set <code style={{ background: "#FFF3E0", padding: "2px 4px", borderRadius: 4, fontSize: "0.8rem" }}>ETSY_ENABLED=true</code> in Vercel to re-enable.
+                </p>
+              </div>
+            </div>
+          )
         )}
         {activeTab === "campaigns" && <CampaignsTab />}
         {activeTab === "branding" && <BrandingTab />}

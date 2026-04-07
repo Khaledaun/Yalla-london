@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 import {
+  isEtsyEnabled,
   isEtsyConfigured,
   buildAuthorizationUrl,
   generateCodeVerifier,
@@ -20,6 +21,14 @@ import {
 } from "@/lib/commerce/etsy-api";
 
 export async function GET(request: NextRequest) {
+  // Feature flag gate — Etsy integration frozen when ETSY_ENABLED !== "true"
+  if (!isEtsyEnabled()) {
+    return NextResponse.json(
+      { error: "Etsy integration temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+
   // Only admins can connect Etsy
   const authError = await requireAdmin(request);
   if (authError) return authError;

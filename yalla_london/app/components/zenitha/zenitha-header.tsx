@@ -254,7 +254,7 @@ export function ZenithaHeader() {
       {/* ── Mobile Drawer ── */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 top-0 z-50 overflow-y-auto"
+          className="lg:hidden fixed inset-0 top-0 z-[60] overflow-y-auto"
           style={{ background: "var(--z-navy, #0F1621)", animation: "fadeIn 200ms ease-out" }}
         >
           {/* Mobile header */}
@@ -262,10 +262,10 @@ export function ZenithaHeader() {
             <ZenithaLogo />
             <button
               onClick={() => setMobileOpen(false)}
-              className="p-2 text-white"
+              className="p-3 -mr-2 text-white hover:text-[var(--z-gold)] transition-colors"
               aria-label="Close menu"
             >
-              <X size={24} />
+              <X size={28} strokeWidth={1.5} />
             </button>
           </div>
 

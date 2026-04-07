@@ -26,17 +26,25 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-10 mb-8">
           {/* Brand Column */}
           <div>
-            <div className="mb-5">
-              {/* Logo text — uses CSS fonts already loaded by Next.js (no external SVG font imports) */}
-              <div className="flex items-center gap-1.5">
-                <span className="font-display text-2xl font-extrabold text-yl-parchment tracking-tight">YALLA</span>
-                <span className="font-display text-2xl font-extrabold text-yl-red tracking-tight">LONDON</span>
-              </div>
-              <div className="flex gap-1 mt-1.5">
-                <div className="w-8 h-[2px] bg-yl-red rounded-full" />
-                <div className="w-8 h-[2px] bg-yl-gold rounded-full" />
-                <div className="w-8 h-[2px] bg-yl-blue rounded-full" />
-              </div>
+            <div className="mb-5 flex items-center gap-3">
+              {/* Same stamp + wordmark as header */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/branding/yalla-london/brand-kit-v2/yalla-brand-kit/logos/yalla-stamp-100px.png"
+                alt="Yalla London"
+                width={40}
+                height={40}
+                className="rounded-full brightness-150 contrast-125"
+              />
+              <span className="font-heading font-bold text-xl tracking-wider whitespace-nowrap">
+                <span className="text-yl-parchment">YALLA</span>
+                <span className="text-yl-red ml-1.5">LONDON</span>
+              </span>
+            </div>
+            <div className="flex gap-1 mb-4">
+              <div className="w-8 h-[2px] bg-yl-red rounded-full" />
+              <div className="w-8 h-[2px] bg-yl-gold rounded-full" />
+              <div className="w-8 h-[2px] bg-yl-blue rounded-full" />
             </div>
             <p className="font-body text-sm font-light text-yl-gray-400 leading-relaxed mb-5 max-w-sm">
               {language === 'en'

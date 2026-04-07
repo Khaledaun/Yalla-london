@@ -148,6 +148,11 @@ const JOB_FIX_MAP: Record<string, FixStrategy> = {
     label: "Retry image pipeline",
     manualInstructions: "Go to Cockpit → Crons tab → find Image Pipeline → tap 'Run'. Check UNSPLASH_ACCESS_KEY if failing.",
   },
+  "photo-refresh": {
+    path: "/api/cron/photo-refresh",
+    label: "Retry photo refresh",
+    manualInstructions: "Go to Departures Board → find Photo Refresh → tap 'Do Now'. Seeds seasonal Unsplash photos.",
+  },
 
   // ─── SEO & Indexing ────────────────────────────────────────────────────────
   "seo-deep-review": {

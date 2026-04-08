@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { getTricolorGradient } from '@/lib/design/brand-defaults'
-import { motion } from 'framer-motion'
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { getTricolorGradient } from "@/lib/design/brand-defaults";
+import { motion } from "framer-motion";
 import {
   Newspaper,
   Train,
@@ -21,48 +21,49 @@ import {
   ArrowRight,
   ArrowLeft,
   Clock,
-} from 'lucide-react'
+} from "lucide-react";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselPrevious,
   CarouselNext,
-} from '@/components/ui/carousel'
-import { useLanguage } from '@/components/language-provider'
-import { getTranslation } from '@/lib/i18n'
-import { cn } from '@/lib/utils'
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { useLanguage } from "@/components/language-provider";
+import { getTranslation } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface NewsItemData {
-  id: string
-  slug: string
-  headline_en: string
-  headline_ar: string
-  summary_en: string
-  summary_ar: string
-  announcement_en: string
-  announcement_ar: string
-  source_name: string
-  source_url: string
-  featured_image?: string
-  image_alt_en?: string
-  image_alt_ar?: string
-  image_credit?: string
-  news_category: string
-  is_major: boolean
-  urgency: string
-  event_start_date?: string
-  event_end_date?: string
-  related_article_slugs: string[]
-  published_at: string
+  id: string;
+  slug: string;
+  headline_en: string;
+  headline_ar: string;
+  summary_en: string;
+  summary_ar: string;
+  announcement_en: string;
+  announcement_ar: string;
+  source_name: string;
+  source_url: string;
+  featured_image?: string;
+  image_alt_en?: string;
+  image_alt_ar?: string;
+  image_credit?: string;
+  news_category: string;
+  is_major: boolean;
+  urgency: string;
+  event_start_date?: string;
+  event_end_date?: string;
+  related_article_slugs: string[];
+  published_at: string;
 }
 
 export interface NewsCarouselProps {
-  items?: NewsItemData[]
+  items?: NewsItemData[];
 }
 
 // ---------------------------------------------------------------------------
@@ -70,16 +71,16 @@ export interface NewsCarouselProps {
 // ---------------------------------------------------------------------------
 
 type NewsCategory =
-  | 'transport'
-  | 'events'
-  | 'weather'
-  | 'health'
-  | 'festivals'
-  | 'sales'
-  | 'holidays'
-  | 'strikes'
-  | 'popup'
-  | 'general'
+  | "transport"
+  | "events"
+  | "weather"
+  | "health"
+  | "festivals"
+  | "sales"
+  | "holidays"
+  | "strikes"
+  | "popup"
+  | "general";
 
 const CATEGORY_ICON_MAP: Record<NewsCategory, React.ElementType> = {
   transport: Train,
@@ -92,76 +93,76 @@ const CATEGORY_ICON_MAP: Record<NewsCategory, React.ElementType> = {
   strikes: AlertTriangle,
   popup: Sparkles,
   general: Globe,
-}
+};
 
 const CATEGORY_COLOR_MAP: Record<NewsCategory, string> = {
-  transport: 'bg-blue-500/90 text-white',
-  events: 'bg-purple-500/90 text-white',
-  weather: 'bg-orange-500/90 text-white',
-  health: 'bg-red-500/90 text-white',
-  festivals: 'bg-green-500/90 text-white',
-  sales: 'bg-pink-500/90 text-white',
-  holidays: 'bg-teal-500/90 text-white',
-  strikes: 'bg-red-800/90 text-white',
-  popup: 'bg-indigo-500/90 text-white',
-  general: 'bg-gray-500/90 text-white',
-}
+  transport: "bg-blue-500/90 text-white",
+  events: "bg-purple-500/90 text-white",
+  weather: "bg-orange-500/90 text-white",
+  health: "bg-red-500/90 text-white",
+  festivals: "bg-green-500/90 text-white",
+  sales: "bg-pink-500/90 text-white",
+  holidays: "bg-teal-500/90 text-white",
+  strikes: "bg-red-800/90 text-white",
+  popup: "bg-indigo-500/90 text-white",
+  general: "bg-gray-500/90 text-white",
+};
 
 const CATEGORY_LABEL_EN: Record<NewsCategory, string> = {
-  transport: 'Transport',
-  events: 'Events',
-  weather: 'Weather',
-  health: 'Health',
-  festivals: 'Festivals',
-  sales: 'Sales',
-  holidays: 'Holidays',
-  strikes: 'Strikes',
-  popup: 'Pop-up',
-  general: 'General',
-}
+  transport: "Transport",
+  events: "Events",
+  weather: "Weather",
+  health: "Health",
+  festivals: "Festivals",
+  sales: "Sales",
+  holidays: "Holidays",
+  strikes: "Strikes",
+  popup: "Pop-up",
+  general: "General",
+};
 
 const CATEGORY_LABEL_AR: Record<NewsCategory, string> = {
-  transport: 'مواصلات',
-  events: 'فعاليات',
-  weather: 'طقس',
-  health: 'صحة',
-  festivals: 'مهرجانات',
-  sales: 'تخفيضات',
-  holidays: 'عطلات',
-  strikes: 'إضرابات',
-  popup: 'مؤقت',
-  general: 'عام',
-}
+  transport: "مواصلات",
+  events: "فعاليات",
+  weather: "طقس",
+  health: "صحة",
+  festivals: "مهرجانات",
+  sales: "تخفيضات",
+  holidays: "عطلات",
+  strikes: "إضرابات",
+  popup: "مؤقت",
+  general: "عام",
+};
 
 function getCategoryIcon(category: string): React.ElementType {
-  return CATEGORY_ICON_MAP[category as NewsCategory] ?? Globe
+  return CATEGORY_ICON_MAP[category as NewsCategory] ?? Globe;
 }
 
 function getCategoryColor(category: string): string {
-  return CATEGORY_COLOR_MAP[category as NewsCategory] ?? CATEGORY_COLOR_MAP.general
+  return CATEGORY_COLOR_MAP[category as NewsCategory] ?? CATEGORY_COLOR_MAP.general;
 }
 
-function getCategoryLabel(category: string, language: 'en' | 'ar'): string {
-  if (language === 'ar') {
-    return CATEGORY_LABEL_AR[category as NewsCategory] ?? category
+function getCategoryLabel(category: string, language: "en" | "ar"): string {
+  if (language === "ar") {
+    return CATEGORY_LABEL_AR[category as NewsCategory] ?? category;
   }
-  return CATEGORY_LABEL_EN[category as NewsCategory] ?? category
+  return CATEGORY_LABEL_EN[category as NewsCategory] ?? category;
 }
 
 // ---------------------------------------------------------------------------
 // Date formatter
 // ---------------------------------------------------------------------------
 
-function formatDate(dateStr: string, language: 'en' | 'ar'): string {
+function formatDate(dateStr: string, language: "en" | "ar"): string {
   try {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString(language === 'ar' ? 'ar-GB' : 'en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
+    const date = new Date(dateStr);
+    return date.toLocaleDateString(language === "ar" ? "ar-GB" : "en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   } catch {
-    return dateStr
+    return dateStr;
   }
 }
 
@@ -170,9 +171,9 @@ function formatDate(dateStr: string, language: 'en' | 'ar'): string {
 // ---------------------------------------------------------------------------
 
 function truncateText(text: string, maxLength: number): string {
-  if (!text) return ''
-  if (text.length <= maxLength) return text
-  return text.slice(0, maxLength).trimEnd() + '...'
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trimEnd() + "...";
 }
 
 // ---------------------------------------------------------------------------
@@ -184,18 +185,18 @@ const sectionVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, ease: 'easeOut' },
+    transition: { duration: 0.6, ease: "easeOut" },
   },
-}
+};
 
 const cardVariants = {
   hidden: { opacity: 0, scale: 0.97 },
   visible: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.5, ease: 'easeOut' },
+    transition: { duration: 0.5, ease: "easeOut" },
   },
-}
+};
 
 // ---------------------------------------------------------------------------
 // Skeleton loader
@@ -228,7 +229,7 @@ function NewsCarouselSkeleton() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -236,80 +237,93 @@ function NewsCarouselSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
-  const { language, isRTL } = useLanguage()
-  const [fetchedItems, setFetchedItems] = useState<NewsItemData[] | null>(null)
-  const [loading, setLoading] = useState(!propItems)
-  const [error, setError] = useState(false)
+  const { language, isRTL } = useLanguage();
+  const [fetchedItems, setFetchedItems] = useState<NewsItemData[] | null>(null);
+  const [loading, setLoading] = useState(!propItems);
+  const [error, setError] = useState(false);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  // Track active slide from Embla carousel
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setActiveSlide(carouselApi.selectedScrollSnap());
+    carouselApi.on("select", onSelect);
+    onSelect(); // Set initial
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi]);
 
   // Fetch data when no items prop provided
   useEffect(() => {
-    if (propItems) return undefined
+    if (propItems) return undefined;
 
-    let cancelled = false
+    let cancelled = false;
 
     async function fetchNews() {
       try {
-        setLoading(true)
-        const res = await fetch('/api/news?limit=3')
-        if (!res.ok) throw new Error('Failed to fetch')
-        const data = await res.json()
+        setLoading(true);
+        const res = await fetch("/api/news?limit=3");
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
         if (!cancelled) {
-          setFetchedItems(data.data ?? data.items ?? data)
-          setLoading(false)
+          setFetchedItems(data.data ?? data.items ?? data);
+          setLoading(false);
         }
       } catch {
         if (!cancelled) {
-          setError(true)
-          setLoading(false)
+          setError(true);
+          setLoading(false);
         }
       }
     }
 
-    fetchNews()
+    fetchNews();
     return () => {
-      cancelled = true
-    }
-  }, [propItems])
+      cancelled = true;
+    };
+  }, [propItems]);
 
-  const newsItems = propItems ?? fetchedItems
-  const ArrowIcon = isRTL ? ArrowLeft : ArrowRight
+  const newsItems = propItems ?? fetchedItems;
+  const ArrowIcon = isRTL ? ArrowLeft : ArrowRight;
 
   // Loading state
   if (loading) {
     return (
-      <section className="py-10 px-4 md:px-8 max-w-6xl mx-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+      <section className="py-10 px-4 md:px-8 max-w-6xl mx-auto" dir={isRTL ? "rtl" : "ltr"}>
         <NewsCarouselSkeleton />
       </section>
-    )
+    );
   }
 
   // Empty / error state — render nothing
   if (error || !newsItems || newsItems.length === 0) {
-    return null
+    return null;
   }
 
   // Staleness check — if newest item is older than 7 days, skip rendering
   const newestDate = newsItems.reduce((latest, item) => {
-    const d = new Date(item.published_at || 0).getTime()
-    return d > latest ? d : latest
-  }, 0)
+    const d = new Date(item.published_at || 0).getTime();
+    return d > latest ? d : latest;
+  }, 0);
   if (newestDate > 0 && Date.now() - newestDate > 7 * 24 * 60 * 60 * 1000) {
-    return null // Don't show stale news — better to show nothing
+    return null; // Don't show stale news — better to show nothing
   }
 
-  const sectionTitle = language === 'en' ? 'London Today' : 'لندن اليوم'
-  const readFullStory = language === 'en' ? 'Read Full Story' : 'اقرأ القصة كاملة'
-  const sourceLabel = language === 'en' ? 'Source' : 'المصدر'
-  const relatedLabel = getTranslation(language, 'relatedArticles')
+  const sectionTitle = language === "en" ? "London Today" : "لندن اليوم";
+  const readFullStory = language === "en" ? "Read Full Story" : "اقرأ القصة كاملة";
+  const sourceLabel = language === "en" ? "Source" : "المصدر";
+  const relatedLabel = getTranslation(language, "relatedArticles");
 
   return (
     <motion.section
       className="py-10 px-4 md:px-8 max-w-6xl mx-auto"
-      dir={isRTL ? 'rtl' : 'ltr'}
+      dir={isRTL ? "rtl" : "ltr"}
       variants={sectionVariants}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: '-40px' }}
+      viewport={{ once: true, margin: "-40px" }}
     >
       {/* ------------------------------------------------------------------ */}
       {/* Section header                                                      */}
@@ -318,12 +332,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
         <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-yl-red/10">
           <Newspaper className="w-5 h-5 text-yl-red" />
         </span>
-        <h2
-          className={cn(
-            'text-2xl md:text-3xl font-bold text-yl-charcoal',
-            isRTL ? 'font-arabic' : 'font-heading'
-          )}
-        >
+        <h2 className={cn("text-2xl md:text-3xl font-bold text-yl-charcoal", isRTL ? "font-arabic" : "font-heading")}>
           {sectionTitle}
         </h2>
         <span className="hidden sm:block flex-1 h-px bg-gradient-to-r from-yl-gold/40 to-transparent" />
@@ -334,23 +343,24 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
       {/* ------------------------------------------------------------------ */}
       <Carousel
         opts={{
-          align: 'start',
+          align: "start",
           loop: newsItems.length > 1,
-          direction: isRTL ? 'rtl' : 'ltr',
+          direction: isRTL ? "rtl" : "ltr",
         }}
+        setApi={setCarouselApi}
         className="w-full"
       >
         <CarouselContent className="-ml-4">
           {newsItems.map((item) => {
-            const headline = language === 'en' ? item.headline_en : item.headline_ar
-            const summary = language === 'en' ? item.summary_en : item.summary_ar
-            const announcement = language === 'en' ? item.announcement_en : item.announcement_ar
-            const CategoryIcon = getCategoryIcon(item.news_category)
-            const categoryColor = getCategoryColor(item.news_category)
-            const categoryLabel = getCategoryLabel(item.news_category, language)
-            const isBreaking = item.urgency === 'breaking'
-            const isUrgent = item.urgency === 'urgent'
-            const showUrgencyBadge = isBreaking || isUrgent
+            const headline = language === "en" ? item.headline_en : item.headline_ar;
+            const summary = language === "en" ? item.summary_en : item.summary_ar;
+            const announcement = language === "en" ? item.announcement_en : item.announcement_ar;
+            const CategoryIcon = getCategoryIcon(item.news_category);
+            const categoryColor = getCategoryColor(item.news_category);
+            const categoryLabel = getCategoryLabel(item.news_category, language);
+            const isBreaking = item.urgency === "breaking";
+            const isUrgent = item.urgency === "urgent";
+            const showUrgencyBadge = isBreaking || isUrgent;
 
             return (
               <CarouselItem key={item.id} className="pl-4 basis-full">
@@ -360,26 +370,26 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                   {/* ------------------------------------------------------ */}
                   <article
                     className={cn(
-                      'relative rounded-2xl overflow-hidden transition-shadow duration-300 group/card',
-                      'bg-yl-cream shadow-sm hover:shadow-md',
-                      item.is_major && 'ring-1 ring-yl-gold/50'
+                      "relative rounded-2xl overflow-hidden transition-shadow duration-300 group/card",
+                      "bg-yl-cream shadow-sm hover:shadow-md",
+                      item.is_major && "ring-1 ring-yl-gold/50",
                     )}
                     style={{
-                      border: '2px solid transparent',
-                      backgroundClip: 'padding-box',
+                      border: "2px solid transparent",
+                      backgroundClip: "padding-box",
                     }}
                   >
                     {/* Animated tri-color border overlay */}
                     <div
                       className="absolute inset-0 -z-10 rounded-2xl opacity-60 group-hover/card:opacity-100 transition-opacity duration-300"
                       style={{
-                        margin: '-2px',
+                        margin: "-2px",
                         background: getTricolorGradient(),
-                        borderRadius: 'inherit',
-                        animation: 'rotateBorder 4s linear infinite',
+                        borderRadius: "inherit",
+                        animation: "rotateBorder 4s linear infinite",
                       }}
                     />
-                    <div className="absolute inset-0 rounded-2xl bg-yl-cream" style={{ margin: '2px', zIndex: -1 }} />
+                    <div className="absolute inset-0 rounded-2xl bg-yl-cream" style={{ margin: "2px", zIndex: -1 }} />
 
                     <style jsx>{`
                       @property --border-angle {
@@ -388,7 +398,9 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                         inherits: false;
                       }
                       @keyframes rotateBorder {
-                        to { --border-angle: 360deg; }
+                        to {
+                          --border-angle: 360deg;
+                        }
                       }
                     `}</style>
                     <div className="flex flex-col md:flex-row">
@@ -397,7 +409,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                         <div className="relative w-full md:w-2/5 h-52 md:h-auto min-h-[200px] overflow-hidden">
                           <Image
                             src={item.featured_image}
-                            alt={(language === 'en' ? item.image_alt_en : item.image_alt_ar) || headline}
+                            alt={(language === "en" ? item.image_alt_en : item.image_alt_ar) || headline}
                             fill
                             className="object-cover transition-transform duration-500 hover:scale-105"
                             sizes="(max-width: 768px) 100vw, 40vw"
@@ -417,8 +429,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                       {/* Content section */}
                       <div
                         className={cn(
-                          'flex-1 p-5 md:p-6 flex flex-col justify-between',
-                          !item.featured_image && 'w-full'
+                          "flex-1 p-5 md:p-6 flex flex-col justify-between",
+                          !item.featured_image && "w-full",
                         )}
                       >
                         {/* Top: badges */}
@@ -427,8 +439,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                             {/* Category badge */}
                             <span
                               className={cn(
-                                'inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full',
-                                categoryColor
+                                "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full",
+                                categoryColor,
                               )}
                             >
                               <CategoryIcon className="w-3 h-3" />
@@ -439,33 +451,31 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                             {showUrgencyBadge && (
                               <span
                                 className={cn(
-                                  'inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wide',
-                                  isBreaking
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-orange-500 text-white'
+                                  "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wide",
+                                  isBreaking ? "bg-red-600 text-white" : "bg-orange-500 text-white",
                                 )}
                               >
                                 <span className="relative flex h-2 w-2">
                                   <span
                                     className={cn(
-                                      'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
-                                      isBreaking ? 'bg-red-300' : 'bg-orange-300'
+                                      "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                                      isBreaking ? "bg-red-300" : "bg-orange-300",
                                     )}
                                   />
                                   <span
                                     className={cn(
-                                      'relative inline-flex rounded-full h-2 w-2',
-                                      isBreaking ? 'bg-red-100' : 'bg-orange-100'
+                                      "relative inline-flex rounded-full h-2 w-2",
+                                      isBreaking ? "bg-red-100" : "bg-orange-100",
                                     )}
                                   />
                                 </span>
                                 {isBreaking
-                                  ? language === 'en'
-                                    ? 'Breaking'
-                                    : 'عاجل'
-                                  : language === 'en'
-                                    ? 'Urgent'
-                                    : 'مستعجل'}
+                                  ? language === "en"
+                                    ? "Breaking"
+                                    : "عاجل"
+                                  : language === "en"
+                                    ? "Urgent"
+                                    : "مستعجل"}
                               </span>
                             )}
 
@@ -480,8 +490,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           {announcement && (
                             <p
                               className={cn(
-                                'text-sm font-bold text-yl-red mb-2 leading-snug',
-                                isRTL ? 'font-arabic' : 'font-sans'
+                                "text-sm font-bold text-yl-red mb-2 leading-snug",
+                                isRTL ? "font-arabic" : "font-sans",
                               )}
                             >
                               {announcement}
@@ -491,8 +501,8 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           {/* Headline */}
                           <h3
                             className={cn(
-                              'text-lg md:text-xl font-bold text-yl-charcoal mb-2 leading-tight',
-                              isRTL ? 'font-arabic' : 'font-heading'
+                              "text-lg md:text-xl font-bold text-yl-charcoal mb-2 leading-tight",
+                              isRTL ? "font-arabic" : "font-heading",
                             )}
                           >
                             {headline}
@@ -501,13 +511,11 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           {/* Summary */}
                           <p
                             className={cn(
-                              'text-sm text-yl-gray-500 leading-relaxed mb-4',
-                              isRTL ? 'font-arabic' : 'font-sans'
+                              "text-sm text-yl-gray-500 leading-relaxed mb-4",
+                              isRTL ? "font-arabic" : "font-sans",
                             )}
                           >
-                            <span className="block md:hidden">
-                              {truncateText(summary, 150)}
-                            </span>
+                            <span className="block md:hidden">{truncateText(summary, 150)}</span>
                             <span className="hidden md:block">{summary}</span>
                           </p>
                         </div>
@@ -529,9 +537,9 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                           <Link
                             href={`/news/${item.slug}`}
                             className={cn(
-                              'inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold',
-                              'bg-yl-red text-white hover:bg-[#a82924]',
-                              'transition-all duration-200 hover:gap-3 shadow-sm hover:shadow-md'
+                              "inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold",
+                              "bg-yl-red text-white hover:bg-[#a82924]",
+                              "transition-all duration-200 hover:gap-3 shadow-sm hover:shadow-md",
                             )}
                           >
                             {readFullStory}
@@ -545,7 +553,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                             <Calendar className="w-3.5 h-3.5 text-yl-gold" />
                             <span>
                               {item.event_start_date && formatDate(item.event_start_date, language)}
-                              {item.event_start_date && item.event_end_date && ' — '}
+                              {item.event_start_date && item.event_end_date && " — "}
                               {item.event_end_date && formatDate(item.event_end_date, language)}
                             </span>
                           </div>
@@ -565,15 +573,13 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                               key={slug}
                               href={`/blog/${slug}`}
                               className={cn(
-                                'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium',
-                                'bg-yl-gray-100 text-yl-charcoal border border-yl-gray-200/80',
-                                'hover:border-yl-gold hover:text-yl-red transition-colors duration-200'
+                                "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium",
+                                "bg-yl-gray-100 text-yl-charcoal border border-yl-gray-200/80",
+                                "hover:border-yl-gold hover:text-yl-red transition-colors duration-200",
                               )}
                             >
                               <ArrowIcon className="w-3 h-3" />
-                              {slug
-                                .replace(/-/g, ' ')
-                                .replace(/\b\w/g, (c) => c.toUpperCase())}
+                              {slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                             </Link>
                           ))}
                         </div>
@@ -582,7 +588,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                   </article>
                 </motion.div>
               </CarouselItem>
-            )
+            );
           })}
         </CarouselContent>
 
@@ -591,18 +597,18 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
           <>
             <CarouselPrevious
               className={cn(
-                'hidden sm:flex -left-4 md:-left-5 h-10 w-10 rounded-full',
-                'bg-yl-cream border-yl-gray-200 text-yl-charcoal shadow-sm',
-                'hover:bg-yl-red hover:text-white hover:border-yl-red',
-                'transition-all duration-200'
+                "hidden sm:flex -left-4 md:-left-5 h-10 w-10 rounded-full",
+                "bg-yl-cream border-yl-gray-200 text-yl-charcoal shadow-sm",
+                "hover:bg-yl-red hover:text-white hover:border-yl-red",
+                "transition-all duration-200",
               )}
             />
             <CarouselNext
               className={cn(
-                'hidden sm:flex -right-4 md:-right-5 h-10 w-10 rounded-full',
-                'bg-yl-cream border-yl-gray-200 text-yl-charcoal shadow-sm',
-                'hover:bg-yl-red hover:text-white hover:border-yl-red',
-                'transition-all duration-200'
+                "hidden sm:flex -right-4 md:-right-5 h-10 w-10 rounded-full",
+                "bg-yl-cream border-yl-gray-200 text-yl-charcoal shadow-sm",
+                "hover:bg-yl-red hover:text-white hover:border-yl-red",
+                "transition-all duration-200",
               )}
             />
           </>
@@ -613,16 +619,20 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
       {newsItems.length > 1 && (
         <div className="flex justify-center gap-2 mt-5 sm:hidden">
           {newsItems.map((item, index) => (
-            <span
+            <button
               key={item.id}
-              className="w-2 h-2 rounded-full bg-yl-gray-200"
-              aria-label={`Slide ${index + 1}`}
+              className={cn(
+                "w-2.5 h-2.5 rounded-full transition-all duration-300",
+                index === activeSlide ? "bg-yl-red scale-110" : "bg-yl-gray-300",
+              )}
+              aria-label={`Go to slide ${index + 1}`}
+              onClick={() => carouselApi?.scrollTo(index)}
             />
           ))}
         </div>
       )}
     </motion.section>
-  )
+  );
 }
 
-export default NewsCarousel
+export default NewsCarousel;

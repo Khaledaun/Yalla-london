@@ -164,7 +164,8 @@ export async function GET(request: NextRequest) {
           }).catch(() => {});
         }
       }
-    } } // close disabled Step 1
+    }
+    }
 
     // ── Step 2: Pre-stock library with per-site travel imagery ────────
     // Pick 1 random query per site per run (stays within rate limits)

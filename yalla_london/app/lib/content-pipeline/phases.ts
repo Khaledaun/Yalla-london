@@ -918,12 +918,41 @@ export async function phaseImages(
     // IMPORTANT: Search query must include the destination to get geographically relevant results.
     // Previous bug: generic query "hammam spas London travel" returned Statue of Liberty photo.
     // Blocklist prevents known-wrong photos from entering the pipeline.
+    // Also filter by alt text to reject photos of wrong landmarks/locations.
     const PHOTO_BLOCKLIST = new Set([
       "photo-1566073771259-6a8506099945", // tropical resort with palm trees — NOT London
       "photo-1480714378408-67cf0d13bc1b", // NYC skyline
       "photo-1534430480872-3498386e7856", // Statue of Liberty
-      "photo-1485738422979-f5c462d49f04", // generic US highway
+      "photo-1485738422979-f5c462d49f04", // generic US highway — was incorrectly labeled, reused on ~75 posts
+      "photo-1485738422979-f5c462d49f74", // generic London street/crowd — mass-reused fallback on ~75 posts
+      "photo-1567620905732-2d1ec7ab7445", // food plate — recycled across hammams, mosques, hotels, yachts (~32 posts)
+      "photo-1492866533884-47aea3be0757", // Statue of Liberty close-up
+      "photo-1503174971373-b1f69860e7d7", // Statue of Liberty from water
+      "photo-1618773928121-c32242e63f39", // overwater villa / tropical resort
+      "photo-1571003123894-1f0594d2b5d9", // tropical pool with palm trees
+      "photo-1445019980597-93fa8acb246c", // tropical resort terrace
     ]);
+    // Reject photos whose description mentions non-destination locations
+    const WRONG_LOCATION_KEYWORDS = [
+      "statue of liberty",
+      "new york",
+      "nyc",
+      "manhattan",
+      "brooklyn",
+      "paris",
+      "eiffel",
+      "tokyo",
+      "dubai",
+      "maldives",
+      "bali",
+      "caribbean",
+      "hawaii",
+      "tropical resort",
+    ];
+    const isWrongLocation = (photo: { altDescription?: string | null; description?: string | null }) => {
+      const text = `${photo.altDescription || ""} ${photo.description || ""}`.toLowerCase();
+      return WRONG_LOCATION_KEYWORDS.some((kw) => text.includes(kw));
+    };
     let unsplashUsed = false;
     if (matched.length < 3 && process.env.UNSPLASH_ACCESS_KEY) {
       try {
@@ -931,7 +960,7 @@ export async function phaseImages(
         // Use destination-specific query to avoid geographically irrelevant results
         const query = `${site.destination} ${draft.keyword}`.slice(0, 100);
         const photos = await searchPhotos(query, { perPage: 10, orientation: "landscape" }).then((results) =>
-          results.filter((p) => !PHOTO_BLOCKLIST.has(p.id)),
+          results.filter((p) => !PHOTO_BLOCKLIST.has(p.id) && !isWrongLocation(p)),
         );
         if (photos.length > 0) {
           const unsplashPhotos = photos.map((p) => ({

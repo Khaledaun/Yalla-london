@@ -886,12 +886,13 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // Dynamic timeout: use remaining deadline time (capped at 30s per call, min 10s).
-    // Previous 20s cap was too tight — with 3 providers at 50/25/25 split, each fallback
-    // got only ~5s. Raised to 30s so the provider chain has enough time for 2+ real attempts.
+    // Dynamic timeout: use remaining deadline time (capped at 60s per call, min 10s).
+    // Previous 30s cap was too tight — full article generation (1,500-2,000 words, 6000 tokens)
+    // needs more time than pipeline drafting sections. Pipeline phases use 65-80s timeouts.
+    // With 2 providers at 50% split, each gets 30s at 60s budget — enough for a real attempt.
     const aiTimeoutMs = deadline
-      ? Math.max(10_000, Math.min(30_000, deadline.remainingMs() - 5_000))
-      : 30_000;
+      ? Math.max(10_000, Math.min(60_000, deadline.remainingMs() - 5_000))
+      : 60_000;
     // Pass timeoutMs INTO generateJSON so the provider fallback chain respects
     // the per-call budget. Previously only the outer Promise.race had the timeout,
     // but the inner provider chain used its default 25s budget — meaning grok alone
@@ -902,6 +903,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
         maxTokens: 6000,
         temperature: 0.7,
         timeoutMs: aiTimeoutMs,
+        phaseBudgetHint: 'heavy',
         taskType: "content_generation",
         calledFrom: "daily-content-generate",
       }),

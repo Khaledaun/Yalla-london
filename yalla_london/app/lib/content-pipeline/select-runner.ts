@@ -637,6 +637,59 @@ export async function runContentSelector(
       }
     }
 
+    // ── RETRY: If all selected candidates were title-duplicates, try more from publishReady ──
+    // The selection-time Jaccard (0.92 on keywords) can let candidates through that the
+    // promotion-time normalized Jaccard (0.85 on titles) rejects. When this gap causes
+    // "selected 2, published 0" with 30 publishReady, we retry with the remaining candidates.
+    if (published.length === 0 && skippedReasons.length > 0 && publishReady.length > selected.length) {
+      console.log(`[content-selector] All ${selected.length} selected candidates were duplicates — retrying from ${publishReady.length} publishReady`);
+
+      for (const candidate of publishReady) {
+        if (published.length >= MAX_ARTICLES_PER_RUN) break;
+        const remainingMs = timeoutMs - (Date.now() - cronStart);
+        if (remainingMs < 5000) break;
+
+        const candidateId = candidate.id as string;
+        if (selectedDraftIds.has(candidateId)) continue; // Already tried
+
+        try {
+          console.log(`[content-selector] Retry: promoting draft ${candidateId} (keyword: "${candidate.keyword}")`);
+          const result = await promoteToBlogPost(candidate, prisma, SITES, getSiteDomain);
+          if (result) {
+            published.push(result);
+            selectedDraftIds.add(candidateId);
+            console.log(`[content-selector] Retry succeeded — published "${candidate.keyword}"`);
+          } else {
+            // This candidate was also a duplicate — continue to next
+          }
+        } catch (retryErr) {
+          console.warn(`[content-selector] Retry promotion failed for ${candidateId}:`, retryErr instanceof Error ? retryErr.message : retryErr);
+          await prisma.articleDraft.update({
+            where: { id: candidateId },
+            data: { current_phase: "reservoir", last_error: `Retry promotion failed: ${retryErr instanceof Error ? retryErr.message : retryErr}` },
+          }).catch(() => {});
+        }
+      }
+
+      // If STILL 0 published after exhausting publishReady, force-publish best with skipDedup
+      if (published.length === 0 && publishReady.length > 0) {
+        const best = publishReady[0];
+        const bestId = best.id as string;
+        if (!selectedDraftIds.has(bestId)) {
+          console.warn(`[content-selector] All publishReady exhausted as duplicates — force-publishing best with skipDedup`);
+          try {
+            const result = await promoteToBlogPost(best, prisma, SITES, getSiteDomain, { skipDedup: true });
+            if (result) {
+              published.push(result);
+              selectedDraftIds.add(bestId);
+            }
+          } catch (forceErr) {
+            console.warn(`[content-selector] Force skipDedup publish failed:`, forceErr instanceof Error ? forceErr.message : forceErr);
+          }
+        }
+      }
+    }
+
     // ── Enhancement phase: only if budget remains after promoting publish-ready articles ──
     // Each enhancement costs 30-45s (Grok search + content expansion). Cap at 2 per run.
     // With maxDuration: 300 in vercel.json, we have ~240s budget for enhancements.
@@ -1102,6 +1155,8 @@ export async function promoteToBlogPost(
     .replace(/\s+/g, ' ').trim();
 
   // Jaccard similarity catches near-duplicates with different subtitles (Rule #155, #203)
+  // Threshold 0.85 — aligned closer to selection-time 0.92 to prevent the gap where
+  // selection passes candidates that promotion rejects (caused "selected 2, published 0").
   const jaccardWords = (a: string, b: string): number => {
     const setA = new Set(a.split(/\s+/).filter(Boolean));
     const setB = new Set(b.split(/\s+/).filter(Boolean));
@@ -1133,7 +1188,7 @@ export async function promoteToBlogPost(
           // Exact normalized match
           if (normExisting === normalizedCandidate) return true;
           // Fuzzy match — 0.7 Jaccard catches "London Eye Fast Track Skip Line" vs "London Eye Fast Track Skip Queues"
-          if (normalizedCandidate.length > 3 && normExisting.length > 3 && jaccardWords(normalizedCandidate, normExisting) >= 0.7) return true;
+          if (normalizedCandidate.length > 3 && normExisting.length > 3 && jaccardWords(normalizedCandidate, normExisting) >= 0.85) return true;
           return false;
         },
       );

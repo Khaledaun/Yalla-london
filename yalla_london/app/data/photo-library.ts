@@ -79,14 +79,17 @@ export const londonLandmarks: PhotoEntry[] = [
     height: 1280,
     usage_count: 0,
   },
+  // photo-london-eye-01 REMOVED — photo-1485738422979-f5c462d49f74 was a generic
+  // crowd/street scene, NOT the London Eye. Was mass-reused on ~75 posts as fallback.
+  // Replaced with verified London Eye photo:
   {
-    id: "photo-london-eye-01",
-    url: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=1920",
-    thumbnail: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?w=400",
-    alt_en: "London Eye on the South Bank",
-    alt_ar: "عين لندن على الضفة الجنوبية",
+    id: "photo-london-eye-02",
+    url: "https://images.unsplash.com/photo-1543799382-0e0e39cf30e1?w=1920",
+    thumbnail: "https://images.unsplash.com/photo-1543799382-0e0e39cf30e1?w=400",
+    alt_en: "London Eye ferris wheel on the Thames South Bank",
+    alt_ar: "عين لندن على نهر التايمز",
     category: "london-landmarks",
-    tags: ["london eye", "south bank", "ferris wheel", "thames"],
+    tags: ["london eye", "south bank", "ferris wheel", "thames", "landmark"],
     source: "unsplash",
     license: "unsplash",
     width: 1920,
@@ -141,20 +144,10 @@ export const restaurantsFood: PhotoEntry[] = [
     height: 1280,
     usage_count: 0,
   },
-  {
-    id: "photo-halal-food-01",
-    url: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=1920",
-    thumbnail: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400",
-    alt_en: "Delicious Middle Eastern cuisine platter",
-    alt_ar: "طبق مأكولات شرق أوسطية لذيذة",
-    category: "restaurants-food",
-    tags: ["middle eastern", "halal", "cuisine", "platter"],
-    source: "unsplash",
-    license: "unsplash",
-    width: 1920,
-    height: 1280,
-    usage_count: 0,
-  },
+  // photo-halal-food-01 REMOVED — photo-1567620905732-2d1ec7ab7445 was a generic
+  // food plate recycled across hammams, mosques, hotels, yachts (~32 posts).
+  // NOT replaced — food photos should come from Unsplash API search per-article,
+  // not from a single reusable stock photo.
   {
     id: "photo-afternoon-tea-01",
     url: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=1920",

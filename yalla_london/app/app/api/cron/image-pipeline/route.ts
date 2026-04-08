@@ -42,11 +42,19 @@ export async function GET(request: NextRequest) {
 
     const activeSites = getActiveSiteIds();
 
-    // ── Step 1: DISABLED — No auto-fill article images ────────────────
-    // Policy: Only real, curated photos. Articles without photos show branded gradient.
-    // Owner uploads photos manually via dashboard /admin/media.
-    // Articles with photo_order_status="needs_review" are visible in cockpit.
-    if (false) { for (const siteId of activeSites) {
+    // ── Step 1: Auto-fill articles with NULL featured_image ────────────
+    // Re-enabled after DB cleanup (107 posts had wrong photos nulled out).
+    // Uses Unsplash API with destination-specific queries + PHOTO_BLOCKLIST.
+    // Max 10 articles per run to stay within Unsplash rate limit (50 req/hr).
+    const PHOTO_BLOCKLIST = new Set([
+      "photo-1566073771259-6a8506099945", "photo-1485738422979-f5c462d49f74",
+      "photo-1567620905732-2d1ec7ab7445", "photo-1534430480872-3498386e7856",
+      "photo-1492866533884-47aea3be0757", "photo-1503174971373-b1f69860e7d7",
+      "photo-1618773928121-c32242e63f39", "photo-1571003123894-1f0594d2b5d9",
+      "photo-1445019980597-93fa8acb246c", "photo-1480714378408-67cf0d13bc1b",
+      "photo-1485738422979-f5c462d49f04",
+    ]);
+    for (const siteId of activeSites) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
       const articles = await prisma.blogPost.findMany({
@@ -67,8 +75,11 @@ export async function GET(request: NextRequest) {
         if (Date.now() - startTime > BUDGET_MS) break;
 
         try {
-          const query = article.title_en.replace(/[^\w\s]/g, "").substring(0, 50);
-          const photos = await searchPhotos(query, { perPage: 3, orientation: "landscape" });
+          const siteConfig = getSiteConfig(siteId);
+          const destination = siteConfig?.destination || "London";
+          const query = `${destination} ${article.title_en.replace(/[^\w\s]/g, "")}`.substring(0, 80);
+          const photos = (await searchPhotos(query, { perPage: 8, orientation: "landscape" }))
+            .filter(p => !PHOTO_BLOCKLIST.has(p.id));
           if (photos.length === 0) continue;
 
           const photo = photos[0];

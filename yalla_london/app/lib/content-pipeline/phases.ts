@@ -923,7 +923,9 @@ export async function phaseImages(
       "photo-1566073771259-6a8506099945", // tropical resort with palm trees — NOT London
       "photo-1480714378408-67cf0d13bc1b", // NYC skyline
       "photo-1534430480872-3498386e7856", // Statue of Liberty
-      "photo-1485738422979-f5c462d49f04", // generic US highway
+      "photo-1485738422979-f5c462d49f04", // generic US highway — was incorrectly labeled, reused on ~75 posts
+      "photo-1485738422979-f5c462d49f74", // generic London street/crowd — mass-reused fallback on ~75 posts
+      "photo-1567620905732-2d1ec7ab7445", // food plate — recycled across hammams, mosques, hotels, yachts (~32 posts)
       "photo-1492866533884-47aea3be0757", // Statue of Liberty close-up
       "photo-1503174971373-b1f69860e7d7", // Statue of Liberty from water
       "photo-1618773928121-c32242e63f39", // overwater villa / tropical resort

@@ -24,30 +24,32 @@ export const BLOG_REDIRECTS: Record<string, string> = {
   // ── Luxury Spas cluster ────────────────────────────────────────────
   "/blog/best-luxury-spas-london-2026-women-friendly-halal-1xfb":
     "/blog/best-luxury-spas-london-2026-women-friendly-halal",
-  "/blog/best-luxury-spas-london-women-friendly-halal":
-    "/blog/best-luxury-spas-london-2026-women-friendly-halal",
-  "/blog/luxury-spas-london-arabic":
-    "/blog/best-luxury-spas-london-2026-women-friendly-halal",
+  "/blog/best-luxury-spas-london-women-friendly-halal": "/blog/best-luxury-spas-london-2026-women-friendly-halal",
+  "/blog/luxury-spas-london-arabic": "/blog/best-luxury-spas-london-2026-women-friendly-halal",
 
   // ── London Transport cluster ───────────────────────────────────────
   "/blog/london-transport-guide-tourists-2026-tube-bus-taxi-1pwq":
     "/blog/london-transport-guide-tourists-2026-tube-bus-taxi",
 
   // ── Edgware Road cluster ───────────────────────────────────────────
-  "/blog/edgware-road-london-complete-guide-arab-area-c4f47971":
-    "/blog/edgware-road-london-complete-guide-arab-area",
+  "/blog/edgware-road-london-complete-guide-arab-area-c4f47971": "/blog/edgware-road-london-complete-guide-arab-area",
 
   // ── Islamic Heritage cluster ───────────────────────────────────────
-  "/blog/london-islamic-heritage-gems-2026-02-19-0e0828e5":
-    "/blog/london-islamic-heritage-gems-2026-02-19-0d2d371b",
+  "/blog/london-islamic-heritage-gems-2026-02-19-0e0828e5": "/blog/london-islamic-heritage-gems-2026-02-19-0d2d371b",
 
   // ── Halal Restaurants (date variant) ───────────────────────────────
-  "/blog/halal-restaurants-london-luxury-2024-guide-2026-02-20":
-    "/blog/halal-restaurants-london-luxury-2024-guide",
+  "/blog/halal-restaurants-london-luxury-2024-guide-2026-02-20": "/blog/halal-restaurants-london-luxury-2024-guide",
 
   // ── Luxury Hotels cluster ──────────────────────────────────────────
-  "/blog/luxury-hotels-london-arab-families-2025-comparison":
-    "/blog/luxury-hotels-london-arab-families",
-  "/blog/muslim-friendly-hotels-london-2026-prayer-facilities-halal":
-    "/blog/luxury-hotels-london-arab-families",
+  "/blog/luxury-hotels-london-arab-families-2025-comparison": "/blog/luxury-hotels-london-arab-families",
+  "/blog/muslim-friendly-hotels-london-2026-prayer-facilities-halal": "/blog/luxury-hotels-london-arab-families",
+};
+
+/**
+ * Static page redirects — consolidate overlapping pages to canonical pillars.
+ * Used by middleware.ts alongside blog redirects.
+ */
+export const PAGE_REDIRECTS: Record<string, string> = {
+  // /luxury-hotels-london cannibalizes /hotels — same intent, one canonical
+  "/luxury-hotels-london": "/hotels",
 };

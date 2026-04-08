@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/recommendations`,
         "x-default": canonicalUrl,
       },
     },
@@ -40,10 +41,10 @@ export async function generateMetadata(): Promise<Metadata> {
       description: `Our hand-picked ${destination} recommendations — luxury hotels, fine dining restaurants, and must-visit attractions curated for discerning Arab travelers.`,
     },
     robots: {
-      index: true,
-      follow: true,
+      index: false, // Noindex until rebuilt as proper hub — currently cannibalizes /hotels and /halal-restaurants-london
+      follow: true, // Keep follow so link equity flows to pillar pages
       googleBot: {
-        index: true,
+        index: false,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",

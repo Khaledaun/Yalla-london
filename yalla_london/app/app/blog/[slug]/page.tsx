@@ -30,10 +30,7 @@ type Props = {
 
 /** Race a promise against a timeout (ms). Returns null on timeout. */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
-  ]);
+  return Promise.race([promise, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
 }
 
 // ─── Author (TeamMember) lookup ────────────────────────────────────────────
@@ -154,9 +151,7 @@ function computeReadingTime(html: string): number {
   return Math.max(1, Math.ceil(words / 200));
 }
 
-type PostResult =
-  | { source: "db"; post: Record<string, any> }
-  | { source: "static"; post: Record<string, any> };
+type PostResult = { source: "db"; post: Record<string, any> } | { source: "static"; post: Record<string, any> };
 
 /**
  * findPost is wrapped with React.cache() so that generateMetadata() and
@@ -171,13 +166,13 @@ type PostResult =
 async function checkRedirect(slug: string): Promise<string | null> {
   try {
     const { prisma } = await import("@/lib/db");
-    const redirect = await withTimeout(
+    const redirect = (await withTimeout(
       prisma.seoRedirect.findUnique({
         where: { sourceUrl: `/blog/${slug}` },
         select: { targetUrl: true, enabled: true, statusCode: true },
       }),
       2000,
-    ) as { targetUrl: string; enabled: boolean; statusCode: number } | null;
+    )) as { targetUrl: string; enabled: boolean; statusCode: number } | null;
     if (redirect?.enabled && redirect.targetUrl) {
       return redirect.targetUrl;
     }
@@ -192,10 +187,16 @@ const findPost = cache(async function findPost(slug: string, siteId: string): Pr
   const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };
 
-  // Fall back to static content (legacy hardcoded articles) — lazy-loaded
-  const { allStaticPosts } = await getStaticPosts();
-  const staticPost = allStaticPosts.find((p) => p.slug === slug && p.published);
-  if (staticPost) return { source: "static", post: staticPost };
+  // Fall back to static content (legacy hardcoded articles) — lazy-loaded.
+  // Static posts are London-specific content — only serve them for yalla-london.
+  // Without this gate, visiting zenithayachts.com/blog/best-halal-restaurants-london
+  // would render a London article on the yacht charter site.
+  const isDefaultSite = siteId === "yalla-london" || siteId === getDefaultSiteId();
+  if (isDefaultSite) {
+    const { allStaticPosts } = await getStaticPosts();
+    const staticPost = allStaticPosts.find((p) => p.slug === slug && p.published);
+    if (staticPost) return { source: "static", post: staticPost };
+  }
 
   return null;
 });
@@ -204,16 +205,12 @@ const findPost = cache(async function findPost(slug: string, siteId: string): Pr
 
 export async function generateStaticParams() {
   const { allStaticPosts } = await getStaticPosts();
-  const staticSlugs = allStaticPosts
-    .filter((post) => post.published)
-    .map((post) => ({ slug: post.slug }));
+  const staticSlugs = allStaticPosts.filter((post) => post.published).map((post) => ({ slug: post.slug }));
 
   // At build time, generate params for all sites (no site filter)
   const dbSlugs = await getDbSlugs();
   const staticSet = new Set(staticSlugs.map((s) => s.slug));
-  const dbOnly = dbSlugs
-    .filter((slug) => !staticSet.has(slug))
-    .map((slug) => ({ slug }));
+  const dbOnly = dbSlugs.filter((slug) => !staticSet.has(slug)).map((slug) => ({ slug }));
 
   return [...staticSlugs, ...dbOnly];
 }
@@ -232,8 +229,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const siteDomain = getSiteDomain(siteId);
   const siteSlug = siteConfig?.slug || getDefaultSiteId();
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
 
   // Arabic SSR: detect locale from middleware header so crawlers on /ar/ routes
   // see Arabic metadata in the HTML head (not just after client hydration).
@@ -259,25 +255,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { source, post } = result;
   const title = isArabic
-    ? ((post as any).meta_title_ar || post.title_ar || post.title_en)
-    : (post.meta_title_en || post.title_en);
+    ? (post as any).meta_title_ar || post.title_ar || post.title_en
+    : post.meta_title_en || post.title_en;
   const rawDescription = isArabic
-    ? ((post as any).meta_description_ar || post.excerpt_ar || post.excerpt_en || "")
-    : (post.meta_description_en || post.excerpt_en || "");
+    ? (post as any).meta_description_ar || post.excerpt_ar || post.excerpt_en || ""
+    : post.meta_description_en || post.excerpt_en || "";
   // Cap at 160 chars — Google truncates beyond this and it hurts CTR
-  const description = rawDescription.length > 160
-    ? rawDescription.slice(0, 157) + "..."
-    : rawDescription;
+  const description = rawDescription.length > 160 ? rawDescription.slice(0, 157) + "..." : rawDescription;
   const ogTitle = title.length > 60 ? title.slice(0, 59).trimEnd() + "\u2026" : title;
   const image = post.featured_image || `${baseUrl}/api/og?siteId=${siteSlug}&title=${encodeURIComponent(ogTitle)}`;
-  const createdAt =
-    post.created_at instanceof Date
-      ? post.created_at.toISOString()
-      : String(post.created_at);
-  const updatedAt =
-    post.updated_at instanceof Date
-      ? post.updated_at.toISOString()
-      : String(post.updated_at);
+  const createdAt = post.created_at instanceof Date ? post.created_at.toISOString() : String(post.created_at);
+  const updatedAt = post.updated_at instanceof Date ? post.updated_at.toISOString() : String(post.updated_at);
 
   let categoryName = "Travel";
   let tags: string[] = post.tags || [];
@@ -296,7 +284,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Filter out internal pipeline tags from public-facing metadata
   const INTERNAL_TAGS = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
-  const publicTags = tags.filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
+  const publicTags = tags.filter(
+    (t: string) =>
+      !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"),
+  );
 
   // noindex articles with thin content — prevents indexing stub/placeholder pages that
   // hurt crawl budget and dilute site quality signals.
@@ -307,15 +298,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // London" at 70 words) provide no ranking value and waste crawl budget.
   const contentEn = post.content_en || "";
   const contentAr = post.content_ar || "";
-  const wordCountEn = contentEn.replace(/<[^>]*>/g, "").trim().split(/\s+/).filter(Boolean).length;
-  const wordCountAr = contentAr.replace(/<[^>]*>/g, "").trim().split(/\s+/).filter(Boolean).length;
+  const wordCountEn = contentEn
+    .replace(/<[^>]*>/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const wordCountAr = contentAr
+    .replace(/<[^>]*>/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
   const hasSubstantiveContent = wordCountEn >= 200 || wordCountAr >= 200;
 
   // Fetch real author name for E-E-A-T (cached — shared with page component)
   const author = await getAuthorForSite(siteId);
   const authorName = isArabic
-    ? (author?.name_ar || author?.name_en || `${siteName} Editorial`)
-    : (author?.name_en || `${siteName} Editorial`);
+    ? author?.name_ar || author?.name_en || `${siteName} Editorial`
+    : author?.name_en || `${siteName} Editorial`;
 
   return {
     title,
@@ -346,7 +345,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       section: categoryName,
       tags: publicTags,
       images: image
-        ? [{ url: image, width: 1200, height: 630, alt: isArabic ? (post.title_ar || post.title_en) : post.title_en }]
+        ? [{ url: image, width: 1200, height: 630, alt: isArabic ? post.title_ar || post.title_en : post.title_en }]
         : [],
     },
     twitter: {
@@ -396,7 +395,10 @@ function extractFaqPairs(html: string): Array<{ question: string; answer: string
   let match;
   while ((match = faqPattern.exec(html)) !== null) {
     const question = match[1].replace(/<[^>]*>/g, "").trim();
-    const rawAnswer = match[2].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const rawAnswer = match[2]
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (question && rawAnswer.length > 30) {
       pairs.push({ question, answer: rawAnswer.slice(0, 500) });
     }
@@ -418,7 +420,10 @@ function extractFaqPairs(html: string): Array<{ question: string; answer: string
     const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
     let li;
     while ((li = liPattern.exec(body)) !== null) {
-      const text = li[1].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      const text = li[1]
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
       if (text.length > 15) items.push(text);
     }
     if (items.length >= 2) {
@@ -441,8 +446,7 @@ function generateStructuredData(
   author?: AuthorInfo | null,
 ) {
   const { siteName, siteDomain, siteSlug, locale } = siteInfo;
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
 
   let categoryName = "Travel";
   let keywords: string[] = [];
@@ -458,20 +462,11 @@ function generateStructuredData(
 
   const isArabic = locale === "ar";
   // Use locale-appropriate content for word count and FAQ extraction
-  const contentHtml = isArabic ? (post.content_ar || post.content_en || "") : (post.content_en || "");
-  const contentText =
-    source === "static"
-      ? contentHtml
-      : contentHtml.replace(/<[^>]*>/g, "");
+  const contentHtml = isArabic ? post.content_ar || post.content_en || "" : post.content_en || "";
+  const contentText = source === "static" ? contentHtml : contentHtml.replace(/<[^>]*>/g, "");
   const wordCount = contentText.split(/\s+/).filter(Boolean).length;
-  const createdAt =
-    post.created_at instanceof Date
-      ? post.created_at.toISOString()
-      : String(post.created_at);
-  const updatedAt =
-    post.updated_at instanceof Date
-      ? post.updated_at.toISOString()
-      : String(post.updated_at);
+  const createdAt = post.created_at instanceof Date ? post.created_at.toISOString() : String(post.created_at);
+  const updatedAt = post.updated_at instanceof Date ? post.updated_at.toISOString() : String(post.updated_at);
 
   const logoPath = `${baseUrl}/images/${siteSlug}-logo.svg`;
 
@@ -480,37 +475,37 @@ function generateStructuredData(
 
   // Use locale-appropriate headline and description for structured data.
   // Google expects JSON-LD to match the visible page content language.
-  const headline = isArabic
-    ? (post.title_ar || post.title_en)
-    : post.title_en;
-  const schemaDescription = isArabic
-    ? (post.excerpt_ar || post.excerpt_en || "")
-    : (post.excerpt_en || "");
+  const headline = isArabic ? post.title_ar || post.title_en : post.title_en;
+  const schemaDescription = isArabic ? post.excerpt_ar || post.excerpt_en || "" : post.excerpt_en || "";
   const authorName = isArabic
-    ? (author?.name_ar || author?.name_en || `${siteName} Editorial`)
-    : (author?.name_en || `${siteName} Editorial`);
-  const canonicalPageUrl = isArabic
-    ? `${baseUrl}/ar/blog/${post.slug}`
-    : `${baseUrl}/blog/${post.slug}`;
+    ? author?.name_ar || author?.name_en || `${siteName} Editorial`
+    : author?.name_en || `${siteName} Editorial`;
+  const canonicalPageUrl = isArabic ? `${baseUrl}/ar/blog/${post.slug}` : `${baseUrl}/blog/${post.slug}`;
 
   const articleSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline,
     description: schemaDescription,
-    image: post.featured_image || `${baseUrl}/api/og?siteId=${siteSlug}&title=${encodeURIComponent((post.title_en || post.title || "").slice(0, 60))}`,
+    image:
+      post.featured_image ||
+      `${baseUrl}/api/og?siteId=${siteSlug}&title=${encodeURIComponent((post.title_en || post.title || "").slice(0, 60))}`,
     datePublished: createdAt,
     dateModified: updatedAt,
-    author: author ? {
-      "@type": "Person",
-      name: authorName,
-      url: `${baseUrl}/about#${author.slug}`,
-      ...(author.linkedin_url ? { sameAs: [author.linkedin_url, author.twitter_url, author.instagram_url].filter(Boolean) } : {}),
-    } : {
-      "@type": "Person",
-      name: `${siteName} Editorial`,
-      url: baseUrl,
-    },
+    author: author
+      ? {
+          "@type": "Person",
+          name: authorName,
+          url: `${baseUrl}/about#${author.slug}`,
+          ...(author.linkedin_url
+            ? { sameAs: [author.linkedin_url, author.twitter_url, author.instagram_url].filter(Boolean) }
+            : {}),
+        }
+      : {
+          "@type": "Person",
+          name: `${siteName} Editorial`,
+          url: baseUrl,
+        },
     publisher: {
       "@type": "Organization",
       name: siteName,
@@ -534,23 +529,36 @@ function generateStructuredData(
   if (faqPairs.length > 0) {
     articleSchema.hasPart = faqPairs.map((faq) => ({
       "@type": "WebPageElement",
-      "name": faq.question,
-      "text": faq.answer,
+      name: faq.question,
+      text: faq.answer,
     }));
   }
 
   // Breadcrumb URLs must match the locale of the page being crawled.
   const arPrefix = isArabic ? "/ar" : "";
   const breadcrumbItems = [
-    { "@type": "ListItem" as const, position: 1, name: isArabic ? "الرئيسية" : "Home", item: `${baseUrl}${arPrefix}` || baseUrl },
-    { "@type": "ListItem" as const, position: 2, name: isArabic ? "المدونة" : "Blog", item: `${baseUrl}${arPrefix}/blog` },
+    {
+      "@type": "ListItem" as const,
+      position: 1,
+      name: isArabic ? "الرئيسية" : "Home",
+      item: `${baseUrl}${arPrefix}` || baseUrl,
+    },
+    {
+      "@type": "ListItem" as const,
+      position: 2,
+      name: isArabic ? "المدونة" : "Blog",
+      item: `${baseUrl}${arPrefix}/blog`,
+    },
   ];
   if (categoryName && categoryName !== "Travel") {
     breadcrumbItems.push({
       "@type": "ListItem" as const,
       position: 3,
       name: categoryName,
-      item: `${baseUrl}${arPrefix}/blog/category/${categoryName.toLowerCase().replace(/\s+&\s+/g, "-").replace(/\s+/g, "-")}`,
+      item: `${baseUrl}${arPrefix}/blog/category/${categoryName
+        .toLowerCase()
+        .replace(/\s+&\s+/g, "-")
+        .replace(/\s+/g, "-")}`,
     });
   }
   breadcrumbItems.push({
@@ -604,26 +612,19 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
   const replacePlaceholderImages = (html: string, fallbackImg: string, title: string): string => {
     if (!html) return html;
     return html.replace(/\[IMAGE:([^\]]*)\]/gi, (_match, query) => {
-      const alt = query.trim() || title || 'Travel photo';
-      const src = fallbackImg || '/images/placeholder-travel.jpg';
+      const alt = query.trim() || title || "Travel photo";
+      const src = fallbackImg || "/images/placeholder-travel.jpg";
       return `<figure class="article-inline-image"><img src="${src}" alt="${alt}" loading="lazy" width="1200" height="675" /><figcaption>${alt}</figcaption></figure>`;
     });
   };
 
-  const contentEn = replacePlaceholderImages(
-    post.content_en,
-    post.featured_image || '',
-    post.title_en || '',
-  );
+  const contentEn = replacePlaceholderImages(post.content_en, post.featured_image || "", post.title_en || "");
   const contentAr = replacePlaceholderImages(
     post.content_ar,
-    post.featured_image || '',
-    post.title_ar || post.title_en || '',
+    post.featured_image || "",
+    post.title_ar || post.title_en || "",
   );
-  const readingTime =
-    source === "static"
-      ? post.reading_time
-      : computeReadingTime(post.content_en || "");
+  const readingTime = source === "static" ? post.reading_time : computeReadingTime(post.content_en || "");
 
   return {
     id: post.id,
@@ -635,29 +636,25 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
     excerpt_ar: post.excerpt_ar || "",
     slug: post.slug,
     featured_image: post.featured_image || "",
-    created_at:
-      post.created_at instanceof Date
-        ? post.created_at.toISOString()
-        : String(post.created_at),
-    updated_at:
-      post.updated_at instanceof Date
-        ? post.updated_at.toISOString()
-        : String(post.updated_at),
+    created_at: post.created_at instanceof Date ? post.created_at.toISOString() : String(post.created_at),
+    updated_at: post.updated_at instanceof Date ? post.updated_at.toISOString() : String(post.updated_at),
     reading_time: readingTime,
     tags: post.tags || [],
     category,
-    author: author ? {
-      name_en: author.name_en,
-      name_ar: author.name_ar || "",
-      title_en: author.title_en,
-      bio_en: author.bio_en,
-      bio_ar: author.bio_ar || "",
-      slug: author.slug,
-      avatar_url: author.avatar_url || null,
-      linkedin_url: author.linkedin_url || null,
-      twitter_url: author.twitter_url || null,
-      instagram_url: author.instagram_url || null,
-    } : null,
+    author: author
+      ? {
+          name_en: author.name_en,
+          name_ar: author.name_ar || "",
+          title_en: author.title_en,
+          bio_en: author.bio_en,
+          bio_ar: author.bio_ar || "",
+          slug: author.slug,
+          avatar_url: author.avatar_url || null,
+          linkedin_url: author.linkedin_url || null,
+          twitter_url: author.twitter_url || null,
+          instagram_url: author.instagram_url || null,
+        }
+      : null,
   };
 }
 
@@ -673,10 +670,7 @@ async function RelatedArticlesLoader({
   categoryHint?: string;
 }) {
   const { getRelatedArticles } = await import("@/lib/related-content");
-  const articles = await withTimeout(
-    getRelatedArticles(slug, "blog", 3, { dbOnly, categoryHint }),
-    3000,
-  );
+  const articles = await withTimeout(getRelatedArticles(slug, "blog", 3, { dbOnly, categoryHint }), 3000);
 
   if (!articles || articles.length === 0) return null;
 
@@ -775,16 +769,16 @@ export default async function BlogPostPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      <BlogPostClient post={clientPost} serverLocale={locale as 'en' | 'ar'} unsplashAttribution={unsplashAttribution} />
+      <BlogPostClient
+        post={clientPost}
+        serverLocale={locale as "en" | "ar"}
+        unsplashAttribution={unsplashAttribution}
+      />
       {/* Related articles stream in after the main content via Suspense.
           This eliminates a DB query from the critical render path —
           the page HTML arrives immediately, related articles load async. */}
       <Suspense fallback={<div className="py-14 bg-yl-cream" aria-hidden="true" />}>
-        <RelatedArticlesLoader
-          slug={slug}
-          dbOnly={isDb}
-          categoryHint={categoryHint}
-        />
+        <RelatedArticlesLoader slug={slug} dbOnly={isDb} categoryHint={categoryHint} />
       </Suspense>
     </>
   );

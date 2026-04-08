@@ -64,9 +64,15 @@ async function handleScheduleExecutor(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
+    const { getActiveSiteIds, getDefaultSiteId, isYachtSite } = await import("@/config/sites");
     const activeSiteIds = getActiveSiteIds();
     const defaultSiteId = getDefaultSiteId();
+
+    // Filter out yacht sites — they use a different content model (Yacht, YachtDestination,
+    // CharterItinerary) and don't need ArticleDrafts generated through the blog topic pipeline.
+    // Without this filter, schedule-executor would claim London travel topics for the yacht site,
+    // causing London content to leak onto zenithayachts.com.
+    const contentSiteIds = activeSiteIds.filter((sid: string) => !isYachtSite(sid));
 
     // Fetch all active schedule rules
     const rules = await prisma.contentScheduleRule.findMany({
@@ -84,10 +90,10 @@ async function handleScheduleExecutor(request: NextRequest) {
             name: "Daily Content (4 articles: 2 EN + 2 AR)",
             content_type: "blog_post",
             language: "both",
-            frequency_hours: 6,         // Check every 6 hours (4x/day)
-            min_hours_between: 4,        // At least 4h between batch creations
-            max_posts_per_day: 4,        // Hard cap: 4 articles/day
-            auto_publish: false,         // Publish via content-selector (quality gated)
+            frequency_hours: 6, // Check every 6 hours (4x/day)
+            min_hours_between: 4, // At least 4h between batch creations
+            max_posts_per_day: 4, // Hard cap: 4 articles/day
+            auto_publish: false, // Publish via content-selector (quality gated)
             preferred_times: ["05:00", "11:00", "17:00", "23:00"],
             is_active: true,
           },
@@ -117,10 +123,10 @@ async function handleScheduleExecutor(request: NextRequest) {
     // creating more drafts wastes AI budget on articles that will sit idle.
     // (Bug found March 22, 2026: schedule-executor was creating drafts even with 65 in reservoir)
     // Per-site reservoir cap from SiteSettings workflow.reservoirCap, falls back to global DEFAULT_RESERVOIR_CAP.
-    // Check ALL active sites — if every site's reservoir is full, skip entirely.
+    // Check only content sites (not yacht sites) — if every content site's reservoir is full, skip entirely.
     let allSitesFull = true;
     const perSiteReservoir: Record<string, { count: number; cap: number }> = {};
-    for (const sid of activeSiteIds) {
+    for (const sid of contentSiteIds) {
       const siteReservoirCap = await getReservoirCap(sid);
       const siteReservoirCount = await prisma.articleDraft.count({
         where: { current_phase: "reservoir", site_id: sid },
@@ -132,7 +138,9 @@ async function handleScheduleExecutor(request: NextRequest) {
     }
     if (allSitesFull) {
       const durationMs = Date.now() - cronStart;
-      const summary = Object.entries(perSiteReservoir).map(([s, r]) => `${s}(${r.count}/${r.cap})`).join(", ");
+      const summary = Object.entries(perSiteReservoir)
+        .map(([s, r]) => `${s}(${r.count}/${r.cap})`)
+        .join(", ");
       const { logCronExecution: logReservoir } = await import("@/lib/cron-logger");
       await logReservoir("schedule-executor", "completed", {
         durationMs,
@@ -218,13 +226,15 @@ async function handleScheduleExecutor(request: NextRequest) {
           const topic = await prisma.topicProposal.findFirst({
             where: {
               status: { in: CONSUMABLE_STATUSES },
-              site_id: { in: activeSiteIds },
+              site_id: { in: contentSiteIds },
             },
             orderBy: { created_at: "asc" },
           });
 
           if (!topic) {
-            results.errors.push(`No consumable topics available for ${lang} (checked statuses: ${CONSUMABLE_STATUSES.join(", ")})`);
+            results.errors.push(
+              `No consumable topics available for ${lang} (checked statuses: ${CONSUMABLE_STATUSES.join(", ")})`,
+            );
             continue;
           }
 
@@ -247,10 +257,12 @@ async function handleScheduleExecutor(request: NextRequest) {
           if (existingDraft) {
             console.log(`[schedule-executor] Draft already exists for topic "${topic.title}" (${lang}), skipping`);
             // Still mark topic as consumed so it's not re-claimed endlessly
-            await prisma.topicProposal.update({
-              where: { id: topic.id },
-              data: { status: "generated" },
-            }).catch(() => {});
+            await prisma.topicProposal
+              .update({
+                where: { id: topic.id },
+                data: { status: "generated" },
+              })
+              .catch(() => {});
             continue;
           }
 
@@ -278,7 +290,10 @@ async function handleScheduleExecutor(request: NextRequest) {
               data: { status: "generated" },
             });
           } catch (statusErr) {
-            console.warn(`[schedule-executor] Topic status update failed for "${topic.title}":`, (statusErr as Error).message);
+            console.warn(
+              `[schedule-executor] Topic status update failed for "${topic.title}":`,
+              (statusErr as Error).message,
+            );
             // Draft was created — topic stays in "generating" until diagnostic-agent cleans it
           }
 
@@ -322,7 +337,7 @@ async function handleScheduleExecutor(request: NextRequest) {
 
     return NextResponse.json(
       { success: false, error: "Schedule executor failed", ...results, durationMs },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

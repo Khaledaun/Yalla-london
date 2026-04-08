@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/events`,
         "x-default": canonicalUrl,
       },
     },
@@ -53,12 +54,34 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// Featured events for schema — stable listings used for rich results
-const FEATURED_EVENTS = [
-  { name: "Arsenal vs Chelsea - Premier League", date: "2026-02-22T15:00:00+00:00", venue: "Stamford Bridge", city: "London", price: "120" },
-  { name: "Hamilton - West End Musical", date: "2026-03-08T19:30:00+00:00", venue: "Victoria Palace Theatre", city: "London", price: "35" },
-  { name: "London Marathon 2026", date: "2026-04-26T09:00:00+01:00", venue: "Greenwich to The Mall", city: "London", price: "0" },
+// Featured events for schema — only include FUTURE events.
+// Past events in Event JSON-LD actively harm SEO (Google penalizes stale structured data).
+// These are manually maintained — update quarterly or when events pass.
+const ALL_EVENTS = [
+  {
+    name: "London Marathon 2026",
+    date: "2026-04-26T09:00:00+01:00",
+    venue: "Greenwich to The Mall",
+    city: "London",
+    price: "0",
+  },
+  {
+    name: "Chelsea Flower Show 2026",
+    date: "2026-05-19T08:00:00+01:00",
+    venue: "Royal Hospital Chelsea",
+    city: "London",
+    price: "40",
+  },
+  {
+    name: "Wimbledon Championships 2026",
+    date: "2026-06-29T11:00:00+01:00",
+    venue: "All England Lawn Tennis Club",
+    city: "London",
+    price: "75",
+  },
 ];
+// Filter to only future events at build time
+const FEATURED_EVENTS = ALL_EVENTS.filter((e) => new Date(e.date) > new Date());
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();

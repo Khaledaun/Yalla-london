@@ -506,9 +506,9 @@ async function computeRelatedArticleSlugsFromDB(
 // ---------------------------------------------------------------------------
 
 function generateNewsResearchPrompt(runType: string, currentMonth: number): string {
-  const activeTemplateCategories = NEWS_TEMPLATES.filter((t) =>
-    t.active_months.includes(currentMonth),
-  ).map((t) => t.news_category);
+  const activeTemplateCategories = NEWS_TEMPLATES.filter((t) => t.active_months.includes(currentMonth)).map(
+    (t) => t.news_category,
+  );
 
   const uniqueCategories = [...new Set(activeTemplateCategories)];
   const sourceList = TRUSTED_SOURCES.map((s) => `- ${s.name} (${s.domain}): ${s.categories.join(", ")}`).join("\n");
@@ -584,9 +584,7 @@ async function findAffectedInfoArticlesFromDB(
     for (const post of posts) {
       const titleLower = (post.title_en || "").toLowerCase();
       const catLower = (post.category || "").toLowerCase();
-      const matches = searchTerms.filter(
-        (t) => titleLower.includes(t) || catLower.includes(t),
-      );
+      const matches = searchTerms.filter((t) => titleLower.includes(t) || catLower.includes(t));
       if (matches.length > 0) {
         affected.push({
           slug: post.slug,
@@ -644,10 +642,7 @@ export async function GET(request: NextRequest) {
       });
     } catch (hcErr) {
       console.warn("[london-news] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
-      return NextResponse.json(
-        { status: "unhealthy", endpoint: "london-news" },
-        { status: 503 },
-      );
+      return NextResponse.json({ status: "unhealthy", endpoint: "london-news" }, { status: 503 });
     }
   }
 
@@ -714,9 +709,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 5. Select templates active for the current month
-    const activeTemplates = NEWS_TEMPLATES.filter((t) =>
-      t.active_months.includes(currentMonth),
-    );
+    const activeTemplates = NEWS_TEMPLATES.filter((t) => t.active_months.includes(currentMonth));
 
     // Determine how many items to publish
     const targetCount = runType === "weekly_deep" ? 3 : 2;
@@ -748,7 +741,9 @@ export async function GET(request: NextRequest) {
     const grokResult = await fetchLiveNewsViaGrok(runType);
     const liveNewsItems = grokResult.items;
     if (grokResult.status === "unavailable") {
-      console.warn("[london-news] Grok unavailable — XAI_API_KEY not configured. Only template news will be generated.");
+      console.warn(
+        "[london-news] Grok unavailable — XAI_API_KEY not configured. Only template news will be generated.",
+      );
       errors.push("Grok unavailable: XAI_API_KEY not configured — only template-based news generated");
     } else if (grokResult.status === "failed") {
       console.warn(`[london-news] Grok API call failed: ${grokResult.errorMessage}`);
@@ -785,7 +780,10 @@ export async function GET(request: NextRequest) {
         });
 
         if (existingByBase) {
-          // Update existing news item instead of creating a duplicate URL
+          // Update existing news item — but DO NOT reset expires_at.
+          // Resetting expires_at on every cron run made TTL meaningless: a 5-day TTL item
+          // never expired because each run pushed the expiry forward 5 more days.
+          // Only update content fields, not the expiry date set at creation.
           await prisma.newsItem.update({
             where: { id: existingByBase.id },
             data: {
@@ -799,7 +797,7 @@ export async function GET(request: NextRequest) {
               relevance_score: template.relevance_score,
               is_major: template.is_major,
               urgency: template.urgency,
-              expires_at: new Date(today.getTime() + template.ttl_days * 24 * 60 * 60 * 1000),
+              // expires_at intentionally NOT updated — respect the original TTL
               meta_title_en: template.headline_en.slice(0, 60),
               meta_title_ar: template.headline_ar.slice(0, 60),
               meta_description_en: template.summary_en.slice(0, 155),
@@ -847,7 +845,12 @@ export async function GET(request: NextRequest) {
         const expiresAt = new Date(today.getTime() + template.ttl_days * 24 * 60 * 60 * 1000);
 
         // Find affected info articles for cross-referencing (live DB)
-        const affectedInfo = await findAffectedInfoArticlesFromDB(prisma, siteId, template.news_category, template.tags);
+        const affectedInfo = await findAffectedInfoArticlesFromDB(
+          prisma,
+          siteId,
+          template.news_category,
+          template.tags,
+        );
         const affectedInfoSlugs = affectedInfo.map((a) => a.slug);
         const updatesInfoArticle = affectedInfoSlugs.length > 0;
 
@@ -910,9 +913,7 @@ export async function GET(request: NextRequest) {
         });
         itemsPublished++;
 
-        console.log(
-          `[london-news] Published: "${template.headline_en}" (${template.news_category}) [${slug}]`,
-        );
+        console.log(`[london-news] Published: "${template.headline_en}" (${template.news_category}) [${slug}]`);
 
         // 7. Weekly deep: Cross-reference against information articles and create FactEntry records
         if (runType === "weekly_deep" && affectedInfo.length > 0) {
@@ -953,9 +954,7 @@ export async function GET(request: NextRequest) {
                   },
                 });
                 factsFlagged++;
-                console.log(
-                  `[london-news] Flagged fact for review: ${affected.slug} (${template.news_category})`,
-                );
+                console.log(`[london-news] Flagged fact for review: ${affected.slug} (${template.news_category})`);
               }
             } catch (factError) {
               console.warn(
@@ -1078,14 +1077,16 @@ export async function GET(request: NextRequest) {
             affiliate_link_ids: [],
             agent_source: "grok-live-search",
             agent_notes: `Real-time news from Grok web_search. Run type: ${runType}.`,
-            research_log: [{
-              source: "grok-live-search",
-              domain: liveItem.source || "api.x.ai",
-              query: "London news",
-              found_at: today.toISOString(),
-              relevance: 75,
-              template_used: false,
-            }],
+            research_log: [
+              {
+                source: "grok-live-search",
+                domain: liveItem.source || "api.x.ai",
+                query: "London news",
+                found_at: today.toISOString(),
+                relevance: 75,
+                template_used: false,
+              },
+            ],
             updates_info_article: false,
             affected_info_slugs: [],
             published_at: today,
@@ -1150,7 +1151,10 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (indexErr) {
-        console.warn("[london-news] IndexNow submission failed:", indexErr instanceof Error ? indexErr.message : indexErr);
+        console.warn(
+          "[london-news] IndexNow submission failed:",
+          indexErr instanceof Error ? indexErr.message : indexErr,
+        );
       }
     }
 
@@ -1190,7 +1194,7 @@ export async function GET(request: NextRequest) {
     // Grok failure is "partial" when templates still worked, "failed" only when zero items processed
     // (Rule #130-132: status must reflect actual outcomes, but template updates count as work)
     const itemsWorked = itemsPublished + itemsUpdated;
-    const cronStatus = itemsWorked > 0 ? "completed" : (grokResult.status === "failed" ? "failed" : "completed");
+    const cronStatus = itemsWorked > 0 ? "completed" : grokResult.status === "failed" ? "failed" : "completed";
     await logCronExecution("london-news", cronStatus, {
       durationMs,
       itemsProcessed: itemsFound,
@@ -1239,7 +1243,9 @@ export async function GET(request: NextRequest) {
     console.error("[london-news] Cron job failed:", error);
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "london-news", error: errorMessage }).catch(err => console.warn("[london-news] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+    onCronFailure({ jobName: "london-news", error: errorMessage }).catch((err) =>
+      console.warn("[london-news] onCronFailure hook failed:", err instanceof Error ? err.message : err),
+    );
 
     // Update research log with failure
     if (researchLogId) {
@@ -1257,7 +1263,10 @@ export async function GET(request: NextRequest) {
           },
         });
       } catch (logErr) {
-        console.error("[london-news] Failed to update research log on error:", logErr instanceof Error ? logErr.message : logErr);
+        console.error(
+          "[london-news] Failed to update research log on error:",
+          logErr instanceof Error ? logErr.message : logErr,
+        );
       }
     }
 
@@ -1309,8 +1318,7 @@ function getSourceType(
   if (source.domain.includes("tfl.gov.uk")) return "transport_authority";
   if (source.domain.includes("visitlondon")) return "tourism_board";
   if (source.domain.includes("metoffice")) return "official_gov";
-  if (source.domain.includes("timeout") || source.domain.includes("londontheatre"))
-    return "review_site";
+  if (source.domain.includes("timeout") || source.domain.includes("londontheatre")) return "review_site";
   return "news";
 }
 
@@ -1340,13 +1348,9 @@ interface GrokFetchResult {
  * Uses domain filtering to restrict results to TRUSTED_SOURCES.
  * Returns status info so callers can log Grok availability to CronJobLog.
  */
-async function fetchLiveNewsViaGrok(
-  runType: string,
-): Promise<GrokFetchResult> {
+async function fetchLiveNewsViaGrok(runType: string): Promise<GrokFetchResult> {
   try {
-    const { isGrokSearchAvailable, searchCityNews } = await import(
-      "@/lib/ai/grok-live-search"
-    );
+    const { isGrokSearchAvailable, searchCityNews } = await import("@/lib/ai/grok-live-search");
     if (!isGrokSearchAvailable()) {
       return { items: [], status: "unavailable", errorMessage: "XAI_API_KEY not configured" };
     }

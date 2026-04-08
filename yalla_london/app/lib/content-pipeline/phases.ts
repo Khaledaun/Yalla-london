@@ -133,7 +133,12 @@ export async function phaseResearch(
 
   // Budget guard: need at least 12s for AI call + DB save
   if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
-    return { success: false, nextPhase: "research", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+    return {
+      success: false,
+      nextPhase: "research",
+      data: {},
+      error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run`,
+    };
   }
   const { generateJSON } = await import("@/lib/ai/provider");
   const lang = getLocaleLabel(draft.locale);
@@ -182,7 +187,7 @@ Return JSON:
       maxTokens: isArabic(draft.locale) ? 3500 : 1500,
       temperature: 0.4,
       timeoutMs: researchTimeout,
-      phaseBudgetHint: 'light',
+      phaseBudgetHint: "light",
       siteId: draft.site_id,
       taskType: "content_research",
       calledFrom: "phases/research",
@@ -213,7 +218,12 @@ export async function phaseOutline(
 ): Promise<PhaseResult> {
   // Budget guard: need at least 12s for AI call + DB save
   if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
-    return { success: false, nextPhase: "outline", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+    return {
+      success: false,
+      nextPhase: "outline",
+      data: {},
+      error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run`,
+    };
   }
   const { generateJSON } = await import("@/lib/ai/provider");
   const research = draft.research_data || {};
@@ -224,18 +234,22 @@ export async function phaseOutline(
   const researchKwd = (research as Record<string, unknown>).keywordData as Record<string, unknown> | undefined;
   const longTails = (seoMeta.longTails as string[]) || (researchKwd?.longTail as string[]) || [];
   const questions = (seoMeta.questions as string[]) || (researchKwd?.questions as string[]) || [];
-  const contentAngle = (seoMeta.contentAngle as string) || ((research as Record<string, unknown>).contentStrategy as Record<string, unknown>)?.uniqueAngle || "";
+  const contentAngle =
+    (seoMeta.contentAngle as string) ||
+    ((research as Record<string, unknown>).contentStrategy as Record<string, unknown>)?.uniqueAngle ||
+    "";
 
   // Build enrichment clause only if pre-populated data exists
-  const enrichment = (longTails.length > 0 || questions.length > 0 || contentAngle)
-    ? `\n\nPRE-RESEARCHED GUIDANCE (incorporate these):${
-      longTails.length > 0 ? `\n- Target long-tail keywords: ${longTails.slice(0, 5).join(", ")}` : ""
-    }${
-      questions.length > 0 ? `\n- Answer these questions in dedicated sections: ${questions.slice(0, 4).join("; ")}` : ""
-    }${
-      contentAngle ? `\n- Content angle: ${contentAngle}` : ""
-    }`
-    : "";
+  const enrichment =
+    longTails.length > 0 || questions.length > 0 || contentAngle
+      ? `\n\nPRE-RESEARCHED GUIDANCE (incorporate these):${
+          longTails.length > 0 ? `\n- Target long-tail keywords: ${longTails.slice(0, 5).join(", ")}` : ""
+        }${
+          questions.length > 0
+            ? `\n- Answer these questions in dedicated sections: ${questions.slice(0, 4).join("; ")}`
+            : ""
+        }${contentAngle ? `\n- Content angle: ${contentAngle}` : ""}`
+      : "";
 
   const prompt = `You are a content architect for "${site.name}" (${site.destination} travel blog for all visitors).
 
@@ -287,7 +301,7 @@ Return only valid JSON. All string values must be properly escaped.${getLocaleDi
       maxTokens: isArabic(draft.locale) ? 3500 : 1200,
       temperature: 0.5,
       timeoutMs: outlineTimeout,
-      phaseBudgetHint: 'heavy',  // Outline needs 25-35s — JSON output with complex structure
+      phaseBudgetHint: "heavy", // Outline needs 25-35s — JSON output with complex structure
       siteId: draft.site_id,
       taskType: "content_outline",
       calledFrom: "phases/outline",
@@ -364,9 +378,10 @@ export async function phaseDrafting(
   // so we'll stop early if time runs out.
   const { SECTION_BUDGET_MS } = await import("@/lib/content-pipeline/constants");
   const remainingSections = sections.length - currentIndex;
-  const maxSectionsThisRun = budgetRemainingMs !== undefined
-    ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / SECTION_BUDGET_MS)))
-    : Math.min(remainingSections, 3);
+  const maxSectionsThisRun =
+    budgetRemainingMs !== undefined
+      ? Math.min(remainingSections, Math.max(1, Math.floor(budgetRemainingMs / SECTION_BUDGET_MS)))
+      : Math.min(remainingSections, 3);
   let sectionsWritten = 0;
 
   for (let i = 0; i < maxSectionsThisRun; i++) {
@@ -385,7 +400,7 @@ export async function phaseDrafting(
 
     const contextSections = existingSections
       .slice(-2)
-      .map((s) => `[${s.heading}]: ${(s.content as string || "").substring(0, 200)}...`)
+      .map((s) => `[${s.heading}]: ${((s.content as string) || "").substring(0, 200)}...`)
       .join("\n");
 
     const writeLang = isArabic(draft.locale) ? "Arabic" : "English";
@@ -466,7 +481,9 @@ CRITICAL JSON RULES:
 - Do NOT use actual line breaks inside JSON string values.`;
 
     if (useMinimalPrompt) {
-      console.log(`[drafting] Circuit breaker active for draft ${draft.id} section ${sectionIdx + 1} (attempt ${attempts}) — using minimal prompt`);
+      console.log(
+        `[drafting] Circuit breaker active for draft ${draft.id} section ${sectionIdx + 1} (attempt ${attempts}) — using minimal prompt`,
+      );
     }
 
     // Per-section retry: if JSON parse fails on first try, retry once.
@@ -491,23 +508,26 @@ CRITICAL JSON RULES:
         const sectionTimeout = Math.min(rawTimeout, timeoutCap);
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a travel writer creating content for all visitors and tourists. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${workflowDirective}${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: useMinimalPrompt ? 1000 : (isArabic(draft.locale) ? 3500 : 1500),
+          maxTokens: useMinimalPrompt ? 1000 : isArabic(draft.locale) ? 3500 : 1500,
           temperature: 0.7,
           timeoutMs: sectionTimeout,
-          phaseBudgetHint: 'heavy',
+          phaseBudgetHint: "heavy",
           siteId: draft.site_id,
           taskType: `content_drafting_s${i + 1}`,
           calledFrom: useMinimalPrompt ? "phases/drafting-minimal" : "phases/drafting",
         });
 
-        existingSections = [...existingSections, {
-          heading: result.heading || section.heading,
-          content: result.content || "",
-          wordCount: result.wordCount || 0,
-          keywords_used: result.keywords_used || [],
-          level: section.level || 2,
-          index: sectionIdx,
-        }];
+        existingSections = [
+          ...existingSections,
+          {
+            heading: result.heading || section.heading,
+            content: result.content || "",
+            wordCount: result.wordCount || 0,
+            keywords_used: result.keywords_used || [],
+            level: section.level || 2,
+            index: sectionIdx,
+          },
+        ];
 
         sectionsWritten++;
         sectionSuccess = true;
@@ -525,14 +545,19 @@ CRITICAL JSON RULES:
             },
           });
         } catch (saveErr) {
-          console.warn(`[drafting] Section ${sectionIdx + 1} checkpoint save failed (will retry at phase end):`, saveErr instanceof Error ? saveErr.message : saveErr);
+          console.warn(
+            `[drafting] Section ${sectionIdx + 1} checkpoint save failed (will retry at phase end):`,
+            saveErr instanceof Error ? saveErr.message : saveErr,
+          );
         }
 
         break; // Section succeeded, exit retry loop
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         if (retry < maxSectionRetries - 1) {
-          console.warn(`[drafting] Section ${sectionIdx + 1} retry ${retry + 1} failed (${draft.locale}): ${errMsg.substring(0, 150)}`);
+          console.warn(
+            `[drafting] Section ${sectionIdx + 1} retry ${retry + 1} failed (${draft.locale}): ${errMsg.substring(0, 150)}`,
+          );
           continue; // Try again
         }
         // Final retry failed
@@ -542,7 +567,9 @@ CRITICAL JSON RULES:
           // phase_attempts from incrementing on transient timeouts when partial
           // progress already exists, avoiding premature rejection of 60%-done drafts.
           if (currentIndex > 0) {
-            console.warn(`[drafting] Section ${sectionIdx + 1} failed but ${currentIndex} prior sections exist — deferring to next run`);
+            console.warn(
+              `[drafting] Section ${sectionIdx + 1} failed but ${currentIndex} prior sections exist — deferring to next run`,
+            );
             break; // Falls through to success:true with sectionsWritten=0
           }
           return {
@@ -562,7 +589,7 @@ CRITICAL JSON RULES:
 
     // Update remaining budget estimate
     if (budgetRemainingMs !== undefined) {
-      budgetRemainingMs -= (Date.now() - sectionStart);
+      budgetRemainingMs -= Date.now() - sectionStart;
     }
   }
 
@@ -615,17 +642,24 @@ export async function phaseAssembly(
   const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 20_000) || attempts >= 2;
 
   if (useFallback) {
-    console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);
+    console.log(
+      `[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + "s" : "unlimited"}, attempts=${attempts})`,
+    );
     const intro = outline.introduction as Record<string, unknown> | undefined;
     const conclusion = outline.conclusion as Record<string, unknown> | undefined;
 
     let fallbackHtml = `<article${rtlAttr}>`;
     if (intro?.hook) fallbackHtml += `<p>${intro.hook}</p>\n`;
     fallbackHtml += rawHtml;
-    if (conclusion?.callToAction) fallbackHtml += `<h2>${isArabic(draft.locale) ? "الخلاصة" : "Conclusion"}</h2>\n<p>${conclusion.callToAction}</p>\n`;
+    if (conclusion?.callToAction)
+      fallbackHtml += `<h2>${isArabic(draft.locale) ? "الخلاصة" : "Conclusion"}</h2>\n<p>${conclusion.callToAction}</p>\n`;
     fallbackHtml += `</article>`;
 
-    const fallbackWords = fallbackHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    const fallbackWords = fallbackHtml
+      .replace(/<[^>]+>/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean).length;
     return {
       success: true,
       nextPhase: "images",
@@ -700,7 +734,7 @@ Return JSON:
       maxTokens: isArabic(draft.locale) ? 1500 : 1000,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
-      phaseBudgetHint: 'heavy',
+      phaseBudgetHint: "heavy",
       siteId: draft.site_id,
       taskType: "content_assembly",
       calledFrom: "phases/assembly",
@@ -711,16 +745,18 @@ Return JSON:
     let assembledWordCount = (result.wordCount as number) || totalWords;
 
     // Verify actual word count (AI sometimes lies about wordCount in JSON)
-    const actualWords = assembledHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    const actualWords = assembledHtml
+      .replace(/<[^>]+>/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean).length;
     assembledWordCount = Math.max(assembledWordCount, actualWords);
 
     // If still too short and we have budget, run an expansion pass
     // Use FRESH wall-clock budget calculation, not the stale budgetRemainingMs parameter
     // which was captured at the start of assembly and doesn't account for time consumed
     // by the first AI call.
-    const freshBudgetMs = budgetRemainingMs !== undefined
-      ? budgetRemainingMs - (Date.now() - phaseStart)
-      : undefined;
+    const freshBudgetMs = budgetRemainingMs !== undefined ? budgetRemainingMs - (Date.now() - phaseStart) : undefined;
     const canExpand = freshBudgetMs === undefined || freshBudgetMs > 18_000;
     if (assembledWordCount < 1200 && canExpand) {
       try {
@@ -756,7 +792,11 @@ Return JSON:
         });
 
         const expandedHtml = (expansionResult.html as string) || assembledHtml;
-        const expandedWords = expandedHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+        const expandedWords = expandedHtml
+          .replace(/<[^>]+>/g, " ")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length;
         if (expandedWords > assembledWordCount) {
           return {
             success: true,
@@ -769,7 +809,9 @@ Return JSON:
           };
         }
       } catch {
-        console.warn(`[phases] Assembly expansion pass failed for draft ${draft.id} — proceeding with ${assembledWordCount} words`);
+        console.warn(
+          `[phases] Assembly expansion pass failed for draft ${draft.id} — proceeding with ${assembledWordCount} words`,
+        );
       }
     }
 
@@ -801,7 +843,12 @@ export async function phaseImages(
 ): Promise<PhaseResult> {
   // Budget guard: need at least 10s for Unsplash API + image injection + DB save
   if (budgetRemainingMs !== undefined && budgetRemainingMs < 10_000) {
-    return { success: false, nextPhase: "images", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+    return {
+      success: false,
+      nextPhase: "images",
+      data: {},
+      error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run`,
+    };
   }
   const html = draft.assembled_html || "";
   const keyword = draft.keyword.toLowerCase();
@@ -827,14 +874,35 @@ export async function phaseImages(
     // Strategy 3: Match by content category inference
     if (matched.length < 4) {
       const categoryMap: Record<string, string> = {
-        restaurant: "restaurants-food", food: "restaurants-food", halal: "restaurants-food", dining: "restaurants-food",
-        hotel: "hotels-luxury", luxury: "hotels-luxury", stay: "hotels-luxury", accommodation: "hotels-luxury",
-        shopping: "shopping", mall: "shopping", market: "shopping", harrods: "shopping",
-        landmark: "london-landmarks", bridge: "london-landmarks", palace: "london-landmarks", big: "london-landmarks",
-        park: "parks-nature", garden: "parks-nature", hyde: "parks-nature",
-        football: "football-stadiums", stadium: "football-stadiums", arsenal: "football-stadiums",
-        event: "events-celebrations", ramadan: "events-celebrations", eid: "events-celebrations",
-        tube: "transport", train: "transport", taxi: "transport", airport: "transport",
+        restaurant: "restaurants-food",
+        food: "restaurants-food",
+        halal: "restaurants-food",
+        dining: "restaurants-food",
+        hotel: "hotels-luxury",
+        luxury: "hotels-luxury",
+        stay: "hotels-luxury",
+        accommodation: "hotels-luxury",
+        shopping: "shopping",
+        mall: "shopping",
+        market: "shopping",
+        harrods: "shopping",
+        landmark: "london-landmarks",
+        bridge: "london-landmarks",
+        palace: "london-landmarks",
+        big: "london-landmarks",
+        park: "parks-nature",
+        garden: "parks-nature",
+        hyde: "parks-nature",
+        football: "football-stadiums",
+        stadium: "football-stadiums",
+        arsenal: "football-stadiums",
+        event: "events-celebrations",
+        ramadan: "events-celebrations",
+        eid: "events-celebrations",
+        tube: "transport",
+        train: "transport",
+        taxi: "transport",
+        airport: "transport",
       };
       for (const [word, category] of Object.entries(categoryMap)) {
         if (keyword.includes(word) && matched.length < 6) {
@@ -847,12 +915,24 @@ export async function phaseImages(
     }
 
     // Strategy 4: Unsplash API fallback (if library has < 3 matches and API key exists)
+    // IMPORTANT: Search query must include the destination to get geographically relevant results.
+    // Previous bug: generic query "hammam spas London travel" returned Statue of Liberty photo.
+    // Blocklist prevents known-wrong photos from entering the pipeline.
+    const PHOTO_BLOCKLIST = new Set([
+      "photo-1566073771259-6a8506099945", // tropical resort with palm trees — NOT London
+      "photo-1480714378408-67cf0d13bc1b", // NYC skyline
+      "photo-1534430480872-3498386e7856", // Statue of Liberty
+      "photo-1485738422979-f5c462d49f04", // generic US highway
+    ]);
     let unsplashUsed = false;
     if (matched.length < 3 && process.env.UNSPLASH_ACCESS_KEY) {
       try {
         const { searchPhotos, trackDownload, buildImageUrl } = await import("@/lib/apis/unsplash");
-        const query = `${draft.keyword} ${site.destination} travel`;
-        const photos = await searchPhotos(query, { perPage: 5, orientation: "landscape" });
+        // Use destination-specific query to avoid geographically irrelevant results
+        const query = `${site.destination} ${draft.keyword}`.slice(0, 100);
+        const photos = await searchPhotos(query, { perPage: 10, orientation: "landscape" }).then((results) =>
+          results.filter((p) => !PHOTO_BLOCKLIST.has(p.id)),
+        );
         if (photos.length > 0) {
           const unsplashPhotos = photos.map((p) => ({
             id: `unsplash-${p.id}`,
@@ -882,10 +962,27 @@ export async function phaseImages(
       }
     }
 
-    // Strategy 5: Random from general library if still no matches
+    // Strategy 5: Use destination-specific landmarks as fallback (NOT random photos).
+    // Previous bug: random shuffle returned ANY photo from library including non-London images.
+    // Now: only use photos tagged with the site's destination or London landmarks.
     if (matched.length === 0 && allPhotos.length > 0) {
-      const shuffled = [...allPhotos].sort(() => Math.random() - 0.5);
-      matched = shuffled.slice(0, 4);
+      const destinationLower = (site.destination || "london").toLowerCase();
+      const destinationPhotos = allPhotos.filter(
+        (p) =>
+          p.category === "london-landmarks" ||
+          p.tags.some((t) => t.toLowerCase().includes(destinationLower)) ||
+          (p.alt_en || "").toLowerCase().includes(destinationLower),
+      );
+      if (destinationPhotos.length > 0) {
+        // Pick least-used photos to avoid repetition
+        const sorted = [...destinationPhotos].sort((a, b) => (a.usage_count || 0) - (b.usage_count || 0));
+        matched = sorted.slice(0, 4);
+      } else {
+        // Absolute last resort: skip images entirely rather than show wrong photos
+        console.warn(
+          `[phases/images] No destination-relevant photos found for "${destinationLower}" — article will have no images`,
+        );
+      }
     }
 
     // Select: 1 featured + 2-3 inline
@@ -938,7 +1035,9 @@ export async function phaseImages(
       data: {
         assembled_html: enrichedHtml,
         images_data: {
-          featured: featured ? { id: featured.id, url: featured.url, alt: featured[altField], photographer: featured.photographer } : null,
+          featured: featured
+            ? { id: featured.id, url: featured.url, alt: featured[altField], photographer: featured.photographer }
+            : null,
           inline: inline.map((p) => ({ id: p.id, url: p.url, alt: p[altField], photographer: p.photographer })),
           totalInjected: (featured ? 1 : 0) + inline.length,
           unsplashUsed,
@@ -961,14 +1060,15 @@ export async function phaseImages(
 
 // ─── Phase 6: SEO Optimization ───────────────────────────────────────────────
 
-export async function phaseSeo(
-  draft: DraftRecord,
-  site: SiteConfig,
-  budgetRemainingMs?: number,
-): Promise<PhaseResult> {
+export async function phaseSeo(draft: DraftRecord, site: SiteConfig, budgetRemainingMs?: number): Promise<PhaseResult> {
   // Budget guard: need at least 12s for AI call + DB save
   if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
-    return { success: false, nextPhase: "seo", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+    return {
+      success: false,
+      nextPhase: "seo",
+      data: {},
+      error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run`,
+    };
   }
   const { generateJSON } = await import("@/lib/ai/provider");
   const research = draft.research_data || {};
@@ -1001,8 +1101,8 @@ Return JSON:
     "publisher": {"@type": "Organization", "name": "${site.name}"}${featured ? ',\n    "image": "' + (featured.url || "") + '"' : ""}
   },
   "ogImage": {
-    "url": "${featured ? (featured.url || "") : ""}",
-    "alt": "${featured ? (featured.alt || draft.keyword) : draft.keyword}"
+    "url": "${featured ? featured.url || "" : ""}",
+    "alt": "${featured ? featured.alt || draft.keyword : draft.keyword}"
   },
   "internalLinkSuggestions": ["topic1", "topic2", "topic3"],
   "seoChecklist": {
@@ -1011,7 +1111,7 @@ Return JSON:
     "keywordInH2": true,
     "metaDescriptionLength": 155,
     "internalLinks": 3,
-    "hasImages": ${(imagesData.totalInjected as number || 0) > 0}
+    "hasImages": ${((imagesData.totalInjected as number) || 0) > 0}
   }
 }`;
 
@@ -1022,7 +1122,7 @@ Return JSON:
       maxTokens: isArabic(draft.locale) ? 1800 : 1200,
       temperature: 0.3,
       timeoutMs: seoTimeout,
-      phaseBudgetHint: 'light',
+      phaseBudgetHint: "light",
       siteId: draft.site_id,
       taskType: "content_seo",
       calledFrom: "phases/seo",
@@ -1058,9 +1158,7 @@ Return JSON:
 
 // ─── Phase 7: Quality Scoring ────────────────────────────────────────────────
 
-export async function phaseScoring(
-  draft: DraftRecord,
-): Promise<PhaseResult> {
+export async function phaseScoring(draft: DraftRecord): Promise<PhaseResult> {
   const html = draft.assembled_html || "";
   const seo = (draft.seo_meta || {}) as Record<string, unknown>;
   const wordCount = draft.word_count || 0;
@@ -1102,12 +1200,10 @@ export async function phaseScoring(
     /class="internal-link"/gi,
     /class="related-articles"/gi,
     /class="related-link"/gi,
-    /href="\/blog\//gi,         // relative blog links
-    /href="\/ar\/blog\//gi,     // Arabic blog links
+    /href="\/blog\//gi, // relative blog links
+    /href="\/ar\/blog\//gi, // Arabic blog links
   ];
-  const internalLinks = internalLinkPatterns.reduce(
-    (count, pattern) => count + (html.match(pattern) || []).length, 0,
-  );
+  const internalLinks = internalLinkPatterns.reduce((count, pattern) => count + (html.match(pattern) || []).length, 0);
   if (internalLinks >= 3) seoScore += 10;
   else if (internalLinks >= 1) seoScore += 5;
 
@@ -1123,9 +1219,7 @@ export async function phaseScoring(
     /data-affiliate-id/gi,
     /data-affiliate-partner/gi,
   ];
-  const affiliates = affiliatePatterns.reduce(
-    (count, pattern) => count + (html.match(pattern) || []).length, 0,
-  );
+  const affiliates = affiliatePatterns.reduce((count, pattern) => count + (html.match(pattern) || []).length, 0);
   if (affiliates >= 2) seoScore += 5;
   else if (affiliates >= 1) seoScore += 3;
 
@@ -1144,13 +1238,12 @@ export async function phaseScoring(
   // Readability estimate
   const plainText = html.replace(/<[^>]+>/g, "");
   const sentences = plainText.split(/[.!?؟。]+/).filter(Boolean);
-  const avgSentenceLength = sentences.length > 0
-    ? sentences.reduce((sum, s) => sum + s.split(/\s+/).length, 0) / sentences.length
-    : 0;
+  const avgSentenceLength =
+    sentences.length > 0 ? sentences.reduce((sum, s) => sum + s.split(/\s+/).length, 0) / sentences.length : 0;
   const readabilityScore = avgSentenceLength <= 20 ? 85 : avgSentenceLength <= 25 ? 70 : 55;
 
   // Content depth
-  const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + (wordCount / 30));
+  const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + wordCount / 30);
 
   // Quality gate — per-content-type thresholds from centralized SEO standards.
   // Comparisons (65), reviews (60), guides (50) are held to higher standards than blog (40).
@@ -1158,13 +1251,14 @@ export async function phaseScoring(
   try {
     const { getThresholdsForPageType, CONTENT_QUALITY } = await import("@/lib/seo/standards");
     // Use articleType from SEO phase (stored in seo_meta), or detect from keyword
-    const draftPageType = (seo.articleType as string)
-      || (seo.pageType as string)
-      || "blog";
+    const draftPageType = (seo.articleType as string) || (seo.pageType as string) || "blog";
     const typeThresholds = getThresholdsForPageType(draftPageType);
     qualityGateThreshold = typeThresholds?.qualityGateScore ?? CONTENT_QUALITY.qualityGateScore;
   } catch (e) {
-    console.warn("[phases] Failed to import standards.ts, using fallback threshold:", e instanceof Error ? e.message : e);
+    console.warn(
+      "[phases] Failed to import standards.ts, using fallback threshold:",
+      e instanceof Error ? e.message : e,
+    );
   }
   const nextPhase = qualityScore >= qualityGateThreshold ? "reservoir" : "rejected";
 
@@ -1183,11 +1277,7 @@ export async function phaseScoring(
 
 // ─── Phase dispatcher ────────────────────────────────────────────────────────
 
-export async function runPhase(
-  draft: DraftRecord,
-  site: SiteConfig,
-  budgetRemainingMs?: number,
-): Promise<PhaseResult> {
+export async function runPhase(draft: DraftRecord, site: SiteConfig, budgetRemainingMs?: number): Promise<PhaseResult> {
   switch (draft.current_phase) {
     case "research":
       return phaseResearch(draft, site, budgetRemainingMs);

@@ -11,13 +11,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { BLOG_REDIRECTS } from "@/lib/seo/redirect-map";
+import { BLOG_REDIRECTS, PAGE_REDIRECTS } from "@/lib/seo/redirect-map";
 
 // Static domain to site mapping
-const DOMAIN_TO_SITE: Record<
-  string,
-  { siteId: string; siteName: string; locale: string }
-> = {
+const DOMAIN_TO_SITE: Record<string, { siteId: string; siteName: string; locale: string }> = {
   // Yalla London (UK)
   "yalla-london.com": {
     siteId: "yalla-london",
@@ -165,8 +162,7 @@ const EXCLUDED_PATHS = [
 // Also matches any *.txt at root level — no legitimate page route uses .txt.
 function isIndexNowKeyRequest(pathname: string): boolean {
   // Match /{key}.txt (any root-level .txt file) or bare /{key} with 8+ alphanumeric chars
-  return /^\/[a-zA-Z0-9_-]+\.txt$/.test(pathname) ||
-    /^\/[a-zA-Z0-9]{8,}$/.test(pathname);
+  return /^\/[a-zA-Z0-9_-]+\.txt$/.test(pathname) || /^\/[a-zA-Z0-9]{8,}$/.test(pathname);
 }
 
 // SECURITY: Allowed origins for CSRF protection
@@ -204,9 +200,7 @@ export function middleware(request: NextRequest) {
   // (via LanguageProvider initialLocale) to render Arabic content.
   const isArabicRoute = pathname.startsWith("/ar/") || pathname === "/ar";
   const locale = isArabicRoute ? "ar" : "en";
-  const effectivePathname = isArabicRoute
-    ? pathname.replace(/^\/ar\/?/, "/") || "/"
-    : pathname;
+  const effectivePathname = isArabicRoute ? pathname.replace(/^\/ar\/?/, "/") || "/" : pathname;
 
   // IndexNow key files: pass through with ZERO middleware interference.
   // Engines (Bing, Yandex, api.indexnow.org) fetch /{key}.txt and reject
@@ -264,8 +258,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
+  // ── Static page redirects (SEO cannibalization fixes) ──────────────
+  // Merge overlapping pages to their canonical equivalent (e.g., /luxury-hotels-london → /hotels)
+  const pageRedirect = PAGE_REDIRECTS[effectivePathname];
+  if (pageRedirect) {
+    const url = request.nextUrl.clone();
+    url.pathname = isArabicRoute ? `/ar${pageRedirect}` : pageRedirect;
+    return NextResponse.redirect(url, 301);
+  }
+
   // Block internal-only pages from public access → redirect to admin login
-  const BLOCKED_PUBLIC_PATHS = ["/brand-guidelines", "/brand-showcase"];
+  const BLOCKED_PUBLIC_PATHS = ["/brand-guidelines", "/brand-showcase", "/design-system"];
   if (BLOCKED_PUBLIC_PATHS.some((path) => effectivePathname.startsWith(path))) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin";
@@ -291,11 +294,13 @@ export function middleware(request: NextRequest) {
   // ── Rate limiting for public API endpoints ─────────────────────────
   // In-memory per-IP rate limiting. Resets on cold start (fine for serverless).
   // Only applies to non-admin, non-cron API paths.
-  if (effectivePathname.startsWith("/api/") &&
-      !effectivePathname.startsWith("/api/admin/") &&
-      !effectivePathname.startsWith("/api/cron/") &&
-      !effectivePathname.startsWith("/api/webhooks/") &&
-      !effectivePathname.startsWith("/api/internal/")) {
+  if (
+    effectivePathname.startsWith("/api/") &&
+    !effectivePathname.startsWith("/api/admin/") &&
+    !effectivePathname.startsWith("/api/cron/") &&
+    !effectivePathname.startsWith("/api/webhooks/") &&
+    !effectivePathname.startsWith("/api/internal/")
+  ) {
     const ip =
       request.headers.get("cf-connecting-ip") ||
       request.headers.get("x-real-ip") ||
@@ -304,25 +309,31 @@ export function middleware(request: NextRequest) {
 
     // Determine rate limit tier based on path and method
     const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
-    const isHeavy = effectivePathname.includes("/recommend") ||
-                    effectivePathname.includes("/generate") ||
-                    effectivePathname.includes("/auto-generate") ||
-                    effectivePathname.includes("/optimize");
-    const isAuth = effectivePathname === "/api/admin/login" ||
-                   effectivePathname === "/api/admin/setup" ||
-                   effectivePathname === "/api/signup";
+    const isHeavy =
+      effectivePathname.includes("/recommend") ||
+      effectivePathname.includes("/generate") ||
+      effectivePathname.includes("/auto-generate") ||
+      effectivePathname.includes("/optimize");
+    const isAuth =
+      effectivePathname === "/api/admin/login" ||
+      effectivePathname === "/api/admin/setup" ||
+      effectivePathname === "/api/signup";
 
     let windowMs: number;
     let maxRequests: number;
 
     if (isAuth) {
-      windowMs = 15 * 60 * 1000; maxRequests = 5;    // 5 per 15min (login)
+      windowMs = 15 * 60 * 1000;
+      maxRequests = 5; // 5 per 15min (login)
     } else if (isHeavy) {
-      windowMs = 60 * 1000; maxRequests = 3;          // 3 per minute (AI-heavy)
+      windowMs = 60 * 1000;
+      maxRequests = 3; // 3 per minute (AI-heavy)
     } else if (isMutation) {
-      windowMs = 60 * 1000; maxRequests = 20;         // 20 per minute (writes)
+      windowMs = 60 * 1000;
+      maxRequests = 20; // 20 per minute (writes)
     } else {
-      windowMs = 60 * 1000; maxRequests = 60;         // 60 per minute (reads)
+      windowMs = 60 * 1000;
+      maxRequests = 60; // 60 per minute (reads)
     }
 
     const rateKey = `rl:${ip}:${isAuth ? "auth" : isHeavy ? "heavy" : isMutation ? "mut" : "read"}`;
@@ -353,17 +364,14 @@ export function middleware(request: NextRequest) {
             "X-RateLimit-Limit": maxRequests.toString(),
             "X-RateLimit-Remaining": "0",
           },
-        }
+        },
       );
     }
   }
 
   // SECURITY: CSRF protection for mutating requests
   // Use effectivePathname so /ar/api/* requests are also protected.
-  if (
-    ["POST", "PUT", "DELETE", "PATCH"].includes(method) &&
-    effectivePathname.startsWith("/api/")
-  ) {
+  if (["POST", "PUT", "DELETE", "PATCH"].includes(method) && effectivePathname.startsWith("/api/")) {
     const origin = request.headers.get("origin");
     // Allow cron/webhook/auth/admin-auth routes without strict Origin check
     const isInternalRoute =
@@ -381,10 +389,7 @@ export function middleware(request: NextRequest) {
     const hasBearerAuth = (request.headers.get("authorization") || "").startsWith("Bearer ");
     if (!isInternalRoute && !hasBearerAuth) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
-        return NextResponse.json(
-          { error: "Forbidden: Invalid origin" },
-          { status: 403 },
-        );
+        return NextResponse.json({ error: "Forbidden: Invalid origin" }, { status: 403 });
       }
     }
   }
@@ -422,21 +427,12 @@ export function middleware(request: NextRequest) {
   // Home page: short edge cache for dynamic content
   // Use effectivePathname so /ar (Arabic homepage) also gets cache headers.
   if (effectivePathname === "/") {
-    response.headers.set(
-      "Cache-Control",
-      "public, max-age=0, s-maxage=300, stale-while-revalidate=600",
-    );
+    response.headers.set("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=600");
     response.headers.set("CDN-Cache-Control", "max-age=300");
   }
 
   // Preserve UTM parameters in a cookie for attribution
-  const utmParams = [
-    "utm_source",
-    "utm_medium",
-    "utm_campaign",
-    "utm_content",
-    "utm_term",
-  ];
+  const utmParams = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
   const utmData: Record<string, string> = {};
 
   utmParams.forEach((param) => {

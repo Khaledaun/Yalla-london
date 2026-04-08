@@ -16,7 +16,14 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export type AffiliateCategory = "hotel" | "experience" | "restaurant" | "attraction" | "flight" | "transport" | "shopping";
+export type AffiliateCategory =
+  | "hotel"
+  | "experience"
+  | "restaurant"
+  | "attraction"
+  | "flight"
+  | "transport"
+  | "shopping";
 
 export interface AffiliateLink {
   url: string;
@@ -33,7 +40,7 @@ export interface AffiliateLink {
 
 const SITE_PARTNERS: Record<string, Record<AffiliateCategory, string[]>> = {
   "yalla-london": {
-    hotel: ["expedia", "vrbo", "excellence"],  // All 3 CJ-approved hotel partners (Expedia highest EPC)
+    hotel: ["expedia", "vrbo", "excellence"], // All 3 CJ-approved hotel partners (Expedia highest EPC)
     experience: ["tiqets", "viator", "bigbus", "citypass"],
     restaurant: ["thefork", "opentable"],
     attraction: ["tiqets", "viator"],
@@ -41,7 +48,7 @@ const SITE_PARTNERS: Record<string, Record<AffiliateCategory, string[]>> = {
     transport: ["welcomepickups", "blacklane"],
     shopping: ["harrods"],
   },
-  "arabaldives": {
+  arabaldives: {
     hotel: ["agoda", "booking"],
     experience: ["getyourguide", "viator"],
     restaurant: [],
@@ -73,85 +80,87 @@ interface VenueMapping {
 }
 
 const VENUE_MAPPINGS: VenueMapping[] = [
-  // London Hotels
+  // London Hotels — Expedia/Vrbo are approved CJ partners.
+  // Each hotel links through /api/affiliate/click for SID tracking + revenue attribution.
   {
     patterns: ["dorchester"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/the-dorchester/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/the-dorchester.html",
+      expedia: "https://www.expedia.com/London-Hotels-The-Dorchester.h7084.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=The+Dorchester+London",
     },
   },
   {
     patterns: ["ritz", "the ritz london"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/the-ritz-london/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/theritzlondon.html",
+      expedia: "https://www.expedia.com/London-Hotels-The-Ritz-London.h20959.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=The+Ritz+London",
     },
   },
   {
     patterns: ["claridge"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/claridges/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/claridge-s.html",
+      expedia: "https://www.expedia.com/London-Hotels-Claridges.h6878.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=Claridges+London",
     },
   },
   {
     patterns: ["connaught"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/the-connaught/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/the-connaught.html",
+      expedia: "https://www.expedia.com/London-Hotels-The-Connaught.h42474.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=The+Connaught+London",
     },
   },
   {
     patterns: ["shangri-la", "shangri la", "the shard"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/shangri-la-the-shard-london/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/shangri-la-hotel-at-the-shard-london.html",
+      expedia: "https://www.expedia.com/London-Hotels-Shangri-La-The-Shard-London.h8359498.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=Shangri-La+The+Shard+London",
     },
   },
   {
     patterns: ["savoy"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/the-savoy/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/the-savoy.html",
+      expedia: "https://www.expedia.com/London-Hotels-The-Savoy.h4969.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=The+Savoy+London",
     },
   },
   {
     patterns: ["langham"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/the-langham-london/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/the-langham-london.html",
+      expedia: "https://www.expedia.com/London-Hotels-The-Langham-London.h4193.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=The+Langham+London",
     },
   },
   {
     patterns: ["corinthia"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/corinthia-london/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/corinthia-london.html",
+      expedia: "https://www.expedia.com/London-Hotels-Corinthia-London.h3313198.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=Corinthia+London",
     },
   },
   {
     patterns: ["four seasons", "park lane"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/four-seasons-hotel-london-at-park-lane/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/four-seasons-park-lane.html",
+      expedia:
+        "https://www.expedia.com/London-Hotels-Four-Seasons-Hotel-London-At-Park-Lane.h2053795.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=Four+Seasons+Park+Lane+London",
     },
   },
   {
     patterns: ["mandarin oriental", "hyde park"],
     category: "hotel",
     affiliateUrls: {
-      agoda: "https://www.agoda.com/mandarin-oriental-hyde-park-london/hotel/london-gb.html",
-      booking: "https://www.booking.com/hotel/gb/mandarin-oriental-hyde-park-london.html",
+      expedia: "https://www.expedia.com/London-Hotels-Mandarin-Oriental-Hyde-Park-London.h3907.Hotel-Information",
+      vrbo: "https://www.vrbo.com/search?destination=Mandarin+Oriental+London",
     },
   },
   // London Experiences — Tiqets (connected via Travelpayouts, 3.5-8% commission)
@@ -345,13 +354,10 @@ export function getPageAffiliateLink(
   const nameLower = itemName.toLowerCase();
 
   // 1. Try exact venue match
-  const venueMatch = VENUE_MAPPINGS.find((v) =>
-    v.patterns.some((p) => nameLower.includes(p)),
-  );
+  const venueMatch = VENUE_MAPPINGS.find((v) => v.patterns.some((p) => nameLower.includes(p)));
 
   // 2. Get site's preferred partners for this category
-  const sitePartners = SITE_PARTNERS[siteId]?.[category] ||
-    SITE_PARTNERS["yalla-london"]?.[category] || [];
+  const sitePartners = SITE_PARTNERS[siteId]?.[category] || SITE_PARTNERS["yalla-london"]?.[category] || [];
 
   if (venueMatch) {
     // Find first available partner that site prefers
@@ -409,9 +415,7 @@ export function getAllAffiliateLinks(
   const nameLower = itemName.toLowerCase();
   const links: AffiliateLink[] = [];
 
-  const venueMatch = VENUE_MAPPINGS.find((v) =>
-    v.patterns.some((p) => nameLower.includes(p)),
-  );
+  const venueMatch = VENUE_MAPPINGS.find((v) => v.patterns.some((p) => nameLower.includes(p)));
 
   if (venueMatch) {
     for (const [partner, url] of Object.entries(venueMatch.affiliateUrls)) {

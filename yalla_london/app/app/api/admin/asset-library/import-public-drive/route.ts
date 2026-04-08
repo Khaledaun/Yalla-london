@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
         await prisma.mediaAsset.create({
           data: {
             filename: file.name,
+            original_name: file.name,
             mimeType: file.mimeType,
             fileSize: file.size ? parseInt(file.size) : null,
             width: file.imageMediaMetadata?.width || null,

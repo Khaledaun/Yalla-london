@@ -95,32 +95,92 @@ export async function POST(request: NextRequest) {
         const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
         const thumbnailUrl = file.thumbnailLink || `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
 
-        // Infer tags from filename (e.g., "hyde-park-sunset.jpg" → ["hyde", "park", "sunset"])
+        // ── AI Vision auto-tagging ──────────────────────────────────────
+        // Use Google Cloud Vision API to identify what's in the photo.
+        // This handles unnamed iPhone photos (IMG_0500.HEIC) by analyzing
+        // the actual image content instead of relying on filenames.
+        let visionLabels: string[] = [];
+        let visionLandmarks: string[] = [];
+        let visionDescription = "";
+        try {
+          const visionRes = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              requests: [
+                {
+                  image: { source: { imageUri: publicUrl } },
+                  features: [
+                    { type: "LABEL_DETECTION", maxResults: 15 },
+                    { type: "LANDMARK_DETECTION", maxResults: 5 },
+                    { type: "WEB_DETECTION", maxResults: 5 },
+                  ],
+                },
+              ],
+            }),
+            signal: AbortSignal.timeout(10000),
+          });
+          if (visionRes.ok) {
+            const visionData = await visionRes.json();
+            const response = visionData.responses?.[0];
+            // Labels: "restaurant", "food", "building", "park", etc.
+            visionLabels = (response?.labelAnnotations || [])
+              .filter((l: { score: number }) => l.score > 0.7)
+              .map((l: { description: string }) => l.description.toLowerCase());
+            // Landmarks: "Big Ben", "Tower Bridge", "Hyde Park", etc.
+            visionLandmarks = (response?.landmarkAnnotations || []).map((l: { description: string }) => l.description);
+            // Web entities for best description
+            const webEntities = (response?.webDetection?.webEntities || [])
+              .filter((e: { score: number; description?: string }) => e.score > 0.5 && e.description)
+              .map((e: { description: string }) => e.description);
+            visionDescription = webEntities[0] || visionLandmarks[0] || visionLabels.slice(0, 3).join(", ");
+          }
+        } catch (visionErr) {
+          console.warn(
+            `[import-drive] Vision API failed for ${file.name}:`,
+            visionErr instanceof Error ? visionErr.message : visionErr,
+          );
+          // Continue without vision — use filename fallback
+        }
+
+        // Build tags from Vision AI results + filename
         const nameParts = file.name
-          .replace(/\.[^.]+$/, "") // strip extension
+          .replace(/\.[^.]+$/, "")
           .replace(/[_-]/g, " ")
           .toLowerCase()
           .split(/\s+/)
-          .filter((w) => w.length > 2);
+          .filter((w) => w.length > 2 && !/^img$/i.test(w) && !/^\d+$/.test(w));
 
         const tags = [
           `google-drive:${file.id}`,
           `site:${siteId}`,
-          "owner-photo", // Marks as Khaled's own photo (highest quality for E-E-A-T)
+          "owner-photo",
+          ...visionLabels.slice(0, 10),
+          ...visionLandmarks.map((l) => l.toLowerCase()),
           ...nameParts,
           ...extraTags,
         ];
 
-        // Determine category from filename keywords
+        // Determine category from Vision labels + landmarks
+        const allLabels = [...visionLabels, ...visionLandmarks.map((l) => l.toLowerCase())].join(" ");
         let category = "london-landmarks";
-        const nameLC = file.name.toLowerCase();
-        if (/hotel|dorchester|ritz|claridge|savoy|langham|connaught/i.test(nameLC)) category = "hotels-luxury";
-        else if (/restaurant|food|halal|dining|meal/i.test(nameLC)) category = "restaurants-food";
-        else if (/shop|harrods|oxford|market/i.test(nameLC)) category = "shopping";
-        else if (/park|garden|hyde|regents/i.test(nameLC)) category = "parks-nature";
-        else if (/tube|bus|taxi|transport|station/i.test(nameLC)) category = "transport";
-        else if (/mosque|eid|ramadan|event/i.test(nameLC)) category = "events-celebrations";
-        else if (/bridge|shard|eye|parliament|buckingham/i.test(nameLC)) category = "london-landmarks";
+        if (/hotel|lobby|suite|bedroom|accommodation/i.test(allLabels)) category = "hotels-luxury";
+        else if (/restaurant|food|cuisine|dish|meal|dining|plate/i.test(allLabels)) category = "restaurants-food";
+        else if (/shop|store|retail|market|mall/i.test(allLabels)) category = "shopping";
+        else if (/park|garden|tree|nature|flower|grass/i.test(allLabels)) category = "parks-nature";
+        else if (/train|bus|tube|underground|station|taxi|transport/i.test(allLabels)) category = "transport";
+        else if (/mosque|church|temple|minaret|prayer/i.test(allLabels)) category = "events-celebrations";
+        else if (/stadium|football|sport|arena/i.test(allLabels)) category = "football-stadiums";
+        else if (/bridge|tower|parliament|palace|monument|landmark/i.test(allLabels)) category = "london-landmarks";
+        else if (/street|road|city|urban|building|architecture/i.test(allLabels)) category = "architecture";
+        else if (/bar|pub|nightlife|cocktail/i.test(allLabels)) category = "nightlife";
+
+        // Build alt text from Vision results
+        const altText =
+          visionDescription ||
+          visionLandmarks[0] ||
+          visionLabels.slice(0, 3).join(", ") ||
+          file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
 
         await prisma.mediaAsset.create({
           data: {
@@ -131,7 +191,7 @@ export async function POST(request: NextRequest) {
             height: file.imageMediaMetadata?.height || null,
             url: publicUrl,
             thumbnailUrl,
-            altText: file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " "),
+            altText,
             category,
             tags,
             siteId,
@@ -141,7 +201,7 @@ export async function POST(request: NextRequest) {
         });
 
         results.imported++;
-        results.files.push(file.name);
+        results.files.push(`${file.name} → [${category}] ${altText}`);
       } catch (importErr) {
         results.errors.push(`${file.name}: ${importErr instanceof Error ? importErr.message : String(importErr)}`);
       }

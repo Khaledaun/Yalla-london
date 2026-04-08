@@ -3,7 +3,20 @@
 import { useState, useEffect, useCallback, type ComponentType } from "react";
 
 const BoxIcon: ComponentType<{ size?: number | string; color?: string }> = ({ size = 24, color = "#78716C" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1="12" y1="22.08" x2="12" y2="12" />
+  </svg>
 );
 import {
   AdminCard,
@@ -68,13 +81,17 @@ export default function AssetLibraryPage() {
   const [tree, setTree] = useState<FolderNode[]>([]);
   const [assets, setAssets] = useState<AssetItem[]>([]);
   const [totalAssets, setTotalAssets] = useState(0);
-  const [stats, setStats] = useState<{ totalAssets: number; recentUploads: number; byCategory: { category: string; count: number }[] } | null>(null);
+  const [stats, setStats] = useState<{
+    totalAssets: number;
+    recentUploads: number;
+    byCategory: { category: string; count: number }[];
+  } | null>(null);
   const [activeSiteId, setActiveSiteId] = useState(() => {
-    if (typeof document !== 'undefined') {
-      const match = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/)
-      if (match?.[1]) return match[1]
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)siteId=([^;]*)/);
+      if (match?.[1]) return match[1];
     }
-    return "yalla-london"
+    return "yalla-london";
   });
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
@@ -92,7 +109,12 @@ export default function AssetLibraryPage() {
   const [driveFolderStack, setDriveFolderStack] = useState<{ id: string; name: string }[]>([]);
   const [driveFolderLoading, setDriveFolderLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: { file: string; error: string }[]; total: number } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    skipped: number;
+    errors: { file: string; error: string }[];
+    total: number;
+  } | null>(null);
 
   // Drive import functions
   const fetchDriveAccounts = useCallback(async () => {
@@ -117,7 +139,10 @@ export default function AssetLibraryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "list_folders", accountId, parentId }),
       });
-      if (!res.ok) { setDriveFolders([]); return; }
+      if (!res.ok) {
+        setDriveFolders([]);
+        return;
+      }
       const data = await res.json();
       setDriveFolders(data.folders || []);
     } catch {
@@ -127,10 +152,13 @@ export default function AssetLibraryPage() {
     }
   }, []);
 
-  const navigateDriveInto = useCallback((folder: DriveFolder) => {
-    setDriveFolderStack((prev) => [...prev, { id: folder.id, name: folder.name }]);
-    browseDriveFolders(selectedDriveAccount, folder.id);
-  }, [selectedDriveAccount, browseDriveFolders]);
+  const navigateDriveInto = useCallback(
+    (folder: DriveFolder) => {
+      setDriveFolderStack((prev) => [...prev, { id: folder.id, name: folder.name }]);
+      browseDriveFolders(selectedDriveAccount, folder.id);
+    },
+    [selectedDriveAccount, browseDriveFolders],
+  );
 
   const navigateDriveBack = useCallback(() => {
     setDriveFolderStack((prev) => {
@@ -157,7 +185,12 @@ export default function AssetLibraryPage() {
       }
       const data = await res.json();
       if (data.success) {
-        setImportResult({ imported: data.imported, skipped: data.skipped, errors: data.errors || [], total: data.total });
+        setImportResult({
+          imported: data.imported,
+          skipped: data.skipped,
+          errors: data.errors || [],
+          total: data.total,
+        });
         fetchTree();
         fetchAssets();
         fetchStats();
@@ -225,7 +258,9 @@ export default function AssetLibraryPage() {
     Promise.all([fetchTree(), fetchStats()]).finally(() => setLoading(false));
   }, [fetchTree, fetchStats]);
 
-  useEffect(() => { fetchAssets(); }, [fetchAssets]);
+  useEffect(() => {
+    fetchAssets();
+  }, [fetchAssets]);
 
   const doAction = async (action: string, extra: Record<string, unknown> = {}) => {
     setActionResult(null);
@@ -251,7 +286,8 @@ export default function AssetLibraryPage() {
   const toggleAsset = (id: string) => {
     setSelectedAssets((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -264,7 +300,7 @@ export default function AssetLibraryPage() {
   ];
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6 p-4 md:p-6 min-h-screen bg-[var(--admin-bg)]">
       <AdminPageHeader
         title="Design Asset Library"
         subtitle="Organized by site / platform / design type / occasion"
@@ -272,11 +308,17 @@ export default function AssetLibraryPage() {
           <div className="flex gap-2 items-center">
             <select
               value={activeSiteId}
-              onChange={(e) => { setActiveSiteId(e.target.value); setSelectedFolder(null); setPage(1); }}
-              className="p-2 border rounded-lg text-sm"
+              onChange={(e) => {
+                setActiveSiteId(e.target.value);
+                setSelectedFolder(null);
+                setPage(1);
+              }}
+              className="p-2 border border-[rgba(214,208,196,0.5)] rounded-xl text-sm bg-white"
             >
               {SITES.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
             <AdminButton size="sm" onClick={() => doAction("organize")}>
@@ -316,8 +358,11 @@ export default function AssetLibraryPage() {
             <AdminCard title="Folders">
               <div className="space-y-1 max-h-[60vh] overflow-y-auto">
                 <button
-                  onClick={() => { setSelectedFolder(null); setPage(1); }}
-                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition ${!selectedFolder ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50"}`}
+                  onClick={() => {
+                    setSelectedFolder(null);
+                    setPage(1);
+                  }}
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition ${!selectedFolder ? "bg-[#C8322B]/10 text-[#C8322B] font-medium" : "hover:bg-[var(--admin-bg)]"}`}
                 >
                   All Assets ({totalAssets})
                 </button>
@@ -327,7 +372,10 @@ export default function AssetLibraryPage() {
                     node={site}
                     depth={0}
                     selectedPath={selectedFolder}
-                    onSelect={(path) => { setSelectedFolder(path); setPage(1); }}
+                    onSelect={(path) => {
+                      setSelectedFolder(path);
+                      setPage(1);
+                    }}
                   />
                 ))}
               </div>
@@ -341,18 +389,29 @@ export default function AssetLibraryPage() {
                 type="text"
                 placeholder="Search assets..."
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="flex-1 p-2 border rounded-lg text-sm"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="flex-1 p-2.5 border border-[rgba(214,208,196,0.5)] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C49A2A]/30 focus:border-[#C49A2A]"
               />
               {selectedAssets.size > 0 && (
-                <AdminButton size="sm" variant="danger" onClick={() => doAction("delete", { assetIds: [...selectedAssets] })}>
+                <AdminButton
+                  size="sm"
+                  variant="danger"
+                  onClick={() => doAction("delete", { assetIds: [...selectedAssets] })}
+                >
                   Delete ({selectedAssets.size})
                 </AdminButton>
               )}
             </div>
 
             {assets.length === 0 ? (
-              <AdminEmptyState icon={BoxIcon} title="No Assets" description={selectedFolder ? `No assets in this folder.` : "Upload assets or sync from Google Drive."} />
+              <AdminEmptyState
+                icon={BoxIcon}
+                title="No Assets"
+                description={selectedFolder ? `No assets in this folder.` : "Upload assets or sync from Google Drive."}
+              />
             ) : (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -360,15 +419,19 @@ export default function AssetLibraryPage() {
                     <div
                       key={asset.id}
                       onClick={() => toggleAsset(asset.id)}
-                      className={`relative rounded-lg border overflow-hidden cursor-pointer transition ${selectedAssets.has(asset.id) ? "ring-2 ring-blue-500 border-blue-300" : "hover:shadow-md"}`}
+                      className={`relative rounded-xl border border-[rgba(214,208,196,0.5)] bg-white overflow-hidden cursor-pointer transition ${selectedAssets.has(asset.id) ? "ring-2 ring-[#C49A2A] border-[#C49A2A]" : "hover:shadow-md hover:border-[rgba(214,208,196,0.8)]"}`}
                     >
                       {asset.mime_type?.startsWith("image/") ? (
-                        <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                        <div className="aspect-square bg-[var(--admin-bg)] flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={asset.url} alt={asset.alt_text || asset.filename} className="w-full h-full object-cover" />
+                          <img
+                            src={asset.url}
+                            alt={asset.alt_text || asset.filename}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ) : (
-                        <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                        <div className="aspect-square bg-[var(--admin-bg)] flex items-center justify-center">
                           <span className="text-3xl">{getFileEmoji(asset.mime_type)}</span>
                         </div>
                       )}
@@ -377,12 +440,10 @@ export default function AssetLibraryPage() {
                         <p className="text-xs text-gray-500">
                           {asset.folder?.split("/").slice(1).join(" / ") || "Unfoldered"}
                         </p>
-                        {asset.file_size && (
-                          <p className="text-xs text-gray-400">{formatBytes(asset.file_size)}</p>
-                        )}
+                        {asset.file_size && <p className="text-xs text-gray-400">{formatBytes(asset.file_size)}</p>}
                       </div>
                       {selectedAssets.has(asset.id) && (
-                        <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <div className="absolute top-2 right-2 w-5 h-5 bg-[#C49A2A] rounded-full flex items-center justify-center">
                           <span className="text-white text-xs">✓</span>
                         </div>
                       )}
@@ -395,7 +456,7 @@ export default function AssetLibraryPage() {
                     <AdminButton size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                       Previous
                     </AdminButton>
-                    <span className="text-sm text-gray-500 self-center">
+                    <span className="text-sm text-[#78716C] self-center font-mono">
                       Page {page} of {totalPages}
                     </span>
                     <AdminButton size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
@@ -412,14 +473,19 @@ export default function AssetLibraryPage() {
       {/* Drive Import Modal */}
       {showDriveModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between">
+          <div className="bg-[var(--admin-bg)] rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden border border-[rgba(214,208,196,0.5)] shadow-xl">
+            <div className="p-5 border-b border-[rgba(214,208,196,0.5)] flex items-center justify-between">
               <div>
-                <h3 className="font-medium">Import from Google Drive</h3>
-                <p className="text-xs text-gray-500">Select a folder to import files into the Asset Library</p>
+                <h3 className="font-heading font-semibold text-[#1a1a1a]">Import from Google Drive</h3>
+                <p className="text-xs text-[#78716C] mt-0.5">Select a folder to import files into the Asset Library</p>
               </div>
               <button
-                onClick={() => { setShowDriveModal(false); setDriveFolderStack([]); setDriveFolders([]); setImportResult(null); }}
+                onClick={() => {
+                  setShowDriveModal(false);
+                  setDriveFolderStack([]);
+                  setDriveFolders([]);
+                  setImportResult(null);
+                }}
                 className="text-gray-400 hover:text-gray-600 text-xl"
               >
                 ✕
@@ -427,9 +493,83 @@ export default function AssetLibraryPage() {
             </div>
 
             <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
-              {/* Account Selector */}
+              {/* Quick Import — Public Folder (no OAuth needed) */}
+              <div className="border border-[#C49A2A]/30 rounded-xl p-4 bg-white">
+                <h4 className="font-medium text-sm mb-2">Quick Import (Public Folder)</h4>
+                <p className="text-xs text-gray-600 mb-3">
+                  Paste a Google Drive folder link. Photos are auto-tagged by AI Vision.
+                </p>
+                <input
+                  type="text"
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  id="drive-folder-url"
+                  className="w-full p-2 border rounded-lg text-sm mb-3"
+                  defaultValue=""
+                />
+                <AdminButton
+                  size="sm"
+                  loading={importing}
+                  onClick={async () => {
+                    setImporting(true);
+                    setImportResult(null);
+                    try {
+                      const input = (document.getElementById("drive-folder-url") as HTMLInputElement)?.value || "";
+                      const match = input.match(/folders\/([a-zA-Z0-9_-]+)/);
+                      const folderId = match?.[1] || input.trim();
+                      if (!folderId) {
+                        setImporting(false);
+                        return;
+                      }
+                      const res = await fetch("/api/admin/asset-library/import-public-drive", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ folderId, siteId: activeSiteId }),
+                      });
+                      const data = res.ok ? await res.json() : { error: await res.text() };
+                      setImportResult(
+                        data.error
+                          ? { imported: 0, skipped: 0, errors: [{ file: "API", error: data.error }], total: 0 }
+                          : {
+                              imported: data.imported || 0,
+                              skipped: data.skipped || 0,
+                              errors: (data.errors || []).map((e: string) => ({ file: "", error: e })),
+                              total: data.totalInFolder || 0,
+                            },
+                      );
+                    } catch (err) {
+                      setImportResult({
+                        imported: 0,
+                        skipped: 0,
+                        errors: [{ file: "Network", error: String(err) }],
+                        total: 0,
+                      });
+                    }
+                    setImporting(false);
+                  }}
+                >
+                  Import with AI Vision Tagging
+                </AdminButton>
+                {importResult && (
+                  <div className="mt-3 text-xs">
+                    <p className="font-medium">
+                      {importResult.imported} imported, {importResult.skipped} skipped
+                    </p>
+                    {importResult.errors.length > 0 && (
+                      <p className="text-red-600 mt-1">{importResult.errors[0].error}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-sm mb-2 text-gray-400">OAuth Import (requires setup)</h4>
+              </div>
+
+              {/* OAuth Account Selector — original flow */}
               {driveAccounts.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No Google Drive accounts connected. Go to Google Drive settings to connect one.</p>
+                <p className="text-sm text-gray-400 text-center py-2">
+                  No OAuth accounts connected. Use Quick Import above instead.
+                </p>
               ) : (
                 <>
                   <div>
@@ -445,7 +585,9 @@ export default function AssetLibraryPage() {
                       className="w-full p-2 border rounded-lg text-sm"
                     >
                       {driveAccounts.map((acc) => (
-                        <option key={acc.id} value={acc.id}>{acc.displayName || acc.email}</option>
+                        <option key={acc.id} value={acc.id}>
+                          {acc.displayName || acc.email}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -455,12 +597,14 @@ export default function AssetLibraryPage() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs text-gray-500">
-                          {driveFolderStack.length > 0
-                            ? driveFolderStack.map((f) => f.name).join(" / ")
-                            : "Root"}
+                          {driveFolderStack.length > 0 ? driveFolderStack.map((f) => f.name).join(" / ") : "Root"}
                         </p>
                         {driveFolders.length === 0 && !driveFolderLoading && driveFolderStack.length === 0 && (
-                          <AdminButton size="sm" variant="secondary" onClick={() => browseDriveFolders(selectedDriveAccount)}>
+                          <AdminButton
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => browseDriveFolders(selectedDriveAccount)}
+                          >
                             Browse
                           </AdminButton>
                         )}
@@ -469,7 +613,7 @@ export default function AssetLibraryPage() {
                       {driveFolderStack.length > 0 && (
                         <button
                           onClick={navigateDriveBack}
-                          className="w-full text-left p-2 hover:bg-gray-50 rounded-lg text-sm flex items-center gap-2 mb-1"
+                          className="w-full text-left p-2 hover:bg-[var(--admin-bg)] rounded-lg text-sm flex items-center gap-2 mb-1"
                         >
                           <span>⬆️</span> <span>Back</span>
                         </button>
@@ -484,8 +628,14 @@ export default function AssetLibraryPage() {
                       ) : (
                         <div className="space-y-1 max-h-[30vh] overflow-y-auto">
                           {driveFolders.map((f) => (
-                            <div key={f.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
-                              <button onClick={() => navigateDriveInto(f)} className="text-sm flex items-center gap-2 flex-1 text-left">
+                            <div
+                              key={f.id}
+                              className="flex items-center justify-between p-2 hover:bg-[var(--admin-bg)] rounded-lg"
+                            >
+                              <button
+                                onClick={() => navigateDriveInto(f)}
+                                className="text-sm flex items-center gap-2 flex-1 text-left"
+                              >
                                 <span>📁</span> {f.name}
                               </button>
                               <AdminButton
@@ -511,7 +661,9 @@ export default function AssetLibraryPage() {
                         startImport(selectedDriveAccount, current.id);
                       }}
                     >
-                      {importing ? "Importing..." : `Import All from "${driveFolderStack[driveFolderStack.length - 1].name}"`}
+                      {importing
+                        ? "Importing..."
+                        : `Import All from "${driveFolderStack[driveFolderStack.length - 1].name}"`}
                     </AdminButton>
                   )}
 
@@ -520,17 +672,18 @@ export default function AssetLibraryPage() {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
                       <p className="font-medium text-green-800">Import Complete</p>
                       <p className="text-green-700 mt-1">
-                        {importResult.imported} imported, {importResult.skipped} skipped, {importResult.errors.length} errors
+                        {importResult.imported} imported, {importResult.skipped} skipped, {importResult.errors.length}{" "}
+                        errors
                         {importResult.total > 0 && ` (${importResult.total} total files)`}
                       </p>
                       {importResult.errors.length > 0 && (
                         <div className="mt-2 text-xs text-red-600 space-y-1">
                           {importResult.errors.slice(0, 5).map((e, i) => (
-                            <p key={i}>{e.file}: {e.error}</p>
+                            <p key={i}>
+                              {e.file}: {e.error}
+                            </p>
                           ))}
-                          {importResult.errors.length > 5 && (
-                            <p>... and {importResult.errors.length - 5} more</p>
-                          )}
+                          {importResult.errors.length > 5 && <p>... and {importResult.errors.length - 5} more</p>}
                         </div>
                       )}
                     </div>
@@ -567,26 +720,24 @@ function FolderTreeNode({
           onSelect(node.path);
           if (hasChildren) setExpanded(!expanded);
         }}
-        className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${isSelected ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50"}`}
+        className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${isSelected ? "bg-[#C8322B]/10 text-[#C8322B] font-medium" : "hover:bg-[var(--admin-bg)]"}`}
         style={{ paddingLeft: `${(depth + 1) * 12}px` }}
       >
-        {hasChildren && (
-          <span className="text-xs text-gray-400">{expanded ? "▼" : "▶"}</span>
-        )}
+        {hasChildren && <span className="text-xs text-gray-400">{expanded ? "▼" : "▶"}</span>}
         <span className="truncate flex-1">{node.name}</span>
-        {node.count > 0 && (
-          <span className="text-xs text-gray-400 ml-1">{node.count}</span>
-        )}
+        {node.count > 0 && <span className="text-xs text-gray-400 ml-1">{node.count}</span>}
       </button>
-      {expanded && hasChildren && node.children!.map((child) => (
-        <FolderTreeNode
-          key={child.id}
-          node={child}
-          depth={depth + 1}
-          selectedPath={selectedPath}
-          onSelect={onSelect}
-        />
-      ))}
+      {expanded &&
+        hasChildren &&
+        node.children!.map((child) => (
+          <FolderTreeNode
+            key={child.id}
+            node={child}
+            depth={depth + 1}
+            selectedPath={selectedPath}
+            onSelect={onSelect}
+          />
+        ))}
     </div>
   );
 }

@@ -479,7 +479,8 @@ Current word count: ${wordCount}`;
                 taskType: "content_expansion",
                 siteId,
                 calledFrom: "seo-deep-review",
-                timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart) - 2000, 10_000),
+                timeoutMs: Math.min(PER_ARTICLE_BUDGET_MS - (Date.now() - articleStart) - 2000, 20_000),
+                phaseBudgetHint: 'heavy' as const,
               },
             );
 

@@ -520,7 +520,7 @@ async function generateTopicsViaGrok(
   const result = await Promise.race([
     searchTrendingTopics(destination + extraContext, locale),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Grok topic research timed out after 20s')), 20_000)
+      setTimeout(() => reject(new Error('Grok topic research timed out after 30s')), 30_000)
     ),
   ]);
 

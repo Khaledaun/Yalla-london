@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Star, MapPin, Search, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
@@ -567,6 +567,25 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArea, setSelectedArea] = useState("All Areas");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [realPhotos, setRealPhotos] = useState<Record<string, string>>({});
+
+  // Fetch real hotel photos from Hotellook CDN (Travelpayouts) on mount.
+  // These are actual property photos, not stock images.
+  useEffect(() => {
+    const hotelNames = hotels.en.map((h) => h.name).join(",");
+    fetch(`/api/integrations/hotel-photos?hotels=${encodeURIComponent(hotelNames)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data?.photos) return;
+        const photoMap: Record<string, string> = {};
+        for (const [name, info] of Object.entries(data.photos)) {
+          const photo = info as { urls?: { medium?: string } } | null;
+          if (photo?.urls?.medium) photoMap[name] = photo.urls.medium;
+        }
+        if (Object.keys(photoMap).length > 0) setRealPhotos(photoMap);
+      })
+      .catch(() => {}); // Graceful — falls back to static Unsplash URLs
+  }, []);
 
   const areaKeys = Object.keys(areaMap);
   const selectedAreaKey = t.areas.indexOf(selectedArea) > 0 ? areaKeys[t.areas.indexOf(selectedArea) - 1] : null;
@@ -712,7 +731,7 @@ export default function HotelsPage({ serverLocale }: { serverLocale?: "en" | "ar
             <BrandCardLight key={hotel.id} className="overflow-hidden group">
               <div className="relative h-56">
                 <Image
-                  src={hotel.image}
+                  src={realPhotos[hotel.name] || hotel.image}
                   alt={hotel.name}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

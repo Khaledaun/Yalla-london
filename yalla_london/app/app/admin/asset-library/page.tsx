@@ -300,7 +300,7 @@ export default function AssetLibraryPage() {
   ];
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6 p-4 md:p-6 min-h-screen bg-[var(--admin-bg)]">
       <AdminPageHeader
         title="Design Asset Library"
         subtitle="Organized by site / platform / design type / occasion"
@@ -313,7 +313,7 @@ export default function AssetLibraryPage() {
                 setSelectedFolder(null);
                 setPage(1);
               }}
-              className="p-2 border rounded-lg text-sm"
+              className="p-2 border border-[rgba(214,208,196,0.5)] rounded-xl text-sm bg-white"
             >
               {SITES.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -362,7 +362,7 @@ export default function AssetLibraryPage() {
                     setSelectedFolder(null);
                     setPage(1);
                   }}
-                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition ${!selectedFolder ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50"}`}
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition ${!selectedFolder ? "bg-[#C8322B]/10 text-[#C8322B] font-medium" : "hover:bg-[var(--admin-bg)]"}`}
                 >
                   All Assets ({totalAssets})
                 </button>
@@ -393,7 +393,7 @@ export default function AssetLibraryPage() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="flex-1 p-2 border rounded-lg text-sm"
+                className="flex-1 p-2.5 border border-[rgba(214,208,196,0.5)] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C49A2A]/30 focus:border-[#C49A2A]"
               />
               {selectedAssets.size > 0 && (
                 <AdminButton
@@ -419,10 +419,10 @@ export default function AssetLibraryPage() {
                     <div
                       key={asset.id}
                       onClick={() => toggleAsset(asset.id)}
-                      className={`relative rounded-lg border overflow-hidden cursor-pointer transition ${selectedAssets.has(asset.id) ? "ring-2 ring-blue-500 border-blue-300" : "hover:shadow-md"}`}
+                      className={`relative rounded-xl border border-[rgba(214,208,196,0.5)] bg-white overflow-hidden cursor-pointer transition ${selectedAssets.has(asset.id) ? "ring-2 ring-[#C49A2A] border-[#C49A2A]" : "hover:shadow-md hover:border-[rgba(214,208,196,0.8)]"}`}
                     >
                       {asset.mime_type?.startsWith("image/") ? (
-                        <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                        <div className="aspect-square bg-[var(--admin-bg)] flex items-center justify-center">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={asset.url}
@@ -431,7 +431,7 @@ export default function AssetLibraryPage() {
                           />
                         </div>
                       ) : (
-                        <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                        <div className="aspect-square bg-[var(--admin-bg)] flex items-center justify-center">
                           <span className="text-3xl">{getFileEmoji(asset.mime_type)}</span>
                         </div>
                       )}
@@ -443,7 +443,7 @@ export default function AssetLibraryPage() {
                         {asset.file_size && <p className="text-xs text-gray-400">{formatBytes(asset.file_size)}</p>}
                       </div>
                       {selectedAssets.has(asset.id) && (
-                        <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <div className="absolute top-2 right-2 w-5 h-5 bg-[#C49A2A] rounded-full flex items-center justify-center">
                           <span className="text-white text-xs">✓</span>
                         </div>
                       )}
@@ -456,7 +456,7 @@ export default function AssetLibraryPage() {
                     <AdminButton size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                       Previous
                     </AdminButton>
-                    <span className="text-sm text-gray-500 self-center">
+                    <span className="text-sm text-[#78716C] self-center font-mono">
                       Page {page} of {totalPages}
                     </span>
                     <AdminButton size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
@@ -473,11 +473,11 @@ export default function AssetLibraryPage() {
       {/* Drive Import Modal */}
       {showDriveModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between">
+          <div className="bg-[var(--admin-bg)] rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden border border-[rgba(214,208,196,0.5)] shadow-xl">
+            <div className="p-5 border-b border-[rgba(214,208,196,0.5)] flex items-center justify-between">
               <div>
-                <h3 className="font-medium">Import from Google Drive</h3>
-                <p className="text-xs text-gray-500">Select a folder to import files into the Asset Library</p>
+                <h3 className="font-heading font-semibold text-[#1a1a1a]">Import from Google Drive</h3>
+                <p className="text-xs text-[#78716C] mt-0.5">Select a folder to import files into the Asset Library</p>
               </div>
               <button
                 onClick={() => {
@@ -494,7 +494,7 @@ export default function AssetLibraryPage() {
 
             <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
               {/* Quick Import — Public Folder (no OAuth needed) */}
-              <div className="border rounded-lg p-4 bg-amber-50/50">
+              <div className="border border-[#C49A2A]/30 rounded-xl p-4 bg-white">
                 <h4 className="font-medium text-sm mb-2">Quick Import (Public Folder)</h4>
                 <p className="text-xs text-gray-600 mb-3">
                   Paste a Google Drive folder link. Photos are auto-tagged by AI Vision.
@@ -613,7 +613,7 @@ export default function AssetLibraryPage() {
                       {driveFolderStack.length > 0 && (
                         <button
                           onClick={navigateDriveBack}
-                          className="w-full text-left p-2 hover:bg-gray-50 rounded-lg text-sm flex items-center gap-2 mb-1"
+                          className="w-full text-left p-2 hover:bg-[var(--admin-bg)] rounded-lg text-sm flex items-center gap-2 mb-1"
                         >
                           <span>⬆️</span> <span>Back</span>
                         </button>
@@ -630,7 +630,7 @@ export default function AssetLibraryPage() {
                           {driveFolders.map((f) => (
                             <div
                               key={f.id}
-                              className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+                              className="flex items-center justify-between p-2 hover:bg-[var(--admin-bg)] rounded-lg"
                             >
                               <button
                                 onClick={() => navigateDriveInto(f)}
@@ -720,7 +720,7 @@ function FolderTreeNode({
           onSelect(node.path);
           if (hasChildren) setExpanded(!expanded);
         }}
-        className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${isSelected ? "bg-blue-50 text-blue-700 font-medium" : "hover:bg-gray-50"}`}
+        className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${isSelected ? "bg-[#C8322B]/10 text-[#C8322B] font-medium" : "hover:bg-[var(--admin-bg)]"}`}
         style={{ paddingLeft: `${(depth + 1) * 12}px` }}
       >
         {hasChildren && <span className="text-xs text-gray-400">{expanded ? "▼" : "▶"}</span>}

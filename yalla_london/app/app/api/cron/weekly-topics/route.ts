@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
       const { isYachtSite } = await import('@/config/sites');
       if (isYachtSite(targetSiteId)) {
         console.log(`[weekly-topics] Skipping ${targetSiteId} — yacht site uses different content model`);
-        perSiteResults[targetSiteId] = { pending: 0, generated: 0, saved: 0 };
+        // Don't add to perSiteResults — yacht sites should not trigger
+        // "All AI providers failed" false alarm (pending:0, generated:0 matches failure filter)
         continue;
       }
 
@@ -489,6 +490,7 @@ Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
     generateJSON<any[]>(prompt, {
       maxTokens: 1024,
       temperature: 0.5,
+      timeoutMs: 30_000,
       taskType: "topic_research",
       calledFrom: "weekly-topics",
     }),

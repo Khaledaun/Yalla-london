@@ -246,7 +246,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
 
   // Track active slide from Embla carousel
   useEffect(() => {
-    if (!carouselApi) return;
+    if (!carouselApi) return undefined;
     const onSelect = () => setActiveSlide(carouselApi.selectedScrollSnap());
     carouselApi.on("select", onSelect);
     onSelect(); // Set initial

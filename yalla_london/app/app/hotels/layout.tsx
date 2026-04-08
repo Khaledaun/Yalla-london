@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/hotels`,
         "x-default": canonicalUrl,
       },
     },
@@ -56,7 +57,8 @@ export async function generateMetadata(): Promise<Metadata> {
 const FEATURED_HOTELS = [
   {
     name: "The Dorchester",
-    description: "Iconic 5-star Mayfair hotel with Arabic-speaking staff, halal dining at CUT, and Park Lane views. A favourite among Gulf travelers since 1931.",
+    description:
+      "Iconic 5-star Mayfair hotel with Arabic-speaking staff, halal dining at CUT, and Park Lane views. A favourite among Gulf travelers since 1931.",
     address: "53 Park Lane, Mayfair",
     city: "London",
     postalCode: "W1K 1QA",
@@ -65,7 +67,8 @@ const FEATURED_HOTELS = [
   },
   {
     name: "Claridge's",
-    description: "Art Deco masterpiece in Mayfair. Renowned for impeccable service, afternoon tea, and a strong following among Middle Eastern guests.",
+    description:
+      "Art Deco masterpiece in Mayfair. Renowned for impeccable service, afternoon tea, and a strong following among Middle Eastern guests.",
     address: "Brook Street, Mayfair",
     city: "London",
     postalCode: "W1K 4HR",
@@ -74,7 +77,8 @@ const FEATURED_HOTELS = [
   },
   {
     name: "The Savoy",
-    description: "Legendary Thames-side hotel since 1889. River-view suites, Gordon Ramsay dining, and Strand location perfect for West End theatre.",
+    description:
+      "Legendary Thames-side hotel since 1889. River-view suites, Gordon Ramsay dining, and Strand location perfect for West End theatre.",
     address: "Strand",
     city: "London",
     postalCode: "WC2R 0EZ",
@@ -83,7 +87,8 @@ const FEATURED_HOTELS = [
   },
   {
     name: "Shangri-La The Shard",
-    description: "London's highest hotel occupying floors 34-52 of The Shard. Panoramic city views, halal options available, and TING restaurant serving Asian-British cuisine.",
+    description:
+      "London's highest hotel occupying floors 34-52 of The Shard. Panoramic city views, halal options available, and TING restaurant serving Asian-British cuisine.",
     address: "31 St Thomas Street",
     city: "London",
     postalCode: "SE1 9QU",
@@ -103,18 +108,18 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const hotelSchemas = FEATURED_HOTELS.map((hotel) => ({
     "@context": "https://schema.org",
     "@type": "LodgingBusiness",
-    "name": hotel.name,
-    "description": hotel.description,
-    "address": {
+    name: hotel.name,
+    description: hotel.description,
+    address: {
       "@type": "PostalAddress",
-      "streetAddress": hotel.address,
-      "addressLocality": hotel.city,
-      "postalCode": hotel.postalCode,
-      "addressCountry": "GB",
+      streetAddress: hotel.address,
+      addressLocality: hotel.city,
+      postalCode: hotel.postalCode,
+      addressCountry: "GB",
     },
-    "priceRange": hotel.priceRange,
-    "url": hotel.url,
-    "brand": { "@type": "Organization", "name": siteName },
+    priceRange: hotel.priceRange,
+    url: hotel.url,
+    brand: { "@type": "Organization", name: siteName },
   }));
 
   return (

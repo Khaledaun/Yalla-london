@@ -14,9 +14,11 @@ export const revalidate = 3600;
 
 // Dynamic metadata for SEO — resolves site identity + base URL from request context
 // When ?tag= query params are present, set noindex to prevent thin filter pages from being indexed
-export async function generateMetadata(
-  { searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> },
-): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
@@ -31,10 +33,8 @@ export async function generateMetadata(
 
   return {
     title: `Blog | ${siteName} — Travel Guides & Tips`,
-    description:
-      `Travel guides, restaurant reviews, and insider tips for Arab visitors to ${destination}. Halal dining, luxury hotels, and exclusive experiences.`,
-    keywords:
-      `${destination.toLowerCase()} blog, halal travel ${destination.toLowerCase()}, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guides`,
+    description: `Travel guides, restaurant reviews, and insider tips for Arab visitors to ${destination}. Halal dining, luxury hotels, and exclusive experiences.`,
+    keywords: `${destination.toLowerCase()} blog, halal travel ${destination.toLowerCase()}, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guides`,
     alternates: {
       canonical: `${baseUrl}/blog`,
       languages: {
@@ -45,8 +45,7 @@ export async function generateMetadata(
     },
     openGraph: {
       title: `Blog | ${siteName} - Travel Guides for Arab Visitors`,
-      description:
-        `Discover ${destination} through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.`,
+      description: `Discover ${destination} through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.`,
       url: `${baseUrl}/blog`,
       siteName,
       locale: "en_GB",
@@ -182,7 +181,11 @@ export default async function BlogPage() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
   // 1. Transform static posts
-  const staticPosts = allStaticPosts
+  // Static posts are London-specific content from blog-content.ts / blog-content-extended.ts.
+  // Only include them for yalla-london — other sites (especially zenitha-yachts-med) must not
+  // show London travel articles on their blog listing. Matches the same gate in category/[slug]/page.tsx.
+  const isDefaultSite = siteId === "yalla-london" || siteId === getDefaultSiteId();
+  const staticPosts = (isDefaultSite ? allStaticPosts : [])
     .filter((post) => post.published)
     .map((post) => {
       const category = categories.find((c) => c.id === post.category_id);
@@ -221,10 +224,7 @@ export default async function BlogPage() {
       excerpt_en: post.excerpt_en || "",
       excerpt_ar: post.excerpt_ar || "",
       featured_image: post.featured_image || "",
-      created_at:
-        post.created_at instanceof Date
-          ? post.created_at.toISOString()
-          : String(post.created_at),
+      created_at: post.created_at instanceof Date ? post.created_at.toISOString() : String(post.created_at),
       reading_time: computeReadingTime(post.content_en),
       category: post.category
         ? {
@@ -240,7 +240,8 @@ export default async function BlogPage() {
   // Prevents duplicate-looking entries (e.g. two "Best Halal Fine Dining London 2025 Comparison")
   // by keeping only the newest post per normalized title.
   const normalizeForListingDedup = (t: string) =>
-    t.toLowerCase()
+    t
+      .toLowerCase()
       .replace(/\b20\d{2}\b/g, "")
       .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, "")
       .replace(/[^a-z0-9\s]/g, "")
@@ -248,8 +249,7 @@ export default async function BlogPage() {
       .trim();
 
   const merged = [...staticPosts, ...dbPostsTransformed].sort(
-    (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
   const seenTitles = new Set<string>();
   const allPosts = merged.filter((post) => {

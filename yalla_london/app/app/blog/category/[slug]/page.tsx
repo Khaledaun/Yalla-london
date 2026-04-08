@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
-import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain, isYachtSite } from "@/config/sites";
 import BlogListClient from "../../BlogListClient";
 
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
@@ -19,9 +19,7 @@ export async function generateStaticParams() {
   return categories.map((cat) => ({ slug: cat.slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const category = categories.find((c) => c.slug === slug);
   if (!category) return {};
@@ -30,8 +28,7 @@ export async function generateMetadata({
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
   return {
     title: `${category.name_en} | ${siteName} Blog`,
@@ -78,16 +75,15 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
-  // Filter posts by this category and transform for client component
-  const posts = allStaticPosts
+  // Static posts are London-specific content from blog-content.ts / blog-content-extended.ts.
+  // Only include them for yalla-london — other sites (especially zenitha-yachts-med) must not
+  // show London travel articles on their category pages.
+  const isDefaultSite = siteId === "yalla-london" || siteId === getDefaultSiteId();
+  const posts = (isDefaultSite ? allStaticPosts : [])
     .filter((post) => post.published && post.category_id === category.id)
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .map((post) => {
       return {
         id: post.id,
@@ -195,14 +191,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
       <BlogListClient posts={allPosts} />
     </>
   );

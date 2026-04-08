@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
   try {
     // List all image files in the public Drive folder
     const listUrl = new URL("https://www.googleapis.com/drive/v3/files");
-    listUrl.searchParams.set("q", `'${folderId}' in parents and trashed = false and (mimeType contains 'image/')`);
+    listUrl.searchParams.set(
+      "q",
+      `'${folderId}' in parents and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`,
+    );
     listUrl.searchParams.set("fields", "files(id,name,mimeType,size,imageMediaMetadata,thumbnailLink,webContentLink)");
     listUrl.searchParams.set("pageSize", "100");
     listUrl.searchParams.set("orderBy", "name");
@@ -91,9 +94,15 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // The publicly accessible URL for a Drive file
-        const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
+        // Google Drive uc?export=view URLs return a consent page for most files —
+        // they DON'T work as <img src>. Use the thumbnail/lh3 URL instead which
+        // serves the actual image bytes directly. Request large size (w1200) for
+        // article featured images.
         const thumbnailUrl = file.thumbnailLink || `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
+        // Build a high-res version from the thumbnail URL pattern
+        const publicUrl = thumbnailUrl.includes("=s")
+          ? thumbnailUrl.replace(/=s\d+$/, "=s1200")
+          : `https://drive.google.com/thumbnail?id=${file.id}&sz=w1200`;
 
         // ── AI Vision auto-tagging ──────────────────────────────────────
         // Use Google Cloud Vision API to identify what's in the photo.
@@ -188,7 +197,13 @@ export async function POST(request: NextRequest) {
             original_name: file.name,
             cloud_storage_path: `google-drive/${siteId}/${file.id}/${file.name}`,
             url: publicUrl,
-            file_type: file.mimeType.startsWith("image/") ? "image" : "document",
+            file_type: file.mimeType.startsWith("image/")
+              ? "image"
+              : file.mimeType.startsWith("video/")
+                ? "video"
+                : "document",
+            isVideo: file.mimeType.startsWith("video/"),
+            videoPoster: file.mimeType.startsWith("video/") ? thumbnailUrl : null,
             mime_type: file.mimeType,
             file_size: file.size ? parseInt(file.size) : 0,
             width: file.imageMediaMetadata?.width || null,

@@ -78,31 +78,82 @@ export async function GET(request: NextRequest) {
         if (Date.now() - startTime > BUDGET_MS) break;
 
         try {
-          const siteConfig = getSiteConfig(siteId);
-          const destination = siteConfig?.destination || "London";
-          const query = `${destination} ${article.title_en.replace(/[^\w\s]/g, "")}`.substring(0, 80);
-          const photos = (await searchPhotos(query, { perPage: 8, orientation: "landscape" })).filter(
-            (p) => !PHOTO_BLOCKLIST.has(p.id),
-          );
-          if (photos.length === 0) continue;
+          // ── PRIORITY 1: Check MediaAsset library for owner photos first ──
+          // Owner photos (from Google Drive import) are tagged "owner-photo" and
+          // are the best choice for E-E-A-T authenticity. Match by keyword overlap.
+          const titleWords = article.title_en
+            .toLowerCase()
+            .replace(/[^\w\s]/g, "")
+            .split(/\s+/)
+            .filter((w: string) => w.length > 3);
+          let assigned = false;
 
-          const photo = photos[0];
-          const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 80, format: "webp" });
-          const attribution = buildAttribution(photo);
+          if (titleWords.length > 0) {
+            // Find owner photos with matching tags
+            const ownerPhotos = await prisma.mediaAsset.findMany({
+              where: {
+                file_type: "image",
+                site_id: siteId,
+                tags: { has: "owner-photo" },
+                deletedAt: null,
+              },
+              select: { id: true, url: true, alt_text: true, tags: true },
+              take: 50,
+            });
 
-          await prisma.blogPost.update({
-            where: { id: article.id },
-            data: { featured_image: imageUrl },
-          });
-          articlesUpdated++;
+            if (ownerPhotos.length > 0) {
+              // Score each photo by tag overlap with article title words
+              const scored = ownerPhotos
+                .map((p: { id: string; url: string; tags: string[]; alt_text: string | null }) => {
+                  const photoTags = p.tags.map((t: string) => t.toLowerCase());
+                  const matches = titleWords.filter((w: string) => photoTags.some((t: string) => t.includes(w)));
+                  return { ...p, score: matches.length };
+                })
+                .filter((p: { score: number }) => p.score > 0)
+                .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
-          // Save to MediaAsset for reuse
-          await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, query, siteId);
-          imagesAdded++;
-
-          if (photo.downloadUrl) {
-            trackDownload(photo.downloadUrl).catch(() => {});
+              if (scored.length > 0) {
+                await prisma.blogPost.update({
+                  where: { id: article.id },
+                  data: { featured_image: scored[0].url },
+                });
+                articlesUpdated++;
+                assigned = true;
+                console.log(
+                  `[image-pipeline] Owner photo assigned to "${article.slug}" (score: ${scored[0].score}, tags: ${scored[0].tags.slice(0, 5).join(",")})`,
+                );
+              }
+            }
           }
+
+          // ── PRIORITY 2: Unsplash fallback (only if no owner photo matched) ──
+          if (!assigned) {
+            const siteConfig = getSiteConfig(siteId);
+            const destination = siteConfig?.destination || "London";
+            const query = `${destination} ${article.title_en.replace(/[^\w\s]/g, "")}`.substring(0, 80);
+            const photos = (await searchPhotos(query, { perPage: 8, orientation: "landscape" })).filter(
+              (p) => !PHOTO_BLOCKLIST.has(p.id),
+            );
+            if (photos.length === 0) continue;
+
+            const photo = photos[0];
+            const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 80, format: "webp" });
+            const attribution = buildAttribution(photo);
+
+            await prisma.blogPost.update({
+              where: { id: article.id },
+              data: { featured_image: imageUrl },
+            });
+            articlesUpdated++;
+
+            // Save to MediaAsset for reuse
+            await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, query, siteId);
+            imagesAdded++;
+
+            if (photo.downloadUrl) {
+              trackDownload(photo.downloadUrl).catch(() => {});
+            }
+          } // close if (!assigned)
         } catch (articleErr) {
           errors++;
           console.warn(

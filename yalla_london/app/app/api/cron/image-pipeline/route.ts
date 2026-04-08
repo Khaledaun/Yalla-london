@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveSiteIds } from "@/config/sites";
+import { getActiveSiteIds, getSiteConfig } from "@/config/sites";
 import { checkCronEnabled } from "@/lib/cron-feature-guard";
 
 export const maxDuration = 300;
@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { searchPhotos, trackDownload, buildImageUrl, buildAttribution, SITE_IMAGE_QUERIES } = await import("@/lib/apis/unsplash");
+    const { searchPhotos, trackDownload, buildImageUrl, buildAttribution, SITE_IMAGE_QUERIES } =
+      await import("@/lib/apis/unsplash");
 
     const activeSites = getActiveSiteIds();
 
@@ -47,11 +48,16 @@ export async function GET(request: NextRequest) {
     // Uses Unsplash API with destination-specific queries + PHOTO_BLOCKLIST.
     // Max 10 articles per run to stay within Unsplash rate limit (50 req/hr).
     const PHOTO_BLOCKLIST = new Set([
-      "photo-1566073771259-6a8506099945", "photo-1485738422979-f5c462d49f74",
-      "photo-1567620905732-2d1ec7ab7445", "photo-1534430480872-3498386e7856",
-      "photo-1492866533884-47aea3be0757", "photo-1503174971373-b1f69860e7d7",
-      "photo-1618773928121-c32242e63f39", "photo-1571003123894-1f0594d2b5d9",
-      "photo-1445019980597-93fa8acb246c", "photo-1480714378408-67cf0d13bc1b",
+      "photo-1566073771259-6a8506099945",
+      "photo-1485738422979-f5c462d49f74",
+      "photo-1567620905732-2d1ec7ab7445",
+      "photo-1534430480872-3498386e7856",
+      "photo-1492866533884-47aea3be0757",
+      "photo-1503174971373-b1f69860e7d7",
+      "photo-1618773928121-c32242e63f39",
+      "photo-1571003123894-1f0594d2b5d9",
+      "photo-1445019980597-93fa8acb246c",
+      "photo-1480714378408-67cf0d13bc1b",
       "photo-1485738422979-f5c462d49f04",
     ]);
     for (const siteId of activeSites) {
@@ -61,10 +67,7 @@ export async function GET(request: NextRequest) {
         where: {
           siteId,
           published: true,
-          OR: [
-            { featured_image: null },
-            { featured_image: "" },
-          ],
+          OR: [{ featured_image: null }, { featured_image: "" }],
         },
         select: { id: true, title_en: true, slug: true },
         take: 5,
@@ -78,8 +81,9 @@ export async function GET(request: NextRequest) {
           const siteConfig = getSiteConfig(siteId);
           const destination = siteConfig?.destination || "London";
           const query = `${destination} ${article.title_en.replace(/[^\w\s]/g, "")}`.substring(0, 80);
-          const photos = (await searchPhotos(query, { perPage: 8, orientation: "landscape" }))
-            .filter(p => !PHOTO_BLOCKLIST.has(p.id));
+          const photos = (await searchPhotos(query, { perPage: 8, orientation: "landscape" })).filter(
+            (p) => !PHOTO_BLOCKLIST.has(p.id),
+          );
           if (photos.length === 0) continue;
 
           const photo = photos[0];
@@ -101,7 +105,10 @@ export async function GET(request: NextRequest) {
           }
         } catch (articleErr) {
           errors++;
-          console.warn(`[image-pipeline] Failed for article ${article.slug}:`, articleErr instanceof Error ? articleErr.message : String(articleErr));
+          console.warn(
+            `[image-pipeline] Failed for article ${article.slug}:`,
+            articleErr instanceof Error ? articleErr.message : String(articleErr),
+          );
         }
       }
     }
@@ -157,14 +164,18 @@ export async function GET(request: NextRequest) {
           }
         } catch (orderErr) {
           errors++;
-          console.warn(`[image-pipeline] Photo order failed for ${post.slug}:`, orderErr instanceof Error ? orderErr.message : String(orderErr));
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { photo_order_status: "error" },
-          }).catch(() => {});
+          console.warn(
+            `[image-pipeline] Photo order failed for ${post.slug}:`,
+            orderErr instanceof Error ? orderErr.message : String(orderErr),
+          );
+          await prisma.blogPost
+            .update({
+              where: { id: post.id },
+              data: { photo_order_status: "error" },
+            })
+            .catch(() => {});
         }
       }
-    }
     }
 
     // ── Step 2: Pre-stock library with per-site travel imagery ────────
@@ -199,7 +210,14 @@ export async function GET(request: NextRequest) {
             const imageUrl = buildImageUrl(photo.urls.raw, { width: 1200, quality: 85, format: "webp" });
             const attribution = buildAttribution(photo);
 
-            const saved = await saveToLibrary(prisma as Record<string, unknown>, photo, imageUrl, attribution, randomQuery, siteId);
+            const saved = await saveToLibrary(
+              prisma as Record<string, unknown>,
+              photo,
+              imageUrl,
+              attribution,
+              randomQuery,
+              siteId,
+            );
             if (saved) {
               libraryStocked++;
               if (photo.downloadUrl) {
@@ -207,12 +225,18 @@ export async function GET(request: NextRequest) {
               }
             }
           } catch (stockErr) {
-            console.warn("[image-pipeline] Library stock failed:", stockErr instanceof Error ? stockErr.message : String(stockErr));
+            console.warn(
+              "[image-pipeline] Library stock failed:",
+              stockErr instanceof Error ? stockErr.message : String(stockErr),
+            );
           }
         }
       } catch (queryErr) {
         errors++;
-        console.warn(`[image-pipeline] Query "${randomQuery}" failed for ${siteId}:`, queryErr instanceof Error ? queryErr.message : String(queryErr));
+        console.warn(
+          `[image-pipeline] Query "${randomQuery}" failed for ${siteId}:`,
+          queryErr instanceof Error ? queryErr.message : String(queryErr),
+        );
       }
     }
   } catch (err) {

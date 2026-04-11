@@ -169,8 +169,27 @@ export default function Hassan1Homepage() {
       </nav>
 
       {/* ──────────────── HERO ──────────────── */}
-      <section style={{ paddingTop: 120, paddingBottom: 96, background: 'linear-gradient(180deg, #fff 0%, #FFF7F4 100%)', overflow: 'hidden' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 64, flexWrap: 'wrap' }}>
+      <section style={{ paddingTop: 120, paddingBottom: 96, position: 'relative', overflow: 'hidden', minHeight: 620 }}>
+        {/* Video background */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            objectFit: 'cover', zIndex: 0,
+          }}
+        >
+          <source src="/hassan/gemini_generated_video_8768F30C.mp4" type="video/mp4" />
+        </video>
+        {/* Light overlay — keeps text readable while letting video show through */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(255,247,244,0.90) 100%)',
+          zIndex: 1,
+        }} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 64, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
           <div style={{ flex: '1 1 480px', minWidth: 0 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FFF1EC', border: '1px solid #FECDC0', borderRadius: 50, padding: '6px 16px', marginBottom: 24 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B35' }} />

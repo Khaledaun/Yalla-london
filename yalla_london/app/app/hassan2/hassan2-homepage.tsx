@@ -164,14 +164,33 @@ export default function Hassan2Homepage() {
           overflow: 'hidden',
         }}
       >
-        {/* Background grid lines */}
+        {/* Video background */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            objectFit: 'cover', zIndex: 0, opacity: 0.35,
+          }}
+        >
+          <source src="/hassan/gemini_generated_video_E68BD1D6.mp4" type="video/mp4" />
+        </video>
+        {/* Deep dark overlay — preserves black luxury feel */}
         <div style={{
           position: 'absolute', inset: 0,
+          background: 'linear-gradient(135deg, rgba(10,10,10,0.75) 0%, rgba(10,10,10,0.60) 100%)',
+          zIndex: 1,
+        }} />
+        {/* Background grid lines */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 2,
           backgroundImage: 'linear-gradient(rgba(212,160,23,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(212,160,23,0.03) 1px, transparent 1px)',
           backgroundSize: '80px 80px',
           pointerEvents: 'none',
         }} />
-        <div className="h2-hero-inner" style={{ maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', alignItems: 'center', gap: 80 }}>
+        <div className="h2-hero-inner" style={{ maxWidth: 1280, margin: '0 auto', width: '100%', display: 'flex', alignItems: 'center', gap: 80, position: 'relative', zIndex: 3 }}>
           <div className="h2-hero-text" style={{ flex: 1, maxWidth: 680 }}>
             <span className="gold-label">Digital Marketing · Political Campaigns</span>
             <h1

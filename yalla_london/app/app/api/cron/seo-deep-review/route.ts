@@ -92,52 +92,83 @@ export async function GET(request: NextRequest) {
     // Catches articles that were published before seo-deep-review ran, or that
     // the seo-deep-review didn't finish fixing due to budget limits.
     // Criteria: short content, missing meta, or no internal links.
+    //
+    // IMPORTANT: The two sub-queries run INDEPENDENTLY so that short-content expansion
+    // is never starved when there are 5+ missing-meta articles. Previously, the
+    // shortContent query was only invoked when underOptimized.length < 5 — meaning
+    // NOINDEX thin articles (101-285w) were silently skipped every time the missing-meta
+    // list was full. Both branches now always run, each with their own take cap.
     const olderCutoff = new Date(Date.now() - OLDER_CUTOFF_MS);
     let olderArticles: typeof todayArticles = [];
     try {
-      // Find articles with short English content or missing meta description
-      const underOptimized = await prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSites },
-          published: true,
-          created_at: { gte: olderCutoff, lt: cutoff }, // older than 26h but within 7 days
-          OR: [
-            { meta_description_en: { equals: "" } },
-            { meta_description_en: null },
-            { meta_title_en: { equals: "" } },
-            { meta_title_en: null },
-          ],
-        },
-        orderBy: { created_at: "desc" },
-        take: 5, // Cap to preserve budget for recent articles
-      });
-
-      // Also find articles with short content (< 1000 words) for AI expansion
-      // Note: standards.ts minWords=500 is the publication blocker; 1000 is the expansion target
-      if (underOptimized.length < 5) {
-        const shortContent = await prisma.blogPost.findMany({
+      // Sub-query A: Articles with missing meta (high-impact SEO fix)
+      const [underOptimized, ultraThinRaw, shortContentRaw] = await Promise.all([
+        prisma.blogPost.findMany({
           where: {
             siteId: { in: activeSites },
             published: true,
             created_at: { gte: olderCutoff, lt: cutoff },
-            id: { notIn: underOptimized.map(a => a.id) },
+            OR: [
+              { meta_description_en: { equals: "" } },
+              { meta_description_en: null },
+              { meta_title_en: { equals: "" } },
+              { meta_title_en: null },
+            ],
           },
-          orderBy: { created_at: "asc" }, // oldest first — most likely to need fixes
-          take: 10,
-        });
-        // Filter to those with < 1000 words
-        const needsExpansion = shortContent.filter(a => {
-          const text = ((a.content_en as string) || "").replace(/<[^>]+>/g, " ");
-          const wc = text.split(/\s+/).filter(Boolean).length;
-          return wc < 1000;
-        });
-        olderArticles = [...underOptimized, ...needsExpansion.slice(0, 5 - underOptimized.length)];
-      } else {
-        olderArticles = underOptimized;
-      }
+          orderBy: { created_at: "desc" },
+          take: 5, // Independent cap — always runs
+        }),
+        // Sub-query B: Ultra-thin articles (< 500w) — priority expansion targets.
+        // These are the NOINDEX articles (e.g. 101w, 183w, 285w) that currently waste
+        // crawl budget and dilute site quality. Must always run regardless of sub-query A.
+        prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSites },
+            published: true,
+            created_at: { gte: olderCutoff, lt: cutoff },
+          },
+          orderBy: { created_at: "asc" }, // oldest first — highest churn risk
+          take: 30, // Fetch more; we'll filter by word count below
+        }),
+        // Sub-query C: Moderate short articles (500-999w) — expansion improves rankings
+        prisma.blogPost.findMany({
+          where: {
+            siteId: { in: activeSites },
+            published: true,
+            created_at: { gte: olderCutoff, lt: cutoff },
+          },
+          orderBy: { created_at: "asc" },
+          take: 20,
+        }),
+      ]);
+
+      // Filter sub-query B: ultra-thin (< 500 words in any language)
+      const ultraThin = ultraThinRaw.filter(a => {
+        const enWc = ((a.content_en as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const arWc = ((a.content_ar as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        return Math.max(enWc, arWc) < 500;
+      }).slice(0, 5);
+
+      // Filter sub-query C: moderate short (500-999 words), excluding ultra-thin already captured
+      const ultraThinIds = new Set([...ultraThin.map(a => a.id), ...underOptimized.map(a => a.id)]);
+      const shortContent = shortContentRaw.filter(a => {
+        if (ultraThinIds.has(a.id)) return false;
+        const enWc = ((a.content_en as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const arWc = ((a.content_ar as string) || "").replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const wc = Math.max(enWc, arWc);
+        return wc >= 500 && wc < 1000;
+      }).slice(0, 3);
+
+      // Merge: missing-meta first, then ultra-thin (highest priority), then moderate-short
+      olderArticles = [
+        ...underOptimized,
+        ...ultraThin.filter(a => !underOptimized.some(u => u.id === a.id)),
+        ...shortContent,
+      ] as typeof todayArticles;
 
       if (olderArticles.length > 0) {
-        console.log(`[seo-deep-review] Found ${olderArticles.length} older under-optimized article(s) to review`);
+        const ultraThinCount = ultraThin.filter(a => !underOptimized.some(u => u.id === a.id)).length;
+        console.log(`[seo-deep-review] Pass 2: ${underOptimized.length} missing-meta + ${ultraThinCount} ultra-thin (<500w) + ${shortContent.length} moderate-short (500-999w) = ${olderArticles.length} older article(s)`);
       }
     } catch (olderErr) {
       console.warn("[seo-deep-review] Older articles query failed (non-fatal):", olderErr instanceof Error ? olderErr.message : olderErr);

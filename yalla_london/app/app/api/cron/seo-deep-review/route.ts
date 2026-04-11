@@ -121,11 +121,12 @@ export async function GET(request: NextRequest) {
         // Sub-query B: Ultra-thin articles (< 500w) — priority expansion targets.
         // These are the NOINDEX articles (e.g. 101w, 183w, 285w) that currently waste
         // crawl budget and dilute site quality. Must always run regardless of sub-query A.
+        // No lower-bound age limit — ultra-thin articles need fixing no matter how old they are.
         prisma.blogPost.findMany({
           where: {
             siteId: { in: activeSites },
             published: true,
-            created_at: { gte: olderCutoff, lt: cutoff },
+            created_at: { lt: cutoff }, // all articles older than 26h, no age floor
           },
           orderBy: { created_at: "asc" }, // oldest first — highest churn risk
           take: 30, // Fetch more; we'll filter by word count below

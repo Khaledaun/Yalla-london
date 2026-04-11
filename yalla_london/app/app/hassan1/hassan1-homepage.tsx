@@ -259,15 +259,21 @@ export default function Hassan1Homepage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', alignItems: 'center' }}>
             {CLIENTS.map(c => (
               <div key={c.name} style={{
-                background: '#fff', borderRadius: 12, padding: '14px 20px',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                background: '#1E2A3A', borderRadius: 12, padding: '12px 20px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: 100, height: 56, transition: 'box-shadow 0.2s',
+                minWidth: 110, height: 64, transition: 'all 0.25s',
               }}
-              onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(255,107,53,0.15)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)')}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 20px rgba(255,107,53,0.25)';
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+              }}
               >
-                <img src={c.logo} alt={c.name} style={{ maxHeight: 32, maxWidth: 100, objectFit: 'contain', filter: 'grayscale(30%)' }} />
+                <img src={c.logo} alt={c.name} style={{ maxHeight: 36, maxWidth: 110, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
               </div>
             ))}
           </div>

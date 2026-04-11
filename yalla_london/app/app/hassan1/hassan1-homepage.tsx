@@ -1,546 +1,501 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  CheckCircle,
-  TrendingUp,
-  Zap,
-  BarChart3,
-  Globe,
-  Shield,
-  RefreshCw,
-  Target,
-  ChevronRight,
-  Star,
-  ArrowRight,
-  Play,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-// ─── Design Tokens (Wise-inspired) ───────────────────────────────────────────
-const T = {
-  bg: '#FFFFFF',
-  bgSecondary: '#F9FAFB',
-  bgAccentLight: '#F0FDF9',
-  text: '#111827',
-  textMuted: '#6B7280',
-  textLight: '#9CA3AF',
-  accent: '#00B67A',       // Wise green
-  accentHover: '#00A06B',
-  accentLight: '#D1FAE5',
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  navy: '#163300',         // Dark green for contrast
-  white: '#FFFFFF',
-  shadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
-  shadowMd: '0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06)',
-  shadowLg: '0 10px 15px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04)',
-};
-
-// ─── TYPES ────────────────────────────────────────────────────────────────────
-type PricingTier = {
-  name: string;
-  price: string;
-  period: string;
-  desc: string;
-  features: string[];
-  cta: string;
-  highlighted: boolean;
-};
-
-// ─── NAV ─────────────────────────────────────────────────────────────────────
-function Nav() {
-  const [open, setOpen] = useState(false);
-  return (
-    <nav style={{ background: T.white, borderBottom: `1px solid ${T.border}`, position: 'sticky', top: 0, zIndex: 50 }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={18} color={T.white} strokeWidth={2.5} />
-          </div>
-          <span style={{ fontSize: 20, fontWeight: 800, color: T.text, letterSpacing: '-0.5px' }}>Maximize</span>
-        </div>
-
-        {/* Desktop links */}
-        <div style={{ display: 'flex', gap: 32, alignItems: 'center' }} className="hide-mobile">
-          {['Product', 'Pricing', 'Case Studies', 'About'].map(l => (
-            <a key={l} href="#" style={{ color: T.textMuted, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>{l}</a>
-          ))}
-        </div>
-
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <a href="#" style={{ color: T.text, fontSize: 15, fontWeight: 600, textDecoration: 'none', padding: '8px 16px' }} className="hide-mobile">Log in</a>
-          <a href="#" style={{
-            background: T.accent, color: T.white, padding: '10px 20px', borderRadius: 50,
-            fontSize: 15, fontWeight: 700, textDecoration: 'none', display: 'inline-block',
-          }}>
-            Start free
-          </a>
-        </div>
-      </div>
-      <style>{`.hide-mobile { @media (max-width:768px) { display:none; } }`}</style>
-    </nav>
-  );
-}
-
-// ─── HERO ─────────────────────────────────────────────────────────────────────
-function Hero() {
-  return (
-    <section style={{ background: T.white, padding: '80px 24px 0', textAlign: 'center' }}>
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        {/* Pill badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: T.accentLight, borderRadius: 50, padding: '6px 16px', marginBottom: 28 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: T.accent }} />
-          <span style={{ color: T.accent, fontSize: 14, fontWeight: 700 }}>Now with AI Campaign Intelligence v3</span>
-        </div>
-
-        <h1 style={{ fontSize: 'clamp(40px, 7vw, 72px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: '-2px', color: T.text, margin: '0 0 24px' }}>
-          3x Your Campaign ROI{' '}
-          <span style={{ color: T.accent }}>With AI</span>
-        </h1>
-
-        <p style={{ fontSize: 20, color: T.textMuted, lineHeight: 1.6, maxWidth: 580, margin: '0 auto 40px', fontWeight: 400 }}>
-          Stop wasting budget on guesswork. Maximize uses real-time AI to optimize every bid, channel, and creative — automatically. Most clients see results in 14 days.
-        </p>
-
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
-          <a href="#" style={{
-            background: T.accent, color: T.white, padding: '16px 36px', borderRadius: 50,
-            fontSize: 17, fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-            boxShadow: `0 4px 20px ${T.accent}40`,
-          }}>
-            Start for free <ArrowRight size={18} />
-          </a>
-          <a href="#" style={{
-            background: 'transparent', color: T.text, padding: '16px 36px', borderRadius: 50,
-            fontSize: 17, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-            border: `2px solid ${T.border}`,
-          }}>
-            <Play size={16} fill={T.text} /> Watch demo
-          </a>
-        </div>
-        <p style={{ fontSize: 13, color: T.textLight, marginBottom: 56 }}>Free 14-day trial · No credit card required · Cancel anytime</p>
-
-        {/* Stats bar */}
-        <div style={{ background: T.bgSecondary, borderRadius: 20, padding: '28px 40px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 720, margin: '0 auto' }}>
-          {[
-            { val: '$2.1B', label: 'Ad spend managed' },
-            { val: '47K+', label: 'Marketers using Maximize' },
-            { val: '3.2×', label: 'Average ROI increase' },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, color: T.text, letterSpacing: '-1px' }}>{s.val}</div>
-              <div style={{ fontSize: 14, color: T.textMuted, marginTop: 4 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Dashboard mockup */}
-      <div style={{ maxWidth: 1100, margin: '60px auto 0', position: 'relative' }}>
-        <div style={{
-          background: T.text, borderRadius: '24px 24px 0 0', padding: '20px 24px 0',
-          overflow: 'hidden', boxShadow: `0 -4px 60px rgba(0,0,0,0.15)`,
-        }}>
-          {/* Browser chrome */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            {['#FF5F57', '#FEBC2E', '#28C840'].map(c => <div key={c} style={{ width: 12, height: 12, borderRadius: '50%', background: c }} />)}
-          </div>
-          {/* Mock dashboard */}
-          <div style={{ background: '#1A1A2E', borderRadius: '12px 12px 0 0', padding: 24, minHeight: 280 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-              {[
-                { label: 'ROAS', value: '4.2×', delta: '+18%', color: T.accent },
-                { label: 'CPC', value: '$0.84', delta: '-23%', color: '#60A5FA' },
-                { label: 'CTR', value: '5.7%', delta: '+9%', color: '#F59E0B' },
-                { label: 'Conversions', value: '2,841', delta: '+41%', color: '#A78BFA' },
-              ].map(m => (
-                <div key={m.label} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{m.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: T.white }}>{m.value}</div>
-                  <div style={{ fontSize: 12, color: m.color, fontWeight: 700, marginTop: 4 }}>{m.delta} vs last month</div>
-                </div>
-              ))}
-            </div>
-            {/* Fake chart bars */}
-            <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 80 }}>
-              {[45, 62, 55, 80, 70, 90, 75, 95, 85, 100, 88, 92, 78, 96].map((h, i) => (
-                <div key={i} style={{
-                  flex: 1, background: i % 3 === 0 ? T.accent : 'rgba(255,255,255,0.1)',
-                  borderRadius: 4, height: `${h}%`, minHeight: 8,
-                }} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── SOCIAL PROOF ─────────────────────────────────────────────────────────────
-function SocialProof() {
-  const brands = ['Google', 'Shopify', 'HubSpot', 'Salesforce', 'Stripe', 'Notion', 'Figma', 'Vercel'];
-  return (
-    <section style={{ background: T.bgSecondary, padding: '48px 24px', borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <p style={{ textAlign: 'center', fontSize: 14, color: T.textLight, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 32 }}>
-          Trusted by teams at
-        </p>
-        <div style={{ display: 'flex', gap: 48, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-          {brands.map(b => (
-            <span key={b} style={{ fontSize: 18, fontWeight: 800, color: T.textLight, letterSpacing: '-0.5px', opacity: 0.6 }}>{b}</span>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── FEATURES ─────────────────────────────────────────────────────────────────
-const features = [
-  { icon: Zap, title: 'AI Bid Optimization', desc: 'Our AI analyzes 200+ signals per second to set the perfect bid for every auction — automatically, 24/7.' },
-  { icon: BarChart3, title: 'Real-Time Analytics', desc: 'See exactly what is working across every channel as it happens. No more waiting for yesterday\'s data.' },
-  { icon: Globe, title: 'Multi-Channel Sync', desc: 'Google, Meta, TikTok, LinkedIn — unified under one dashboard. One source of truth for all your campaigns.' },
-  { icon: RefreshCw, title: 'Auto-Reporting', desc: 'Beautiful, branded reports sent automatically to your stakeholders. Weekly, monthly, or on-demand.' },
-  { icon: Target, title: 'A/B Creative Testing', desc: 'Test hundreds of ad variations simultaneously. Maximize AI picks winners and pauses losers in real time.' },
-  { icon: Shield, title: 'Budget Guard™', desc: 'Our proprietary overspend protection stops budget bleed the moment anomalies are detected.' },
+const CLIENTS = [
+  { name: '24 News', logo: '/hassan/client-logo/new-logos/24news.png' },
+  { name: 'EDF', logo: '/hassan/client-logo/new-logos/edf.png' },
+  { name: 'Haifa', logo: '/hassan/client-logo/new-logos/haifa.png' },
+  { name: 'Rebonim', logo: '/hassan/client-logo/new-logos/rebonim.png' },
+  { name: 'Democracy', logo: '/hassan/client-logo/new-logos/democracy.png' },
+  { name: 'CAL', logo: '/hassan/client-logo/new-logos/cal.png' },
+  { name: 'Volt', logo: '/hassan/client-logo/new-logos/volt.png' },
+  { name: 'JFNIL', logo: '/hassan/client-logo/new-logos/jfnil.png' },
+  { name: 'Zen Energy', logo: '/hassan/client-logo/new-logos/zenenergy.png' },
+  { name: 'Negev Galil', logo: '/hassan/client-logo/new-logos/negev-galel.png' },
+  { name: 'Yad HaNadiv', logo: '/hassan/client-logo/new-logos/YadHanaDivv2.png' },
+  { name: 'Partner 5G', logo: '/hassan/client-logo/new-logos/partner5g.png' },
 ];
 
-function Features() {
-  return (
-    <section style={{ background: T.white, padding: '100px 24px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <span style={{ background: T.accentLight, color: T.accent, fontSize: 14, fontWeight: 700, padding: '6px 16px', borderRadius: 50, display: 'inline-block', marginBottom: 20 }}>
-            Features
-          </span>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 900, letterSpacing: '-1.5px', color: T.text, margin: '0 0 16px' }}>
-            Everything you need to dominate your market
-          </h2>
-          <p style={{ fontSize: 18, color: T.textMuted, maxWidth: 560, margin: '0 auto' }}>
-            Built for performance marketers who are tired of platforms that do half the job.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-          {features.map(f => {
-            const Icon = f.icon;
-            return (
-              <div key={f.title} style={{
-                background: T.bgSecondary, borderRadius: 20, padding: 32,
-                border: `1px solid ${T.borderLight}`, transition: 'box-shadow 0.2s',
-              }}>
-                <div style={{ width: 48, height: 48, borderRadius: 14, background: T.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-                  <Icon size={22} color={T.accent} />
-                </div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: T.text, margin: '0 0 10px', letterSpacing: '-0.3px' }}>{f.title}</h3>
-                <p style={{ fontSize: 15, color: T.textMuted, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── STATS ────────────────────────────────────────────────────────────────────
-function Stats() {
-  return (
-    <section style={{ background: T.navy, padding: '80px 24px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 40, textAlign: 'center' }}>
-          {[
-            { val: '$2.1B', label: 'Ad spend optimized', sub: 'in the last 12 months' },
-            { val: '47,000+', label: 'Active marketers', sub: 'across 90 countries' },
-            { val: '3.2×', label: 'Average ROI lift', sub: 'within first 90 days' },
-            { val: '99.9%', label: 'Platform uptime', sub: 'guaranteed SLA' },
-          ].map(s => (
-            <div key={s.label}>
-              <div style={{ fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, color: T.accent, letterSpacing: '-2px', lineHeight: 1 }}>{s.val}</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: T.white, margin: '12px 0 6px' }}>{s.label}</div>
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>{s.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── HOW IT WORKS ─────────────────────────────────────────────────────────────
-function HowItWorks() {
-  const steps = [
-    { n: '01', title: 'Connect your channels', desc: 'Link Google Ads, Meta, TikTok and more in under 5 minutes. No developer needed.' },
-    { n: '02', title: 'Set your goals', desc: 'Tell Maximize what you want — more leads, lower CPA, higher ROAS. Our AI does the rest.' },
-    { n: '03', title: 'Watch revenue grow', desc: 'Sit back while Maximize continuously optimizes every campaign in real time, every day.' },
-  ];
-  return (
-    <section style={{ background: T.bgSecondary, padding: '100px 24px' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <span style={{ background: T.accentLight, color: T.accent, fontSize: 14, fontWeight: 700, padding: '6px 16px', borderRadius: 50, display: 'inline-block', marginBottom: 20 }}>
-            How it works
-          </span>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 900, letterSpacing: '-1.5px', color: T.text, margin: 0 }}>
-            Up and running in 15 minutes
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 32 }}>
-          {steps.map(s => (
-            <div key={s.n} style={{ textAlign: 'center' }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%', background: T.accent, color: T.white,
-                fontSize: 20, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 24px',
-              }}>
-                {s.n}
-              </div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: T.text, margin: '0 0 12px' }}>{s.title}</h3>
-              <p style={{ fontSize: 16, color: T.textMuted, lineHeight: 1.6 }}>{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── TESTIMONIALS ─────────────────────────────────────────────────────────────
-const testimonials = [
-  { quote: 'Within 30 days, our Google Ads ROAS went from 1.8× to 4.6×. The AI found optimizations our team had been missing for months.', name: 'Sarah Chen', role: 'Head of Growth, Luma Commerce', stars: 5 },
-  { quote: "Maximize replaced three separate tools and a junior analyst. It's genuinely the smartest thing we've ever added to our stack.", name: 'Marcus Oliveira', role: 'CMO, Finblock', stars: 5 },
-  { quote: "We were skeptical about AI optimization. After 14 days our CAC dropped 31%. Now we can't imagine running campaigns without it.", name: 'Amira Hassan', role: 'Digital Marketing Lead, Nomad', stars: 5 },
-];
-
-function Testimonials() {
-  return (
-    <section style={{ background: T.white, padding: '100px 24px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 900, letterSpacing: '-1.5px', color: T.text, margin: '0 0 16px' }}>
-            Marketers who switched never went back
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-          {testimonials.map(t => (
-            <div key={t.name} style={{ background: T.bgSecondary, borderRadius: 20, padding: 32, border: `1px solid ${T.borderLight}` }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-                {Array.from({ length: t.stars }).map((_, i) => (
-                  <Star key={i} size={16} fill={T.accent} color={T.accent} />
-                ))}
-              </div>
-              <p style={{ fontSize: 16, color: T.text, lineHeight: 1.65, fontStyle: 'italic', margin: '0 0 24px' }}>
-                &ldquo;{t.quote}&rdquo;
-              </p>
-              <div>
-                <div style={{ fontWeight: 800, color: T.text, fontSize: 15 }}>{t.name}</div>
-                <div style={{ fontSize: 14, color: T.textMuted }}>{t.role}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─── PRICING ─────────────────────────────────────────────────────────────────
-const pricingTiers: PricingTier[] = [
+const SERVICES = [
   {
-    name: 'Starter',
-    price: '$199',
-    period: '/month',
-    desc: 'For solo marketers and small teams getting serious.',
-    features: ['Up to $50K monthly ad spend', '3 ad channels', 'AI bid optimization', 'Weekly auto-reports', 'Email support'],
-    cta: 'Start free trial',
-    highlighted: false,
+    icon: '/hassan/wheelicon/icon1.svg',
+    title: 'Digital Strategy',
+    desc: 'We map your audience and build the roadmap that connects you to them at every critical moment.',
   },
   {
-    name: 'Growth',
-    price: '$499',
-    period: '/month',
-    desc: 'For scaling teams who need full automation.',
-    features: ['Up to $500K monthly ad spend', 'Unlimited channels', 'AI bid + creative optimization', 'Daily auto-reports', 'A/B testing suite', 'Slack alerts', 'Priority support'],
-    cta: 'Start free trial',
-    highlighted: true,
+    icon: '/hassan/wheelicon/icon2.svg',
+    title: 'Social Media',
+    desc: 'Content, community, and campaigns across every platform — crafted to move and grow.',
   },
   {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    desc: 'For agencies and enterprise marketing teams.',
-    features: ['Unlimited ad spend', 'Dedicated AI model', 'Custom integrations', 'White-label reports', 'API access', 'SLA guarantee', 'Dedicated CSM'],
-    cta: 'Talk to sales',
-    highlighted: false,
+    icon: '/hassan/wheelicon/icon3.svg',
+    title: 'Campaign Management',
+    desc: 'End-to-end political and commercial campaign execution with precision and purpose.',
+  },
+  {
+    icon: '/hassan/wheelicon/icon4.svg',
+    title: 'Content Creation',
+    desc: 'Compelling stories that move audiences from attention to action.',
+  },
+  {
+    icon: '/hassan/wheelicon/icon5.svg',
+    title: 'Data & Analytics',
+    desc: 'Real-time performance insights that sharpen every decision and maximize your ROI.',
+  },
+  {
+    icon: '/hassan/wheelicon/icon6.svg',
+    title: 'Media Buying',
+    desc: 'Precision placement to maximize reach, minimize waste, and win where it counts.',
   },
 ];
 
-function Pricing() {
-  return (
-    <section style={{ background: T.bgSecondary, padding: '100px 24px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 64 }}>
-          <span style={{ background: T.accentLight, color: T.accent, fontSize: 14, fontWeight: 700, padding: '6px 16px', borderRadius: 50, display: 'inline-block', marginBottom: 20 }}>
-            Pricing
-          </span>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 900, letterSpacing: '-1.5px', color: T.text, margin: '0 0 16px' }}>
-            Simple, transparent pricing
-          </h2>
-          <p style={{ fontSize: 18, color: T.textMuted }}>Start free for 14 days. No credit card required.</p>
-        </div>
+const STATS = [
+  { value: '12+', label: 'Years Experience' },
+  { value: '50+', label: 'Campaigns Won' },
+  { value: '12', label: 'Major Clients' },
+  { value: '3M+', label: 'Voters & Customers Reached' },
+];
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, alignItems: 'center' }}>
-          {pricingTiers.map(tier => (
-            <div key={tier.name} style={{
-              background: tier.highlighted ? T.navy : T.white,
-              borderRadius: 24, padding: 36,
-              border: tier.highlighted ? 'none' : `1px solid ${T.border}`,
-              boxShadow: tier.highlighted ? `0 20px 60px rgba(0,0,0,0.25)` : T.shadow,
-              transform: tier.highlighted ? 'scale(1.04)' : 'scale(1)',
-            }}>
-              {tier.highlighted && (
-                <div style={{ background: T.accent, color: T.white, fontSize: 12, fontWeight: 700, padding: '4px 14px', borderRadius: 50, display: 'inline-block', marginBottom: 16, letterSpacing: 1, textTransform: 'uppercase' }}>
-                  Most Popular
-                </div>
-              )}
-              <div style={{ fontSize: 18, fontWeight: 800, color: tier.highlighted ? T.white : T.text, marginBottom: 8 }}>{tier.name}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
-                <span style={{ fontSize: 42, fontWeight: 900, color: tier.highlighted ? T.white : T.text, letterSpacing: '-2px' }}>{tier.price}</span>
-                <span style={{ fontSize: 16, color: tier.highlighted ? 'rgba(255,255,255,0.6)' : T.textMuted }}>{tier.period}</span>
-              </div>
-              <p style={{ fontSize: 15, color: tier.highlighted ? 'rgba(255,255,255,0.6)' : T.textMuted, marginBottom: 28 }}>{tier.desc}</p>
+const TEAM = [
+  { name: 'Hassan', role: 'Founder & CEO', photo: '/hassan/hassan.png' },
+  { name: 'Salam', role: 'Senior Strategist', photo: '/hassan/salam-2.jpg' },
+  { name: 'Noa', role: 'Digital Marketing Lead', photo: '/hassan/01.jpg' },
+  { name: 'Rania', role: 'Content Director', photo: '/hassan/02.jpg' },
+  { name: 'Maya', role: 'Campaign Manager', photo: '/hassan/03.jpg' },
+  { name: 'Dana', role: 'Data Analyst', photo: '/hassan/04.jpg' },
+];
 
-              <a href="#" style={{
-                display: 'block', textAlign: 'center', padding: '14px',
-                borderRadius: 50, fontWeight: 800, fontSize: 15, textDecoration: 'none',
-                background: tier.highlighted ? T.accent : 'transparent',
-                color: tier.highlighted ? T.white : T.text,
-                border: tier.highlighted ? 'none' : `2px solid ${T.border}`,
-                marginBottom: 28,
-              }}>
-                {tier.cta}
-              </a>
+const TESTIMONIALS = [
+  {
+    quote: 'Maximize completely transformed our digital presence. Our reach tripled in one election cycle. Absolutely exceptional work.',
+    author: 'Political Campaign Director',
+    avatar: '/hassan/TestiPeople1.png',
+  },
+  {
+    quote: "The team's strategy was precise, data-driven, and incredibly effective. We won — and we won because of Maximize.",
+    author: 'City Council Campaign',
+    avatar: '/hassan/TestiPeople3.png',
+  },
+  {
+    quote: "From zero to trending — Maximize delivered results we didn't think were possible in that timeframe.",
+    author: 'Brand Manager',
+    avatar: '/hassan/TestiPeople5.png',
+  },
+];
 
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {tier.features.map(f => (
-                  <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, color: tier.highlighted ? 'rgba(255,255,255,0.85)' : T.textMuted }}>
-                    <CheckCircle size={16} color={T.accent} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+const STEPS = [
+  {
+    step: '01',
+    title: 'Discovery',
+    desc: 'We start by deeply understanding your goals, audience, and competitive landscape.',
+  },
+  {
+    step: '02',
+    title: 'Strategy',
+    desc: 'We build a precision roadmap — channels, messaging, timing, and KPIs — tailored to win.',
+  },
+  {
+    step: '03',
+    title: 'Launch & Optimize',
+    desc: 'We execute, measure, and continuously optimize to ensure every campaign overperforms.',
+  },
+];
 
-// ─── CTA BANNER ───────────────────────────────────────────────────────────────
-function CtaBanner() {
-  return (
-    <section style={{ background: T.accent, padding: '80px 24px', textAlign: 'center' }}>
-      <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 900, letterSpacing: '-1.5px', color: T.white, margin: '0 0 20px' }}>
-          Ready to Maximize?
-        </h2>
-        <p style={{ fontSize: 20, color: 'rgba(255,255,255,0.85)', marginBottom: 40, lineHeight: 1.5 }}>
-          Join 47,000+ marketers running smarter campaigns. Start your free 14-day trial today.
-        </p>
-        <a href="#" style={{
-          background: T.white, color: T.navy, padding: '18px 48px', borderRadius: 50,
-          fontSize: 18, fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-        }}>
-          Get started free <ChevronRight size={20} />
-        </a>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 16 }}>No credit card · Cancel anytime · Setup in 15 minutes</p>
-      </div>
-    </section>
-  );
-}
-
-// ─── FOOTER ───────────────────────────────────────────────────────────────────
-function Footer() {
-  const cols = [
-    { heading: 'Product', links: ['Features', 'Pricing', 'Changelog', 'Roadmap'] },
-    { heading: 'Company', links: ['About', 'Blog', 'Careers', 'Press'] },
-    { heading: 'Resources', links: ['Documentation', 'API Reference', 'Help Center', 'Case Studies'] },
-    { heading: 'Legal', links: ['Privacy', 'Terms', 'Security', 'GDPR'] },
-  ];
-  return (
-    <footer style={{ background: T.text, color: T.white, padding: '64px 24px 40px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 48, marginBottom: 48 }}>
-          {/* Brand */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Zap size={18} color={T.white} strokeWidth={2.5} />
-              </div>
-              <span style={{ fontSize: 20, fontWeight: 800 }}>Maximize</span>
-            </div>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, maxWidth: 200 }}>
-              AI-powered campaign optimization for modern marketing teams.
-            </p>
-            <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-              {['Twitter', 'LinkedIn', 'YouTube'].map(s => (
-                <a key={s} href="#" style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>{s}</a>
-              ))}
-            </div>
-          </div>
-
-          {cols.map(col => (
-            <div key={col.heading}>
-              <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(255,255,255,0.4)', marginBottom: 16 }}>{col.heading}</div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {col.links.map(l => (
-                  <li key={l}><a href="#" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: 15 }}>{l}</a></li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 32, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>© 2026 Maximize AI, Inc. All rights reserved.</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <TrendingUp size={14} color={T.accent} />
-            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>Built on AI. Obsessed with ROI.</span>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
-// ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
 export default function Hassan1Homepage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <>
+    <div style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif", background: '#fff', color: '#111827' }}>
+
+      {/* ──────────────── NAV ──────────────── */}
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        background: scrolled ? 'rgba(255,255,255,0.97)' : '#fff',
+        borderBottom: scrolled ? '1px solid #f0f0f0' : '1px solid transparent',
+        backdropFilter: 'blur(12px)',
+        transition: 'all 0.3s ease',
+        padding: '0 24px',
+      }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72 }}>
+          <a href="#" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <img src="/hassan/maximize-logo.svg" alt="Maximize" style={{ height: 38, width: 'auto' }} />
+          </a>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="h1-desktop-nav">
+            {['Services', 'Clients', 'Team', 'Contact'].map(item => (
+              <a key={item} href={`#${item.toLowerCase()}`} style={{
+                textDecoration: 'none', color: '#374151', fontSize: 15, fontWeight: 500,
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#FF6B35')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#374151')}
+              >{item}</a>
+            ))}
+            <a href="#contact" style={{
+              background: 'linear-gradient(135deg, #FF6B35, #E91E8C)',
+              color: '#fff', padding: '10px 24px', borderRadius: 50,
+              textDecoration: 'none', fontSize: 14, fontWeight: 600,
+              boxShadow: '0 4px 14px rgba(255,107,53,0.35)',
+            }}>Start a Campaign</a>
+          </div>
+
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, display: 'none' }}
+            className="h1-hamburger"
+            aria-label="Toggle menu"
+          >
+            <div style={{ width: 22, height: 2, background: '#111827', marginBottom: 5, borderRadius: 2 }} />
+            <div style={{ width: 22, height: 2, background: '#111827', marginBottom: 5, borderRadius: 2 }} />
+            <div style={{ width: 22, height: 2, background: '#111827', borderRadius: 2 }} />
+          </button>
+        </div>
+
+        {menuOpen && (
+          <div style={{ background: '#fff', borderTop: '1px solid #f0f0f0', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {['Services', 'Clients', 'Team', 'Contact'].map(item => (
+              <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setMenuOpen(false)} style={{ color: '#374151', textDecoration: 'none', fontSize: 16, fontWeight: 500 }}>{item}</a>
+            ))}
+          </div>
+        )}
+      </nav>
+
+      {/* ──────────────── HERO ──────────────── */}
+      <section style={{ paddingTop: 120, paddingBottom: 96, background: 'linear-gradient(180deg, #fff 0%, #FFF7F4 100%)', overflow: 'hidden' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 64, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 480px', minWidth: 0 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FFF1EC', border: '1px solid #FECDC0', borderRadius: 50, padding: '6px 16px', marginBottom: 24 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B35' }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#FF6B35', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Digital Marketing & Campaign Agency</span>
+            </div>
+
+            <h1 style={{ fontSize: 'clamp(44px, 6vw, 76px)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 8px', color: '#111827', letterSpacing: '-0.03em' }}>
+              Be near.{' '}
+              <span style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', background: 'linear-gradient(135deg, #FF6B35, #E91E8C)', backgroundClip: 'text' }}>Go far.</span>
+            </h1>
+
+            <p style={{ fontSize: 18, fontWeight: 600, color: '#6B7280', marginBottom: 20, letterSpacing: '0.02em' }}>
+              Strategy · Growth · Real Impact.
+            </p>
+
+            <p style={{ fontSize: 17, lineHeight: 1.7, color: '#4B5563', marginBottom: 40, maxWidth: 520 }}>
+              We help campaigns, brands, and businesses reach the right audience at the right moment — with strategy that moves people and results that matter.
+            </p>
+
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <a href="#contact" style={{
+                background: 'linear-gradient(135deg, #FF6B35, #E91E8C)',
+                color: '#fff', padding: '14px 32px', borderRadius: 50,
+                textDecoration: 'none', fontSize: 16, fontWeight: 700,
+                boxShadow: '0 6px 24px rgba(255,107,53,0.35)',
+                display: 'inline-block',
+              }}>Start Your Campaign</a>
+              <a href="#clients" style={{
+                border: '2px solid #E5E7EB', color: '#374151', padding: '14px 32px',
+                borderRadius: 50, textDecoration: 'none', fontSize: 16, fontWeight: 600,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+              }}>See Our Work →</a>
+            </div>
+
+            <div style={{ display: 'flex', gap: 32, marginTop: 52, flexWrap: 'wrap' }}>
+              {STATS.slice(0, 3).map(s => (
+                <div key={s.label}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#111827', lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: 13, color: '#9CA3AF', fontWeight: 500, marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ flex: '1 1 340px', maxWidth: 460, position: 'relative' }}>
+            <div style={{
+              position: 'absolute', top: -30, right: -30, width: 420, height: 420,
+              borderRadius: '50%', background: 'linear-gradient(135deg, rgba(255,107,53,0.12), rgba(233,30,140,0.08))',
+              zIndex: 0,
+            }} />
+            <div style={{
+              position: 'relative', zIndex: 1, borderRadius: 24, overflow: 'hidden',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.12)',
+              background: '#fff',
+            }}>
+              <img
+                src="/hassan/hassan.png"
+                alt="Hassan — Founder & CEO of Maximize"
+                style={{ width: '100%', display: 'block', objectFit: 'cover', maxHeight: 480 }}
+              />
+              <div style={{
+                position: 'absolute', bottom: 20, left: 20, right: 20,
+                background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(12px)',
+                borderRadius: 14, padding: '14px 18px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Hassan</div>
+                <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>Founder & CEO, Maximize</div>
+                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                  {[...Array(5)].map((_, i) => (
+                    <span key={i} style={{ color: '#FF6B35', fontSize: 13 }}>★</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── CLIENT LOGOS ──────────────── */}
+      <section id="clients" style={{ padding: '64px 24px', background: '#F9FAFB', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 36 }}>
+            Trusted by 12+ leading campaigns and brands
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', alignItems: 'center' }}>
+            {CLIENTS.map(c => (
+              <div key={c.name} style={{
+                background: '#fff', borderRadius: 12, padding: '14px 20px',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: 100, height: 56, transition: 'box-shadow 0.2s',
+              }}
+              onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(255,107,53,0.15)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)')}
+              >
+                <img src={c.logo} alt={c.name} style={{ maxHeight: 32, maxWidth: 100, objectFit: 'contain', filter: 'grayscale(30%)' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── SERVICES ──────────────── */}
+      <section id="services" style={{ padding: '96px 24px', background: '#fff' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div style={{ display: 'inline-block', background: '#FFF1EC', color: '#FF6B35', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 16px', borderRadius: 50, marginBottom: 16 }}>
+              What We Do
+            </div>
+            <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: '#111827', margin: '0 0 16px', letterSpacing: '-0.02em' }}>
+              Full-Spectrum Digital Power
+            </h2>
+            <p style={{ fontSize: 17, color: '#6B7280', maxWidth: 520, margin: '0 auto' }}>
+              From strategy to execution — every service built to deliver real, measurable impact.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 28 }}>
+            {SERVICES.map(s => (
+              <div key={s.title} style={{
+                background: '#F9FAFB', borderRadius: 20, padding: '32px 28px',
+                border: '1px solid #F3F4F6', transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLDivElement;
+                el.style.background = '#fff';
+                el.style.boxShadow = '0 12px 40px rgba(255,107,53,0.12)';
+                el.style.transform = 'translateY(-4px)';
+                el.style.borderColor = '#FECDC0';
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLDivElement;
+                el.style.background = '#F9FAFB';
+                el.style.boxShadow = 'none';
+                el.style.transform = 'translateY(0)';
+                el.style.borderColor = '#F3F4F6';
+              }}
+              >
+                <div style={{
+                  width: 56, height: 56, borderRadius: 16,
+                  background: 'linear-gradient(135deg, rgba(255,107,53,0.12), rgba(233,30,140,0.06))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 20,
+                }}>
+                  <img src={s.icon} alt={s.title} style={{ width: 28, height: 28 }} />
+                </div>
+                <h3 style={{ fontSize: 19, fontWeight: 700, color: '#111827', marginBottom: 10 }}>{s.title}</h3>
+                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── STATS ──────────────── */}
+      <section style={{ padding: '80px 24px', background: 'linear-gradient(135deg, #FF6B35, #E91E8C)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 40, justifyContent: 'space-around' }}>
+          {STATS.map((s, i) => (
+            <div key={i} style={{ textAlign: 'center', flex: '1 1 180px' }}>
+              <div style={{ fontSize: 'clamp(48px, 6vw, 72px)', fontWeight: 900, color: '#fff', lineHeight: 1, letterSpacing: '-0.03em' }}>{s.value}</div>
+              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', fontWeight: 500, marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ──────────────── TEAM ──────────────── */}
+      <section id="team" style={{ padding: '96px 24px', background: '#F9FAFB' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div style={{ display: 'inline-block', background: '#FFF1EC', color: '#FF6B35', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 16px', borderRadius: 50, marginBottom: 16 }}>
+              The Team
+            </div>
+            <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, color: '#111827', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+              The People Behind the Results
+            </h2>
+            <p style={{ fontSize: 17, color: '#6B7280', maxWidth: 480, margin: '0 auto' }}>
+              A dedicated team of strategists, creatives, and data experts — united by one goal: your success.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 24 }}>
+            {TEAM.map(m => (
+              <div key={m.name} style={{ textAlign: 'center' }}>
+                <div style={{ borderRadius: 20, overflow: 'hidden', marginBottom: 14, aspectRatio: '1', background: '#E5E7EB' }}>
+                  <img src={m.photo} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block', transition: 'transform 0.4s ease' }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLImageElement).style.transform = 'scale(1.05)')}
+                  onMouseLeave={e => ((e.currentTarget as HTMLImageElement).style.transform = 'scale(1)')}
+                  />
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>{m.name}</div>
+                <div style={{ fontSize: 13, color: '#FF6B35', fontWeight: 500, marginTop: 3 }}>{m.role}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── HOW IT WORKS ──────────────── */}
+      <section style={{ padding: '96px 24px', background: '#fff' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <div style={{ display: 'inline-block', background: '#FFF1EC', color: '#FF6B35', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 16px', borderRadius: 50, marginBottom: 16 }}>
+              Our Process
+            </div>
+            <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
+              How We Work
+            </h2>
+          </div>
+
+          <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {STEPS.map(step => (
+              <div key={step.step} style={{ flex: '1 1 260px', maxWidth: 300, textAlign: 'center' }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #FF6B35, #E91E8C)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 20px', boxShadow: '0 6px 20px rgba(255,107,53,0.3)',
+                }}>
+                  <span style={{ color: '#fff', fontWeight: 800, fontSize: 16 }}>{step.step}</span>
+                </div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 10 }}>{step.title}</h3>
+                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.6 }}>{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── TESTIMONIALS ──────────────── */}
+      <section style={{ padding: '96px 24px', background: '#F9FAFB' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div style={{ display: 'inline-block', background: '#FFF1EC', color: '#FF6B35', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 16px', borderRadius: 50, marginBottom: 16 }}>
+              Testimonials
+            </div>
+            <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
+              What Our Clients Say
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 }}>
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} style={{
+                background: '#fff', borderRadius: 20, padding: '32px 28px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #F3F4F6',
+              }}>
+                <div style={{ display: 'flex', gap: 3, marginBottom: 18 }}>
+                  {[...Array(5)].map((_, si) => (
+                    <span key={si} style={{ color: '#FF6B35', fontSize: 16 }}>★</span>
+                  ))}
+                </div>
+                <p style={{ fontSize: 16, color: '#374151', lineHeight: 1.7, marginBottom: 24, fontStyle: 'italic' }}>
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <img src={t.avatar} alt={t.author} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: '2px solid #FECDC0' }} />
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{t.author}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── CTA BANNER ──────────────── */}
+      <section id="contact" style={{ padding: '96px 24px', background: 'linear-gradient(135deg, #FF6B35 0%, #E91E8C 100%)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: -60, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+
+        <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 900, color: '#fff', margin: '0 0 20px', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            Ready to Maximize Your Impact?
+          </h2>
+          <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.88)', lineHeight: 1.6, marginBottom: 40 }}>
+            Let&apos;s build something that moves people — and moves the needle. Start your campaign today.
+          </p>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="mailto:hello@campaign-l.com" style={{
+              background: '#fff', color: '#FF6B35',
+              padding: '16px 36px', borderRadius: 50,
+              textDecoration: 'none', fontSize: 17, fontWeight: 800,
+              boxShadow: '0 8px 28px rgba(0,0,0,0.15)',
+              display: 'inline-block',
+            }}>Start a Campaign</a>
+            <a href="https://campaign-l.com/maximize/" target="_blank" rel="noopener noreferrer" style={{
+              border: '2px solid rgba(255,255,255,0.5)', color: '#fff',
+              padding: '16px 36px', borderRadius: 50,
+              textDecoration: 'none', fontSize: 17, fontWeight: 700,
+              display: 'inline-block',
+            }}>Visit Our Website</a>
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────── FOOTER ──────────────── */}
+      <footer style={{ background: '#111827', color: '#9CA3AF', padding: '48px 24px 32px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24, marginBottom: 32 }}>
+            <img src="/hassan/maximize-logo.svg" alt="Maximize" style={{ height: 36, filter: 'brightness(10)' }} />
+            <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+              {['Services', 'Clients', 'Team', 'Contact'].map(item => (
+                <a key={item} href={`#${item.toLowerCase()}`} style={{ color: '#6B7280', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}
+                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = '#FF6B35')}
+                onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = '#6B7280')}
+                >{item}</a>
+              ))}
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #1F2937', paddingTop: 24, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ fontSize: 13 }}>© 2025 Maximize. All rights reserved. Strategy · Growth · Real Impact.</div>
+            <div style={{ fontSize: 13 }}>
+              <a href="https://campaign-l.com/maximize/" target="_blank" rel="noopener noreferrer" style={{ color: '#FF6B35', textDecoration: 'none' }}>campaign-l.com/maximize</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
       <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         @media (max-width: 768px) {
-          .hide-mobile { display: none !important; }
+          .h1-desktop-nav { display: none !important; }
+          .h1-hamburger { display: block !important; }
         }
       `}</style>
-      <div style={{ background: T.white, minHeight: '100vh' }}>
-        <Nav />
-        <Hero />
-        <SocialProof />
-        <Features />
-        <Stats />
-        <HowItWorks />
-        <Testimonials />
-        <Pricing />
-        <CtaBanner />
-        <Footer />
-      </div>
-    </>
+    </div>
   );
 }

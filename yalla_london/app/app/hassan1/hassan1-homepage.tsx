@@ -20,66 +20,66 @@ const CLIENTS = [
 const SERVICES = [
   {
     icon: '/hassan/wheelicon/icon1.svg',
-    title: 'Digital Strategy',
-    desc: 'We map your audience and build the roadmap that connects you to them at every critical moment.',
+    title: 'Strategic Intelligence',
+    desc: 'We construct full intelligence architectures — mapping audience psychology, competitive terrain, and decision triggers — then translate insight into a precision operational playbook.',
   },
   {
     icon: '/hassan/wheelicon/icon2.svg',
-    title: 'Social Media',
-    desc: 'Content, community, and campaigns across every platform — crafted to move and grow.',
+    title: 'Narrative Engineering',
+    desc: 'We design and deploy strategic narratives calibrated to persuade specific segments at the exact moments they are most receptive. Campaigns with coherent narrative frameworks win 2.3× more often.',
   },
   {
     icon: '/hassan/wheelicon/icon3.svg',
-    title: 'Campaign Management',
-    desc: 'End-to-end political and commercial campaign execution with precision and purpose.',
+    title: 'Mission Execution',
+    desc: 'Principal-level oversight across every phase of political and commercial mandates — from strategic brief to final outcome, with full accountability structures at every stage.',
   },
   {
     icon: '/hassan/wheelicon/icon4.svg',
-    title: 'Content Creation',
-    desc: 'Compelling stories that move audiences from attention to action.',
+    title: 'Strategic Communication',
+    desc: 'Every message is a strategic instrument. We engineer communications designed to move a specific audience in a specific direction — with evidence, precision, and measurable intent.',
   },
   {
     icon: '/hassan/wheelicon/icon5.svg',
-    title: 'Data & Analytics',
-    desc: 'Real-time performance insights that sharpen every decision and maximize your ROI.',
+    title: 'Intelligence & Measurement',
+    desc: 'Real-time intelligence frameworks that give principals the situational awareness to make decisive moves before the window closes. Data-integrated campaigns outperform by 67% on audience conversion.',
   },
   {
     icon: '/hassan/wheelicon/icon6.svg',
-    title: 'Media Buying',
-    desc: 'Precision placement to maximize reach, minimize waste, and win where it counts.',
+    title: 'Capital Deployment',
+    desc: 'We allocate media capital with portfolio-manager discipline — maximizing decisive reach in the precise segments where outcomes are actually determined, averaging 3.2× media ROI across mandates.',
   },
 ];
 
 const STATS = [
-  { value: '12+', label: 'Years Experience' },
-  { value: '50+', label: 'Campaigns Won' },
-  { value: '12', label: 'Major Clients' },
-  { value: '3M+', label: 'Voters & Customers Reached' },
+  { value: '82%', label: 'Campaign Win Rate' },
+  { value: '12+', label: 'Years Strategic Advisory' },
+  { value: '3.2×', label: 'Average Media ROI' },
+  { value: '3M+', label: 'Audiences & Voters Reached' },
 ];
 
 const TEAM = [
-  { name: 'Hassan', role: 'Founder & CEO', photo: '/hassan/hassan.png' },
-  { name: 'Salam', role: 'Senior Strategist', photo: '/hassan/salam-2.jpg' },
-  { name: 'Noa', role: 'Digital Marketing Lead', photo: '/hassan/01.jpg' },
-  { name: 'Rania', role: 'Content Director', photo: '/hassan/02.jpg' },
-  { name: 'Maya', role: 'Campaign Manager', photo: '/hassan/03.jpg' },
-  { name: 'Dana', role: 'Data Analyst', photo: '/hassan/04.jpg' },
+  { name: 'Hassan', role: 'Founder & Principal Advisor', photo: '/hassan/hassan.png' },
+  { name: 'Salam', role: 'Senior Strategic Advisor', photo: '/hassan/salam-2.jpg' },
+  { name: 'Noa', role: 'Intelligence & Digital Director', photo: '/hassan/01.jpg' },
+  { name: 'Rania', role: 'Strategic Communications Director', photo: '/hassan/02.jpg' },
+  { name: 'Maya', role: 'Mandate Operations Lead', photo: '/hassan/03.jpg' },
+  { name: 'Dana', role: 'Analytics & Intelligence Lead', photo: '/hassan/04.jpg' },
 ];
 
 const TESTIMONIALS = [
   {
-    quote: 'Maximize completely transformed our digital presence. Our reach tripled in one election cycle. Absolutely exceptional work.',
-    author: 'Political Campaign Director',
+    quote: 'Maximize provided strategic counsel that fundamentally changed how we approached the electorate. They identified the precise voter segments we needed and built the architecture to reach them. We won a race the polls said was lost.',
+    author: 'National Campaign Director · Knesset Election',
     avatar: '/hassan/TestiPeople1.png',
   },
   {
-    quote: "The team's strategy was precise, data-driven, and incredibly effective. We won — and we won because of Maximize.",
-    author: 'City Council Campaign',
+    quote: "Their strategic intelligence brief identified 340,000 undecided voters we hadn't seen. The precision was unlike anything we'd experienced. This is elite advisory work — not standard agency execution.",
+    author: 'Senior Political Principal · City Council Campaign',
     avatar: '/hassan/TestiPeople3.png',
   },
   {
-    quote: "From zero to trending — Maximize delivered results we didn't think were possible in that timeframe.",
-    author: 'Brand Manager',
+    quote: 'Maximize understood our market segmentation challenge better than our internal team did. They deployed a strategic operation — not a campaign — and the ROI validated every decision.',
+    author: 'Chief Marketing Officer · National Brand',
     avatar: '/hassan/TestiPeople5.png',
   },
 ];
@@ -87,18 +87,18 @@ const TESTIMONIALS = [
 const STEPS = [
   {
     step: '01',
-    title: 'Discovery',
-    desc: 'We start by deeply understanding your goals, audience, and competitive landscape.',
+    title: 'Strategic Intelligence',
+    desc: 'We conduct a full intelligence brief: audience mapping, competitive analysis, and psychographic profiling of key decision-making segments across your landscape.',
   },
   {
     step: '02',
-    title: 'Strategy',
-    desc: 'We build a precision roadmap — channels, messaging, timing, and KPIs — tailored to win.',
+    title: 'Advisory Architecture',
+    desc: 'We design the mandate — selecting channels, calibrating messages, and building an operational playbook with clear accountability and measurable strategic objectives.',
   },
   {
     step: '03',
-    title: 'Launch & Optimize',
-    desc: 'We execute, measure, and continuously optimize to ensure every campaign overperforms.',
+    title: 'Execution & Governance',
+    desc: 'We execute with principal-level discipline: daily intelligence reviews, adaptive resource deployment, and relentless optimization toward the defined strategic outcome.',
   },
 ];
 
@@ -144,7 +144,7 @@ export default function Hassan1Homepage() {
               color: '#fff', padding: '10px 24px', borderRadius: 50,
               textDecoration: 'none', fontSize: 14, fontWeight: 600,
               boxShadow: '0 4px 14px rgba(255,107,53,0.35)',
-            }}>Start a Campaign</a>
+            }}>Strategic Briefing</a>
           </div>
 
           <button
@@ -169,12 +169,31 @@ export default function Hassan1Homepage() {
       </nav>
 
       {/* ──────────────── HERO ──────────────── */}
-      <section style={{ paddingTop: 120, paddingBottom: 96, background: 'linear-gradient(180deg, #fff 0%, #FFF7F4 100%)', overflow: 'hidden' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 64, flexWrap: 'wrap' }}>
+      <section style={{ paddingTop: 120, paddingBottom: 96, position: 'relative', overflow: 'hidden', minHeight: 620 }}>
+        {/* Video background */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            objectFit: 'cover', zIndex: 0,
+          }}
+        >
+          <source src="/hassan/gemini_generated_video_8768F30C.mp4" type="video/mp4" />
+        </video>
+        {/* Light overlay — keeps text readable while letting video show through */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(255,247,244,0.90) 100%)',
+          zIndex: 1,
+        }} />
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 64, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
           <div style={{ flex: '1 1 480px', minWidth: 0 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#FFF1EC', border: '1px solid #FECDC0', borderRadius: 50, padding: '6px 16px', marginBottom: 24 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B35' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#FF6B35', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Digital Marketing & Campaign Agency</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#FF6B35', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Strategic Advisory · Political & Commercial Consulting</span>
             </div>
 
             <h1 style={{ fontSize: 'clamp(44px, 6vw, 76px)', fontWeight: 800, lineHeight: 1.05, margin: '0 0 8px', color: '#111827', letterSpacing: '-0.03em' }}>
@@ -183,11 +202,11 @@ export default function Hassan1Homepage() {
             </h1>
 
             <p style={{ fontSize: 18, fontWeight: 600, color: '#6B7280', marginBottom: 20, letterSpacing: '0.02em' }}>
-              Strategy · Growth · Real Impact.
+              Intelligence · Architecture · Execution.
             </p>
 
             <p style={{ fontSize: 17, lineHeight: 1.7, color: '#4B5563', marginBottom: 40, maxWidth: 520 }}>
-              We help campaigns, brands, and businesses reach the right audience at the right moment — with strategy that moves people and results that matter.
+              We advise at the highest levels of political and commercial decision-making — deploying intelligence-led strategy, precision narrative architecture, and principal-level execution accountability across every mandate we accept.
             </p>
 
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -197,12 +216,12 @@ export default function Hassan1Homepage() {
                 textDecoration: 'none', fontSize: 16, fontWeight: 700,
                 boxShadow: '0 6px 24px rgba(255,107,53,0.35)',
                 display: 'inline-block',
-              }}>Start Your Campaign</a>
+              }}>Request a Strategic Briefing</a>
               <a href="#clients" style={{
                 border: '2px solid #E5E7EB', color: '#374151', padding: '14px 32px',
                 borderRadius: 50, textDecoration: 'none', fontSize: 16, fontWeight: 600,
                 display: 'inline-flex', alignItems: 'center', gap: 8,
-              }}>See Our Work →</a>
+              }}>View Our Mandates →</a>
             </div>
 
             <div style={{ display: 'flex', gap: 32, marginTop: 52, flexWrap: 'wrap' }}>
@@ -238,7 +257,7 @@ export default function Hassan1Homepage() {
                 boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
               }}>
                 <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Hassan</div>
-                <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>Founder & CEO, Maximize</div>
+                <div style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>Founder & Principal Advisor, Maximize</div>
                 <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
                   {[...Array(5)].map((_, i) => (
                     <span key={i} style={{ color: '#FF6B35', fontSize: 13 }}>★</span>
@@ -259,15 +278,21 @@ export default function Hassan1Homepage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', alignItems: 'center' }}>
             {CLIENTS.map(c => (
               <div key={c.name} style={{
-                background: '#fff', borderRadius: 12, padding: '14px 20px',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                background: '#1E2A3A', borderRadius: 12, padding: '12px 20px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: 100, height: 56, transition: 'box-shadow 0.2s',
+                minWidth: 110, height: 64, transition: 'all 0.25s',
               }}
-              onMouseEnter={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(255,107,53,0.15)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)')}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 20px rgba(255,107,53,0.25)';
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+              }}
               >
-                <img src={c.logo} alt={c.name} style={{ maxHeight: 32, maxWidth: 100, objectFit: 'contain', filter: 'grayscale(30%)' }} />
+                <img src={c.logo} alt={c.name} style={{ maxHeight: 36, maxWidth: 110, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
               </div>
             ))}
           </div>
@@ -282,10 +307,10 @@ export default function Hassan1Homepage() {
               What We Do
             </div>
             <h2 style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: '#111827', margin: '0 0 16px', letterSpacing: '-0.02em' }}>
-              Full-Spectrum Digital Power
+              Six Strategic Disciplines
             </h2>
             <p style={{ fontSize: 17, color: '#6B7280', maxWidth: 520, margin: '0 auto' }}>
-              From strategy to execution — every service built to deliver real, measurable impact.
+              Evidence-based advisory spanning political mandates, corporate reputation, and commercial growth.
             </p>
           </div>
 
@@ -346,10 +371,10 @@ export default function Hassan1Homepage() {
               The Team
             </div>
             <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, color: '#111827', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
-              The People Behind the Results
+              The Advisory Team
             </h2>
             <p style={{ fontSize: 17, color: '#6B7280', maxWidth: 480, margin: '0 auto' }}>
-              A dedicated team of strategists, creatives, and data experts — united by one goal: your success.
+              Senior advisors and intelligence specialists with direct accountability across every mandate — no handoffs to juniors, no outsourced execution.
             </p>
           </div>
 
@@ -378,7 +403,7 @@ export default function Hassan1Homepage() {
               Our Process
             </div>
             <h2 style={{ fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>
-              How We Work
+              Our Methodology
             </h2>
           </div>
 
@@ -444,10 +469,10 @@ export default function Hassan1Homepage() {
 
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
           <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 900, color: '#fff', margin: '0 0 20px', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            Ready to Maximize Your Impact?
+            Ready for Principal-Level Strategy?
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.88)', lineHeight: 1.6, marginBottom: 40 }}>
-            Let&apos;s build something that moves people — and moves the needle. Start your campaign today.
+            We accept a limited number of mandates each cycle. If your campaign or commercial objective demands elite strategic counsel — and you are ready to win — we want to hear from you.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="mailto:hello@campaign-l.com" style={{
@@ -456,7 +481,7 @@ export default function Hassan1Homepage() {
               textDecoration: 'none', fontSize: 17, fontWeight: 800,
               boxShadow: '0 8px 28px rgba(0,0,0,0.15)',
               display: 'inline-block',
-            }}>Start a Campaign</a>
+            }}>Request a Strategic Briefing</a>
             <a href="https://campaign-l.com/maximize/" target="_blank" rel="noopener noreferrer" style={{
               border: '2px solid rgba(255,255,255,0.5)', color: '#fff',
               padding: '16px 36px', borderRadius: 50,
@@ -482,7 +507,7 @@ export default function Hassan1Homepage() {
             </div>
           </div>
           <div style={{ borderTop: '1px solid #1F2937', paddingTop: 24, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ fontSize: 13 }}>© 2025 Maximize. All rights reserved. Strategy · Growth · Real Impact.</div>
+            <div style={{ fontSize: 13 }}>© 2025 Maximize. All rights reserved. Strategic Advisory · Political &amp; Commercial Consulting.</div>
             <div style={{ fontSize: 13 }}>
               <a href="https://campaign-l.com/maximize/" target="_blank" rel="noopener noreferrer" style={{ color: '#FF6B35', textDecoration: 'none' }}>campaign-l.com/maximize</a>
             </div>

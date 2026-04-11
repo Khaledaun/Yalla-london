@@ -294,8 +294,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Check BOTH languages — an Arabic-only article with substantial content_ar should still be indexed
   // even when accessed via the English route (/blog/slug). Google uses the hreflang pair to decide
   // which version to serve; noindexing the English route blocks the whole article from Arabic search.
-  // Threshold: 200 words minimum. Pages under 200 words (like "Five Star Hotels Near Mosques
-  // London" at 70 words) provide no ranking value and waste crawl budget.
+  // Threshold: 300 words minimum — matches CONTENT_QUALITY.thinContentThreshold in standards.ts.
+  // This eliminates the 200-299w window where articles were indexed but subsequently auto-unpublished
+  // by content-auto-fix (which also uses 300w as its threshold), causing churn in Google's index.
   const contentEn = post.content_en || "";
   const contentAr = post.content_ar || "";
   const wordCountEn = contentEn
@@ -308,7 +309,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .trim()
     .split(/\s+/)
     .filter(Boolean).length;
-  const hasSubstantiveContent = wordCountEn >= 200 || wordCountAr >= 200;
+  const hasSubstantiveContent = wordCountEn >= 300 || wordCountAr >= 300;
 
   // Fetch real author name for E-E-A-T (cached — shared with page component)
   const author = await getAuthorForSite(siteId);

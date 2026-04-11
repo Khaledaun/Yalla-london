@@ -26,8 +26,8 @@ import { validatePhaseTransition, SELECTOR_STALE_MARKER_MS, SELECTOR_DEDUP_WINDO
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MAX_ARTICLES_PER_RUN = 6;        // publish up to 6 per run — drain overflowing reservoir (84-104 articles, cap 80)
-const MAX_CANDIDATES_PER_RUN = 15;    // try up to 15 candidates to find 6 publishable
+const MAX_ARTICLES_PER_RUN = 10;       // publish up to 10 per run — drain overflowing reservoir (368 articles, cap 80)
+const MAX_CANDIDATES_PER_RUN = 25;    // try up to 25 candidates to find 10 publishable
 
 export interface SelectRunnerResult {
   success: boolean;

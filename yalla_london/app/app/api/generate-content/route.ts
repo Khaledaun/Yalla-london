@@ -4,6 +4,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { withRateLimit, RateLimitPresets } from '@/lib/rate-limiting'
 
 interface GenerateContentRequest {
   prompt: string
@@ -28,7 +29,7 @@ function sanitizePrompt(input: string): string {
     .slice(0, 2000) // Limit input length
 }
 
-export async function POST(request: NextRequest) {
+async function generateContentHandler(request: NextRequest) {
   try {
     // SECURITY: Require authentication for content generation (costs money)
     const session = await getServerSession(authOptions)
@@ -60,9 +61,26 @@ export async function POST(request: NextRequest) {
     // SECURITY: Sanitize prompt input
     const cleanPrompt = sanitizePrompt(prompt)
 
+    // Inject Arabic copywriting directives for AR content
+    let arabicBoost = '';
+    if (language === 'ar') {
+      try {
+        const { getArabicCopywritingDirectives } = await import(
+          '@/lib/skills/arabic-copywriting'
+        );
+        arabicBoost = '\n\n' + getArabicCopywritingDirectives({
+          destination: 'London',
+          contentType: type === 'blog_topic' ? 'listicle' : type === 'blog_content' ? 'guide' : 'recommendation',
+          audience: 'gulf',
+        });
+      } catch (error) {
+        console.warn('[Generate Content] Failed to load Arabic copywriting directives:', error);
+      }
+    }
+
     // Create system prompts based on content type and language
     let systemPrompt = ''
-    
+
     if (type === 'blog_topic') {
       systemPrompt = language === 'en' 
         ? `You are a luxury travel content creator for "Yalla London", a bilingual London guide targeting affluent Arab tourists and English-speaking travelers. Generate 5-8 engaging blog topic ideas related to luxury London experiences. Focus on: high-end dining, exclusive shopping, cultural experiences, luxury accommodations, and premium entertainment. Each topic should be specific, engaging, and appeal to sophisticated travelers with significant disposable income.
@@ -73,12 +91,12 @@ Format as a numbered list with brief descriptions for each topic.`
 قم بالتنسيق كقائمة مرقمة مع أوصاف موجزة لكل موضوع.`
     } else if (type === 'blog_content') {
       systemPrompt = language === 'en'
-        ? `You are a sophisticated travel writer for "Yalla London". Write a detailed, engaging blog post about luxury London experiences. Your writing should be elegant, informative, and appeal to affluent travelers. Include specific venues, insider tips, practical information, and cultural insights. Structure the content with clear headings and maintain a luxurious, authoritative tone throughout.
+        ? `You are a sophisticated travel writer for "Yalla London". Write a detailed, engaging blog post about luxury London experiences. Your writing should be elegant, informative, and appeal to affluent travelers. Include specific venues, insider tips, practical information, and cultural insights. Structure the content with clear H2/H3 headings and maintain a luxurious, authoritative tone throughout.
 
-Word count: 800-1200 words. Include practical details like addresses, price ranges, and booking tips where relevant.`
-        : `أنت كاتب سفر متطور لـ"يالا لندن". اكتب مقالة مدونة مفصلة وجذابة حول تجارب لندن الفاخرة. يجب أن تكون كتابتك أنيقة ومفيدة وتجذب المسافرين الأثرياء. اشمل أماكن محددة ونصائح من الداخل ومعلومات عملية ورؤى ثقافية. قم بتنظيم المحتوى بعناوين واضحة وحافظ على نبرة فاخرة وموثوقة في جميع أنحاء النص.
+Word count: 1,500–2,000 words. Include practical details like addresses, price ranges, and booking tips. Include 3+ internal links to other Yalla London pages and 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide). End with a "Key Takeaways" summary.`
+        : `أنت كاتب سفر متطور لـ"يالا لندن". اكتب مقالة مدونة مفصلة وجذابة حول تجارب لندن الفاخرة. يجب أن تكون كتابتك أنيقة ومفيدة وتجذب المسافرين الأثرياء. اشمل أماكن محددة ونصائح من الداخل ومعلومات عملية ورؤى ثقافية. قم بتنظيم المحتوى بعناوين H2/H3 واضحة وحافظ على نبرة فاخرة وموثوقة في جميع أنحاء النص.
 
-عدد الكلمات: 800-1200 كلمة. اشمل تفاصيل عملية مثل العناوين ونطاقات الأسعار ونصائح الحجز عند الاقتضاء.`
+عدد الكلمات: 1,500–2,000 كلمة. اشمل تفاصيل عملية مثل العناوين ونطاقات الأسعار ونصائح الحجز. أضف 3+ روابط داخلية و2+ روابط حجز/شراكة. اختم بقسم "النقاط الرئيسية".`
     } else {
       systemPrompt = language === 'en'
         ? `You are a luxury travel consultant for "Yalla London". Generate detailed recommendations for premium London experiences. Include specific venue names, descriptions, unique features, price ranges, contact information, and insider tips. Focus on high-quality establishments that cater to affluent travelers seeking exclusive experiences.
@@ -87,6 +105,11 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
         : `أنت مستشار سفر فاخر لـ"يالا لندن". قم بإنشاء توصيات مفصلة لتجارب لندن المميزة. اشمل أسماء الأماكن المحددة والأوصاف والميزات الفريدة ونطاقات الأسعار ومعلومات الاتصال والنصائح من الداخل. ركز على المؤسسات عالية الجودة التي تلبي احتياجات المسافرين الأثرياء الباحثين عن التجارب الحصرية.
 
 قم بتنسيق كل توصية مع: الاسم، النوع (فندق/مطعم/معلم)، الوصف، الميزات الرئيسية، نطاق السعر، والنصائح العملية.`
+    }
+
+    // Append Arabic copywriting directives to AR system prompts
+    if (language === 'ar' && arabicBoost) {
+      systemPrompt += arabicBoost;
     }
 
     const messages = [
@@ -193,7 +216,7 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
       },
     })
 
-    return new Response(stream, {
+    return new NextResponse(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
@@ -209,3 +232,6 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
     )
   }
 }
+
+// SECURITY: Rate limit content generation — 2 requests per minute per IP (expensive LLM calls)
+export const POST = withRateLimit(RateLimitPresets.HEAVY_OPERATIONS, generateContentHandler);

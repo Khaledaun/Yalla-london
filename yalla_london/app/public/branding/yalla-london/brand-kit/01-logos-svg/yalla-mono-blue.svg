@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 36" width="600" height="108">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&amp;family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;display=swap');
+  </style>
+  <text x="0" y="28" font-family="Anybody, sans-serif" font-size="32" font-weight="800" fill="#4A7BA8" letter-spacing="-1">YALLA</text>
+  <g transform="translate(110, 16) rotate(-4)">
+    <rect x="-22" y="-9" width="44" height="18" rx="1.5" fill="none" stroke="#4A7BA8" stroke-width="1.6"/>
+    <text x="0" y="3.5" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="#4A7BA8" letter-spacing="2.5">LDN</text>
+  </g>
+  <rect x="0" y="33" width="90" height="1.5" rx="0.75" fill="#4A7BA8"/>
+</svg>

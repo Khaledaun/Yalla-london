@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,11 +58,7 @@ export function SocialEmbedsManager() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadEmbeds()
-  }, [])
-
-  const loadEmbeds = async () => {
+  const loadEmbeds = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/social-embeds')
@@ -80,7 +76,11 @@ export function SocialEmbedsManager() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    loadEmbeds()
+  }, [loadEmbeds])
 
   const handleAddEmbed = async () => {
     if (!newUrl.trim()) return

@@ -1,0 +1,155 @@
+/* ═══════════════════════════════════════════════
+   YALLA LONDON — Mobile Optimization Kit
+   Apply to any page using the brand system
+   ═══════════════════════════════════════════════ */
+
+/* ── SAFE AREAS (iPhone notch/Dynamic Island) ── */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+body {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: auto;
+}
+
+/* ── TOUCH TARGETS (min 44×44px per Apple HIG) ── */
+a, button, .btn, [role="button"],
+input[type="submit"], .toggle, .nav-link {
+  min-height: 44px;
+  min-width: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── TYPOGRAPHY SCALING ── */
+@media (max-width: 390px) {
+  /* iPhone SE / Mini */
+  .s-title { font-size: 24px !important; }
+  .hero h1 { font-size: 32px !important; }
+  .type-show { font-size: 18px !important; }
+  .comp-lbl, .s-label { font-size: 8px !important; }
+  section { padding: 40px 16px !important; }
+}
+
+@media (min-width: 391px) and (max-width: 430px) {
+  /* iPhone 14/15/16 standard */
+  .s-title { font-size: 28px !important; }
+  .hero h1 { font-size: 36px !important; }
+  section { padding: 48px 20px !important; }
+}
+
+@media (min-width: 431px) and (max-width: 480px) {
+  /* iPhone Plus / Pro Max */
+  .s-title { font-size: 30px !important; }
+  .hero h1 { font-size: 40px !important; }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  /* iPad Mini / small tablets */
+  .logo-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .icon-grid { grid-template-columns: repeat(5, 1fr) !important; }
+  .anim-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* iPad / tablet */
+  .logo-grid { grid-template-columns: repeat(4, 1fr) !important; }
+  .icon-grid { grid-template-columns: repeat(6, 1fr) !important; }
+  .social-stack { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 16px !important; }
+}
+
+@media (min-width: 1025px) {
+  /* Desktop */
+  .logo-grid { grid-template-columns: repeat(4, 1fr) !important; }
+  .icon-grid { grid-template-columns: repeat(8, 1fr) !important; }
+  .social-stack { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 20px !important; }
+  section { max-width: 1200px !important; margin: 0 auto !important; }
+}
+
+/* ── GRID BREAKPOINTS ── */
+@media (max-width: 768px) {
+  .logo-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+  .logo-card.full { grid-column: 1 / -1 !important; }
+  .swatch-row { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .icon-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+  .anim-grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+  .hover-grid { grid-template-columns: 1fr !important; }
+  .print-grid { grid-template-columns: 1fr !important; }
+  .component-showcase { grid-template-columns: 1fr !important; }
+  .social-stack { flex-direction: column !important; }
+  .palette-row { flex-direction: column !important; }
+
+  /* Navigation: use dropdown on mobile */
+  nav ul { display: none !important; }
+  nav select { display: block !important; }
+}
+
+@media (min-width: 769px) {
+  nav select { display: none !important; }
+  nav ul { display: flex !important; }
+}
+
+/* ── HORIZONTAL SCROLL PREVENTION ── */
+html, body { overflow-x: hidden; max-width: 100vw; }
+img, svg, video { max-width: 100%; height: auto; }
+.nav-mock { -webkit-overflow-scrolling: touch; }
+
+/* ── DARK MODE SUPPORT ── */
+@media (prefers-color-scheme: dark) {
+  /* Already dark by default — no changes needed */
+}
+
+@media (prefers-color-scheme: light) {
+  /* Optional: swap to light if user prefers */
+  /* Uncomment below to enable auto light mode */
+  /*
+  body { background: var(--parchment); color: var(--charcoal); }
+  .comp, .type-card, .anim-card, .footer-mock { 
+    background: var(--white); 
+    border-color: rgba(0,0,0,.08);
+  }
+  */
+}
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .rv { opacity: 1 !important; transform: none !important; }
+  .pstamp { opacity: 0.85 !important; animation: none !important; }
+}
+
+/* ── PRINT STYLES ── */
+@media print {
+  nav, .tri, .anim-card, .hover-card { display: none !important; }
+  body { background: white !important; color: black !important; }
+  section { page-break-inside: avoid; }
+  .logo-card { border: 1px solid #ccc !important; }
+}
+
+/* ── PWA / FULLSCREEN ── */
+@media (display-mode: standalone) {
+  nav { padding-top: var(--safe-top); }
+}
+
+/* ── LANDSCAPE PHONE ── */
+@media (max-height: 500px) and (orientation: landscape) {
+  .hero { min-height: auto !important; padding: 60px 20px 40px !important; }
+  .stamp-wrap svg, .stamp-wrap img { max-width: 120px !important; }
+}
+
+/* ── HIGH DPI IMAGES ── */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Use 500px+ logo variants for retina displays */
+  /* The embedded base64 logos are already 500px for retina */
+}

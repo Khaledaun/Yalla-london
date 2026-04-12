@@ -1,11 +1,18 @@
-'use client';
+'use client'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
-import { Suspense } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Suspense, useState, useEffect } from 'react'
+import {
+  AdminCard,
+  AdminPageHeader,
+  AdminSectionLabel,
+  AdminStatusBadge,
+  AdminKPICard,
+  AdminButton,
+  AdminLoadingState,
+  AdminEmptyState,
+} from '@/components/admin/admin-ui'
 import {
   Plus,
   FileText,
@@ -15,249 +22,198 @@ import {
   Lock,
   Users,
   Calendar,
-  MoreHorizontal
-} from 'lucide-react';
+} from 'lucide-react'
 
 interface PageInfo {
-  id: string;
-  title: string;
-  slug: string;
-  status: 'published' | 'draft' | 'archived';
-  lastModified: string;
-  author: string;
-  type: 'static' | 'dynamic' | 'system';
-  views?: number;
+  id: string
+  title: string
+  slug: string
+  status: 'published' | 'draft' | 'archived'
+  lastModified: string
+  author: string
+  type: 'static' | 'dynamic' | 'system'
+  views?: number
 }
 
-const mockPages: PageInfo[] = [
-  {
-    id: '1',
-    title: 'Privacy Policy',
-    slug: 'privacy',
-    status: 'published',
-    lastModified: '2024-01-15',
-    author: 'Admin',
-    type: 'system',
-    views: 1234
-  },
-  {
-    id: '2',
-    title: 'Terms of Service',
-    slug: 'terms',
-    status: 'published',
-    lastModified: '2024-01-10',
-    author: 'Admin',
-    type: 'system',
-    views: 890
-  },
-  {
-    id: '3',
-    title: 'About Us',
-    slug: 'about',
-    status: 'draft',
-    lastModified: '2024-01-20',
-    author: 'Admin',
-    type: 'static',
-    views: 0
-  },
-  {
-    id: '4',
-    title: 'Contact Information',
-    slug: 'contact',
-    status: 'published',
-    lastModified: '2024-01-12',
-    author: 'Admin',
-    type: 'static',
-    views: 567
-  }
-];
-
 function PagesList() {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'published': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      case 'archived': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const [pages, setPages] = useState<PageInfo[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/homepage-blocks')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed to fetch'))))
+      .then((data) => {
+        if (Array.isArray(data?.blocks)) {
+          setPages(
+            data.blocks.map((b: Record<string, unknown>) => ({
+              id: String(b.id || ''),
+              title: String(b.title || b.name || 'Untitled'),
+              slug: String(b.slug || b.type || ''),
+              status: (b.published ? 'published' : 'draft') as PageInfo['status'],
+              lastModified: b.updatedAt
+                ? new Date(b.updatedAt as string).toISOString().slice(0, 10)
+                : '',
+              author: 'Admin',
+              type: 'static' as const,
+            }))
+          )
+        }
+      })
+      .catch((err) => {
+        console.warn('[pages] Failed to fetch pages:', err.message)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'system': return <Lock className="h-4 w-4" />;
-      case 'dynamic': return <Globe className="h-4 w-4" />;
-      default: return <FileText className="h-4 w-4" />;
+      case 'system':
+        return <Lock size={14} color="#C8322B" />
+      case 'dynamic':
+        return <Globe size={14} color="#3B7EA1" />
+      default:
+        return <FileText size={14} color="#78716C" />
     }
-  };
+  }
+
+  if (loading) {
+    return <AdminLoadingState label="Loading pages..." />
+  }
+
+  if (pages.length === 0) {
+    return (
+      <AdminEmptyState
+        icon={FileText}
+        title="No pages yet"
+        description="Pages will appear here when created."
+      />
+    )
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Pages</p>
-                <p className="text-2xl font-bold text-gray-900">{mockPages.length}</p>
-              </div>
-              <FileText className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Published</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {mockPages.filter(p => p.status === 'published').length}
-                </p>
-              </div>
-              <Globe className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Drafts</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {mockPages.filter(p => p.status === 'draft').length}
-                </p>
-              </div>
-              <Edit3 className="h-8 w-8 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Views</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {mockPages.reduce((sum, p) => sum + (p.views || 0), 0).toLocaleString()}
-                </p>
-              </div>
-              <Eye className="h-8 w-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <AdminKPICard value={pages.length} label="Total Pages" color="#3B7EA1" />
+        <AdminKPICard
+          value={pages.filter((p) => p.status === 'published').length}
+          label="Published"
+          color="#2D5A3D"
+        />
+        <AdminKPICard
+          value={pages.filter((p) => p.status === 'draft').length}
+          label="Drafts"
+          color="#C49A2A"
+        />
+        <AdminKPICard
+          value={pages.reduce((sum, p) => sum + (p.views || 0), 0).toLocaleString()}
+          label="Total Views"
+          color="#7C3AED"
+        />
       </div>
 
       {/* Pages List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Pages</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {mockPages.map((page) => (
-              <div
-                key={page.id}
-                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {getTypeIcon(page.type)}
+      <AdminSectionLabel>All Pages</AdminSectionLabel>
+      <AdminCard>
+        <div className="p-4 space-y-2">
+          {pages.map((page) => (
+            <div
+              key={page.id}
+              className="flex items-center justify-between"
+              style={{
+                padding: '10px 12px',
+                border: '1px solid rgba(214,208,196,0.6)',
+                borderRadius: 10,
+                transition: 'border-color 0.15s',
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex-shrink-0">{getTypeIcon(page.type)}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        color: '#1C1917',
+                      }}
+                    >
+                      {page.title}
+                    </span>
+                    <AdminStatusBadge status={page.status} />
                   </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="text-sm font-medium text-gray-900 truncate">
-                        {page.title}
-                      </h3>
-                      <Badge className={`text-xs ${getStatusColor(page.status)}`}>
-                        {page.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
-                      <span>/{page.slug}</span>
-                      <span>•</span>
-                      <span className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {page.lastModified}
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center">
-                        <Users className="h-3 w-3 mr-1" />
-                        {page.author}
-                      </span>
-                      {page.views !== undefined && (
-                        <>
-                          <span>•</span>
-                          <span className="flex items-center">
-                            <Eye className="h-3 w-3 mr-1" />
-                            {page.views} views
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  {page.status === 'published' && (
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (page.slug === 'privacy') {
-                        window.location.href = '/admin/content/pages/privacy';
-                      }
+                  <div
+                    className="flex items-center gap-3 mt-1 flex-wrap"
+                    style={{
+                      fontFamily: 'var(--font-system)',
+                      fontSize: 10,
+                      color: '#A8A29E',
                     }}
                   >
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                    <span>/{page.slug}</span>
+                    <span className="flex items-center gap-1">
+                      <Calendar size={10} />
+                      {page.lastModified}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users size={10} />
+                      {page.author}
+                    </span>
+                    {page.views !== undefined && (
+                      <span className="flex items-center gap-1">
+                        <Eye size={10} />
+                        {page.views} views
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {page.status === 'published' && (
+                  <AdminButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(`/${page.slug}`, '_blank')}
+                  >
+                    <Eye size={14} />
+                  </AdminButton>
+                )}
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    window.location.href = `/admin/content/pages/${page.slug}`
+                  }}
+                >
+                  <Edit3 size={14} />
+                </AdminButton>
+              </div>
+            </div>
+          ))}
+        </div>
+      </AdminCard>
     </div>
-  );
+  )
 }
 
 export default function PagesPage() {
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pages</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your website pages, privacy policy, terms, and static content</p>
-        </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          New Page
-        </Button>
-      </div>
-      <Suspense fallback={
-        <div className="animate-pulse space-y-6">
-          <div className="h-20 bg-gray-200 rounded-lg"></div>
-          <div className="grid grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
-            ))}
-          </div>
-          <div className="h-96 bg-gray-200 rounded-lg"></div>
-        </div>
-      }>
+    <div className="admin-page p-4 md:p-6">
+      <AdminPageHeader
+        title="Pages"
+        subtitle="Manage website pages, privacy policy, terms, and static content"
+        action={
+          <AdminButton variant="primary" size="sm">
+            <Plus size={14} />
+            New Page
+          </AdminButton>
+        }
+      />
+      <Suspense fallback={<AdminLoadingState label="Loading pages..." />}>
         <PagesList />
       </Suspense>
     </div>
-  );
+  )
 }

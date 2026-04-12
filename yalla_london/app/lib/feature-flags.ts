@@ -1,7 +1,127 @@
 /**
  * Phase-4 Feature Flags Management
  * All new features ship disabled by default; enable progressively
+ *
+ * Two-layer system:
+ * 1. Database flags (FeatureFlag table) — toggled via admin dashboard
+ * 2. Environment variables — fallback when DB flag doesn't exist
+ *
+ * DB flags take precedence over env vars. This means Khaled can toggle
+ * features from the dashboard without redeploying.
  */
+
+// --- In-memory cache for DB flags (avoids hitting DB on every check) ---
+// Cache structure: Map<flagName, Map<siteId|"__global__", boolean>>
+const FLAG_CACHE_TTL_MS = 60_000; // 60 seconds
+let _flagCache: Map<string, Map<string, boolean>> | null = null;
+let _flagCacheTimestamp = 0;
+const GLOBAL_KEY = "__global__";
+
+async function loadDbFlags(): Promise<Map<string, Map<string, boolean>>> {
+  const now = Date.now();
+  if (_flagCache && now - _flagCacheTimestamp < FLAG_CACHE_TTL_MS) {
+    return _flagCache;
+  }
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const flags = await prisma.featureFlag.findMany({
+      select: { name: true, enabled: true, siteId: true },
+    });
+    const map = new Map<string, Map<string, boolean>>();
+    for (const f of flags) {
+      if (!map.has(f.name)) {
+        map.set(f.name, new Map<string, boolean>());
+      }
+      const key = f.siteId ?? GLOBAL_KEY;
+      map.get(f.name)!.set(key, f.enabled);
+    }
+    _flagCache = map;
+    _flagCacheTimestamp = now;
+    return map;
+  } catch {
+    // DB unavailable — return empty map, env vars will be used as fallback
+    return _flagCache ?? new Map();
+  }
+}
+
+/**
+ * Check if a feature flag is enabled — DB first, env var fallback.
+ * Use this in any async context (cron jobs, API routes, server components).
+ *
+ * Precedence (per-site aware):
+ *   1. Site-specific DB flag (name + siteId) → if exists, use it
+ *   2. Global DB flag (name + null siteId) → if exists, use it
+ *   3. Environment variable with matching name → "1" or "true" = enabled
+ *   4. Default → disabled (false)
+ *
+ * @param name - Flag name (e.g. "CRON_CONTENT_BUILDER")
+ * @param siteId - Optional site ID for per-site override lookup
+ */
+export async function isFeatureFlagEnabled(name: string, siteId?: string): Promise<boolean> {
+  const dbFlags = await loadDbFlags();
+
+  const flagMap = dbFlags.get(name);
+  if (flagMap) {
+    // Check site-specific flag first
+    if (siteId && flagMap.has(siteId)) {
+      return flagMap.get(siteId)!;
+    }
+    // Fall back to global flag
+    if (flagMap.has(GLOBAL_KEY)) {
+      return flagMap.get(GLOBAL_KEY)!;
+    }
+  }
+
+  // Fallback to env var
+  const envVal = process.env[name];
+  if (envVal !== undefined) {
+    return envVal === "1" || envVal === "true";
+  }
+
+  return false;
+}
+
+/**
+ * Get feature flag value — returns null if the flag is not defined anywhere.
+ * Useful when the caller needs to distinguish "off" from "not configured."
+ *
+ * Precedence (per-site aware):
+ *   1. Site-specific DB flag (name + siteId) → if exists, use it
+ *   2. Global DB flag (name + null siteId) → if exists, use it
+ *   3. Environment variable → if exists, use it
+ *   4. null (not set anywhere)
+ *
+ * @param name - Flag name
+ * @param siteId - Optional site ID for per-site override lookup
+ */
+export async function getFeatureFlagValue(name: string, siteId?: string): Promise<boolean | null> {
+  const dbFlags = await loadDbFlags();
+
+  const flagMap = dbFlags.get(name);
+  if (flagMap) {
+    // Check site-specific flag first
+    if (siteId && flagMap.has(siteId)) {
+      return flagMap.get(siteId)!;
+    }
+    // Fall back to global flag
+    if (flagMap.has(GLOBAL_KEY)) {
+      return flagMap.get(GLOBAL_KEY)!;
+    }
+  }
+
+  const envVal = process.env[name];
+  if (envVal !== undefined) {
+    return envVal === "1" || envVal === "true";
+  }
+  return null;
+}
+
+/** Force-refresh the flag cache (e.g. after toggling a flag via the API) */
+export function invalidateFlagCache(): void {
+  _flagCache = null;
+  _flagCacheTimestamp = 0;
+}
 
 export interface FeatureFlags {
   FEATURE_AI_SEO_AUDIT: number;

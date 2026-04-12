@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import NextImage from 'next/image'
+import { useConfirm } from '@/components/admin/admin-ui'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -62,12 +64,9 @@ export default function MediaLibrary({
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const { toast } = useToast()
+  const { confirm, ConfirmDialog } = useConfirm()
 
-  useEffect(() => {
-    fetchMediaItems()
-  }, [page, selectedType, selectedTag, searchTerm])
-
-  const fetchMediaItems = async () => {
+  const fetchMediaItems = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -94,7 +93,11 @@ export default function MediaLibrary({
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, selectedType, selectedTag, searchTerm, toast])
+
+  useEffect(() => {
+    fetchMediaItems()
+  }, [fetchMediaItems])
 
   const handleEnrichMedia = async (mediaId: string) => {
     try {
@@ -151,7 +154,8 @@ export default function MediaLibrary({
   }
 
   const handleDeleteMedia = async (mediaId: string) => {
-    if (!confirm('Are you sure you want to delete this media item?')) return
+    const ok = await confirm({ title: 'Delete Media Item', message: 'Are you sure? This cannot be undone.', variant: 'danger', confirmLabel: 'Delete' })
+    if (!ok) return
 
     try {
       const response = await fetch(`/api/admin/media/${mediaId}`, {
@@ -356,6 +360,8 @@ export default function MediaLibrary({
           onSave={(updates) => handleUpdateMedia(editingItem.id, updates)}
         />
       )}
+
+      <ConfirmDialog />
     </div>
   )
 }
@@ -383,10 +389,15 @@ function MediaGridItem({ item, selected, onSelect, onEdit, onEnrich, onDelete, e
     >
       <div className="aspect-square bg-gray-100 flex items-center justify-center">
         {isImage ? (
-          <img
+          <NextImage
             src={item.url}
             alt={item.alt_text || item.filename}
+            width={0}
+            height={0}
+            sizes="100vw"
             className="w-full h-full object-cover"
+            style={{ width: '100%', height: '100%' }}
+            unoptimized
           />
         ) : (
           <FileImage className="h-8 w-8 text-gray-400" />
@@ -454,10 +465,13 @@ function MediaListItem({ item, selected, onSelect, onEdit, onEnrich, onDelete, e
     >
       <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mr-3">
         {isImage ? (
-          <img
+          <NextImage
             src={item.url}
             alt={item.alt_text || item.filename}
+            width={48}
+            height={48}
             className="w-full h-full object-cover rounded"
+            unoptimized
           />
         ) : (
           <FileImage className="h-6 w-6 text-gray-400" />

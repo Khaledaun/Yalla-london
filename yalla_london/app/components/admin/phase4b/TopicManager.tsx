@@ -4,7 +4,8 @@
  */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useConfirm } from '@/components/admin/admin-ui';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +67,7 @@ interface TopicStats {
 }
 
 export function TopicManager() {
+  const { confirm, ConfirmDialog } = useConfirm();
   const [topics, setTopics] = useState<TopicProposal[]>([]);
   const [stats, setStats] = useState<TopicStats>({ proposed: 0, approved: 0, rejected: 0, used: 0, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -81,14 +83,7 @@ export function TopicManager() {
   const isPhase4BEnabled = process.env.NEXT_PUBLIC_FEATURE_PHASE4B_ENABLED === 'true';
   const isTopicResearchEnabled = process.env.NEXT_PUBLIC_FEATURE_TOPIC_RESEARCH === 'true';
 
-  useEffect(() => {
-    if (isPhase4BEnabled) {
-      fetchTopics();
-      fetchStats();
-    }
-  }, [isPhase4BEnabled, filter, selectedCategory]);
-
-  const fetchTopics = async () => {
+  const fetchTopics = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filter !== 'all') params.set('status', filter);
@@ -105,7 +100,7 @@ export function TopicManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, selectedCategory]);
 
   const fetchStats = async () => {
     try {
@@ -118,6 +113,13 @@ export function TopicManager() {
       console.error('Error fetching stats:', error);
     }
   };
+
+  useEffect(() => {
+    if (isPhase4BEnabled) {
+      fetchTopics();
+      fetchStats();
+    }
+  }, [isPhase4BEnabled, filter, selectedCategory, fetchTopics]);
 
   const runTopicResearch = async (category: string) => {
     if (!isTopicResearchEnabled) {
@@ -193,7 +195,8 @@ export function TopicManager() {
   };
 
   const deleteTopic = async (topicId: string) => {
-    if (!confirm('Are you sure you want to delete this topic?')) return;
+    const ok = await confirm({ title: 'Delete Topic', message: 'Are you sure you want to delete this topic?', variant: 'danger' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/phase4b/topics/manage?id=${topicId}`, {
@@ -492,7 +495,7 @@ export function TopicManager() {
             </DialogHeader>
             <div className="space-y-4">
               <p>
-                The last approved topic was also in the "{reasonDialog.category}" category. 
+                The last approved topic was also in the &quot;{reasonDialog.category}&quot; category.
                 Please provide a reason for approving another topic from the same category consecutively.
               </p>
               <Textarea
@@ -521,6 +524,7 @@ export function TopicManager() {
           </DialogContent>
         </Dialog>
       )}
+      <ConfirmDialog />
     </div>
   );
 }

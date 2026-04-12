@@ -9,6 +9,7 @@
 
 import { headers, cookies } from 'next/headers';
 import { cache } from 'react';
+import { getDefaultSiteId, getDefaultSiteName } from '@/config/sites';
 
 export interface TenantContext {
   siteId: string;
@@ -37,8 +38,8 @@ export interface VisitorContext {
 export const getTenantContext = cache(async (): Promise<TenantContext> => {
   const headersList = await headers();
 
-  const siteId = headersList.get('x-site-id') || 'yalla-london';
-  const siteName = headersList.get('x-site-name') || 'Yalla London';
+  const siteId = headersList.get('x-site-id') || getDefaultSiteId();
+  const siteName = headersList.get('x-site-name') || getDefaultSiteName();
   const locale = (headersList.get('x-site-locale') || 'en') as 'en' | 'ar';
   const hostname = headersList.get('x-hostname') || 'localhost:3000';
 
@@ -81,8 +82,8 @@ export const getVisitorContext = cache(async (): Promise<VisitorContext> => {
  * Synchronous tenant context for API routes (use in route handlers)
  */
 export function getTenantFromHeaders(headersList: Headers): TenantContext {
-  const siteId = headersList.get('x-site-id') || 'yalla-london';
-  const siteName = headersList.get('x-site-name') || 'Yalla London';
+  const siteId = headersList.get('x-site-id') || getDefaultSiteId();
+  const siteName = headersList.get('x-site-name') || getDefaultSiteName();
   const locale = (headersList.get('x-site-locale') || 'en') as 'en' | 'ar';
   const hostname = headersList.get('x-hostname') || 'localhost:3000';
 

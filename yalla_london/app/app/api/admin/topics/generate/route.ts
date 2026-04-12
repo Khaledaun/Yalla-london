@@ -2,12 +2,15 @@
  * Phase 4C Topic Generation API
  * Auto-generate topics based on policies and content gaps
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 // Zod schemas for validation
 const TopicGenerationSchema = z.object({
@@ -131,7 +134,7 @@ export async function POST(request: NextRequest) {
           generated_by: 'policy_engine',
           policy_id: policy_id
         },
-        confidence_score: 0.75 + (Math.random() * 0.2), // Random score between 0.75-0.95
+        confidence_score: 0.7, // Fixed default — real confidence computed by LLM topic analysis
         status: 'proposed'
       };
 
@@ -158,6 +161,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    logManualAction(request, {
+      action: "generate-topics",
+      resource: "topic",
+      success: true,
+      summary: `Generated ${count} topics for categories: ${categories.join(", ")} (locale: ${locale})`,
+      details: { count, categories, locale, priority, policyApplied: !!policy },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: `Generated ${count} topics successfully`,
@@ -168,7 +179,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Topic generation error:', error);
-    
+
+    logManualAction(request, {
+      action: "generate-topics",
+      resource: "topic",
+      success: false,
+      summary: "Failed to generate topics",
+      error: error instanceof Error ? error.message : "Unknown error",
+      fix: "Check AI provider config, feature flags, and database connectivity.",
+    }).catch(() => {});
+
     // Log error in audit trail
     try {
       const permissionCheck = await requirePermission(request, 'create_content');
@@ -190,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to generate topics',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

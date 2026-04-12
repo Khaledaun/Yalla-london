@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/admin-middleware'
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json()
-    
+
     console.log('Test save endpoint called with:', {
       title: body.title,
       contentLength: body.content?.length,
@@ -13,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Simulate a successful save without database
     const mockArticle = {
-      id: Math.floor(Math.random() * 10000),
+      id: crypto.randomUUID(),
       title: body.title || 'Test Article',
       slug: (body.title || 'test-article').toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
       createdAt: new Date().toISOString(),
@@ -23,28 +27,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Test save successful!',
-      data: mockArticle,
-      debug: {
-        receivedData: {
-          title: body.title,
-          contentLength: body.content?.length,
-          locale: body.locale,
-          pageType: body.pageType
-        },
-        environment: {
-          hasDatabaseUrl: !!process.env.DATABASE_URL,
-          nodeEnv: process.env.NODE_ENV
-        }
-      }
+      data: mockArticle
     })
 
   } catch (error) {
     console.error('Test save error:', error)
     return NextResponse.json(
-      { 
-        error: 'Test save failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Test save failed' },
       { status: 500 }
     )
   }

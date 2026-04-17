@@ -13,8 +13,8 @@ const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const founderImages = [
-  'https://media.cntraveller.com/photos/66b1f6248feace68eac032f7/16:9/w_3200,h_1800,c_limit/south%20asian%20heritage%20month.jpg',
-  'https://studioindigo.co.uk/wp-content/uploads/2024/10/StudioIndigo_portfolio_MayfairGallery_HERO.jpg'
+  '/images/hero/london-city-night.jpg',
+  '/images/hero/tower-bridge.jpg'
 ]
 
 export default function AboutYallaLondon() {

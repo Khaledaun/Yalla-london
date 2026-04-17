@@ -458,14 +458,14 @@ export default function BlogPostClient({ post, serverLocale }: BlogPostClientPro
                 </BrandCardLight>
 
                 {/* ─── Mobile Share Buttons (bottom) ─── */}
-                <BrandCardLight className="mt-8 p-5 bg-yl-gray-100" hoverable={false}>
-                  <div className="lg:hidden">
+                <div className="lg:hidden">
+                  <BrandCardLight className="mt-8 p-5 bg-yl-gray-100" hoverable={false}>
                     <p className={`text-xs font-medium text-yl-gray-500/60 mb-3 ${isRTL ? 'font-arabic tracking-normal' : 'font-body uppercase tracking-wider'}`}>
                       {language === 'en' ? 'Share This Story' : 'شارك هذه القصة'}
                     </p>
                     <ShareButtons title={title} excerpt={excerpt} variant="bar" />
-                  </div>
-                </BrandCardLight>
+                  </BrandCardLight>
+                </div>
               </div>
             </article>
 

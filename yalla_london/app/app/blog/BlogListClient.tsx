@@ -150,7 +150,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                 </select>
               </div>
             </div>
-            <div className="font-mono text-[10px] tracking-wider uppercase text-yl-gray-500">
+            <div className={`text-[10px] text-yl-gray-500 ${isRTL ? 'font-arabic tracking-normal' : 'font-mono tracking-wider uppercase'}`}>
               {filteredPosts.length} {language === 'en' ? 'stories found' : 'قصة موجودة'}
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                     </div>
                   </div>
                   <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex items-center gap-4 font-mono text-[10px] tracking-wider uppercase text-yl-gray-500 mb-3">
+                    <div className={`flex items-center gap-4 text-[10px] text-yl-gray-500 mb-3 ${isRTL ? 'font-arabic tracking-normal' : 'font-mono tracking-wider uppercase'}`}>
                       <span className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 text-yl-gold" />
                         {formatDate(post.created_at)}

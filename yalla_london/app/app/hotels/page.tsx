@@ -387,7 +387,9 @@ export default function HotelsPage() {
               <button
                 key={area}
                 onClick={() => setSelectedArea(area)}
-                className={`px-4 py-2 rounded-full font-mono text-[10px] tracking-wider uppercase whitespace-nowrap transition-all duration-300 ease-yl ${
+                className={`px-4 py-2 rounded-full text-[10px] whitespace-nowrap transition-all duration-300 ease-yl ${
+                  isRTL ? 'font-arabic tracking-normal' : 'font-mono tracking-wider uppercase'
+                } ${
                   selectedArea === area
                     ? 'bg-yl-dark-navy text-yl-parchment'
                     : 'bg-yl-gray-100 text-yl-gray-500 hover:bg-yl-gray-200 hover:text-yl-charcoal'
@@ -439,9 +441,9 @@ export default function HotelsPage() {
                 {/* Price & CTA */}
                 <div className="flex items-center justify-between pt-4 border-t border-yl-gray-200">
                   <div>
-                    <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider uppercase">{locale === 'en' ? 'From' : 'من'} </span>
+                    <span className={`text-[10px] text-yl-gray-500 ${isRTL ? 'font-arabic tracking-normal' : 'font-mono tracking-wider uppercase'}`}>{locale === 'en' ? 'From' : 'من'} </span>
                     <span className="text-2xl font-heading font-bold text-yl-charcoal">£{hotel.price}</span>
-                    <span className="font-mono text-[10px] text-yl-gray-500 tracking-wider">{t.perNight}</span>
+                    <span className={`text-[10px] text-yl-gray-500 ${isRTL ? 'font-arabic tracking-normal' : 'font-mono tracking-wider'}`}>{t.perNight}</span>
                   </div>
                   {(() => {
                     const affLink = getPageAffiliateLink(hotel.name, 'hotel', 'yalla-london', 'hotels-page');

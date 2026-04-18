@@ -15,6 +15,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteDomain = getSiteDomain(siteId);
   const canonicalUrl = await getLocaleAwareCanonical("/itineraries");
 
+  // Soft-404 prevention: if no itineraries exist for this site, the page
+  // renders only an empty-state CTA. Tell Google not to index until we
+  // have substantive content — otherwise GSC flags as "Soft 404".
+  let hasContent = false;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const count = await prisma.charterItinerary.count({
+      where: { siteId, status: "active" },
+    });
+    hasContent = count > 0;
+  } catch (err) {
+    console.warn("[itineraries/layout] count query failed:", err instanceof Error ? err.message : String(err));
+  }
+
   return {
     title: `Sailing Itineraries | ${siteName}`,
     description:
@@ -52,10 +66,10 @@ export async function generateMetadata(): Promise<Metadata> {
         "Curated Mediterranean sailing routes with day-by-day breakdowns.",
     },
     robots: {
-      index: true,
+      index: hasContent,
       follow: true,
       googleBot: {
-        index: true,
+        index: hasContent,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",

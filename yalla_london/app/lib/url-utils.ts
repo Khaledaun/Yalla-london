@@ -19,6 +19,44 @@ export async function getLocaleAwareCanonical(basePath: string = ""): Promise<st
 }
 
 /**
+ * Get the full `alternates` block for Next.js Metadata — canonical + hreflang
+ * with correct per-locale URLs.
+ *
+ * hreflang URLs MUST be absolute and point to the specific language version,
+ * independent of which locale is currently being rendered. Google ignores
+ * hreflang when an en-GB entry resolves to an Arabic URL (and vice versa),
+ * causing "Duplicate — alternate page with canonical" in GSC.
+ *
+ * Usage:
+ *   const alternates = await getLocaleAlternates("/hotels");
+ *   return { ..., alternates };
+ */
+export async function getLocaleAlternates(basePath: string = ""): Promise<{
+  canonical: string;
+  languages: Record<string, string>;
+}> {
+  const baseUrl = await getBaseUrl();
+  let locale = "en";
+  try {
+    const h = await headers();
+    locale = h.get("x-locale") || "en";
+  } catch {
+    // headers() not available during build
+  }
+  const enUrl = `${baseUrl}${basePath}`;
+  const arUrl = `${baseUrl}/ar${basePath}`;
+  const canonical = locale === "ar" ? arUrl : enUrl;
+  return {
+    canonical,
+    languages: {
+      "en-GB": enUrl,
+      "ar-SA": arUrl,
+      "x-default": enUrl,
+    },
+  };
+}
+
+/**
  * Get the base URL for the current site context.
  * Priority: x-hostname header -> NEXT_PUBLIC_SITE_URL env -> config default
  *

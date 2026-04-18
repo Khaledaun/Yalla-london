@@ -58,9 +58,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = informationCategories.find(
     (c) => c.id === article.category_id,
   );
-  const canonicalUrl = `${baseUrl}/information/articles/${slug}`;
   // Arabic SSR: serve locale-appropriate metadata for /ar/ routes
   const locale = headersList.get("x-locale") || "en";
+  // Locale-aware canonical: Arabic route must self-canonicalize to its /ar/ URL,
+  // otherwise Google treats /ar/information/articles/X as a duplicate of the EN URL.
+  const enUrl = `${baseUrl}/information/articles/${slug}`;
+  const arUrl = `${baseUrl}/ar/information/articles/${slug}`;
+  const canonicalUrl = locale === "ar" ? arUrl : enUrl;
   const metaTitle = locale === "ar"
     ? (article.meta_title_ar || article.title_ar || article.title_en)
     : (article.meta_title_en || article.title_en);
@@ -78,9 +82,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: canonicalUrl,
       languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/information/articles/${slug}`,
-        "x-default": canonicalUrl,
+        "en-GB": enUrl,
+        "ar-SA": arUrl,
+        "x-default": enUrl,
       },
     },
     openGraph: {

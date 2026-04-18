@@ -97,92 +97,37 @@ export async function GET(request: NextRequest) {
       : 0;
 
     // -----------------------------------------------------------------------
-    // 4. Top articles by clicks (last 30d)
+    // 4. Top articles by clicks (last 30d) — unified CJ + direct URL clicks
     // -----------------------------------------------------------------------
-    const recentClicks = await prisma.cjClickEvent.findMany({
-      where: { ...siteFilter, createdAt: { gte: d30 } },
-      select: { sessionId: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-    });
-
-    // Group by article slug (sessionId format: siteId_articleSlug)
-    const articleClickMap = new Map<string, number>();
-    for (const click of recentClicks) {
-      if (!click.sessionId?.includes("_")) continue;
-      const slug = click.sessionId.split("_").slice(1).join("_");
-      articleClickMap.set(slug, (articleClickMap.get(slug) || 0) + 1);
-    }
-
+    const { getClicksByArticle, getClicksByPartner, getRecentClickFeed } = await import(
+      "@/lib/affiliate/click-aggregator"
+    );
+    const articleClickMap = await getClicksByArticle({ siteId, since: d30 });
     const topArticles = [...articleClickMap.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([slug, clicks]) => ({ slug, clicks }));
 
     // -----------------------------------------------------------------------
-    // 5. Per-partner breakdown
+    // 5. Per-partner breakdown — unified CJ + direct
     // -----------------------------------------------------------------------
-    const clicksWithLinks = await prisma.cjClickEvent.findMany({
-      where: { ...siteFilter, createdAt: { gte: d30 } },
-      select: { linkId: true },
-      take: 1000,
-    });
-
-    // Get link details for partner attribution
-    const linkIds = [...new Set<string>(clicksWithLinks.map(c => c.linkId))];
-    const links = linkIds.length > 0
-      ? await prisma.cjLink.findMany({
-          where: { id: { in: linkIds } },
-          select: { id: true, advertiserName: true },
-        })
-      : [];
-    const linkNameMap = new Map<string, string>(links.map(l => [l.id, l.advertiserName || "Unknown"]));
-
-    const partnerClickMap = new Map<string, number>();
-    for (const click of clicksWithLinks) {
-      const partner = linkNameMap.get(click.linkId) || "Unknown";
-      partnerClickMap.set(partner, (partnerClickMap.get(partner) || 0) + 1);
-    }
-
+    const partnerClickMap = await getClicksByPartner({ siteId, since: d30 });
     const partnerBreakdown = [...partnerClickMap.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([partner, clicks]) => ({ partner, clicks }));
 
     // -----------------------------------------------------------------------
-    // 6. Recent click feed (last 20)
+    // 6. Recent click feed (last 20) — unified CJ + direct
     // -----------------------------------------------------------------------
-    const recentClickFeed = await prisma.cjClickEvent.findMany({
-      where: siteFilter,
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      select: {
-        id: true,
-        linkId: true,
-        pageUrl: true,
-        device: true,
-        country: true,
-        createdAt: true,
-        sessionId: true,
-      },
-    });
-
-    // Enrich with partner names
-    const feedLinkIds = [...new Set<string>(recentClickFeed.map(c => c.linkId))];
-    const feedLinks = feedLinkIds.length > 0
-      ? await prisma.cjLink.findMany({
-          where: { id: { in: feedLinkIds } },
-          select: { id: true, advertiserName: true },
-        })
-      : [];
-    const feedLinkNameMap = new Map(feedLinks.map(l => [l.id, l.advertiserName || "Unknown"]));
-
-    const clickFeed = recentClickFeed.map(c => ({
+    const feedItems = await getRecentClickFeed({ siteId }, 20);
+    const clickFeed = feedItems.map((c) => ({
       id: c.id,
-      partner: feedLinkNameMap.get(c.linkId) || "Unknown",
-      article: c.sessionId?.includes("_") ? c.sessionId.split("_").slice(1).join("_") : null,
+      partner: c.partner,
+      article: c.articleSlug,
       device: c.device,
       country: c.country,
-      timestamp: c.createdAt.toISOString(),
+      timestamp: c.timestamp.toISOString(),
+      source: c.source,
     }));
 
     // -----------------------------------------------------------------------
@@ -284,6 +229,15 @@ export async function GET(request: NextRequest) {
         issue: "Zero affiliate clicks in 30 days — this could mean: (a) articles have no affiliate links injected, (b) no traffic yet, or (c) links use direct partner URLs instead of /api/affiliate/click tracking redirect",
         severity: "info",
         fix: "Verify by visiting a published article and inspecting the affiliate link href. It should start with /api/affiliate/click to be tracked.",
+      });
+    }
+
+    // Surface attribution pattern — helps explain where revenue lives
+    if (cjClicks30d === 0 && direct30d > 0) {
+      diagnostics.push({
+        issue: `All ${direct30d} clicks in the last 30 days are direct URL redirects (Travelpayouts/static/Vrbo-fallback). Revenue attribution lives in those networks' dashboards, not in CjCommission.`,
+        severity: "info",
+        fix: "This is expected until more CJ advertisers (Booking.com, GetYourGuide) are approved. Check Travelpayouts dashboard (marker 510776) for commission data.",
       });
     }
 

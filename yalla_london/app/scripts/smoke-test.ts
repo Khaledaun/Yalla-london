@@ -1769,6 +1769,126 @@ test("SEO Infrastructure", "Privacy and terms pages in sitemap with yearly frequ
     : { status: FAIL, details: `privacy=${privacyFreq}, terms=${termsFreq} — legal pages should be yearly` };
 });
 
+// ==================== CATEGORY: Affiliate Click Visibility ====================
+// Dashboard used to query CjClickEvent only; direct URL clicks (Travelpayouts,
+// Vrbo fallback, static rules) wrote to audit_log with action=AFFILIATE_CLICK_DIRECT
+// and were invisible. These tests prevent the visibility regression from returning.
+
+test("Affiliate Click Visibility", "click-aggregator library exists with unified helpers", () => {
+  const file = "lib/affiliate/click-aggregator.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "lib/affiliate/click-aggregator.ts missing" };
+  const required = ["getClickSummary", "getClicksByArticle", "getClicksByPartner", "getClicksByDay", "getRecentClickFeed"];
+  const missing = required.filter((fn) => !fileContains(file, `export async function ${fn}`));
+  return missing.length === 0
+    ? { status: PASS, details: `All 5 aggregator helpers exported` }
+    : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
+});
+
+test("Affiliate Click Visibility", "partner-detector exports shared hasAnyAffiliateMarker + AFFILIATE_MARKERS", () => {
+  const file = "lib/affiliate/partner-detector.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "lib/affiliate/partner-detector.ts missing" };
+  const hasMarker = fileContains(file, "export function hasAnyAffiliateMarker");
+  const hasList = fileContains(file, "export const AFFILIATE_MARKERS");
+  const hasPartner = fileContains(file, "export function detectPartner");
+  return hasMarker && hasList && hasPartner
+    ? { status: PASS, details: "detectPartner, hasAnyAffiliateMarker, AFFILIATE_MARKERS all exported" }
+    : { status: FAIL, details: `missing exports: marker=${hasMarker} list=${hasList} partner=${hasPartner}` };
+});
+
+test("Affiliate Click Visibility", "affiliate-hq queries auditLog with correct AFFILIATE_CLICK_DIRECT action name", () => {
+  const file = "app/api/admin/affiliate-hq/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "affiliate-hq route missing" };
+  const usesAggregator = fileContains(file, "getClickSummary") && fileContains(file, "getClicksByDay");
+  const hasBadActionName = fileContains(file, 'action: "affiliate_click"');
+  if (hasBadActionName) return { status: FAIL, details: "Still uses wrong action 'affiliate_click' — should be 'AFFILIATE_CLICK_DIRECT'" };
+  return usesAggregator
+    ? { status: PASS, details: "affiliate-hq delegates click counting to aggregator" }
+    : { status: FAIL, details: "affiliate-hq does not import click-aggregator" };
+});
+
+test("Affiliate Click Visibility", "affiliate-hq coverage uses shared hasAnyAffiliateMarker (not local 4-pattern array)", () => {
+  const file = "app/api/admin/affiliate-hq/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "affiliate-hq route missing" };
+  const usesHelper = fileContains(file, "hasAnyAffiliateMarker");
+  const hasOldNarrowList = fileContains(
+    file,
+    `const affiliatePatterns = ['rel="sponsored', "affiliate-cta-block", "affiliate-recommendation"`,
+  );
+  if (hasOldNarrowList) return { status: FAIL, details: "Old 4-pattern affiliatePatterns array still present" };
+  return usesHelper
+    ? { status: PASS, details: "affiliate-hq uses shared marker detector" }
+    : { status: FAIL, details: "affiliate-hq does not import hasAnyAffiliateMarker" };
+});
+
+test("Affiliate Click Visibility", "affiliate-monitor counts BOTH CjClickEvent and AuditLog AFFILIATE_CLICK_DIRECT", () => {
+  const file = "app/api/admin/affiliate-monitor/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "affiliate-monitor route missing" };
+  const countsCj = fileContains(file, "cjClickEvent.count");
+  const countsAudit = fileContains(file, 'action: "AFFILIATE_CLICK_DIRECT"');
+  return countsCj && countsAudit
+    ? { status: PASS, details: "Counts both CJ and direct URL clicks" }
+    : { status: FAIL, details: `CJ=${countsCj} AuditLog=${countsAudit}` };
+});
+
+test("Affiliate Click Visibility", "aggregated-report Section 9 uses getClickSummary", () => {
+  const file = "app/api/admin/aggregated-report/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "aggregated-report route missing" };
+  return fileContains(file, "getClickSummary")
+    ? { status: PASS, details: "aggregated-report imports click-aggregator" }
+    : { status: FAIL, details: "aggregated-report still uses cjClickEvent.count directly" };
+});
+
+test("Affiliate Click Visibility", "cockpit buildRevenue raw SQL counts AFFILIATE_CLICK_DIRECT", () => {
+  const file = "app/api/admin/cockpit/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "cockpit route missing" };
+  return fileContains(file, "AFFILIATE_CLICK_DIRECT")
+    ? { status: PASS, details: "cockpit includes audit_log direct clicks in revenue snapshot" }
+    : { status: FAIL, details: "cockpit buildRevenue missing direct click count" };
+});
+
+test("Affiliate Click Visibility", "ceo-engine fetchAffiliateStats uses aggregator", () => {
+  const file = "lib/ceo-engine/intelligence.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "ceo-engine intelligence.ts missing" };
+  return fileContains(file, "getClickSummary")
+    ? { status: PASS, details: "ceo-engine uses click-aggregator" }
+    : { status: FAIL, details: "ceo-engine still queries cjClickEvent directly" };
+});
+
+test("Affiliate Click Visibility", "JSONB index migration for audit_log direct clicks exists", () => {
+  const file = "prisma/migrations/20260418_add_audit_log_affiliate_index/migration.sql";
+  if (!fileExists(file)) return { status: FAIL, details: "JSONB index migration missing" };
+  const hasIndex = fileContains(file, "audit_log_affiliate_click_direct_idx");
+  const isPartial = fileContains(file, "WHERE action = 'AFFILIATE_CLICK_DIRECT'");
+  return hasIndex && isPartial
+    ? { status: PASS, details: "Partial JSONB index on audit_log for AFFILIATE_CLICK_DIRECT" }
+    : { status: FAIL, details: `index=${hasIndex} partial=${isPartial}` };
+});
+
+test("Affiliate Click Visibility", "injection cron + aggregator + dashboards all agree on marker list", () => {
+  // The injection cron defines "needs injection" as the absence of these markers.
+  // If partner-detector.ts and the injection filter drift apart, coverage and
+  // re-injection loops break silently.
+  const injectionFile = "app/api/cron/affiliate-injection/route.ts";
+  const detectorFile = "lib/affiliate/partner-detector.ts";
+  if (!fileExists(injectionFile) || !fileExists(detectorFile))
+    return { status: FAIL, details: "Injection route or partner-detector missing" };
+  // Every marker in AFFILIATE_MARKERS must appear in the injection filter block.
+  const markers = [
+    'rel="sponsored',
+    'rel="noopener sponsored"',
+    "affiliate-cta-block",
+    "affiliate-recommendation",
+    "affiliate-partners-section",
+    "/api/affiliate/click",
+    "data-affiliate-partner=",
+    "data-affiliate-id",
+  ];
+  const missing = markers.filter((m) => !fileContains(injectionFile, m));
+  return missing.length === 0
+    ? { status: PASS, details: "All affiliate markers present in injection cron filter" }
+    : { status: FAIL, details: `Injection filter missing: ${missing.join(", ")}` };
+});
+
 // Compute categories AFTER all tests have run
 const categories = [...new Set(results.map(r => r.category))];
 let totalPass = 0, totalFail = 0, totalWarn = 0;

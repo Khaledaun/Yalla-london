@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { headers } from 'next/headers';
-import { getBaseUrl } from '@/lib/url-utils';
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils';
 import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
 import { YachtSearchClient } from './yacht-search-client';
 import { WhatsAppButton } from '@/components/zenitha/whatsapp-button';
@@ -16,14 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Browse Luxury Yachts for Charter — Sailing, Catamarans, Motor Yachts | ${siteName}`,
     description: 'Explore 200+ handpicked yachts. Filter by destination, type, guests, budget, and halal catering. Mediterranean, Arabian Gulf, and beyond.',
-    alternates: {
-      canonical: `${baseUrl}/yachts`,
-      languages: {
-        'en-GB': `${baseUrl}/yachts`,
-        'ar-SA': `${baseUrl}/ar/yachts`,
-        'x-default': `${baseUrl}/yachts`,
-      },
-    },
+    alternates: await getLocaleAlternates('/yachts'),
     openGraph: {
       title: `Browse Luxury Yachts for Charter | ${siteName}`,
       description: 'Explore 200+ handpicked yachts. Filter by destination, type, guests, budget, and halal catering.',

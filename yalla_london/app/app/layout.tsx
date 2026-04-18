@@ -30,7 +30,7 @@ import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDescription, getSiteTagline, getSiteNameAr, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
@@ -155,14 +155,7 @@ export async function generateMetadata(): Promise<Metadata> {
         "max-snippet": -1,
       },
     },
-    alternates: {
-      canonical: await getLocaleAwareCanonical(),
-      languages: {
-        "en-GB": baseUrl,
-        "ar-SA": `${baseUrl}/ar`,
-        "x-default": baseUrl,
-      },
-    },
+    alternates: await getLocaleAlternates(""),
   };
 }
 

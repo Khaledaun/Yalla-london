@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
+import { getLocaleAlternates } from "@/lib/url-utils";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -22,16 +23,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `${member.name_en} — ${member.title_en}`;
   const description = member.bio_en.slice(0, 155);
 
+  const alternates = await getLocaleAlternates(`/team/${slug}`);
+
   return {
     title,
     description,
-    alternates: {
-      canonical: `${baseUrl}/team/${slug}`,
-      languages: {
-        "en-GB": `${baseUrl}/team/${slug}`,
-        "x-default": `${baseUrl}/team/${slug}`,
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,

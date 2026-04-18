@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import {
   getDefaultSiteId,
   getSiteConfig,
@@ -275,17 +275,12 @@ export async function generateMetadata({
     yacht.description_en?.substring(0, 155) ||
     `Charter the ${yacht.name}, a ${yacht.length}m ${yachtType.toLowerCase()} with ${yacht.cabins} cabins. ${yacht.halalCateringAvailable ? "Halal catering available. " : ""}Book your Mediterranean charter today.`;
 
+  const alternates = await getLocaleAlternates(`/yachts/${slug}`);
+
   return {
     title,
     description,
-    alternates: {
-      canonical: `${baseUrl}/yachts/${slug}`,
-      languages: {
-        "en-GB": `${baseUrl}/yachts/${slug}`,
-        "ar-SA": `${baseUrl}/ar/yachts/${slug}`,
-        "x-default": `${baseUrl}/yachts/${slug}`,
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,

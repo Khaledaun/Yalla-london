@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -12,19 +12,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
-  const canonicalUrl = await getLocaleAwareCanonical("/editorial-policy");
+  const alternates = await getLocaleAlternates("/editorial-policy");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Editorial Policy — Content Standards & Fact-Checking | ${siteName}`,
     description: `${siteName}'s editorial policy: how we research, write, fact-check, and update our content. Our commitment to accuracy, transparency, and first-hand experience.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/editorial-policy`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Editorial Policy | ${siteName}`,
       description: `${siteName}'s editorial policy: how we research, write, fact-check, and update our content.`,

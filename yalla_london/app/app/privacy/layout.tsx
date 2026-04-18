@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,19 +13,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/privacy");
+  const alternates = await getLocaleAlternates("/privacy");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Privacy Policy — Data Protection | ${siteName}`,
     description: `How ${siteName} collects, uses, and protects your personal data under UK GDPR. Read our full privacy policy covering cookies, analytics, and your rights.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/privacy`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Privacy Policy | ${siteName}`,
       description: `How ${siteName} collects, uses, and protects your personal data under UK GDPR. Read our full privacy policy covering cookies, analytics, and your rights.`,

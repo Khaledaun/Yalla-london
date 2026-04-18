@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { Metadata } from 'next';
 import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from '@/config/sites';
-import { getBaseUrlForSite } from '@/lib/url-utils';
+import { getBaseUrlForSite, getLocaleAlternates } from '@/lib/url-utils';
 import { GlossaryClientPage } from './glossary-client';
 
 // ─── Glossary Data ─────────────────────────────────────────
@@ -258,10 +258,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `Yacht Charter Glossary | ${brandName}`,
     description:
       'A comprehensive bilingual glossary of yacht charter terminology. Learn about yacht types, charter terms, pricing, navigation, and crew roles in English and Arabic.',
-    alternates: {
-      canonical: `${baseUrl}/glossary`,
-      languages: { 'en-GB': `${baseUrl}/glossary`, 'ar-SA': `${baseUrl}/ar/glossary`, 'x-default': `${baseUrl}/glossary` },
-    },
+    alternates: await getLocaleAlternates('/glossary'),
     openGraph: {
       title: `Yacht Charter Glossary | ${brandName}`,
       description: 'Master yacht charter terminology in English and Arabic.',

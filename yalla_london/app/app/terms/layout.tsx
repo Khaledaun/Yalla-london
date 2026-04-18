@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,19 +13,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/terms");
+  const alternates = await getLocaleAlternates("/terms");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Terms of Use — Legal Information | ${siteName}`,
     description: `${siteName} terms and conditions covering website content usage, affiliate relationships, digital product purchases, and user responsibilities.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/terms`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Terms of Use | ${siteName}`,
       description: `${siteName} terms and conditions covering website content usage, affiliate relationships, digital product purchases, and user responsibilities.`,

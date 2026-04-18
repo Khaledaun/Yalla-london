@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Zenitha Yachts";
   const siteSlug = siteConfig?.slug || "zenitha-yachts";
   const siteDomain = getSiteDomain(siteId);
-  const canonicalUrl = await getLocaleAwareCanonical("/fleet");
+  const alternates = await getLocaleAlternates("/fleet");
+  const canonicalUrl = alternates.canonical;
 
   const title = `Our Fleet — Motor Yachts, Catamarans, Sailing Yachts & Gulets | ${siteName}`;
   const description =
@@ -22,14 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/fleet`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,

@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { UtensilsCrossed, MapPin, Star, ArrowRight, Clock } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
-import { getBaseUrl } from '@/lib/url-utils'
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
 import { StructuredData } from '@/components/structured-data'
 
@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
   const siteConfig = getSiteConfig(getDefaultSiteId());
   const siteName = siteConfig?.name || 'Yalla London';
-  const canonicalUrl = `${baseUrl}/halal-restaurants-london`;
+  const alternates = await getLocaleAlternates('/halal-restaurants-london');
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Best Halal Restaurants in London 2026 — Complete Guide | ${siteName}`,
@@ -33,14 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `Best Halal Restaurants in London | ${siteName}`,
       description: 'The definitive guide to halal dining across London — fine dining, casual eats, and hidden gems.',
     },
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        'en-GB': canonicalUrl,
-        'ar-SA': `${baseUrl}/ar/halal-restaurants-london`,
-        'x-default': canonicalUrl,
-      },
-    },
+    alternates,
     robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 } },
   }
 }

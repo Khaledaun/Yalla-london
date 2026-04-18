@@ -1,7 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import {
   getDefaultSiteId,
   getSiteConfig,
@@ -21,21 +21,17 @@ export async function generateMetadata(): Promise<Metadata> {
   const description =
     "Request a personalised yacht charter quote. Tell us about your dream Mediterranean sailing holiday and our experts will curate the perfect voyage within 24 hours.";
 
+  const alternates = await getLocaleAlternates("/inquiry");
+  const canonicalUrl = alternates.canonical;
+
   return {
     title,
     description,
-    alternates: {
-      canonical: await getLocaleAwareCanonical("/inquiry"),
-      languages: {
-        "en-GB": await getLocaleAwareCanonical("/inquiry"),
-        "ar-SA": `${baseUrl}/ar/inquiry`,
-        "x-default": await getLocaleAwareCanonical("/inquiry"),
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,
-      url: await getLocaleAwareCanonical("/inquiry"),
+      url: canonicalUrl,
       siteName,
       type: "website",
       locale: "en_GB",

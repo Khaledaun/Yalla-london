@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain, isYachtSite } from "@/config/sites";
+import { getLocaleAlternates } from "@/lib/url-utils";
 import BlogListClient from "../../BlogListClient";
 
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
@@ -30,18 +31,13 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   const siteName = siteConfig?.name || "Yalla London";
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
+  const alternates = await getLocaleAlternates(`/blog/category/${slug}`);
+
   return {
     title: `${category.name_en} | ${siteName} Blog`,
     description: category.description_en,
     keywords: (category as any).keywords?.join(", "),
-    alternates: {
-      canonical: `${baseUrl}/blog/category/${slug}`,
-      languages: {
-        "en-GB": `${baseUrl}/blog/category/${slug}`,
-        "ar-SA": `${baseUrl}/ar/blog/category/${slug}`,
-        "x-default": `${baseUrl}/blog/category/${slug}`,
-      },
-    },
+    alternates,
     openGraph: {
       title: `${category.name_en} | ${siteName} Blog`,
       description: category.description_en,

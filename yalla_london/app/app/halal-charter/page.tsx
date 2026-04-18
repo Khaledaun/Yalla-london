@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { Metadata } from 'next';
 import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
-import { getBaseUrlForSite } from '@/lib/url-utils';
+import { getBaseUrlForSite, getLocaleAlternates } from '@/lib/url-utils';
 import { HalalCharterClient } from './halal-charter-client';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,10 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `Halal-Certified Yacht Charters | ${brandName}`,
     description:
       'Luxury halal yacht charters in the Mediterranean. Certified halal catering, prayer-friendly spaces, alcohol-free options, and Arabic-speaking crew. Book your family-friendly charter today.',
-    alternates: {
-      canonical: `${baseUrl}/halal-charter`,
-      languages: { 'en-GB': `${baseUrl}/halal-charter`, 'ar-SA': `${baseUrl}/ar/halal-charter`, 'x-default': `${baseUrl}/halal-charter` },
-    },
+    alternates: await getLocaleAlternates('/halal-charter'),
     openGraph: {
       title: `Halal-Certified Yacht Charters | ${brandName}`,
       description: 'Luxury halal yacht charters with certified catering, prayer spaces, and Arabic-speaking crew.',

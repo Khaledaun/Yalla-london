@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { MapPin, Clock, ArrowRight, Footprints, Download } from 'lucide-react'
 import { walks } from './walks-data'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
-import { getBaseUrl } from '@/lib/url-utils'
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandTag, BrandCardLight, SectionLabel, WatermarkStamp, Breadcrumbs } from '@/components/brand-kit'
 
 // ISR: Revalidate walking guides every hour
@@ -15,7 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteConfig = getSiteConfig(getDefaultSiteId());
   const siteName = siteConfig?.name || 'Yalla London';
   const destination = siteConfig?.destination || 'London';
-  const canonicalUrl = `${baseUrl}/london-by-foot`;
+  const alternates = await getLocaleAlternates('/london-by-foot');
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${destination} by Foot — Self-Guided Walking Tours | ${siteName}`,
@@ -36,14 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `${destination} by Foot | ${siteName}`,
       description: `5 curated walking routes through ${destination} with maps, photos, and insider tips`,
     },
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        'en-GB': canonicalUrl,
-        'ar-SA': `${baseUrl}/ar/london-by-foot`,
-        'x-default': canonicalUrl,
-      },
-    },
+    alternates,
     robots: {
       index: true,
       follow: true,

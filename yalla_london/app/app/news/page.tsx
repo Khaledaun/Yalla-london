@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import NewsListClient from "./NewsListClient";
 
@@ -17,7 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = `${baseUrl}/news`;
+  const alternates = await getLocaleAlternates("/news");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${destination} Today — News & Updates | ${siteName}`,
@@ -25,14 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
       `Latest ${destination} news, transport updates, events, and travel tips curated for Arab visitors. Stay informed with your daily briefing.`,
     keywords:
       `${destination.toLowerCase()} news, ${destination.toLowerCase()} today, ${destination.toLowerCase()} transport updates, ${destination.toLowerCase()} events, arab visitors`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/news`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `${destination} Today — News & Updates | ${siteName}`,
       description:

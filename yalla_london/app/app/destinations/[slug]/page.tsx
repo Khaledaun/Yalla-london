@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDescription } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import {
@@ -116,19 +116,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     console.warn("[destination-detail] metadata DB query failed:", e);
   }
 
-  const canonicalUrl = `${baseUrl}/destinations/${slug}`;
+  const alternates = await getLocaleAlternates(`/destinations/${slug}`);
+  const canonicalUrl = alternates.canonical;
 
   return {
     title,
     description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/destinations/${slug}`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,

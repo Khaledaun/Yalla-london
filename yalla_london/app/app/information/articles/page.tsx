@@ -5,7 +5,7 @@ import {
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import ArticleListClient from "./ArticleListClient";
 
@@ -24,7 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = `${baseUrl}/information/articles`;
+  const alternates = await getLocaleAlternates("/information/articles");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Travel Articles | ${siteName} Information Hub`,
@@ -32,14 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
       `In-depth travel articles for Arab visitors to ${destination}: trip planning, transport, halal dining, top attractions, and practical insider tips.`,
     keywords:
       `${destination.toLowerCase()} travel articles, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guide, halal travel ${destination.toLowerCase()}, information hub`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/information/articles`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Travel Articles | ${siteName} Information Hub`,
       description:

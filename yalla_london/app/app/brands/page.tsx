@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { ZenithaLuxuryHomepage } from "@/components/zenitha-luxury/zenitha-luxury-homepage";
 
 export const dynamic = "force-dynamic";
@@ -11,17 +11,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const description =
     "Explore the Zenitha portfolio: Yalla London, Zenitha Yachts, Arabaldives, Yalla Riviera, Yalla Istanbul, and Yalla Thailand.";
 
+  const alternates = await getLocaleAlternates("/brands");
+
   return {
     title,
     description,
-    alternates: {
-      canonical: `${baseUrl}/brands`,
-      languages: {
-        "en-GB": `${baseUrl}/brands`,
-        "ar-SA": `${baseUrl}/ar/brands`,
-        "x-default": `${baseUrl}/brands`,
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,

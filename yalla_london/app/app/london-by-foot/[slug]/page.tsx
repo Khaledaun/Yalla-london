@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { MapPin, Clock, ArrowLeft, ArrowRight, Download, Footprints, Compass, Camera, Coffee } from 'lucide-react'
 import { walks } from '../walks-data'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
-import { getBaseUrl } from '@/lib/url-utils'
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 
 // ISR: Revalidate walk detail pages every hour
 export const revalidate = 3600;
@@ -27,7 +27,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const siteConfig = getSiteConfig(getDefaultSiteId());
   const siteName = siteConfig?.name || 'Yalla London';
   const destination = siteConfig?.destination || 'London';
-  const canonicalUrl = `${baseUrl}/london-by-foot/${slug}`;
+  const alternates = await getLocaleAlternates(`/london-by-foot/${slug}`);
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${walk.title} — ${destination} Walking Guide | ${siteName}`,
@@ -49,14 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${walk.title} | ${siteName}`,
       description: walk.subtitle,
     },
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        'en-GB': canonicalUrl,
-        'ar-SA': `${baseUrl}/ar/london-by-foot/${slug}`,
-        'x-default': canonicalUrl,
-      },
-    },
+    alternates,
     robots: {
       index: true,
       follow: true,

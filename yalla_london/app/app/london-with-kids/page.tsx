@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Baby, MapPin, Star, ArrowRight, Ticket, TreePine, Castle } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
-import { getBaseUrl } from '@/lib/url-utils'
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
 import { StructuredData } from '@/components/structured-data'
 
@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
   const siteConfig = getSiteConfig(getDefaultSiteId());
   const siteName = siteConfig?.name || 'Yalla London';
-  const canonicalUrl = `${baseUrl}/london-with-kids`;
+  const alternates = await getLocaleAlternates('/london-with-kids');
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `London with Kids 2026 — Family Activities & Attractions Guide | ${siteName}`,
@@ -33,14 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `London with Kids | ${siteName}`,
       description: 'The complete family guide to London — attractions, restaurants, parks, and practical tips.',
     },
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        'en-GB': canonicalUrl,
-        'ar-SA': `${baseUrl}/ar/london-with-kids`,
-        'x-default': canonicalUrl,
-      },
-    },
+    alternates,
     robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 } },
   }
 }

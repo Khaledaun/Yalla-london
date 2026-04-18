@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import {
   Anchor,
@@ -180,20 +180,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
-  const canonicalUrl = `${baseUrl}/destinations`;
+  const alternates = await getLocaleAlternates("/destinations");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Yacht Charter Destinations | ${siteName}`,
     description:
       "Discover the finest yacht charter destinations across the Mediterranean, Arabian Gulf, and Red Sea. Greek Islands, Croatian Coast, Turkish Riviera, and more.",
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/destinations`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Yacht Charter Destinations | ${siteName}`,
       description:

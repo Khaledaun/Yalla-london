@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getSiteDomain, getSiteConfig, getDefaultSiteId } from "@/config/sites";
 import BlogListClient from "./BlogListClient";
 
@@ -31,18 +31,13 @@ export async function generateMetadata({
   const params = await searchParams;
   const hasTagFilter = !!params?.tag;
 
+  const alternates = await getLocaleAlternates("/blog");
+
   return {
     title: `Blog | ${siteName} — Travel Guides & Tips`,
     description: `Travel guides, restaurant reviews, and insider tips for Arab visitors to ${destination}. Halal dining, luxury hotels, and exclusive experiences.`,
     keywords: `${destination.toLowerCase()} blog, halal travel ${destination.toLowerCase()}, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guides`,
-    alternates: {
-      canonical: `${baseUrl}/blog`,
-      languages: {
-        "en-GB": `${baseUrl}/blog`,
-        "ar-SA": `${baseUrl}/ar/blog`,
-        "x-default": `${baseUrl}/blog`,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Blog | ${siteName} - Travel Guides for Arab Visitors`,
       description: `Discover ${destination} through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.`,

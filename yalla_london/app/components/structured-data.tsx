@@ -416,25 +416,57 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     // it overrides all secondary sites in a multi-tenant deployment and must NOT
     // be used here. siteDomain (from getSiteDomain) is already correct per site.
     const baseUrl = siteDomain;
+    const currency = productData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD');
+    const country = siteCountry === 'UK' ? 'GB' : (productData.country || 'GB');
+    const returnDays = productData.returnDays ?? 14;
     return {
       "@context": "https://schema.org",
       "@type": "Product",
       "name": productData.name || productData.title,
       "description": productData.description,
       "image": productData.image,
+      // Product.brand MUST use @type: "Brand" — Google flags "Organization" as invalid
       "brand": {
-        "@type": "Organization",
-        "name": siteName
+        "@type": "Brand",
+        "name": productData.brandName || siteName
       },
       "offers": {
         "@type": "Offer",
         "price": productData.price?.toString() || "0",
-        "priceCurrency": productData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
+        "priceCurrency": currency,
         "availability": productData.availability || "https://schema.org/InStock",
         "url": productData.url || baseUrl,
         "seller": {
           "@type": "Organization",
           "name": siteName
+        },
+        // Required by Google Merchant Listings since 2023.
+        // Digital-goods defaults (0 shipping, 14-day refund) — callers can
+        // override via productData.hasMerchantReturnPolicy / productData.shippingDetails.
+        "hasMerchantReturnPolicy": productData.hasMerchantReturnPolicy || {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": country,
+          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+          "merchantReturnDays": returnDays,
+          "returnMethod": "https://schema.org/ReturnByMail",
+          "returnFees": "https://schema.org/FreeReturn"
+        },
+        "shippingDetails": productData.shippingDetails || {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": "0",
+            "currency": currency
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": country
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY" },
+            "transitTime": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY" }
+          }
         }
       },
       "category": productData.category,

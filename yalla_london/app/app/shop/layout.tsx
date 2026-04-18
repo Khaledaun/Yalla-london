@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
+import { buildDigitalProductSchema } from "@/lib/seo/product-schema";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -73,24 +74,25 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const destination = siteConfig?.destination || "London";
   const baseUrl = await getBaseUrl();
 
-  // Product JSON-LD for each guide
-  const productSchemas = SHOP_PRODUCTS.map((p) => ({
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: p.name,
-    description: p.description,
-    image: p.image,
-    brand: { "@type": "Organization", name: siteName },
-    offers: {
-      "@type": "Offer",
-      price: p.price,
-      priceCurrency: "GBP",
-      availability: "https://schema.org/InStock",
-      url: `${baseUrl}/shop#${p.slug}`,
-      seller: { "@type": "Organization", name: siteName },
-    },
-    category: "Travel Guide",
-  }));
+  // Product JSON-LD for each guide — uses shared helper so brand type, return
+  // policy, and shipping details stay aligned with Google's Merchant Listing spec.
+  const productSchemas = SHOP_PRODUCTS.map((p) =>
+    buildDigitalProductSchema({
+      name: p.name,
+      description: p.description,
+      image: p.image,
+      brandName: siteName,
+      category: "Travel Guide",
+      offer: {
+        price: p.price,
+        priceCurrency: "GBP",
+        url: `${baseUrl}/shop#${p.slug}`,
+        sellerName: siteName,
+        country: "GB",
+        returnDays: 14,
+      },
+    })
+  );
 
   return (
     <>

@@ -58,9 +58,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const category = informationCategories.find(
     (c) => c.id === article.category_id,
   );
-  const canonicalUrl = `${baseUrl}/information/articles/${slug}`;
-  // Arabic SSR: serve locale-appropriate metadata for /ar/ routes
-  const locale = headersList.get("x-locale") || "en";
+  // Arabic SSR: serve locale-appropriate metadata.
+  // Effective locale = URL path locale OR the site's primary locale, so
+  // AR-primary sites (arabaldives) render Arabic at root URLs.
+  const pathLocale = headersList.get("x-locale") === "ar" ? "ar" : "en";
+  const sitePrimaryLocale = (headersList.get("x-site-locale") === "ar" ? "ar" : "en") as "en" | "ar";
+  const locale = pathLocale === "ar" ? "ar" : sitePrimaryLocale;
+
+  // Per-site URL structure: AR-primary sites put AR at root.
+  const enUrl = sitePrimaryLocale === "ar"
+    ? `${baseUrl}/en/information/articles/${slug}`
+    : `${baseUrl}/information/articles/${slug}`;
+  const arUrl = sitePrimaryLocale === "ar"
+    ? `${baseUrl}/information/articles/${slug}`
+    : `${baseUrl}/ar/information/articles/${slug}`;
+  const canonicalUrl = locale === "ar" ? arUrl : enUrl;
   const metaTitle = locale === "ar"
     ? (article.meta_title_ar || article.title_ar || article.title_en)
     : (article.meta_title_en || article.title_en);
@@ -77,11 +89,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/information/articles/${slug}`,
-        "x-default": canonicalUrl,
-      },
+      languages: sitePrimaryLocale === "ar"
+        // AR-primary: skip en-GB — /en/* routes are not implemented yet.
+        ? { "ar-SA": arUrl, "x-default": arUrl }
+        : { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
     },
     openGraph: {
       title: metaTitle,

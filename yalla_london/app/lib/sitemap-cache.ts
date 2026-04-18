@@ -104,8 +104,24 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
   const baseUrl = `https://${domain}`;
   const isYachtSite = checkIsYachtSite(siteId);
   const staticDate = "2026-02-19T00:00:00.000Z";
+  // Primary locale determines which URL is "rootless" and which is prefixed.
+  // EN-primary sites (yalla-london, zenitha-yachts): AR lives at /ar/path.
+  // AR-primary sites (arabaldives): AR lives at /path; EN (if ever added)
+  // would live at /en/path. Today arabaldives has no EN fallback, so we
+  // only emit the ar-SA hreflang for AR-primary sites.
+  const siteConfig = (await import("@/config/sites")).getSiteConfig(siteId);
+  const primaryLocale: "en" | "ar" = siteConfig?.locale === "ar" ? "ar" : "en";
 
   function hreflang(path: string) {
+    if (primaryLocale === "ar") {
+      const arUrl = path ? `${baseUrl}${path}` : baseUrl;
+      return {
+        languages: {
+          "ar-SA": arUrl,
+          "x-default": arUrl,
+        },
+      };
+    }
     const enUrl = path ? `${baseUrl}${path}` : baseUrl;
     const arUrl = path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`;
     return {
@@ -165,15 +181,18 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
       ["/news", staticDate, "daily", 0.8],
       // High-value long-tail pages
       ["/halal-restaurants-london", staticDate, "weekly", 0.9],
-      ["/luxury-hotels-london", staticDate, "weekly", 0.9],
+      // /luxury-hotels-london is 301-redirected to /hotels by middleware (PAGE_REDIRECTS).
+      // Sitemaps must never list redirected URLs — triggers GSC "Page redirects" warnings.
       ["/london-with-kids", staticDate, "weekly", 0.9],
       // Structured data pages (DefinedTermSet, Service, FAQPage)
       ["/faq", staticDate, "monthly", 0.8],
       ["/glossary", staticDate, "monthly", 0.8],
       ["/halal-charter", staticDate, "monthly", 0.9],
       // Navigation & discovery
-      ["/destinations", staticDate, "weekly", 0.8],
-      ["/itineraries", staticDate, "weekly", 0.8],
+      // /destinations + /itineraries are yacht-charter features (query yachtDestination /
+      // charterItinerary tables, which are empty on blog sites). Listing them here
+      // produces soft 404s: Google crawls a 200 page with only an empty-state CTA.
+      // These are included only in isYachtSite above.
       ["/journal", staticDate, "weekly", 0.7],
       ["/shop", staticDate, "weekly", 0.7],
       ["/tools", staticDate, "monthly", 0.7],
@@ -293,8 +312,14 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
     return parts[1] || "";
   }));
 
-  // Blog posts from DB
+  // Blog posts from DB — filter out slugs that are in BLOG_REDIRECTS.
+  // Listing a redirected URL in the sitemap triggers GSC "Page redirects" warnings
+  // and wastes Google's crawl budget on a 301 bounce.
   try {
+    const { BLOG_REDIRECTS } = await import("@/lib/seo/redirect-map");
+    const redirectedSlugs = new Set<string>(
+      Object.keys(BLOG_REDIRECTS).map((path) => path.replace(/^\/blog\//, ""))
+    );
     const dbPosts = await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null, siteId },
       select: { slug: true, updated_at: true },
@@ -303,6 +328,7 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
     });
     for (const post of dbPosts) {
       if (existingSlugs.has(post.slug)) continue;
+      if (redirectedSlugs.has(post.slug)) continue;
       const isRecent = post.updated_at && post.updated_at.getTime() > sevenDaysAgoMs;
       entries.push({
         url: `${baseUrl}/blog/${post.slug}`,

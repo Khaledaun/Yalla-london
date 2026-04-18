@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -22,14 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description:
         "Get a comprehensive SEO score for any webpage in seconds. No signup required.",
     },
-    alternates: {
-      canonical: `${baseUrl}/tools/seo-audit`,
-      languages: {
-        "en-GB": `${baseUrl}/tools/seo-audit`,
-        "ar-SA": `${baseUrl}/ar/tools/seo-audit`,
-        "x-default": `${baseUrl}/tools/seo-audit`,
-      },
-    },
+    alternates: await getLocaleAlternates("/tools/seo-audit"),
     robots: {
       index: true,
       follow: true,

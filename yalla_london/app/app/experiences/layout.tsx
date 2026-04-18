@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,19 +13,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/experiences");
+  // Locale + site-primary-locale-aware alternates.
+  const alternates = await getLocaleAlternates("/experiences");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${destination} Experiences & Tours | ${siteName}`,
     description: `Book the best tours, attractions, and experiences in ${destination}. From iconic landmarks to hidden gems — curated for Arab visitors with halal-friendly options.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/experiences`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `${destination} Experiences & Tours | ${siteName}`,
       description: `Book the best tours, attractions, and experiences in ${destination}. From iconic landmarks to hidden gems — curated for Arab visitors with halal-friendly options.`,

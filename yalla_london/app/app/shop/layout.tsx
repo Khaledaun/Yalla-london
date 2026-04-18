@@ -1,9 +1,10 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
+import { buildDigitalProductSchema } from "@/lib/seo/product-schema";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -13,19 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/shop");
+  const alternates = await getLocaleAlternates("/shop");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${destination} Travel Guides & Digital Products | ${siteName} Shop`,
     description: `Download premium ${destination} travel guides, maps, and planning tools. Expert-curated content for Arab visitors — instant digital delivery.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/shop`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `${destination} Travel Guides & Digital Products | ${siteName} Shop`,
       description: `Download premium ${destination} travel guides, maps, and planning tools. Expert-curated content for Arab visitors — instant digital delivery.`,
@@ -73,24 +68,25 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const destination = siteConfig?.destination || "London";
   const baseUrl = await getBaseUrl();
 
-  // Product JSON-LD for each guide
-  const productSchemas = SHOP_PRODUCTS.map((p) => ({
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: p.name,
-    description: p.description,
-    image: p.image,
-    brand: { "@type": "Organization", name: siteName },
-    offers: {
-      "@type": "Offer",
-      price: p.price,
-      priceCurrency: "GBP",
-      availability: "https://schema.org/InStock",
-      url: `${baseUrl}/shop#${p.slug}`,
-      seller: { "@type": "Organization", name: siteName },
-    },
-    category: "Travel Guide",
-  }));
+  // Product JSON-LD for each guide — uses shared helper so brand type, return
+  // policy, and shipping details stay aligned with Google's Merchant Listing spec.
+  const productSchemas = SHOP_PRODUCTS.map((p) =>
+    buildDigitalProductSchema({
+      name: p.name,
+      description: p.description,
+      image: p.image,
+      brandName: siteName,
+      category: "Travel Guide",
+      offer: {
+        price: p.price,
+        priceCurrency: "GBP",
+        url: `${baseUrl}/shop#${p.slug}`,
+        sellerName: siteName,
+        country: "GB",
+        returnDays: 14,
+      },
+    })
+  );
 
   return (
     <>

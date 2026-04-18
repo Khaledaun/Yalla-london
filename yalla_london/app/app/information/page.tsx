@@ -6,7 +6,7 @@ import {
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import InformationHubClient from "./InformationHubClient";
 
@@ -25,7 +25,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = `${baseUrl}/information`;
+  const alternates = await getLocaleAlternates("/information");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${destination} Travel Guide | ${siteName} Info Hub`,
@@ -33,14 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       `Plan your ${destination} trip with expert tips: halal dining, transport guides, neighbourhood walks, family activities, and practical advice for Arab visitors.`,
     keywords:
       `${destination.toLowerCase()} travel guide, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} information, halal ${destination.toLowerCase()} guide, ${destination.toLowerCase()} trip planner`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/information`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Information Hub | ${siteName} \u2013 Your Complete ${destination} Travel Guide`,
       description:

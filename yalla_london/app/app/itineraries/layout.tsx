@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,20 +13,29 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Zenitha Yachts";
   const siteSlug = siteConfig?.slug || "zenitha-yachts";
   const siteDomain = getSiteDomain(siteId);
-  const canonicalUrl = await getLocaleAwareCanonical("/itineraries");
+  // Locale + site-primary-locale-aware alternates.
+  const alternates = await getLocaleAlternates("/itineraries");
+  const canonicalUrl = alternates.canonical;
+
+  // Soft-404 prevention: if no itineraries exist for this site, the page
+  // renders only an empty-state CTA. Tell Google not to index until we
+  // have substantive content — otherwise GSC flags as "Soft 404".
+  let hasContent = false;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const count = await prisma.charterItinerary.count({
+      where: { siteId, status: "active" },
+    });
+    hasContent = count > 0;
+  } catch (err) {
+    console.warn("[itineraries/layout] count query failed:", err instanceof Error ? err.message : String(err));
+  }
 
   return {
     title: `Sailing Itineraries | ${siteName}`,
     description:
       "Curated Mediterranean sailing routes with day-by-day breakdowns. Explore Greek Islands, Croatian Coast, Turkish Riviera, and more with expert-planned yacht charter itineraries.",
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/itineraries`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Sailing Itineraries | ${siteName}`,
       description:
@@ -52,10 +61,10 @@ export async function generateMetadata(): Promise<Metadata> {
         "Curated Mediterranean sailing routes with day-by-day breakdowns.",
     },
     robots: {
-      index: true,
+      index: hasContent,
       follow: true,
       googleBot: {
-        index: true,
+        index: hasContent,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",

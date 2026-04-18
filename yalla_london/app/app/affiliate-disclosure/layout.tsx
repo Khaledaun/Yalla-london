@@ -1,30 +1,22 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const baseUrl = await getBaseUrl();
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
-  const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/affiliate-disclosure");
+  const alternates = await getLocaleAlternates("/affiliate-disclosure");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Affiliate Disclosure | ${siteName}`,
     description: `${siteName} affiliate disclosure. Transparency about our affiliate partnerships, how we earn commissions, and our editorial independence policy.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/affiliate-disclosure`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Affiliate Disclosure | ${siteName}`,
       description: `${siteName} affiliate disclosure. Transparency about our affiliate partnerships, how we earn commissions, and our editorial independence policy.`,

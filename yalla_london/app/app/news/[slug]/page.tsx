@@ -260,9 +260,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const canonicalUrl = `${baseUrl}/news/${slug}`;
-  // Arabic SSR: serve locale-appropriate metadata for /ar/ routes
-  const locale = headersList.get("x-locale") || "en";
+  // Arabic SSR: serve locale-appropriate metadata.
+  // Effective locale combines URL path locale (/ar/* → ar) with the SITE's
+  // primary locale — so AR-primary sites (arabaldives) render Arabic at
+  // root URLs even when pathLocale is "en".
+  const pathLocale = headersList.get("x-locale") === "ar" ? "ar" : "en";
+  const sitePrimaryLocale = (headersList.get("x-site-locale") === "ar" ? "ar" : "en") as "en" | "ar";
+  const locale = pathLocale === "ar" ? "ar" : sitePrimaryLocale;
+
+  // Per-site URL structure: EN-primary sites put AR at /ar/*,
+  // AR-primary sites put AR at root. (EN fallback on AR-primary sites
+  // would live at /en/* — not implemented today, so we omit en-GB hreflang
+  // in alternates below when primary is AR.)
+  const enUrl = sitePrimaryLocale === "ar"
+    ? `${baseUrl}/en/news/${slug}`
+    : `${baseUrl}/news/${slug}`;
+  const arUrl = sitePrimaryLocale === "ar"
+    ? `${baseUrl}/news/${slug}`
+    : `${baseUrl}/ar/news/${slug}`;
+  const canonicalUrl = locale === "ar" ? arUrl : enUrl;
   const title = locale === "ar"
     ? (item.meta_title_ar || `${item.headline_ar} | ${siteName}`)
     : (item.meta_title_en || `${item.headline_en} | ${siteName}`);
@@ -279,19 +295,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/news/${slug}`,
-        "x-default": canonicalUrl,
-      },
+      languages: sitePrimaryLocale === "ar"
+        // AR-primary: omit en-GB — /en/news/X does not yet exist and promising
+        // it to Google would produce 404s.
+        ? { "ar-SA": arUrl, "x-default": arUrl }
+        : { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
     },
     openGraph: {
       title,
       description,
       url: canonicalUrl,
       siteName,
-      locale: "en_GB",
-      alternateLocale: "ar_SA",
+      locale: locale === "ar" ? "ar_SA" : "en_GB",
+      alternateLocale: locale === "ar" ? "en_GB" : "ar_SA",
       type: "article",
       publishedTime: item.published_at,
       authors: [item.source_name],

@@ -11,7 +11,7 @@ import {
   ArrowRight,
   Tag,
 } from "lucide-react";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import { sanitizeHtml } from "@/lib/html-sanitizer";
 import { StructuredData } from "@/components/structured-data";
@@ -32,7 +32,8 @@ export async function generateMetadata({
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
   const siteDomain = getSiteDomain(siteId);
-  const canonicalUrl = `${baseUrl}/journal/${slug}`;
+  const alternates = await getLocaleAlternates(`/journal/${slug}`);
+  const canonicalUrl = alternates.canonical;
 
   /* Try loading article title from DB */
   let title = `Charter Guide | ${siteName}`;
@@ -64,14 +65,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/journal/${slug}`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,

@@ -8,6 +8,13 @@
  * - Hash-suffix duplicates from content pipeline slug collision recovery
  * - Date-stamped variants of the same topic
  * - Near-identical articles that dilute ranking power
+ *
+ * IMPORTANT: Every target MUST be a published BlogPost. A 301 to a non-existent
+ * slug creates "page redirects" then 404 chains that Google caches for weeks
+ * and removes the source URL from the index.
+ *
+ * Verify before committing changes:
+ *   npx tsx scripts/validate-redirect-map.ts
  */
 
 export const BLOG_REDIRECTS: Record<string, string> = {

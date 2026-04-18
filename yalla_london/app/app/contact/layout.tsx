@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/contact");
+  const alternates = await getLocaleAlternates("/contact");
+  const canonicalUrl = alternates.canonical;
 
   // Yacht-specific metadata
   if (checkIsYachtSite(siteId)) {
@@ -21,14 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "Contact Zenitha Yachts | Charter Inquiries & Support",
       description:
         "Get in touch with Zenitha Yachts for Mediterranean yacht charter inquiries, destination questions, partnerships, or press. WhatsApp, email, or phone — we respond within 24 hours.",
-      alternates: {
-        canonical: canonicalUrl,
-        languages: {
-          "en-GB": canonicalUrl,
-          "ar-SA": `${baseUrl}/ar/contact`,
-          "x-default": canonicalUrl,
-        },
-      },
+      alternates,
       openGraph: {
         title: "Contact Zenitha Yachts | Charter Inquiries & Support",
         description:
@@ -64,14 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Contact Us — Get in Touch | ${siteName}`,
     description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/contact`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Contact Us | ${siteName}`,
       description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { headers } from 'next/headers';
-import { getBaseUrl, getLocaleAwareCanonical } from '@/lib/url-utils';
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils';
 import {
   getDefaultSiteId,
   getSiteConfig,
@@ -28,21 +28,17 @@ export async function generateMetadata(): Promise<Metadata> {
     ? 'Answers to common questions about yacht charter booking, halal catering, Mediterranean destinations, costs, and what to expect on your sailing holiday.'
     : `Frequently asked questions about ${siteName}. Find answers to common queries about our services, content, and travel recommendations.`;
 
+  const alternates = await getLocaleAlternates('/faq');
+  const canonicalUrl = alternates.canonical;
+
   return {
     title,
     description,
-    alternates: {
-      canonical: await getLocaleAwareCanonical('/faq'),
-      languages: {
-        'en-GB': await getLocaleAwareCanonical('/faq'),
-        'ar-SA': `${baseUrl}/ar/faq`,
-        'x-default': await getLocaleAwareCanonical('/faq'),
-      },
-    },
+    alternates,
     openGraph: {
       title,
       description,
-      url: await getLocaleAwareCanonical('/faq'),
+      url: canonicalUrl,
       siteName,
       type: 'website',
       locale: 'en_GB',

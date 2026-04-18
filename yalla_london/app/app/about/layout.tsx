@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/about");
+  const alternates = await getLocaleAlternates("/about");
+  const canonicalUrl = alternates.canonical;
 
   // Yacht-specific metadata
   if (checkIsYachtSite(siteId)) {
@@ -21,14 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "About Zenitha Yachts | Luxury Yacht Charters",
       description:
         "Discover the Zenitha Yachts story. We curate exceptional Mediterranean yacht charter experiences for discerning GCC travellers, with halal-certified options and personalised service.",
-      alternates: {
-        canonical: canonicalUrl,
-        languages: {
-          "en-GB": canonicalUrl,
-          "ar-SA": `${baseUrl}/ar/about`,
-          "x-default": canonicalUrl,
-        },
-      },
+      alternates,
       openGraph: {
         title: "About Zenitha Yachts | Luxury Yacht Charters",
         description:
@@ -64,14 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `About ${siteName} | ${destination} Travel Guide for Arab Visitors`,
     description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Discover our story, mission, team, and commitment to luxury travel.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/about`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `About ${siteName} | ${destination} Travel Guide for Arab Visitors`,
       description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Discover our story, mission, team, and commitment to luxury travel.`,

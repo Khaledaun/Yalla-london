@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import {
   getDefaultSiteId,
   getSiteConfig,
@@ -35,6 +35,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteSlug = siteConfig?.slug || "yalla-london";
   const siteName = siteConfig?.name || "Yalla London";
   const siteNameAr = getSiteNameAr(siteId);
+  // Root-path alternates — primary-locale-aware. Emits en-GB+ar-SA on
+  // EN-primary sites, ar-SA only on AR-primary sites (arabaldives).
+  const rootAlternates = await getLocaleAlternates("");
 
   if (isParentBrandSite(siteId)) {
     const title = "Zenitha.Luxury — Luxury Travel Brands & Destination Expertise";
@@ -72,14 +75,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title,
       description,
-      alternates: {
-        canonical: baseUrl,
-        languages: {
-          "en-GB": baseUrl,
-          "ar-SA": `${baseUrl}/ar`,
-          "x-default": baseUrl,
-        },
-      },
+      alternates: rootAlternates,
       openGraph: {
         title,
         description,
@@ -124,14 +120,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${siteName} — ${siteTagline} | ${siteNameAr}`,
     description: siteDescription,
-    alternates: {
-      canonical: baseUrl,
-      languages: {
-        "en-GB": baseUrl,
-        "ar-SA": `${baseUrl}/ar`,
-        "x-default": baseUrl,
-      },
-    },
+    alternates: rootAlternates,
     openGraph: {
       title: `${siteName} — ${siteTagline}`,
       description: siteDescription,

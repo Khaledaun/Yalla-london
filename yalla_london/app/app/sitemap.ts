@@ -72,6 +72,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
  */
 async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
+  // Primary locale determines URL structure (see lib/sitemap-cache.ts for
+  // full explanation). Mirror the same logic in the fallback so cache-miss
+  // responses match cache-hit responses.
+  const siteConfig = (await import("@/config/sites")).getSiteConfig(siteId);
+  const primaryLocale: "en" | "ar" = siteConfig?.locale === "ar" ? "ar" : "en";
+  function hreflang(path: string) {
+    if (primaryLocale === "ar") {
+      const arUrl = path ? `${baseUrl}${path}` : baseUrl;
+      return { languages: { "ar-SA": arUrl, "x-default": arUrl } };
+    }
+    const enUrl = path ? `${baseUrl}${path}` : baseUrl;
+    const arUrl = path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`;
+    return {
+      languages: { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
+    };
+  }
   const pages: { path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" | "yearly" }[] = [
     // Homepage — changes frequently with new content
     { path: "", priority: 1, changeFrequency: "daily" },
@@ -83,7 +99,9 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     { path: "/events", priority: 0.8, changeFrequency: "weekly" },
     { path: "/news", priority: 0.8, changeFrequency: "daily" },
     { path: "/halal-restaurants-london", priority: 0.9, changeFrequency: "weekly" },
-    { path: "/luxury-hotels-london", priority: 0.9, changeFrequency: "weekly" },
+    // Intentionally NOT listing /luxury-hotels-london — middleware 301-redirects
+    // it to /hotels (PAGE_REDIRECTS). Listing a redirected URL in the sitemap
+    // generates GSC "Page redirects" warnings and wastes crawl budget.
     { path: "/london-with-kids", priority: 0.9, changeFrequency: "weekly" },
     { path: "/london-by-foot", priority: 0.9, changeFrequency: "weekly" },
     // Structured data pages — high SEO value
@@ -91,8 +109,9 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     { path: "/glossary", priority: 0.8, changeFrequency: "monthly" },
     { path: "/halal-charter", priority: 0.9, changeFrequency: "monthly" },
     // Navigation & discovery pages
-    { path: "/destinations", priority: 0.8, changeFrequency: "weekly" },
-    { path: "/itineraries", priority: 0.8, changeFrequency: "weekly" },
+    // /destinations + /itineraries are yacht-charter features (Zenitha Yachts only).
+    // On blog sites (yalla-london) they render an empty "Coming Soon" state → soft 404.
+    // The yacht-site sitemap in lib/sitemap-cache.ts includes them for zenitha-yachts-med.
     { path: "/journal", priority: 0.7, changeFrequency: "weekly" },
     { path: "/information", priority: 0.7, changeFrequency: "weekly" },
     { path: "/shop", priority: 0.7, changeFrequency: "weekly" },
@@ -115,18 +134,18 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     lastModified: now,
     changeFrequency,
     priority,
-    alternates: {
-      languages: {
-        "en-GB": path ? `${baseUrl}${path}` : baseUrl,
-        "ar-SA": path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`,
-        "x-default": path ? `${baseUrl}${path}` : baseUrl,
-      },
-    },
+    alternates: hreflang(path),
   }));
 
-  // Live query for published blog posts — single fast query, no cache needed
+  // Live query for published blog posts — single fast query, no cache needed.
+  // Filter out slugs that are in BLOG_REDIRECTS: listing a redirected URL in
+  // the sitemap triggers GSC "Page redirects" warnings.
   try {
     const { prisma } = await import("@/lib/db");
+    const { BLOG_REDIRECTS } = await import("@/lib/seo/redirect-map");
+    const redirectedSlugs = new Set<string>(
+      Object.keys(BLOG_REDIRECTS).map((path) => path.replace(/^\/blog\//, ""))
+    );
     const posts = await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null, siteId },
       select: { slug: true, updated_at: true },
@@ -134,18 +153,13 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
       take: 5000,
     });
     for (const post of posts) {
+      if (redirectedSlugs.has(post.slug)) continue;
       entries.push({
         url: `${baseUrl}/blog/${post.slug}`,
         lastModified: post.updated_at?.toISOString() || now,
         changeFrequency: "weekly" as const,
         priority: 0.8,
-        alternates: {
-          languages: {
-            "en-GB": `${baseUrl}/blog/${post.slug}`,
-            "ar-SA": `${baseUrl}/ar/blog/${post.slug}`,
-            "x-default": `${baseUrl}/blog/${post.slug}`,
-          },
-        },
+        alternates: hreflang(`/blog/${post.slug}`),
       });
     }
   } catch (err) {

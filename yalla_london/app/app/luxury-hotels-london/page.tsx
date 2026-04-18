@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Hotel, MapPin, Star, ArrowRight, Wifi, Dumbbell, UtensilsCrossed, ExternalLink } from 'lucide-react'
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
-import { getBaseUrl } from '@/lib/url-utils'
+import { getBaseUrl, getLocaleAlternates } from '@/lib/url-utils'
 import { TriBar, BrandButton, BrandCardLight, SectionLabel, Breadcrumbs } from '@/components/brand-kit'
 import { StructuredData } from '@/components/structured-data'
 
@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
   const siteConfig = getSiteConfig(getDefaultSiteId());
   const siteName = siteConfig?.name || 'Yalla London';
-  const canonicalUrl = `${baseUrl}/luxury-hotels-london`;
+  const alternates = await getLocaleAlternates('/luxury-hotels-london');
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Best Luxury Hotels in London 2026 — 5-Star Guide | ${siteName}`,
@@ -33,14 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `Best Luxury Hotels in London | ${siteName}`,
       description: 'The definitive guide to 5-star hotels across London — with halal-friendly and family options.',
     },
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        'en-GB': canonicalUrl,
-        'ar-SA': `${baseUrl}/ar/luxury-hotels-london`,
-        'x-default': canonicalUrl,
-      },
-    },
+    alternates,
     robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' as const, 'max-snippet': -1 } },
   }
 }

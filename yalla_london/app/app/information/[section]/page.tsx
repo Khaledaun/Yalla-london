@@ -8,6 +8,7 @@ import {
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { markdownToHtml } from "@/lib/markdown";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
+import { getLocaleAlternates } from "@/lib/url-utils";
 import SectionClient from "./SectionClient";
 
 // Combine all information articles
@@ -65,7 +66,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const canonicalUrl = `${baseUrl}/information/${slug}`;
+  const alternates = await getLocaleAlternates(`/information/${slug}`);
+  const canonicalUrl = alternates.canonical;
 
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
@@ -77,14 +79,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     authors: [{ name: `${siteName} Editorial` }],
     creator: siteName,
     publisher: siteName,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/information/${slug}`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `${section.name_en} | ${siteName} Information Hub`,
       description: section.description_en,

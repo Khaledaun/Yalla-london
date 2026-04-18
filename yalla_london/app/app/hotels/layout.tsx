@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,19 +13,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/hotels");
+  // Locale + site-primary-locale-aware alternates. Works for EN-primary sites
+  // (yalla-london) and AR-primary sites (arabaldives). See lib/url-utils.ts.
+  const alternates = await getLocaleAlternates("/hotels");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `Luxury Hotels in ${destination} | ${siteName}`,
     description: `Discover the finest luxury hotels in ${destination} for Arab visitors. 5-star accommodations with Arabic-speaking staff, halal dining, and prime locations.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/hotels`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Luxury Hotels in ${destination} | ${siteName}`,
       description: `Discover the finest luxury hotels in ${destination} for Arab visitors. 5-star accommodations with Arabic-speaking staff, halal dining, and prime locations.`,

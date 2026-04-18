@@ -72,6 +72,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
  */
 async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
+  // Primary locale determines URL structure (see lib/sitemap-cache.ts for
+  // full explanation). Mirror the same logic in the fallback so cache-miss
+  // responses match cache-hit responses.
+  const siteConfig = (await import("@/config/sites")).getSiteConfig(siteId);
+  const primaryLocale: "en" | "ar" = siteConfig?.locale === "ar" ? "ar" : "en";
+  function hreflang(path: string) {
+    if (primaryLocale === "ar") {
+      const arUrl = path ? `${baseUrl}${path}` : baseUrl;
+      return { languages: { "ar-SA": arUrl, "x-default": arUrl } };
+    }
+    const enUrl = path ? `${baseUrl}${path}` : baseUrl;
+    const arUrl = path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`;
+    return {
+      languages: { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
+    };
+  }
   const pages: { path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" | "yearly" }[] = [
     // Homepage — changes frequently with new content
     { path: "", priority: 1, changeFrequency: "daily" },
@@ -118,13 +134,7 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
     lastModified: now,
     changeFrequency,
     priority,
-    alternates: {
-      languages: {
-        "en-GB": path ? `${baseUrl}${path}` : baseUrl,
-        "ar-SA": path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`,
-        "x-default": path ? `${baseUrl}${path}` : baseUrl,
-      },
-    },
+    alternates: hreflang(path),
   }));
 
   // Live query for published blog posts — single fast query, no cache needed.
@@ -149,13 +159,7 @@ async function buildFallbackSitemap(baseUrl: string, siteId: string): Promise<Me
         lastModified: post.updated_at?.toISOString() || now,
         changeFrequency: "weekly" as const,
         priority: 0.8,
-        alternates: {
-          languages: {
-            "en-GB": `${baseUrl}/blog/${post.slug}`,
-            "ar-SA": `${baseUrl}/ar/blog/${post.slug}`,
-            "x-default": `${baseUrl}/blog/${post.slug}`,
-          },
-        },
+        alternates: hreflang(`/blog/${post.slug}`),
       });
     }
   } catch (err) {

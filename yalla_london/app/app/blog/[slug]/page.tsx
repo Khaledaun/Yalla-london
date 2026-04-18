@@ -233,13 +233,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Arabic SSR: detect locale from middleware header so crawlers on /ar/ routes
   // see Arabic metadata in the HTML head (not just after client hydration).
-  const locale = headersList.get("x-locale") || "en";
-  const isArabic = locale === "ar";
+  // Effective locale = URL path locale OR the site's primary locale, so
+  // AR-primary sites (arabaldives) render Arabic at root URLs.
+  const pathLocale = headersList.get("x-locale") === "ar" ? "ar" : "en";
+  const sitePrimaryLocale = (headersList.get("x-site-locale") === "ar"
+    ? "ar"
+    : siteConfig?.locale === "ar" ? "ar" : "en") as "en" | "ar";
+  const isArabic = pathLocale === "ar" || (pathLocale === "en" && sitePrimaryLocale === "ar");
+  const locale = isArabic ? "ar" : "en";
 
-  // Locale-aware canonical: /ar/blog/slug for Arabic, /blog/slug for English.
+  // Per-site URL structure: AR-primary sites put AR at root, EN fallback under /en/*.
   // Google requires canonical to match the URL being crawled.
-  const enUrl = `${baseUrl}/blog/${slug}`;
-  const arUrl = `${baseUrl}/ar/blog/${slug}`;
+  const enUrl = sitePrimaryLocale === "ar"
+    ? `${baseUrl}/en/blog/${slug}`
+    : `${baseUrl}/blog/${slug}`;
+  const arUrl = sitePrimaryLocale === "ar"
+    ? `${baseUrl}/blog/${slug}`
+    : `${baseUrl}/ar/blog/${slug}`;
   const canonicalUrl = isArabic ? arUrl : enUrl;
 
   const result = await findPost(slug, siteId);
@@ -326,11 +336,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        "en-GB": enUrl,
-        "ar-SA": arUrl,
-        "x-default": enUrl,
-      },
+      languages: sitePrimaryLocale === "ar"
+        // AR-primary: skip en-GB — /en/blog/X does not yet exist.
+        ? { "ar-SA": arUrl, "x-default": arUrl }
+        : { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
     },
     openGraph: {
       title,

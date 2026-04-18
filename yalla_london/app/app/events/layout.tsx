@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,19 +13,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = await getLocaleAwareCanonical("/events");
+  // Locale + site-primary-locale-aware alternates.
+  const alternates = await getLocaleAlternates("/events");
+  const canonicalUrl = alternates.canonical;
 
   return {
     title: `${destination} Events & Shows | ${siteName}`,
     description: `Discover the best events, shows, exhibitions, and experiences in ${destination}. Book tickets for theatre, football, festivals, and exclusive VIP experiences.`,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/events`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `${destination} Events & Shows | ${siteName}`,
       description: `Discover the best events, shows, exhibitions, and experiences in ${destination}. Book tickets for theatre, football, festivals, and exclusive VIP experiences.`,

@@ -104,8 +104,24 @@ export async function regenerateSitemapCache(siteId: string): Promise<{ urlCount
   const baseUrl = `https://${domain}`;
   const isYachtSite = checkIsYachtSite(siteId);
   const staticDate = "2026-02-19T00:00:00.000Z";
+  // Primary locale determines which URL is "rootless" and which is prefixed.
+  // EN-primary sites (yalla-london, zenitha-yachts): AR lives at /ar/path.
+  // AR-primary sites (arabaldives): AR lives at /path; EN (if ever added)
+  // would live at /en/path. Today arabaldives has no EN fallback, so we
+  // only emit the ar-SA hreflang for AR-primary sites.
+  const siteConfig = (await import("@/config/sites")).getSiteConfig(siteId);
+  const primaryLocale: "en" | "ar" = siteConfig?.locale === "ar" ? "ar" : "en";
 
   function hreflang(path: string) {
+    if (primaryLocale === "ar") {
+      const arUrl = path ? `${baseUrl}${path}` : baseUrl;
+      return {
+        languages: {
+          "ar-SA": arUrl,
+          "x-default": arUrl,
+        },
+      };
+    }
     const enUrl = path ? `${baseUrl}${path}` : baseUrl;
     const arUrl = path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`;
     return {

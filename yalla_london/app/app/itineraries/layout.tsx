@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAlternates } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
@@ -13,7 +13,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Zenitha Yachts";
   const siteSlug = siteConfig?.slug || "zenitha-yachts";
   const siteDomain = getSiteDomain(siteId);
-  const canonicalUrl = await getLocaleAwareCanonical("/itineraries");
+  // Locale + site-primary-locale-aware alternates.
+  const alternates = await getLocaleAlternates("/itineraries");
+  const canonicalUrl = alternates.canonical;
 
   // Soft-404 prevention: if no itineraries exist for this site, the page
   // renders only an empty-state CTA. Tell Google not to index until we
@@ -33,14 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: `Sailing Itineraries | ${siteName}`,
     description:
       "Curated Mediterranean sailing routes with day-by-day breakdowns. Explore Greek Islands, Croatian Coast, Turkish Riviera, and more with expert-planned yacht charter itineraries.",
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/itineraries`,
-        "x-default": canonicalUrl,
-      },
-    },
+    alternates,
     openGraph: {
       title: `Sailing Itineraries | ${siteName}`,
       description:

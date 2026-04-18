@@ -1077,6 +1077,12 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
       ? `("siteId" IN (${siteParams.map((_, i) => `$${i + 3}`).join(",")}) OR "siteId" IS NULL)`
       : "1=1";
 
+    // AuditLog direct-URL clicks are keyed on details->>'siteId' (JSONB).
+    // When activeSiteIds is empty, match any siteId (all sites).
+    const auditSiteClause = siteParams.length
+      ? `(details->>'siteId') IN (${siteParams.map((_, i) => `$${i + 3}`).join(",")})`
+      : "1=1";
+
     // Single raw SQL replacing 8 separate queries
     const rows = await prisma.$queryRawUnsafe(`
       SELECT
@@ -1088,12 +1094,20 @@ async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<Reven
         (SELECT COUNT(*)::int FROM "cj_click_events" WHERE ${cjSiteIn} AND "createdAt" >= $1) AS cj_clicks_today,
         (SELECT COUNT(*)::int FROM "cj_click_events" WHERE ${cjSiteIn} AND "createdAt" >= $2) AS cj_clicks_week,
         (SELECT COUNT(*)::int FROM "cj_commissions" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_conversions,
-        (SELECT COALESCE(SUM("commissionAmount"),0) FROM "cj_commissions" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_revenue
+        (SELECT COALESCE(SUM("commissionAmount"),0) FROM "cj_commissions" WHERE ${cjSiteIn} AND "eventDate" >= $2) AS cj_revenue,
+        (SELECT COUNT(*)::int FROM "audit_log" WHERE action = 'AFFILIATE_CLICK_DIRECT' AND ${auditSiteClause} AND "timestamp" >= $1) AS direct_clicks_today,
+        (SELECT COUNT(*)::int FROM "audit_log" WHERE action = 'AFFILIATE_CLICK_DIRECT' AND ${auditSiteClause} AND "timestamp" >= $2) AS direct_clicks_week
     `, todayStart, weekAgo, ...siteParams) as any[];
 
     const r = rows[0] || {};
-    snapshot.affiliateClicksToday = Number(r.clicks_today ?? 0) + Number(r.cj_clicks_today ?? 0);
-    snapshot.affiliateClicksWeek = Number(r.clicks_week ?? 0) + Number(r.cj_clicks_week ?? 0);
+    snapshot.affiliateClicksToday =
+      Number(r.clicks_today ?? 0) +
+      Number(r.cj_clicks_today ?? 0) +
+      Number(r.direct_clicks_today ?? 0);
+    snapshot.affiliateClicksWeek =
+      Number(r.clicks_week ?? 0) +
+      Number(r.cj_clicks_week ?? 0) +
+      Number(r.direct_clicks_week ?? 0);
     snapshot.conversionsWeek = Number(r.conversions_week ?? 0) + Number(r.cj_conversions ?? 0);
     snapshot.revenueWeekUsd = Math.round(Number(r.revenue_cents ?? 0)) / 100
       + Math.round(Number(r.cj_revenue ?? 0) * 100) / 100;

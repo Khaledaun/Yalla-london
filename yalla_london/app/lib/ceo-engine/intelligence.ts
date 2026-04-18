@@ -335,17 +335,17 @@ async function fetchIndexingStats(prisma: any, siteId: string) {
 
 async function fetchAffiliateStats(prisma: any, siteId: string, d30: Date) {
   try {
-    const [clicks, commissions] = await Promise.all([
-      prisma.cjClickEvent.count({
-        where: { OR: [{ siteId }, { siteId: null }], createdAt: { gte: d30 } },
-      }),
+    // Unified click count — CjClickEvent (CJ linkId-based) + AuditLog (direct URL)
+    const { getClickSummary } = await import("@/lib/affiliate/click-aggregator");
+    const [clickSummary, commissions] = await Promise.all([
+      getClickSummary({ siteId, since: d30 }),
       prisma.cjCommission.aggregate({
         where: { OR: [{ siteId }, { siteId: null }], createdAt: { gte: d30 } },
         _sum: { commissionAmount: true },
       }),
     ]);
     return {
-      clicks,
+      clicks: clickSummary.total,
       revenue: commissions._sum.commissionAmount ?? 0,
     };
   } catch (err) {

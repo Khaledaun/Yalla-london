@@ -7,6 +7,8 @@
 
 import { CJ_NETWORK_ID } from "./cj-client";
 import { getDefaultSiteId } from "@/config/sites";
+import { hasAnyAffiliateMarker } from "./partner-detector";
+import { getClickSummary, getClicksByArticle } from "./click-aggregator";
 
 // ---------------------------------------------------------------------------
 // Link Health Monitor
@@ -178,51 +180,49 @@ export async function getRevenueByArticle(siteId?: string): Promise<ArticleReven
 
   const siteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
 
-  // Fetch clicks grouped by page URL (which contains article slug)
-  const [clicks7d, clicks30d, commissions] = await Promise.all([
-    prisma.cjClickEvent.findMany({
-      where: { createdAt: { gte: d7 }, ...siteFilter },
-      select: { pageUrl: true, sessionId: true, createdAt: true },
-    }),
-    prisma.cjClickEvent.findMany({
-      where: { createdAt: { gte: d30 }, ...siteFilter },
-      select: { pageUrl: true, sessionId: true, createdAt: true },
-    }),
+  // Unified clicks (CjClickEvent + AuditLog AFFILIATE_CLICK_DIRECT) via aggregator
+  const [clicksByArticle30d, clicksByArticle7d, commissions] = await Promise.all([
+    getClicksByArticle({ siteId, since: d30 }),
+    getClicksByArticle({ siteId, since: d7 }),
     prisma.cjCommission.findMany({
       where: { eventDate: { gte: d30 }, ...siteFilter },
       select: { commissionAmount: true, sid: true, advertiser: { select: { name: true } } },
     }),
   ]);
 
-  // Extract article slug from pageUrl (e.g., "/blog/best-hotels-london" → "best-hotels-london")
-  // or from sessionId (e.g., "yalla-london_best-hotels-london" → "best-hotels-london")
-  const extractSlug = (pageUrl: string | null, sessionId: string | null): string => {
-    if (pageUrl) {
-      const match = pageUrl.match(/\/blog\/([^/?#]+)/);
-      if (match) return match[1];
-    }
-    if (sessionId && sessionId.includes("_")) {
-      return sessionId.split("_").slice(1).join("_");
-    }
-    return "unknown";
-  };
+  // Aggregate clicks by article — start from the 30d map and overlay 7d counts
+  const articleMap = new Map<
+    string,
+    { clicks7d: number; clicks30d: number; revenue: number; lastClick: Date | null; partners: Set<string> }
+  >();
 
-  // Aggregate clicks by article
-  const articleMap = new Map<string, { clicks7d: number; clicks30d: number; revenue: number; lastClick: Date | null; partners: Set<string> }>();
-
-  for (const click of clicks30d) {
-    const slug = extractSlug(click.pageUrl, click.sessionId);
-    if (!articleMap.has(slug)) articleMap.set(slug, { clicks7d: 0, clicks30d: 0, revenue: 0, lastClick: null, partners: new Set() });
-    const entry = articleMap.get(slug)!;
-    entry.clicks30d++;
-    if (click.createdAt >= d7) entry.clicks7d++;
-    if (!entry.lastClick || click.createdAt > entry.lastClick) entry.lastClick = click.createdAt;
+  for (const [slug, count] of clicksByArticle30d.entries()) {
+    articleMap.set(slug, {
+      clicks7d: clicksByArticle7d.get(slug) || 0,
+      clicks30d: count,
+      revenue: 0,
+      lastClick: null,
+      partners: new Set(),
+    });
   }
 
-  for (const click of clicks7d) {
-    const slug = extractSlug(click.pageUrl, click.sessionId);
-    if (!articleMap.has(slug)) articleMap.set(slug, { clicks7d: 0, clicks30d: 0, revenue: 0, lastClick: null, partners: new Set() });
-    // clicks7d already counted in the 30d loop above if within 7d
+  // Populate lastClick from a direct query (aggregator returns counts only)
+  const recentCjClicks = await prisma.cjClickEvent.findMany({
+    where: { createdAt: { gte: d30 }, ...siteFilter },
+    select: { pageUrl: true, sessionId: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 2000,
+  });
+  for (const click of recentCjClicks) {
+    const fromUrl = click.pageUrl?.match(/\/blog\/([^/?#]+)/)?.[1];
+    const fromSession =
+      click.sessionId?.includes("_") ? click.sessionId.split("_").slice(1).join("_") : null;
+    const slug = fromUrl || fromSession;
+    if (!slug) continue;
+    const entry = articleMap.get(slug);
+    if (entry && (!entry.lastClick || click.createdAt > entry.lastClick)) {
+      entry.lastClick = click.createdAt;
+    }
   }
 
   // Attribute revenue to articles via SID
@@ -284,20 +284,10 @@ export async function getContentCoverage(siteId?: string): Promise<ContentCovera
     take: 200,
   });
 
-  const hasAffiliate = (content: string) =>
-    content.includes("affiliate-recommendation") ||
-    content.includes("affiliate-cta-block") ||
-    content.includes("affiliate-partners-section") ||
-    content.includes("data-affiliate-partner=") ||
-    content.includes("data-affiliate=") ||
-    content.includes("data-affiliate-id") ||
-    content.includes('rel="sponsored') ||
-    content.includes('rel="noopener sponsored"') ||
-    content.includes("/api/affiliate/click");
+  // Shared affiliate-marker detector (synced with injection cron)
+  const withAffiliates = articles.filter((a) => hasAnyAffiliateMarker(a.content_en));
 
-  const withAffiliates = articles.filter((a) => hasAffiliate(a.content_en || ""));
-
-  const without = articles.filter((a) => !hasAffiliate(a.content_en || ""));
+  const without = articles.filter((a) => !hasAnyAffiliateMarker(a.content_en));
 
   return {
     totalArticles: articles.length,
@@ -339,14 +329,13 @@ export async function getProfitabilityReport(siteId?: string): Promise<Profitabi
   // Include records for this site OR unscoped records (null siteId = legacy data before migration)
   const siteFilter = targetSiteId ? { OR: [{ siteId: targetSiteId }, { siteId: null }] } : {};
 
-  const [commissions, clicks, articleCount, aiCosts] = await Promise.all([
+  const [commissions, clickSummary, articleCount, aiCosts] = await Promise.all([
     prisma.cjCommission.aggregate({
       where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
       _sum: { commissionAmount: true },
     }),
-    prisma.cjClickEvent.count({
-      where: { createdAt: { gte: d30 }, ...siteFilter },
-    }),
+    // Unified click count (CjClickEvent + AuditLog AFFILIATE_CLICK_DIRECT)
+    getClickSummary({ siteId: targetSiteId, since: d30 }),
     prisma.blogPost.count({
       where: { published: true, deletedAt: null, siteId: targetSiteId },
     }),
@@ -356,6 +345,7 @@ export async function getProfitabilityReport(siteId?: string): Promise<Profitabi
     }),
   ]);
 
+  const clicks = clickSummary.total;
   const totalRevenue = commissions._sum.commissionAmount || 0;
   const aiCost = (aiCosts._sum.estimatedCostUsd || 0);
   const hostingCost = 20; // Vercel Pro $20/month estimate

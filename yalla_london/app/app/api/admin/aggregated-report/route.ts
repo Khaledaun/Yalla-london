@@ -721,7 +721,9 @@ export async function GET(request: NextRequest) {
         const { isCjConfigured, CJ_NETWORK_ID } = await import("@/lib/affiliate/cj-client");
         if (isCjConfigured()) {
           const d30 = new Date(Date.now() - 30 * 86400_000);
-          const [joinedAdvs, activeLinks, commissions30d, clicks7d, lastSyncs] = await Promise.all([
+          const d7 = new Date(Date.now() - 7 * 86400_000);
+          const { getClickSummary } = await import("@/lib/affiliate/click-aggregator");
+          const [joinedAdvs, activeLinks, commissions30d, clicks7dSummary, lastSyncs] = await Promise.all([
             prisma.cjAdvertiser.count({ where: { networkId: CJ_NETWORK_ID, status: "JOINED" } }),
             prisma.cjLink.count({ where: { advertiser: { networkId: CJ_NETWORK_ID }, isActive: true } }),
             prisma.cjCommission.aggregate({
@@ -729,7 +731,8 @@ export async function GET(request: NextRequest) {
               _sum: { commissionAmount: true },
               _count: true,
             }),
-            prisma.cjClickEvent.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 86400_000) } } }),
+            // Unified click count (CjClickEvent + AuditLog AFFILIATE_CLICK_DIRECT)
+            getClickSummary({ siteId, since: d7 }),
             prisma.cjSyncLog.findMany({
               where: { networkId: CJ_NETWORK_ID },
               orderBy: { createdAt: "desc" },
@@ -737,22 +740,21 @@ export async function GET(request: NextRequest) {
               select: { syncType: true, status: true, createdAt: true },
             }),
           ]);
+          const clicks7d = clicks7dSummary.total;
 
-          // Coverage %
+          // Coverage % — shared affiliate-marker detector (synced with injection cron)
           let coveragePercent = 0;
           const totalPublished = await prisma.blogPost.count({
             where: { published: true, deletedAt: null, siteId },
           });
           if (totalPublished > 0) {
+            const { AFFILIATE_MARKERS } = await import("@/lib/affiliate/partner-detector");
             const withAffiliates = await prisma.blogPost.count({
               where: {
                 published: true, deletedAt: null, siteId,
-                OR: [
-                  { content_en: { contains: 'rel="sponsored' } },
-                  { content_en: { contains: "affiliate-recommendation" } },
-                  { content_en: { contains: 'rel="noopener sponsored"' } },
-                  { content_en: { contains: "data-affiliate-id" } },
-                ],
+                OR: AFFILIATE_MARKERS.map((marker) => ({
+                  content_en: { contains: marker },
+                })),
               },
             });
             coveragePercent = Math.round((withAffiliates / totalPublished) * 100);

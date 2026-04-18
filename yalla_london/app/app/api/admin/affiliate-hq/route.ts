@@ -53,6 +53,10 @@ export async function GET(request: NextRequest) {
     "@/lib/affiliate/cj-client"
   );
   const { getDefaultSiteId } = await import("@/config/sites");
+  const { getClickSummary, getClicksByArticle, getClicksByDay } = await import(
+    "@/lib/affiliate/click-aggregator"
+  );
+  const { hasAnyAffiliateMarker } = await import("@/lib/affiliate/partner-detector");
 
   const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
   const start = Date.now();
@@ -90,18 +94,21 @@ export async function GET(request: NextRequest) {
     const revPrev30 = commissionsPrev30d._sum.commissionAmount || 0;
     const revTrend = revPrev30 > 0 ? ((rev30 - revPrev30) / revPrev30) * 100 : 0;
 
-    const clickSiteFilter = siteId ? { OR: [{ siteId }, { siteId: null }] } : {};
-    const clicks7d = await prisma.cjClickEvent.count({
-      where: { createdAt: { gte: d7 }, ...clickSiteFilter },
-    });
-
-    const topAdvertisers = await prisma.cjCommission.groupBy({
-      by: ["advertiserId"],
-      where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
-      _sum: { commissionAmount: true },
-      orderBy: { _sum: { commissionAmount: "desc" } },
-      take: 10,
-    });
+    // Unified click counts — CjClickEvent (CJ linkId-based) + AuditLog (direct URL, Travelpayouts/static)
+    const [clicks7dSummary, clicks30dSummary, clicksByDayArr, articleClicks, topAdvertisers] = await Promise.all([
+      getClickSummary({ siteId, since: d7 }),
+      getClickSummary({ siteId, since: d30 }),
+      getClicksByDay({ siteId }, 30),
+      getClicksByArticle({ siteId, since: d30 }),
+      prisma.cjCommission.groupBy({
+        by: ["advertiserId"],
+        where: { networkId: CJ_NETWORK_ID, eventDate: { gte: d30 }, ...siteFilter },
+        _sum: { commissionAmount: true },
+        orderBy: { _sum: { commissionAmount: "desc" } },
+        take: 10,
+      }),
+    ]);
+    const clicks7d = clicks7dSummary.total;
 
     const advIds = topAdvertisers.map((a) => a.advertiserId);
     const advNames = advIds.length > 0
@@ -109,47 +116,25 @@ export async function GET(request: NextRequest) {
       : [];
     const nameMap = new Map(advNames.map((a: { id: string; name: string }) => [a.id, a.name]));
 
-    const topClicks = await prisma.cjClickEvent.groupBy({
-      by: ["pageUrl"],
-      where: { createdAt: { gte: d30 }, ...clickSiteFilter },
-      _count: true,
-      orderBy: { _count: { pageUrl: "desc" } },
-      take: 10,
-    });
+    // Top articles by clicks — merges CJ + direct from aggregator
+    const topClicks = [...articleClicks.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([slug, count]) => ({ url: `/blog/${slug}`, clicks: count }));
 
-    // ── Per-network attribution: CJ clicks + commissions vs Travelpayouts/Stay22 (audit log clicks) ──
-    const [cjClicks30d, auditClicks30d, clicksByDayRaw] = await Promise.all([
-      prisma.cjClickEvent.count({
-        where: { createdAt: { gte: d30 }, ...clickSiteFilter },
-      }),
-      prisma.auditLog.count({
-        where: { action: "affiliate_click", timestamp: { gte: d30 }, ...(siteId ? { details: { path: ["siteId"], equals: siteId } } : {}) },
-      }),
-      prisma.cjClickEvent.groupBy({
-        by: ["createdAt"],
-        where: { createdAt: { gte: d30 }, ...clickSiteFilter },
-        _count: true,
-        orderBy: { createdAt: "asc" },
-      }),
-    ]);
+    const clicksByDay: Array<{ date: string; clicks: number }> = clicksByDayArr.map((d) => ({
+      date: d.date,
+      clicks: d.count,
+    }));
 
-    // Bucket clicks by date (CJ only — audit log clicks aggregated separately)
-    const clickDayMap = new Map<string, number>();
-    for (const row of clicksByDayRaw) {
-      const day = new Date(row.createdAt).toISOString().slice(0, 10);
-      clickDayMap.set(day, (clickDayMap.get(day) || 0) + row._count);
-    }
-    const clicksByDay: Array<{ date: string; clicks: number }> = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
-      clicksByDay.push({ date: d, clicks: clickDayMap.get(d) || 0 });
-    }
+    // ── Per-network attribution: CJ (CjClickEvent) vs Direct (AuditLog AFFILIATE_CLICK_DIRECT) ──
+    const cjClicks30d = clicks30dSummary.cjClicks;
+    const directClicks30d = clicks30dSummary.directClicks;
 
     const cjConvRate = cjClicks30d > 0 ? ((commissions30d._count || 0) / cjClicks30d) * 100 : 0;
     const byNetwork = [
       { network: "CJ Affiliate", clicks30d: cjClicks30d, commissions30d: rev30, conversionRate: Math.round(cjConvRate * 10) / 10 },
-      { network: "Travelpayouts", clicks30d: auditClicks30d, commissions30d: 0, conversionRate: 0 },
-      { network: "Stay22", clicks30d: 0, commissions30d: 0, conversionRate: 0 },
+      { network: "Direct (Travelpayouts/Stay22/static)", clicks30d: directClicks30d, commissions30d: 0, conversionRate: 0 },
     ].filter(n => n.clicks30d > 0 || n.commissions30d > 0 || n.network === "CJ Affiliate");
 
     revenue = {
@@ -162,10 +147,7 @@ export async function GET(request: NextRequest) {
         name: nameMap.get(a.advertiserId) || "Unknown",
         commission: a._sum.commissionAmount || 0,
       })),
-      topArticlesByClicks: topClicks.map((c) => ({
-        url: c.pageUrl,
-        clicks: c._count,
-      })),
+      topArticlesByClicks: topClicks,
       byNetwork,
       clicksByDay,
     };
@@ -251,18 +233,21 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    // Get all click events grouped by pageUrl
-    const clickEvents = await prisma.cjClickEvent.findMany({
-      where: siteId ? { OR: [{ siteId }, { siteId: null }] } : {},
-      select: { pageUrl: true, linkId: true },
-    });
+    // Unified per-article click counts (CjClickEvent + AuditLog direct)
+    const pageClickMap = await getClicksByArticle({ siteId });
 
-    // Build page→clicks map and page→linkIds map
-    const pageClickMap = new Map<string, number>();
+    // Build a CJ-only linkId map for revenue attribution (direct clicks have no linkId)
+    const cjClickEvents = await prisma.cjClickEvent.findMany({
+      where: siteId ? { OR: [{ siteId }, { siteId: null }] } : {},
+      select: { pageUrl: true, linkId: true, sessionId: true },
+    });
     const pageLinkIdsMap = new Map<string, Set<string>>();
-    for (const ev of clickEvents) {
-      const slug = ev.pageUrl.replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "").replace(/^\/blog\//, "");
-      pageClickMap.set(slug, (pageClickMap.get(slug) || 0) + 1);
+    for (const ev of cjClickEvents) {
+      const fromUrl = ev.pageUrl?.match(/\/blog\/([^/?#]+)/)?.[1] || null;
+      const fromSession =
+        ev.sessionId?.includes("_") ? ev.sessionId.split("_").slice(1).join("_") : null;
+      const slug = fromUrl || fromSession;
+      if (!slug) continue;
       if (!pageLinkIdsMap.has(slug)) pageLinkIdsMap.set(slug, new Set<string>());
       pageLinkIdsMap.get(slug)!.add(ev.linkId);
     }
@@ -292,14 +277,13 @@ export async function GET(request: NextRequest) {
     const linkAdvertiserMap = new Map<string, string>();
     for (const l of cjLinks) linkAdvertiserMap.set(l.id, l.advertiser.name);
 
-    const affiliatePatterns = ['rel="sponsored', "affiliate-cta-block", "affiliate-recommendation", 'rel="noopener sponsored"'];
-
     let withAffiliatesCount = 0;
     const uncoveredArticles: Array<{ id: string; title: string; slug: string; createdAt: Date }> = [];
 
     const pages = allArticles.map((article) => {
       const content = article.content_en || "";
-      const hasAffiliateLinks = affiliatePatterns.some((p) => content.includes(p));
+      // Shared affiliate-marker detector — kept in sync with injection cron
+      const hasAffiliateLinks = hasAnyAffiliateMarker(content);
       if (hasAffiliateLinks) withAffiliatesCount++;
       else uncoveredArticles.push({ id: article.id, title: article.title_en, slug: article.slug, createdAt: article.created_at });
 

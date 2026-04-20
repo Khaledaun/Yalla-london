@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.7";
+export const BRIDGE_VERSION = "2026-04-20.8";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -167,6 +167,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { url: "required full URL" },
     outputs: "{ blockCount, typeOccurrences, validated[], findings, interpretedActions }",
     addedIn: "2026-04-20.7",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/broken-links",
+    kind: "read",
+    summary: "Scans published BlogPost content for dead /blog/<slug> internal links + orphan pages (0 inbound) + weakly-linked pages (<2 inbound). DB-only, no HTTP.",
+    inputs: { siteId: "required", limit: "max 500, default 200" },
+    outputs: "{ brokenLinks, topBrokenTargets, orphanPages, weaklyLinked, summary }",
+    addedIn: "2026-04-20.8",
     status: "stable",
   },
   {

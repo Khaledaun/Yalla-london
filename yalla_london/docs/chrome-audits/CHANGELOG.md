@@ -7,6 +7,26 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.8 — Broken internal links map (Phase 6.2)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/broken-links?siteId=X&limit=N`
+  Scans published BlogPost.content_en for `<a href="...\/blog\/<slug>...">`
+  references. DB-only — no HTTP fetches.
+
+**Detection:**
+- `brokenLinks` — references to slugs that don't exist as a published BlogPost
+  (typos, unpublished destinations, hallucinated slugs from AI generation)
+- `topBrokenTargets` — most-referenced broken slug (often a cluster problem)
+- `orphanPages` — published articles ≥7d old with 0 inbound internal links
+  (poor topical authority signal)
+- `weaklyLinked` — pages with only 1 inbound link (needs reinforcement)
+
+Skips self-references. 7-day grace window prevents newly-published
+articles from appearing as orphans.
+
+---
+
 ## 2026-04-20.7 — Schema/JSON-LD validator (Phase 6.1)
 
 **Added:**

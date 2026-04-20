@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.6";
+export const BRIDGE_VERSION = "2026-04-20.7";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -157,6 +157,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { url: "required full URL", strategy: "mobile (default) | desktop" },
     outputs: "{ coreWebVitals, scores, diagnostics, findings, interpretedActions }",
     addedIn: "2026-04-20.6",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/schema",
+    kind: "interpret",
+    summary: "JSON-LD validator. Fetches page, extracts ld+json blocks, validates syntax + required fields + flags deprecated types (FAQPage restricted, HowTo deprecated per Jan 2026 standards)",
+    inputs: { url: "required full URL" },
+    outputs: "{ blockCount, typeOccurrences, validated[], findings, interpretedActions }",
+    addedIn: "2026-04-20.7",
     status: "stable",
   },
   {

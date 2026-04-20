@@ -7,6 +7,29 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.7 — Schema/JSON-LD validator (Phase 6.1)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/schema?url=X` — fetches page HTML, extracts
+  all `<script type="application/ld+json">` blocks, validates each.
+
+**Checks:**
+- JSON parse errors (critical — breaks rich results eligibility)
+- Missing @context
+- Missing required fields per type (Article: headline/author/datePublished;
+  Organization: name/url; BreadcrumbList: itemListElement; Product: name/offers;
+  Person: name; ImageObject: url; VideoObject: name/thumbnailUrl/uploadDate;
+  Place: name; Trip: name/itinerary)
+- Deprecated types flagged (FAQPage restricted, HowTo, CourseInfo,
+  ClaimReview, EstimatedSalary, LearningVideo, SpecialAnnouncement,
+  VehicleListing, PracticeProblems, SitelinksSearchBox)
+- Blog/news pages missing Article/BlogPosting/NewsArticle schema
+
+Handles `@graph` arrays and top-level arrays of items. Returns findings
+and interpretedActions in Chrome Bridge standard format.
+
+---
+
 ## 2026-04-20.6 — Lighthouse endpoint (Phase 5 complete)
 
 **Added:**

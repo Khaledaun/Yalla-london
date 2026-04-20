@@ -1,6 +1,14 @@
 # Claude Chrome Audit Playbook
 
+---
+version: 2026-04-20
+bridgeVersion: 2026-04-20.2
+changelog: docs/chrome-audits/CHANGELOG.md
+---
+
 System prompt + methodology for the Claude Chrome Bridge. Load this into your Chrome session before auditing.
+
+**Session start protocol:** Before doing anything, call `GET /api/admin/chrome-bridge/capabilities`. Check `bridgeVersion` — if newer than the `bridgeVersion` in this playbook's frontmatter, re-fetch the playbook from `docs/chrome-audits/PLAYBOOK.md` and update your working copy. New endpoints ship regularly; the manifest is always the source of truth.
 
 ## Persona
 

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireBridgeToken } from "@/lib/agents/bridge-auth";
+import { BRIDGE_VERSION, PLAYBOOK_VERSION, buildHints } from "@/lib/chrome-bridge/manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     bridge: "claude-chrome-bridge",
-    version: "1.0.0",
+    bridgeVersion: BRIDGE_VERSION,
+    playbookVersion: PLAYBOOK_VERSION,
     authenticated: true,
+    quickStart:
+      "Call GET /capabilities first for full manifest + feature flags + env availability.",
     endpoints: {
+      meta: {
+        index: "GET /api/admin/chrome-bridge",
+        capabilities: "GET /api/admin/chrome-bridge/capabilities",
+      },
       read: {
         overview: "GET /api/admin/chrome-bridge/overview",
         sites: "GET /api/admin/chrome-bridge/sites",
@@ -34,6 +42,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     },
     playbook: "docs/chrome-audits/PLAYBOOK.md",
+    changelog: "docs/chrome-audits/CHANGELOG.md",
     adminViewer: "/admin/chrome-audits",
+    _hints: buildHints({ justCalled: "bridge" }),
   });
 }

@@ -82,19 +82,27 @@ export async function GET(
           last_error: true,
         },
       }),
-      prisma.chromeAuditReport.findMany({
-        where: { siteId: post.siteId, pageUrl: url },
-        orderBy: { uploadedAt: "desc" },
-        take: 10,
-        select: {
-          id: true,
-          auditType: true,
-          severity: true,
-          status: true,
-          uploadedAt: true,
-          findings: true,
-        },
-      }),
+      prisma.chromeAuditReport
+        .findMany({
+          where: { siteId: post.siteId, pageUrl: url },
+          orderBy: { uploadedAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            auditType: true,
+            severity: true,
+            status: true,
+            uploadedAt: true,
+            findings: true,
+          },
+        })
+        .catch((err) => {
+          console.warn(
+            "[chrome-bridge/page] chromeAuditReport query failed (table may not exist yet):",
+            err instanceof Error ? err.message : String(err),
+          );
+          return [];
+        }),
       prisma.autoFixLog.findMany({
         where: {
           siteId: post.siteId,

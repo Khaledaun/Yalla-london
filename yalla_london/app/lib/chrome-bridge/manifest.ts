@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.2";
+export const BRIDGE_VERSION = "2026-04-20.3";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -120,6 +120,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     status: "stable",
   },
   {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/revenue",
+    kind: "read",
+    summary: "Per-page revenue attribution: affiliate clicks, commissions, EPC, classification (earner | dead_weight | unmonetized | fresh | cold)",
+    inputs: { siteId: "required", days: "max 90, default 30", limit: "max 200" },
+    outputs: "{ totals, classificationCounts, topEarners, deadWeight, unmonetized, pages }",
+    addedIn: "2026-04-20.3",
+    status: "stable",
+  },
+  {
     method: "POST",
     path: "/api/admin/chrome-bridge/report",
     kind: "write",
@@ -161,7 +171,13 @@ export function suggestNextEndpoints(justCalled: string): string[] {
     "page": [
       "Visit the live URL in your Chrome browser now",
       "Check mobile (375px) + desktop (1440px) renders",
+      "GET /revenue?siteId=X to see if this page earns",
       "POST /report when ready with all 5 pillars",
+    ],
+    "revenue": [
+      "Dead-weight pages (high traffic, $0): GET /page/[id] + propose affiliate injection",
+      "Unmonetized pages: trigger affiliate-injection cron via /admin",
+      "Top earners: protect them — audit for title/meta optimization only, no invasive rewrites",
     ],
     "action-logs": [
       "POST /triage with clustered findings + proposed fixes",

@@ -7,6 +7,32 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.3 — Revenue attribution
+
+**Added:**
+- `GET /api/admin/chrome-bridge/revenue?siteId=X&days=N&limit=N` — per-page
+  affiliate attribution. Joins BlogPost → CjClickEvent (via SID parse from
+  sessionId) → CjCommission (via metadata.sid). Returns per-page: organic
+  clicks/impressions, affiliate clicks, commission count + total, EPC,
+  conversion rate, hasAffiliateLinks flag, and classification:
+  - `earner` — has commissions or affiliate clicks
+  - `dead_weight` — ≥20 organic clicks, 0 affiliate clicks, has affiliate links
+  - `unmonetized` — no affiliate links injected in content
+  - `fresh` — <14 days old (excluded from classification)
+  - `cold` — nothing happening yet
+- Response also surfaces `topEarners` (top 10 by commission), `deadWeight`
+  (ranked by wasted traffic), `unmonetized` (ranked by impressions).
+- `GET /page/[id]` now includes `revenue` block with 30d affiliate clicks,
+  commission count + total, EPC, recent commissions. Claude Chrome sees
+  page earnings inline with SEO / indexing / enhancement log.
+
+**Why:** The #1 blind spot in page audits was "is this page even earning?"
+Claude Chrome can now differentiate traffic optimization (dead_weight —
+monetize first) from monetization optimization (unmonetized — inject
+affiliates first) from protect-mode (top earners — don't disturb).
+
+---
+
 ## 2026-04-20.2 — Awareness layer
 
 **Added:**

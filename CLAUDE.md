@@ -5590,6 +5590,35 @@ Full read/write surface for the Claude Chrome connector (in-browser AI auditor) 
 | 7.5 | `/ga4/channels`, `/ga4/conversions`, `/ga4/realtime`, `/ga4/funnel` | Per-page funnel + event conversions + active users now + channel breakdown |
 | 7.6 | `/affiliate/gaps`, `/recommendations`, `/commission-trends`, `/approval-queue` | Revenue-focused: unlinked brand mentions, program recs from intent volume, weekly velocity, CJ approval state |
 
+**MCP Platform Server extension (`scripts/mcp-platform-server.ts`):** 6 new Chrome Bridge tools — `chrome_bridge_list_pages`, `chrome_bridge_read_page`, `chrome_bridge_get_action_logs`, `chrome_bridge_upload_report`, `chrome_bridge_upload_triage`, `chrome_bridge_list_reports`. Claude Code CLI can now query + upload via MCP.
+
+**Env vars needed for full functionality:**
+
+| Env Var | Purpose | Required? |
+|---------|---------|-----------|
+| `CLAUDE_BRIDGE_TOKEN` | Bearer token for bridge endpoints (rotatable, 64-char base64url) | Optional — falls back to admin session |
+| `DATAFORSEO_LOGIN` | DataForSEO account email | Optional — enables `/serp` + `/keyword-research` |
+| `DATAFORSEO_PASSWORD` | DataForSEO API password (NOT UI password) | Optional — pairs with LOGIN |
+
+Generation: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`
+
+**Deployment requirements:**
+1. Run `npx prisma migrate deploy` for 2 new migrations (ChromeAuditReport + AbTest). Vercel build also runs `prisma generate` on every deploy so types are current.
+2. Paste `CLAUDE_BRIDGE_TOKEN` into Vercel env vars (all environments) — generated in-session, documented in `docs/chrome-audits/PLAYBOOK.md`.
+3. (Optional) Sign up at dataforseo.com, copy API password, paste `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` to Vercel. Cost ~$0.33/mo at typical audit volume.
+
+**Key reference files:**
+
+| File | Purpose |
+|------|---------|
+| `docs/chrome-audits/PLAYBOOK.md` | System prompt for Claude Chrome — 5-pillar methodology, hard thresholds, audit protocol. Versioned YAML frontmatter. |
+| `docs/chrome-audits/CHANGELOG.md` | Version-tagged log of bridge capabilities. Chrome Bridge responses include `_hints.playbookVersion` for drift detection. |
+| `lib/chrome-bridge/manifest.ts` | Single source of truth for endpoints + `BRIDGE_VERSION` + `PLAYBOOK_VERSION` + `buildHints()` |
+| `lib/chrome-bridge/interpret.ts` | Pure interpretation functions (CTR vs position, GA4 engagement, indexing failures, content signals, action log clustering) |
+| `lib/chrome-bridge/dataforseo.ts` | DataForSEO API client — `fetchSERP()`, `fetchKeywordMetrics()` |
+| `lib/chrome-bridge/ab-test-stats.ts` | Two-proportion z-test + CDF approximation for A/B winner detection |
+| `lib/agents/bridge-auth.ts` | `requireBridgeToken()` + `withBridgeAuth()` + `isBridgeTokenRequest()` |
+
 ## Workflow Infrastructure & Developer Tools
 
 ### Available Command Categories

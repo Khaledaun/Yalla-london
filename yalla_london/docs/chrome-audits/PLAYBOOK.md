@@ -125,11 +125,23 @@ Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
 - **Bounce red flags:** >70% bounce + <20s engagement = first-screen failure
 - **Accessibility:** WCAG AA — contrast ≥4.5:1 body text, keyboard-navigable, focus states visible
 
-### 5. Off-site
-- **Brand mentions** — Google "Yalla London" to check presence in travel blogs, forums, news
-- **Competitor SERP overlap** — check top 10 for target keywords, identify gaps
-- **Backlinks** — v1 manual (no paid API yet). Flag if key pages have 0 inbound links from non-Yalla domains
+### 5. Off-site + Competitive (Phase 7.1)
+- **SERP competitors** — `GET /serp?keyword=X` returns top 10 Google results + featured snippet + AI Overview citations. Detects if we rank and if we're cited.
+- **Keyword volume validation** — `GET /keyword-research?keywords=a,b,c` confirms search volume + CPC + competition before investing in content.
+- **Content angle gaps** — review competitor domains' titles + breadcrumbs from SERP results to identify angles we don't cover.
+- **AIO citation status** — if AI Overview appears but we're not cited, prioritize answer capsule + stats + question-H2 rewrites.
 - **Citation consistency** — NAP (name, address, phone) across directories matches
+
+### 6. Revenue + Monetization (Phase 5.2 + 7.6)
+- **Per-page classification** — `GET /revenue?siteId=X` labels every page:
+  - `earner` — protect mode (title/meta tweaks only, no invasive rewrites)
+  - `dead_weight` — high organic traffic, $0 revenue, has affiliate links → audit CTAs, placement, anchor text
+  - `unmonetized` — no affiliate links in content → propose affiliate-injection cron
+  - `fresh` — <14 days old (excluded from classification)
+  - `cold` — not enough data
+- **Affiliate gaps** — `GET /affiliate/gaps?siteId=X` finds brand mentions (Booking, Agoda, HalalBooking, etc.) not wrapped in affiliate tracking.
+- **Commission velocity** — `GET /affiliate/commission-trends?siteId=X` surfaces declining / rising / inactive partners.
+- **Program recommendations** — `GET /affiliate/recommendations?siteId=X` ranks affiliate programs to apply for by GSC intent volume + existing coverage + typical EPC.
 
 ## Audit Methodology
 

@@ -1,6 +1,6 @@
 # Chrome Bridge CHANGELOG
 
-## 2026-04-20.18 — Sitewide audit response + meta cleanup tool
+## 2026-04-20.18 — Sitewide audit response: meta cleanup + quality-recovery campaigns
 
 **First audit cycle complete.** Report `cmo7o396r0000l204khl2b9dl` (sitewide/critical, 5 findings, 6 actions) processed end-to-end: uploaded → viewer → Apply Fix → CLI pick-up → fixes committed.
 
@@ -11,6 +11,9 @@
   - `/gsc/coverage-summary`: removed invalid Prisma orderBy, sort client-side
   - `/overview` + `/page/[id]`: graceful fallback when ChromeAuditReport table missing (table was missing in prod until migration ran mid-session)
 - **Finding #6 (playbook traffic floor):** documented in Revenue + Monetization pillar — `/revenue` classifier needs ≥200 organic clicks/month; below that, use affiliate family endpoints instead.
+- **Finding #3 (29 not_indexed pages):** two new endpoints close the quality-recovery loop:
+  - `GET /api/admin/chrome-bridge/not-indexed-details?siteId=X` — per-URL diagnostic (word count, authenticity signals, AI-generic phrase count, author attribution, triage bucket)
+  - `POST /api/admin/chrome-bridge/enhance-not-indexed` — creates Campaign + CampaignItems using existing Campaign infrastructure. Triage-to-operation mapping: thin_content → expand+authenticity, ai_generic_heavy → rewrite authentic voice, low_seo_score → meta fixes + internal links, shallow_depth → expand + links. Skips generic_author (manual reassignment) + no_blogpost (legacy URLs). Runs via existing campaign-executor cron at 3/30min.
 
 **Findings not auto-fixed (defer to human):**
 - **#1b (redirect decisions):** per-page judgment needed which slug is canonical

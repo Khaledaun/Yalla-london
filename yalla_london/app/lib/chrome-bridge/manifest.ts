@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.17";
+export const BRIDGE_VERSION = "2026-04-20.18";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -391,6 +391,26 @@ export const ENDPOINTS: EndpointManifest[] = [
     summary: "CjAdvertiser state overview. Flags stuck-pending applications (>30d). Recommends high-EPC advertisers to apply to.",
     outputs: "{ summary, joined, pending, stuckPending, recommendedApplications }",
     addedIn: "2026-04-20.17",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/not-indexed-details",
+    kind: "interpret",
+    summary: "Diagnostic details for every URL Google declined to index. Per-page triage bucketing (thin_content / ai_generic_heavy / low_authenticity / generic_author / low_seo_score / shallow_depth) with word count, authenticity signals, AI-generic phrase count, author attribution, enhancement log.",
+    inputs: { siteId: "required", limit: "max 100" },
+    outputs: "{ summary, pages[] with content/quality/diagnoseTriage }",
+    addedIn: "2026-04-20.18",
+    status: "stable",
+  },
+  {
+    method: "POST",
+    path: "/api/admin/chrome-bridge/enhance-not-indexed",
+    kind: "write",
+    summary: "Creates Campaign + CampaignItems targeting not-indexed pages. Triage → per-item operations (expand_content, add_authenticity, fix_meta_*, add_internal_links). Runs via campaign-executor cron.",
+    inputs: { siteId: "required", dryRun: "preview", limit: "max 100", minAge: "skip pages <N days old" },
+    outputs: "{ campaignId, itemCount, triageDistribution, plan[] }",
+    addedIn: "2026-04-20.18",
     status: "stable",
   },
   {

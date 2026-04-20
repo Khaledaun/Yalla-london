@@ -5566,6 +5566,30 @@ Full read/write surface for the Claude Chrome connector (in-browser AI auditor) 
 - `ChromeAuditReport` — siteId, pageUrl, auditType, severity, status, findings/interpretedActions/rawData JSON, reportMarkdown, agentTaskId. Migration: `20260420_add_chrome_audit_report`.
 - `AbTest` — variantA/B JSON, per-variant counters, status, winner, confidence, reportId. Migration: `20260420_add_ab_test`.
 
+**Phase inventory (7 phases, 25+ endpoints):**
+
+| Phase | Endpoint | Purpose |
+|-------|----------|---------|
+| Foundation | `lib/agents/bridge-auth.ts`, `lib/chrome-bridge/{types,helpers,interpret,manifest}.ts` | Auth, Zod schemas, interpretation functions, capability manifest |
+| Core 1-4 | `/`, `/capabilities`, `/sites`, `/overview`, `/pages`, `/page/[id]`, `/action-logs`, `/cycle-health`, `/aggregated-report`, `/gsc`, `/ga4` | Read surface |
+| Core 5-11 | `POST /report`, `POST /triage` | Write surface |
+| 5.1 | `/capabilities` + `_hints` standard + `PLAYBOOK.md` versioning + `CHANGELOG.md` | Awareness layer — Chrome sees new capabilities automatically |
+| 5.2 | `/revenue` | Per-page attribution (earner / dead_weight / unmonetized / fresh / cold classification) |
+| 5.3 | `/history` | Audit memory + delta (resolved / recurring / new findings between reports) |
+| 5.4 | `/opportunities` | TopicProposal queue + GSC near-miss queries (pos 11-30, ≥50 imp) + content gaps from primaryKeywords |
+| 5.5 | `/lighthouse` | PageSpeed wrapper — CWV (LCP/INP/CLS) + category scores + interpreted findings |
+| 6.1 | `/schema` | JSON-LD validator (deprecated-type flagging per Jan 2026 standards) |
+| 6.2 | `/broken-links` | Dead `/blog/<slug>` refs + orphan pages + weakly-linked pages |
+| 6.3 | `/rejected-drafts` | Pattern-mining (clustered errors, MAX_RECOVERIES, repeated topic rejections, 14d velocity) |
+| 6.4 | `/errors` | 404 inference (indexing errors + sitemap orphans + cron HTTP failures) — no Vercel Logs API needed |
+| 6.5 | `/arabic-ssr` | Closes KG-032 — 5-check Arabic SSR compliance scanner |
+| 7.1 | `/serp`, `/keyword-research` | DataForSEO integration (competitor SERP + keyword volume/CPC) |
+| 7.2 | `/ab-test` (GET/POST), `/ab-test/[id]` (GET/POST/PATCH), `/ab-test/track` | Full A/B testing infra with z-test winner detection |
+| 7.3 | `/impact` | Closes learning loop — 7/14/30d CTR/position/commission delta before vs after `fixedAt` |
+| 7.4 | `/gsc/inspect`, `/gsc/breakdown`, `/gsc/coverage-summary` | URL Inspection + multi-dim Search Analytics + derived coverage report |
+| 7.5 | `/ga4/channels`, `/ga4/conversions`, `/ga4/realtime`, `/ga4/funnel` | Per-page funnel + event conversions + active users now + channel breakdown |
+| 7.6 | `/affiliate/gaps`, `/recommendations`, `/commission-trends`, `/approval-queue` | Revenue-focused: unlinked brand mentions, program recs from intent volume, weekly velocity, CJ approval state |
+
 ## Workflow Infrastructure & Developer Tools
 
 ### Available Command Categories

@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.5";
+export const BRIDGE_VERSION = "2026-04-20.6";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -150,6 +150,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     status: "stable",
   },
   {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/lighthouse",
+    kind: "interpret",
+    summary: "PageSpeed Insights wrapper — Core Web Vitals (LCP/INP/CLS) + category scores + interpreted findings with Google 2026 thresholds",
+    inputs: { url: "required full URL", strategy: "mobile (default) | desktop" },
+    outputs: "{ coreWebVitals, scores, diagnostics, findings, interpretedActions }",
+    addedIn: "2026-04-20.6",
+    status: "stable",
+  },
+  {
     method: "POST",
     path: "/api/admin/chrome-bridge/report",
     kind: "write",
@@ -208,6 +218,12 @@ export function suggestNextEndpoints(justCalled: string): string[] {
       "Near-miss queries ranked 11-20 with ≥200 impressions: high-impact content expansion targets",
       "Content gaps (en/ar): primary keywords with zero published coverage — prioritize new article creation",
       "TopicQueue with high confidence: next-up for the pipeline — no action needed unless blocked",
+    ],
+    "lighthouse": [
+      "Poor LCP (>4s) typically = unoptimized hero image. Check next/image + priority flag.",
+      "Poor INP (>500ms) = heavy JS on main thread. Check bundle size, defer non-critical scripts.",
+      "Poor CLS (>0.25) = images/iframes without width/height, or font swap flash. Easy wins.",
+      "Run desktop strategy too — mobile ≠ desktop results, audit both.",
     ],
     "action-logs": [
       "POST /triage with clustered findings + proposed fixes",

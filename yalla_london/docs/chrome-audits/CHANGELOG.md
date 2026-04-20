@@ -7,6 +7,35 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.6 — Lighthouse endpoint (Phase 5 complete)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/lighthouse?url=X&strategy=mobile|desktop`
+  Wraps PageSpeed Insights v5 (via existing `lib/performance/site-auditor.auditPage`).
+  Returns:
+  - Core Web Vitals: LCP, INP, CLS, FCP, TBT, Speed Index — each with
+    `rating: "good" | "needs-improvement" | "poor"` based on Google 2026 thresholds
+  - Category scores: performance, accessibility, best-practices, seo
+  - Top 10 diagnostics from Lighthouse
+  - `findings[]` + `interpretedActions[]` in the standard Chrome Bridge format
+    so the response drops straight into POST /report without re-interpretation
+
+**Thresholds (Google 2026):**
+- LCP: ≤2.5s good, ≤4s needs-improvement, >4s poor
+- INP: ≤200ms good, ≤500ms needs-improvement, >500ms poor
+- CLS: ≤0.1 good, ≤0.25 needs-improvement, >0.25 poor
+- Performance score: ≥90 target, <80 warn, <50 critical
+- Accessibility score: ≥90 target (WCAG AA), <70 critical
+
+**Why:** Claude Chrome can now correlate visual/UX findings from its browser
+session with objective Core Web Vitals data. Close the "page feels slow" /
+"numbers say it's slow" loop with one endpoint call per page audit.
+
+**Phase 5 complete.** 5 commits shipped: awareness layer (5.1), revenue (5.2),
+audit memory (5.3), topic opportunities (5.4), Lighthouse (5.5).
+
+---
+
 ## 2026-04-20.5 — Topic opportunities
 
 **Added:**

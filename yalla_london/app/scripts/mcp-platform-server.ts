@@ -1279,6 +1279,312 @@ server.tool(
   }
 );
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Chrome Bridge Tools — for Claude Chrome auditing workflow
+// ═══════════════════════════════════════════════════════════════════════════
+
+server.tool(
+  "chrome_bridge_list_pages",
+  "List published pages for a site with GSC 7-day metrics. Use to pick audit targets.",
+  {
+    siteId: z.string().optional().describe("Site ID (default: yalla-london)"),
+    limit: z.number().optional().describe("Max pages to return (default: 20, max: 100)"),
+  },
+  async ({ siteId, limit }) => {
+    const site = siteId || getDefaultSiteId();
+    const take = Math.min(limit || 20, 100);
+    const domain = getSiteDomain(site);
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    try {
+      const posts = await prisma.blogPost.findMany({
+        where: { published: true, siteId: site },
+        orderBy: { created_at: "desc" },
+        take,
+        select: {
+          id: true, slug: true, title_en: true, seo_score: true, created_at: true,
+        },
+      });
+      const urls = posts.map((p) => `${domain}/blog/${p.slug}`);
+      const gsc = await prisma.gscPagePerformance.groupBy({
+        by: ["url"],
+        where: { site_id: site, url: { in: urls }, date: { gte: since7d } },
+        _sum: { clicks: true, impressions: true },
+        _avg: { ctr: true, position: true },
+      });
+      const gscByUrl: Record<string, { clicks: number; impressions: number; ctr: number; position: number }> = {};
+      for (const m of gsc) {
+        gscByUrl[m.url] = {
+          clicks: m._sum.clicks ?? 0,
+          impressions: m._sum.impressions ?? 0,
+          ctr: m._avg.ctr ?? 0,
+          position: m._avg.position ?? 0,
+        };
+      }
+      return json({
+        siteId: site,
+        count: posts.length,
+        pages: posts.map((p) => ({
+          id: p.id,
+          slug: p.slug,
+          url: `${domain}/blog/${p.slug}`,
+          title: p.title_en,
+          seoScore: p.seo_score ?? undefined,
+          createdAt: p.created_at,
+          gsc7d: gscByUrl[`${domain}/blog/${p.slug}`] ?? null,
+        })),
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "chrome_bridge_read_page",
+  "Get deep-dive data for a single page: BlogPost + GSC 30d + indexing + enhancement log. Input: page ID.",
+  {
+    pageId: z.string().describe("BlogPost ID"),
+  },
+  async ({ pageId }) => {
+    try {
+      const post = await prisma.blogPost.findUnique({
+        where: { id: pageId },
+        select: {
+          id: true, siteId: true, slug: true, title_en: true, title_ar: true,
+          content_en: true, meta_title_en: true, meta_description_en: true,
+          seo_score: true, published: true, created_at: true,
+          source_pipeline: true, enhancement_log: true,
+        },
+      });
+      if (!post) return error(`Page not found: ${pageId}`);
+
+      const domain = getSiteDomain(post.siteId || getDefaultSiteId());
+      const url = `${domain}/blog/${post.slug}`;
+      const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const [gsc, indexing] = await Promise.all([
+        prisma.gscPagePerformance.aggregate({
+          where: { site_id: post.siteId || undefined, url, date: { gte: since30d } },
+          _sum: { clicks: true, impressions: true },
+          _avg: { ctr: true, position: true },
+        }),
+        prisma.uRLIndexingStatus.findFirst({
+          where: { site_id: post.siteId || undefined, url },
+          select: {
+            status: true, coverage_state: true, indexing_state: true,
+            submission_attempts: true, last_inspected_at: true, last_error: true,
+          },
+        }),
+      ]);
+
+      const contentEn = post.content_en || "";
+      const wordCount = contentEn.trim().split(/\s+/).filter(Boolean).length;
+      const internalLinkCount = (contentEn.match(/<a[^>]+href=["'][^"']*yalla-london\.com/gi) || []).length;
+      const affiliateLinkCount = (contentEn.match(/\/api\/affiliate\/click/g) || []).length;
+
+      return json({
+        page: {
+          id: post.id, url, title: post.title_en,
+          seoScore: post.seo_score ?? undefined,
+          wordCount, internalLinkCount, affiliateLinkCount,
+          metaTitleEn: post.meta_title_en ?? undefined,
+          metaDescriptionEn: post.meta_description_en ?? undefined,
+          published: post.published,
+          createdAt: post.created_at,
+          enhancementLog: post.enhancement_log ?? [],
+        },
+        gsc30d: {
+          clicks: gsc._sum.clicks ?? 0,
+          impressions: gsc._sum.impressions ?? 0,
+          ctr: gsc._avg.ctr ?? 0,
+          position: gsc._avg.position ?? 0,
+        },
+        indexing: indexing ?? null,
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "chrome_bridge_get_action_logs",
+  "Unified action log view: cron/audit/autofix/AI failures clustered for triage.",
+  {
+    hours: z.number().optional().describe("Lookback window in hours (default: 24, max: 168)"),
+    siteId: z.string().optional().describe("Filter by site (optional)"),
+  },
+  async ({ hours, siteId }) => {
+    const window = Math.min(hours || 24, 168);
+    const since = new Date(Date.now() - window * 60 * 60 * 1000);
+    const site = siteId;
+
+    try {
+      const cronWhere: Record<string, unknown> = { started_at: { gte: since } };
+      if (site) cronWhere.site_id = site;
+
+      const [cronLogs, autoFixes, apiFailures] = await Promise.all([
+        prisma.cronJobLog.findMany({
+          where: cronWhere,
+          orderBy: { started_at: "desc" },
+          take: 100,
+          select: {
+            job_name: true, status: true, started_at: true, duration_ms: true,
+            items_failed: true, error_message: true,
+          },
+        }),
+        prisma.autoFixLog.count({
+          where: { createdAt: { gte: since }, ...(site ? { siteId: site } : {}) },
+        }),
+        prisma.apiUsageLog.count({
+          where: { createdAt: { gte: since }, success: false, ...(site ? { siteId: site } : {}) },
+        }),
+      ]);
+
+      const failedByJob: Record<string, number> = {};
+      for (const c of cronLogs) {
+        if (c.status === "failed" || c.status === "timed_out") {
+          failedByJob[c.job_name] = (failedByJob[c.job_name] ?? 0) + 1;
+        }
+      }
+
+      return json({
+        windowHours: window,
+        siteId: site ?? "all",
+        totalCronRuns: cronLogs.length,
+        failedByJob,
+        autoFixesAttempted: autoFixes,
+        aiFailures: apiFailures,
+        recentFailures: cronLogs
+          .filter((c) => c.status === "failed" || c.status === "timed_out")
+          .slice(0, 10)
+          .map((c) => ({
+            job: c.job_name,
+            status: c.status,
+            startedAt: c.started_at,
+            durationMs: c.duration_ms,
+            itemsFailed: c.items_failed,
+            error: c.error_message?.slice(0, 200),
+          })),
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "chrome_bridge_upload_report",
+  "Upload a per-page, sitewide, or offsite audit report. Creates ChromeAuditReport + AgentTask for CLI pick-up.",
+  {
+    siteId: z.string().describe("Site ID (required)"),
+    pageUrl: z.string().url().describe("Full canonical page URL"),
+    auditType: z.enum(["per_page", "sitewide", "offsite"]).describe("Audit type"),
+    severity: z.enum(["info", "warning", "critical"]).describe("Overall severity"),
+    findings: z.array(z.record(z.unknown())).describe("Findings array per PLAYBOOK.md"),
+    interpretedActions: z.array(z.record(z.unknown())).describe("Actions array per PLAYBOOK.md"),
+    reportMarkdown: z.string().min(20).describe("Full markdown report"),
+    rawData: z.record(z.unknown()).optional().describe("Raw GSC/GA4/indexing snapshot"),
+  },
+  async ({ siteId, pageUrl, auditType, severity, findings, interpretedActions, reportMarkdown, rawData }) => {
+    const domain = getSiteDomain(getDefaultSiteId());
+    const secret = process.env.CLAUDE_BRIDGE_TOKEN || process.env.CRON_SECRET;
+    try {
+      const res = await fetch(`${domain}/api/admin/chrome-bridge/report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
+        },
+        body: JSON.stringify({ siteId, pageUrl, auditType, severity, findings, interpretedActions, reportMarkdown, rawData }),
+        signal: AbortSignal.timeout(55_000),
+      });
+      const text = await res.text();
+      let data: unknown;
+      try { data = JSON.parse(text); } catch { data = text; }
+      if (!res.ok) return error(`Upload failed: ${res.status} ${JSON.stringify(data).slice(0, 500)}`);
+      return json(data);
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "chrome_bridge_upload_triage",
+  "Upload an action-log triage report (cross-cron failure clustering). Creates ChromeAuditReport + AgentTask.",
+  {
+    siteId: z.string().optional().describe("Site ID (optional — triage can be cross-site)"),
+    periodHours: z.number().describe("Lookback window that was analyzed (hours)"),
+    severity: z.enum(["info", "warning", "critical"]).describe("Overall severity"),
+    findings: z.array(z.record(z.unknown())).describe("Findings array"),
+    interpretedActions: z.array(z.record(z.unknown())).describe("Actions array"),
+    reportMarkdown: z.string().min(20).describe("Full markdown report"),
+    rawData: z.record(z.unknown()).optional().describe("Raw log snapshot"),
+  },
+  async ({ siteId, periodHours, severity, findings, interpretedActions, reportMarkdown, rawData }) => {
+    const domain = getSiteDomain(getDefaultSiteId());
+    const secret = process.env.CLAUDE_BRIDGE_TOKEN || process.env.CRON_SECRET;
+    try {
+      const res = await fetch(`${domain}/api/admin/chrome-bridge/triage`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
+        },
+        body: JSON.stringify({ siteId, periodHours, severity, findings, interpretedActions, reportMarkdown, rawData }),
+        signal: AbortSignal.timeout(55_000),
+      });
+      const text = await res.text();
+      let data: unknown;
+      try { data = JSON.parse(text); } catch { data = text; }
+      if (!res.ok) return error(`Upload failed: ${res.status} ${JSON.stringify(data).slice(0, 500)}`);
+      return json(data);
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
+server.tool(
+  "chrome_bridge_list_reports",
+  "List recent Chrome audit reports. Filter by siteId, auditType, or status.",
+  {
+    siteId: z.string().optional(),
+    auditType: z.string().optional().describe("per_page | sitewide | action_log_triage | offsite"),
+    status: z.string().optional().describe("new | reviewed | fix_queued | fixed | dismissed"),
+    limit: z.number().optional().describe("Max results (default: 30, max: 100)"),
+  },
+  async ({ siteId, auditType, status, limit }) => {
+    const take = Math.min(limit || 30, 100);
+    const where: Record<string, unknown> = {};
+    if (siteId) where.siteId = siteId;
+    if (auditType) where.auditType = auditType;
+    if (status) where.status = status;
+
+    try {
+      const reports = await prisma.chromeAuditReport.findMany({
+        where,
+        orderBy: { uploadedAt: "desc" },
+        take,
+        select: {
+          id: true, siteId: true, pageUrl: true, pageSlug: true,
+          auditType: true, severity: true, status: true,
+          uploadedAt: true, reviewedAt: true, fixedAt: true,
+          agentTaskId: true,
+        },
+      });
+      return json({
+        count: reports.length,
+        reports,
+      });
+    } catch (err: unknown) {
+      return error(err instanceof Error ? err.message : String(err));
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Start server
 // ---------------------------------------------------------------------------

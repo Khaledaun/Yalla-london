@@ -128,7 +128,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const postsBySlug = new Map(posts.map((p) => [p.slug, p]));
+    type PostRow = (typeof posts)[number];
+    const postsBySlug = new Map<string, PostRow>(posts.map((p) => [p.slug, p]));
 
     // Author lookup
     const authorIds = [...new Set(posts.map((p) => p.author_id).filter(Boolean) as string[])];
@@ -136,7 +137,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: { id: { in: authorIds } },
       select: { id: true, name: true, email: true },
     });
-    const authorsById = new Map(authors.map((a) => [a.id, a]));
+    type AuthorRow = (typeof authors)[number];
+    const authorsById = new Map<string, AuthorRow>(authors.map((a) => [a.id, a]));
 
     const pages = indexingRows.map((row) => {
       const slug = row.slug ?? extractSlug(row.url, domain) ?? "";

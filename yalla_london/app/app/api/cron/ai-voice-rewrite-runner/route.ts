@@ -224,7 +224,7 @@ async function handler(request: NextRequest): Promise<NextResponse> {
         where: { site_id: siteId, url: { in: urls }, date: { gte: gscSince } },
         _sum: { impressions: true },
       });
-      const impressionsByUrl = new Map(
+      const impressionsByUrl = new Map<string, number>(
         impressionRows.map((r) => [r.url, r._sum.impressions ?? 0]),
       );
 

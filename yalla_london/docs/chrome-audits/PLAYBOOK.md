@@ -1,8 +1,8 @@
 # Claude Chrome Audit Playbook
 
 ---
-version: 2026-04-20
-bridgeVersion: 2026-04-20.2
+version: 2026-04-20.17
+bridgeVersion: 2026-04-20.17
 changelog: docs/chrome-audits/CHANGELOG.md
 ---
 
@@ -21,13 +21,18 @@ You are a **world-class SEO + AIO + UX expert** auditing luxury travel sites (Ya
 Base: `https://www.yalla-london.com/api/admin/chrome-bridge`
 Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
 
+**Call `/capabilities` first** — it returns the live manifest with every endpoint, feature flag, and env availability status. This table is a human-readable summary.
+
+### Core (Phases 1-4)
+
 | Endpoint | Use |
 |----------|-----|
 | GET `/` | Self-documenting index |
+| GET `/capabilities` | Full manifest + feature flags + env status |
 | GET `/sites` | All active sites + config |
 | GET `/overview` | Cross-site snapshot (start here) |
 | GET `/pages?siteId=X&limit=N` | Published pages + GSC 7d metrics |
-| GET `/page/[id]` | Single page deep dive (30d GSC, indexing, enhancement log) |
+| GET `/page/[id]` | Single page deep dive (30d GSC, indexing, revenue, audit history) |
 | GET `/action-logs?hours=24&siteId=X` | Unified cron/audit/autofix/AI logs |
 | GET `/cycle-health?siteId=X` | Pipeline health signals |
 | GET `/aggregated-report?siteId=X` | Latest SEO audit reports |
@@ -35,6 +40,50 @@ Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
 | GET `/ga4?siteId=X&days=30` | GA4 sessions, pageviews, bounce, top sources |
 | POST `/report` | Upload per-page/sitewide/offsite audit |
 | POST `/triage` | Upload action-log triage |
+
+### Phase 5 — Per-page intelligence
+
+| Endpoint | Use |
+|----------|-----|
+| GET `/revenue?siteId=X&days=30` | Per-page affiliate attribution — classifies each as earner / dead_weight / unmonetized / fresh / cold |
+| GET `/history?siteId=X&pageUrl=X` | Audit memory — timeline of past reports with delta (resolved / recurring / new findings) |
+| GET `/opportunities?siteId=X` | What to write next — TopicProposal queue + GSC near-miss (pos 11-30, ≥50 imp) + content gaps |
+| GET `/lighthouse?url=X&strategy=mobile\|desktop` | PageSpeed CWV (LCP/INP/CLS) + interpreted findings |
+
+### Phase 6 — Audit depth
+
+| Endpoint | Use |
+|----------|-----|
+| GET `/schema?url=X` | JSON-LD validator — flags deprecated types (FAQPage restricted, HowTo, etc.) |
+| GET `/broken-links?siteId=X` | Dead `/blog/<slug>` refs + orphan pages + weakly-linked pages |
+| GET `/rejected-drafts?siteId=X` | Pattern-mine pipeline rejections — clustered by normalized error |
+| GET `/errors?siteId=X` | 404 inference (sitemap orphans + indexing errors + cron HTTP failures) |
+| GET `/arabic-ssr?siteId=X` | Arabic SSR compliance (KG-032) — 5 checks per `/ar/` URL |
+
+### Phase 7 — Competitive, A/B testing, affiliate research
+
+| Endpoint | Use |
+|----------|-----|
+| GET `/serp?keyword=X&locationCode=2826` | Competitor SERP via DataForSEO — top 10 + featured snippet + AI Overview citations |
+| GET `/keyword-research?keywords=a,b,c` | Search volume + CPC + competition (up to 100 keywords) |
+| GET `/ab-test?siteId=X&status=active` | List A/B tests with live z-test stats |
+| POST `/ab-test` | Register new A/B test (title / meta / affiliate_cta / hero / content_section) |
+| GET `/ab-test/[id]` | Single test detail + stats |
+| POST `/ab-test/[id]` body `{action:"conclude"}` | Declare winner + confidence |
+| PATCH `/ab-test/[id]` | Pause / resume / notes / manual winner |
+| POST `/ab-test/track` (public) | Tracking beacon — `{testId, variant, event}` |
+| GET `/impact?reportId=X` | Measure 7/14/30d CTR/position/commission delta after audit fix (learning loop) |
+| GET `/gsc/inspect?url=X` | Single-URL GSC inspection — canonical, crawl, mobile usability |
+| GET `/gsc/breakdown?by=device\|country\|date\|searchAppearance\|page\|query` | Multi-dim Search Analytics slicing |
+| GET `/gsc/coverage-summary?siteId=X` | Derived coverage report (chronic failures, deindexed, quality-signal pages) |
+| GET `/ga4/channels?siteId=X&days=30` | Traffic by channel group + source/medium |
+| GET `/ga4/conversions?siteId=X&eventName=X` | Event counts + affiliate conversion rate |
+| GET `/ga4/realtime?siteId=X` | Active users last 30 min + by country + top pages |
+| GET `/ga4/funnel?siteId=X&pagePath=X` | Per-page funnel (session → view → scroll → affiliate_click) |
+| GET `/affiliate/gaps?siteId=X` | Brand mentions in articles that aren't affiliate-wrapped |
+| GET `/affiliate/recommendations?siteId=X` | Ranked affiliate programs to apply to (GSC intent + EPC + coverage) |
+| GET `/affiliate/commission-trends?siteId=X&days=90` | Weekly velocity per advertiser — declining / rising / inactive flags |
+| GET `/affiliate/approval-queue` | CjAdvertiser JOINED/PENDING/DECLINED + stuck-pending alerts |
 
 ## The 5 Pillars
 
@@ -76,24 +125,57 @@ Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
 - **Bounce red flags:** >70% bounce + <20s engagement = first-screen failure
 - **Accessibility:** WCAG AA — contrast ≥4.5:1 body text, keyboard-navigable, focus states visible
 
-### 5. Off-site
-- **Brand mentions** — Google "Yalla London" to check presence in travel blogs, forums, news
-- **Competitor SERP overlap** — check top 10 for target keywords, identify gaps
-- **Backlinks** — v1 manual (no paid API yet). Flag if key pages have 0 inbound links from non-Yalla domains
+### 5. Off-site + Competitive (Phase 7.1)
+- **SERP competitors** — `GET /serp?keyword=X` returns top 10 Google results + featured snippet + AI Overview citations. Detects if we rank and if we're cited.
+- **Keyword volume validation** — `GET /keyword-research?keywords=a,b,c` confirms search volume + CPC + competition before investing in content.
+- **Content angle gaps** — review competitor domains' titles + breadcrumbs from SERP results to identify angles we don't cover.
+- **AIO citation status** — if AI Overview appears but we're not cited, prioritize answer capsule + stats + question-H2 rewrites.
 - **Citation consistency** — NAP (name, address, phone) across directories matches
 
+### 6. Revenue + Monetization (Phase 5.2 + 7.6)
+- **Per-page classification** — `GET /revenue?siteId=X` labels every page:
+  - `earner` — protect mode (title/meta tweaks only, no invasive rewrites)
+  - `dead_weight` — high organic traffic, $0 revenue, has affiliate links → audit CTAs, placement, anchor text
+  - `unmonetized` — no affiliate links in content → propose affiliate-injection cron
+  - `fresh` — <14 days old (excluded from classification)
+  - `cold` — not enough data
+- **Affiliate gaps** — `GET /affiliate/gaps?siteId=X` finds brand mentions (Booking, Agoda, HalalBooking, etc.) not wrapped in affiliate tracking.
+- **Commission velocity** — `GET /affiliate/commission-trends?siteId=X` surfaces declining / rising / inactive partners.
+- **Program recommendations** — `GET /affiliate/recommendations?siteId=X` ranks affiliate programs to apply for by GSC intent volume + existing coverage + typical EPC.
+
 ## Audit Methodology
+
+### Step 0 — Check awareness (EVERY session)
+```
+GET /chrome-bridge/capabilities
+```
+Compare `bridgeVersion` in response to this playbook's frontmatter. If newer, re-fetch the playbook. Check `envAvailability` to know what's wired (PageSpeed, GSC, GA4, DataForSEO).
 
 ### Step 1 — Load context
 ```
 GET /chrome-bridge/overview       # cross-site snapshot
-GET /chrome-bridge/sites          # site configs
+GET /chrome-bridge/sites          # site configs + brand colors
 ```
 
-### Step 2 — Pick target(s)
-Per-page: `GET /chrome-bridge/pages?siteId=X&limit=20` — sort by impressions or clicks, pick bottom-performers or high-opportunity pages (position 11-20 with 100+ impressions).
+### Step 2 — Pick targets (choose the right lens)
 
-Sitewide: kickoff from `GET /chrome-bridge/aggregated-report?siteId=X`.
+**Revenue-first lens** (default for monetization audits):
+`GET /chrome-bridge/revenue?siteId=X` → focus on `dead_weight` (has traffic, no earnings) and `unmonetized` (no affiliates). Biggest revenue unlock.
+
+**Growth-first lens** (when traffic is thin):
+`GET /chrome-bridge/opportunities?siteId=X` → near-miss queries (pos 11-30, ≥200 impressions) + content gaps + TopicProposal queue.
+
+**Quality-first lens** (when trust/E-E-A-T matters):
+`GET /chrome-bridge/pages?siteId=X` sorted by CTR — bottom performers indicate title/meta problems OR content quality issues.
+
+**Operational-first lens** (when something's broken):
+`GET /chrome-bridge/action-logs?hours=24` + `GET /chrome-bridge/rejected-drafts?siteId=X` + `GET /chrome-bridge/errors?siteId=X`. Then `POST /triage` with clustered findings.
+
+**Competitive lens** (when beaten by a specific competitor):
+`GET /chrome-bridge/serp?keyword=X` → see who ranks + if AIO cites us. Run `GET /keyword-research?keywords=...` to validate volume before investing.
+
+**Learning lens** (after applying past fixes):
+`GET /chrome-bridge/impact?siteId=X&days=30` → verdict counts (confirmed_improvement / no_change / regression / insufficient_data). Update future recommendations based on what actually worked.
 
 ### Step 3 — Fetch data for target
 For per-page audits:

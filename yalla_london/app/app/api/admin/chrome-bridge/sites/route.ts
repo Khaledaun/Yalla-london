@@ -25,11 +25,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         name: config?.name ?? id,
         domain: getSiteDomain(id),
         locale: config?.locale ?? "en",
+        direction: config?.direction ?? "ltr",
+        destination: config?.destination,
+        country: config?.country,
+        currency: config?.currency,
         primaryKeywordsEN: config?.primaryKeywordsEN ?? [],
         primaryKeywordsAR: config?.primaryKeywordsAR ?? [],
         brandColors: {
-          primary: config?.brand?.primary,
-          accent: config?.brand?.accent,
+          primary: config?.primaryColor,
+          secondary: config?.secondaryColor,
         },
       };
     });

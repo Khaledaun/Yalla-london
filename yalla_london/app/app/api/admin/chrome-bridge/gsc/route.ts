@@ -36,7 +36,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .slice(0, 10);
 
     const siteUrl = getSiteDomain(siteId).replace(/\/$/, "");
-    const gsc = new GoogleSearchConsole({ siteUrl });
+    const gsc = new GoogleSearchConsole();
+    gsc.setSiteUrl(siteUrl);
 
     const [topPages, topKeywords, sitemaps] = await Promise.all([
       gsc.getTopPages(startDate, endDate, limit).catch((err) => {

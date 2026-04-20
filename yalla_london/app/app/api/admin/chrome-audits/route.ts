@@ -165,10 +165,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         data: { status: "fixed", fixedAt: new Date() },
       });
       if (report.agentTaskId) {
-        await prisma.agentTask.update({
-          where: { id: report.agentTaskId },
-          data: { status: "completed", completedAt: new Date() },
-        }).catch(() => {});
+        await prisma.agentTask
+          .update({
+            where: { id: report.agentTaskId },
+            data: { status: "completed", completedAt: new Date() },
+          })
+          .catch((err) => {
+            console.warn(
+              "[admin/chrome-audits] agentTask completion update failed:",
+              err instanceof Error ? err.message : String(err),
+            );
+          });
       }
       return NextResponse.json({ success: true, action: "mark_fixed" });
     }

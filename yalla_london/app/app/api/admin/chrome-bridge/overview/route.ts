@@ -40,20 +40,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: { site_id: { in: siteIds } },
         _count: { _all: true },
       }),
-      prisma.chromeAuditReport.findMany({
-        where: { uploadedAt: { gte: since7d } },
-        orderBy: { uploadedAt: "desc" },
-        take: 20,
-        select: {
-          id: true,
-          siteId: true,
-          pageUrl: true,
-          auditType: true,
-          severity: true,
-          status: true,
-          uploadedAt: true,
-        },
-      }),
+      prisma.chromeAuditReport
+        .findMany({
+          where: { uploadedAt: { gte: since7d } },
+          orderBy: { uploadedAt: "desc" },
+          take: 20,
+          select: {
+            id: true,
+            siteId: true,
+            pageUrl: true,
+            auditType: true,
+            severity: true,
+            status: true,
+            uploadedAt: true,
+          },
+        })
+        .catch((err) => {
+          console.warn(
+            "[chrome-bridge/overview] chromeAuditReport query failed (table may not exist yet — run prisma migrate deploy):",
+            err instanceof Error ? err.message : String(err),
+          );
+          return [];
+        }),
       prisma.uRLIndexingStatus.groupBy({
         by: ["site_id", "status"],
         where: { site_id: { in: siteIds } },

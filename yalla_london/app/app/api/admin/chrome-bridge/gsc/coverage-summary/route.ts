@@ -49,8 +49,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         by: ["coverage_state"],
         where: { site_id: siteId, coverage_state: { not: null } },
         _count: { _all: true },
-        orderBy: { _count: { id: "desc" } },
-        take: 15,
+        take: 30,
       }),
       prisma.uRLIndexingStatus.groupBy({
         by: ["indexing_state"],
@@ -202,10 +201,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         indexingRatePct: `${(indexingRate * 100).toFixed(1)}%`,
       },
       statusGroups,
-      coverageStateBuckets: coverageGroups.map((c) => ({
-        coverageState: c.coverage_state,
-        count: c._count._all,
-      })),
+      coverageStateBuckets: coverageGroups
+        .map((c) => ({
+          coverageState: c.coverage_state,
+          count: c._count._all,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15),
       indexingStateBuckets: indexingStateGroups.map((i) => ({
         indexingState: i.indexing_state,
         count: i._count._all,

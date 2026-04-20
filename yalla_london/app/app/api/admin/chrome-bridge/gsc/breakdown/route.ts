@@ -61,14 +61,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const gsc = new GoogleSearchConsole();
     gsc.setSiteUrl(siteUrl);
 
-    const rows = await gsc
-      .getSearchAnalytics(startDate, endDate, [by], limit)
+    const response = await gsc
+      .getSearchAnalytics(startDate, endDate, [by])
       .catch((err) => {
         console.warn("[chrome-bridge/gsc/breakdown] getSearchAnalytics failed:", err);
-        return [];
+        return null;
       });
 
-    if (!Array.isArray(rows) || rows.length === 0) {
+    // getSearchAnalytics returns GSC's raw response: { rows: [...], ... } or null
+    const rawRows: unknown[] =
+      response && typeof response === "object" && "rows" in response && Array.isArray((response as Record<string, unknown>).rows)
+        ? ((response as Record<string, unknown>).rows as unknown[])
+        : [];
+
+    if (rawRows.length === 0) {
       return NextResponse.json({
         success: true,
         siteId,
@@ -79,7 +85,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    const normalized = rows.map((row: unknown) => {
+    const normalized = rawRows.slice(0, limit).map((row: unknown) => {
       const r = row as Record<string, unknown>;
       const keys = Array.isArray(r.keys) ? (r.keys as string[]) : [];
       return {

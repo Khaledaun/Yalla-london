@@ -7,6 +7,44 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.17 — Affiliate research + activities (Phase 7.6 — Phase 7 COMPLETE)
+
+**4 new endpoints:**
+- `GET /affiliate/gaps?siteId=X&limit=N` — scans published BlogPost.content_en
+  for 16 known brand patterns (Booking.com, Agoda, HalalBooking, Vrbo,
+  GetYourGuide, Viator, Klook, Tiqets, Skyscanner, Boatbookings, The Fork,
+  OpenTable, Stay22, Kayak, Airbnb, Hotels.com). Counts mentions vs
+  affiliate-wrapped references. Returns topGapBrands + topArticlesByGap
+  ranked by unlinked mention count.
+
+- `GET /affiliate/recommendations?siteId=X&days=N` — synthesizes affiliate
+  program recommendations from 4 signals:
+  1. GSC intent volume (top 100 queries classified into hotel/activity/
+     flight/restaurant/yacht/car/insurance via regex patterns)
+  2. Existing coverage (which categories have JOINED CjAdvertisers)
+  3. Curated program catalog with typical EPC values
+  4. Priority scoring: high-intent volume + no coverage + high EPC = HIGH
+
+- `GET /affiliate/commission-trends?siteId=X&days=N` — aggregates CjCommission
+  by advertiser + ISO week. Classifies each partner:
+  - `declining` — last 3 weeks down ≥50% vs prior 3 weeks
+  - `rising` — last 3 weeks up ≥50% with ≥$5 commission
+  - `inactive` — no commissions in last 3 weeks (but previously earned)
+  - `new` — only one week of data
+  - `stable` — everything else
+
+- `GET /affiliate/approval-queue` — CjAdvertiser state overview
+  (JOINED/PENDING/DECLINED/NOT_JOINED). Flags stuck-pending applications
+  (>30d in PENDING). Ranks high-EPC (threeMonthEpc>$2) unconverted
+  advertisers for priority application. Groups joined by category for
+  coverage visibility.
+
+**Phase 7 complete.** All 6 sub-phases shipped: DataForSEO (7.1), A/B
+testing (7.2), impact measurement (7.3), expanded GSC (7.4), expanded GA4
+(7.5), affiliate research (7.6).
+
+---
+
 ## 2026-04-20.16 — Expanded GA4 (Phase 7.5)
 
 **Added to `lib/seo/ga4-data-api.ts`:**

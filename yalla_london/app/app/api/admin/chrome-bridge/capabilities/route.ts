@@ -32,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     impactMeasurement: true, // Phase 7.3
     expandedGsc: true, // Phase 7.4
     expandedGa4: true, // Phase 7.5
-    affiliateResearch: false, // Phase 7.6
+    affiliateResearch: true, // Phase 7.6
   };
 
   const envAvailability = {

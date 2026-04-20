@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.16";
+export const BRIDGE_VERSION = "2026-04-20.17";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -352,6 +352,45 @@ export const ENDPOINTS: EndpointManifest[] = [
     summary: "Per-page engagement funnel (page_view → scroll → affiliate_click) with pagePath param. Aggregate mode lists worst-performers (high traffic + high bounce).",
     inputs: { siteId: "required", days: "max 90", pagePath: "optional, exact path" },
     addedIn: "2026-04-20.16",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/affiliate/gaps",
+    kind: "interpret",
+    summary: "Scans published articles for brand mentions (Booking, Agoda, HalalBooking, etc.) that aren't wrapped in affiliate tracking. Ranked by unlinked mention count.",
+    inputs: { siteId: "required", limit: "max 500" },
+    outputs: "{ summary, topGapBrands, topArticlesByGap }",
+    addedIn: "2026-04-20.17",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/affiliate/recommendations",
+    kind: "interpret",
+    summary: "Affiliate program recommendations synthesized from GSC intent volume + existing coverage + typical EPC. Priority-ranked.",
+    inputs: { siteId: "required", days: "max 90" },
+    outputs: "{ intentVolume, categoryCoverage, recommendations[] }",
+    addedIn: "2026-04-20.17",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/affiliate/commission-trends",
+    kind: "interpret",
+    summary: "Weekly commission velocity per advertiser. Classifies each as declining / rising / stable / new / inactive based on last 3 weeks vs prior 3 weeks.",
+    inputs: { siteId: "required", days: "max 180" },
+    outputs: "{ summary, trends, declining, rising, inactive }",
+    addedIn: "2026-04-20.17",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/affiliate/approval-queue",
+    kind: "read",
+    summary: "CjAdvertiser state overview. Flags stuck-pending applications (>30d). Recommends high-EPC advertisers to apply to.",
+    outputs: "{ summary, joined, pending, stuckPending, recommendedApplications }",
+    addedIn: "2026-04-20.17",
     status: "stable",
   },
   {

@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.15";
+export const BRIDGE_VERSION = "2026-04-20.16";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -316,6 +316,42 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { siteId: "required" },
     outputs: "{ summary { indexingRate }, statusGroups, coverageStateBuckets, chronicFailures, deindexed, findings, interpretedActions }",
     addedIn: "2026-04-20.15",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/ga4/channels",
+    kind: "read",
+    summary: "Traffic by channel group + source/medium. Sessions, engagement rate, bounce rate per channel.",
+    inputs: { siteId: "required", days: "max 90" },
+    addedIn: "2026-04-20.16",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/ga4/conversions",
+    kind: "read",
+    summary: "Event counts + key business metrics (affiliate_click rate, page_view rate). Filter by eventName.",
+    inputs: { siteId: "required", days: "max 90", eventName: "optional exact filter" },
+    addedIn: "2026-04-20.16",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/ga4/realtime",
+    kind: "read",
+    summary: "Active users in last 30 min. Total + by country + top pages + top sources right now.",
+    inputs: { siteId: "required" },
+    addedIn: "2026-04-20.16",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/ga4/funnel",
+    kind: "read",
+    summary: "Per-page engagement funnel (page_view → scroll → affiliate_click) with pagePath param. Aggregate mode lists worst-performers (high traffic + high bounce).",
+    inputs: { siteId: "required", days: "max 90", pagePath: "optional, exact path" },
+    addedIn: "2026-04-20.16",
     status: "stable",
   },
   {

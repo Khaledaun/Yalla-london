@@ -7,6 +7,33 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.16 — Expanded GA4 (Phase 7.5)
+
+**Added to `lib/seo/ga4-data-api.ts`:**
+- `runGA4CustomReport(body, propertyIdOverride?)` — exposes runReport() for
+  arbitrary GA4 Data API queries with the shared auth pipeline
+- `runGA4RealtimeReport(body, propertyIdOverride?)` — same for realtime
+  (different endpoint: `:runRealtimeReport`, max 30-min lookback)
+
+**New endpoints:**
+- `GET /ga4/channels?siteId=X&days=N` — traffic acquisition by default
+  channel group + source/medium. Session count, engagement rate, bounce
+  rate per channel.
+- `GET /ga4/conversions?siteId=X&days=N&eventName=X` — event count
+  breakdown. Calculates `affiliateConversionRate` = affiliate_click / page_view.
+- `GET /ga4/realtime?siteId=X` — active users in last 30 min. Total + by
+  country + top pages being viewed + top sources sending traffic now.
+- `GET /ga4/funnel?siteId=X&pagePath=X` — per-page engagement funnel
+  (session_start → page_view → scroll → affiliate_click) with rates.
+  Aggregate mode (omit pagePath) ranks worst performers (≥20 sessions +
+  ≥70% bounce).
+
+**Multi-site:** All endpoints respect
+`GA4_PROPERTY_ID_<SITE_UPPER>` env var override. Graceful 503 degradation
+when credentials missing.
+
+---
+
 ## 2026-04-20.15 — Expanded GSC (Phase 7.4)
 
 **Added:**

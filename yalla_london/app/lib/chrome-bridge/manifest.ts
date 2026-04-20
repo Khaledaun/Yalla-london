@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.8";
+export const BRIDGE_VERSION = "2026-04-20.9";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -177,6 +177,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { siteId: "required", limit: "max 500, default 200" },
     outputs: "{ brokenLinks, topBrokenTargets, orphanPages, weaklyLinked, summary }",
     addedIn: "2026-04-20.8",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/rejected-drafts",
+    kind: "read",
+    summary: "Pattern-mine ArticleDraft rejections. Top error patterns (normalized), rejection rate, MAX_RECOVERIES_EXCEEDED count, locale split, repeated topic rejections, 14-day velocity.",
+    inputs: { siteId: "required", days: "max 90", limit: "max 500" },
+    outputs: "{ summary, topErrorPatterns, localeCounts, repeatedTopicIds, recentVelocity, recent[] }",
+    addedIn: "2026-04-20.9",
     status: "stable",
   },
   {

@@ -7,6 +7,26 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.9 — Rejected drafts pattern mining (Phase 6.3)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/rejected-drafts?siteId=X&days=N&limit=N`
+  Diagnoses why the pipeline kills articles. Normalizes `last_error`
+  messages (collapses IDs/numbers/durations to `<id>`, `<n>`, `<duration>`,
+  `<url>`) so "timeout 12s" and "timeout 15s" fold into one bucket.
+
+**Returns:**
+- `topErrorPatterns` — clustered error buckets with count, avg phase_attempts,
+  example raw errors, example keywords (easy to find representative drafts)
+- `summary.rejectionRate` — rejections / (rejections + published) in window
+- `summary.maxRecoveriesExceededCount` — rule 125 cap violations
+- `repeatedTopicIds` — topics rejected ≥2 times (structural problem, not transient)
+- `localeCounts` — EN vs AR rejection split (language-specific issues surface)
+- `recentVelocity` — last 14 days of daily rejection counts (trend detection)
+- `recent[]` — 30 most recent rejected drafts with sanitized last_error
+
+---
+
 ## 2026-04-20.8 — Broken internal links map (Phase 6.2)
 
 **Added:**

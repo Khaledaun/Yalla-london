@@ -145,16 +145,37 @@ Auth: `Authorization: Bearer $CLAUDE_BRIDGE_TOKEN`
 
 ## Audit Methodology
 
+### Step 0 — Check awareness (EVERY session)
+```
+GET /chrome-bridge/capabilities
+```
+Compare `bridgeVersion` in response to this playbook's frontmatter. If newer, re-fetch the playbook. Check `envAvailability` to know what's wired (PageSpeed, GSC, GA4, DataForSEO).
+
 ### Step 1 — Load context
 ```
 GET /chrome-bridge/overview       # cross-site snapshot
-GET /chrome-bridge/sites          # site configs
+GET /chrome-bridge/sites          # site configs + brand colors
 ```
 
-### Step 2 — Pick target(s)
-Per-page: `GET /chrome-bridge/pages?siteId=X&limit=20` — sort by impressions or clicks, pick bottom-performers or high-opportunity pages (position 11-20 with 100+ impressions).
+### Step 2 — Pick targets (choose the right lens)
 
-Sitewide: kickoff from `GET /chrome-bridge/aggregated-report?siteId=X`.
+**Revenue-first lens** (default for monetization audits):
+`GET /chrome-bridge/revenue?siteId=X` → focus on `dead_weight` (has traffic, no earnings) and `unmonetized` (no affiliates). Biggest revenue unlock.
+
+**Growth-first lens** (when traffic is thin):
+`GET /chrome-bridge/opportunities?siteId=X` → near-miss queries (pos 11-30, ≥200 impressions) + content gaps + TopicProposal queue.
+
+**Quality-first lens** (when trust/E-E-A-T matters):
+`GET /chrome-bridge/pages?siteId=X` sorted by CTR — bottom performers indicate title/meta problems OR content quality issues.
+
+**Operational-first lens** (when something's broken):
+`GET /chrome-bridge/action-logs?hours=24` + `GET /chrome-bridge/rejected-drafts?siteId=X` + `GET /chrome-bridge/errors?siteId=X`. Then `POST /triage` with clustered findings.
+
+**Competitive lens** (when beaten by a specific competitor):
+`GET /chrome-bridge/serp?keyword=X` → see who ranks + if AIO cites us. Run `GET /keyword-research?keywords=...` to validate volume before investing.
+
+**Learning lens** (after applying past fixes):
+`GET /chrome-bridge/impact?siteId=X&days=30` → verdict counts (confirmed_improvement / no_change / regression / insufficient_data). Update future recommendations based on what actually worked.
 
 ### Step 3 — Fetch data for target
 For per-page audits:

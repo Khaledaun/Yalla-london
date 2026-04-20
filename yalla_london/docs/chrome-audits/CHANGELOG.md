@@ -7,6 +7,27 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.5 — Topic opportunities
+
+**Added:**
+- `GET /api/admin/chrome-bridge/opportunities?siteId=X&days=N&limit=N`
+  Three content-calendar signals synthesized:
+  1. **TopicProposal queue** — pending/ready/queued topics sorted by
+     confidence_score. Includes featured_longtails, intent, pageType,
+     planned_at, evergreen flag, suggestedWindow.
+  2. **GSC near-miss queries** — live GSC API call via `getTopKeywords()`,
+     filtered to position 11-30 with ≥50 impressions. Each row classified:
+     "page-2 breakthrough (high impact)" (pos ≤15, impressions ≥200),
+     "page-2 breakthrough", "page-3 long-tail", "low-rank".
+  3. **Content gaps** — `primaryKeywordsEN/AR` from site config that have NO
+     matching published BlogPost (token-based slug/title match, excluding
+     common stop words like "best", "top", year tokens).
+
+**Why:** "What should I write next?" is the #2 audit question after "why
+isn't this page ranking?" Now answered from live data, not speculation.
+
+---
+
 ## 2026-04-20.4 — Audit memory
 
 **Added:**

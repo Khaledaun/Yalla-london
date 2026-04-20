@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.4";
+export const BRIDGE_VERSION = "2026-04-20.5";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -140,6 +140,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     status: "stable",
   },
   {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/opportunities",
+    kind: "read",
+    summary: "What to write next: TopicProposal queue + GSC near-miss queries (position 11-30, ≥50 impressions) + content gaps from site primaryKeywords",
+    inputs: { siteId: "required", days: "max 90", limit: "max 100" },
+    outputs: "{ topicQueue, nearMissQueries, contentGaps: { en, ar }, summary }",
+    addedIn: "2026-04-20.5",
+    status: "stable",
+  },
+  {
     method: "POST",
     path: "/api/admin/chrome-bridge/report",
     kind: "write",
@@ -193,6 +203,11 @@ export function suggestNextEndpoints(justCalled: string): string[] {
       "Check `delta.recurring` — findings that keep returning. Escalate severity.",
       "Check `delta.resolved` — celebrate wins AND verify they stayed fixed (fetch GSC 30d).",
       "High fix rate + recurring findings = the applied fix didn't actually work. Audit deeper.",
+    ],
+    "opportunities": [
+      "Near-miss queries ranked 11-20 with ≥200 impressions: high-impact content expansion targets",
+      "Content gaps (en/ar): primary keywords with zero published coverage — prioritize new article creation",
+      "TopicQueue with high confidence: next-up for the pipeline — no action needed unless blocked",
     ],
     "action-logs": [
       "POST /triage with clustered findings + proposed fixes",

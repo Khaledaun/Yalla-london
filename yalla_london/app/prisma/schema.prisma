@@ -148,6 +148,12 @@ model BlogPost {
   photo_order_query  String?  // Unsplash search query for the requested photo
   photo_order_status String?  // "pending" | "fulfilled" | "failed"
 
+  // Duplicate consolidation (April 2026) — when an article is unpublished as a
+  // duplicate, this points to the canonical winner's slug. The blog page issues
+  // a permanent 301 redirect to /blog/{canonical_slug} so accumulated SEO equity
+  // is preserved instead of returning 404.
+  canonical_slug     String?
+
   // Multi-tenant and soft delete
   siteId       String?
   deletedAt    DateTime? // Soft delete support
@@ -169,6 +175,7 @@ model BlogPost {
   @@index([created_at])
   @@index([trace_id])
   @@index([photo_order_status])
+  @@index([canonical_slug])
 }
 
 // ─────────────────────────────────────────────────────────

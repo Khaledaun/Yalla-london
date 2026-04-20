@@ -37,9 +37,19 @@ const results: TestResult[] = [];
 function test(category: string, name: string, fn: () => { status: string; details: string }) {
   try {
     const result = fn();
-    results.push({ category, name, status: result.status as typeof PASS | typeof FAIL | typeof WARN, details: result.details });
+    results.push({
+      category,
+      name,
+      status: result.status as typeof PASS | typeof FAIL | typeof WARN,
+      details: result.details,
+    });
   } catch (err) {
-    results.push({ category, name, status: FAIL, details: `Exception: ${err instanceof Error ? err.message : String(err)}` });
+    results.push({
+      category,
+      name,
+      status: FAIL,
+      details: `Exception: ${err instanceof Error ? err.message : String(err)}`,
+    });
   }
 }
 
@@ -117,7 +127,7 @@ test("Pipeline", "phases.ts exists with 8 phases", () => {
   if (!fileExists("lib/content-pipeline/phases.ts")) return { status: FAIL, details: "Missing" };
   const phases = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
   const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/phases.ts"), "utf-8");
-  const missing = phases.filter(p => !content.includes(`"${p}"`));
+  const missing = phases.filter((p) => !content.includes(`"${p}"`));
   return missing.length === 0
     ? { status: PASS, details: "All 8 phases present" }
     : { status: FAIL, details: `Missing phases: ${missing.join(", ")}` };
@@ -252,11 +262,8 @@ for (const route of cronRoutes) {
 // ==================== CATEGORY 6: Security ====================
 
 test("Security", "Database backup routes have requireAdmin", () => {
-  const files = [
-    "app/api/database/backups/route.ts",
-    "app/api/database/stats/route.ts",
-  ];
-  const missing = files.filter(f => !fileContains(f, "requireAdmin"));
+  const files = ["app/api/database/backups/route.ts", "app/api/database/stats/route.ts"];
+  const missing = files.filter((f) => !fileContains(f, "requireAdmin"));
   return missing.length === 0
     ? { status: PASS, details: "All database routes protected" }
     : { status: FAIL, details: `Missing auth: ${missing.join(", ")}` };
@@ -296,7 +303,7 @@ test("Security", "Public mutation routes have auth", () => {
     "app/api/cache/invalidate/route.ts",
     "app/api/media/upload/route.ts",
   ];
-  const missing = routes.filter(f => !fileContains(f, "requireAdmin"));
+  const missing = routes.filter((f) => !fileContains(f, "requireAdmin"));
   return missing.length === 0
     ? { status: PASS, details: "All mutation routes protected" }
     : { status: FAIL, details: `Missing auth: ${missing.join(", ")}` };
@@ -350,8 +357,10 @@ test("Anti-Patterns", "Zero Math.random() in admin API routes", () => {
 });
 
 test("Anti-Patterns", "Zero @/lib/prisma direct imports (except bridges)", () => {
-  const files = grepFiles('from.*@/lib/prisma"', "lib/", "*.ts")
-    .filter(f => !f.includes("lib/db.ts") && !f.includes("lib/db/") && !f.includes("prisma-types") && !f.includes("prisma-stub"));
+  const files = grepFiles('from.*@/lib/prisma"', "lib/", "*.ts").filter(
+    (f) =>
+      !f.includes("lib/db.ts") && !f.includes("lib/db/") && !f.includes("prisma-types") && !f.includes("prisma-stub"),
+  );
   return files.length === 0
     ? { status: PASS, details: "All imports use @/lib/db" }
     : { status: FAIL, details: `Direct imports: ${files.join(", ")}` };
@@ -359,7 +368,7 @@ test("Anti-Patterns", "Zero @/lib/prisma direct imports (except bridges)", () =>
 
 test("Anti-Patterns", "Zero hardcoded emails @yallalondon.com in legal pages", () => {
   const files = ["app/privacy/page.tsx", "app/terms/page.tsx", "app/about/page.tsx", "app/contact/page.tsx"];
-  const bad = files.filter(f => fileContains(f, "@yallalondon.com") || fileContains(f, "@yalla-london.com"));
+  const bad = files.filter((f) => fileContains(f, "@yallalondon.com") || fileContains(f, "@yalla-london.com"));
   return bad.length === 0
     ? { status: PASS, details: "All dynamic from config" }
     : { status: FAIL, details: `Hardcoded in: ${bad.join(", ")}` };
@@ -371,7 +380,7 @@ test("Multi-Site", "config/sites.ts has 5 sites", () => {
   if (!fileExists("config/sites.ts")) return { status: FAIL, details: "Missing" };
   const content = fs.readFileSync(path.join(APP_DIR, "config/sites.ts"), "utf-8");
   const sites = ["yalla-london", "arabaldives", "french-riviera", "istanbul", "thailand"];
-  const missing = sites.filter(s => !content.includes(s));
+  const missing = sites.filter((s) => !content.includes(s));
   return missing.length === 0
     ? { status: PASS, details: "All 5 sites configured" }
     : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
@@ -381,7 +390,7 @@ test("Multi-Site", "middleware.ts maps all 5 domains", () => {
   if (!fileExists("middleware.ts")) return { status: FAIL, details: "Missing" };
   const content = fs.readFileSync(path.join(APP_DIR, "middleware.ts"), "utf-8");
   const domains = ["yalla-london.com", "arabaldives.com", "yallariviera.com", "yallaistanbul.com", "yallathailand.com"];
-  const missing = domains.filter(d => !content.includes(d));
+  const missing = domains.filter((d) => !content.includes(d));
   return missing.length === 0
     ? { status: PASS, details: "All 5 domains mapped" }
     : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
@@ -408,7 +417,7 @@ test("Multi-Site", "Root layout uses generateMetadata (not static)", () => {
 test("Multi-Site", "affiliate-injection has per-site rules", () => {
   const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
   const sites = ["arabaldives", "french-riviera", "istanbul", "thailand"];
-  const missing = sites.filter(s => !content.includes(s));
+  const missing = sites.filter((s) => !content.includes(s));
   return missing.length === 0
     ? { status: PASS, details: "All 5 site affiliate rules" }
     : { status: FAIL, details: `Missing: ${missing.join(", ")}` };
@@ -478,13 +487,15 @@ test("Budget", "build-runner has budget guard", () => {
 });
 
 test("Budget", "seo-agent has budget guard", () => {
-  return fileContains("app/api/cron/seo-agent/route.ts", "53_000") || fileContains("app/api/cron/seo-agent/route.ts", "53000")
+  return fileContains("app/api/cron/seo-agent/route.ts", "53_000") ||
+    fileContains("app/api/cron/seo-agent/route.ts", "53000")
     ? { status: PASS, details: "Budget guard present" }
     : { status: FAIL, details: "Missing budget guard" };
 });
 
 test("Budget", "london-news has budget guard", () => {
-  return fileContains("app/api/cron/london-news/route.ts", "53_000") || fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS")
+  return fileContains("app/api/cron/london-news/route.ts", "53_000") ||
+    fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS")
     ? { status: PASS, details: "Budget guard present" }
     : { status: FAIL, details: "Missing budget guard" };
 });
@@ -504,7 +515,8 @@ test("London News", "london-news scheduled in vercel.json", () => {
 });
 
 test("London News", "london-news has budget guard (53s)", () => {
-  return fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS") || fileContains("app/api/cron/london-news/route.ts", "53_000")
+  return fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS") ||
+    fileContains("app/api/cron/london-news/route.ts", "53_000")
     ? { status: PASS, details: "Budget guard present" }
     : { status: FAIL, details: "Missing budget guard" };
 });
@@ -701,7 +713,9 @@ test("CJ Affiliate", "No hardcoded 'yalla-london' in lib/affiliate/*.ts", () => 
       if (content.includes('"yalla-london"') || content.includes("'yalla-london'")) {
         violations.push(f);
       }
-    } catch { /* file may not exist */ }
+    } catch {
+      /* file may not exist */
+    }
   }
   return violations.length === 0
     ? { status: PASS, details: "No hardcoded yalla-london in affiliate modules" }
@@ -725,7 +739,8 @@ test("CJ Affiliate", "SID tracking in link-tracker.ts", () => {
 test("CJ Affiliate", "Per-site keywords in site-keywords.ts", () => {
   try {
     const content = fs.readFileSync(path.join(APP_DIR, "lib/affiliate/site-keywords.ts"), "utf-8");
-    const hasSites = content.includes("arabaldives") && content.includes("istanbul") && content.includes("french-riviera");
+    const hasSites =
+      content.includes("arabaldives") && content.includes("istanbul") && content.includes("french-riviera");
     return hasSites
       ? { status: PASS, details: "Per-site keyword maps for all destinations" }
       : { status: FAIL, details: "Missing site keyword maps" };
@@ -776,7 +791,8 @@ test("GA4 Wiring", "cockpit route has buildTraffic function", () => {
 });
 
 test("GA4 Wiring", "cycle-health checks GA4 connectivity", () => {
-  return fileContains("app/api/admin/cycle-health/route.ts", "ga4-not-configured") || fileContains("app/api/admin/cycle-health/route.ts", "GA4 not configured")
+  return fileContains("app/api/admin/cycle-health/route.ts", "ga4-not-configured") ||
+    fileContains("app/api/admin/cycle-health/route.ts", "GA4 not configured")
     ? { status: PASS, details: "GA4 health check present in cycle-health" }
     : { status: FAIL, details: "Missing GA4 connectivity check in cycle-health" };
 });
@@ -831,15 +847,27 @@ test("Agent Platform", "Event router normalizes to CEOEvent", () => {
 
 test("Agent Platform", "All 4 channel adapters exist", () => {
   const channels = ["whatsapp", "email", "web", "internal"];
-  const missing = channels.filter(c => !fileExists(`lib/agents/channels/${c}.ts`));
+  const missing = channels.filter((c) => !fileExists(`lib/agents/channels/${c}.ts`));
   return missing.length === 0
     ? { status: PASS, details: "All 4 channel adapters present: whatsapp, email, web, internal" }
     : { status: FAIL, details: `Missing channel adapters: ${missing.join(", ")}` };
 });
 
 test("Agent Platform", "All 10 tool modules exist", () => {
-  const tools = ["crm", "analytics", "content", "seo", "affiliate", "finance", "email-send", "design", "browsing", "repo", "qa"];
-  const missing = tools.filter(t => !fileExists(`lib/agents/tools/${t}.ts`));
+  const tools = [
+    "crm",
+    "analytics",
+    "content",
+    "seo",
+    "affiliate",
+    "finance",
+    "email-send",
+    "design",
+    "browsing",
+    "repo",
+    "qa",
+  ];
+  const missing = tools.filter((t) => !fileExists(`lib/agents/tools/${t}.ts`));
   return missing.length === 0
     ? { status: PASS, details: `All ${tools.length} tool modules present` }
     : { status: FAIL, details: `Missing tool modules: ${missing.join(", ")}` };
@@ -847,7 +875,7 @@ test("Agent Platform", "All 10 tool modules exist", () => {
 
 test("Agent Platform", "CRM subsystem: contact-resolver, retention, lead-scoring", () => {
   const files = ["contact-resolver", "retention", "lead-scoring"];
-  const missing = files.filter(f => !fileExists(`lib/agents/crm/${f}.ts`));
+  const missing = files.filter((f) => !fileExists(`lib/agents/crm/${f}.ts`));
   return missing.length === 0
     ? { status: PASS, details: "All 3 CRM modules present" }
     : { status: FAIL, details: `Missing CRM modules: ${missing.join(", ")}` };
@@ -904,9 +932,11 @@ test("Agent Platform", "CEO + CTO agents registered in system-registry", () => {
 });
 
 test("Agent Platform", "Agent crons in feature guard and departures board", () => {
-  const guard = fileContains("lib/cron-feature-guard.ts", "retention-executor") &&
+  const guard =
+    fileContains("lib/cron-feature-guard.ts", "retention-executor") &&
     fileContains("lib/cron-feature-guard.ts", "followup-executor");
-  const departures = fileContains("app/api/admin/departures/route.ts", "retention-executor") &&
+  const departures =
+    fileContains("app/api/admin/departures/route.ts", "retention-executor") &&
     fileContains("app/api/admin/departures/route.ts", "followup-executor");
   return guard && departures
     ? { status: PASS, details: "Agent crons in both feature guard and departures board" }
@@ -936,7 +966,8 @@ test("Fragility", "Atomic claiming on reservoir drafts", () => {
 
 test("Fragility", "BlogPost create + draft update in transaction", () => {
   const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
-  const hasTransaction = content.includes("$transaction") && content.includes("blogPost.create") && content.includes("articleDraft.update");
+  const hasTransaction =
+    content.includes("$transaction") && content.includes("blogPost.create") && content.includes("articleDraft.update");
   return hasTransaction
     ? { status: PASS, details: "BlogPost create + draft update wrapped in Prisma $transaction" }
     : { status: FAIL, details: "BlogPost create and draft update not in transaction — orphan risk" };
@@ -948,13 +979,22 @@ test("Fragility", "Unified attempt cap (5) across all recovery systems", () => {
   const hasCapInHooks = failureHooks.includes("currentAttempts >= 5");
   const noResetToZero = !diagAgent.includes("phase_attempts: 0,") || diagAgent.includes("phase_attempts: Math.max");
   // Check diagnostic-agent doesn't reset to 0 in bad_data/provider_down handlers
-  const badDataSection = diagAgent.substring(diagAgent.indexOf('case "bad_data"'), diagAgent.indexOf('case "provider_down"'));
-  const providerSection = diagAgent.substring(diagAgent.indexOf('case "provider_down"'), diagAgent.indexOf('case "schema_mismatch"'));
+  const badDataSection = diagAgent.substring(
+    diagAgent.indexOf('case "bad_data"'),
+    diagAgent.indexOf('case "provider_down"'),
+  );
+  const providerSection = diagAgent.substring(
+    diagAgent.indexOf('case "provider_down"'),
+    diagAgent.indexOf('case "schema_mismatch"'),
+  );
   const bdNoZero = !badDataSection.includes("phase_attempts: 0");
   const pdNoZero = !providerSection.includes("phase_attempts: 0");
   return hasCapInHooks && bdNoZero && pdNoZero
     ? { status: PASS, details: "Cap=5 in failure-hooks, no reset-to-0 in diagnostic-agent bad_data/provider_down" }
-    : { status: FAIL, details: `Hooks cap=${hasCapInHooks}, bad_data no-zero=${bdNoZero}, provider_down no-zero=${pdNoZero}` };
+    : {
+        status: FAIL,
+        details: `Hooks cap=${hasCapInHooks}, bad_data no-zero=${bdNoZero}, provider_down no-zero=${pdNoZero}`,
+      };
 });
 
 test("Fragility", "Assembly raw fallback threshold >= 2", () => {
@@ -1035,7 +1075,10 @@ test("Fragility", "Cycle-health detects fragility patterns", () => {
   const checksCampaignWaste = health.includes("campaign-targets-unpublished");
   return checksOscillation && checksPromoting && checksDuplicateRelated && checksCampaignWaste
     ? { status: PASS, details: "4 fragility pattern detectors in cycle-health" }
-    : { status: FAIL, details: `oscillation=${checksOscillation} promoting=${checksPromoting} related=${checksDuplicateRelated} campaign=${checksCampaignWaste}` };
+    : {
+        status: FAIL,
+        details: `oscillation=${checksOscillation} promoting=${checksPromoting} related=${checksDuplicateRelated} campaign=${checksCampaignWaste}`,
+      };
 });
 
 test("Fragility", "Cron schedule staggered (no 9:00-9:15 collision)", () => {
@@ -1092,9 +1135,11 @@ test("Stage-A: Affiliate", "trackClick stores siteId on CjClickEvent", () => {
 
 test("Stage-A: Affiliate", "CJ Schema has siteId on Commission and ClickEvent", () => {
   const schema = fs.readFileSync(path.join(APP_DIR, "prisma/schema.prisma"), "utf-8");
-  const commissionHasSiteId = schema.includes("model CjCommission") &&
+  const commissionHasSiteId =
+    schema.includes("model CjCommission") &&
     schema.slice(schema.indexOf("model CjCommission"), schema.indexOf("model CjCommission") + 500).includes("siteId");
-  const clickHasSiteId = schema.includes("model CjClickEvent") &&
+  const clickHasSiteId =
+    schema.includes("model CjClickEvent") &&
     schema.slice(schema.indexOf("model CjClickEvent"), schema.indexOf("model CjClickEvent") + 400).includes("siteId");
   return commissionHasSiteId && clickHasSiteId
     ? { status: PASS, details: "CjCommission and CjClickEvent both have siteId field" }
@@ -1175,7 +1220,7 @@ test("Stage-A: Feature Flags", "Cron routes call checkCronEnabled()", () => {
 // Arabic SSR (3 tests)
 test("Stage-A: Arabic SSR", "Middleware sets x-locale: ar for /ar/ routes", () => {
   const content = fs.readFileSync(path.join(APP_DIR, "middleware.ts"), "utf-8");
-  const setsLocale = content.includes("x-locale") && content.includes('"/ar/') || content.includes("isArabicRoute");
+  const setsLocale = (content.includes("x-locale") && content.includes('"/ar/')) || content.includes("isArabicRoute");
   return setsLocale
     ? { status: PASS, details: "Middleware correctly sets x-locale header for /ar/ routes" }
     : { status: FAIL, details: "Middleware missing x-locale header for Arabic routes" };
@@ -1239,7 +1284,8 @@ test("Stage-A: Login Security", "Login rate limit uses progressive delays", () =
 test("Stage-A: Connection Pool", "Dashboard builders run sequentially (not Promise.all)", () => {
   const cockpit = fs.readFileSync(path.join(APP_DIR, "app/api/admin/cockpit/route.ts"), "utf-8");
   // Check for sequential pattern: multiple await builders without Promise.all wrapping all
-  const hasSequential = !cockpit.includes("Promise.all([buildMission") &&
+  const hasSequential =
+    !cockpit.includes("Promise.all([buildMission") &&
     !cockpit.includes("Promise.all([buildSites") &&
     !cockpit.includes("Promise.all([buildPipeline");
   return hasSequential
@@ -1389,13 +1435,18 @@ test("Integration", "perplexity-computer/index.ts exports executor functions", (
 
 test("Hardening", "Invalid phase transition throws", () => {
   const content = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
-  const hasTransitionMap = content.includes("VALID_TRANSITIONS") && content.includes("research") && content.includes("promoting");
+  const hasTransitionMap =
+    content.includes("VALID_TRANSITIONS") && content.includes("research") && content.includes("promoting");
   const hasValidator = content.includes("validatePhaseTransition") && content.includes("throw");
   const buildRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/build-runner.ts"), "utf-8");
   const selectRunner = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/select-runner.ts"), "utf-8");
-  const usedInPipeline = buildRunner.includes("validatePhaseTransition") && selectRunner.includes("validatePhaseTransition");
+  const usedInPipeline =
+    buildRunner.includes("validatePhaseTransition") && selectRunner.includes("validatePhaseTransition");
   return hasTransitionMap && hasValidator && usedInPipeline
-    ? { status: PASS, details: "VALID_TRANSITIONS map + validatePhaseTransition() wired in build-runner + select-runner" }
+    ? {
+        status: PASS,
+        details: "VALID_TRANSITIONS map + validatePhaseTransition() wired in build-runner + select-runner",
+      }
     : { status: FAIL, details: `map: ${hasTransitionMap}, validator: ${hasValidator}, wired: ${usedInPipeline}` };
 });
 
@@ -1412,7 +1463,8 @@ test("Hardening", "Article trace endpoint exists", () => {
 
 test("Hardening", "Enhancement ownership enforced in crons", () => {
   const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
-  const hasOwners = constants.includes("ENHANCEMENT_OWNERS") && constants.includes("internal_links") && constants.includes("seo-agent");
+  const hasOwners =
+    constants.includes("ENHANCEMENT_OWNERS") && constants.includes("internal_links") && constants.includes("seo-agent");
   const helper = fs.existsSync(path.join(APP_DIR, "lib/db/enhancement-log.ts"));
   const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
   const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
@@ -1424,7 +1476,10 @@ test("Hardening", "Enhancement ownership enforced in crons", () => {
 
 test("Hardening", "Pipeline circuit breaker in content-builder", () => {
   const builder = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-builder/route.ts"), "utf-8");
-  const hasBreaker = builder.includes("ESCALATION_POLICY") && builder.includes("auto-paused") && builder.includes("PIPELINE_MIN_SUCCESS_RATE");
+  const hasBreaker =
+    builder.includes("ESCALATION_POLICY") &&
+    builder.includes("auto-paused") &&
+    builder.includes("PIPELINE_MIN_SUCCESS_RATE");
   const constants = fs.readFileSync(path.join(APP_DIR, "lib/content-pipeline/constants.ts"), "utf-8");
   const hasPolicy = constants.includes("ESCALATION_POLICY") && constants.includes("MAX_DAILY_CEO_ALERTS");
   return hasBreaker && hasPolicy
@@ -1448,7 +1503,10 @@ test("Hardening", "Optimistic concurrency rejects stale writes", () => {
   const seoAgent = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
   const autoFix = fs.readFileSync(path.join(APP_DIR, "app/api/cron/content-auto-fix/route.ts"), "utf-8");
   const injection = fs.readFileSync(path.join(APP_DIR, "app/api/cron/affiliate-injection/route.ts"), "utf-8");
-  const usesWrapper = seoAgent.includes("optimisticBlogPostUpdate") && autoFix.includes("optimisticBlogPostUpdate") && injection.includes("optimisticBlogPostUpdate");
+  const usesWrapper =
+    seoAgent.includes("optimisticBlogPostUpdate") &&
+    autoFix.includes("optimisticBlogPostUpdate") &&
+    injection.includes("optimisticBlogPostUpdate");
   return hasVersionCheck && hasRetry && usesWrapper
     ? { status: PASS, details: "optimisticBlogPostUpdate uses updated_at guard with retry; adopted in key crons" }
     : { status: FAIL, details: `versionCheck: ${hasVersionCheck}, retry: ${hasRetry}, adopted: ${usesWrapper}` };
@@ -1457,11 +1515,17 @@ test("Hardening", "Optimistic concurrency rejects stale writes", () => {
 test("Hardening", "weekly-topics creates topics that schedule-executor can consume", () => {
   const weekly = fs.readFileSync(path.join(APP_DIR, "app/api/cron/weekly-topics/route.ts"), "utf-8");
   const executor = fs.readFileSync(path.join(APP_DIR, "app/api/cron/schedule-executor/route.ts"), "utf-8");
-  const weeklyCreatesReady = weekly.includes('status: \'ready\'') || weekly.includes('status: "ready"');
-  const executorAcceptsReady = executor.includes('"ready"') && executor.includes('CONSUMABLE_STATUSES');
+  const weeklyCreatesReady = weekly.includes("status: 'ready'") || weekly.includes('status: "ready"');
+  const executorAcceptsReady = executor.includes('"ready"') && executor.includes("CONSUMABLE_STATUSES");
   return weeklyCreatesReady && executorAcceptsReady
-    ? { status: PASS, details: "weekly-topics creates 'ready', schedule-executor consumes 'ready' via CONSUMABLE_STATUSES" }
-    : { status: FAIL, details: `weekly creates ready: ${weeklyCreatesReady}, executor accepts ready: ${executorAcceptsReady}` };
+    ? {
+        status: PASS,
+        details: "weekly-topics creates 'ready', schedule-executor consumes 'ready' via CONSUMABLE_STATUSES",
+      }
+    : {
+        status: FAIL,
+        details: `weekly creates ready: ${weeklyCreatesReady}, executor accepts ready: ${executorAcceptsReady}`,
+      };
 });
 
 // ==================== Kapso & Post Bridge Integration ====================
@@ -1477,8 +1541,15 @@ test("Kapso & Post Bridge", "Kapso client module exports all required functions"
   const hasReset = content.includes("export function resetKapsoClient");
   const all = hasGetClient && hasIsConfigured && hasGetPhoneId && hasIsProxy && hasReset;
   return all
-    ? { status: PASS, details: "All 5 exports: getKapsoClient, isKapsoConfigured, getPhoneNumberId, isKapsoProxyEnabled, resetKapsoClient" }
-    : { status: FAIL, details: `getClient=${hasGetClient} isConfigured=${hasIsConfigured} getPhoneId=${hasGetPhoneId} isProxy=${hasIsProxy} reset=${hasReset}` };
+    ? {
+        status: PASS,
+        details:
+          "All 5 exports: getKapsoClient, isKapsoConfigured, getPhoneNumberId, isKapsoProxyEnabled, resetKapsoClient",
+      }
+    : {
+        status: FAIL,
+        details: `getClient=${hasGetClient} isConfigured=${hasIsConfigured} getPhoneId=${hasGetPhoneId} isProxy=${hasIsProxy} reset=${hasReset}`,
+      };
 });
 
 test("Kapso & Post Bridge", "Post Bridge client module exports all required functions", () => {
@@ -1491,18 +1562,39 @@ test("Kapso & Post Bridge", "Post Bridge client module exports all required func
   const hasReset = content.includes("export function resetPostBridgeClient");
   const all = hasClass && hasGetClient && hasIsConfigured && hasReset;
   return all
-    ? { status: PASS, details: "All 4 exports: PostBridgeClient class, getPostBridgeClient, isPostBridgeConfigured, resetPostBridgeClient" }
-    : { status: FAIL, details: `class=${hasClass} getClient=${hasGetClient} isConfigured=${hasIsConfigured} reset=${hasReset}` };
+    ? {
+        status: PASS,
+        details:
+          "All 4 exports: PostBridgeClient class, getPostBridgeClient, isPostBridgeConfigured, resetPostBridgeClient",
+      }
+    : {
+        status: FAIL,
+        details: `class=${hasClass} getClient=${hasGetClient} isConfigured=${hasIsConfigured} reset=${hasReset}`,
+      };
 });
 
 test("Kapso & Post Bridge", "Post Bridge types file defines all 9 platforms", () => {
   const filePath = "lib/integrations/post-bridge-types.ts";
   if (!fileExists(filePath)) return { status: FAIL, details: `Missing: ${filePath}` };
   const content = fs.readFileSync(path.join(APP_DIR, filePath), "utf-8");
-  const platforms = ["twitter", "instagram", "linkedin", "facebook", "tiktok", "youtube", "bluesky", "threads", "pinterest"];
-  const missing = platforms.filter(p => !content.includes(`"${p}"`));
+  const platforms = [
+    "twitter",
+    "instagram",
+    "linkedin",
+    "facebook",
+    "tiktok",
+    "youtube",
+    "bluesky",
+    "threads",
+    "pinterest",
+  ];
+  const missing = platforms.filter((p) => !content.includes(`"${p}"`));
   return missing.length === 0
-    ? { status: PASS, details: "All 9 platforms defined: twitter, instagram, linkedin, facebook, tiktok, youtube, bluesky, threads, pinterest" }
+    ? {
+        status: PASS,
+        details:
+          "All 9 platforms defined: twitter, instagram, linkedin, facebook, tiktok, youtube, bluesky, threads, pinterest",
+      }
     : { status: FAIL, details: `Missing platforms: ${missing.join(", ")}` };
 });
 
@@ -1563,12 +1655,26 @@ test("SEO Infrastructure", "Sitemap includes all high-value static pages", () =>
   if (!fileExists(sitemapFile)) return { status: FAIL, details: "app/sitemap.ts missing" };
   const content = fs.readFileSync(path.join(APP_DIR, sitemapFile), "utf-8");
   const requiredPaths = [
-    "/faq", "/glossary", "/halal-charter", "/destinations", "/itineraries",
-    "/london-by-foot", "/journal", "/information", "/shop", "/tools",
-    "/how-it-works", "/team", "/editorial-policy", "/affiliate-disclosure",
-    "/about", "/contact", "/privacy", "/terms",
+    "/faq",
+    "/glossary",
+    "/halal-charter",
+    "/destinations",
+    "/itineraries",
+    "/london-by-foot",
+    "/journal",
+    "/information",
+    "/shop",
+    "/tools",
+    "/how-it-works",
+    "/team",
+    "/editorial-policy",
+    "/affiliate-disclosure",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
   ];
-  const missing = requiredPaths.filter(p => !content.includes(`"${p}"`));
+  const missing = requiredPaths.filter((p) => !content.includes(`"${p}"`));
   return missing.length === 0
     ? { status: PASS, details: `All ${requiredPaths.length} required static paths found in sitemap` }
     : { status: FAIL, details: `Missing from sitemap: ${missing.join(", ")}` };
@@ -1604,7 +1710,7 @@ test("SEO Infrastructure", "robots.ts blocks dev/internal pages", () => {
   if (!fileExists(robotsFile)) return { status: FAIL, details: "app/robots.ts missing" };
   const content = fs.readFileSync(path.join(APP_DIR, robotsFile), "utf-8");
   const devPages = ["/design-system/", "/brand-showcase/", "/brand-guidelines/", "/offline/"];
-  const missing = devPages.filter(p => !content.includes(`"${p}"`));
+  const missing = devPages.filter((p) => !content.includes(`"${p}"`));
   return missing.length === 0
     ? { status: PASS, details: `All ${devPages.length} dev pages blocked in robots.ts` }
     : { status: FAIL, details: `Dev pages not blocked: ${missing.join(", ")}` };
@@ -1660,7 +1766,9 @@ test("SEO Infrastructure", "StructuredData component generates SearchAction for 
   const content = fs.readFileSync(path.join(APP_DIR, sdFile), "utf-8");
   // SearchAction should NOT be gated behind isZenitha only
   const hasSearchAction = content.includes("SearchAction");
-  const isZenithaOnly = content.includes("isZenitha ?") && content.includes("SearchAction") &&
+  const isZenithaOnly =
+    content.includes("isZenitha ?") &&
+    content.includes("SearchAction") &&
     content.match(/\.\.\.\(isZenitha\s*\?\s*\{[^}]*SearchAction/);
   return hasSearchAction && !isZenithaOnly
     ? { status: PASS, details: "SearchAction schema available for all sites" }
@@ -1694,8 +1802,8 @@ test("SEO Infrastructure", "Sitemap cache includes same static pages as fallback
   const sitemapContent = fs.readFileSync(path.join(APP_DIR, sitemapFile), "utf-8");
   // Check key pages that must be in BOTH
   const requiredPaths = ["/faq", "/glossary", "/halal-charter", "/editorial-policy", "/team"];
-  const missingFromCache = requiredPaths.filter(p => !cacheContent.includes(`"${p}"`));
-  const missingFromFallback = requiredPaths.filter(p => !sitemapContent.includes(`"${p}"`));
+  const missingFromCache = requiredPaths.filter((p) => !cacheContent.includes(`"${p}"`));
+  const missingFromFallback = requiredPaths.filter((p) => !sitemapContent.includes(`"${p}"`));
   const issues: string[] = [];
   if (missingFromCache.length > 0) issues.push(`Cache missing: ${missingFromCache.join(", ")}`);
   if (missingFromFallback.length > 0) issues.push(`Fallback missing: ${missingFromFallback.join(", ")}`);
@@ -1738,7 +1846,8 @@ test("SEO Infrastructure", "Content selector has diversity balancer (general vs 
   const file = "lib/content-pipeline/select-runner.ts";
   if (!fileExists(file)) return { status: FAIL, details: "select-runner.ts missing" };
   const content = fs.readFileSync(path.join(APP_DIR, file), "utf-8");
-  const hasDiversity = content.includes("NICHE_KEYWORDS") && content.includes("TARGET_NICHE_RATIO") && content.includes("nicheBoost");
+  const hasDiversity =
+    content.includes("NICHE_KEYWORDS") && content.includes("TARGET_NICHE_RATIO") && content.includes("nicheBoost");
   return hasDiversity
     ? { status: PASS, details: "Content selector balances general (60-70%) vs niche halal/Arab (30-40%) topics" }
     : { status: FAIL, details: "No diversity awareness in content selector — publishes whatever has highest score" };
@@ -1777,7 +1886,13 @@ test("SEO Infrastructure", "Privacy and terms pages in sitemap with yearly frequ
 test("Affiliate Click Visibility", "click-aggregator library exists with unified helpers", () => {
   const file = "lib/affiliate/click-aggregator.ts";
   if (!fileExists(file)) return { status: FAIL, details: "lib/affiliate/click-aggregator.ts missing" };
-  const required = ["getClickSummary", "getClicksByArticle", "getClicksByPartner", "getClicksByDay", "getRecentClickFeed"];
+  const required = [
+    "getClickSummary",
+    "getClicksByArticle",
+    "getClicksByPartner",
+    "getClicksByDay",
+    "getRecentClickFeed",
+  ];
   const missing = required.filter((fn) => !fileContains(file, `export async function ${fn}`));
   return missing.length === 0
     ? { status: PASS, details: `All 5 aggregator helpers exported` }
@@ -1795,40 +1910,56 @@ test("Affiliate Click Visibility", "partner-detector exports shared hasAnyAffili
     : { status: FAIL, details: `missing exports: marker=${hasMarker} list=${hasList} partner=${hasPartner}` };
 });
 
-test("Affiliate Click Visibility", "affiliate-hq queries auditLog with correct AFFILIATE_CLICK_DIRECT action name", () => {
-  const file = "app/api/admin/affiliate-hq/route.ts";
-  if (!fileExists(file)) return { status: FAIL, details: "affiliate-hq route missing" };
-  const usesAggregator = fileContains(file, "getClickSummary") && fileContains(file, "getClicksByDay");
-  const hasBadActionName = fileContains(file, 'action: "affiliate_click"');
-  if (hasBadActionName) return { status: FAIL, details: "Still uses wrong action 'affiliate_click' — should be 'AFFILIATE_CLICK_DIRECT'" };
-  return usesAggregator
-    ? { status: PASS, details: "affiliate-hq delegates click counting to aggregator" }
-    : { status: FAIL, details: "affiliate-hq does not import click-aggregator" };
-});
+test(
+  "Affiliate Click Visibility",
+  "affiliate-hq queries auditLog with correct AFFILIATE_CLICK_DIRECT action name",
+  () => {
+    const file = "app/api/admin/affiliate-hq/route.ts";
+    if (!fileExists(file)) return { status: FAIL, details: "affiliate-hq route missing" };
+    const usesAggregator = fileContains(file, "getClickSummary") && fileContains(file, "getClicksByDay");
+    const hasBadActionName = fileContains(file, 'action: "affiliate_click"');
+    if (hasBadActionName)
+      return {
+        status: FAIL,
+        details: "Still uses wrong action 'affiliate_click' — should be 'AFFILIATE_CLICK_DIRECT'",
+      };
+    return usesAggregator
+      ? { status: PASS, details: "affiliate-hq delegates click counting to aggregator" }
+      : { status: FAIL, details: "affiliate-hq does not import click-aggregator" };
+  },
+);
 
-test("Affiliate Click Visibility", "affiliate-hq coverage uses shared hasAnyAffiliateMarker (not local 4-pattern array)", () => {
-  const file = "app/api/admin/affiliate-hq/route.ts";
-  if (!fileExists(file)) return { status: FAIL, details: "affiliate-hq route missing" };
-  const usesHelper = fileContains(file, "hasAnyAffiliateMarker");
-  const hasOldNarrowList = fileContains(
-    file,
-    `const affiliatePatterns = ['rel="sponsored', "affiliate-cta-block", "affiliate-recommendation"`,
-  );
-  if (hasOldNarrowList) return { status: FAIL, details: "Old 4-pattern affiliatePatterns array still present" };
-  return usesHelper
-    ? { status: PASS, details: "affiliate-hq uses shared marker detector" }
-    : { status: FAIL, details: "affiliate-hq does not import hasAnyAffiliateMarker" };
-});
+test(
+  "Affiliate Click Visibility",
+  "affiliate-hq coverage uses shared hasAnyAffiliateMarker (not local 4-pattern array)",
+  () => {
+    const file = "app/api/admin/affiliate-hq/route.ts";
+    if (!fileExists(file)) return { status: FAIL, details: "affiliate-hq route missing" };
+    const usesHelper = fileContains(file, "hasAnyAffiliateMarker");
+    const hasOldNarrowList = fileContains(
+      file,
+      `const affiliatePatterns = ['rel="sponsored', "affiliate-cta-block", "affiliate-recommendation"`,
+    );
+    if (hasOldNarrowList) return { status: FAIL, details: "Old 4-pattern affiliatePatterns array still present" };
+    return usesHelper
+      ? { status: PASS, details: "affiliate-hq uses shared marker detector" }
+      : { status: FAIL, details: "affiliate-hq does not import hasAnyAffiliateMarker" };
+  },
+);
 
-test("Affiliate Click Visibility", "affiliate-monitor counts BOTH CjClickEvent and AuditLog AFFILIATE_CLICK_DIRECT", () => {
-  const file = "app/api/admin/affiliate-monitor/route.ts";
-  if (!fileExists(file)) return { status: FAIL, details: "affiliate-monitor route missing" };
-  const countsCj = fileContains(file, "cjClickEvent.count");
-  const countsAudit = fileContains(file, 'action: "AFFILIATE_CLICK_DIRECT"');
-  return countsCj && countsAudit
-    ? { status: PASS, details: "Counts both CJ and direct URL clicks" }
-    : { status: FAIL, details: `CJ=${countsCj} AuditLog=${countsAudit}` };
-});
+test(
+  "Affiliate Click Visibility",
+  "affiliate-monitor counts BOTH CjClickEvent and AuditLog AFFILIATE_CLICK_DIRECT",
+  () => {
+    const file = "app/api/admin/affiliate-monitor/route.ts";
+    if (!fileExists(file)) return { status: FAIL, details: "affiliate-monitor route missing" };
+    const countsCj = fileContains(file, "cjClickEvent.count");
+    const countsAudit = fileContains(file, 'action: "AFFILIATE_CLICK_DIRECT"');
+    return countsCj && countsAudit
+      ? { status: PASS, details: "Counts both CJ and direct URL clicks" }
+      : { status: FAIL, details: `CJ=${countsCj} AuditLog=${countsAudit}` };
+  },
+);
 
 test("Affiliate Click Visibility", "aggregated-report Section 9 uses getClickSummary", () => {
   const file = "app/api/admin/aggregated-report/route.ts";
@@ -1889,15 +2020,82 @@ test("Affiliate Click Visibility", "injection cron + aggregator + dashboards all
     : { status: FAIL, details: `Injection filter missing: ${missing.join(", ")}` };
 });
 
+// ==================== CATEGORY: Duplicate Slug Consolidation ====================
+// Article duplicates with -v2/-v3/-vXXXX/-[hex] slugs were splitting ranking signal
+// across multiple BlogPosts (4× cannibalization on top "halal fine dining" cluster).
+// These tests prevent the cannibalization regression from returning.
+
+test("Duplicate Slug Consolidation", "BlogPost.canonical_slug field exists in schema", () => {
+  const file = "prisma/schema.prisma";
+  if (!fileExists(file)) return { status: FAIL, details: "schema.prisma missing" };
+  return fileContains(file, "canonical_slug")
+    ? { status: PASS, details: "BlogPost.canonical_slug field defined" }
+    : { status: FAIL, details: "canonical_slug field missing" };
+});
+
+test("Duplicate Slug Consolidation", "Migration exists for canonical_slug", () => {
+  const file = "prisma/migrations/20260420_add_blogpost_canonical_slug/migration.sql";
+  if (!fileExists(file)) return { status: FAIL, details: "migration file missing" };
+  const ok =
+    fileContains(file, 'ADD COLUMN IF NOT EXISTS "canonical_slug"') &&
+    fileContains(file, "BlogPost_canonical_slug_idx");
+  return ok ? { status: PASS, details: "ALTER TABLE + index" } : { status: FAIL, details: "incomplete migration" };
+});
+
+test("Duplicate Slug Consolidation", "content-cleanup detects -v2/-v3 slug variants", () => {
+  const file = "app/api/admin/content-cleanup/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "content-cleanup missing" };
+  // Must include -v\d pattern in SLUG_ARTIFACT_PATTERN regex
+  return fileContains(file, "-v\\d{1,3}")
+    ? { status: PASS, details: "SLUG_ARTIFACT_PATTERN catches -v2/-v3" }
+    : { status: FAIL, details: "Regex still narrow — -v2/-v3 won't be grouped" };
+});
+
+test("Duplicate Slug Consolidation", "content-cleanup sets canonical_slug on losers", () => {
+  const file = "app/api/admin/content-cleanup/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "content-cleanup missing" };
+  return fileContains(file, "canonical_slug: winner.slug")
+    ? { status: PASS, details: "Unpublish writes canonical_slug = winner.slug" }
+    : { status: FAIL, details: "Loser unpublish doesn't set canonical_slug — 301 redirect won't fire" };
+});
+
+test("Duplicate Slug Consolidation", "blog page 301-redirects unpublished duplicates via canonical_slug", () => {
+  const file = "app/blog/[slug]/page.tsx";
+  if (!fileExists(file)) return { status: FAIL, details: "blog page missing" };
+  const hasLookup = fileContains(file, "canonical_slug: { not: null }");
+  const passesSiteId = fileContains(file, "checkRedirect(slug, siteId)");
+  return hasLookup && passesSiteId
+    ? { status: PASS, details: "checkRedirect queries canonical_slug + scopes by siteId" }
+    : { status: FAIL, details: `lookup=${hasLookup} siteId=${passesSiteId}` };
+});
+
+test("Duplicate Slug Consolidation", "select-runner rejects same-topic slug collisions instead of -v2", () => {
+  const file = "lib/content-pipeline/select-runner.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "select-runner missing" };
+  return fileContains(file, "DUPLICATE_OF_EXISTING:")
+    ? { status: PASS, details: "Same-topic check rejects draft, marks as DUPLICATE_OF_EXISTING" }
+    : { status: FAIL, details: "Still creates -v2 unconditionally — duplicates will keep accumulating" };
+});
+
+test("Duplicate Slug Consolidation", "content-auto-fix-lite auto-runs duplicate consolidation", () => {
+  const file = "app/api/cron/content-auto-fix-lite/route.ts";
+  if (!fileExists(file)) return { status: FAIL, details: "content-auto-fix-lite missing" };
+  return fileContains(file, "Duplicate slug consolidation") && fileContains(file, "duplicatesUnpublished")
+    ? { status: PASS, details: "Section 16 runs every 4h with cron" }
+    : { status: FAIL, details: "Auto-cleanup section missing — manual button only" };
+});
+
 // Compute categories AFTER all tests have run
-const categories = [...new Set(results.map(r => r.category))];
-let totalPass = 0, totalFail = 0, totalWarn = 0;
+const categories = [...new Set(results.map((r) => r.category))];
+let totalPass = 0,
+  totalFail = 0,
+  totalWarn = 0;
 
 for (const cat of categories) {
-  const catResults = results.filter(r => r.category === cat);
-  const catPass = catResults.filter(r => r.status === PASS).length;
-  const catFail = catResults.filter(r => r.status === FAIL).length;
-  const catWarn = catResults.filter(r => r.status === WARN).length;
+  const catResults = results.filter((r) => r.category === cat);
+  const catPass = catResults.filter((r) => r.status === PASS).length;
+  const catFail = catResults.filter((r) => r.status === FAIL).length;
+  const catWarn = catResults.filter((r) => r.status === WARN).length;
 
   console.log(`\n--- ${cat} (${catPass}/${catResults.length} pass) ---`);
 
@@ -1919,7 +2117,7 @@ console.log("=".repeat(80) + "\n");
 
 if (totalFail > 0) {
   console.log("FAILED TESTS:");
-  for (const r of results.filter(r => r.status === FAIL)) {
+  for (const r of results.filter((r) => r.status === FAIL)) {
     console.log(`  ✗ [${r.category}] ${r.name}: ${r.details}`);
   }
   console.log("");

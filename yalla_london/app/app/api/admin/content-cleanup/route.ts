@@ -16,27 +16,84 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 
-const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{4,}$|-\d+-chars$/;
+// Slug artifacts emitted by the collision handler in select-runner.ts:
+//   1. -v2 / -v3 / ... / -v10  → human-readable version suffix
+//   2. -v{base36}              → fallback when v=10 already taken (e.g. -vk3a)
+//   3. -[0-9a-f]{8}            → P2002 retry random hex (e.g. -8481ccfa)
+//   4. -[0-9a-f]{4,7}          → legacy short hash from older code
+//   5. -\d+-chars$             → meta length annotation accidentally appended
+// Year suffixes (-2024, -2025, -2026) are explicitly excluded — they're legitimate.
+const SLUG_ARTIFACT_PATTERN = /-v\d{1,3}$|-v[a-z0-9]{4}$|-[0-9a-f]{4,}$|-\d+-chars$/i;
 
 const STOP_WORDS = new Set([
-  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of",
-  "with", "by", "is", "are", "was", "were", "be", "been", "being", "have",
-  "has", "had", "do", "does", "did", "will", "would", "could", "should",
-  "may", "might", "can", "this", "that", "these", "those", "it", "its",
-  "your", "our", "their", "my", "from", "into", "best", "top", "guide", "complete",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "its",
+  "your",
+  "our",
+  "their",
+  "my",
+  "from",
+  "into",
+  "best",
+  "top",
+  "guide",
+  "complete",
 ]);
 
 function extractKeywords(text: string): Set<string> {
   return new Set(
-    text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/)
-      .filter(w => w.length > 2 && !STOP_WORDS.has(w))
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
   );
 }
 
 function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 0;
   let intersection = 0;
-  for (const item of a) { if (b.has(item)) intersection++; }
+  for (const item of a) {
+    if (b.has(item)) intersection++;
+  }
   const union = a.size + b.size - intersection;
   return union === 0 ? 0 : intersection / union;
 }
@@ -64,7 +121,16 @@ interface ArticleRow {
 
 interface DupCluster {
   keep: { id: string; slug: string; title: string; published: boolean; seoScore: number | null; wordCount: number };
-  duplicates: Array<{ id: string; slug: string; title: string; published: boolean; seoScore: number | null; wordCount: number; reason: string; similarity: number }>;
+  duplicates: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    published: boolean;
+    seoScore: number | null;
+    wordCount: number;
+    reason: string;
+    similarity: number;
+  }>;
 }
 
 // ── GET: Scan (read-only) ──────────────────────────────────────────────────
@@ -74,7 +140,8 @@ async function handleGet(request: NextRequest) {
   if (authError) return authError;
 
   const { prisma } = await import("@/lib/db");
-  const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } = await import("@/lib/content-pipeline/title-sanitizer");
+  const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } =
+    await import("@/lib/content-pipeline/title-sanitizer");
   const { getDefaultSiteId } = await import("@/config/sites");
 
   const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
@@ -83,31 +150,70 @@ async function handleGet(request: NextRequest) {
   const posts: ArticleRow[] = await prisma.blogPost.findMany({
     where: { siteId, deletedAt: null },
     select: {
-      id: true, slug: true, title_en: true, published: true, seo_score: true,
-      content_en: true, created_at: true, meta_title_en: true,
-      meta_description_en: true, meta_description_ar: true,
+      id: true,
+      slug: true,
+      title_en: true,
+      published: true,
+      seo_score: true,
+      content_en: true,
+      created_at: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      meta_description_ar: true,
     },
     orderBy: { created_at: "asc" },
   });
 
   // ── Artifact scan ──
   const artifacts: Array<{
-    id: string; slug: string; published: boolean;
-    field: string; before: string; after: string;
+    id: string;
+    slug: string;
+    published: boolean;
+    field: string;
+    before: string;
+    after: string;
   }> = [];
 
   for (const post of posts) {
     if (hasTitleArtifacts(post.title_en)) {
-      artifacts.push({ id: post.id, slug: post.slug, published: post.published, field: "title_en", before: post.title_en, after: sanitizeTitle(post.title_en) });
+      artifacts.push({
+        id: post.id,
+        slug: post.slug,
+        published: post.published,
+        field: "title_en",
+        before: post.title_en,
+        after: sanitizeTitle(post.title_en),
+      });
     }
     if (post.meta_title_en && hasTitleArtifacts(post.meta_title_en)) {
-      artifacts.push({ id: post.id, slug: post.slug, published: post.published, field: "meta_title_en", before: post.meta_title_en, after: sanitizeTitle(post.meta_title_en) });
+      artifacts.push({
+        id: post.id,
+        slug: post.slug,
+        published: post.published,
+        field: "meta_title_en",
+        before: post.meta_title_en,
+        after: sanitizeTitle(post.meta_title_en),
+      });
     }
     if (post.meta_description_en && post.meta_description_en.length > 160) {
-      artifacts.push({ id: post.id, slug: post.slug, published: post.published, field: "meta_description_en", before: `${post.meta_description_en.length} chars`, after: `${sanitizeMetaDescription(post.meta_description_en).length} chars` });
+      artifacts.push({
+        id: post.id,
+        slug: post.slug,
+        published: post.published,
+        field: "meta_description_en",
+        before: `${post.meta_description_en.length} chars`,
+        after: `${sanitizeMetaDescription(post.meta_description_en).length} chars`,
+      });
     }
     if (post.meta_description_ar && post.meta_description_ar.length > 160) {
-      artifacts.push({ id: post.id, slug: post.slug, published: post.published, field: "meta_description_ar", before: `${post.meta_description_ar.length} chars`, after: "≤160 chars" });
+      artifacts.push({
+        id: post.id,
+        slug: post.slug,
+        published: post.published,
+        field: "meta_description_ar",
+        before: `${post.meta_description_ar.length} chars`,
+        after: "≤160 chars",
+      });
     }
   }
 
@@ -115,21 +221,30 @@ async function handleGet(request: NextRequest) {
   const clusters: DupCluster[] = [];
   const assignedIds = new Set<string>();
 
-  const wordCount = (html: string) => html.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length;
+  const wordCount = (html: string) =>
+    html
+      .replace(/<[^>]*>/g, "")
+      .split(/\s+/)
+      .filter(Boolean).length;
 
   const pickCanonical = (group: ArticleRow[]) => {
     return [...group].sort((a, b) => {
       if (a.published !== b.published) return a.published ? -1 : 1;
       if ((a.seo_score || 0) !== (b.seo_score || 0)) return (b.seo_score || 0) - (a.seo_score || 0);
-      const aw = wordCount(a.content_en), bw = wordCount(b.content_en);
+      const aw = wordCount(a.content_en),
+        bw = wordCount(b.content_en);
       if (aw !== bw) return bw - aw;
       return a.created_at.getTime() - b.created_at.getTime();
     });
   };
 
   const toSummary = (p: ArticleRow) => ({
-    id: p.id, slug: p.slug, title: p.title_en, published: p.published,
-    seoScore: p.seo_score, wordCount: wordCount(p.content_en),
+    id: p.id,
+    slug: p.slug,
+    title: p.title_en,
+    published: p.published,
+    seoScore: p.seo_score,
+    wordCount: wordCount(p.content_en),
   });
 
   // Strategy 1: Slug variants
@@ -147,7 +262,7 @@ async function handleGet(request: NextRequest) {
     if (dups.length > 0) {
       clusters.push({
         keep: toSummary(canonical),
-        duplicates: dups.map(d => ({ ...toSummary(d), reason: "slug variant", similarity: 1.0 })),
+        duplicates: dups.map((d) => ({ ...toSummary(d), reason: "slug variant", similarity: 1.0 })),
       });
       for (const d of dups) assignedIds.add(d.id);
       assignedIds.add(canonical.id);
@@ -155,8 +270,8 @@ async function handleGet(request: NextRequest) {
   }
 
   // Strategy 2: Title similarity
-  const unassigned = posts.filter(p => !assignedIds.has(p.id));
-  const titleKw = unassigned.map(p => ({ post: p, kw: extractKeywords(p.title_en) }));
+  const unassigned = posts.filter((p) => !assignedIds.has(p.id));
+  const titleKw = unassigned.map((p) => ({ post: p, kw: extractKeywords(p.title_en) }));
 
   for (let i = 0; i < titleKw.length; i++) {
     if (assignedIds.has(titleKw[i].post.id)) continue;
@@ -172,13 +287,15 @@ async function handleGet(request: NextRequest) {
     }
 
     if (members.length > 0) {
-      const all = [titleKw[i].post, ...members.map(m => m.post)];
+      const all = [titleKw[i].post, ...members.map((m) => m.post)];
       const sorted = pickCanonical(all);
       const canonical = sorted[0];
       clusters.push({
         keep: toSummary(canonical),
-        duplicates: sorted.slice(1).map(d => {
-          const sim = members.find(m => m.post.id === d.id)?.sim ?? jaccardSimilarity(extractKeywords(canonical.title_en), extractKeywords(d.title_en));
+        duplicates: sorted.slice(1).map((d) => {
+          const sim =
+            members.find((m) => m.post.id === d.id)?.sim ??
+            jaccardSimilarity(extractKeywords(canonical.title_en), extractKeywords(d.title_en));
           return { ...toSummary(d), reason: `title similarity ${(sim * 100).toFixed(0)}%`, similarity: sim };
         }),
       });
@@ -200,12 +317,14 @@ async function handleGet(request: NextRequest) {
     const sorted = pickCanonical(group);
     clusters.push({
       keep: toSummary(sorted[0]),
-      duplicates: sorted.slice(1).map(d => ({ ...toSummary(d), reason: "identical meta description", similarity: 1.0 })),
+      duplicates: sorted
+        .slice(1)
+        .map((d) => ({ ...toSummary(d), reason: "identical meta description", similarity: 1.0 })),
     });
   }
 
   const totalDuplicates = clusters.reduce((sum, c) => sum + c.duplicates.length, 0);
-  const publishedDuplicates = clusters.reduce((sum, c) => sum + c.duplicates.filter(d => d.published).length, 0);
+  const publishedDuplicates = clusters.reduce((sum, c) => sum + c.duplicates.filter((d) => d.published).length, 0);
 
   return NextResponse.json({
     siteId,
@@ -222,7 +341,8 @@ async function handlePost(request: NextRequest) {
   if (authError) return authError;
 
   const { prisma } = await import("@/lib/db");
-  const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } = await import("@/lib/content-pipeline/title-sanitizer");
+  const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } =
+    await import("@/lib/content-pipeline/title-sanitizer");
   const { getDefaultSiteId } = await import("@/config/sites");
 
   const body = await request.json().catch(() => ({}));
@@ -300,11 +420,14 @@ async function handlePost(request: NextRequest) {
           return a.created_at.getTime() - b.created_at.getTime();
         });
 
-        // Unpublish all except best
+        // Unpublish all except best AND set canonical_slug so the blog page
+        // can issue a permanent 301 redirect to the winner instead of 404.
+        // Preserves accumulated SEO equity from any backlinks/social shares.
+        const winner = sorted[0];
         for (let i = 1; i < sorted.length; i++) {
           await prisma.blogPost.update({
             where: { id: sorted[i].id },
-            data: { published: false },
+            data: { published: false, canonical_slug: winner.slug },
           });
           results.duplicatesUnpublished++;
         }

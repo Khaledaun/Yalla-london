@@ -1,5 +1,40 @@
 # Chrome Bridge CHANGELOG
 
+## 2026-04-20.20 — AI voice rewrite automation (closes AIO ceiling gap)
+
+**From Chrome Bridge grading session:** SEO 55 / AIO 45. The AIO ceiling at 60 (without voice overhaul) vs 75-80 (with voice overhaul on top 50 articles). Quality-recovery-runner only covers 29 not_indexed pages. The 614 other published articles still have the AI-generic opening pattern.
+
+**New cron:** `ai-voice-rewrite-runner`
+- Schedule: `0 8 * * 0` (weekly Sunday 08:00 UTC, 30 min after quality-recovery-runner)
+- maxDuration 300s
+
+**Candidate detection:**
+- Published ≥14 days ago (Google's had time to crawl)
+- First 80 words contain ≥2 AI-generic opener phrases (14-phrase regex set: "nestled in", "look no further", "whether you're a", "embark on a journey", "discover the pinnacle", "hidden gem", "step into a world", "imagine stepping", "intricate", "tailored for", "in the heart of", "pinnacle of luxury", etc.)
+- OR site-wide authenticity ratio <2 signals per 1000 words
+- NOT already in an active voice-rewrite or quality-recovery campaign (dedup)
+
+**Prioritization:** rank by GSC impressions (last 30 days) descending. Rewriting high-impression AI-generic articles moves the AIO grade fastest per dollar of AI budget.
+
+**Scale:** top 50 articles per site per week × 6 sites = 300 items/week cap. At campaign-executor's 3 items / 30 min processing rate, one site's 50 articles clear in ~8 hours.
+
+**Operation:** `add_authenticity` only (rewrites AI-generic opening + injects first-hand experience markers). Does NOT expand content or change structure — voice-only.
+
+**Config stamped:**
+- `source: "ai-voice-rewrite"`
+- `autoTriggered: true`
+- `rankingSignal: "gsc_impressions_30d"`
+- `candidateCount` + `rankedCount` for post-run diagnostics
+
+**Expected impact:** +10-15 AIO points over 2 months across all active sites. Closes the gap Chrome Bridge flagged in the grading session.
+
+**Coexistence with quality-recovery-runner:**
+- Dedup check prevents both crons from targeting the same article simultaneously
+- Different priorities: quality-recovery=3 (higher), ai-voice-rewrite=4 (lower)
+- Different scope: quality-recovery targets not_indexed only; ai-voice-rewrite targets all published
+
+---
+
 ## 2026-04-20.19 — Full automation: zero-manual-step audit loop
 
 **Goal: Khaled never runs a curl, taps "Mark Fixed," or triggers anything by hand.** Only unautomatable step remaining is applying to new CJ affiliate programs (third-party dashboard — Anthropic cannot log in).

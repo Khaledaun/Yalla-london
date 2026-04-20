@@ -5551,6 +5551,21 @@ Subscriber Lifecycle:
 241. **Post-action result summaries must answer "what changed?"** — generic "completed" messages are useless. After affiliate injection, show: which articles, which partners, how many. After any mutation, show the delta, not just the status.
 242. **Sort controls on data tables must support bidirectional toggle** — first click sorts descending (most interesting first), second click on same column reverses to ascending. Active sort state must be visually distinct (filled button vs outline).
 
+### Session: April 20, 2026 — Claude Chrome Bridge: Complete 7-Phase Build (58 files, 25+ endpoints, ~4,600 lines)
+
+Full read/write surface for the Claude Chrome connector (in-browser AI auditor) + interpretation layer + auditor playbook + admin viewer + MCP tool extension. Shipped on branch `claude/add-claude-chrome-connector-yzSYY` across 20+ commits.
+
+**Architecture:**
+- Bearer-token auth via `CLAUDE_BRIDGE_TOKEN` (rotatable, separate from `CRON_SECRET`) with admin-session fallback. `lib/agents/bridge-auth.ts`.
+- Claude Chrome uses Khaled's admin browser session OR token to call `/api/admin/chrome-bridge/*`.
+- Write endpoints upload `ChromeAuditReport` rows + create `AgentTask` with `assignedTo="cli"` so Claude Code CLI picks up queued fixes next session.
+- CEO Inbox auto-alert on critical-severity uploads via CronJobLog `job_name="ceo-inbox"`.
+- Admin viewer `/admin/chrome-audits` with filters + Apply Fix / Dismiss / Mark Reviewed / Mark Fixed.
+
+**Prisma models (2 new + migrations):**
+- `ChromeAuditReport` — siteId, pageUrl, auditType, severity, status, findings/interpretedActions/rawData JSON, reportMarkdown, agentTaskId. Migration: `20260420_add_chrome_audit_report`.
+- `AbTest` — variantA/B JSON, per-variant counters, status, winner, confidence, reportId. Migration: `20260420_add_ab_test`.
+
 ## Workflow Infrastructure & Developer Tools
 
 ### Available Command Categories

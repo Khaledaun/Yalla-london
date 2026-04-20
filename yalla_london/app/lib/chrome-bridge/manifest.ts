@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.11";
+export const BRIDGE_VERSION = "2026-04-20.12";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -207,6 +207,26 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { siteId: "required OR url for single-URL mode", limit: "max 30 pages" },
     outputs: "{ summary { complianceRate }, results[], findings, interpretedActions }",
     addedIn: "2026-04-20.11",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/serp",
+    kind: "interpret",
+    summary: "Competitor SERP via DataForSEO. Top 10 organic + featured snippet + PAA + AI Overview citations. Detects if we rank and if we're cited.",
+    inputs: { keyword: "required", locationCode: "default 2826 UK", languageCode: "default en" },
+    outputs: "{ serp, ourRanking, ourAioCitation, competitorDomains, findings, actions }",
+    addedIn: "2026-04-20.12",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/keyword-research",
+    kind: "read",
+    summary: "Keyword search volume + CPC + competition via DataForSEO Keywords Data API. Up to 100 keywords per request.",
+    inputs: { keywords: "comma-separated, required", locationCode: "default 2826 UK" },
+    outputs: "{ allMetrics, topByVolume, topByCpc, totalMonthlyVolume, avgCpc }",
+    addedIn: "2026-04-20.12",
     status: "stable",
   },
   {

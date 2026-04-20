@@ -7,6 +7,39 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.12 — DataForSEO integration (Phase 7.1)
+
+**Added:**
+- `lib/chrome-bridge/dataforseo.ts` — typed API client with HTTP Basic Auth,
+  20s timeout, graceful degradation. Two functions exported:
+  - `fetchSERP(keyword, locationCode, languageCode)` — top 10 organic + SERP
+    features (featured snippet, PAA, related searches, AI Overview citations)
+  - `fetchKeywordMetrics(keywords[], locationCode, languageCode)` — search
+    volume + CPC + competition for up to 100 keywords per call
+- `GET /api/admin/chrome-bridge/serp?keyword=X&locationCode=N`
+  Returns top 10 organic, competitor domains, our ranking (if any), our AIO
+  citation status, PAA questions. Auto-generated findings flag:
+  - Not in top 10 (warning, propose content creation)
+  - Ranked #6-10 (info, push-to-top-5 opportunity)
+  - AI Overview appears but we're not cited (warning, AIO citability fix)
+  - PAA questions we should answer as H2s
+- `GET /api/admin/chrome-bridge/keyword-research?keywords=a,b,c`
+  Returns search volume + CPC + competition + monthly trends. Highlights
+  top by volume + top by CPC (high commercial intent).
+
+**Env vars:** `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` (API password from
+dashboard, not UI login). Cost ~$0.33/mo at typical audit volume.
+
+**Graceful degradation:** Endpoints return 503 with actionable hint when
+env vars not set. Capabilities manifest flips `competitorSerp` and
+`keywordResearch` feature flags to reflect config status.
+
+**Curated location codes:** LOCATION_CODES map covers UK/US/UAE/KSA/Egypt/
+Jordan/Kuwait/Qatar/France/Italy/Turkey/Thailand/Maldives for quick lookup
+without needing DataForSEO location reference.
+
+---
+
 ## 2026-04-20.11 — Arabic SSR compliance checker (Phase 6 complete)
 
 **Added:**

@@ -24,10 +24,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const featureFlags = {
     ceoInboxAlerts: true,
     adminViewer: true,
-    perSitePlaybooks: false, // planned Phase 6
-    screenshotEndpoint: false, // planned Phase 7 (needs infrastructure decision)
-    competitorSerp: false, // planned Phase 7 (needs DataForSEO)
-    abTestRegistration: false, // planned Phase 7
+    perSitePlaybooks: false,
+    screenshotEndpoint: false, // explicitly skipped (Claude Chrome browses pages directly)
+    competitorSerp: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
+    keywordResearch: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
+    abTestRegistration: false, // Phase 7.2
+    impactMeasurement: false, // Phase 7.3
+    expandedGsc: false, // Phase 7.4
+    expandedGa4: false, // Phase 7.5
+    affiliateResearch: false, // Phase 7.6
   };
 
   const envAvailability = {
@@ -48,6 +53,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       (process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
         process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
         process.env.GOOGLE_SERVICE_ACCOUNT_KEY)
+    ),
+    dataforseoConfigured: !!(
+      process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD
     ),
   };
 

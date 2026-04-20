@@ -5551,6 +5551,109 @@ Subscriber Lifecycle:
 241. **Post-action result summaries must answer "what changed?"** — generic "completed" messages are useless. After affiliate injection, show: which articles, which partners, how many. After any mutation, show the delta, not just the status.
 242. **Sort controls on data tables must support bidirectional toggle** — first click sorts descending (most interesting first), second click on same column reverses to ascending. Active sort state must be visually distinct (filled button vs outline).
 
+### Session: April 20, 2026 — Claude Chrome Bridge: Complete 7-Phase Build (58 files, 25+ endpoints, ~4,600 lines)
+
+Full read/write surface for the Claude Chrome connector (in-browser AI auditor) + interpretation layer + auditor playbook + admin viewer + MCP tool extension. Shipped on branch `claude/add-claude-chrome-connector-yzSYY` across 20+ commits.
+
+**Architecture:**
+- Bearer-token auth via `CLAUDE_BRIDGE_TOKEN` (rotatable, separate from `CRON_SECRET`) with admin-session fallback. `lib/agents/bridge-auth.ts`.
+- Claude Chrome uses Khaled's admin browser session OR token to call `/api/admin/chrome-bridge/*`.
+- Write endpoints upload `ChromeAuditReport` rows + create `AgentTask` with `assignedTo="cli"` so Claude Code CLI picks up queued fixes next session.
+- CEO Inbox auto-alert on critical-severity uploads via CronJobLog `job_name="ceo-inbox"`.
+- Admin viewer `/admin/chrome-audits` with filters + Apply Fix / Dismiss / Mark Reviewed / Mark Fixed.
+
+**Prisma models (2 new + migrations):**
+- `ChromeAuditReport` — siteId, pageUrl, auditType, severity, status, findings/interpretedActions/rawData JSON, reportMarkdown, agentTaskId. Migration: `20260420_add_chrome_audit_report`.
+- `AbTest` — variantA/B JSON, per-variant counters, status, winner, confidence, reportId. Migration: `20260420_add_ab_test`.
+
+**Phase inventory (7 phases, 25+ endpoints):**
+
+| Phase | Endpoint | Purpose |
+|-------|----------|---------|
+| Foundation | `lib/agents/bridge-auth.ts`, `lib/chrome-bridge/{types,helpers,interpret,manifest}.ts` | Auth, Zod schemas, interpretation functions, capability manifest |
+| Core 1-4 | `/`, `/capabilities`, `/sites`, `/overview`, `/pages`, `/page/[id]`, `/action-logs`, `/cycle-health`, `/aggregated-report`, `/gsc`, `/ga4` | Read surface |
+| Core 5-11 | `POST /report`, `POST /triage` | Write surface |
+| 5.1 | `/capabilities` + `_hints` standard + `PLAYBOOK.md` versioning + `CHANGELOG.md` | Awareness layer — Chrome sees new capabilities automatically |
+| 5.2 | `/revenue` | Per-page attribution (earner / dead_weight / unmonetized / fresh / cold classification) |
+| 5.3 | `/history` | Audit memory + delta (resolved / recurring / new findings between reports) |
+| 5.4 | `/opportunities` | TopicProposal queue + GSC near-miss queries (pos 11-30, ≥50 imp) + content gaps from primaryKeywords |
+| 5.5 | `/lighthouse` | PageSpeed wrapper — CWV (LCP/INP/CLS) + category scores + interpreted findings |
+| 6.1 | `/schema` | JSON-LD validator (deprecated-type flagging per Jan 2026 standards) |
+| 6.2 | `/broken-links` | Dead `/blog/<slug>` refs + orphan pages + weakly-linked pages |
+| 6.3 | `/rejected-drafts` | Pattern-mining (clustered errors, MAX_RECOVERIES, repeated topic rejections, 14d velocity) |
+| 6.4 | `/errors` | 404 inference (indexing errors + sitemap orphans + cron HTTP failures) — no Vercel Logs API needed |
+| 6.5 | `/arabic-ssr` | Closes KG-032 — 5-check Arabic SSR compliance scanner |
+| 7.1 | `/serp`, `/keyword-research` | DataForSEO integration (competitor SERP + keyword volume/CPC) |
+| 7.2 | `/ab-test` (GET/POST), `/ab-test/[id]` (GET/POST/PATCH), `/ab-test/track` | Full A/B testing infra with z-test winner detection |
+| 7.3 | `/impact` | Closes learning loop — 7/14/30d CTR/position/commission delta before vs after `fixedAt` |
+| 7.4 | `/gsc/inspect`, `/gsc/breakdown`, `/gsc/coverage-summary` | URL Inspection + multi-dim Search Analytics + derived coverage report |
+| 7.5 | `/ga4/channels`, `/ga4/conversions`, `/ga4/realtime`, `/ga4/funnel` | Per-page funnel + event conversions + active users now + channel breakdown |
+| 7.6 | `/affiliate/gaps`, `/recommendations`, `/commission-trends`, `/approval-queue` | Revenue-focused: unlinked brand mentions, program recs from intent volume, weekly velocity, CJ approval state |
+
+**MCP Platform Server extension (`scripts/mcp-platform-server.ts`):** 6 new Chrome Bridge tools — `chrome_bridge_list_pages`, `chrome_bridge_read_page`, `chrome_bridge_get_action_logs`, `chrome_bridge_upload_report`, `chrome_bridge_upload_triage`, `chrome_bridge_list_reports`. Claude Code CLI can now query + upload via MCP.
+
+**Env vars needed for full functionality:**
+
+| Env Var | Purpose | Required? |
+|---------|---------|-----------|
+| `CLAUDE_BRIDGE_TOKEN` | Bearer token for bridge endpoints (rotatable, 64-char base64url) | Optional — falls back to admin session |
+| `DATAFORSEO_LOGIN` | DataForSEO account email | Optional — enables `/serp` + `/keyword-research` |
+| `DATAFORSEO_PASSWORD` | DataForSEO API password (NOT UI password) | Optional — pairs with LOGIN |
+
+Generation: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`
+
+**Deployment requirements:**
+1. Run `npx prisma migrate deploy` for 2 new migrations (ChromeAuditReport + AbTest). Vercel build also runs `prisma generate` on every deploy so types are current.
+2. Paste `CLAUDE_BRIDGE_TOKEN` into Vercel env vars (all environments) — generated in-session, documented in `docs/chrome-audits/PLAYBOOK.md`.
+3. (Optional) Sign up at dataforseo.com, copy API password, paste `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` to Vercel. Cost ~$0.33/mo at typical audit volume.
+
+**Key reference files:**
+
+| File | Purpose |
+|------|---------|
+| `docs/chrome-audits/PLAYBOOK.md` | System prompt for Claude Chrome — 5-pillar methodology, hard thresholds, audit protocol. Versioned YAML frontmatter. |
+| `docs/chrome-audits/CHANGELOG.md` | Version-tagged log of bridge capabilities. Chrome Bridge responses include `_hints.playbookVersion` for drift detection. |
+| `lib/chrome-bridge/manifest.ts` | Single source of truth for endpoints + `BRIDGE_VERSION` + `PLAYBOOK_VERSION` + `buildHints()` |
+| `lib/chrome-bridge/interpret.ts` | Pure interpretation functions (CTR vs position, GA4 engagement, indexing failures, content signals, action log clustering) |
+| `lib/chrome-bridge/dataforseo.ts` | DataForSEO API client — `fetchSERP()`, `fetchKeywordMetrics()` |
+| `lib/chrome-bridge/ab-test-stats.ts` | Two-proportion z-test + CDF approximation for A/B winner detection |
+| `lib/agents/bridge-auth.ts` | `requireBridgeToken()` + `withBridgeAuth()` + `isBridgeTokenRequest()` |
+
+### Critical Rules Learned (April 20 Session — Chrome Bridge)
+
+243. **`SearchAnalyticsRow` lacks index signature** — cannot be typed as `Record<string, unknown>` in `.map` callbacks. Use `(row: unknown)` and cast inside: `const r = row as Record<string, unknown>`. This applies to any Prisma/GSC/typed-API return where the caller wants a flexible typed-any view.
+244. **`getSearchAnalytics(startDate, endDate, dimensions)` takes 3 args** — NOT 4. Returns `{ rows, responseAggregationType } | null`, not an array. Slice `response.rows` client-side if you need a limit.
+245. **`GoogleSearchConsole()` constructor takes 0 arguments** — use `setSiteUrl(url)` AFTER instantiation for per-site override. Signature: `const gsc = new GoogleSearchConsole(); gsc.setSiteUrl(domain);`.
+246. **`SiteConfig` has `primaryColor` + `secondaryColor`, NOT `brand.primary/.accent`** — the `brand` nested object doesn't exist. Check `config/sites.ts:26` for the actual SiteConfig interface before accessing any color/branding fields.
+247. **`EndpointManifest.method` must include ALL HTTP verbs** — typing as `"GET" | "POST"` breaks when you add a `PATCH` or `DELETE` endpoint. Widen to `"GET" | "POST" | "PATCH" | "DELETE"` preemptively.
+248. **Every new Chrome Bridge endpoint needs manifest + changelog + capabilities flag update** — `lib/chrome-bridge/manifest.ts` ENDPOINTS array, BRIDGE_VERSION bump, `docs/chrome-audits/CHANGELOG.md` entry, `capabilities/route.ts` featureFlags entry. Miss any one and Claude Chrome won't discover the endpoint.
+249. **`requireBridgeToken()` falls back to admin session** — don't duplicate auth logic. If admin-session access is acceptable (dashboard-originated calls), the fallback handles it. Only hardcode token-only checks for public beacon endpoints (like `/ab-test/track`).
+250. **GSC Coverage Report UI, Manual Actions, and Security Issues are NOT exposed via GSC API** — document this limitation in endpoint responses. For manual actions/security, configure GSC email notifications (the only programmatic channel). DB-derived coverage (`URLIndexingStatus.groupBy`) is the best available substitute.
+251. **Vercel serverless filesystem is read-only** — Chrome Bridge report markdown is stored in `ChromeAuditReport.reportMarkdown` DB column, NOT written to `docs/chrome-audits/`. `reportPath` in the schema is the CONCEPTUAL future path for git export; no filesystem write happens at runtime.
+252. **Affiliate SID format is `{siteId}_{slug}`** — parsed from `CjClickEvent.sessionId` AND `CjCommission.metadata.sid`. Strip with `.startsWith(siteId + "_")` then slice — handles slugs containing underscores correctly. March 11 migration added direct `siteId` fields; use the `OR: [{siteId}, {siteId: null}]` pattern to include pre-migration legacy rows.
+253. **Per-page revenue classification has 5 states** — `earner` (has commissions/clicks), `dead_weight` (≥20 organic clicks, 0 affiliate clicks, has affiliate links), `unmonetized` (no affiliate links in content), `fresh` (<14 days old, can't judge), `cold` (nothing happening yet). Dead-weight pages need AFFILIATE injection first (not title rewrite). Unmonetized pages need the affiliate-injection cron. Top earners are protect-mode.
+254. **Audit memory delta uses normalized issue keys** — `${pillar}:${issue}` where numbers are collapsed to `N`, URLs to `<url>`. So "CTR 0.8%" and "CTR 1.2%" match as the SAME recurring finding. Without normalization, every audit would appear to have 100% new findings.
+255. **A/B test z-test requires ≥100 impressions per arm** — below that, return `winner: "inconclusive"` regardless of observed lift. 95% confidence threshold for declaring winner. Under that → "inconclusive". At `Math.abs(rateB - rateA) < 0.0001` → "tie".
+256. **A/B test tracking beacon rate-limiting uses in-memory bucket** — 1 hit/minute per IP per testId+variant+event. Silently succeeds on stale tests so old page JS doesn't error. Counters use atomic Prisma `{ field: { increment: 1 } }` for concurrent safety.
+257. **Chrome Bridge write endpoints must call `fireCeoInboxAlertIfCritical` after `logBridgeUpload`** — critical-severity findings surface on the cockpit CEO Inbox banner via CronJobLog `job_name="ceo-inbox"`. Without this, critical findings land in the viewer but not the phone alert stream.
+258. **DataForSEO `rowLimit` param caps at 10,000** — uses HTTP Basic Auth (email + API password, NOT UI password). Location codes are numeric (UK=2826, US=2840, etc.). LIVE mode ($0.002/SERP) for interactive audits — STANDARD mode (45min async, $0.0012) not suitable for Claude Chrome.
+
+### Current Platform Status Update (April 20, 2026)
+
+**What Works End-to-End (adding Chrome Bridge):**
+- Claude Chrome can audit pages (5-pillar methodology), register A/B tests, measure impact, query competitor SERPs, validate schema, detect broken links, mine rejection patterns, verify Arabic SSR compliance, map affiliate gaps, trend commission velocity, propose affiliate program applications ✅
+- All audit results surface on `/admin/chrome-audits` with one-tap Apply Fix → Claude Code CLI ✅
+- 3-layer awareness mechanism (manifest endpoint + versioned playbook + `_hints` on every response) keeps Chrome sessions aligned as bridge expands ✅
+
+**Known Remaining Issues (added):**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| CJ Credentials | DataForSEO env vars not yet set in Vercel (endpoints 503 gracefully) | LOW | Manual action pending |
+| CLAUDE_BRIDGE_TOKEN | Generated but not yet in Vercel env vars (admin session works instead) | LOW | Manual action pending |
+| AbTest migration | Needs `npx prisma migrate deploy` for `20260420_add_ab_test` | MEDIUM | Auto-applied on next Vercel build OR manual |
+| ChromeAuditReport migration | Needs `npx prisma migrate deploy` for `20260420_add_chrome_audit_report` | MEDIUM | Auto-applied on next Vercel build OR manual |
+
 ## Workflow Infrastructure & Developer Tools
 
 ### Available Command Categories

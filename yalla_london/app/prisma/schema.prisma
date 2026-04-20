@@ -5073,6 +5073,41 @@ model FinanceEvent {
   @@map("finance_events")
 }
 
+/// AbTest — A/B test definitions with per-variant counters.
+/// Claude Chrome registers tests via POST /api/admin/chrome-bridge/ab-test.
+/// Serving is cookie-based; frontend components read `ab_<testId>` cookie
+/// and render the assigned variant. Events fired via /ab-test/track.
+model AbTest {
+  id              String   @id @default(cuid())
+  siteId          String
+  targetUrl       String   // exact URL (or pattern later) that this test applies to
+  variantType     String   // title | meta_description | affiliate_cta | hero | content_section
+  targetSelector  String?  // optional CSS selector for variant swap ("h1", ".hero-cta", etc.)
+  variantA        Json     // { content: "...", metadata?: {} }
+  variantB        Json     // { content: "...", metadata?: {} }
+  trafficSplit    Float    @default(0.5) // 0.5 = 50/50; 0.1 = 10% in variant B
+  primaryMetric   String   @default("click") // click | conversion | scroll_depth | engagement
+  impressionsA    Int      @default(0)
+  impressionsB    Int      @default(0)
+  clicksA         Int      @default(0)
+  clicksB         Int      @default(0)
+  conversionsA   Int      @default(0)
+  conversionsB   Int      @default(0)
+  status          String   @default("active") // active | paused | concluded | archived
+  winner          String?  // "A" | "B" | "tie" (set at conclusion)
+  confidence      Float?   // statistical confidence 0-1 (z-test)
+  reportId        String?  // optional link to ChromeAuditReport that proposed this test
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  concludedAt     DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId, status])
+  @@index([targetUrl])
+  @@index([createdAt])
+  @@map("ab_tests")
+}
+
 /// ChromeAuditReport — Per-page audit reports uploaded by Claude Chrome Bridge
 /// See docs/chrome-audits/PLAYBOOK.md for audit methodology.
 model ChromeAuditReport {

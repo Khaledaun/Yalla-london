@@ -292,6 +292,72 @@ export async function fetchGA4Metrics(
 }
 
 /**
+ * Run a custom GA4 Data API report with arbitrary dimensions/metrics.
+ * Used by Chrome Bridge for funnel, conversions, channel breakdown queries.
+ *
+ * Returns null if credentials missing, raw GA4 response otherwise.
+ */
+export async function runGA4CustomReport(
+  body: Record<string, unknown>,
+  propertyIdOverride?: string,
+): Promise<Record<string, unknown> | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+  if (propertyIdOverride) {
+    creds.propertyId = propertyIdOverride;
+  }
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+  try {
+    return (await runReport(creds.propertyId, token, body)) as Record<string, unknown>;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[GA4] runGA4CustomReport failed:", message);
+    return null;
+  }
+}
+
+/**
+ * Run a GA4 Realtime API report (different endpoint — :runRealtimeReport).
+ * Max lookback: last 30 minutes.
+ */
+export async function runGA4RealtimeReport(
+  body: Record<string, unknown>,
+  propertyIdOverride?: string,
+): Promise<Record<string, unknown> | null> {
+  const creds = getCredentials();
+  if (!creds) return null;
+  if (propertyIdOverride) {
+    creds.propertyId = propertyIdOverride;
+  }
+  const token = await getAccessToken(creds.clientEmail, creds.privateKey);
+  if (!token) return null;
+  try {
+    const url = `${GA4_API_BASE}/${creds.propertyId}:runRealtimeReport`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(
+        `[GA4] Realtime report HTTP ${response.status}: ${errorText.slice(0, 200)}`,
+      );
+      return null;
+    }
+    return (await response.json()) as Record<string, unknown>;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[GA4] runGA4RealtimeReport failed:", message);
+    return null;
+  }
+}
+
+/**
  * Fetch per-page engagement metrics for a specific article.
  * Returns detailed engagement data including bounce rate, scroll events, and time on page.
  */

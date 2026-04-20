@@ -54,7 +54,10 @@ export async function GET(
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [gscRows, indexing, recentAudits, affiliateLogs] = await Promise.all([
+    const sid = `${post.siteId}_${post.slug}`;
+    const siteFilter = { OR: [{ siteId: post.siteId }, { siteId: null }] };
+
+    const [gscRows, indexing, recentAudits, affiliateLogs, affiliateClickCount, commissions] = await Promise.all([
       prisma.gscPagePerformance.findMany({
         where: { site_id: post.siteId, url, date: { gte: since30d } },
         orderBy: { date: "asc" },
@@ -109,7 +112,38 @@ export async function GET(
           error: true,
         },
       }),
+      prisma.cjClickEvent.count({
+        where: {
+          ...siteFilter,
+          sessionId: sid,
+          createdAt: { gte: since30d },
+        },
+      }),
+      prisma.cjCommission.findMany({
+        where: {
+          ...siteFilter,
+          eventDate: { gte: since30d },
+        },
+        select: {
+          id: true,
+          commissionAmount: true,
+          saleAmount: true,
+          currency: true,
+          status: true,
+          eventDate: true,
+          metadata: true,
+        },
+        take: 100,
+      }),
     ]);
+
+    // Filter commissions attributed to this article's SID (via metadata.sid)
+    const pageCommissions = commissions.filter((c) => {
+      const meta = (c.metadata as Record<string, unknown> | null) ?? {};
+      return typeof meta.sid === "string" && meta.sid === sid;
+    });
+    const commissionTotal = pageCommissions.reduce((s, c) => s + (c.commissionAmount ?? 0), 0);
+    const commissionCurrency = pageCommissions[0]?.currency ?? "GBP";
 
     const clicks30d = gscRows.reduce((s, r) => s + (r.clicks ?? 0), 0);
     const impressions30d = gscRows.reduce((s, r) => s + (r.impressions ?? 0), 0);
@@ -163,6 +197,24 @@ export async function GET(
       indexing: indexing ?? null,
       recentAudits,
       recentAutoFixes: affiliateLogs,
+      revenue: {
+        affiliateClicks30d: affiliateClickCount,
+        commissionCount30d: pageCommissions.length,
+        commissionTotal30d: Number(commissionTotal.toFixed(2)),
+        currency: commissionCurrency,
+        epc30d:
+          affiliateClickCount > 0
+            ? Number((commissionTotal / affiliateClickCount).toFixed(4))
+            : 0,
+        recentCommissions: pageCommissions.slice(0, 5).map((c) => ({
+          id: c.id,
+          commissionAmount: c.commissionAmount,
+          saleAmount: c.saleAmount,
+          currency: c.currency,
+          status: c.status,
+          eventDate: c.eventDate,
+        })),
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

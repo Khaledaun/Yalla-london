@@ -79,7 +79,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    const normalized = rows.map((r: Record<string, unknown>) => {
+    const normalized = rows.map((row: unknown) => {
+      const r = row as Record<string, unknown>;
       const keys = Array.isArray(r.keys) ? (r.keys as string[]) : [];
       return {
         dimension: by,

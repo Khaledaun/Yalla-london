@@ -202,13 +202,16 @@ async function fetchNearMissKeywords(
     gsc.setSiteUrl(siteUrl);
     const rows = await gsc.getTopKeywords(startDate, endDate, limit);
     if (!Array.isArray(rows)) return [];
-    return rows.map((r: Record<string, unknown>) => ({
-      keyword: typeof r.keyword === "string" ? r.keyword : "",
-      clicks: typeof r.clicks === "number" ? r.clicks : 0,
-      impressions: typeof r.impressions === "number" ? r.impressions : 0,
-      ctr: typeof r.ctr === "number" ? r.ctr : 0,
-      position: typeof r.position === "number" ? r.position : 0,
-    }));
+    return rows.map((row: unknown) => {
+      const r = row as Record<string, unknown>;
+      return {
+        keyword: typeof r.keyword === "string" ? r.keyword : "",
+        clicks: typeof r.clicks === "number" ? r.clicks : 0,
+        impressions: typeof r.impressions === "number" ? r.impressions : 0,
+        ctr: typeof r.ctr === "number" ? r.ctr : 0,
+        position: typeof r.position === "number" ? r.position : 0,
+      };
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn("[chrome-bridge/opportunities] GSC near-miss fetch failed:", message);

@@ -7,6 +7,27 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.15 — Expanded GSC (Phase 7.4)
+
+**Added:**
+- `GET /gsc/inspect?url=X&siteId=X` — single-URL URL Inspection API wrapper.
+  Auto-interprets verdict: "not indexed" → critical finding, "crawled but not
+  indexed" → critical Google quality signal + E-E-A-T remediation (relatedKG:
+  KG-058), canonical mismatch → warning + audit.
+- `GET /gsc/breakdown?siteId=X&days=N&by=device|country|date|searchAppearance|page|query`
+  Multi-dimensional Search Analytics slicing. Detects patterns hidden in
+  aggregate: mobile-vs-desktop CTR gap, Gulf-vs-UK split, week-over-week trends.
+- `GET /gsc/coverage-summary?siteId=X` — coverage report derived from
+  URLIndexingStatus DB (GSC Coverage UI is NOT API-accessible). Surfaces:
+  indexingRate, top 15 coverage_state buckets (detects "Crawled — currently
+  not indexed"), chronic failures (≥15 attempts), deindexed URLs.
+
+**Documented limitations:**
+- GSC Coverage report UI, Manual Actions, Security Issues are NOT exposed
+  via GSC API. For those, configure GSC email notifications.
+
+---
+
 ## 2026-04-20.14 — Impact measurement (Phase 7.3 — learning loop closed)
 
 **Added:**

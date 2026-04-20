@@ -5072,3 +5072,31 @@ model FinanceEvent {
   @@index([externalId])
   @@map("finance_events")
 }
+
+/// ChromeAuditReport — Per-page audit reports uploaded by Claude Chrome Bridge
+/// See docs/chrome-audits/PLAYBOOK.md for audit methodology.
+model ChromeAuditReport {
+  id                  String   @id @default(cuid())
+  siteId              String
+  pageUrl             String   // canonical URL audited
+  pageSlug            String?  // normalized slug for grouping (null for homepage/sitewide)
+  auditType           String   // per_page | sitewide | action_log_triage | offsite
+  severity            String   @default("info") // info | warning | critical
+  status              String   @default("new") // new | reviewed | fix_queued | fixed | dismissed
+  findings            Json     // structured findings: [{ pillar, issue, severity, evidence }]
+  interpretedActions  Json     // prescriptive fixes: [{ action, affectedFiles?, relatedKG?, priority }]
+  rawData             Json?    // snapshot of GSC/GA4/indexing data used
+  reportMarkdown      String?  @db.Text // full markdown saved to docs/chrome-audits/
+  reportPath          String?  // relative path under docs/chrome-audits/
+  agentTaskId         String?  // links to AgentTask when "Apply Fix" is clicked
+  uploadedBy          String   @default("chrome-bridge") // chrome-bridge | admin | cli
+  uploadedAt          DateTime @default(now())
+  reviewedAt          DateTime?
+  fixedAt             DateTime?
+
+  @@index([siteId, auditType])
+  @@index([siteId, status])
+  @@index([uploadedAt])
+  @@index([pageSlug])
+  @@map("chrome_audit_reports")
+}

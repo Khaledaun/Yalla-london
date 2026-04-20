@@ -1,8 +1,8 @@
 # Claude Chrome Audit Playbook
 
 ---
-version: 2026-04-20
-bridgeVersion: 2026-04-20.2
+version: 2026-04-20.17
+bridgeVersion: 2026-04-20.17
 changelog: docs/chrome-audits/CHANGELOG.md
 ---
 

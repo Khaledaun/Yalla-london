@@ -7,6 +7,32 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.14 — Impact measurement (Phase 7.3 — learning loop closed)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/impact?reportId=X` — single-audit impact
+- `GET /api/admin/chrome-bridge/impact?siteId=X&days=30` — aggregate view
+  across all fixed audits in window
+
+**Measures** (7, 14, 30-day windows before vs after `fixedAt`):
+- GSC clicks / impressions / avg CTR / avg position delta
+- Affiliate clicks (via SID parse)
+- Commission total (via metadata.sid match)
+- CTR lift %, position delta (negative = improved rank)
+
+**Verdict rules (7d primary window):**
+- `confirmed_improvement` — CTR lift ≥10% OR position improved ≥1 OR
+  commission increased by >$0.50
+- `regression` — CTR dropped ≥10% OR position worsened ≥1 position
+- `insufficient_data` — <3 days since fix, or <20 total impressions
+- `no_change` — neither signal detected
+
+**Aggregate response** includes `verdictCounts` + `improvementRate` =
+confirmed / (measured - insufficient_data). Claude Chrome queries this to
+update its prediction model: which past interventions actually worked.
+
+---
+
 ## 2026-04-20.13 — A/B testing infrastructure (Phase 7.2)
 
 **Added:**

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     competitorSerp: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
     keywordResearch: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
     abTestRegistration: true, // Phase 7.2
-    impactMeasurement: false, // Phase 7.3
+    impactMeasurement: true, // Phase 7.3
     expandedGsc: false, // Phase 7.4
     expandedGa4: false, // Phase 7.5
     affiliateResearch: false, // Phase 7.6

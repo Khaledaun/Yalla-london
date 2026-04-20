@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.13";
+export const BRIDGE_VERSION = "2026-04-20.14";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -276,6 +276,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     kind: "write",
     summary: "Tracking beacon (no auth). Payload: { testId, variant: A|B, event: impression|click|conversion }. Rate-limited to 1 hit/min/IP/event.",
     addedIn: "2026-04-20.13",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/impact",
+    kind: "interpret",
+    summary: "Measures CTR/position/clicks/commission delta for 7/14/30d before vs after ChromeAuditReport.fixedAt. Verdict: confirmed_improvement | no_change | regression | insufficient_data. Closes the learning loop.",
+    inputs: { reportId: "single-audit mode", siteId: "aggregate mode", days: "aggregate window max 180" },
+    outputs: "{ mode, impact|impacts[], summary.verdictCounts, summary.improvementRate }",
+    addedIn: "2026-04-20.14",
     status: "stable",
   },
   {

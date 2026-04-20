@@ -51,7 +51,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
     ]);
 
-    const advertiserMap = new Map(advertisers.map((a) => [a.id, a]));
+    type AdvertiserInfo = {
+      id: string;
+      name: string;
+      category: string | null;
+      sevenDayEpc: number | null;
+      threeMonthEpc: number | null;
+    };
+    const advertiserMap = new Map<string, AdvertiserInfo>(
+      advertisers.map((a) => [a.id, a]),
+    );
 
     // Group by advertiser + ISO week
     const byAdvertiserWeek: Record<string, Record<string, { commissions: number; count: number }>> = {};

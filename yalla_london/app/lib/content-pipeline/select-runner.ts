@@ -22,12 +22,17 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 import { sanitizeTitle, sanitizeMetaDescription, sanitizeContentBody } from "@/lib/content-pipeline/title-sanitizer";
-import { validatePhaseTransition, SELECTOR_STALE_MARKER_MS, SELECTOR_DEDUP_WINDOW_MS, PROMOTING_REVERT_MS } from "@/lib/content-pipeline/constants";
+import {
+  validatePhaseTransition,
+  SELECTOR_STALE_MARKER_MS,
+  SELECTOR_DEDUP_WINDOW_MS,
+  PROMOTING_REVERT_MS,
+} from "@/lib/content-pipeline/constants";
 import { optimisticBlogPostUpdate } from "@/lib/db/optimistic-update";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MAX_ARTICLES_PER_RUN = 10;       // publish up to 10 per run — drain overflowing reservoir (368 articles, cap 80)
-const MAX_CANDIDATES_PER_RUN = 25;    // try up to 25 candidates to find 10 publishable
+const MAX_ARTICLES_PER_RUN = 10; // publish up to 10 per run — drain overflowing reservoir (368 articles, cap 80)
+const MAX_CANDIDATES_PER_RUN = 25; // try up to 25 candidates to find 10 publishable
 
 export interface SelectRunnerResult {
   success: boolean;
@@ -41,9 +46,7 @@ export interface SelectRunnerResult {
   durationMs: number;
 }
 
-export async function runContentSelector(
-  options: { timeoutMs?: number } = {},
-): Promise<SelectRunnerResult> {
+export async function runContentSelector(options: { timeoutMs?: number } = {}): Promise<SelectRunnerResult> {
   const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
   const cronStart = Date.now();
   let dedupMarkerId: string | null = null;
@@ -52,7 +55,11 @@ export async function runContentSelector(
     const { prisma } = await import("@/lib/db");
 
     // Eagerly connect — prevents "Engine is not yet connected" on cold starts
-    try { await prisma.$connect(); } catch { /* already connected */ }
+    try {
+      await prisma.$connect();
+    } catch {
+      /* already connected */
+    }
 
     // ── Cleanup stale "started" markers ──
     // If a previous run crashed without completing, its "started" marker stays forever,
@@ -69,7 +76,10 @@ export async function runContentSelector(
         data: { status: "failed", result_summary: { error: "Stale marker — run likely crashed" } },
       });
     } catch (cleanupErr) {
-      console.warn("[content-selector] Stale marker cleanup failed:", cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
+      console.warn(
+        "[content-selector] Stale marker cleanup failed:",
+        cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+      );
     }
 
     // ── Revert drafts stuck in "promoting" from crashed runs ──
@@ -92,7 +102,10 @@ export async function runContentSelector(
         console.log(`[content-selector] Reverted ${stuckPromoting.count} stuck "promoting" draft(s) back to reservoir`);
       }
     } catch (revertErr) {
-      console.warn("[content-selector] Promoting revert failed:", revertErr instanceof Error ? revertErr.message : String(revertErr));
+      console.warn(
+        "[content-selector] Promoting revert failed:",
+        revertErr instanceof Error ? revertErr.message : String(revertErr),
+      );
     }
 
     // ── Dedup guard: prevent concurrent content-selector runs ──
@@ -112,7 +125,9 @@ export async function runContentSelector(
       orderBy: { started_at: "desc" },
     });
     if (recentRun) {
-      console.log(`[content-selector] Another run started within ${SELECTOR_DEDUP_WINDOW_MS / 1000}s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`);
+      console.log(
+        `[content-selector] Another run started within ${SELECTOR_DEDUP_WINDOW_MS / 1000}s (marker ${recentRun.id} at ${recentRun.started_at?.toISOString()}) — skipping`,
+      );
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       await logCronExecution("content-selector", "completed", {
         durationMs: Date.now() - cronStart,
@@ -137,7 +152,10 @@ export async function runContentSelector(
       });
       dedupMarkerId = marker.id;
     } catch (err) {
-      console.warn("[content-selector] Failed to write dedup marker:", err instanceof Error ? err.message : String(err));
+      console.warn(
+        "[content-selector] Failed to write dedup marker:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
     const { getActiveSiteIds, SITES, getSiteDomain } = await import("@/config/sites");
     // Import quality gate threshold from centralized SEO standards — single source of truth.
@@ -180,10 +198,7 @@ export async function runContentSelector(
             { quality_score: null, seo_score: null },
           ],
         },
-        orderBy: [
-          { quality_score: "desc" },
-          { created_at: "asc" },
-        ],
+        orderBy: [{ quality_score: "desc" }, { created_at: "asc" }],
         take: MAX_CANDIDATES_PER_RUN * 2,
       });
 
@@ -221,16 +236,34 @@ export async function runContentSelector(
       try {
         [totalReservoir, frozenCount, lowScoreCount] = await Promise.all([
           prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites } } }),
-          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, phase_attempts: { gte: MAX_ENHANCEMENT_ATTEMPTS } } }),
-          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, quality_score: { not: null, lt: MIN_QUALITY_SCORE } } }),
+          prisma.articleDraft.count({
+            where: {
+              current_phase: "reservoir",
+              site_id: { in: activeSites },
+              phase_attempts: { gte: MAX_ENHANCEMENT_ATTEMPTS },
+            },
+          }),
+          prisma.articleDraft.count({
+            where: {
+              current_phase: "reservoir",
+              site_id: { in: activeSites },
+              quality_score: { not: null, lt: MIN_QUALITY_SCORE },
+            },
+          }),
         ]);
-      } catch (countErr) { console.warn("[select-runner] reservoir count failed:", countErr instanceof Error ? countErr.message : countErr); }
+      } catch (countErr) {
+        console.warn(
+          "[select-runner] reservoir count failed:",
+          countErr instanceof Error ? countErr.message : countErr,
+        );
+      }
 
-      const reason = totalReservoir === 0
-        ? "Reservoir is empty — no articles have reached the reservoir phase"
-        : frozenCount > 0
-        ? `${totalReservoir} reservoir articles, but ${frozenCount} have exhausted enhancement (3+ attempts) and ${lowScoreCount} below quality threshold (${MIN_QUALITY_SCORE}). Exhausted articles will attempt direct publish if they meet minimum quality.`
-        : `${totalReservoir} reservoir articles, but all are below quality threshold (${MIN_QUALITY_SCORE}) or have other issues`;
+      const reason =
+        totalReservoir === 0
+          ? "Reservoir is empty — no articles have reached the reservoir phase"
+          : frozenCount > 0
+            ? `${totalReservoir} reservoir articles, but ${frozenCount} have exhausted enhancement (3+ attempts) and ${lowScoreCount} below quality threshold (${MIN_QUALITY_SCORE}). Exhausted articles will attempt direct publish if they meet minimum quality.`
+            : `${totalReservoir} reservoir articles, but all are below quality threshold (${MIN_QUALITY_SCORE}) or have other issues`;
 
       console.log(`[content-selector] No publishable candidates: ${reason}`);
 
@@ -256,9 +289,22 @@ export async function runContentSelector(
     // too many niche articles in a row, boost general candidates (and vice versa).
     // "Niche" = keyword contains halal, arab, islamic, muslim, ramadan, eid, prayer, mosque.
     // "General" = everything else (luxury hotels, restaurants, things to do, etc.)
-    const NICHE_KEYWORDS = ["halal", "arab", "islamic", "muslim", "ramadan", "eid", "prayer", "mosque", "hijab", "abaya", "gulf", "gcc"];
+    const NICHE_KEYWORDS = [
+      "halal",
+      "arab",
+      "islamic",
+      "muslim",
+      "ramadan",
+      "eid",
+      "prayer",
+      "mosque",
+      "hijab",
+      "abaya",
+      "gulf",
+      "gcc",
+    ];
     const TARGET_NICHE_RATIO = 0.35; // 35% niche = within the 30-40% target band
-    const DIVERSITY_WINDOW = 20;     // Look at last 20 published articles
+    const DIVERSITY_WINDOW = 20; // Look at last 20 published articles
     let nicheBoost = 0; // -1 = suppress niche (too many), 0 = neutral, +1 = boost niche (too few)
 
     try {
@@ -279,17 +325,26 @@ export async function runContentSelector(
         if (currentRatio > TARGET_NICHE_RATIO + 0.15) {
           // >50% niche — heavily boost general topics
           nicheBoost = -1;
-          console.log(`[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — boosting GENERAL topics`);
+          console.log(
+            `[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — boosting GENERAL topics`,
+          );
         } else if (currentRatio < TARGET_NICHE_RATIO - 0.15) {
           // <20% niche — boost niche topics
           nicheBoost = 1;
-          console.log(`[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — boosting NICHE topics`);
+          console.log(
+            `[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — boosting NICHE topics`,
+          );
         } else {
-          console.log(`[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — within target range`);
+          console.log(
+            `[content-selector] Diversity: ${nicheCount}/${recentPublished.length} niche (${Math.round(currentRatio * 100)}%) — within target range`,
+          );
         }
       }
     } catch (divErr) {
-      console.warn("[content-selector] Diversity check failed (non-fatal):", divErr instanceof Error ? divErr.message : divErr);
+      console.warn(
+        "[content-selector] Diversity check failed (non-fatal):",
+        divErr instanceof Error ? divErr.message : divErr,
+      );
     }
 
     // ── Topical Clustering: prefer publishing articles in the same category ──
@@ -323,21 +378,26 @@ export async function runContentSelector(
           activeClusterCategoryId = topCat;
           console.log(`[content-selector] Active cluster: category ${topCat} (${topCount}/${CLUSTER_SIZE} articles)`);
         } else {
-          console.log(`[content-selector] Cluster complete (${topCount} articles in ${topCat}) — allowing any category`);
+          console.log(
+            `[content-selector] Cluster complete (${topCount} articles in ${topCat}) — allowing any category`,
+          );
         }
       }
     } catch (clusterErr) {
-      console.warn("[content-selector] Cluster detection failed (non-fatal):", clusterErr instanceof Error ? clusterErr.message : clusterErr);
+      console.warn(
+        "[content-selector] Cluster detection failed (non-fatal):",
+        clusterErr instanceof Error ? clusterErr.message : clusterErr,
+      );
     }
 
     // Sort candidates: diversity-aware, then cluster, then by quality score.
     // Diversity takes priority over clustering — a diverse portfolio beats deep topical authority
     // when the niche/general ratio is skewed. When ratio is balanced, clustering wins.
     candidates.sort((a, b) => {
-      const aKeyword = ((a as Record<string, unknown>).keyword as string || "").toLowerCase();
-      const bKeyword = ((b as Record<string, unknown>).keyword as string || "").toLowerCase();
-      const aIsNiche = NICHE_KEYWORDS.some(kw => aKeyword.includes(kw));
-      const bIsNiche = NICHE_KEYWORDS.some(kw => bKeyword.includes(kw));
+      const aKeyword = (((a as Record<string, unknown>).keyword as string) || "").toLowerCase();
+      const bKeyword = (((b as Record<string, unknown>).keyword as string) || "").toLowerCase();
+      const aIsNiche = NICHE_KEYWORDS.some((kw) => aKeyword.includes(kw));
+      const bIsNiche = NICHE_KEYWORDS.some((kw) => bKeyword.includes(kw));
 
       // Diversity sort: boost underrepresented type
       if (nicheBoost !== 0 && aIsNiche !== bIsNiche) {
@@ -353,7 +413,10 @@ export async function runContentSelector(
       }
 
       // Quality sort: highest score first
-      return ((b as Record<string, unknown>).quality_score as number || 0) - ((a as Record<string, unknown>).quality_score as number || 0);
+      return (
+        (((b as Record<string, unknown>).quality_score as number) || 0) -
+        (((a as Record<string, unknown>).quality_score as number) || 0)
+      );
     });
 
     // Separate candidates into publish-ready and needs-enhancement.
@@ -371,9 +434,10 @@ export async function runContentSelector(
     for (const candidate of candidates) {
       try {
         // Determine per-content-type thresholds (comparison=65, review=60, blog=40, etc.)
-        const candidatePageType = (candidate.seo_meta as Record<string, unknown>)?.pageType as string
-          || (candidate.research_data as Record<string, unknown>)?.suggestedPageType as string
-          || "blog";
+        const candidatePageType =
+          ((candidate.seo_meta as Record<string, unknown>)?.pageType as string) ||
+          ((candidate.research_data as Record<string, unknown>)?.suggestedPageType as string) ||
+          "blog";
         const typeThresholds = getThresholdsForPageType(candidatePageType);
         const PUBLISH_THRESHOLD = typeThresholds.qualityGateScore;
         const MIN_WORD_COUNT = typeThresholds.minWords;
@@ -387,7 +451,12 @@ export async function runContentSelector(
         // Also check word_count DB field (populated by scoring phase) as a faster fallback.
         const html = (candidate.assembled_html as string) || "";
         const dbWordCount = candidate.word_count as number | null;
-        const wordCount = dbWordCount ?? html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const wordCount =
+          dbWordCount ??
+          html
+            .replace(/<[^>]+>/g, " ")
+            .split(/\s+/)
+            .filter(Boolean).length;
         const wouldFailWordCount = wordCount < MIN_WORD_COUNT;
         const attempts = (candidate.phase_attempts as number) || 0;
         const exhaustedEnhancement = attempts >= MAX_ENHANCEMENT_ATTEMPTS;
@@ -397,20 +466,28 @@ export async function runContentSelector(
         } else if (exhaustedEnhancement && !wouldFailWordCount && score >= MIN_QUALITY_SCORE) {
           // Enhancement failed 3+ times but article meets minimum quality and word count.
           // Let the pre-pub gate make the final call instead of leaving it zombified.
-          console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): enhancement exhausted (${attempts} attempts, score ${score}) — attempting direct publish via pre-pub gate`);
+          console.log(
+            `[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): enhancement exhausted (${attempts} attempts, score ${score}) — attempting direct publish via pre-pub gate`,
+          );
           publishReady.push(candidate);
         } else if (!exhaustedEnhancement) {
           const reason = wouldFailWordCount
             ? `word count too low (${wordCount}/${MIN_WORD_COUNT})`
             : `score too low (${score}/${PUBLISH_THRESHOLD})`;
-          console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): needs enhancement — ${reason}`);
+          console.log(
+            `[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): needs enhancement — ${reason}`,
+          );
           needsEnhancement.push(candidate);
         } else {
           // Exhausted enhancement AND fails word count or minimum score — truly stuck
-          console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): exhausted enhancement and still below minimum (score ${score}, words ${wordCount}) — skipping`);
+          console.log(
+            `[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): exhausted enhancement and still below minimum (score ${score}, words ${wordCount}) — skipping`,
+          );
         }
       } catch (sortErr) {
-        console.warn(`[content-selector] Error sorting draft ${candidate.id}: ${sortErr instanceof Error ? sortErr.message : sortErr}`);
+        console.warn(
+          `[content-selector] Error sorting draft ${candidate.id}: ${sortErr instanceof Error ? sortErr.message : sortErr}`,
+        );
         // Skip this draft, don't crash the entire run
       }
     }
@@ -430,9 +507,16 @@ export async function runContentSelector(
       take: 200,
       orderBy: { created_at: "desc" },
     });
-    const publishedKeywordSets = publishedTitles
-      .map((p) => new Set<string>((p.title_en || "").toLowerCase().split(/\s+/).filter((w) => w.length > 2)))
-      // Note: site-common stop words stripped during comparison loop below
+    const publishedKeywordSets = publishedTitles.map(
+      (p) =>
+        new Set<string>(
+          (p.title_en || "")
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((w) => w.length > 2),
+        ),
+    );
+    // Note: site-common stop words stripped during comparison loop below
 
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
@@ -443,10 +527,30 @@ export async function runContentSelector(
 
     // Shared stop words — extracted here once, used for both published + within-batch checks
     const SITE_STOP_WORDS = new Set([
-      "london", "best", "top", "guide", "luxury", "arab", "halal",
-      "2024", "2025", "2026", "2027", "ultimate", "complete",
-      "hotel", "hotels", "restaurant", "restaurants", "experience", "experiences",
-      "travel", "family", "visit", "visiting", "things",
+      "london",
+      "best",
+      "top",
+      "guide",
+      "luxury",
+      "arab",
+      "halal",
+      "2024",
+      "2025",
+      "2026",
+      "2027",
+      "ultimate",
+      "complete",
+      "hotel",
+      "hotels",
+      "restaurant",
+      "restaurants",
+      "experience",
+      "experiences",
+      "travel",
+      "family",
+      "visit",
+      "visiting",
+      "things",
     ]);
 
     for (const candidate of publishReady) {
@@ -464,27 +568,31 @@ export async function runContentSelector(
       // Use Jaccard similarity (intersection/union) — NOT Math.min which caused
       // 100% overlap on short keywords sharing common words like "london", "luxury".
       // Also strip site-common words that EVERY article shares.
-      const keywordWords = new Set<string>(keyword.split(/\s+/).filter(w => w.length > 2 && !SITE_STOP_WORDS.has(w)));
-      const isDuplicateOfPublished = keywordWords.size > 0 && publishedKeywordSets.some((existingWords) => {
-        if (existingWords.size === 0) return false;
-        const filteredExisting = new Set([...existingWords].filter(w => !SITE_STOP_WORDS.has(w)));
-        if (filteredExisting.size === 0) return false;
-        const shared = [...keywordWords].filter(w => filteredExisting.has(w)).length;
-        const union = keywordWords.size + filteredExisting.size - shared;
-        const jaccardSimilarity = union === 0 ? 0 : shared / union;
-        // 0.92 = only blocks near-identical titles (2-3 unique words all matching).
-        // Was 0.85 which blocked 95%+ of candidates on a niche London travel site.
-        return jaccardSimilarity > 0.92;
-      });
+      const keywordWords = new Set<string>(keyword.split(/\s+/).filter((w) => w.length > 2 && !SITE_STOP_WORDS.has(w)));
+      const isDuplicateOfPublished =
+        keywordWords.size > 0 &&
+        publishedKeywordSets.some((existingWords) => {
+          if (existingWords.size === 0) return false;
+          const filteredExisting = new Set([...existingWords].filter((w) => !SITE_STOP_WORDS.has(w)));
+          if (filteredExisting.size === 0) return false;
+          const shared = [...keywordWords].filter((w) => filteredExisting.has(w)).length;
+          const union = keywordWords.size + filteredExisting.size - shared;
+          const jaccardSimilarity = union === 0 ? 0 : shared / union;
+          // 0.92 = only blocks near-identical titles (2-3 unique words all matching).
+          // Was 0.85 which blocked 95%+ of candidates on a niche London travel site.
+          return jaccardSimilarity > 0.92;
+        });
 
       // Also check within-batch: prevent selecting 6 "halal spas" variants in one run
-      const isDuplicateOfSelected = keywordWords.size > 0 && selectedKeywordSets.some((selectedWords) => {
-        if (selectedWords.size === 0) return false;
-        const shared = [...keywordWords].filter(w => selectedWords.has(w)).length;
-        const union = keywordWords.size + selectedWords.size - shared;
-        const jaccardSimilarity = union === 0 ? 0 : shared / union;
-        return jaccardSimilarity > 0.75; // Tighter within-batch: 0.75 vs 0.92 for published
-      });
+      const isDuplicateOfSelected =
+        keywordWords.size > 0 &&
+        selectedKeywordSets.some((selectedWords) => {
+          if (selectedWords.size === 0) return false;
+          const shared = [...keywordWords].filter((w) => selectedWords.has(w)).length;
+          const union = keywordWords.size + selectedWords.size - shared;
+          const jaccardSimilarity = union === 0 ? 0 : shared / union;
+          return jaccardSimilarity > 0.75; // Tighter within-batch: 0.75 vs 0.92 for published
+        });
 
       if (!isDuplicateOfPublished && !isDuplicateOfSelected) {
         selected.push(candidate);
@@ -492,7 +600,9 @@ export async function runContentSelector(
         if (pairedId) selectedDraftIds.add(pairedId);
         selectedKeywordSets.push(keywordWords); // Track for within-batch dedup
       } else if (isDuplicateOfSelected) {
-        console.log(`[content-selector] Skipping within-batch duplicate: "${keyword}" — similar to already-selected candidate`);
+        console.log(
+          `[content-selector] Skipping within-batch duplicate: "${keyword}" — similar to already-selected candidate`,
+        );
       }
     }
 
@@ -506,7 +616,9 @@ export async function runContentSelector(
       selectedDraftIds.add(best.id as string);
       const pairedId = best.paired_draft_id as string | null;
       if (pairedId) selectedDraftIds.add(pairedId);
-      console.warn(`[content-selector] All ${publishReady.length} publishReady candidates had keyword overlap — force-publishing best candidate (score: ${best.seo_score})`);
+      console.warn(
+        `[content-selector] All ${publishReady.length} publishReady candidates had keyword overlap — force-publishing best candidate (score: ${best.seo_score})`,
+      );
     }
 
     // LAST RESORT: If publishReady was empty (all candidates below quality/word-count threshold),
@@ -517,13 +629,15 @@ export async function runContentSelector(
     // already failed the pre-pub gate multiple times and will just loop forever (Rule #231).
     if (selected.length === 0 && candidates.length > 0) {
       // Filter out drafts that have been gate-blocked too many times
-      const eligibleForForce = candidates.filter(c => {
+      const eligibleForForce = candidates.filter((c) => {
         const attempts = (c.phase_attempts as number) || 0;
         const lastError = (c.last_error as string) || "";
         const isGateBlocked = lastError.includes("Pre-pub gate blocked");
         // If gate-blocked and at/above enhancement limit, skip — will loop forever
         if (isGateBlocked && attempts >= MAX_ENHANCEMENT_ATTEMPTS) {
-          console.log(`[content-selector] Skipping gate-blocked draft ${c.id} from force-publish (attempts: ${attempts}, keyword: "${c.keyword}")`);
+          console.log(
+            `[content-selector] Skipping gate-blocked draft ${c.id} from force-publish (attempts: ${attempts}, keyword: "${c.keyword}")`,
+          );
           return false;
         }
         return true;
@@ -531,31 +645,43 @@ export async function runContentSelector(
 
       if (eligibleForForce.length > 0) {
         // Sort eligible candidates by quality_score desc
-        const sorted = [...eligibleForForce].sort((a, b) =>
-          ((b.quality_score as number) || 0) - ((a.quality_score as number) || 0)
+        const sorted = [...eligibleForForce].sort(
+          (a, b) => ((b.quality_score as number) || 0) - ((a.quality_score as number) || 0),
         );
         const best = sorted[0];
         selected.push(best);
         selectedDraftIds.add(best.id as string);
         const pairedId = best.paired_draft_id as string | null;
         if (pairedId) selectedDraftIds.add(pairedId);
-        console.warn(`[content-selector] No publishReady candidates — force-publishing best of ${eligibleForForce.length} eligible reservoir candidates (score: ${best.quality_score}, keyword: "${best.keyword}")`);
+        console.warn(
+          `[content-selector] No publishReady candidates — force-publishing best of ${eligibleForForce.length} eligible reservoir candidates (score: ${best.quality_score}, keyword: "${best.keyword}")`,
+        );
       } else {
-        console.warn(`[content-selector] ${candidates.length} reservoir candidates exist but ALL are gate-blocked at max attempts — no force-publish possible. These drafts need content expansion or manual review.`);
+        console.warn(
+          `[content-selector] ${candidates.length} reservoir candidates exist but ALL are gate-blocked at max attempts — no force-publish possible. These drafts need content expansion or manual review.`,
+        );
       }
     }
 
     if (selected.length === 0) {
       // CRITICAL: Log to CronJobLog so dashboard sees this run — previously silent (Rule #130).
       // Also close the dedup marker so it doesn't appear as "stale/crashed".
-      const msg = candidates.length > 0
-        ? `${candidates.length} reservoir candidates exist but none could be promoted: ${publishReady.length} passed quality gate (all had keyword overlap), ${needsEnhancement.length} need enhancement. Force-publish fallbacks also failed.`
-        : `No reservoir candidates available for promotion.`;
+      const msg =
+        candidates.length > 0
+          ? `${candidates.length} reservoir candidates exist but none could be promoted: ${publishReady.length} passed quality gate (all had keyword overlap), ${needsEnhancement.length} need enhancement. Force-publish fallbacks also failed.`
+          : `No reservoir candidates available for promotion.`;
       if (dedupMarkerId) {
-        await prisma.cronJobLog.update({
-          where: { id: dedupMarkerId },
-          data: { status: "completed", completed_at: new Date(), duration_ms: Date.now() - cronStart, result_summary: { message: msg, candidateCount: candidates.length } as Record<string, unknown> },
-        }).catch(() => {});
+        await prisma.cronJobLog
+          .update({
+            where: { id: dedupMarkerId },
+            data: {
+              status: "completed",
+              completed_at: new Date(),
+              duration_ms: Date.now() - cronStart,
+              result_summary: { message: msg, candidateCount: candidates.length } as Record<string, unknown>,
+            },
+          })
+          .catch(() => {});
       } else {
         await logCronExecution("content-selector", "completed", {
           durationMs: Date.now() - cronStart,
@@ -564,10 +690,12 @@ export async function runContentSelector(
       }
       // Revert all claimed candidates back to reservoir
       for (const c of candidates) {
-        await prisma.articleDraft.updateMany({
-          where: { id: c.id as string, current_phase: "promoting" },
-          data: { current_phase: "reservoir", updated_at: new Date() },
-        }).catch(() => {});
+        await prisma.articleDraft
+          .updateMany({
+            where: { id: c.id as string, current_phase: "promoting" },
+            data: { current_phase: "reservoir", updated_at: new Date() },
+          })
+          .catch(() => {});
       }
       return {
         success: true,
@@ -594,19 +722,25 @@ export async function runContentSelector(
       }
 
       try {
-        console.log(`[content-selector] Promoting draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score}, locale: ${draft.locale})`);
+        console.log(
+          `[content-selector] Promoting draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score}, locale: ${draft.locale})`,
+        );
         const result = await promoteToBlogPost(draft, prisma, SITES, getSiteDomain);
         if (result) {
           published.push(result);
         } else {
           // promoteToBlogPost returned null — draft was reverted to reservoir internally.
           // Log the reason so it shows in cron logs (previously silent — caused "published: 0" mystery).
-          const draftAfter = await prisma.articleDraft.findUnique({
-            where: { id: draft.id as string },
-            select: { last_error: true, current_phase: true },
-          }).catch(() => null);
+          const draftAfter = await prisma.articleDraft
+            .findUnique({
+              where: { id: draft.id as string },
+              select: { last_error: true, current_phase: true },
+            })
+            .catch(() => null);
           const reason = draftAfter?.last_error || "unknown (no last_error set)";
-          console.warn(`[content-selector] Draft ${draft.id} ("${draft.keyword}") promotion returned null — reason: ${reason}`);
+          console.warn(
+            `[content-selector] Draft ${draft.id} ("${draft.keyword}") promotion returned null — reason: ${reason}`,
+          );
           skippedReasons.push({ draftId: draft.id as string, keyword: draft.keyword as string, reason });
         }
       } catch (promoteErr) {
@@ -618,14 +752,16 @@ export async function runContentSelector(
         );
         if (errStack) console.error(`[content-selector] Promote stack:\n${errStack}`);
         // Revert from "promoting" back to "reservoir" so the draft is eligible for next run
-        await prisma.articleDraft.update({
-          where: { id: draft.id as string },
-          data: {
-            current_phase: "reservoir",
-            last_error: `Promotion failed: ${errMsg}`,
-            phase_attempts: { increment: 1 },
-          },
-        }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+        await prisma.articleDraft
+          .update({
+            where: { id: draft.id as string },
+            data: {
+              current_phase: "reservoir",
+              last_error: `Promotion failed: ${errMsg}`,
+              phase_attempts: { increment: 1 },
+            },
+          })
+          .catch((err) => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
 
         // Fire promotion failure hook for immediate recovery
         onPromotionFailure({
@@ -633,7 +769,9 @@ export async function runContentSelector(
           keyword: draft.keyword as string,
           error: errMsg,
           siteId: draft.site_id as string,
-        }).catch(err => console.warn("[select-runner] onPromotionFailure hook failed:", err instanceof Error ? err.message : err));
+        }).catch((err) =>
+          console.warn("[select-runner] onPromotionFailure hook failed:", err instanceof Error ? err.message : err),
+        );
       }
     }
 
@@ -642,7 +780,9 @@ export async function runContentSelector(
     // promotion-time normalized Jaccard (0.85 on titles) rejects. When this gap causes
     // "selected 2, published 0" with 30 publishReady, we retry with the remaining candidates.
     if (published.length === 0 && skippedReasons.length > 0 && publishReady.length > selected.length) {
-      console.log(`[content-selector] All ${selected.length} selected candidates were duplicates — retrying from ${publishReady.length} publishReady`);
+      console.log(
+        `[content-selector] All ${selected.length} selected candidates were duplicates — retrying from ${publishReady.length} publishReady`,
+      );
 
       for (const candidate of publishReady) {
         if (published.length >= MAX_ARTICLES_PER_RUN) break;
@@ -663,11 +803,19 @@ export async function runContentSelector(
             // This candidate was also a duplicate — continue to next
           }
         } catch (retryErr) {
-          console.warn(`[content-selector] Retry promotion failed for ${candidateId}:`, retryErr instanceof Error ? retryErr.message : retryErr);
-          await prisma.articleDraft.update({
-            where: { id: candidateId },
-            data: { current_phase: "reservoir", last_error: `Retry promotion failed: ${retryErr instanceof Error ? retryErr.message : retryErr}` },
-          }).catch(() => {});
+          console.warn(
+            `[content-selector] Retry promotion failed for ${candidateId}:`,
+            retryErr instanceof Error ? retryErr.message : retryErr,
+          );
+          await prisma.articleDraft
+            .update({
+              where: { id: candidateId },
+              data: {
+                current_phase: "reservoir",
+                last_error: `Retry promotion failed: ${retryErr instanceof Error ? retryErr.message : retryErr}`,
+              },
+            })
+            .catch(() => {});
         }
       }
 
@@ -676,7 +824,9 @@ export async function runContentSelector(
         const best = publishReady[0];
         const bestId = best.id as string;
         if (!selectedDraftIds.has(bestId)) {
-          console.warn(`[content-selector] All publishReady exhausted as duplicates — force-publishing best with skipDedup`);
+          console.warn(
+            `[content-selector] All publishReady exhausted as duplicates — force-publishing best with skipDedup`,
+          );
           try {
             const result = await promoteToBlogPost(best, prisma, SITES, getSiteDomain, { skipDedup: true });
             if (result) {
@@ -684,7 +834,10 @@ export async function runContentSelector(
               selectedDraftIds.add(bestId);
             }
           } catch (forceErr) {
-            console.warn(`[content-selector] Force skipDedup publish failed:`, forceErr instanceof Error ? forceErr.message : forceErr);
+            console.warn(
+              `[content-selector] Force skipDedup publish failed:`,
+              forceErr instanceof Error ? forceErr.message : forceErr,
+            );
           }
         }
       }
@@ -699,33 +852,53 @@ export async function runContentSelector(
     for (const candidate of enhancementQueue) {
       const remainingMs = timeoutMs - (Date.now() - cronStart);
       if (remainingMs < 38_000) {
-        console.log(`[content-selector] Budget < 38s (${Math.round(remainingMs / 1000)}s remaining) — skipping enhancement, will retry next run`);
+        console.log(
+          `[content-selector] Budget < 38s (${Math.round(remainingMs / 1000)}s remaining) — skipping enhancement, will retry next run`,
+        );
         break;
       }
       try {
-        console.log(`[content-selector] Enhancing draft ${candidate.id} (score: ${candidate.quality_score}, keyword: "${candidate.keyword}")`);
+        console.log(
+          `[content-selector] Enhancing draft ${candidate.id} (score: ${candidate.quality_score}, keyword: "${candidate.keyword}")`,
+        );
         const enhResult = await enhanceReservoirDraft(candidate);
         if (enhResult.success) {
           enhancedCount++;
-          console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"}`);
+          console.log(
+            `[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"}`,
+          );
         }
         // Count this as an attempt regardless of outcome
-        await prisma.articleDraft.update({
-          where: { id: candidate.id as string },
-          data: { phase_attempts: { increment: 1 }, updated_at: new Date() },
-        }).catch(dbErr => console.warn("[content-selector] Failed to update attempt count:", dbErr instanceof Error ? dbErr.message : dbErr));
+        await prisma.articleDraft
+          .update({
+            where: { id: candidate.id as string },
+            data: { phase_attempts: { increment: 1 }, updated_at: new Date() },
+          })
+          .catch((dbErr) =>
+            console.warn(
+              "[content-selector] Failed to update attempt count:",
+              dbErr instanceof Error ? dbErr.message : dbErr,
+            ),
+          );
       } catch (enhErr) {
         const enhErrMsg = enhErr instanceof Error ? enhErr.message : String(enhErr);
         console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}: ${enhErrMsg}`);
         const attemptNum = ((candidate.phase_attempts as number) || 0) + 1;
-        await prisma.articleDraft.update({
-          where: { id: candidate.id as string },
-          data: {
-            phase_attempts: { increment: 1 },
-            last_error: `Enhancement attempt ${attemptNum}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
-            updated_at: new Date(),
-          },
-        }).catch(dbErr => console.warn("[content-selector] Failed to update enhancement attempt:", dbErr instanceof Error ? dbErr.message : dbErr));
+        await prisma.articleDraft
+          .update({
+            where: { id: candidate.id as string },
+            data: {
+              phase_attempts: { increment: 1 },
+              last_error: `Enhancement attempt ${attemptNum}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
+              updated_at: new Date(),
+            },
+          })
+          .catch((dbErr) =>
+            console.warn(
+              "[content-selector] Failed to update enhancement attempt:",
+              dbErr instanceof Error ? dbErr.message : dbErr,
+            ),
+          );
       }
     }
 
@@ -736,7 +909,10 @@ export async function runContentSelector(
         const { regenerateAllSitemapCaches } = await import("@/lib/sitemap-cache");
         await regenerateAllSitemapCaches();
       } catch (err) {
-        console.warn("[content-selector] Sitemap cache refresh failed:", err instanceof Error ? err.message : String(err));
+        console.warn(
+          "[content-selector] Sitemap cache refresh failed:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
     }
 
@@ -768,7 +944,10 @@ export async function runContentSelector(
           },
         });
       } catch (err) {
-        console.warn("[content-selector] Failed to close dedup marker:", err instanceof Error ? err.message : String(err));
+        console.warn(
+          "[content-selector] Failed to close dedup marker:",
+          err instanceof Error ? err.message : String(err),
+        );
         // Fallback: create a separate log entry so the run is still recorded
         await logCronExecution("content-selector", "completed", {
           durationMs,
@@ -813,7 +992,11 @@ export async function runContentSelector(
     } else if (typeof error === "string") {
       errMsg = error;
     } else {
-      try { errMsg = JSON.stringify(error); } catch { errMsg = String(error); }
+      try {
+        errMsg = JSON.stringify(error);
+      } catch {
+        errMsg = String(error);
+      }
     }
     // Log full error details including type and stack trace — essential for diagnosing
     // the "SyntaxError: The string did not match the expected pattern" crash
@@ -837,7 +1020,10 @@ export async function runContentSelector(
           },
         });
       } catch (markerErr) {
-        console.warn("[content-selector] Failed to close dedup marker on error:", markerErr instanceof Error ? markerErr.message : String(markerErr));
+        console.warn(
+          "[content-selector] Failed to close dedup marker on error:",
+          markerErr instanceof Error ? markerErr.message : String(markerErr),
+        );
         await logCronExecution("content-selector", "failed", {
           durationMs,
           errorMessage: `[${errType}] ${errMsg}`,
@@ -847,7 +1033,9 @@ export async function runContentSelector(
       await logCronExecution("content-selector", "failed", {
         durationMs,
         errorMessage: `[${errType}] ${errMsg}`,
-      }).catch(err => console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err));
+      }).catch((err) =>
+        console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err),
+      );
     }
 
     return {
@@ -862,44 +1050,229 @@ export async function runContentSelector(
 
 function getAffiliateRules(siteId: string) {
   const SITE_AFFILIATES: Record<string, Array<{ kw: string[]; aff: { name: string; url: string; param: string } }>> = {
-    'yalla-london': [
-      { kw: ["hotel", "accommodation", "stay", "resort"], aff: { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["restaurant", "dining", "food", "halal"], aff: { name: "TheFork", url: "https://www.thefork.co.uk/london", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "activity", "attraction"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["ticket", "event", "match", "concert", "football"], aff: { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}` } },
-      { kw: ["shopping", "shop", "luxury", "Harrods"], aff: { name: "Harrods", url: "https://www.harrods.com", param: "?utm_source=yallalondon" } },
-      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    "yalla-london": [
+      {
+        kw: ["hotel", "accommodation", "stay", "resort"],
+        aff: {
+          name: "Booking.com",
+          url: "https://www.booking.com/city/gb/london.html",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["restaurant", "dining", "food", "halal"],
+        aff: {
+          name: "TheFork",
+          url: "https://www.thefork.co.uk/london",
+          param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["tour", "experience", "activity", "attraction"],
+        aff: {
+          name: "GetYourGuide",
+          url: "https://www.getyourguide.com/london-l57/",
+          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["ticket", "event", "match", "concert", "football"],
+        aff: {
+          name: "StubHub",
+          url: "https://www.stubhub.co.uk",
+          param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["shopping", "shop", "luxury", "Harrods"],
+        aff: { name: "Harrods", url: "https://www.harrods.com", param: "?utm_source=yallalondon" },
+      },
+      {
+        kw: ["transfer", "airport", "taxi", "transport"],
+        aff: {
+          name: "Blacklane",
+          url: "https://www.blacklane.com/en/london",
+          param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
+        },
+      },
     ],
-    'arabaldives': [
-      { kw: ["hotel", "accommodation", "stay", "resort", "villa"], aff: { name: "Booking.com", url: "https://www.booking.com/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["resort", "island", "overwater"], aff: { name: "Agoda", url: "https://www.agoda.com/maldives", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "snorkeling", "diving", "excursion"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/maldives-l97358/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["transfer", "seaplane", "speedboat", "airport"], aff: { name: "Booking.com Taxi", url: "https://www.booking.com/taxi/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+    arabaldives: [
+      {
+        kw: ["hotel", "accommodation", "stay", "resort", "villa"],
+        aff: {
+          name: "Booking.com",
+          url: "https://www.booking.com/country/mv.html",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["resort", "island", "overwater"],
+        aff: {
+          name: "Agoda",
+          url: "https://www.agoda.com/maldives",
+          param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["tour", "experience", "snorkeling", "diving", "excursion"],
+        aff: {
+          name: "GetYourGuide",
+          url: "https://www.getyourguide.com/maldives-l97358/",
+          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["transfer", "seaplane", "speedboat", "airport"],
+        aff: {
+          name: "Booking.com Taxi",
+          url: "https://www.booking.com/taxi/country/mv.html",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
     ],
-    'french-riviera': [
-      { kw: ["hotel", "accommodation", "stay", "resort", "villa"], aff: { name: "Booking.com", url: "https://www.booking.com/region/fr/cote-d-azur.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["restaurant", "dining", "food", "halal"], aff: { name: "TheFork", url: "https://www.thefork.fr/nice", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "activity", "yacht", "boat"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/nice-l176/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/nice", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    "french-riviera": [
+      {
+        kw: ["hotel", "accommodation", "stay", "resort", "villa"],
+        aff: {
+          name: "Booking.com",
+          url: "https://www.booking.com/region/fr/cote-d-azur.html",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["restaurant", "dining", "food", "halal"],
+        aff: {
+          name: "TheFork",
+          url: "https://www.thefork.fr/nice",
+          param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["tour", "experience", "activity", "yacht", "boat"],
+        aff: {
+          name: "GetYourGuide",
+          url: "https://www.getyourguide.com/nice-l176/",
+          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["transfer", "airport", "taxi", "transport"],
+        aff: {
+          name: "Blacklane",
+          url: "https://www.blacklane.com/en/nice",
+          param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
+        },
+      },
     ],
-    'istanbul': [
-      { kw: ["hotel", "accommodation", "stay", "resort"], aff: { name: "Booking.com", url: "https://www.booking.com/city/tr/istanbul.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["restaurant", "dining", "food", "halal", "kebab"], aff: { name: "TheFork", url: "https://www.thefork.com/istanbul", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "activity", "bazaar", "mosque"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/istanbul-l56/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/istanbul", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    istanbul: [
+      {
+        kw: ["hotel", "accommodation", "stay", "resort"],
+        aff: {
+          name: "Booking.com",
+          url: "https://www.booking.com/city/tr/istanbul.html",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["restaurant", "dining", "food", "halal", "kebab"],
+        aff: {
+          name: "TheFork",
+          url: "https://www.thefork.com/istanbul",
+          param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["tour", "experience", "activity", "bazaar", "mosque"],
+        aff: {
+          name: "GetYourGuide",
+          url: "https://www.getyourguide.com/istanbul-l56/",
+          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["transfer", "airport", "taxi", "transport"],
+        aff: {
+          name: "Blacklane",
+          url: "https://www.blacklane.com/en/istanbul",
+          param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
+        },
+      },
     ],
-    'thailand': [
-      { kw: ["hotel", "accommodation", "stay", "resort", "villa"], aff: { name: "Booking.com", url: "https://www.booking.com/country/th.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["resort", "island", "beach"], aff: { name: "Agoda", url: "https://www.agoda.com/thailand", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "activity", "temple", "market"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/bangkok-l169/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/bangkok", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    thailand: [
+      {
+        kw: ["hotel", "accommodation", "stay", "resort", "villa"],
+        aff: {
+          name: "Booking.com",
+          url: "https://www.booking.com/country/th.html",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["resort", "island", "beach"],
+        aff: {
+          name: "Agoda",
+          url: "https://www.agoda.com/thailand",
+          param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["tour", "experience", "activity", "temple", "market"],
+        aff: {
+          name: "GetYourGuide",
+          url: "https://www.getyourguide.com/bangkok-l169/",
+          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["transfer", "airport", "taxi", "transport"],
+        aff: {
+          name: "Blacklane",
+          url: "https://www.blacklane.com/en/bangkok",
+          param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
+        },
+      },
     ],
-    'zenitha-yachts-med': [
-      { kw: ["yacht", "charter", "sailing", "boat", "catamaran", "gulet"], aff: { name: "Boatbookings", url: "https://www.boatbookings.com", param: `?ref=${process.env.BOATBOOKINGS_AFFILIATE_ID || ""}` } },
-      { kw: ["yacht", "boat", "rental", "hire"], aff: { name: "Click&Boat", url: "https://www.clickandboat.com", param: `?aff=${process.env.CLICKANDBOAT_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "excursion", "marine", "snorkeling", "diving"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["hotel", "accommodation", "stay", "marina", "port"], aff: { name: "Booking.com", url: "https://www.booking.com", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    "zenitha-yachts-med": [
+      {
+        kw: ["yacht", "charter", "sailing", "boat", "catamaran", "gulet"],
+        aff: {
+          name: "Boatbookings",
+          url: "https://www.boatbookings.com",
+          param: `?ref=${process.env.BOATBOOKINGS_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["yacht", "boat", "rental", "hire"],
+        aff: {
+          name: "Click&Boat",
+          url: "https://www.clickandboat.com",
+          param: `?aff=${process.env.CLICKANDBOAT_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["tour", "experience", "excursion", "marine", "snorkeling", "diving"],
+        aff: {
+          name: "GetYourGuide",
+          url: "https://www.getyourguide.com",
+          param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["hotel", "accommodation", "stay", "marina", "port"],
+        aff: {
+          name: "Booking.com",
+          url: "https://www.booking.com",
+          param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
+        },
+      },
+      {
+        kw: ["transfer", "airport", "taxi", "transport"],
+        aff: {
+          name: "Blacklane",
+          url: "https://www.blacklane.com",
+          param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
+        },
+      },
     ],
   };
   return SITE_AFFILIATES[siteId] || [];
@@ -949,24 +1322,33 @@ export async function promoteToBlogPost(
 
         if (arIsRejected || arIsStuck || arIsAbandoned) {
           // AR is permanently failed — proceed with EN-only publication
-          console.log(`[content-selector] Paired AR draft ${pairedDraftId} is ${arIsRejected ? 'rejected' : arIsStuck ? 'stuck (5+ attempts)' : 'abandoned (48h+)'} — publishing EN-only`);
+          console.log(
+            `[content-selector] Paired AR draft ${pairedDraftId} is ${arIsRejected ? "rejected" : arIsStuck ? "stuck (5+ attempts)" : "abandoned (48h+)"} — publishing EN-only`,
+          );
           pairedDraft = null;
         } else {
           // AR is still advancing — DON'T publish EN yet, wait for AR to catch up
-          console.log(`[content-selector] Paired AR draft ${pairedDraftId} still in pipeline (phase: ${arPhase}, attempts: ${arAttempts}) — deferring EN publication to wait for bilingual pair`);
-          await prisma.articleDraft.update({
-            where: { id: draft.id as string },
-            data: {
-              current_phase: "reservoir",
-              last_error: `Waiting for paired AR draft (phase: ${arPhase}) — will publish together`,
-              updated_at: new Date(),
-            },
-          }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
+          console.log(
+            `[content-selector] Paired AR draft ${pairedDraftId} still in pipeline (phase: ${arPhase}, attempts: ${arAttempts}) — deferring EN publication to wait for bilingual pair`,
+          );
+          await prisma.articleDraft
+            .update({
+              where: { id: draft.id as string },
+              data: {
+                current_phase: "reservoir",
+                last_error: `Waiting for paired AR draft (phase: ${arPhase}) — will publish together`,
+                updated_at: new Date(),
+              },
+            })
+            .catch((err) => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
           return null;
         }
       }
     } catch (pairErr) {
-      console.warn(`[select-runner] Failed to fetch paired draft ${pairedDraftId}:`, pairErr instanceof Error ? pairErr.message : pairErr);
+      console.warn(
+        `[select-runner] Failed to fetch paired draft ${pairedDraftId}:`,
+        pairErr instanceof Error ? pairErr.message : pairErr,
+      );
       // Proceed with single language
     }
   }
@@ -992,7 +1374,7 @@ export async function promoteToBlogPost(
         orderBy: { created_at: "desc" },
         take: 100,
       });
-      const validSlugs = new Set(recentPosts.map(p => p.slug));
+      const validSlugs = new Set(recentPosts.map((p) => p.slug));
 
       // Replace ALL broken /blog/ links — both TOPIC_SLUG and hallucinated slugs
       enHtml = enHtml.replace(
@@ -1003,17 +1385,20 @@ export async function promoteToBlogPost(
           // Try topic-based matching
           const topic = slug.toLowerCase().replace(/[-_]/g, " ");
           const topicWords = topic.split(" ").filter((w: string) => w.length > 3);
-          const match = recentPosts.find(p => {
+          const match = recentPosts.find((p) => {
             const title = (p.title_en || "").toLowerCase();
             return topicWords.length >= 2 && topicWords.filter((w: string) => title.includes(w)).length >= 2;
           });
           if (match) return `<a ${pre}href="/blog/${match.slug}"${post2}>${anchor}</a>`;
           // No match — unwrap the link, keep the anchor text as plain text
           return anchor;
-        }
+        },
       );
     } catch (linkErr) {
-      console.warn("[content-selector] Internal link validation failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
+      console.warn(
+        "[content-selector] Internal link validation failed (non-fatal):",
+        linkErr instanceof Error ? linkErr.message : linkErr,
+      );
     }
   }
   // ── Title auto-repair ───────────────────────────────────────────────
@@ -1021,8 +1406,8 @@ export async function promoteToBlogPost(
   // try to recover a title from: (1) seo_meta.metaTitle, (2) keyword, (3) first H1/H2 in content.
   // This prevents articles with good content from being blocked by a missing title.
   let enTitle = (enDraft?.topic_title as string) || "";
-  const enSeoMeta = ((enDraft?.seo_meta || {}) as Record<string, unknown>);
-  const arSeoMeta = ((arDraft?.seo_meta || {}) as Record<string, unknown>);
+  const enSeoMeta = (enDraft?.seo_meta || {}) as Record<string, unknown>;
+  const arSeoMeta = (arDraft?.seo_meta || {}) as Record<string, unknown>;
 
   if (enTitle.length < 10) {
     // Try seo_meta.metaTitle first (usually the best formatted)
@@ -1038,7 +1423,9 @@ export async function promoteToBlogPost(
       const headingMatch = enHtml.match(/<h[12][^>]*>([^<]+)<\/h[12]>/i);
       if (headingMatch && headingMatch[1].length >= 10) {
         enTitle = headingMatch[1].trim();
-        console.log(`[content-selector] Auto-repaired short title for draft ${draft.id}: extracted from heading "${enTitle}"`);
+        console.log(
+          `[content-selector] Auto-repaired short title for draft ${draft.id}: extracted from heading "${enTitle}"`,
+        );
       } else {
         // Last resort: use keyword even if short
         enTitle = keyword || "Untitled Article";
@@ -1056,12 +1443,16 @@ export async function promoteToBlogPost(
 
   // Empty content guard — prevent publishing articles with insufficient English content
   if (enHtml && enHtml.trim().length < 500) {
-    console.warn(`[content-selector] Skipping draft ${draft.id} — content_en too short (${enHtml.trim().length} chars)`);
+    console.warn(
+      `[content-selector] Skipping draft ${draft.id} — content_en too short (${enHtml.trim().length} chars)`,
+    );
     // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
-    await prisma.articleDraft.update({
-      where: { id: draft.id as string },
-      data: { current_phase: "reservoir", last_error: "Empty content_en — skipped promotion" },
-    }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
+    await prisma.articleDraft
+      .update({
+        where: { id: draft.id as string },
+        data: { current_phase: "reservoir", last_error: "Empty content_en — skipped promotion" },
+      })
+      .catch((err) => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
     return null;
   }
 
@@ -1099,17 +1490,23 @@ export async function promoteToBlogPost(
   // Clean slug: remove date stamps and deduplicate year tokens to avoid
   // Google's "auto-generated content" signals
   slug = slug
-    .replace(/-\d{4}-\d{2}-\d{2}$/g, "")  // Strip trailing date stamps (e.g., -2026-02-17)
+    .replace(/-\d{4}-\d{2}-\d{2}$/g, "") // Strip trailing date stamps (e.g., -2026-02-17)
     .replace(/-{2,}/g, "-")
     .replace(/^-|-$/g, "");
   // Deduplicate year tokens (e.g., "ramadan-2026-timetable-2026" → "ramadan-2026-timetable")
   const yearInSlug = slug.match(/\b(20[2-3]\d)\b/);
   if (yearInSlug) {
     let firstYearSeen = false;
-    slug = slug.replace(new RegExp(`-?${yearInSlug[1]}`, "g"), (m) => {
-      if (!firstYearSeen) { firstYearSeen = true; return m; }
-      return "";
-    }).replace(/-{2,}/g, "-").replace(/^-|-$/g, "");
+    slug = slug
+      .replace(new RegExp(`-?${yearInSlug[1]}`, "g"), (m) => {
+        if (!firstYearSeen) {
+          firstYearSeen = true;
+          return m;
+        }
+        return "";
+      })
+      .replace(/-{2,}/g, "-")
+      .replace(/^-|-$/g, "");
   }
   // Cap slug length at 60 chars (shorter = better for SEO)
   if (slug.length > 60) {
@@ -1118,14 +1515,56 @@ export async function promoteToBlogPost(
   }
 
   // Check for slug collision GLOBALLY — BlogPost.slug is @unique across all sites.
-  // If a collision is found, append a human-readable suffix (-v2, -v3, etc.)
-  // instead of hex bytes which trigger the slug artifact detector.
+  // BEFORE falling back to -v2/-v3 suffixes (which create cannibalizing duplicates),
+  // verify whether the existing slug is the SAME TOPIC. If so, reject this draft —
+  // the existing article already covers this keyword and a duplicate would split
+  // ranking signal. This catches the gap where keyword-cannibalization checks at
+  // selection time pass the candidate but slug normalization happens to collide.
   const existingSlug = await prisma.blogPost.findFirst({
     where: { slug, deletedAt: null },
-    select: { id: true },
+    select: { id: true, title_en: true, published: true },
   });
   if (existingSlug) {
-    // Find the next available version suffix
+    // Same-topic check: Jaccard similarity on the candidate vs. existing title.
+    // Reuses normalizeForDedup pattern (strips years, common filler, version suffixes).
+    const normalizeForCollision = (t: string) =>
+      t
+        .toLowerCase()
+        .replace(/\b20\d{2}\b/g, "")
+        .replace(/\bv\d+\b/gi, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    const candidateNorm = normalizeForCollision(enTitle || "");
+    const existingNorm = normalizeForCollision(existingSlug.title_en || "");
+    const setA = new Set(candidateNorm.split(/\s+/).filter(Boolean));
+    const setB = new Set(existingNorm.split(/\s+/).filter(Boolean));
+    let intersection = 0;
+    for (const w of setA) if (setB.has(w)) intersection++;
+    const union = setA.size + setB.size - intersection;
+    const sim = union === 0 ? 0 : intersection / union;
+    const SAME_TOPIC_THRESHOLD = 0.7;
+
+    if (sim >= SAME_TOPIC_THRESHOLD && existingSlug.published) {
+      // Same-topic duplicate — reject this draft instead of creating -v2/-v3 cannibalization.
+      // Mark draft as rejected so it doesn't cycle back through the pipeline.
+      console.warn(
+        `[content-selector] Same-topic duplicate (Jaccard ${(sim * 100).toFixed(0)}%) — rejecting draft "${enTitle}" → existing slug "${slug}" (#${existingSlug.id})`,
+      );
+      await prisma.articleDraft
+        .update({
+          where: { id: draft.id as string },
+          data: {
+            current_phase: "rejected",
+            last_error: `DUPLICATE_OF_EXISTING:${existingSlug.id}:${slug}`,
+          },
+        })
+        .catch((err) => console.warn("[content-selector] reject failed:", err instanceof Error ? err.message : err));
+      return null;
+    }
+
+    // Genuinely different topic that happens to slug-collide — fall back to -v2/-v3.
+    // Rare but legitimate (e.g. "London Tube Strike March" vs "London Tube Strike May").
     for (let v = 2; v <= 10; v++) {
       const candidate = `${slug}-v${v}`;
       const collision = await prisma.blogPost.findFirst({
@@ -1138,7 +1577,9 @@ export async function promoteToBlogPost(
       }
       if (v === 10) slug = `${slug}-v${Date.now().toString(36).slice(-4)}`;
     }
-    console.log(`[content-selector] Slug collision detected — using "${slug}" instead`);
+    console.log(
+      `[content-selector] Slug collision (different topic, Jaccard ${(sim * 100).toFixed(0)}%) — using "${slug}" instead`,
+    );
   }
 
   // Check for duplicate title — keyword cannibalization prevention.
@@ -1147,91 +1588,109 @@ export async function promoteToBlogPost(
   // This prevents near-duplicate articles that compete for the same SERP position.
   // Skipped when admin explicitly chooses to publish via "Fix & Publish" (skipDedup: true).
   if (!options?.skipDedup) {
-  const normalizeForDedup = (t: string) => t.toLowerCase()
-    .replace(/\b20\d{2}\b/g, '')
-    .replace(/\b(comparison|guide|review|complete|ultimate|best|top|london|luxury|halal|yalla|skip|line)\b/g, '')
-    .replace(/\bv\d+\b/gi, '') // Strip version suffixes (v2, v3, etc.)
-    .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, '') // Preserve Arabic Unicode
-    .replace(/\s+/g, ' ').trim();
+    const normalizeForDedup = (t: string) =>
+      t
+        .toLowerCase()
+        .replace(/\b20\d{2}\b/g, "")
+        .replace(/\b(comparison|guide|review|complete|ultimate|best|top|london|luxury|halal|yalla|skip|line)\b/g, "")
+        .replace(/\bv\d+\b/gi, "") // Strip version suffixes (v2, v3, etc.)
+        .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]/g, "") // Preserve Arabic Unicode
+        .replace(/\s+/g, " ")
+        .trim();
 
-  // Jaccard similarity catches near-duplicates with different subtitles (Rule #155, #203)
-  // Threshold 0.85 — aligned closer to selection-time 0.92 to prevent the gap where
-  // selection passes candidates that promotion rejects (caused "selected 2, published 0").
-  const jaccardWords = (a: string, b: string): number => {
-    const setA = new Set(a.split(/\s+/).filter(Boolean));
-    const setB = new Set(b.split(/\s+/).filter(Boolean));
-    if (setA.size === 0 && setB.size === 0) return 1;
-    let intersection = 0;
-    for (const w of setA) if (setB.has(w)) intersection++;
-    const union = setA.size + setB.size - intersection;
-    return union === 0 ? 0 : intersection / union;
-  };
+    // Jaccard similarity catches near-duplicates with different subtitles (Rule #155, #203)
+    // Threshold 0.85 — aligned closer to selection-time 0.92 to prevent the gap where
+    // selection passes candidates that promotion rejects (caused "selected 2, published 0").
+    const jaccardWords = (a: string, b: string): number => {
+      const setA = new Set(a.split(/\s+/).filter(Boolean));
+      const setB = new Set(b.split(/\s+/).filter(Boolean));
+      if (setA.size === 0 && setB.size === 0) return 1;
+      let intersection = 0;
+      for (const w of setA) if (setB.has(w)) intersection++;
+      const union = setA.size + setB.size - intersection;
+      return union === 0 ? 0 : intersection / union;
+    };
 
-  const candidateTitle = (enTitle || "").trim();
-  if (candidateTitle.length > 5) {
-    try {
-      const normalizedCandidate = normalizeForDedup(candidateTitle);
-      // Fetch recent published titles for this site and compare — exact + Jaccard fuzzy match
-      const recentTitles = await prisma.blogPost.findMany({
-        where: {
-          siteId,
-          published: true,
-          deletedAt: null,
-        },
-        select: { id: true, slug: true, title_en: true },
-        orderBy: { created_at: "desc" },
-        take: 200,
-      });
-      const existingMatch = recentTitles.find(
-        (p: { title_en: string }) => {
+    const candidateTitle = (enTitle || "").trim();
+    if (candidateTitle.length > 5) {
+      try {
+        const normalizedCandidate = normalizeForDedup(candidateTitle);
+        // Fetch recent published titles for this site and compare — exact + Jaccard fuzzy match
+        const recentTitles = await prisma.blogPost.findMany({
+          where: {
+            siteId,
+            published: true,
+            deletedAt: null,
+          },
+          select: { id: true, slug: true, title_en: true },
+          orderBy: { created_at: "desc" },
+          take: 200,
+        });
+        const existingMatch = recentTitles.find((p: { title_en: string }) => {
           const normExisting = normalizeForDedup(p.title_en || "");
           // Exact normalized match
           if (normExisting === normalizedCandidate) return true;
           // Fuzzy match — 0.7 Jaccard catches "London Eye Fast Track Skip Line" vs "London Eye Fast Track Skip Queues"
-          if (normalizedCandidate.length > 3 && normExisting.length > 3 && jaccardWords(normalizedCandidate, normExisting) >= 0.85) return true;
+          if (
+            normalizedCandidate.length > 3 &&
+            normExisting.length > 3 &&
+            jaccardWords(normalizedCandidate, normExisting) >= 0.85
+          )
+            return true;
           return false;
-        },
-      );
-      if (existingMatch) {
-        console.warn(`[content-selector] SKIPPED draft ${draft.id}: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already published as /blog/${existingMatch.slug}`);
-        // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
-        await prisma.articleDraft.update({
-          where: { id: draft.id as string },
-          data: {
-            current_phase: "reservoir",
-            last_error: `Normalized duplicate title: "${candidateTitle}" ≈ existing "/blog/${existingMatch.slug}"`,
-            updated_at: new Date(),
-          },
-        }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
-        return null;
+        });
+        if (existingMatch) {
+          console.warn(
+            `[content-selector] SKIPPED draft ${draft.id}: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already published as /blog/${existingMatch.slug}`,
+          );
+          // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
+          await prisma.articleDraft
+            .update({
+              where: { id: draft.id as string },
+              data: {
+                current_phase: "reservoir",
+                last_error: `Normalized duplicate title: "${candidateTitle}" ≈ existing "/blog/${existingMatch.slug}"`,
+                updated_at: new Date(),
+              },
+            })
+            .catch((err) => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
+          return null;
+        }
+      } catch (titleCheckErr) {
+        console.warn(
+          "[content-selector] Title duplicate check failed (non-fatal):",
+          titleCheckErr instanceof Error ? titleCheckErr.message : titleCheckErr,
+        );
       }
-    } catch (titleCheckErr) {
-      console.warn("[content-selector] Title duplicate check failed (non-fatal):", titleCheckErr instanceof Error ? titleCheckErr.message : titleCheckErr);
     }
-  }
 
-  // ── Keyword cannibalization check (WARNING ONLY — never blocks publishing) ──
-  // The selection-time Jaccard check (threshold 0.92) already filters near-identical
-  // keywords. This secondary check compares full keyword arrays and logs a warning
-  // for SEO awareness, but does NOT block publishing. Blocking here caused the
-  // entire pipeline to freeze: articles passed selection (0.92) then got reverted
-  // here (0.85), filling the reservoir with permanently stuck drafts.
-  // The pre-pub gate (check #15) already surfaces cannibalization as a warning.
-  try {
-    const { checkCannibalization } = await import("@/lib/seo/cannibalization-checker");
-    const enKeywords = (enSeoMeta.keywords as string[]) || [];
-    if (enKeywords.length > 0) {
-      const cannibResult = await checkCannibalization(enKeywords, siteId, draft.id as string);
-      if (cannibResult.cannibalizes && cannibResult.overlappingArticle) {
-        const overlap = cannibResult.overlappingArticle;
-        console.warn(`[content-selector] WARNING: keyword overlap (${overlap.overlapScore}%) with "/blog/${overlap.slug}" — shared: ${overlap.sharedKeywords.join(", ")}. Publishing anyway (selection-time Jaccard already filtered near-duplicates).`);
-        // Continue to publish — don't revert. SEO impact is minor compared to
-        // a frozen pipeline producing zero articles.
+    // ── Keyword cannibalization check (WARNING ONLY — never blocks publishing) ──
+    // The selection-time Jaccard check (threshold 0.92) already filters near-identical
+    // keywords. This secondary check compares full keyword arrays and logs a warning
+    // for SEO awareness, but does NOT block publishing. Blocking here caused the
+    // entire pipeline to freeze: articles passed selection (0.92) then got reverted
+    // here (0.85), filling the reservoir with permanently stuck drafts.
+    // The pre-pub gate (check #15) already surfaces cannibalization as a warning.
+    try {
+      const { checkCannibalization } = await import("@/lib/seo/cannibalization-checker");
+      const enKeywords = (enSeoMeta.keywords as string[]) || [];
+      if (enKeywords.length > 0) {
+        const cannibResult = await checkCannibalization(enKeywords, siteId, draft.id as string);
+        if (cannibResult.cannibalizes && cannibResult.overlappingArticle) {
+          const overlap = cannibResult.overlappingArticle;
+          console.warn(
+            `[content-selector] WARNING: keyword overlap (${overlap.overlapScore}%) with "/blog/${overlap.slug}" — shared: ${overlap.sharedKeywords.join(", ")}. Publishing anyway (selection-time Jaccard already filtered near-duplicates).`,
+          );
+          // Continue to publish — don't revert. SEO impact is minor compared to
+          // a frozen pipeline producing zero articles.
+        }
       }
+    } catch (cannibErr) {
+      console.warn(
+        "[content-selector] Cannibalization check failed (non-fatal):",
+        cannibErr instanceof Error ? cannibErr.message : cannibErr,
+      );
     }
-  } catch (cannibErr) {
-    console.warn("[content-selector] Cannibalization check failed (non-fatal):", cannibErr instanceof Error ? cannibErr.message : cannibErr);
-  }
   } // end skipDedup guard
 
   // ── Slug artifact cleanup ──────────────────────────────────────────────
@@ -1253,19 +1712,80 @@ export async function promoteToBlogPost(
         select: { id: true },
       });
       if (cleanCollision) {
-        // Use human-readable suffix (-v2, -v3) — NOT hex bytes which re-trigger the artifact detector
+        // Same-topic check (Jaccard ≥ 0.7) before falling back to -v2/-v3.
+        // Prevents the -v2/-v3/-vXXXX cannibalization pattern by rejecting
+        // duplicate drafts of an existing published article.
+        const existingPost = await prisma.blogPost.findFirst({
+          where: { slug: cleanedSlug, deletedAt: null },
+          select: { id: true, title_en: true, published: true },
+        });
+        if (existingPost) {
+          const norm = (t: string) =>
+            t
+              .toLowerCase()
+              .replace(/\b20\d{2}\b/g, "")
+              .replace(/\bv\d+\b/gi, "")
+              .replace(/[^a-z0-9\s]/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+          const setA = new Set(
+            norm(enTitle || "")
+              .split(/\s+/)
+              .filter(Boolean),
+          );
+          const setB = new Set(
+            norm(existingPost.title_en || "")
+              .split(/\s+/)
+              .filter(Boolean),
+          );
+          let intersection = 0;
+          for (const w of setA) if (setB.has(w)) intersection++;
+          const union = setA.size + setB.size - intersection;
+          const sim = union === 0 ? 0 : intersection / union;
+          if (sim >= 0.7 && existingPost.published) {
+            console.warn(
+              `[content-selector] Cleaned-slug same-topic duplicate (Jaccard ${(sim * 100).toFixed(0)}%) — rejecting "${enTitle}" → "${cleanedSlug}" (#${existingPost.id})`,
+            );
+            await prisma.articleDraft
+              .update({
+                where: { id: draft.id as string },
+                data: {
+                  current_phase: "rejected",
+                  last_error: `DUPLICATE_OF_EXISTING:${existingPost.id}:${cleanedSlug}`,
+                },
+              })
+              .catch((err) =>
+                console.warn("[content-selector] reject failed:", err instanceof Error ? err.message : err),
+              );
+            return null;
+          }
+        }
+        // Different topic that happens to slug-collide — legitimate -v2 path.
         for (let v = 2; v <= 10; v++) {
           const candidate = `${cleanedSlug}-v${v}`;
-          const vc = await prisma.blogPost.findFirst({ where: { slug: candidate, deletedAt: null }, select: { id: true } });
-          if (!vc) { slug = candidate; break; }
+          const vc = await prisma.blogPost.findFirst({
+            where: { slug: candidate, deletedAt: null },
+            select: { id: true },
+          });
+          if (!vc) {
+            slug = candidate;
+            break;
+          }
           if (v === 10) slug = `${cleanedSlug}-v${Date.now().toString(36).slice(-4)}`;
         }
-        console.log(`[content-selector] Cleaned slug collided — using "${slug}"`);
+        console.log(`[content-selector] Cleaned slug collided (different topic) — using "${slug}"`);
       }
     } else {
-      console.warn(`[content-selector] Slug artifact detected but cleaning produced invalid slug: "${slug}" → "${cleanedSlug}". Skipping.`);
+      console.warn(
+        `[content-selector] Slug artifact detected but cleaning produced invalid slug: "${slug}" → "${cleanedSlug}". Skipping.`,
+      );
       // Revert from "promoting" back to "reservoir" so the draft isn't orphaned
-      await prisma.articleDraft.update({ where: { id: draft.id as string }, data: { current_phase: "reservoir", last_error: `Slug artifact detected: ${slug}` } }).catch(err => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
+      await prisma.articleDraft
+        .update({
+          where: { id: draft.id as string },
+          data: { current_phase: "reservoir", last_error: `Slug artifact detected: ${slug}` },
+        })
+        .catch((err) => console.warn("[select-runner] revert failed:", err instanceof Error ? err.message : err));
       return null;
     }
   }
@@ -1353,27 +1873,29 @@ export async function promoteToBlogPost(
       if (excerpt.length < 130 && !excerpt.endsWith(".")) excerpt += ".";
       if (excerpt.length < 130) excerpt += " Read our complete guide.";
       enMetaDesc = sanitizeMetaDescription(excerpt);
-      console.log(`[content-selector] Auto-generated meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
+      console.log(
+        `[content-selector] Auto-generated meta description for draft ${draft.id} (${enMetaDesc.length} chars)`,
+      );
     } else {
       // Last resort: template-based CTA description using the keyword
       const kw = keyword.replace(/-/g, " ");
       enMetaDesc = sanitizeMetaDescription(
-        `Discover ${kw}. Your expert guide with insider tips, local recommendations, and everything you need to plan your visit.`
+        `Discover ${kw}. Your expert guide with insider tips, local recommendations, and everything you need to plan your visit.`,
       );
       console.log(`[content-selector] Template meta description for draft ${draft.id} (${enMetaDesc.length} chars)`);
     }
   }
   const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
   const schemaType = (outline.schemaType as string) || "";
-  const pageType = schemaType === "FAQPage" ? "faq"
-    : schemaType === "HowTo" || schemaType === "Guide" ? "guide"
-    : "blog"; // default to blog for standard articles
+  const pageType =
+    schemaType === "FAQPage" ? "faq" : schemaType === "HowTo" || schemaType === "Guide" ? "guide" : "blog"; // default to blog for standard articles
 
   const enImages = (enDraft?.images_data || {}) as Record<string, unknown>;
   const arImages = (arDraft?.images_data || {}) as Record<string, unknown>;
-  const featuredImage = ((enImages.featured as Record<string, unknown>)?.url as string)
-    || ((arImages.featured as Record<string, unknown>)?.url as string)
-    || null;
+  const featuredImage =
+    ((enImages.featured as Record<string, unknown>)?.url as string) ||
+    ((arImages.featured as Record<string, unknown>)?.url as string) ||
+    null;
 
   const cleanedEnTitle = sanitizeTitle(cleanTitle(enTitle || keyword));
   const cleanedArTitle = arTitle; // Arabic doesn't use title case
@@ -1391,7 +1913,9 @@ export async function promoteToBlogPost(
   if (options?.skipGate) {
     // Even on admin force-publish, guard against truly empty titles
     if (!cleanedEnTitle || cleanedEnTitle.length < 3) {
-      console.warn(`[content-selector] Admin force-publish BLOCKED — cleanedEnTitle is empty or too short: "${cleanedEnTitle}"`);
+      console.warn(
+        `[content-selector] Admin force-publish BLOCKED — cleanedEnTitle is empty or too short: "${cleanedEnTitle}"`,
+      );
       return null;
     }
     console.log(`[content-selector] Pre-pub gate SKIPPED for draft ${draft.id} (admin override)`);
@@ -1411,9 +1935,10 @@ export async function promoteToBlogPost(
           content_ar: arHtml,
           locale,
           tags: keywords.slice(0, 5),
-          seo_score: (draft.seo_score != null || draft.quality_score != null)
-            ? Math.round((draft.seo_score as number) ?? (draft.quality_score as number) ?? 50)
-            : undefined, // Pass undefined when no score exists — gate skips SEO score check (line 280: seo_score !== undefined)
+          seo_score:
+            draft.seo_score != null || draft.quality_score != null
+              ? Math.round((draft.seo_score as number) ?? (draft.quality_score as number) ?? 50)
+              : undefined, // Pass undefined when no score exists — gate skips SEO score check (line 280: seo_score !== undefined)
           author_id: "system", // System-generated content always has author
           keywords_json: keywords,
         },
@@ -1439,27 +1964,35 @@ export async function promoteToBlogPost(
         const GATE_REJECTION_THRESHOLD = 5; // Permanently reject after 5 gate-blocked attempts (Rule #114)
         if (currentAttempts + 1 >= GATE_REJECTION_THRESHOLD) {
           // Permanently reject — this draft will never pass the gate (e.g., permanently under word count)
-          console.warn(`[content-selector] REJECTING draft ${draft.id} after ${currentAttempts + 1} gate failures — will never pass. Keyword: "${draft.keyword}", blockers: ${gateResult.blockers.join("; ")}`);
-          await prisma.articleDraft.update({
-            where: { id: draft.id as string },
-            data: {
-              current_phase: "rejected",
-              phase_attempts: currentAttempts + 1,
-              last_error: `PERMANENTLY REJECTED after ${currentAttempts + 1} gate failures: ${gateResult.blockers.join("; ")}`,
-              updated_at: new Date(),
-            },
-          }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+          console.warn(
+            `[content-selector] REJECTING draft ${draft.id} after ${currentAttempts + 1} gate failures — will never pass. Keyword: "${draft.keyword}", blockers: ${gateResult.blockers.join("; ")}`,
+          );
+          await prisma.articleDraft
+            .update({
+              where: { id: draft.id as string },
+              data: {
+                current_phase: "rejected",
+                phase_attempts: currentAttempts + 1,
+                last_error: `PERMANENTLY REJECTED after ${currentAttempts + 1} gate failures: ${gateResult.blockers.join("; ")}`,
+                updated_at: new Date(),
+              },
+            })
+            .catch((err) =>
+              console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err),
+            );
           return null;
         }
-        await prisma.articleDraft.update({
-          where: { id: draft.id as string },
-          data: {
-            current_phase: "reservoir",
-            phase_attempts: currentAttempts + 1,
-            last_error: `Pre-pub gate blocked (attempt ${currentAttempts + 1}/${GATE_REJECTION_THRESHOLD}): ${gateResult.blockers.join("; ")}`,
-            updated_at: new Date(),
-          },
-        }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+        await prisma.articleDraft
+          .update({
+            where: { id: draft.id as string },
+            data: {
+              current_phase: "reservoir",
+              phase_attempts: currentAttempts + 1,
+              last_error: `Pre-pub gate blocked (attempt ${currentAttempts + 1}/${GATE_REJECTION_THRESHOLD}): ${gateResult.blockers.join("; ")}`,
+              updated_at: new Date(),
+            },
+          })
+          .catch((err) => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
         return null; // Skip this draft — do not publish
       }
 
@@ -1472,17 +2005,17 @@ export async function promoteToBlogPost(
     } catch (gateErr) {
       // Fail CLOSED — if the gate itself errors, do NOT publish
       const gateErrMsg = gateErr instanceof Error ? gateErr.message : String(gateErr);
-      console.warn(
-        `[content-selector] Pre-pub gate ERROR for draft ${draft.id} — blocking publication: ${gateErrMsg}`,
-      );
-      await prisma.articleDraft.update({
-        where: { id: draft.id as string },
-        data: {
-          current_phase: "reservoir",
-          last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
-          updated_at: new Date(),
-        },
-      }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+      console.warn(`[content-selector] Pre-pub gate ERROR for draft ${draft.id} — blocking publication: ${gateErrMsg}`);
+      await prisma.articleDraft
+        .update({
+          where: { id: draft.id as string },
+          data: {
+            current_phase: "reservoir",
+            last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
+            updated_at: new Date(),
+          },
+        })
+        .catch((err) => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
       return null; // Fail closed — don't publish without gate verification
     }
   }
@@ -1504,11 +2037,16 @@ export async function promoteToBlogPost(
       });
       if (enResult.hasAffiliateContent) {
         enHtml = enResult.html;
-        console.log(`[content-selector] Injected ${enResult.injectedLinks.length} CJ affiliate links (EN) into draft ${draft.id}`);
+        console.log(
+          `[content-selector] Injected ${enResult.injectedLinks.length} CJ affiliate links (EN) into draft ${draft.id}`,
+        );
       }
     }
   } catch (affErr) {
-    console.warn(`[content-selector] CJ affiliate injection failed (non-blocking):`, affErr instanceof Error ? affErr.message : affErr);
+    console.warn(
+      `[content-selector] CJ affiliate injection failed (non-blocking):`,
+      affErr instanceof Error ? affErr.message : affErr,
+    );
   }
 
   // Create BlogPost + update draft in a Prisma transaction to prevent orphans.
@@ -1546,7 +2084,7 @@ export async function promoteToBlogPost(
       ];
       // Keep "missing-arabic" and "missing-english" tags — content-auto-fix uses them
       // to identify articles needing Arabic/English backfill. Only filter internal pipeline tags.
-      return allTags.filter(t => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-"));
+      return allTags.filter((t) => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-"));
     })(),
     published: true,
     featured_image: featuredImage,
@@ -1554,11 +2092,12 @@ export async function promoteToBlogPost(
     category_id: category.id,
     author_id: systemUser.id,
     page_type: pageType,
-    seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
+    seo_score: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 70),
     keywords_json: keywords,
-    questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
+    questions_json:
+      ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
     source_pipeline: "8-phase",
-    trace_id: (draft as Record<string, unknown>).trace_id as string || undefined,
+    trace_id: ((draft as Record<string, unknown>).trace_id as string) || undefined,
   };
 
   // Retry on slug collision (P2002 unique constraint).
@@ -1570,31 +2109,38 @@ export async function promoteToBlogPost(
       // Timeout raised from default 5s to 30s — BlogPost creation + 2 draft updates
       // can take 20s+ during Supabase pool contention (cold starts, concurrent crons).
       // Error: "Transaction already closed: timeout was 5000 ms, however 21980 ms passed"
-      const txResult = await prisma.$transaction(async (tx: typeof prisma) => {
-        const bp = await tx.blogPost.create({ data: { ...blogPostData, slug } });
-        await tx.articleDraft.update({
-          where: { id: draft.id as string },
-          data: { ...publishData, blog_post_id: bp.id },
-        });
-        if (pairedDraft) {
-          // No .catch() here — let errors propagate to roll back the entire transaction
-          // (Rule #146: paired draft update inside $transaction must NOT swallow errors)
+      const txResult = await prisma.$transaction(
+        async (tx: typeof prisma) => {
+          const bp = await tx.blogPost.create({ data: { ...blogPostData, slug } });
           await tx.articleDraft.update({
-            where: { id: pairedDraft.id as string },
+            where: { id: draft.id as string },
             data: { ...publishData, blog_post_id: bp.id },
           });
-        }
-        return bp;
-      }, { timeout: 30000 });
+          if (pairedDraft) {
+            // No .catch() here — let errors propagate to roll back the entire transaction
+            // (Rule #146: paired draft update inside $transaction must NOT swallow errors)
+            await tx.articleDraft.update({
+              where: { id: pairedDraft.id as string },
+              data: { ...publishData, blog_post_id: bp.id },
+            });
+          }
+          return bp;
+        },
+        { timeout: 30000 },
+      );
       blogPost = txResult;
       break; // success — exit retry loop
     } catch (createErr) {
-      const isP2002 = createErr instanceof Error &&
-        (createErr.message.includes("Unique constraint") || (createErr as unknown as Record<string, unknown>).code === "P2002");
+      const isP2002 =
+        createErr instanceof Error &&
+        (createErr.message.includes("Unique constraint") ||
+          (createErr as unknown as Record<string, unknown>).code === "P2002");
       if (isP2002 && slugAttempt < 2) {
-        const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
+        const randomBytes = await import("crypto").then((c) => c.randomBytes(4).toString("hex"));
         slug = `${slug.replace(/-[a-f0-9]{8}$/, "")}-${randomBytes}`;
-        console.warn(`[content-selector] Slug collision on create (attempt ${slugAttempt + 1}) — retrying with "${slug}"`);
+        console.warn(
+          `[content-selector] Slug collision on create (attempt ${slugAttempt + 1}) — retrying with "${slug}"`,
+        );
       } else {
         throw createErr;
       }
@@ -1606,7 +2152,10 @@ export async function promoteToBlogPost(
     const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
     const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
     ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch((err) => {
-      console.warn(`[select-runner] ensureUrlTracked failed for ${articleUrl}:`, err instanceof Error ? err.message : err);
+      console.warn(
+        `[select-runner] ensureUrlTracked failed for ${articleUrl}:`,
+        err instanceof Error ? err.message : err,
+      );
     });
     // Also track the Arabic variant
     ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch((err) => {
@@ -1617,64 +2166,68 @@ export async function promoteToBlogPost(
     // Articles publish without featured image; cockpit shows "Needs Photo" badge
     // Owner manually uploads real, curated, high-quality photos via dashboard
     if (!blogPost.featured_image) {
-      prisma.blogPost.update({
-        where: { id: blogPost.id },
-        data: { photo_order_status: "needs_review" },
-      }).catch((err) => {
-        console.warn(`[select-runner] photo flag failed:`, err instanceof Error ? err.message : err);
-      });
+      prisma.blogPost
+        .update({
+          where: { id: blogPost.id },
+          data: { photo_order_status: "needs_review" },
+        })
+        .catch((err) => {
+          console.warn(`[select-runner] photo flag failed:`, err instanceof Error ? err.message : err);
+        });
     }
   }
 
   // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)
   try {
-    const twitterEnabled = !!(
-      process.env.TWITTER_API_KEY ||
-      process.env.TWITTER_ACCESS_TOKEN
-    );
+    const twitterEnabled = !!(process.env.TWITTER_API_KEY || process.env.TWITTER_ACCESS_TOKEN);
     if (twitterEnabled) {
       const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
       // Site-specific hashtags
       const siteHashtag: Record<string, string> = {
-        'yalla-london': '#YallaLondon #London',
-        'arabaldives': '#Arabaldives #Maldives',
-        'french-riviera': '#YallaRiviera #CoteDazur',
-        'istanbul': '#YallaIstanbul #Istanbul',
-        'thailand': '#YallaThailand #Thailand',
-        'zenitha-yachts-med': '#ZenithaYachts #Mediterranean',
-        'worldtme': '#WTME #WorldThroughMyEyes #Travel',
-        'zenitha-luxury': '#ZenithaLuxury #LuxuryTravel',
+        "yalla-london": "#YallaLondon #London",
+        arabaldives: "#Arabaldives #Maldives",
+        "french-riviera": "#YallaRiviera #CoteDazur",
+        istanbul: "#YallaIstanbul #Istanbul",
+        thailand: "#YallaThailand #Thailand",
+        "zenitha-yachts-med": "#ZenithaYachts #Mediterranean",
+        worldtme: "#WTME #WorldThroughMyEyes #Travel",
+        "zenitha-luxury": "#ZenithaLuxury #LuxuryTravel",
       };
-      const tagSuffix = siteHashtag[siteId] || '#Zenitha';
+      const tagSuffix = siteHashtag[siteId] || "#Zenitha";
       const contentHashtags = keywords
         .slice(0, 2)
-        .map(k => '#' + k.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''))
-        .filter(h => h.length > 1)
-        .join(' ');
+        .map((k) => "#" + k.replace(/\s+/g, "").replace(/[^a-zA-Z0-9]/g, ""))
+        .filter((h) => h.length > 1)
+        .join(" ");
       // Keep tweet under 280 chars: title (max 100) + newlines + URL (~23 via t.co) + hashtags
-      const titleTruncated = enTitle.length > 100 ? enTitle.substring(0, 97) + '...' : enTitle;
-      const tweetContent = `${titleTruncated}\n\n${articleUrl}\n\n${contentHashtags} ${tagSuffix}`.trim().substring(0, 280);
+      const titleTruncated = enTitle.length > 100 ? enTitle.substring(0, 97) + "..." : enTitle;
+      const tweetContent = `${titleTruncated}\n\n${articleUrl}\n\n${contentHashtags} ${tagSuffix}`
+        .trim()
+        .substring(0, 280);
 
       await prisma.scheduledContent.create({
         data: {
           title: (enTitle || keyword).substring(0, 200),
           content: tweetContent,
-          content_type: 'twitter_post',
-          platform: 'twitter',
-          language: 'en',
-          status: 'pending',
+          content_type: "twitter_post",
+          platform: "twitter",
+          language: "en",
+          status: "pending",
           published: false,
           site_id: siteId,
           content_id: blogPost.id,
           scheduled_time: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
-          generation_source: 'content_pipeline_auto',
+          generation_source: "content_pipeline_auto",
           tags: keywords.slice(0, 5),
         },
       });
       console.log(`[content-selector] Auto-queued tweet for BlogPost ${blogPost.id} (keyword: "${keyword}")`);
     }
   } catch (tweetErr) {
-    console.warn('[content-selector] Tweet auto-queue failed (non-fatal):', tweetErr instanceof Error ? tweetErr.message : tweetErr);
+    console.warn(
+      "[content-selector] Tweet auto-queue failed (non-fatal):",
+      tweetErr instanceof Error ? tweetErr.message : tweetErr,
+    );
   }
 
   // Create SeoMeta entry
@@ -1692,11 +2245,14 @@ export async function promoteToBlogPost(
         ogTitle: enMetaTitle || arMetaTitle || keyword,
         ogDescription: enMetaDesc || arMetaDesc,
         structuredData: schemaData || undefined,
-        seoScore: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
+        seoScore: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 70),
       },
     });
   } catch (seoErr) {
-    console.warn("[content-selector] SeoMeta creation failed (non-fatal):", seoErr instanceof Error ? seoErr.message : seoErr);
+    console.warn(
+      "[content-selector] SeoMeta creation failed (non-fatal):",
+      seoErr instanceof Error ? seoErr.message : seoErr,
+    );
   }
 
   // Immediately submit to IndexNow + track in URLIndexingStatus
@@ -1707,27 +2263,43 @@ export async function promoteToBlogPost(
     const indexResult = await submitUrlImmediately(fullUrl, siteId, getSiteDomain(siteId));
     console.log(`[content-selector] Immediate indexing for ${slug}: IndexNow=${indexResult.indexNow}`);
   } catch (indexErr) {
-    console.warn("[content-selector] Immediate indexing failed (non-fatal, seo-cron will catch it):", indexErr instanceof Error ? indexErr.message : indexErr);
+    console.warn(
+      "[content-selector] Immediate indexing failed (non-fatal, seo-cron will catch it):",
+      indexErr instanceof Error ? indexErr.message : indexErr,
+    );
   }
 
   // Auto-inject affiliate links
   try {
     const contentLower = ((enHtml || "") + " " + (arHtml || "")).toLowerCase();
     const AFF_RULES = getAffiliateRules(siteId);
-    const matched = AFF_RULES.filter((r) => r.kw.some((k) => contentLower.includes(k))).map((r) => r.aff).slice(0, 3);
+    const matched = AFF_RULES.filter((r) => r.kw.some((k) => contentLower.includes(k)))
+      .map((r) => r.aff)
+      .slice(0, 3);
 
     if (matched.length > 0) {
       const partnersHtml = `\n<div class="affiliate-partners-section" style="margin-top:2rem;padding:1.5rem;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;"><h3 style="margin:0 0 1rem;color:#1f2937;">Recommended Partners</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">${matched.map((m) => `<a href="${encodeURI(m.url + m.param)}" target="_blank" rel="noopener sponsored" style="display:block;padding:1rem;background:white;border-radius:8px;border:1px solid #e5e7eb;text-decoration:none;color:inherit;"><strong style="color:#7c3aed;">${m.name}</strong></a>`).join("")}</div></div>`;
       const cleanEn = (enHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
       const cleanAr = (arHtml || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "");
-      await optimisticBlogPostUpdate(blogPost.id, (current) => ({
-        content_en: (current.content_en || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") + partnersHtml,
-        content_ar: (current.content_ar || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") + partnersHtml,
-      }), { tag: "[content-selector]" });
+      await optimisticBlogPostUpdate(
+        blogPost.id,
+        (current) => ({
+          content_en:
+            (current.content_en || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") +
+            partnersHtml,
+          content_ar:
+            (current.content_ar || "").replace(/<div class="affiliate-placeholder"[^>]*>[\s\S]*?<\/div>/gi, "") +
+            partnersHtml,
+        }),
+        { tag: "[content-selector]" },
+      );
       console.log(`[content-selector] Injected ${matched.length} affiliate partners into BlogPost ${blogPost.id}`);
     }
   } catch (affErr) {
-    console.warn("[content-selector] Affiliate injection failed (non-fatal):", affErr instanceof Error ? affErr.message : affErr);
+    console.warn(
+      "[content-selector] Affiliate injection failed (non-fatal):",
+      affErr instanceof Error ? affErr.message : affErr,
+    );
   }
 
   // ── Cluster Internal Link Injection ──
@@ -1754,25 +2326,43 @@ export async function promoteToBlogPost(
       const linksHtml = `\n<section class="cluster-related" style="margin-top:2rem;padding:1.5rem;background:linear-gradient(135deg,#f0f4ff,#fdf4ff);border-radius:12px;border:1px solid #e0e7ff;">
 <h3 style="margin:0 0 1rem;font-size:1.1rem;color:#1f2937;">More in this series</h3>
 <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.5rem;">
-${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:#4f46e5;text-decoration:none;font-weight:500;">${s.title_en}</a></li>`).join("\n")}
+${clusterSiblings.map((s) => `<li><a href="${domain}/blog/${s.slug}" style="color:#4f46e5;text-decoration:none;font-weight:500;">${s.title_en}</a></li>`).join("\n")}
 </ul></section>`;
-      const currentEn = (await prisma.blogPost.findUnique({ where: { id: blogPost.id }, select: { content_en: true } }))?.content_en || "";
+      const currentEn =
+        (await prisma.blogPost.findUnique({ where: { id: blogPost.id }, select: { content_en: true } }))?.content_en ||
+        "";
       if (!currentEn.includes('class="cluster-related"')) {
-        await optimisticBlogPostUpdate(blogPost.id, (current) => ({
-          content_en: (current.content_en || "") + linksHtml,
-        }), { tag: "[content-selector]" });
+        await optimisticBlogPostUpdate(
+          blogPost.id,
+          (current) => ({
+            content_en: (current.content_en || "") + linksHtml,
+          }),
+          { tag: "[content-selector]" },
+        );
         console.log(`[content-selector] Injected ${clusterSiblings.length} cluster links into BlogPost ${blogPost.id}`);
       }
     }
   } catch (clErr) {
-    console.warn("[content-selector] Cluster link injection failed (non-fatal):", clErr instanceof Error ? clErr.message : clErr);
+    console.warn(
+      "[content-selector] Cluster link injection failed (non-fatal):",
+      clErr instanceof Error ? clErr.message : clErr,
+    );
   }
 
   // ── Author Assignment ──
   // Replace generic "Editorial" with real author from TeamMember rotation.
   // Creates a ContentCredit record linking author → blog post.
   let authorName = `${site.name} Editorial Team`;
-  let authorProfile: { id: string; name: string; slug: string; linkedinUrl: string | null; twitterUrl: string | null; instagramUrl: string | null; websiteUrl: string | null; title: string } | null = null;
+  let authorProfile: {
+    id: string;
+    name: string;
+    slug: string;
+    linkedinUrl: string | null;
+    twitterUrl: string | null;
+    instagramUrl: string | null;
+    websiteUrl: string | null;
+    title: string;
+  } | null = null;
   try {
     const { getNextAuthor, assignAuthor } = await import("@/lib/content-pipeline/author-rotation");
     const author = await getNextAuthor(siteId);
@@ -1783,32 +2373,39 @@ ${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:
       console.log(`[content-selector] Assigned author "${author.name}" to BlogPost ${blogPost.id}`);
     }
   } catch (authErr) {
-    console.warn("[content-selector] Author assignment failed (non-fatal):", authErr instanceof Error ? authErr.message : authErr);
+    console.warn(
+      "[content-selector] Author assignment failed (non-fatal):",
+      authErr instanceof Error ? authErr.message : authErr,
+    );
   }
 
   // Auto-inject structured data
   try {
     const { enhancedSchemaInjector } = await import("@/lib/seo/enhanced-schema-injector");
     const postUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
-    await enhancedSchemaInjector.injectSchemas(
-      enHtml || arHtml,
-      enTitle || arTitle,
-      postUrl,
-      blogPost.id,
-      {
-        author: authorName,
-        category: category.name_en,
-        tags: keywords.slice(0, 5),
-        // Pass author social links for Person schema with sameAs (E-E-A-T)
-        authorProfile: authorProfile ? {
-          slug: authorProfile.slug,
-          title: authorProfile.title,
-          sameAs: [authorProfile.linkedinUrl, authorProfile.twitterUrl, authorProfile.instagramUrl, authorProfile.websiteUrl].filter(Boolean),
-        } : undefined,
-      },
-    );
+    await enhancedSchemaInjector.injectSchemas(enHtml || arHtml, enTitle || arTitle, postUrl, blogPost.id, {
+      author: authorName,
+      category: category.name_en,
+      tags: keywords.slice(0, 5),
+      // Pass author social links for Person schema with sameAs (E-E-A-T)
+      authorProfile: authorProfile
+        ? {
+            slug: authorProfile.slug,
+            title: authorProfile.title,
+            sameAs: [
+              authorProfile.linkedinUrl,
+              authorProfile.twitterUrl,
+              authorProfile.instagramUrl,
+              authorProfile.websiteUrl,
+            ].filter(Boolean),
+          }
+        : undefined,
+    });
   } catch (schemaErr) {
-    console.warn("[select-runner] Schema injection failed (non-fatal):", schemaErr instanceof Error ? schemaErr.message : schemaErr);
+    console.warn(
+      "[select-runner] Schema injection failed (non-fatal):",
+      schemaErr instanceof Error ? schemaErr.message : schemaErr,
+    );
   }
 
   // Draft status update already happened in the transaction above.
@@ -1820,7 +2417,10 @@ ${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:
         data: { status: "published" },
       });
     } catch (topicErr) {
-      console.warn(`[select-runner] Failed to update TopicProposal ${draft.topic_proposal_id}:`, topicErr instanceof Error ? topicErr.message : topicErr);
+      console.warn(
+        `[select-runner] Failed to update TopicProposal ${draft.topic_proposal_id}:`,
+        topicErr instanceof Error ? topicErr.message : topicErr,
+      );
     }
   }
 

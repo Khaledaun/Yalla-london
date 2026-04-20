@@ -163,9 +163,11 @@ type PostResult = { source: "db"; post: Record<string, any> } | { source: "stati
  * Check SeoRedirect table for 301 redirects (e.g., cannibalized articles).
  * Returns the target URL if a redirect exists, null otherwise.
  */
-async function checkRedirect(slug: string): Promise<string | null> {
+async function checkRedirect(slug: string, siteId: string): Promise<string | null> {
   try {
     const { prisma } = await import("@/lib/db");
+
+    // Strategy 1: SeoRedirect table (manually configured 301s)
     const redirect = (await withTimeout(
       prisma.seoRedirect.findUnique({
         where: { sourceUrl: `/blog/${slug}` },
@@ -176,6 +178,21 @@ async function checkRedirect(slug: string): Promise<string | null> {
     if (redirect?.enabled && redirect.targetUrl) {
       return redirect.targetUrl;
     }
+
+    // Strategy 2: Duplicate-consolidation 301 — unpublished BlogPost with
+    // canonical_slug set by the content-cleanup endpoint. Preserves SEO equity
+    // when duplicates (e.g. -v2/-v3/-hex slugs) are merged into a winner.
+    const dup = (await withTimeout(
+      prisma.blogPost.findFirst({
+        where: { slug, siteId, deletedAt: null, canonical_slug: { not: null } },
+        select: { canonical_slug: true },
+      }),
+      2000,
+    )) as { canonical_slug: string | null } | null;
+    if (dup?.canonical_slug) {
+      return `/blog/${dup.canonical_slug}`;
+    }
+
     return null;
   } catch {
     return null;
@@ -236,20 +253,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Effective locale = URL path locale OR the site's primary locale, so
   // AR-primary sites (arabaldives) render Arabic at root URLs.
   const pathLocale = headersList.get("x-locale") === "ar" ? "ar" : "en";
-  const sitePrimaryLocale = (headersList.get("x-site-locale") === "ar"
-    ? "ar"
-    : siteConfig?.locale === "ar" ? "ar" : "en") as "en" | "ar";
+  const sitePrimaryLocale = (
+    headersList.get("x-site-locale") === "ar" ? "ar" : siteConfig?.locale === "ar" ? "ar" : "en"
+  ) as "en" | "ar";
   const isArabic = pathLocale === "ar" || (pathLocale === "en" && sitePrimaryLocale === "ar");
   const locale = isArabic ? "ar" : "en";
 
   // Per-site URL structure: AR-primary sites put AR at root, EN fallback under /en/*.
   // Google requires canonical to match the URL being crawled.
-  const enUrl = sitePrimaryLocale === "ar"
-    ? `${baseUrl}/en/blog/${slug}`
-    : `${baseUrl}/blog/${slug}`;
-  const arUrl = sitePrimaryLocale === "ar"
-    ? `${baseUrl}/blog/${slug}`
-    : `${baseUrl}/ar/blog/${slug}`;
+  const enUrl = sitePrimaryLocale === "ar" ? `${baseUrl}/en/blog/${slug}` : `${baseUrl}/blog/${slug}`;
+  const arUrl = sitePrimaryLocale === "ar" ? `${baseUrl}/blog/${slug}` : `${baseUrl}/ar/blog/${slug}`;
   const canonicalUrl = isArabic ? arUrl : enUrl;
 
   const result = await findPost(slug, siteId);
@@ -336,10 +349,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
-      languages: sitePrimaryLocale === "ar"
-        // AR-primary: skip en-GB — /en/blog/X does not yet exist.
-        ? { "ar-SA": arUrl, "x-default": arUrl }
-        : { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
+      languages:
+        sitePrimaryLocale === "ar"
+          ? // AR-primary: skip en-GB — /en/blog/X does not yet exist.
+            { "ar-SA": arUrl, "x-default": arUrl }
+          : { "en-GB": enUrl, "ar-SA": arUrl, "x-default": enUrl },
     },
     openGraph: {
       title,
@@ -713,8 +727,8 @@ export default async function BlogPostPage({ params }: Props) {
   const result = await findPost(slug, siteId);
 
   if (!result) {
-    // Check for 301 redirect (cannibalized/merged articles)
-    const redirectTarget = await checkRedirect(slug);
+    // Check for 301 redirect (cannibalized/merged articles + duplicate-consolidation)
+    const redirectTarget = await checkRedirect(slug, siteId);
     if (redirectTarget) {
       const { redirect } = await import("next/navigation");
       redirect(redirectTarget);

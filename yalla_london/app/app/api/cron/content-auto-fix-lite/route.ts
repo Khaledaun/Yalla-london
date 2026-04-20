@@ -58,7 +58,11 @@ async function handleAutoFixLite(request: NextRequest) {
 
   const { prisma } = await import("@/lib/db");
   // Eagerly connect — prevents cold-start "Engine is not yet connected" crashes
-  try { await prisma.$connect(); } catch { /* already connected */ }
+  try {
+    await prisma.$connect();
+  } catch {
+    /* already connected */
+  }
   const { getActiveSiteIds } = await import("@/config/sites");
   const activeSiteIds = getActiveSiteIds();
 
@@ -70,6 +74,7 @@ async function handleAutoFixLite(request: NextRequest) {
     metaTrimmedPosts: 0,
     metaTrimmedDrafts: 0,
     titleArtifactsCleaned: 0,
+    duplicatesUnpublished: 0,
     errors: [] as string[],
   };
 
@@ -82,23 +87,27 @@ async function handleAutoFixLite(request: NextRequest) {
     // drafting (6-10 sections × 15min per section = 1.5-2.5h per article).
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
-    const stuckDrafts = await withPoolRetry(async () => prisma.articleDraft.findMany({
-      where: {
-        site_id: { in: activeSiteIds },
-        current_phase: {
-          in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
-        },
-        OR: [
-          // Drafting phase: only stuck if no update for 4+ hours
-          // (6-10 sections × 15min per section = 1.5-2.5h per article, plus queue time)
-          { current_phase: "drafting", updated_at: { lt: fourHoursAgo } },
-          // All other phases: stuck after 2 hours (matches sweeper threshold)
-          { current_phase: { not: "drafting" }, updated_at: { lt: twoHoursAgo } },
-        ],
-      },
-      select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
-      take: 20,
-    }), "stuck-recovery") as Array<{ id: string; current_phase: string; keyword: string; phase_attempts: number }>;
+    const stuckDrafts = (await withPoolRetry(
+      async () =>
+        prisma.articleDraft.findMany({
+          where: {
+            site_id: { in: activeSiteIds },
+            current_phase: {
+              in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+            },
+            OR: [
+              // Drafting phase: only stuck if no update for 4+ hours
+              // (6-10 sections × 15min per section = 1.5-2.5h per article, plus queue time)
+              { current_phase: "drafting", updated_at: { lt: fourHoursAgo } },
+              // All other phases: stuck after 2 hours (matches sweeper threshold)
+              { current_phase: { not: "drafting" }, updated_at: { lt: twoHoursAgo } },
+            ],
+          },
+          select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
+          take: 20,
+        }),
+      "stuck-recovery",
+    )) as Array<{ id: string; current_phase: string; keyword: string; phase_attempts: number }>;
 
     for (const draft of stuckDrafts) {
       if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
@@ -136,16 +145,20 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 2. HEADING HIERARCHY FIX ───────────────────────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 3_000 && isEnhancementOwner("content-auto-fix-lite", "heading_hierarchy")) {
     try {
-      const recentPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          published: true,
-          deletedAt: null,
-        },
-        select: { id: true, slug: true, content_en: true, content_ar: true },
-        take: 50,
-        orderBy: { created_at: "desc" },
-      }), "heading-fix") as Array<{ id: string; slug: string; content_en: string; content_ar: string }>;
+      const recentPosts = (await withPoolRetry(
+        async () =>
+          prisma.blogPost.findMany({
+            where: {
+              siteId: { in: activeSiteIds },
+              published: true,
+              deletedAt: null,
+            },
+            select: { id: true, slug: true, content_en: true, content_ar: true },
+            take: 50,
+            orderBy: { created_at: "desc" },
+          }),
+        "heading-fix",
+      )) as Array<{ id: string; slug: string; content_en: string; content_ar: string }>;
 
       for (const post of recentPosts) {
         if (!post.content_en || post.content_en.trim().length === 0) continue;
@@ -172,10 +185,19 @@ async function handleAutoFixLite(request: NextRequest) {
           const updateData: Record<string, unknown> = {};
           if (h1InEn) updateData.content_en = htmlEn;
           if (h1InAr) updateData.content_ar = htmlAr;
-          await optimisticBlogPostUpdate(post.id, (current) => ({
-            ...updateData,
-            enhancement_log: buildEnhancementLogEntry(current.enhancement_log, "heading_hierarchy", "content-auto-fix-lite", `Demoted ${(h1InEn ? 1 : 0) + (h1InAr ? 1 : 0)} H1(s) to H2 in ${[h1InEn && "EN", h1InAr && "AR"].filter(Boolean).join("+")}`),
-          }), { tag: "[content-auto-fix-lite]" });
+          await optimisticBlogPostUpdate(
+            post.id,
+            (current) => ({
+              ...updateData,
+              enhancement_log: buildEnhancementLogEntry(
+                current.enhancement_log,
+                "heading_hierarchy",
+                "content-auto-fix-lite",
+                `Demoted ${(h1InEn ? 1 : 0) + (h1InAr ? 1 : 0)} H1(s) to H2 in ${[h1InEn && "EN", h1InAr && "AR"].filter(Boolean).join("+")}`,
+              ),
+            }),
+            { tag: "[content-auto-fix-lite]" },
+          );
           results.headingsFixed++;
         }
       }
@@ -193,20 +215,21 @@ async function handleAutoFixLite(request: NextRequest) {
     try {
       // Find posts whose content starts with markdown heading (# ) or has
       // no HTML tags at all — these are markdown, not HTML
-      const markdownPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          published: true,
-          deletedAt: null,
-          OR: [
-            { content_en: { startsWith: "# " } },
-            { content_en: { startsWith: "## " } },
-          ],
-        },
-        select: { id: true, slug: true, content_en: true, content_ar: true },
-        take: 20,
-        orderBy: { created_at: "desc" },
-      }), "markdown-fix") as Array<{ id: string; slug: string; content_en: string; content_ar: string }>;
+      const markdownPosts = (await withPoolRetry(
+        async () =>
+          prisma.blogPost.findMany({
+            where: {
+              siteId: { in: activeSiteIds },
+              published: true,
+              deletedAt: null,
+              OR: [{ content_en: { startsWith: "# " } }, { content_en: { startsWith: "## " } }],
+            },
+            select: { id: true, slug: true, content_en: true, content_ar: true },
+            take: 20,
+            orderBy: { created_at: "desc" },
+          }),
+        "markdown-fix",
+      )) as Array<{ id: string; slug: string; content_en: string; content_ar: string }>;
 
       const convertMarkdown = (text: string): string => {
         if (!text) return text;
@@ -241,7 +264,7 @@ async function handleAutoFixLite(request: NextRequest) {
           if (arConverted !== post.content_ar) updateData.content_ar = arConverted;
         }
         if (Object.keys(updateData).length > 0) {
-          await optimisticBlogPostUpdate(post.id, () => (updateData), { tag: "[content-auto-fix-lite]" });
+          await optimisticBlogPostUpdate(post.id, () => updateData, { tag: "[content-auto-fix-lite]" });
           results.markdownConverted++;
           console.log(`[auto-fix-lite] Converted markdown → HTML for: ${post.slug}`);
         }
@@ -269,7 +292,9 @@ async function handleAutoFixLite(request: NextRequest) {
         if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
 
-        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_en: trimmed }), { tag: "[content-auto-fix-lite]" });
+        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_en: trimmed }), {
+          tag: "[content-auto-fix-lite]",
+        });
         results.metaTrimmedPosts++;
       }
     } catch (err) {
@@ -295,7 +320,9 @@ async function handleAutoFixLite(request: NextRequest) {
         if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
         trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
 
-        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_ar: trimmed }), { tag: "[content-auto-fix-lite]" });
+        await optimisticBlogPostUpdate(post.id, () => ({ meta_description_ar: trimmed }), {
+          tag: "[content-auto-fix-lite]",
+        });
         results.metaTrimmedPosts++;
       }
     } catch (err) {
@@ -308,15 +335,19 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 5. META DESCRIPTION TRIM — ArticleDrafts ──────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      const draftsWithMeta = await withPoolRetry(async () => prisma.articleDraft.findMany({
-        where: {
-          site_id: { in: activeSiteIds },
-          current_phase: { in: ["reservoir", "published"] },
-          seo_meta: { not: null },
-        },
-        select: { id: true, seo_meta: true },
-        take: 20,
-      }), "meta-trim-drafts") as Array<{ id: string; seo_meta: Record<string, unknown> | null }>;
+      const draftsWithMeta = (await withPoolRetry(
+        async () =>
+          prisma.articleDraft.findMany({
+            where: {
+              site_id: { in: activeSiteIds },
+              current_phase: { in: ["reservoir", "published"] },
+              seo_meta: { not: null },
+            },
+            select: { id: true, seo_meta: true },
+            take: 20,
+          }),
+        "meta-trim-drafts",
+      )) as Array<{ id: string; seo_meta: Record<string, unknown> | null }>;
 
       for (const draft of draftsWithMeta) {
         if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
@@ -349,23 +380,28 @@ async function handleAutoFixLite(request: NextRequest) {
   // ── 6. TITLE & META ARTIFACT CLEANUP ──────────────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
-      const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } = await import("@/lib/content-pipeline/title-sanitizer");
+      const { sanitizeTitle, sanitizeMetaDescription, hasTitleArtifacts } =
+        await import("@/lib/content-pipeline/title-sanitizer");
 
       // Scan recent posts for title artifacts
-      const postsToCheck = await withPoolRetry(async () => prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          title_en: true,
-          meta_title_en: true,
-          meta_description_en: true,
-        },
-        take: 50,
-        orderBy: { updated_at: "desc" },
-      }), "title-artifact-cleanup") as Array<{ id: string; title_en: string; meta_title_en: string | null; meta_description_en: string | null }>;
+      const postsToCheck = (await withPoolRetry(
+        async () =>
+          prisma.blogPost.findMany({
+            where: {
+              siteId: { in: activeSiteIds },
+              deletedAt: null,
+            },
+            select: {
+              id: true,
+              title_en: true,
+              meta_title_en: true,
+              meta_description_en: true,
+            },
+            take: 50,
+            orderBy: { updated_at: "desc" },
+          }),
+        "title-artifact-cleanup",
+      )) as Array<{ id: string; title_en: string; meta_title_en: string | null; meta_description_en: string | null }>;
 
       for (const post of postsToCheck) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
@@ -397,7 +433,7 @@ async function handleAutoFixLite(request: NextRequest) {
         }
 
         if (Object.keys(updates).length > 0) {
-          await optimisticBlogPostUpdate(post.id, () => (updates), { tag: "[content-auto-fix-lite]" });
+          await optimisticBlogPostUpdate(post.id, () => updates, { tag: "[content-auto-fix-lite]" });
           results.titleArtifactsCleaned++;
         }
       }
@@ -414,15 +450,19 @@ async function handleAutoFixLite(request: NextRequest) {
   let garbageTitlesRejected = 0;
   if (Date.now() - cronStart < BUDGET_MS - 8_000) {
     try {
-      const garbageDrafts = await withPoolRetry(async () => prisma.articleDraft.findMany({
-        where: {
-          current_phase: "reservoir",
-          keyword: { startsWith: "Top Alternatives:" },
-          site_id: { in: activeSiteIds },
-        },
-        select: { id: true, keyword: true },
-        take: 50,
-      }), "garbage-title-find") as Array<{ id: string; keyword: string }>;
+      const garbageDrafts = (await withPoolRetry(
+        async () =>
+          prisma.articleDraft.findMany({
+            where: {
+              current_phase: "reservoir",
+              keyword: { startsWith: "Top Alternatives:" },
+              site_id: { in: activeSiteIds },
+            },
+            select: { id: true, keyword: true },
+            take: 50,
+          }),
+        "garbage-title-find",
+      )) as Array<{ id: string; keyword: string }>;
 
       for (const draft of garbageDrafts) {
         if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
@@ -455,16 +495,20 @@ async function handleAutoFixLite(request: NextRequest) {
     try {
       const { getSiteDomain } = await import("@/config/sites");
       // Find ALL published blog posts
-      const untrackedPosts = await withPoolRetry(async () => prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          published: true,
-          deletedAt: null,
-        },
-        select: { slug: true, siteId: true },
-        take: 2000, // Raised from 500 to cover ALL published posts (was missing oldest 64+)
-        orderBy: { created_at: "desc" },
-      }), "never-submitted-catchup") as Array<{ slug: string; siteId: string }>;
+      const untrackedPosts = (await withPoolRetry(
+        async () =>
+          prisma.blogPost.findMany({
+            where: {
+              siteId: { in: activeSiteIds },
+              published: true,
+              deletedAt: null,
+            },
+            select: { slug: true, siteId: true },
+            take: 2000, // Raised from 500 to cover ALL published posts (was missing oldest 64+)
+            orderBy: { created_at: "desc" },
+          }),
+        "never-submitted-catchup",
+      )) as Array<{ slug: string; siteId: string }>;
 
       // Build all URLs for blog posts
       const postUrls: Array<{ url: string; siteId: string; slug: string }> = untrackedPosts.map((post) => {
@@ -474,15 +518,19 @@ async function handleAutoFixLite(request: NextRequest) {
 
       // Also check news items (were previously missing from never-submitted scan)
       try {
-        const newsItems = await withPoolRetry(async () => prisma.newsItem.findMany({
-          where: {
-            siteId: { in: activeSiteIds },
-            published: true,
-          },
-          select: { slug: true, siteId: true },
-          take: 100,
-          orderBy: { created_at: "desc" },
-        }), "never-submitted-news") as Array<{ slug: string; siteId: string }>;
+        const newsItems = (await withPoolRetry(
+          async () =>
+            prisma.newsItem.findMany({
+              where: {
+                siteId: { in: activeSiteIds },
+                published: true,
+              },
+              select: { slug: true, siteId: true },
+              take: 100,
+              orderBy: { created_at: "desc" },
+            }),
+          "never-submitted-news",
+        )) as Array<{ slug: string; siteId: string }>;
 
         for (const news of newsItems) {
           const domain = getSiteDomain(news.siteId);
@@ -509,10 +557,14 @@ async function handleAutoFixLite(request: NextRequest) {
       }
 
       // Batch-check which URLs are already tracked (1 query instead of N)
-      const existingUrls = await withPoolRetry(async () => prisma.uRLIndexingStatus.findMany({
-        where: { url: { in: postUrls.map((p) => p.url) } },
-        select: { url: true },
-      }), "never-submitted-existing-check") as Array<{ url: string }>;
+      const existingUrls = (await withPoolRetry(
+        async () =>
+          prisma.uRLIndexingStatus.findMany({
+            where: { url: { in: postUrls.map((p) => p.url) } },
+            select: { url: true },
+          }),
+        "never-submitted-existing-check",
+      )) as Array<{ url: string }>;
 
       const trackedSet = new Set<string>(existingUrls.map((e) => e.url));
       const untracked = postUrls.filter((p) => !trackedSet.has(p.url));
@@ -526,7 +578,9 @@ async function handleAutoFixLite(request: NextRequest) {
         neverSubmittedFixed++;
       }
       if (neverSubmittedFixed > 0) {
-        console.log(`[auto-fix-lite] Tracked ${neverSubmittedFixed} previously untracked URLs (${untracked.length} total untracked found)`);
+        console.log(
+          `[auto-fix-lite] Tracked ${neverSubmittedFixed} previously untracked URLs (${untracked.length} total untracked found)`,
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -580,7 +634,9 @@ async function handleAutoFixLite(request: NextRequest) {
     if (apiLogsDeleted.count > 0) {
       console.log(`[content-auto-fix-lite] Cleaned ${apiLogsDeleted.count} ApiUsageLog entries older than 7 days`);
     }
-  } catch (e) { console.warn("[content-auto-fix-lite] ApiUsageLog cleanup failed:", e instanceof Error ? e.message : e); }
+  } catch (e) {
+    console.warn("[content-auto-fix-lite] ApiUsageLog cleanup failed:", e instanceof Error ? e.message : e);
+  }
 
   // ── Section 11: AutoFixLog cleanup (14-day retention) ──
   try {
@@ -591,7 +647,9 @@ async function handleAutoFixLite(request: NextRequest) {
     if (autoFixDeleted.count > 0) {
       console.log(`[content-auto-fix-lite] Cleaned ${autoFixDeleted.count} AutoFixLog entries older than 14 days`);
     }
-  } catch (e) { console.warn("[content-auto-fix-lite] AutoFixLog cleanup failed:", e instanceof Error ? e.message : e); }
+  } catch (e) {
+    console.warn("[content-auto-fix-lite] AutoFixLog cleanup failed:", e instanceof Error ? e.message : e);
+  }
 
   // ── Section 12: Rejected ArticleDraft cleanup (14-day retention) ──
   try {
@@ -605,7 +663,9 @@ async function handleAutoFixLite(request: NextRequest) {
     if (rejectedDeleted.count > 0) {
       console.log(`[content-auto-fix-lite] Cleaned ${rejectedDeleted.count} rejected ArticleDrafts older than 14 days`);
     }
-  } catch (e) { console.warn("[content-auto-fix-lite] Rejected draft cleanup failed:", e instanceof Error ? e.message : e); }
+  } catch (e) {
+    console.warn("[content-auto-fix-lite] Rejected draft cleanup failed:", e instanceof Error ? e.message : e);
+  }
 
   // ── Section 13: Photo Order Fulfillment — DISABLED ─────────────────
   // Policy: No auto-assigned stock photos. Owner manually curates real HQ photos.
@@ -669,24 +729,32 @@ async function handleAutoFixLite(request: NextRequest) {
   if (Date.now() - cronStart < BUDGET_MS - 8_000) {
     try {
       // Find posts with Booking.com/GetYourGuide/StubHub affiliate blocks where env vars are empty
-      const unapprovedPartners = ["Booking.com", "GetYourGuide", "StubHub", "Agoda", "OpenTable", "TheFork", "Blacklane"];
+      const unapprovedPartners = [
+        "Booking.com",
+        "GetYourGuide",
+        "StubHub",
+        "Agoda",
+        "OpenTable",
+        "TheFork",
+        "Blacklane",
+      ];
       const envVarMap: Record<string, string> = {
         "Booking.com": process.env.BOOKING_AFFILIATE_ID || "",
-        "GetYourGuide": process.env.GETYOURGUIDE_AFFILIATE_ID || "",
-        "StubHub": process.env.STUBHUB_AFFILIATE_ID || "",
-        "Agoda": process.env.AGODA_AFFILIATE_ID || "",
-        "OpenTable": process.env.OPENTABLE_AFFILIATE_ID || "",
-        "TheFork": process.env.THEFORK_AFFILIATE_ID || "",
-        "Blacklane": process.env.BLACKLANE_AFFILIATE_ID || "",
+        GetYourGuide: process.env.GETYOURGUIDE_AFFILIATE_ID || "",
+        StubHub: process.env.STUBHUB_AFFILIATE_ID || "",
+        Agoda: process.env.AGODA_AFFILIATE_ID || "",
+        OpenTable: process.env.OPENTABLE_AFFILIATE_ID || "",
+        TheFork: process.env.THEFORK_AFFILIATE_ID || "",
+        Blacklane: process.env.BLACKLANE_AFFILIATE_ID || "",
       };
-      const unapproved = unapprovedPartners.filter(p => !envVarMap[p]);
+      const unapproved = unapprovedPartners.filter((p) => !envVarMap[p]);
 
       if (unapproved.length > 0) {
         const postsWithBadPartners = await prisma.blogPost.findMany({
           where: {
             published: true,
             siteId: { in: activeSiteIds },
-            OR: unapproved.map(p => ({ content_en: { contains: `data-affiliate-partner="${p}"` } })),
+            OR: unapproved.map((p) => ({ content_en: { contains: `data-affiliate-partner="${p}"` } })),
           },
           select: { id: true, content_en: true },
           take: 10,
@@ -698,7 +766,10 @@ async function handleAutoFixLite(request: NextRequest) {
           let changed = false;
           for (const partner of unapproved) {
             // Remove individual CTA blocks for unapproved partners
-            const ctaRegex = new RegExp(`<div class="affiliate-recommendation"[^>]*data-affiliate="${partner}"[^>]*>[\\s\\S]*?</div>`, "gi");
+            const ctaRegex = new RegExp(
+              `<div class="affiliate-recommendation"[^>]*data-affiliate="${partner}"[^>]*>[\\s\\S]*?</div>`,
+              "gi",
+            );
             if (ctaRegex.test(content)) {
               content = content.replace(ctaRegex, "");
               changed = true;
@@ -711,7 +782,8 @@ async function handleAutoFixLite(request: NextRequest) {
             }
           }
           // If Recommended Partners section is now empty, remove it entirely
-          const emptySection = /<div class="affiliate-partners-section"[^>]*>[\s\S]*?<div[^>]*>[\s]*<\/div>[\s]*<\/div>/gi;
+          const emptySection =
+            /<div class="affiliate-partners-section"[^>]*>[\s\S]*?<div[^>]*>[\s]*<\/div>[\s]*<\/div>/gi;
           if (emptySection.test(content)) {
             content = content.replace(emptySection, "");
             changed = true;
@@ -727,14 +799,82 @@ async function handleAutoFixLite(request: NextRequest) {
     }
   }
 
+  // ── Section 16: Duplicate slug consolidation ─────────────────────────
+  // Auto-merges -v2/-v3/-vXXXX/-[hex] slug variants into the canonical winner.
+  // Sets BlogPost.canonical_slug on losers so the blog page can issue 301
+  // redirects (preserves accumulated SEO equity instead of returning 404).
+  // Runs every 4h via this cron — Khaled doesn't have to touch anything.
+  if (Date.now() - cronStart < BUDGET_MS - 8_000) {
+    try {
+      const SLUG_ARTIFACT_PATTERN = /-v\d{1,3}$|-v[a-z0-9]{4}$|-[0-9a-f]{4,}$|-\d+-chars$/i;
+      const normalizeSlug = (slug: string) =>
+        slug
+          .replace(SLUG_ARTIFACT_PATTERN, "")
+          .replace(/-20\d{2}(-\d{2}(-\d{2})?)?/g, "")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "");
+
+      for (const sid of activeSiteIds) {
+        if (Date.now() - cronStart > BUDGET_MS - 5_000) break;
+        const posts = await prisma.blogPost.findMany({
+          where: { siteId: sid, deletedAt: null, published: true },
+          select: { id: true, slug: true, seo_score: true, content_en: true, created_at: true },
+          orderBy: { created_at: "asc" },
+          take: 500,
+        });
+        const groups = new Map<string, typeof posts>();
+        for (const p of posts) {
+          const norm = normalizeSlug(p.slug);
+          if (!groups.has(norm)) groups.set(norm, []);
+          groups.get(norm)!.push(p);
+        }
+        for (const [, group] of groups) {
+          if (group.length < 2) continue;
+          const sorted = [...group].sort((a, b) => {
+            if ((a.seo_score || 0) !== (b.seo_score || 0)) return (b.seo_score || 0) - (a.seo_score || 0);
+            const aw = a.content_en.replace(/<[^>]*>/g, "").split(/\s+/).length;
+            const bw = b.content_en.replace(/<[^>]*>/g, "").split(/\s+/).length;
+            if (aw !== bw) return bw - aw;
+            return a.created_at.getTime() - b.created_at.getTime();
+          });
+          const winner = sorted[0];
+          for (let i = 1; i < sorted.length; i++) {
+            if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+            await prisma.blogPost.update({
+              where: { id: sorted[i].id },
+              data: { published: false, canonical_slug: winner.slug },
+            });
+            results.duplicatesUnpublished++;
+          }
+        }
+      }
+    } catch (e) {
+      results.errors.push(`duplicate-consolidation: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.stuckUnstuck + results.stuckRejected + results.headingsFixed + results.metaTrimmedPosts + results.metaTrimmedDrafts + results.titleArtifactsCleaned + garbageTitlesRejected + neverSubmittedFixed + photoOrdersFulfilled + badImagesFixed + affiliateBlocksCleaned;
+  const totalFixed =
+    results.stuckUnstuck +
+    results.stuckRejected +
+    results.headingsFixed +
+    results.metaTrimmedPosts +
+    results.metaTrimmedDrafts +
+    results.titleArtifactsCleaned +
+    garbageTitlesRejected +
+    neverSubmittedFixed +
+    photoOrdersFulfilled +
+    badImagesFixed +
+    affiliateBlocksCleaned +
+    results.duplicatesUnpublished;
   const hasErrors = results.errors.length > 0;
 
   if (hasErrors && totalFixed === 0) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    await onCronFailure({ jobName: "content-auto-fix-lite", error: results.errors.join("; ") }).catch(err => console.warn("[auto-fix-lite] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+    await onCronFailure({ jobName: "content-auto-fix-lite", error: results.errors.join("; ") }).catch((err) =>
+      console.warn("[auto-fix-lite] onCronFailure hook failed:", err instanceof Error ? err.message : err),
+    );
   }
 
   await logCronExecution("content-auto-fix-lite", hasErrors && totalFixed === 0 ? "failed" : "completed", {
@@ -742,9 +882,19 @@ async function handleAutoFixLite(request: NextRequest) {
     itemsProcessed: totalFixed,
     itemsSucceeded: totalFixed,
     resultSummary: results,
-  }).catch(err => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
+  }).catch((err) => console.warn("[auto-fix-lite] logCronExecution failed:", err instanceof Error ? err.message : err));
 
-  return NextResponse.json({ success: true, durationMs, sitemapUrlCount, neverSubmittedFixed, cronLogsDeleted, photoOrdersFulfilled, badImagesFixed, affiliateBlocksCleaned, ...results });
+  return NextResponse.json({
+    success: true,
+    durationMs,
+    sitemapUrlCount,
+    neverSubmittedFixed,
+    cronLogsDeleted,
+    photoOrdersFulfilled,
+    badImagesFixed,
+    affiliateBlocksCleaned,
+    ...results,
+  });
 }
 
 export async function GET(request: NextRequest) {

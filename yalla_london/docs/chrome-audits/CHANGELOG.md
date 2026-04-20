@@ -1,5 +1,33 @@
 # Chrome Bridge CHANGELOG
 
+## 2026-04-20.18 — Sitewide audit response + meta cleanup tool
+
+**First audit cycle complete.** Report `cmo7o396r0000l204khl2b9dl` (sitewide/critical, 5 findings, 6 actions) processed end-to-end: uploaded → viewer → Apply Fix → CLI pick-up → fixes committed.
+
+**Fixes from audit findings:**
+- **Finding #1 (meta pollution):** new `POST /api/admin/fix-redirected-meta` endpoint strips `[REDIRECTED to /target-slug]` prefix from BlogPost meta fields. Dry-run mode via `?dryRun=1`. Auth: requireAdminOrCron.
+- **Finding #2 (affiliate coverage):** confirmed existing `affiliate-injection` cron already handles 16 brands × 6 sites, including Booking.com + GetYourGuide. When a CJ advertiser becomes JOINED, cron auto-wraps body mentions on next run. No code change needed; Khaled needs to apply on CJ dashboard.
+- **Finding #4 (three 500 endpoints):** already fixed earlier this session (`d0dbb0d` + `fd21720`):
+  - `/gsc/coverage-summary`: removed invalid Prisma orderBy, sort client-side
+  - `/overview` + `/page/[id]`: graceful fallback when ChromeAuditReport table missing (table was missing in prod until migration ran mid-session)
+- **Finding #6 (playbook traffic floor):** documented in Revenue + Monetization pillar — `/revenue` classifier needs ≥200 organic clicks/month; below that, use affiliate family endpoints instead.
+
+**Findings not auto-fixed (defer to human):**
+- **#1b (redirect decisions):** per-page judgment needed which slug is canonical
+- **#2a (CJ applications):** manual in CJ dashboard (priority: Booking.com UK, GetYourGuide, Agoda UK, Hotels.com UK, IHG)
+- **#3 (29 not_indexed rewrites):** content work, per-article rewriting with E-E-A-T signals
+- **#5 (Excellence Collection $0 EPC):** data hygiene — one-click DB edit or verify attribution
+
+**To mark report fixed:**
+```
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
+  https://www.yalla-london.com/api/admin/chrome-audits \
+  -d '{"reportId":"cmo7o396r0000l204khl2b9dl","action":"mark_fixed"}'
+```
+Or tap "Mark Fixed" on the viewer card at `/admin/chrome-audits`.
+
+---
+
 All changes to the Claude Chrome Bridge capabilities, versioned.
 
 Format: `version` (ISO date + increment). Claude Chrome checks `bridgeVersion`

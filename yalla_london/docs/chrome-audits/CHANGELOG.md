@@ -7,6 +7,25 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.4 — Audit memory
+
+**Added:**
+- `GET /api/admin/chrome-bridge/history?siteId=X&pageUrl=X&auditType=T&limit=N`
+  Returns chronological ChromeAuditReport history. When `pageUrl` is provided
+  and ≥2 reports exist, also computes a `delta` between the two most recent:
+  - `resolved` — findings in the previous report but NOT in the latest
+  - `recurring` — findings present in both (same pillar + normalized issue)
+  - `newFindings` — findings only in the latest
+- Normalization strips numeric values before matching so "CTR 0.8%" and
+  "CTR 1.2%" count as the same recurring finding.
+- Response also includes `statusCounts`, `severityCounts`, `fixRate`.
+
+**Why:** Closes the learning loop. Claude Chrome can now see whether a
+past audit's fix actually worked, or whether the same issue keeps
+returning (indicating a structural problem, not a per-audit fix).
+
+---
+
 ## 2026-04-20.3 — Revenue attribution
 
 **Added:**

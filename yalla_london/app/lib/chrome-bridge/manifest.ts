@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.3";
+export const BRIDGE_VERSION = "2026-04-20.4";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -130,6 +130,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     status: "stable",
   },
   {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/history",
+    kind: "read",
+    summary: "Audit memory — chronological ChromeAuditReport history for a URL or site-wide, with delta between the two most recent reports (resolved / recurring / new findings)",
+    inputs: { siteId: "required if no pageUrl", pageUrl: "exact URL", auditType: "optional filter", limit: "max 100" },
+    outputs: "{ timeline, delta: { resolved[], recurring[], newFindings[] }, statusCounts, severityCounts, fixRate }",
+    addedIn: "2026-04-20.4",
+    status: "stable",
+  },
+  {
     method: "POST",
     path: "/api/admin/chrome-bridge/report",
     kind: "write",
@@ -178,6 +188,11 @@ export function suggestNextEndpoints(justCalled: string): string[] {
       "Dead-weight pages (high traffic, $0): GET /page/[id] + propose affiliate injection",
       "Unmonetized pages: trigger affiliate-injection cron via /admin",
       "Top earners: protect them — audit for title/meta optimization only, no invasive rewrites",
+    ],
+    "history": [
+      "Check `delta.recurring` — findings that keep returning. Escalate severity.",
+      "Check `delta.resolved` — celebrate wins AND verify they stayed fixed (fetch GSC 30d).",
+      "High fix rate + recurring findings = the applied fix didn't actually work. Audit deeper.",
     ],
     "action-logs": [
       "POST /triage with clustered findings + proposed fixes",

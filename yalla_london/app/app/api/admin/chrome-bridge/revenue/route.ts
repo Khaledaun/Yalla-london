@@ -38,12 +38,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       parseInt(request.nextUrl.searchParams.get("limit") || "50", 10),
       200,
     );
+    // Age gate (days) — exclude articles younger than ageMin. Default 0
+    // (scan all). Useful on low-traffic sites where recent pages dominate
+    // and fall into "fresh" classification, masking real affiliate issues
+    // in the aging tail. Recommended: ageMin=14 to skip fresh bucket.
+    const ageMin = Math.max(
+      parseInt(request.nextUrl.searchParams.get("ageMin") || "0", 10),
+      0,
+    );
+    // Sort — "newest" (default) | "oldest" | "impressions" (GSC-heaviest first)
+    const sort = request.nextUrl.searchParams.get("sort") || "newest";
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const domain = getSiteDomain(siteId);
 
+    const blogPostWhere: Record<string, unknown> = { published: true, siteId };
+    if (ageMin > 0) {
+      const cutoff = new Date(Date.now() - ageMin * 24 * 60 * 60 * 1000);
+      blogPostWhere.created_at = { lte: cutoff };
+    }
+
+    const orderBy =
+      sort === "oldest"
+        ? ({ created_at: "asc" } as const)
+        : ({ created_at: "desc" } as const);
+
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, siteId },
-      orderBy: { created_at: "desc" },
+      where: blogPostWhere,
+      orderBy,
       take: limit,
       select: {
         id: true,

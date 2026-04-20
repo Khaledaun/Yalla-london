@@ -14,7 +14,7 @@ export const PLAYBOOK_VERSION = "2026-04-20";
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
 
 export interface EndpointManifest {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
   kind: EndpointKind;
   summary: string;

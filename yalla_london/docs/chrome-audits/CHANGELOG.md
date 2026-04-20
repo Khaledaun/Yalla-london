@@ -7,6 +7,41 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.13 — A/B testing infrastructure (Phase 7.2)
+
+**Added:**
+- New Prisma model `AbTest` + migration `20260420_add_ab_test`:
+  Fields for variantA/B (JSON), trafficSplit, primaryMetric (click|conversion|
+  scroll_depth|engagement), per-variant counters (impressions/clicks/conversions),
+  status (active|paused|concluded|archived), winner, confidence, reportId
+  (link back to ChromeAuditReport that proposed the test).
+- `lib/chrome-bridge/ab-test-stats.ts` — z-test for two-proportion difference.
+  Standard normal CDF via Abramowitz & Stegun approximation. Returns lift,
+  z-score, p-value, confidence, winner ("A"|"B"|"tie"|"inconclusive"),
+  sampleSufficient flag (min 100 impressions per arm).
+- `GET /ab-test?siteId=X&status=active` — list with live stats
+- `POST /ab-test` — register new test (Zod-validated). Blocks duplicate active
+  tests on same URL+variantType. content_section requires targetSelector.
+- `GET /ab-test/[id]` — detail + live stats
+- `POST /ab-test/[id]` body `{ action: "conclude" }` — computes winner at 95%
+  confidence threshold, sets status=concluded, returns recommendation.
+- `PATCH /ab-test/[id]` — pause/resume/notes/manual-winner override
+- `POST /ab-test/track` — **public tracking beacon** (no auth) called from
+  frontend with `{ testId, variant, event }`. Atomic Prisma increment.
+  Rate-limited to 1 hit/minute/IP/event-type to prevent counter inflation.
+
+**Variant types:**
+- `title`, `meta_description` — limited SEO value (bots see default)
+- `affiliate_cta` — **RECOMMENDED** (direct revenue impact)
+- `hero`, `content_section` — UX-level conversion improvements
+
+**Integration hint:** POST /ab-test returns an integrationHint string —
+frontend must read cookie `ab_<testId>=A|B`, render matching variant, fire
+tracking beacon. Cookie assignment happens at the page level (not yet in
+middleware — Phase 7.2b if needed).
+
+---
+
 ## 2026-04-20.12 — DataForSEO integration (Phase 7.1)
 
 **Added:**

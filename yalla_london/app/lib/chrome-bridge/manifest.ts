@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.12";
+export const BRIDGE_VERSION = "2026-04-20.13";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -227,6 +227,55 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { keywords: "comma-separated, required", locationCode: "default 2826 UK" },
     outputs: "{ allMetrics, topByVolume, topByCpc, totalMonthlyVolume, avgCpc }",
     addedIn: "2026-04-20.12",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/ab-test",
+    kind: "read",
+    summary: "List A/B tests with per-test stats (z-test confidence, lift, winner).",
+    inputs: { siteId: "optional", status: "active|paused|concluded|archived|all", limit: "max 200" },
+    addedIn: "2026-04-20.13",
+    status: "stable",
+  },
+  {
+    method: "POST",
+    path: "/api/admin/chrome-bridge/ab-test",
+    kind: "write",
+    summary: "Register new A/B test. Variant types: title | meta_description | affiliate_cta | hero | content_section. Returns testId and integration hint.",
+    addedIn: "2026-04-20.13",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/ab-test/[id]",
+    kind: "read",
+    summary: "Single A/B test detail + live stats.",
+    addedIn: "2026-04-20.13",
+    status: "stable",
+  },
+  {
+    method: "POST",
+    path: "/api/admin/chrome-bridge/ab-test/[id]",
+    kind: "write",
+    summary: "Conclude A/B test. Body: { action: 'conclude' }. Computes winner + confidence, sets status=concluded.",
+    addedIn: "2026-04-20.13",
+    status: "stable",
+  },
+  {
+    method: "PATCH",
+    path: "/api/admin/chrome-bridge/ab-test/[id]",
+    kind: "write",
+    summary: "Update A/B test (pause/resume/notes/winner-override).",
+    addedIn: "2026-04-20.13",
+    status: "stable",
+  },
+  {
+    method: "POST",
+    path: "/api/admin/chrome-bridge/ab-test/track",
+    kind: "write",
+    summary: "Tracking beacon (no auth). Payload: { testId, variant: A|B, event: impression|click|conversion }. Rate-limited to 1 hit/min/IP/event.",
+    addedIn: "2026-04-20.13",
     status: "stable",
   },
   {

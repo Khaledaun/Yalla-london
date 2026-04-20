@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     screenshotEndpoint: false, // explicitly skipped (Claude Chrome browses pages directly)
     competitorSerp: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
     keywordResearch: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
-    abTestRegistration: false, // Phase 7.2
+    abTestRegistration: true, // Phase 7.2
     impactMeasurement: false, // Phase 7.3
     expandedGsc: false, // Phase 7.4
     expandedGa4: false, // Phase 7.5

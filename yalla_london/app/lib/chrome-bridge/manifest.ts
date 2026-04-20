@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.14";
+export const BRIDGE_VERSION = "2026-04-20.15";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -286,6 +286,36 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { reportId: "single-audit mode", siteId: "aggregate mode", days: "aggregate window max 180" },
     outputs: "{ mode, impact|impacts[], summary.verdictCounts, summary.improvementRate }",
     addedIn: "2026-04-20.14",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/gsc/inspect",
+    kind: "interpret",
+    summary: "Single-URL GSC inspection. Verdict, coverage state, canonical mismatch detection, mobile usability. Auto-generates findings for 'not indexed', 'crawled but not indexed' (quality signal), canonical mismatch.",
+    inputs: { url: "required full URL", siteId: "optional, inferred from URL if not given" },
+    outputs: "{ inspection, findings, interpretedActions }",
+    addedIn: "2026-04-20.15",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/gsc/breakdown",
+    kind: "read",
+    summary: "Multi-dimensional GSC Search Analytics. Slice by device/country/date/searchAppearance/page/query.",
+    inputs: { siteId: "required", days: "max 90", by: "device|country|date|searchAppearance|page|query", limit: "max 500" },
+    outputs: "{ summary { totalClicks, totalImpressions, overallCtr, avgPosition }, rows[] }",
+    addedIn: "2026-04-20.15",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/gsc/coverage-summary",
+    kind: "interpret",
+    summary: "Indexing coverage report derived from URLIndexingStatus DB (GSC Coverage UI is not API-accessible). Flags chronic failures (15+ attempts), deindexed pages, 'crawled but not indexed' quality signals.",
+    inputs: { siteId: "required" },
+    outputs: "{ summary { indexingRate }, statusGroups, coverageStateBuckets, chronicFailures, deindexed, findings, interpretedActions }",
+    addedIn: "2026-04-20.15",
     status: "stable",
   },
   {

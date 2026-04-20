@@ -30,7 +30,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     keywordResearch: !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD),
     abTestRegistration: true, // Phase 7.2
     impactMeasurement: true, // Phase 7.3
-    expandedGsc: false, // Phase 7.4
+    expandedGsc: true, // Phase 7.4
     expandedGa4: false, // Phase 7.5
     affiliateResearch: false, // Phase 7.6
   };

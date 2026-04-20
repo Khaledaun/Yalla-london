@@ -1,5 +1,35 @@
 # Chrome Bridge CHANGELOG
 
+## 2026-04-20.19 — Full automation: zero-manual-step audit loop
+
+**Goal: Khaled never runs a curl, taps "Mark Fixed," or triggers anything by hand.** Only unautomatable step remaining is applying to new CJ affiliate programs (third-party dashboard — Anthropic cannot log in).
+
+**Added to `content-auto-fix` cron (runs every 2h):**
+- **Section 23: `[REDIRECTED]` meta pollution cleanup.** Scans all BlogPosts for `meta_description_{en,ar}` or `meta_title_{en,ar}` starting with `[REDIRECTED to /slug]`. Strips prefix via regex. Idempotent, 50 articles/run cap. Replaces manual curl to `/fix-redirected-meta` (that endpoint stays for one-shot runs).
+- **Section 24: Auto-mark ChromeAuditReport fixed.** When a report is `status=fix_queued` and the linked AgentTask has `status=completed` and the report is 6h+ old, auto-sets `status=fixed` + `fixedAt=now`. Closes the audit loop automatically — no Mark Fixed tap needed.
+
+**New cron: `quality-recovery-runner` (weekly Sunday 07:30 UTC, maxDuration 300s):**
+- Scans each active site for ≥5 not-indexed pages (Google "Crawled - currently not indexed" quality signal).
+- Runs the same triage + plan logic as `POST /enhance-not-indexed`.
+- Auto-creates `Campaign` + `CampaignItems` targeting the worst offenders.
+- Skips sites with recent (<7d) campaigns to let prior work finish.
+- Replaces manual curl to `/enhance-not-indexed`. Fully hands-off.
+
+**Full hands-off audit→fix loop now:**
+1. Weekly Sunday: `quality-recovery-runner` checks each site, auto-creates campaigns if needed
+2. Continuous (every 30min): `campaign-executor` processes 3 items per run with AI enhancement
+3. Continuous (every 2h): `content-auto-fix` strips any new `[REDIRECTED]` pollution
+4. Continuous (every 2h): `content-auto-fix` auto-marks completed audits as fixed
+5. Continuous (every 3h): `seo-agent` resubmits improved URLs to IndexNow
+6. After 14d: `/impact` endpoint measures CTR/position/commission delta per fixed audit
+
+Chrome Bridge sessions see confirmed improvements in next audit's `delta.resolved` array without Khaled touching anything.
+
+**Remaining manual step (unautomatable):**
+- Apply to CJ programs in CJ dashboard (Booking.com UK, GetYourGuide, Agoda UK, Hotels.com UK, IHG AMER — top EPC). Once approved, existing `affiliate-injection` cron picks them up within 1h. No code change needed.
+
+---
+
 ## 2026-04-20.18 — Sitewide audit response: meta cleanup + quality-recovery campaigns
 
 **First audit cycle complete.** Report `cmo7o396r0000l204khl2b9dl` (sitewide/critical, 5 findings, 6 actions) processed end-to-end: uploaded → viewer → Apply Fix → CLI pick-up → fixes committed.

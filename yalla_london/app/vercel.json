@@ -34,6 +34,9 @@
     "app/api/cron/**/*.ts": {
       "maxDuration": 60
     },
+    "app/api/cron/quality-recovery-runner/**/*.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/content-builder/**/*.ts": {
       "maxDuration": 300
     },
@@ -187,6 +190,10 @@
     }
   ],
   "crons": [
+    {
+      "path": "/api/cron/quality-recovery-runner",
+      "schedule": "30 7 * * 0"
+    },
     {
       "path": "/api/cron/analytics",
       "schedule": "30 2 * * *"

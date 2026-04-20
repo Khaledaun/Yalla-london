@@ -11,6 +11,7 @@ import {
   extractSlugFromUrl,
   createAgentTaskForReport,
   logBridgeUpload,
+  fireCeoInboxAlertIfCritical,
 } from "@/lib/chrome-bridge/helpers";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +102,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       findingsCount: payload.findings.length,
       reportId: report.id,
       viaBridgeToken: isBridgeTokenRequest(request),
+    });
+
+    await fireCeoInboxAlertIfCritical({
+      reportId: report.id,
+      siteId: payload.siteId,
+      auditType: payload.auditType,
+      severity: highestSeverity,
+      pageUrl: payload.pageUrl,
+      findingsCount: payload.findings.length,
+      topFindingIssue: payload.findings[0]?.issue,
     });
 
     return NextResponse.json({

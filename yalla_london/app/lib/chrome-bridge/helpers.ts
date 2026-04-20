@@ -134,6 +134,60 @@ export async function logBridgeUpload(params: {
 }
 
 /**
+ * Fire a CEO Inbox alert when a critical-severity Chrome audit report is
+ * uploaded. Writes to CronJobLog with job_name="ceo-inbox" so it surfaces in
+ * the existing cockpit inbox panel without needing a new channel.
+ */
+export async function fireCeoInboxAlertIfCritical(params: {
+  reportId: string;
+  siteId: string;
+  auditType: string;
+  severity: string;
+  pageUrl: string;
+  findingsCount: number;
+  topFindingIssue?: string;
+}): Promise<void> {
+  if (params.severity !== "critical") return;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const now = new Date();
+    const summary = [
+      `Claude Chrome flagged a CRITICAL issue on ${params.siteId}.`,
+      `Page: ${params.pageUrl}`,
+      `Audit type: ${params.auditType}`,
+      `${params.findingsCount} finding${params.findingsCount === 1 ? "" : "s"}.`,
+      params.topFindingIssue ? `Top: ${params.topFindingIssue.slice(0, 180)}` : "",
+      `Review at /admin/chrome-audits?reportId=${params.reportId}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await prisma.cronJobLog.create({
+      data: {
+        site_id: params.siteId,
+        job_name: "ceo-inbox",
+        job_type: "alert",
+        status: "completed",
+        started_at: now,
+        completed_at: now,
+        duration_ms: 0,
+        result_summary: {
+          source: "chrome-bridge",
+          reportId: params.reportId,
+          severity: "critical",
+          pageUrl: params.pageUrl,
+          auditType: params.auditType,
+          summary,
+        },
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[chrome-bridge] fireCeoInboxAlertIfCritical failed:", message);
+  }
+}
+
+/**
  * Build a plain-English CEO Inbox summary for a batch of reports uploaded in
  * the last N minutes. Returns null if no recent uploads.
  */

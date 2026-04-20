@@ -7,6 +7,27 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.10 — Error log / 404 inference (Phase 6.4)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/errors?siteId=X&days=N`
+  URL errors inferred from existing DB state — no Vercel Logs API required.
+
+**3 data sources synthesized:**
+1. `indexingErrors` — URLIndexingStatus rows with status="error" or last_error set.
+   Clustered by normalized error pattern so the top failure mode surfaces.
+2. `sitemapOrphans` — URLs in GSC impressions (last N days) where the
+   inferred blog slug is NOT in the published BlogPost table. Indicates
+   legacy URLs users are hitting via Google but the content was unpublished/deleted.
+   Sorted by impressions (most-hit orphans first = biggest user-visible 404 risk).
+3. `cronFailuresWithHttpErrors` — CronJobLog entries with 404/500/502/503/504/
+   ECONNREFUSED in error_message. Signals crawler, indexer, or external fetch issues.
+
+**Why:** Lets Claude Chrome answer "what's broken from a user's perspective?"
+without needing Vercel Logs access or external uptime monitoring.
+
+---
+
 ## 2026-04-20.9 — Rejected drafts pattern mining (Phase 6.3)
 
 **Added:**

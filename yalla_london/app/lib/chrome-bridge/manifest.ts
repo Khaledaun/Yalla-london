@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.9";
+export const BRIDGE_VERSION = "2026-04-20.10";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -187,6 +187,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { siteId: "required", days: "max 90", limit: "max 500" },
     outputs: "{ summary, topErrorPatterns, localeCounts, repeatedTopicIds, recentVelocity, recent[] }",
     addedIn: "2026-04-20.9",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/errors",
+    kind: "read",
+    summary: "URL errors inferred from URLIndexingStatus + GSC orphans + CronJobLog HTTP failures. No Vercel Logs API needed.",
+    inputs: { siteId: "required", days: "max 90, default 30" },
+    outputs: "{ summary, indexingErrors, sitemapOrphans, cronFailuresWithHttpErrors }",
+    addedIn: "2026-04-20.10",
     status: "stable",
   },
   {

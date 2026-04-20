@@ -7,6 +7,43 @@ via `GET /capabilities` and re-loads PLAYBOOK.md when it changes.
 
 ---
 
+## 2026-04-20.11 — Arabic SSR compliance checker (Phase 6 complete)
+
+**Added:**
+- `GET /api/admin/chrome-bridge/arabic-ssr?siteId=X&limit=N` (batch mode)
+- `GET /api/admin/chrome-bridge/arabic-ssr?url=X` (single-URL mode)
+
+**Closes KG-032.** `/ar/` routes that render English server-side violate
+hreflang promises and prevent Arabic indexing. This endpoint detects the
+failure across a batch of pages.
+
+**5 checks per URL (all must pass):**
+1. `<html lang="ar">` present in initial HTML
+2. `<html>` or `<body>` has `dir="rtl"`
+3. Body text sample (first 3000 chars, after stripping tags/scripts/styles)
+   is ≥20% Arabic characters (Unicode blocks U+0600..U+06FF, U+0750..U+077F,
+   U+FB50..U+FDFF, U+FE70..U+FEFF)
+4. `<title>` tag contains at least one Arabic character
+5. At least one H1 or H2 contains Arabic characters
+
+**Default batch scan:**
+- `/ar/`, `/ar/about`, `/ar/contact`, `/ar/blog` (static routes)
+- N recent published BlogPosts (max 30) at `/ar/blog/<slug>`
+
+Parallel fetch (6 concurrent, 10s timeout each). Custom
+Accept-Language: ar,en;q=0.5 in case middleware relies on it. Follows
+redirects. HTTP errors surfaced in `fetchErrors` category.
+
+**Why:** Manual verification of KG-032 was impossible for non-technical
+audit. Now Claude Chrome runs `GET /arabic-ssr?siteId=yalla-london` and
+sees exactly which pages serve English despite the /ar/ URL.
+
+**Phase 6 complete.** 5 audit-depth endpoints shipped:
+schema (6.1), broken-links (6.2), rejected-drafts (6.3), errors (6.4),
+arabic-ssr (6.5).
+
+---
+
 ## 2026-04-20.10 — Error log / 404 inference (Phase 6.4)
 
 **Added:**

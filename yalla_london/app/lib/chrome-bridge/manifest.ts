@@ -8,7 +8,7 @@
 
 import type { NextResponse as _NR } from "next/server";
 
-export const BRIDGE_VERSION = "2026-04-20.10";
+export const BRIDGE_VERSION = "2026-04-20.11";
 export const PLAYBOOK_VERSION = "2026-04-20";
 
 export type EndpointKind = "read" | "write" | "interpret" | "meta";
@@ -197,6 +197,16 @@ export const ENDPOINTS: EndpointManifest[] = [
     inputs: { siteId: "required", days: "max 90, default 30" },
     outputs: "{ summary, indexingErrors, sitemapOrphans, cronFailuresWithHttpErrors }",
     addedIn: "2026-04-20.10",
+    status: "stable",
+  },
+  {
+    method: "GET",
+    path: "/api/admin/chrome-bridge/arabic-ssr",
+    kind: "interpret",
+    summary: "Verifies /ar/ routes render Arabic server-side (closes KG-032). Checks html lang=ar, dir=rtl, body Arabic char ratio ≥20%, title + H1/H2 contain Arabic.",
+    inputs: { siteId: "required OR url for single-URL mode", limit: "max 30 pages" },
+    outputs: "{ summary { complianceRate }, results[], findings, interpretedActions }",
+    addedIn: "2026-04-20.11",
     status: "stable",
   },
   {

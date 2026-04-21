@@ -54,6 +54,7 @@ const EXPECTED_TABLES: TableDef[] = [
       { name: "seo_score", type: "INTEGER", nullable: true },
       { name: "og_image_id", type: "TEXT", nullable: true },
       { name: "place_id", type: "TEXT", nullable: true },
+      { name: "canonical_slug", type: "TEXT", nullable: true },
     ],
     indexes: [
       'CREATE INDEX IF NOT EXISTS "BlogPost_siteId_idx" ON "BlogPost"("siteId")',
@@ -62,6 +63,7 @@ const EXPECTED_TABLES: TableDef[] = [
       'CREATE INDEX IF NOT EXISTS "BlogPost_page_type_idx" ON "BlogPost"("page_type")',
       'CREATE INDEX IF NOT EXISTS "BlogPost_seo_score_idx" ON "BlogPost"("seo_score")',
       'CREATE INDEX IF NOT EXISTS "BlogPost_place_id_idx" ON "BlogPost"("place_id")',
+      'CREATE INDEX IF NOT EXISTS "BlogPost_canonical_slug_idx" ON "BlogPost"("canonical_slug")',
     ],
   },
   // ── ScheduledContent ────────────────────────────

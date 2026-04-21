@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
+import { markBrowserInternal } from '@/lib/analytics/is-internal-traffic'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
@@ -138,6 +139,8 @@ export default function AdminLogin() {
       }
 
       setSuccess('Signed in! Redirecting...')
+      // Mark this browser as internal so GA4 skips it on the public site too
+      markBrowserInternal()
       window.location.href = '/admin'
     } catch (err) {
       setIsLoading(false)
@@ -177,6 +180,7 @@ export default function AdminLogin() {
       })
 
       if (loginRes.ok) {
+        markBrowserInternal()
         window.location.href = '/admin'
         return
       }
